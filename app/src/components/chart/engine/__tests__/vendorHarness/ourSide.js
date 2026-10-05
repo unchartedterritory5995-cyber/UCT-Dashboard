@@ -864,21 +864,59 @@ export function runOurSide(capture) {
     // (asked whenever the script records a paint at all, so a grade whose paints the
     // door folded to `na` still says which history it stands on)
     const recordsPaints = (def.paints || []).length > 0 || runtimeAwarePaints(built, def).length > 0
-    const paintSupply = recordsPaints ? warmBarsSupply(capture) : null
-    if (paintSupply) notes.push(`paints: ${paintSupply.kind}: ${paintSupply.reason}`)
-    const warm = !!(paintSupply && paintSupply.kind === 'warm' && (def.paints || []).length > 0)
-    const pre = warm ? paintSupply.bars : 0
-    const paintBars = warm
+    let paintSupply = recordsPaints ? warmBarsSupply(capture) : null
+    let warm = !!(paintSupply && paintSupply.kind === 'warm' && (def.paints || []).length > 0)
+    let pre = warm ? paintSupply.bars : 0
+    let paintBars = warm
       ? toProductBars({ ...capture, bars: { ...capture.bars, rows: paintSupply.rows.concat(capture.bars.rows) } })
       : bars
     // ⭐ the warm replay's own context: the listing flag comes from the SUPPLIER
-    const paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
-    const paintColsRaw = warm ? registry.computeFor(def, paintBars, undefined, paintCtx) : cols
+    let paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
+    let paintColsRaw = warm ? registry.computeFor(def, paintBars, undefined, paintCtx) : cols
+    // ⭐⭐ W17R — A WARM REPLAY THAT STOPS IS NAMED, NEVER READ AS "NOTHING PAINTED".
+    // The replay is the harness's device for TradingView's history; it runs the
+    // engine over MORE bars than the window (wyckoff SPY: 6,677 + 1,800), and a run
+    // can stop on that length by name (`runtime:limit`, a run-wide ceiling) where the
+    // window's own run does not. Before W17R the stop was dropped (`colErrors` read
+    // the WINDOW's columns only) and the paint graded `notDrawn` with no reason —
+    // 0 bars painted, no error. Now: a paint the window's run colours and the warm
+    // run does not refuses the supplier BY NAME (the warm run's own sentence) and
+    // the paints fall back to the cold replay, labelled — RC1's rule for a supplier
+    // that cannot be used (its warm-up region is then graded apart, never agreeing).
+    if (warm) {
+      const coldCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
+      const warmCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
+      const lost = (def.paints || []).filter((p) => paintColoursFor(p, 'harness', coldCols, bars.length)
+        && !paintColoursFor(p, 'harness', warmCols, paintBars.length))
+      if (lost.length) {
+        const errs = Object.values((registry.columnErrors && registry.columnErrors(paintColsRaw)) || {})
+        const why = errs.length
+          ? errs.map((e) => `${e.guard || 'refused'}: ${String(e.message || '').slice(0, 300)}`).join(' | ')
+          : 'the warm run computed no column for it, and named no reason'
+        const stop = `the warm replay over ${paintBars.length} bars (${paintSupply.file}) coloured none of ${lost.length} paint(s) `
+          + `the window's own run colours: it stopped (${why})`
+        paintSupply = { kind: 'cold', rows: null, file: null, bars: 0, historyFromListing: null,
+          refused: [...(paintSupply.refused || []), `${paintSupply.file}: ${stop}`],
+          reason: `${stop}; cold replay` }
+        warm = false
+        pre = 0
+        paintBars = bars
+        paintCtx = ctx
+        paintColsRaw = cols
+      }
+    }
+    if (paintSupply) notes.push(`paints: ${paintSupply.kind}: ${paintSupply.reason}`)
     const paintCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
+    // ⭐ W17R — a paint the run coloured nothing for carries the run's own named
+    // stop(s), so a `notDrawn` grade says WHY (`paintColours.gradePaints`).
+    const paintRunErrors = Object.values((registry.columnErrors && registry.columnErrors(paintColsRaw)) || {})
     const paints = (def.paints || []).map((p) => {
       const all = paintColoursFor(p, 'harness', paintCols, paintBars.length)
       return { kind: p.kind, line: p.line ?? null, title: p.title ?? null,
-        colors: Array.isArray(all) ? all.slice(pre) : all }
+        colors: Array.isArray(all) ? all.slice(pre) : all,
+        ...(all ? {} : { reason: paintRunErrors.length
+          ? paintRunErrors.map((e) => `${e.guard || 'refused'}: ${String(e.message || '').slice(0, 300)}`).join(' | ')
+          : null }) }
     })
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
