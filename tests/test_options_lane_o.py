@@ -291,6 +291,10 @@ def _reader():
 @pytest.fixture
 def tape(monkeypatch):
     mt.clear_cache()
+    # The fixture tape is the 2026-10-02 session: the clock is pinned inside it (L3's rule
+    # tides TODAY once today's session has opened).
+    import datetime as _d
+    monkeypatch.setattr(mt, "_now", lambda: _d.datetime(2026, 10, 2, 12, 6, tzinfo=mt._ET))
     r = _reader()
     monkeypatch.setattr(mt, "_read", r)
     yield r
