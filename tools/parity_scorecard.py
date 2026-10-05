@@ -3486,10 +3486,10 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'P', 'P'), [code(NS, 4120, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+    R('G-001', ('P', 'P', 'P'), [code(NS, 4131, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
       {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 18, 'Restore'), code(NS, 3474, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 18, 'Restore'), code(NS, 3485, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
@@ -3516,7 +3516,7 @@ def build(pages_dir=None):
       'Obsidian\'s File recovery core plugin states the same protective intent (automatic snapshots), PARITY as '
       'named even though the mechanism (periodic snapshot vs. per-keystroke localStorage) differs (R20). ' + UI_NOT)
     # Search / Retrieval
-    R('G-010', 'P', [code(NS, 1481, 'exact_ticker'), walk9('B20_more_older_rows')],
+    R('G-010', 'P', [code(NS, 1492, 'exact_ticker'), walk9('B20_more_older_rows')],
       {'N': ['N_searchfilter'], 'E': ['E_search'], 'O': ['O_search']},
       'B20: a sidebar search returned the target with highlighted matches.')
     R('G-011', 'NV', [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
@@ -3527,13 +3527,13 @@ def build(pages_dir=None):
       'quiet-box verdict waits on the controller\'s quiet slot (§C); competitor latency is not this file\'s to state.')
     R('G-012', 'NA', [code(f'{NB}/FolderSidebar.jsx', 620, 'P0-2 fix')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT correctness bug row.')
-    R('G-013', ('P', 'P', 'P'), [code(NS, 1523, 'date_from'), walk9('B20_more_older_rows')],
+    R('G-013', ('P', 'P', 'P'), [code(NS, 1534, 'date_from'), walk9('B20_more_older_rows')],
       {'N': ['N_datefilter'], 'E': ['E_datefilter'], 'O': ['O_filterstmt', 'O_datearith']},
       'B20: the filter panel carries "Note created from". Obsidian: a Bases filter is a statement over a note, and its own '
       'date-arithmetic example selects files modified within the last week' + R18 + '.')
-    R('G-014', ('NV', 'P', 'P'), [code(NS, 1696, 'def _snippets_for('), walk9('B20_more_older_rows')],
+    R('G-014', ('NV', 'P', 'P'), [code(NS, 1707, 'def _snippets_for('), walk9('B20_more_older_rows')],
       {'N': NFN, 'E': ['E_snippet'], 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
-    R('G-015', ('P', 'NV', 'A'), [code(NS, 1854, 'relevance ranking is opt-in')],
+    R('G-015', ('P', 'NV', 'A'), [code(NS, 1865, 'relevance ranking is opt-in')],
       {'N': ['N_relevance'], 'E': ['E_meaning'], 'O': ['O_sortlist1', 'O_sortlist2']},
       'Ranking is a server behaviour (the search box asks for sort=relevance). Obsidian AHEAD by controller ruling (12C '
       'phase 2): its search page lists every result sort order it offers -- file name, modified time, created time -- '
@@ -3541,13 +3541,13 @@ def build(pages_dir=None):
       'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
       'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
       '(G-017, G-127).')
-    R('G-016', 'NA', [code(NS, 3046, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-016', 'NA', [code(NS, 3057, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
       {'N': NFN, 'E': ['E_semantic'], 'O': NFO},
       'Built, dark until the embedding vendor confirms zero retention in writing (D7).', 'ZDR in writing (owner, external)')
-    R('G-018', 'NA', [code(NS, 1481, 'exact_ticker')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT correctness bug row.')
+    R('G-018', 'NA', [code(NS, 1492, 'exact_ticker')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT correctness bug row.')
     # Organization
     R('G-020', 'P', [code(NS, 51, 'MAX_FOLDER_DEPTH = 6'), walk9('B21_folders_nested')],
       {'N': ['N_subpage'], 'E': ['E_mention'], 'O': ['O_folder']},
@@ -3558,13 +3558,13 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'P', 'P'), [code(NS, 2728, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'P', 'P'), [code(NS, 2739, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': ['E_backlinks'], 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions). PARITY is backlinks as '
       'Notion and Evernote name them; only Obsidian also documents a graph.')
-    R('G-023', ('P', 'P', 'P'), [code(NS, 3187, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+    R('G-023', ('P', 'P', 'P'), [code(NS, 3198, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'P', 'P'), [code(NS, 4394, 'j2_note_recents'), walk9('B20_more_older_rows')],
+    R('G-024', ('P', 'P', 'P'), [code(NS, 4405, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': ['E_recents'], 'O': ['O_recents']},
       'B20: the sidebar carries Recents. Evernote lists recent notes in its search view; Obsidian\'s Quick switcher lists '
       'them on an empty search' + R18 + '.')
@@ -3584,7 +3584,7 @@ def build(pages_dir=None):
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 129, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
-    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 37, "label: 'New Note'"), walk9('B08_quick_switcher')],
+    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 39, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
     R('G-032', ('P', 'P', 'P'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
       {'N': ['N_find'], 'E': ['E_find'], 'O': ['O_findinnote']},
@@ -3749,7 +3749,7 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'P', 'P'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
+    R('G-110', ('P', 'P', 'P'), [code(f'{NB}/ResearchHome.jsx', 507, 'Continue working'), walk9('B17_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_tabsrestore'], 'O': ['O_recents']},
       'B17: the research home shows Continue working. Obsidian\'s Quick switcher states an MRU recents surface when '
       'the search term is empty (R20) -- a flat recents list, not the synthesized Continue working/Active theses '
@@ -3758,7 +3758,7 @@ def build(pages_dir=None):
       'when the app reopens -- a resumption surface in the same modest sense, desktop only.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 34, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 36, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -3939,7 +3939,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4445, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4448, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3955,7 +3955,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1453, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1447, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -4014,7 +4014,7 @@ def build(pages_dir=None):
       'exploring the app risk-free (R20) -- the same "try it without touching your real notes" role as a sample '
       'notebook, though it is not a scripted, in-app first-run tour the way UCT\'s eight-step walkthrough is; '
       'PARITY as named.')
-    R('G-172', ('P', 'P', 'P'), [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
+    R('G-172', ('P', 'P', 'P'), [code('app/src/pages/Support.jsx', 526, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
       {'N': ['N_help'], 'E': ['E_help'], 'O': ['O_help']},
       'Every Notion and Obsidian page cited here is itself a help article; Evernote\'s help centre answered R18\'s fetch '
       '(2026-10-02) where it refused R15\'s.')
@@ -4145,8 +4145,8 @@ def build(pages_dir=None):
          'CURRENT-NO-OP now. Sandbox CLEAN at all four checkpoints in both runs. The clause reads literally "no '
          'dead clicks"; the full 39/39 measured cell now reads exactly that', None),
         ('no known data-loss path', 'MET',
-         [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 752, 'NO door is a loss'),
-          code(f'{JT}/notes.py', 858, 'MAX_BODY_DEPTH = 97'), test_f3('tests/test_notes_cas_is_atomic.py'),
+         [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 770, 'NO door is a loss'),
+          code(f'{JT}/notes.py', 869, 'MAX_BODY_DEPTH = 97'), test_f3('tests/test_notes_cas_is_atomic.py'),
           record(f'{W10C}/f5-results-run3-tag-applied.md', 30, 'unsettled 409s: **0** · conflicted copies: **0**')],
          '10C\'s write-door census classifies every derived door loss / fork / none and fails on any loss: none '
          'today; the T-12 409 is a benign compare-and-set that settles (0 unsettled, 0 conflicted copies, the '
@@ -4590,7 +4590,7 @@ def build(pages_dir=None):
     C[16] = [
         ('a new member reaches a first useful note in < 2 minutes unaided', NMO,
          [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
-        ('help centre articles', 'MET', [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')], '', None),
+        ('help centre articles', 'MET', [code('app/src/pages/Support.jsx', 526, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')], '', None),
         ('sample notebook', 'MET', [flag('NOTEBOOK_ONBOARDING_ENABLED', 'armed'), walk9('B14_onboarding_help')], '', None),
         ('member templates', 'MET', [walk9('B11_organise')], '', None),
     ]
