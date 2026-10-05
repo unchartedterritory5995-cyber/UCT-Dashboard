@@ -10,6 +10,7 @@ import {
   FLAG_FALLBACKS, __resetNotebookFlags, latchNotebookFlags, notebookFlag,
 } from '../../../lib/offline/notebookFlags'
 
+const SW_ON = Object.freeze({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
 const tourFlags = [...new Set(OTHER_TOURS.map((t) => t.flag))]
 const offerIds = (args) => offerableTours({ tours: OTHER_TOURS, ...args }).map((t) => t.id)
 const newIds = (args) => whatsNewTours({ tours: replayableTours(), ...args }).map((t) => t.id)
@@ -34,13 +35,23 @@ describe('the real registry, through the real flag reader', () => {
     expect(pickOffer({ offerable: offerableTours({ tours: OTHER_TOURS, flagOn: notebookFlag }) })).toBeNull()
   })
 
+  it('W14-C1 ruling: every tour flag ON but the wave-14 switch off: nothing offered, nothing new', () => {
+    for (const sw of [{ notebook_onboarding_enabled: false, notebook_getting_started_enabled: true },
+      { notebook_onboarding_enabled: true, notebook_getting_started_enabled: false }]) {
+      __resetNotebookFlags()
+      latchNotebookFlags({ ...Object.fromEntries(tourFlags.map((f) => [f, true])), ...sw })
+      expect(offerIds({ flagOn: notebookFlag }), JSON.stringify(sw)).toEqual([])
+      expect(newIds({ flagOn: notebookFlag }), JSON.stringify(sw)).toEqual([])
+    }
+  })
+
   it('a payload that omits the tour flags: only the kill switch tour (task reminders, ON when unset) is offered', () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: true })
+    latchNotebookFlags({ ...SW_ON })
     expect(offerIds({ flagOn: notebookFlag })).toEqual(['task-reminders'])
   })
 
   it('every flag ON, no rows: every replayable registered tour, in registry order; never the base tour or the explainer', () => {
-    latchNotebookFlags(Object.fromEntries(tourFlags.map((f) => [f, true])))
+    latchNotebookFlags({ ...Object.fromEntries(tourFlags.map((f) => [f, true])), ...SW_ON })
     const expected = TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID && t.replayable).map((t) => t.id)
     expect(offerIds({ flagOn: notebookFlag })).toEqual(expected)
     expect(newIds({ flagOn: notebookFlag })).toEqual(expected)
@@ -50,12 +61,12 @@ describe('the real registry, through the real flag reader', () => {
   })
 
   it('one capability ON: only its tours (the chart plan has two)', () => {
-    latchNotebookFlags({ notebook_chart_plan_enabled: true, notebook_task_reminders_enabled: false })
+    latchNotebookFlags({ ...SW_ON, notebook_chart_plan_enabled: true, notebook_task_reminders_enabled: false })
     expect(offerIds({ flagOn: notebookFlag })).toEqual(['chart-plan-basics', 'chart-plan-replay'])
   })
 
   it('a seen row stops the offer; a "Not now" row (dismissed, step null) stays in What\'s new', () => {
-    latchNotebookFlags({ notebook_chart_plan_enabled: true, notebook_task_reminders_enabled: false })
+    latchNotebookFlags({ ...SW_ON, notebook_chart_plan_enabled: true, notebook_task_reminders_enabled: false })
     const rows = JSON.stringify({ 'chart-plan-basics': { v: 1, state: 'dismissed', step: null } })
     expect(offerIds({ flagOn: notebookFlag, toursPrefRaw: rows })).toEqual(['chart-plan-replay'])
     expect(newIds({ flagOn: notebookFlag, toursPrefRaw: rows })).toEqual(['chart-plan-basics', 'chart-plan-replay'])

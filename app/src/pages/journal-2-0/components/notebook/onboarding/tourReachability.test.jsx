@@ -94,7 +94,11 @@ beforeEach(() => {
   __resetNotebookFlags()
   __resetRegistryTourControl()
   installTourLayout()
-  latchNotebookFlags(Object.fromEntries([...new Set(OTHER_TOURS.map((t) => t.flag))].map((f) => [f, true])))
+  // every tour's own flag, every `requires`, and the wave-14 switch (W14-C1 ruling)
+  latchNotebookFlags({
+    ...Object.fromEntries([...new Set(OTHER_TOURS.flatMap((t) => [t.flag, ...(t.requires || [])]))].map((f) => [f, true])),
+    notebook_onboarding_enabled: true, notebook_getting_started_enabled: true,
+  })
   global.fetch = vi.fn(async (url, init = {}) => {
     const ok = (b) => ({ ok: true, status: 200, json: async () => b })
     if (url === '/api/j2/notes/import/check') {

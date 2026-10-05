@@ -83,6 +83,23 @@ MUTS = {
         "  useEffect(() => { if (shown) openRegistryTour(RESURFACE_EXPLAINER_ID) }, [shown])\n",
         "",
         [EXPL_T, REACH]),
+    # controller ruling: the wave-14 switch on every registry tour, and `requires`
+    "Mr1-wave-switch-dropped": (OE + "tourRegistry.js",
+        "  if (!checklistEnabled(flag)) return false
+",
+        "",
+        [OE + "tourEligibility.test.js", OE + "tourEligibility.realRegistry.test.js", OE + "TourOfferGate.test.jsx", OE + "tourRegistry.test.js"]),
+    "Mr2-requires-ignored": (OE + "tourRegistry.js",
+        "  return (entry.requires || []).every((f) => flag(f) === true)
+",
+        "  return true
+",
+        [OE + "tours/b3Research.test.jsx", OE + "tourRegistry.test.js", OE + "tourEligibility.test.js"]),
+    "Mr3-walkthroughs-ungated": ("app/src/pages/Support.jsx",
+        "  if (!checklistEnabled(notebookFlag)) return null
+",
+        "",
+        ["app/src/pages/Support.notebook.test.jsx"]),
     "Mf2-explainer-ignores-seen-state": (ENGINE,
         "      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current(); return }\n",
         "",

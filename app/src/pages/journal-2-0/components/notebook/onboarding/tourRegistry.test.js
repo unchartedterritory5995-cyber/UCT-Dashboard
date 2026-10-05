@@ -11,7 +11,7 @@ import { TOUR_STEP_COPY } from './tourCopy'
 import { TOUR_START_STATE } from './tourControl'
 import {
   BASE_TOUR_ID, ENTRY_FIELDS, NOTEBOOK_ROOT, OPTIONAL_FIELDS, TOUR_REGISTRY, assembleRegistry, getTourEntry, replayableTours,
-  START_ROUTES, OTHER_TOURS, startKind, startPath, startProblem, startState,
+  START_ROUTES, OTHER_TOURS, startKind, tourLive, startPath, startProblem, startState,
 } from './tourRegistry'
 import { TRACK_TOURS } from './tours'
 
@@ -40,8 +40,8 @@ describe('the registry itself', () => {
     }
   })
 
-  it('`start` is the ONLY optional field', () => {
-    expect([...OPTIONAL_FIELDS]).toEqual(['start'])
+  it('`requires` and `start` are the ONLY optional fields (W14-C1)', () => {
+    expect([...OPTIONAL_FIELDS]).toEqual(['requires', 'start'])
   })
 
   it('ids are unique', () => {
@@ -378,5 +378,37 @@ describe('`waitFor` and `sample:<key>` are declarative and railed', () => {
       .map((t) => t.start.note.slice('sample:'.length))
     expect(keys.length, 'non-vacuity: some tour starts on a sample note').toBeGreaterThan(0)
     for (const k of keys) expect(py, `sample key ${k} is never seeded`).toMatch(new RegExp(String.raw`_own_import\(\s*user_id, conn, "${k}"`))
+  })
+})
+
+// ── W14-C1 ruling: `requires`, and the one "may this tour reach the member" rule ──────
+describe('`requires` and tourLive', () => {
+  it('requires: a non-empty list of flag keys, else refused by tour name', () => {
+    for (const bad of [[], 'notebook_x', [''], ['Bad-Key'], [1]]) {
+      expect(() => assembleRegistry([tour('base')], [tour('rq', { requires: bad })]), JSON.stringify(bad)).toThrow(/"rq"\) requires must be/)
+    }
+    const reg = assembleRegistry([tour('base')], [tour('rq', { requires: ['notebook_ta_fingerprint_enabled'] })])
+    expect(Object.isFrozen(getTourEntry('rq', reg).requires)).toBe(true)
+  })
+
+  it('every real `requires` flag is a notebookFlag() key; visual-playbook needs the fingerprint panel', async () => {
+    const { FLAG_FALLBACKS } = await import('../../../lib/offline/notebookFlags')
+    for (const t of TOUR_REGISTRY) for (const f of t.requires || []) expect(Object.keys(FLAG_FALLBACKS), `${t.id} requires ${f}`).toContain(f)
+    expect(getTourEntry('visual-playbook').requires).toEqual(['notebook_ta_fingerprint_enabled'])
+  })
+
+  it('tourLive: the base tour answers on its own flag alone (as on master)', () => {
+    const base = getTourEntry(BASE_TOUR_ID)
+    expect(tourLive(base, (f) => f === 'notebook_onboarding_enabled')).toBe(true)
+    expect(tourLive(base, () => false)).toBe(false)
+  })
+
+  it('tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started', () => {
+    const vp = getTourEntry('visual-playbook')
+    const on = new Set(['notebook_visual_playbook_enabled', 'notebook_ta_fingerprint_enabled', 'notebook_onboarding_enabled', 'notebook_getting_started_enabled'])
+    const without = (k) => (f) => f !== k && on.has(f)
+    expect(tourLive(vp, (f) => on.has(f))).toBe(true)
+    for (const k of on) expect(tourLive(vp, without(k)), `without ${k}`).toBe(false)
+    expect(tourLive(null, () => true)).toBe(false)
   })
 })

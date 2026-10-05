@@ -62,6 +62,8 @@ function Page({ Gate, gate = {}, paid = true, slotChildren = null }) {
   )
 }
 
+const WAVE14_ON = Object.freeze({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
+const CHECKLIST_CLOSED = Object.freeze({ notebook_getting_started: JSON.stringify({ v: 1, state: 'dismissed' }) })
 const Gate = () => makeTourOfferGate(() => import('./TourOfferPrompt'))
 const card = (opts) => screen.findByRole('region', { name: OFFER_COPY.title('Tour A') }, { timeout: 2000, ...opts })
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
@@ -70,8 +72,11 @@ beforeEach(() => {
   __resetNotebookFlags()
   __resetRegistryTourControl()
   __resetOfferSession()
-  latchNotebookFlags({ notebook_onboarding_enabled: true, [FLAG_A]: true, [FLAG_B]: true })
-  server = { prefs: {} }
+  // W14-C1 ruling: every registry tour also needs the wave-14 switch (onboarding AND
+  // getting-started). With it on the checklist is open by default, and an open checklist
+  // holds the offer back, so these cases start from a checklist the member already closed.
+  latchNotebookFlags({ ...WAVE14_ON, [FLAG_A]: true, [FLAG_B]: true })
+  server = { prefs: { ...CHECKLIST_CLOSED } }
   installFetch()
 })
 afterEach(() => {
@@ -114,7 +119,7 @@ describe('the offer', () => {
   })
 
   it('a NEW session offers the next tour in order -- an unseen prompt never expires', async () => {
-    server.prefs = { [TOURS_PREF]: JSON.stringify({ [TOUR_A.id]: { v: 1, state: 'dismissed', step: null } }) }
+    server.prefs = { ...CHECKLIST_CLOSED, [TOURS_PREF]: JSON.stringify({ [TOUR_A.id]: { v: 1, state: 'dismissed', step: null } }) }
     const G = Gate()
     render(<Page Gate={G} />)
     expect(await screen.findByRole('region', { name: OFFER_COPY.title('Tour B') }, { timeout: 2000 })).toBeInTheDocument()
@@ -187,7 +192,7 @@ describe('it never stacks -- it waits', () => {
 
   it('nothing to offer (flags off): nothing renders and the card chunk is never fetched', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true })
+    latchNotebookFlags({ ...WAVE14_ON })
     const load = vi.fn(() => import('./TourOfferPrompt'))
     const G = makeTourOfferGate(load)
     render(<Page Gate={G} />)
@@ -203,7 +208,7 @@ describe('it never stacks -- it waits', () => {
     expect(screen.queryByRole('region')).toBeNull()
     unmount()
     registerFirstRunSlot(null)
-    server.prefs = { notebook_tour: JSON.stringify({ v: 1, state: 'done', step: null }) }
+    server.prefs = { ...CHECKLIST_CLOSED, notebook_tour: JSON.stringify({ v: 1, state: 'done', step: null }) }
     render(<Page Gate={G} gate={{ hasAnyNotes: false }} />)
     expect(await card()).toBeInTheDocument()
   })
@@ -225,6 +230,7 @@ describe('it never stacks -- it waits', () => {
   it('while the get-started checklist is open (it already lists every armed tour)', async () => {
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [FLAG_A]: true, [FLAG_B]: true })
+    server.prefs = {}                                    // the checklist has not been closed
     const G = Gate()
     const { unmount } = render(<Page Gate={G} />)
     await flush()
@@ -294,5 +300,21 @@ describe('the card stylesheet stays in flow', () => {
     expect(css).not.toMatch(/position\s*:\s*(fixed|absolute|sticky)/)
     expect(css).toMatch(/var\(--tap-min\)/)
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/)              // tokens only
+  })
+})
+
+describe('W14-C1 ruling: the wave-14 switch gates every offer', () => {
+  it.each([
+    ['onboarding off', { notebook_onboarding_enabled: false, notebook_getting_started_enabled: true }],
+    ['getting-started off', { notebook_onboarding_enabled: true, notebook_getting_started_enabled: false }],
+  ])('%s: capability flags on, nothing renders and the card chunk is never fetched', async (_n, sw) => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ ...sw, [FLAG_A]: true, [FLAG_B]: true })
+    const load = vi.fn(() => import('./TourOfferPrompt'))
+    const G = makeTourOfferGate(load)
+    render(<Page Gate={G} />)
+    await flush()
+    expect(screen.queryByRole('region')).toBeNull()
+    expect(load).not.toHaveBeenCalled()
   })
 })

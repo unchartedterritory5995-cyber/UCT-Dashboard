@@ -67,7 +67,7 @@ describe('(a) one mount, in the app shell', () => {
   })
 
   test('a real tour opens on a Journal page outside the Notebook (My Playbook), from a Replay link', async () => {
-    latchNotebookFlags({ notebook_playbook_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_playbook_enabled: true })
     const entry = getTourEntry('my-playbook')
     expect(startPath(entry)).toBe('/journal-2-0/playbook')
     const { steps, copy } = await entry.load()
@@ -85,7 +85,7 @@ describe('(a) one mount, in the app shell', () => {
   })
 
   test('CONTROL: with the capability off, the same Replay opens nothing', async () => {
-    latchNotebookFlags({ notebook_playbook_enabled: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_playbook_enabled: false })
     const entry = getTourEntry('my-playbook')
     render(
       <MemoryRouter initialEntries={[{ pathname: startPath(entry), state: startState(entry) }]}>

@@ -4,7 +4,8 @@ import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
 import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
 import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
-import { replayableTours, startPath, startState } from './journal-2-0/components/notebook/onboarding/tourRegistry'
+import { replayableTours, startPath, startState, tourLive } from './journal-2-0/components/notebook/onboarding/tourRegistry'
+import { checklistEnabled } from './journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import usePreferences from '../hooks/usePreferences'
 import { TOURS_PREF } from './journal-2-0/components/notebook/onboarding/tourSeenState'
 import { whatsNewTours } from './journal-2-0/components/notebook/onboarding/tourEligibility'
@@ -332,7 +333,10 @@ function PublishSentence() {
  *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
  *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
 function WalkthroughsSection() {
-  const live = replayableTours().filter((t) => notebookOn(t.flag))
+  // W14-C1 ruling: this section is wave 14's (W14-0); with the wave-14 switch off Help renders
+  // as before wave 14, base tour included (its own "Take the tour" link above is unchanged).
+  if (!checklistEnabled(notebookFlag)) return null
+  const live = replayableTours().filter((t) => tourLive(t, notebookFlag))
   if (!live.length) return null
   return (
     <div className={styles.faqWrap}>

@@ -114,7 +114,7 @@ describe.each(IDS)('the gate for %s', (id) => {
   const entry = TOURS.find((t) => t.id === id)
 
   it('flag off: asked for by id, nothing is fetched or shown', async () => {
-    latchNotebookFlags({ [entry.flag]: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [entry.flag]: false })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} tours={[entry]} />)
@@ -125,11 +125,26 @@ describe.each(IDS)('the gate for %s', (id) => {
   })
 
   it('flag on: the same request opens it', async () => {
-    latchNotebookFlags({ [entry.flag]: true })
+    // its own flag, every `requires` (W14-C1: visual-playbook needs the fingerprint panel), and the wave-14 switch
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [entry.flag]: true, ...Object.fromEntries((entry.requires || []).map((f) => [f, true])) })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} tours={[entry]} />)
     act(() => { openRegistryTour(id) })
     expect(await screen.findByText(`${entry.title} is open`)).toBeInTheDocument()
+  })
+})
+
+describe('W14-C1: visual-playbook `requires` the fingerprint panel', () => {
+  it('its own flag on but notebook_ta_fingerprint_enabled off: the request opens nothing', async () => {
+    const entry = TOURS.find((t) => t.id === 'visual-playbook')
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [entry.flag]: true, notebook_ta_fingerprint_enabled: false })
+    const load = engineLoader()
+    const Gate = makeRegistryToursGate(load, 0)
+    render(<Page Gate={Gate} tours={[entry]} />)
+    act(() => { openRegistryTour('visual-playbook') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(load).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

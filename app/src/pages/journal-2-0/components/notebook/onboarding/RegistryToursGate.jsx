@@ -18,7 +18,7 @@ import { useLocation } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
-import { getTourEntry } from './tourRegistry'
+import { getTourEntry, tourLive } from './tourRegistry'
 import { REGISTRY_TOUR_OPEN_EVENT, takePendingRegistryTourOpenAny } from './tourRegistryControl'
 
 /** This gate's own boundary: a failed chunk (or a throw while it renders) renders
@@ -82,7 +82,8 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     const close = useCallback(() => setWantedId(null), [])
 
     const entry = wantedId ? getTourEntry(wantedId, tours) : null
-    const allowed = Boolean(entry) && notebookFlag(entry.flag) === true
+    // tourLive: own flag, `requires`, and the wave-14 onboarding switch (tourRegistry.js)
+    const allowed = tourLive(entry, notebookFlag)
     // A request for a tour whose capability is off is dropped, not held: the slot is one
     // tour wide, so a held request would block every later one (W14-C1).
     useEffect(() => { if (wantedId && !allowed) setWantedId(null) }, [wantedId, allowed])

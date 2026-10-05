@@ -42,7 +42,7 @@
 // "What's new" still lists it: `step: null` with `dismissed` is the one row shape that
 // means "declined before ever walking a step" (the engine always records the step it was
 // on when a tour is closed from inside it).
-import { BASE_TOUR_ID } from './tourRegistry'
+import { BASE_TOUR_ID, tourLive } from './tourRegistry'
 import { readToursPref } from './tourSeenState'
 
 export const OFFER_SESSION_KEY = 'uct:notebook-tour-offer'
@@ -93,7 +93,8 @@ export function __resetOfferSession() {
 }
 
 function candidate(t, flagOn) {
-  return t && t.id !== BASE_TOUR_ID && t.replayable === true && flagOn(t.flag) === true
+  // tourLive: own flag, `requires`, and the wave-14 onboarding switch (the one shared rule)
+  return t && t.id !== BASE_TOUR_ID && t.replayable === true && tourLive(t, flagOn)
 }
 
 /** Every tour eligible to be offered, in registry order (see the header). */

@@ -257,8 +257,16 @@ describe('Walkthroughs (the tour registry\'s Help list)', () => {
     expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
   })
 
+  it('W14-C1 ruling: hidden while the wave-14 switch is off, even with onboarding on (Help as before wave 14)', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false, notebook_formulas_enabled: true })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    expect(screen.queryByText('Walkthroughs')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
+  })
+
   it('lists the base tour by name, with a Replay link into the Notebook, independent of seen-state', async () => {
-    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true })
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
     renderSupport()
     await quickAnswer('How do I get started with the Notebook?')
     const heading = screen.getByText('Walkthroughs')

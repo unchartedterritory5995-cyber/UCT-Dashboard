@@ -73,7 +73,7 @@ function Screen() {
 
 describe('(f) through the real gate and engine', () => {
   it('a light note inside the sheet: not a dialog, no stepper, focus left where it was; axe clean', async () => {
-    latchNotebookFlags({ awareness_note_resurface_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, awareness_note_resurface_enabled: true })
     installFetch([[VERSION_ROUTE, { version: VERSION }]])
     render(<Screen />)
     const { steps, copy } = await getTourEntry(RESURFACE_EXPLAINER_ID).load()
@@ -87,7 +87,7 @@ describe('(f) through the real gate and engine', () => {
   })
 
   it('flag off: nothing shows (the sheet itself only renders with that flag on, and the gate checks it too)', async () => {
-    latchNotebookFlags({ awareness_note_resurface_enabled: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, awareness_note_resurface_enabled: false })
     installFetch([[VERSION_ROUTE, { version: VERSION }]])
     render(<Screen />)
     await screen.findByText('Stop: 100')
@@ -96,7 +96,7 @@ describe('(f) through the real gate and engine', () => {
   })
 
   it('seen before: nothing shows', async () => {
-    latchNotebookFlags({ awareness_note_resurface_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, awareness_note_resurface_enabled: true })
     installFetch([
       [VERSION_ROUTE, { version: VERSION }],
       [/^\/api\/auth\/preferences$/, { [TOURS_PREF]: JSON.stringify({ [RESURFACE_EXPLAINER_ID]: { v: 1, state: 'done', step: 'back' } }) }],
@@ -108,7 +108,7 @@ describe('(f) through the real gate and engine', () => {
   })
 
   it('"Got it" closes it', async () => {
-    latchNotebookFlags({ awareness_note_resurface_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, awareness_note_resurface_enabled: true })
     installFetch([[VERSION_ROUTE, { version: VERSION }]])
     render(<Screen />)
     await screen.findByRole('complementary', {}, { timeout: 5000 })

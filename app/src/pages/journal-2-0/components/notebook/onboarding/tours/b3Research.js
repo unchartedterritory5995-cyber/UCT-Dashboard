@@ -35,6 +35,8 @@ export const TOURS = Object.freeze([
     flag: 'notebook_visual_playbook_enabled',
     title: 'Visual playbook',
     replayable: true,
+    // its sheet opens from the fingerprint panel, which renders only under its own flag
+    requires: Object.freeze(['notebook_ta_fingerprint_enabled']),
     start: Object.freeze({ note: 'sample:plan', embed: 'chart' }),
     load: () => import('./visualPlaybook.steps').then(steps),
   },

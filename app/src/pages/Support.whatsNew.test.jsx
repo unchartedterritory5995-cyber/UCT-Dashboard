@@ -36,7 +36,7 @@ let server
 beforeEach(() => {
   __resetNotebookFlags()
   // W14-C1: task reminders reads ON when unset (a kill switch); pinned OFF so the fake tours are the list
-  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_task_reminders_enabled: false, [FLAG_A]: true, [FLAG_B]: true, [FLAG_OFF]: false })
+  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_task_reminders_enabled: false, [FLAG_A]: true, [FLAG_B]: true, [FLAG_OFF]: false })
   server = { prefs: {} }
   global.fetch = vi.fn(async (url) => {
     if (url === '/api/auth/preferences') return { ok: true, json: async () => ({ ...server.prefs }) }

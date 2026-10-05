@@ -33,7 +33,7 @@
 // to the DERIVATION, but a closed list never reopens for it -- that tour is reached from
 // Help > Walkthroughs instead (Support.jsx), which lists every registered tour.
 import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
-import { BASE_TOUR_ID, TOUR_REGISTRY, replayableTours } from './tourRegistry'
+import { BASE_TOUR_ID, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
 import { TOUR_PREF, readTourPref } from './tourPref'
 import { TOURS_PREF, readTourState } from './tourSeenState'
 import { SAMPLE_PREF, readSamplePref } from './sampleNotebook'
@@ -121,7 +121,7 @@ export function deriveChecklistItems({
     items.push({ id: 'sample', kind: 'sample', label: CHECKLIST_COPY.sample, done: Boolean(sample) })
   }
   for (const entry of replayableTours(registry)) {
-    if (typeof flag !== 'function' || flag(entry.flag) !== true) continue
+    if (!tourLive(entry, flag)) continue
     items.push({
       id: `tour:${entry.id}`, kind: 'tour', tourId: entry.id,
       label: CHECKLIST_COPY.tour(entry.title), done: tourDone(entry, prefs),

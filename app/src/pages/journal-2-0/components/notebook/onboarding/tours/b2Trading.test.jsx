@@ -110,7 +110,7 @@ describe('each tour is gated by its capability flag', () => {
   })
 
   it.each(IDS)('%s: flag off, asking for it by id loads nothing', async (id) => {
-    latchNotebookFlags({ [EXPECTED[id][0]]: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [EXPECTED[id][0]]: false })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} />)
@@ -121,7 +121,7 @@ describe('each tour is gated by its capability flag', () => {
   })
 
   it.each(IDS)('%s: flag on, asking for it by id opens it', async (id) => {
-    latchNotebookFlags({ [EXPECTED[id][0]]: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [EXPECTED[id][0]]: true })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} />)

@@ -129,12 +129,12 @@ describe.each(TOURS.map((t) => [t.id, t.flag]))('tour %s is gated by %s', (id, f
   })
 
   it('flag OFF: opening it shows nothing', async () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: true, [flag]: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [flag]: false })
     expect(await openAndRead(id)).toBeNull()
   })
 
   it('flag ON: opening it shows the tour (CONTROL: the gate can open)', async () => {
-    latchNotebookFlags({ [flag]: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [flag]: true })
     expect(notebookFlag(flag)).toBe(true)
     const dialog = await openAndRead(id)
     expect(dialog).not.toBeNull()
@@ -150,7 +150,7 @@ describe('(g) a payload that does not carry the key reads the capability own def
     ['notebook_semantic_search_enabled', false, 'meaning-search'],
   ])('%s absent -> %s', async (flag, expected, tourId) => {
     expect(FLAG_FALLBACKS[flag]).toBe(expected)
-    latchNotebookFlags({ notebook_onboarding_enabled: true })       // a payload without the key
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })       // a payload without the key
     expect(notebookFlag(flag)).toBe(expected)
     const dialog = await openAndRead(tourId)
     if (expected) expect(dialog).not.toBeNull()

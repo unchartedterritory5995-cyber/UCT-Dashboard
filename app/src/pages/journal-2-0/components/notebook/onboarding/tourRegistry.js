@@ -41,6 +41,7 @@
 // contract for one tour. `assembleRegistry` below is the one place the pieces
 // are joined, and it refuses a malformed entry or a duplicate id BY NAME.
 import { TOUR_START_STATE } from './tourControl'
+import { checklistEnabled } from './gettingStartedPref'
 import { TRACK_TOURS } from './tours'
 
 export const BASE_TOUR_ID = 'notebook-basics'
@@ -59,7 +60,7 @@ export const ENTRY_FIELDS = Object.freeze(['flag', 'id', 'load', 'replayable', '
  *    * `{ trade: 'recent' }`: the member's most recent trade's page.
  *  A note or trade is only ever OPENED, never created: with nothing to open, the card says
  *  so and offers a way out (tourStart.js). */
-export const OPTIONAL_FIELDS = Object.freeze(['start'])
+export const OPTIONAL_FIELDS = Object.freeze(['requires', 'start'])
 export const NOTEBOOK_ROOT = '/journal/notebook'
 
 /** The in-app pages a PATH start may name (pathname only; a query is allowed). Each is a
@@ -129,6 +130,10 @@ export function assembleRegistry(...lists) {
       if (required.join() !== ENTRY_FIELDS.join()) {
         throw new Error(`tour registry: ${where} (id ${JSON.stringify(e?.id)}) must have exactly the fields ${ENTRY_FIELDS.join(', ')} (optionally ${OPTIONAL_FIELDS.join(', ')}); it has ${keys.join(', ') || 'none'}`)
       }
+      if ('requires' in e && !(Array.isArray(e.requires) && e.requires.length
+        && e.requires.every((f) => typeof f === 'string' && /^[a-z][a-z0-9_]*$/.test(f)))) {
+        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e.id)}) requires must be a non-empty list of flag keys; it is ${JSON.stringify(e.requires)}`)
+      }
       const problem = 'start' in e ? startProblem(e.start) : null
       if (problem) {
         throw new Error(`tour registry: ${where} (id ${JSON.stringify(e.id)}) start is not a known start: ${problem}; it is ${JSON.stringify(e.start)}`)
@@ -142,9 +147,15 @@ export function assembleRegistry(...lists) {
       }
       seen.set(e.id, where)
       const start = e.start && typeof e.start === 'object' ? Object.freeze({ ...e.start }) : e.start
-      out.push(Object.isFrozen(e) && (!e.start || typeof e.start !== 'object' || Object.isFrozen(e.start))
+      const deep = (!e.start || typeof e.start !== 'object' || Object.isFrozen(e.start))
+        && (!e.requires || Object.isFrozen(e.requires))
+      out.push(Object.isFrozen(e) && deep
         ? e
-        : Object.freeze({ ...e, ...('start' in e ? { start } : {}) }))
+        : Object.freeze({
+          ...e,
+          ...('start' in e ? { start } : {}),
+          ...('requires' in e ? { requires: Object.freeze([...e.requires]) } : {}),
+        }))
     })
   })
   return Object.freeze(out)
@@ -192,3 +203,20 @@ export function startState(entryOrId) {
 /** Every registered tour except the base one, which keeps its own gate and engine (wave 8).
  *  One frozen array, so every mount (Layout's gate, NotebookTab's offer) sees a stable list. */
 export const OTHER_TOURS = Object.freeze(TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID))
+
+/** THE one answer to "may this tour reach the member right now?" (W14-C1, controller ruling).
+ *  Every door asks it: the offer and What's new (tourEligibility.js), Help > Walkthroughs
+ *  (Support.jsx), the checklist's tour steps (gettingStarted.js) and every open, Help's,
+ *  the offer's, the checklist's and the resurfacing explainer's alike (RegistryToursGate.jsx).
+ *    * the base tour (wave 8) answers exactly as before: its own flag, nothing else;
+ *    * every other tour needs its own capability flag, every flag in its optional
+ *      `requires`, AND the wave-14 onboarding switch -- `checklistEnabled`
+ *      (gettingStartedPref.js: onboarding AND getting-started), reused, never restated.
+ *  So with the wave-14 switch off, nothing beyond wave 8 reaches a member. */
+export function tourLive(entry, flag) {
+  if (!entry || typeof flag !== 'function') return false
+  if (flag(entry.flag) !== true) return false
+  if (entry.id === BASE_TOUR_ID) return true
+  if (!checklistEnabled(flag)) return false
+  return (entry.requires || []).every((f) => flag(f) === true)
+}

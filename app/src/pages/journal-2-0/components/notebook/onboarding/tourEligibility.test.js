@@ -18,7 +18,8 @@ describe('offerableTours', () => {
   })
 
   it('a flag that is not EXACTLY true keeps the tour out (unlatched reads as off)', () => {
-    const flagOn = (f) => ({ f_a: 'true', f_b: 1, f_c: true }[f])
+    // the wave-14 switch on (W14-C1 ruling), so only the tours' own flags decide here
+    const flagOn = (f) => ({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, f_a: 'true', f_b: 1, f_c: true }[f])
     expect(offerableTours({ tours: REG, flagOn, toursPrefRaw: undefined }).map((e) => e.id)).toEqual(['c'])
   })
 
@@ -105,5 +106,19 @@ describe('the session store', () => {
   it('garbage in the store reads as no session', () => {
     window.sessionStorage.setItem(OFFER_SESSION_KEY, 'not json')
     expect(readOfferSession()).toBeNull()
+  })
+})
+
+describe('W14-C1 ruling: the wave-14 switch (onboarding AND getting-started) gates every registry tour', () => {
+  const sw = (on, getting) => (f) => (f === 'notebook_onboarding_enabled' ? on
+    : f === 'notebook_getting_started_enabled' ? getting : true)
+  it.each([[false, true], [true, false], [false, false]])('onboarding %s, getting-started %s: nothing offered, nothing new', (o, g) => {
+    expect(offerableTours({ tours: REG, flagOn: sw(o, g) })).toEqual([])
+    expect(whatsNewTours({ tours: REG, flagOn: sw(o, g) })).toEqual([])
+  })
+  it('`requires`: every listed flag must also be on', () => {
+    const reg = [t('r', 'f_r', { requires: ['f_need'] })]
+    expect(offerableTours({ tours: reg, flagOn: (f) => f !== 'f_need' })).toEqual([])
+    expect(offerableTours({ tours: reg, flagOn: allOn }).map((e) => e.id)).toEqual(['r'])
   })
 })
