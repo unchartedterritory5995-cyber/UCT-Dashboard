@@ -51,6 +51,7 @@ import {
 import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH } from './terminalGate'
+import L0Strip from './L0Strip'
 import styles from './TerminalShell.module.css'
 
 /** Pure: what a stored panel renders — the variant, the panel it names (a component, or a
@@ -702,6 +703,7 @@ export default function TerminalShell() {
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
       data-testid="terminal-shell">
       <div className={styles.bar}>
+        <L0Strip layout={layout} isPhone={isPhone} />
         <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} />
         {isPhone && (
           <button type="button" className={styles.barBtn} onClick={() => setSheet('functions')} data-testid="terminal-fn-button">

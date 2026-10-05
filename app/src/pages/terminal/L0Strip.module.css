@@ -1,0 +1,108 @@
+/* L0 status strip — always-on row at the top of the Terminal's .bar.
+ * Canonical breakpoints only (styles/breakpoints.css): phone <=640px via the
+ * `data-phone` attribute TerminalShell already computes, not a new query. */
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.clock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  flex: 0 0 auto;
+}
+
+.sessionDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--text-muted);
+}
+.toneOpen { background: var(--gain); box-shadow: 0 0 6px var(--gain); }
+.toneExt { background: var(--ut-gold, #dcbb5e); box-shadow: 0 0 6px rgba(220, 187, 94, 0.7); }
+.toneClosed { background: var(--text-muted); }
+
+.time {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-bright, var(--text));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.etLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.sessionLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sessionLabel.toneOpen { color: var(--gain); }
+.sessionLabel.toneExt { color: var(--ut-gold, #dcbb5e); }
+.sessionLabel.toneClosed { color: var(--text-muted); }
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  flex: 0 0 auto;
+  min-height: 22px;
+}
+
+.chipLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.chipValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.regime_bull .chipValue { color: var(--gain); }
+.regime_neutral .chipValue { color: var(--warn, #f59e0b); }
+.regime_caution .chipValue { color: #e67e22; }
+.regime_bear .chipValue { color: var(--loss); }
+.regime_muted .chipValue { color: var(--text-muted); }
+
+.bellWrap {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* Phone: tighten gaps/padding so the strip survives beside the command line's
+ * Functions/Recents/Boards buttons at narrow widths. Nothing hides outright
+ * except what the component itself already abbreviates (seconds, session
+ * label, chip label text) via `isPhone` — matching the same
+ * hide/abbreviate idiom the rest of TerminalShell's `.bar` uses. */
+.strip[data-phone='true'] {
+  gap: 4px;
+}
+.strip[data-phone='true'] .chip {
+  padding: 1px 4px;
+  gap: 2px;
+}
+.strip[data-phone='true'] .chipLabel {
+  font-size: 9px;
+}
