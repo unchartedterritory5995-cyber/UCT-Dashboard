@@ -67,8 +67,8 @@ describe('F9 — what stays declined (`colorDynamic`), by rule', () => {
     const p = pres('plot(close, color = color.new(close > open ? color.blue : na, 40))')
     expect(p.colorDynamic).toBeUndefined()
     expect(p.colorIndex).toBeTruthy()
-    expect(p.colorIndex.palette).toContain('#000000')
-    expect(p.colorIndex.palette).not.toContain('rgba(0, 0, 0, 0)')
+    expect(p.colorPalette).toEqual(['#2962FF', '#000000'])
+    expect(p.opacity).toBe(0.6)
   })
 
   it('⛔ a per-bar transparency', () => {

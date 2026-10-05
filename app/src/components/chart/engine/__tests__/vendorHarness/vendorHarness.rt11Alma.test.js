@@ -155,15 +155,17 @@ describe('RT11 — v6 `ta.alma` is TradingView\'s (vw-alma SPY 1D, 8472 bars)', 
 })
 
 describe('RT11 — the spellings that keep their refusal', () => {
-  it('⛔ v6 bare `alma` (the vendor refuses it) and v5 / v3 / formula-box bare `alma` stay pine:function', () => {
+  it('⛔ v6 bare `alma` (the vendor refuses it) and v5 / formula-box bare `alma` stay pine:function', () => {
     expect(guard(`${head6}plot(alma(close, 9, 0.85, 6))\n`)).toBe('pine:function')
     expect(guard('//@version=5\nindicator("rt11")\nplot(alma(close, 9, 0.85, 6))\n')).toBe('pine:function')
-    expect(guard('//@version=3\nstudy("rt11")\nplot(alma(close, 9, 0.85, 6))\n')).toBe('pine:function')
     expect(guard(`${head4}plot(ta.alma(close, 9, 0.85, 6))\n`)).toBe('pine:function')
     expect(translatePine('alma(close, 9, 0.85, 6)', { strict: true }).ok).toBe(false)
   })
   it('⛔ CONTROL: the served spellings are ok, so the refusals above are about spelling', () => {
     expect(guard(`${head4}plot(alma(close, 9, 0.85, 6))\n`)).toBe('ok')
+    // ⭐ H11 (CAP5 Q-RT11b, `vw-rt11-alma-v3-bare-spy-1d-2026-10-04`): v3 bare `alma` compiles
+    // on TradingView and is `pine_alma` on 8,477 bars - served
+    expect(guard('//@version=3\nstudy("rt11")\nplot(alma(close, 9, 0.85, 6))\n')).toBe('ok')
     expect(guard(`${head6}plot(ta.alma(close, 9, 0.85, 6))\n`)).toBe('ok')
     expect(guard('//@version=5\nindicator("rt11")\nplot(ta.alma(close, 9, 0.85, 6))\n')).toBe('ok')
   })

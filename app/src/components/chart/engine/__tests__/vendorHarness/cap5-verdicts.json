@@ -201,10 +201,10 @@
           [
             "N02 nz(c[1]) plot colour",
             "DIVERGE",
-            0,
+            1,
             "color",
-            636,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N03 nz(c, gray) plot colour",
@@ -241,10 +241,10 @@
           [
             "N02 nz(c[1]) plot colour",
             "DIVERGE",
-            0,
+            1,
             "color",
-            636,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N03 nz(c, gray) plot colour",
@@ -2029,10 +2029,10 @@
           [
             "N02 nz(c[1]) plot colour",
             "DIVERGE",
-            0,
+            1,
             "color",
-            8477,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N03 nz(c, gray) plot colour",
@@ -2069,10 +2069,10 @@
           [
             "N02 nz(c[1]) plot colour",
             "DIVERGE",
-            0,
+            1,
             "color",
-            8477,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N03 nz(c, gray) plot colour",

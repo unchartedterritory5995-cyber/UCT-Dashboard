@@ -15125,6 +15125,7 @@ function arrayWriteAt(toks, i) {
   if (!tok || tok.kind !== 'ident') return null
   if (String(tok.value).startsWith('array.')
       && WRITE_LIKE_ARRAY_MEMBERS.has(String(tok.value).slice('array.'.length))
+      && !inPlaceInValuePosition(toks, i, String(tok.value).slice('array.'.length))
       && toks[i + 1] && isPunct(toks[i + 1], '(')
       && toks[i + 2] && toks[i + 2].kind === 'ident') {
     return { name: toks[i + 2].value, member: String(tok.value).slice('array.'.length), tok }
@@ -15212,7 +15213,16 @@ const PINE_MEMBER_NAMESPACES = new Set([
 // same silent wrong number H14 closed for `set` in an `if`. Named here, every one
 // is an unmodelled write: the read refuses by name (`pine:collection`) and the
 // runtime lane, which runs the member, answers.
-const WRITE_LIKE_ARRAY_MEMBERS = new Set([...VEC.WRITE_MEMBERS, 'sort', 'reverse', 'fill', 'concat'])
+const IN_PLACE_ARRAY_MEMBERS = new Set(['sort', 'reverse', 'fill', 'concat'])
+const WRITE_LIKE_ARRAY_MEMBERS = new Set([...VEC.WRITE_MEMBERS, ...IN_PLACE_ARRAY_MEMBERS])
+/** An in-place member written where a VALUE stands (`plot(array.sort(a))`: after
+ *  `(`, `,`, `=`, an operator) is not the statement that reorders the array - that
+ *  read keeps the refusal the reduce census names (`reduceMembers.test.js`). */
+function inPlaceInValuePosition(toks, i, member) {
+  if (!IN_PLACE_ARRAY_MEMBERS.has(member)) return false
+  const prev = toks[i - 1]
+  return !!prev && prev.kind === 'punct' && prev.value !== ')' && prev.value !== ']'
+}
 
 // ─── ⛔⛔ H14, 2026-09-27 — EVERY ARRAY WRITE, BY NAME, BEFORE THE WALK ─────────
 //
@@ -27587,6 +27597,16 @@ function resolvePaint(p, ctx) {
   if (v4DefaultTransp && !plainColourExpr(colour)) {
     return withhold('paint:v4-default-transp',
       `a v${ctx.version} \`bgcolor\` with no \`transp\` over a colour with its own alpha has no capture (${PAINT_PROBE})`)
+  }
+  // ⛔ H11 — `nz(<colour>)` with NO replacement on a paint stays withheld. CAP5's
+  // `vw-rt15-colour-nz-*` B01 shows no paint on the bars where the colour is `na`
+  // (screenshot), but TradingView's palette colorer records index 0 there - the
+  // same number as its first colour - so no capture can grade those bars, and the
+  // paint rail admits no paint that cannot be shown equal. (The plot colour is
+  // carried; its 10 such bars are pinned DIVERGE in `vendorHarness.cap5Captures`.)
+  if (colour && colour.type === 'call' && colour.name === 'nz' && Array.isArray(colour.args) && colour.args.length === 1) {
+    return withhold('paint:colour', `\`${p.kind}(nz(<colour>))\`: the bars where the colour is \`na\` are painted nothing on TradingView, `
+      + 'but its palette colorer records them as its first colour, so no capture can grade them')
   }
   const args = [{ name: 'color', value: colour }]
   if (named.has('transp')) args.push({ name: 'transp', value: named.get('transp') })

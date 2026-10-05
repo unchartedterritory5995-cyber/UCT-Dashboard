@@ -79,7 +79,7 @@ describe('RT9 — the host plot fold reads a PROVABLY `na` argument, and nothing
     // ⭐ H11 — a per-bar colour, and (CAP5 Q-F9a) carried: the `na` leaf is black at 40
     const perBar = presentation('color.new(close > open ? color.red : na, 40)')
     expect(perBar.color).toBeUndefined()
-    expect(perBar.colorIndex && perBar.colorIndex.palette).toContain('#000000')
+    expect(perBar.colorPalette).toContain('#000000')
     expect(presentation('color.new(color.red, close > open ? 50 : na)').color).toBeUndefined()
     // `nv2` is reassigned, so it is not provably `na`
     const p = presentation('color.new(color.red, nv2)', 'float nv2 = na\nif close > open\n    nv2 := 30')

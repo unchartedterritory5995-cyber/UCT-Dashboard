@@ -163,9 +163,12 @@ describe('the translator emits the read, or names why not', () => {
     expect(JSON.stringify(ops)).not.toContain('"limit":5000')
   })
 
-  it('⛔ the per-series `max_bars_back(x, n)` form refuses by name', () => {
-    const { diag } = translate(script(', max_bars_back = 5000', 'max_bars_back(high, 100)', ...BODY))
-    expect(diag.historyReadRefusals).toEqual({ 'max-bars-back-call': 1 })
+  // ⭐ H11 (CAP5 `vw-cap5-max-bars-back-spy-1d-2026-10-04`): `max_bars_back(src, 50)` then
+  // `src[e]` reads the real bar on all 8,477 bars - the per-series call changes no read.
+  it('the per-series `max_bars_back(x, n)` form is served, with the declaration reach (CAP5)', () => {
+    const { diag, ops } = translate(script(', max_bars_back = 5000', 'max_bars_back(high, 100)', ...BODY))
+    expect(diag.historyReadRefusals || {}).toEqual({})
+    expect(JSON.stringify(ops)).toContain('"limit":5000,"auto":true')
   })
 
   it('⛔ a REASSIGNED source refuses — its history is its end-of-bar value', () => {
