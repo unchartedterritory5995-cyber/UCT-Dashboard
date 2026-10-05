@@ -367,3 +367,58 @@ def test_archive_vintages_is_verified_append_only_and_reports_pruned(tmp_path):
     (prod / "pA" / "inputs_pA" / "INPUT_MANIFEST.json").write_text('{"tag": "pA", "changed": 1}')
     assert lc.archive_vintages(str(prod), ["pA"], str(arch)) == {"pA": "already archived"}   # never rewritten
     assert (arch / "pA" / "inputs_pA" / "INPUT_MANIFEST.json").read_text() == '{"tag": "pA"}'
+
+
+# ── Phase 2: live venue evidence (the worker's classify_session) A–J ─────────────────────────────
+import breadth_venue_ledger as vl  # noqa: E402
+
+
+def _cls(us, dated, tapes, d="2026-10-02"):
+    return {t: v["status"] for t, v in lc.classify_session(d, us, dated, tapes, vl).items()}
+
+
+def test_A_B_supported_nyse_and_nasdaq_stay():
+    assert _cls(["PEP", "AAPL"], {"XNYS": [["PEP"]], "XNAS": [["AAPL"]]}, {"PEP": 1, "AAPL": 3}) == {"PEP": "NYSE", "AAPL": "NASDAQ"}
+
+
+def test_C_transfer_changes_venue_on_the_tape_session_only():
+    before = _cls(["WMT"], {"XNYS": [["WMT"]]}, {"WMT": 1}, "2025-12-08")
+    on = _cls(["WMT"], {"XNYS": [["WMT"]]}, {"WMT": 3}, "2025-12-09")      # dated list still lags: tape decides
+    after = _cls(["WMT"], {"XNAS": [["WMT"]]}, {"WMT": 3}, "2025-12-10")
+    assert (before["WMT"], on["WMT"], after["WMT"]) == ("NYSE", "NASDAQ", "NASDAQ")
+
+
+def test_D_rename_venue_is_evidenced_independently_for_the_new_symbol():
+    assert _cls(["HUCK"], {"XNAS": [["HUCK"]]}, {"HUCK": 3}) == {"HUCK": "NASDAQ"}
+    assert _cls(["HUCK"], {}, {"HUCK": 1}) == {"HUCK": "UNRESOLVED"}       # no inherited venue from DOMO
+
+
+def test_E_J_learned_metadata_or_later_evidence_cannot_rewrite_a_stored_session(tmp_path):
+    s = lc.Store(str(tmp_path / "c.db"))
+    p = _payload("2026-09-25")
+    p["evidence"] = [("2026-09-25", "X", "X@2026", "NYSE", "XNYS", 1, "NYSE", "XNYS", "dated+tape")]
+    s.commit_session("2026-09-25", "2026-09-25", p)
+    q = _payload("2026-09-25")
+    q["evidence"] = [("2026-09-25", "X", "X@2026", "NASDAQ", "XNAS", 3, "NASDAQ", "XNAS", "dated+tape")]
+    with pytest.raises(lc.Refused):
+        s.commit_session("2026-09-25", "2026-09-25", q)
+    assert s.c.execute("SELECT status FROM venue_evidence WHERE date='2026-09-25'").fetchall() == [("NYSE",)]
+
+
+def test_F_ticker_reuse_does_not_inherit_prior_venue():
+    # yesterday the symbol was an XASE name; today a new listing of it trades on Nasdaq (UTP)
+    assert _cls(["ADRX"], {"XNAS": [["ADRX"]]}, {"ADRX": 3}) == {"ADRX": "NASDAQ"}
+    assert _cls(["ADRX"], {"XASE": [["ADRX"]]}, {"ADRX": 1}) == {"ADRX": "OTHER"}
+
+
+def test_G_H_other_and_unresolved_never_enter_an_exchange():
+    st = _cls(["A", "B", "C"], {"XASE": [["A"]], "ARCX": [["B"]]}, {"A": 1, "B": 2, "C": 1})
+    assert st == {"A": "OTHER", "B": "OTHER", "C": "UNRESOLVED"}
+    ny, na, _c = lc.partition(["A", "B", "C"], st, "2026-10-02", "2009-06-11", "2008-01-02")
+    assert ny == na == []
+
+
+def test_I_dual_class_securities_are_evidenced_independently():
+    st = _cls(["BRK.A", "BRK.B"], {"XNYS": [["BRK.A"]], "XNAS": [["BRK.B"]]}, {"BRK.A": 1, "BRK.B": 3})
+    assert st == {"BRK.A": "NYSE", "BRK.B": "NASDAQ"}
+    assert _cls(["X"], {"XNYS": [["X"]], "XNAS": [["X"]]}, {"X": 1}) == {"X": "CONFLICT"}   # two listings: never guessed

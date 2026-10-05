@@ -110,11 +110,9 @@ def live_evidence(us):
                 tapes[t] = v
         json.dump(tapes, open(tp + ".tmp", "w"), sort_keys=True)
         os.replace(tp + ".tmp", tp)
-    for t in us:
-        dc = vl.dated_class(venues.get(t, ()))
-        st, mic, src = vl.classify(dc, tapes.get(t))
-        LIVE[t] = {"status": st, "source": src}
-        EVROWS.append([D, t, None, dc[0], dc[1], tapes.get(t), st, mic, src])
+    for t, e in lc.classify_session(D, us, dated, tapes, vl).items():
+        LIVE[t] = {"status": e["status"], "source": e["source"]}
+        EVROWS.append([D, t, None, e["dated_class"], e["dated_mic"], e["tape"], e["status"], e["mic"], e["source"]])
         DATED_IDS[t] = ids.get(t, (None, None))
     return {"dated_file_sha256": sha(dp), "tape_file_sha256": sha(tp), "probed": len(need), "members": len(us)}
 

@@ -397,3 +397,20 @@ def archive_vintages(producer_root: str, ready_tags: list, archive_dir: str) -> 
         os.chmod(sums, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
         out[tag] = "archived"
     return out
+
+
+# ── 7. LIVE VENUE EVIDENCE CLASSIFICATION (pure; the worker's exact path) ─────────────────────────
+def classify_session(session: str, us: list, dated: dict, tapes: dict, vl) -> dict:
+    """{ticker: {"status","mic","source","dated_class","dated_mic","tape"}} for one session, from THAT
+    session's dated listings ({mic: [[ticker, ...], ...]}) and THAT session's SIP tape value per ticker,
+    through the accepted rule table (vl = breadth_venue_ledger). No reference snapshot is an input."""
+    venues = {}
+    for mic, rows in dated.items():
+        for r in rows:
+            venues.setdefault(r[0], set()).add(mic)
+    out = {}
+    for t in us:
+        dc = vl.dated_class(venues.get(t, ()))
+        st, mic, src = vl.classify(dc, tapes.get(t))
+        out[t] = {"status": st, "mic": mic, "source": src, "dated_class": dc[0], "dated_mic": dc[1], "tape": tapes.get(t)}
+    return out
