@@ -1,0 +1,148 @@
+/* PineEditor — A1, the member Pine authoring surface (dark).
+ *
+ * Tokens are the repo's real ones (see CodeEditor.module.css's header for the
+ * measured list). Breakpoints are the canonical two: 640 (phone) and 1024
+ * (touch). Every control is at least --tap-min (44px) on touch. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised, rgba(255, 255, 255, 0.02));
+  min-width: 0;
+}
+
+.headRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.head {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ghost {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.area {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 240px;
+  padding: 8px 10px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+}
+
+/* The CodeMirror host grows with the script; this box gives it a floor and a
+   ceiling so a long script scrolls inside the editor instead of pushing the
+   problems list and the Apply button off the sheet. */
+.editorBox { min-height: 240px; max-height: 60vh; overflow: auto; border-radius: var(--radius-md); }
+.editorBox :global(.cm-content) { min-height: 220px; }
+.editorBox :global(.cm-gutters) {
+  background: transparent;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.statusRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.status { margin: 0; font-size: 12px; color: var(--text-muted); }
+.status[data-state='ok'] { color: var(--gain); }
+.status[data-state='refused'] { color: var(--loss); }
+
+.apply {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bg-base, #0b0b0b);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.apply:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.note, .ok, .err { margin: 0; font-size: 12px; line-height: 1.5; }
+.note { color: var(--text-muted); }
+.ok { color: var(--gain); }
+.err { color: var(--loss); overflow-wrap: anywhere; }
+
+.problems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.problem {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--text-bright);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+}
+.problem:disabled { cursor: default; opacity: 1; }
+.problem:not(:disabled):hover { border-color: var(--border-accent); }
+.problem:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.where { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.where[data-severity='error'] { color: var(--loss); }
+.where[data-severity='warning'] { color: var(--accent); }
+.where[data-severity='info'] { color: var(--info, var(--text-muted)); }
+
+.message { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+
+.excerpt {
+  margin: 2px 0 0;
+  max-width: 100%;
+  overflow-x: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: pre;
+}
+
+/* TOUCH — every control reaches the tap floor. */
+@media (max-width: 1024px) {
+  .ghost, .apply, .problem { min-height: var(--tap-min); }
+}
+
+/* PHONE — the editor gives the sheet back some height; Apply spans the row. */
+@media (max-width: 640px) {
+  .area, .editorBox { min-height: 180px; }
+  .editorBox { max-height: 50vh; }
+  .editorBox :global(.cm-content) { min-height: 160px; }
+  .apply { width: 100%; }
+}

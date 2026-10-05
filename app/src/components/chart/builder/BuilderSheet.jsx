@@ -120,6 +120,8 @@ import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
+import PineEditor from './pineEditor/PineEditor'
+import { pineAuthoringEnabled } from '../engine/pineAuthoringGate'
 import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
@@ -899,6 +901,10 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  // ⭐ A1 — the Pine Editor's settled text (what its preview pane draws) and the
+  // stored definition its Apply has already written this session, if any.
+  const [editorSettled, setEditorSettled] = useState('')
+  const [authored, setAuthored] = useState(null)
 
   /** Every plot row in document order — plot 1 first. */
   const allRows = useMemo(() => [plot0, ...plotRows], [plot0, plotRows])
@@ -1190,6 +1196,7 @@ export default function BuilderSheet({
     // that flag now lives on. A second reset of a value `resetPlots` already
     // resets is the shape that drifts the day one of the two is edited alone.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
+    setEditorSettled(''); setAuthored(null)
     // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
     // used to be the literal `'library'`, and the screener's door was written as
     // a SECOND effect setting it again afterwards. That is a second writer over
@@ -1234,6 +1241,7 @@ export default function BuilderSheet({
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
+    setEditorSettled(''); setAuthored(null)
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
@@ -1798,21 +1806,29 @@ export default function BuilderSheet({
    *  inputs are still folded parameters (ruling R-H): two variants of one script
    *  ARE two definitions, and `memberPaneVariants` says so in its own header.
    */
-  const attachPine = useCallback(async (definition) => {
-    const { defs, errors } = validateUserDefinitions([definition])
+  /** ⭐ A1 — THE THREE STORE DOORS `attachPine` HAS ALWAYS WALKED, LIFTED SO THE
+   *  PINE EDITOR'S APPLY WALKS THE SAME ONES — `validateUserDefinitions` →
+   *  `saveUserDefinition` → `installUserDefinitions`. `defId` null is a CREATE
+   *  (the server mints the id); a string is an EDIT of that stored definition
+   *  (PUT), which is how the editor updates a script it already applied IN
+   *  PLACE instead of stacking a second definition per click. Behaviour for
+   *  `attachPine` (always `null`) is byte-for-byte what it was. */
+  const storePine = useCallback(async (definition, defId = null) => {
+    const doc = defId ? { ...definition, id: defId } : definition
+    const { defs, errors } = validateUserDefinitions([doc])
     if (errors.length || defs.length !== 1) {
       return { ok: false, error: errors.join('\n') || 'The registry refused this definition.' }
     }
-    const res = await saveUserDefinition(definition, null, importTelemetryRef.current)
+    const res = await saveUserDefinition(doc, defId, importTelemetryRef.current)
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
     const storedDoc = {
-      ...definition,
-      id: row.def_id || definition.id,
+      ...doc,
+      id: row.def_id || defId || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
       compute: {
-        ...definition.compute,
+        ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
     }
@@ -1824,7 +1840,14 @@ export default function BuilderSheet({
           || 'Saved, but this script could not be added to the chart.',
       }
     }
-    if (settings && onChange) onChange(addInstance(settings, installed[0].id, engineRegistry))
+    return { ok: true, row, installedId: installed[0].id }
+  }, [])
+
+  const attachPine = useCallback(async (definition) => {
+    const stored = await storePine(definition, null)
+    if (!stored.ok) return stored
+    const row = stored.row
+    if (settings && onChange) onChange(addInstance(settings, stored.installedId, engineRegistry))
     // ⭐⭐ THE HAND-BACK `save()` HAS ALWAYS MADE, FROM THE DOOR THAT WAS SKIPPING
     // IT (j.5, 2026-09-18). Attaching a script draws it on the chart underneath
     // this modal, so a door that does not tell its host the act is finished
@@ -1845,7 +1868,35 @@ export default function BuilderSheet({
     // still renders for a host that stays open (a preview mount passes none).
     onSaved?.(row)
     return { ok: true }
-  }, [settings, onChange, onSaved])
+  }, [settings, onChange, onSaved, storePine])
+
+  /** ⭐⭐ A1 — THE PINE EDITOR'S APPLY: "Add to chart", then "Update on chart".
+   *
+   *  The first apply is `attachPine`'s create + `addInstance`. Every later apply
+   *  in this session PUTs the SAME stored definition (`authored.defId`), and the
+   *  instance already on the chart redraws through the re-installed definition —
+   *  the formula tab's edit path, applied to a Pine document. An instance is
+   *  added again only if the member took it off the chart in between.
+   *
+   *  ⛔ IT DOES NOT CALL `onSaved`. That hand-back means "the act is finished"
+   *  and the chart host answers it by closing the sheet; an editor is a loop —
+   *  write, apply, look, write again — and closing on the first apply would end
+   *  it. The store write still revalidates every list (`saveUserDefinition`
+   *  mutates the SWR keys), so nothing downstream waits on the hand-back. */
+  const applyAuthored = useCallback(async (definition) => {
+    const defId = authored ? authored.defId : null
+    const stored = await storePine(definition, defId)
+    if (!stored.ok) return stored
+    const id = stored.installedId
+    if (settings && onChange) {
+      const list = Array.isArray(settings.indicatorInstances) ? settings.indicatorInstances : []
+      if (!list.some((inst) => inst && inst.defId === id)) {
+        onChange(addInstance(settings, id, engineRegistry))
+      }
+    }
+    if (!defId) setAuthored({ defId: id })
+    return { ok: true, updated: !!defId }
+  }, [authored, storePine, settings, onChange])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -2018,6 +2069,18 @@ export default function BuilderSheet({
               aria-selected={buildMode === 'pine'}
               onClick={() => setBuildMode('pine')}
             >Import</button>
+            {/* ⭐⭐ A1 — WRITE PINE HERE, DARK (`VITE_PINE_AUTHORING_ENABLED`).
+                Off, this tab does not exist and `buildMode` can never be
+                'editor', so every branch below that names it is unreachable. */}
+            {pineAuthoringEnabled() && (
+              <button
+                type="button" role="tab"
+                className={`${styles.modeTab} ${buildMode === 'editor' ? styles.modeTabActive : ''}`}
+                aria-selected={buildMode === 'editor'}
+                onClick={() => setBuildMode('editor')}
+                data-testid="builder-tab-pine-editor"
+              >Pine Editor</button>
+            )}
             {/* ⭐⭐ THE FOURTH DOOR: a member who CANNOT export their indicator — a
                 closed-source script, a paid one, an idea from a screenshot —
                 shows us the picture. Same engine, same grammar, same save door;
@@ -2546,6 +2609,17 @@ export default function BuilderSheet({
             />
           )}
 
+          {buildMode === 'editor' && (
+            <PineEditor
+              value={pineText}
+              onChange={setPineText}
+              onSettled={setEditorSettled}
+              onApply={applyAuthored}
+              applied={authored}
+              disabled={saving}
+            />
+          )}
+
           {buildMode === 'image' && (
             <ImageBox
               bars={bars}
@@ -2594,17 +2668,24 @@ export default function BuilderSheet({
             />
           )}
 
-          <FormulaField
-            value={source}
-            onChange={setSource}
-            onEvaluated={handleEvaluated}
-            onPendingChange={setPending}
-            result={result}
-            autoFocus
-            inputs={inputScope}
-          />
+          {/* ⭐ A1 — the formula box and its preview step aside while the Pine
+              Editor is open: that tab edits a whole script, and a second, empty
+              editor under it would read as the place to type. */}
+          {buildMode !== 'editor' && (
+            <FormulaField
+              value={source}
+              onChange={setSource}
+              onEvaluated={handleEvaluated}
+              onPendingChange={setPending}
+              result={result}
+              autoFocus
+              inputs={inputScope}
+            />
+          )}
           {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
-          <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
+          {buildMode !== 'editor' && (
+            <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
+          )}
 
           {/* ⭐⭐ T5 — THE MEMBER'S OWN PINE, ON A PANE, BEHIND A FLAG.
               The importer `MemberPane.jsx` was written for, and the reason its
@@ -2625,12 +2706,16 @@ export default function BuilderSheet({
               installs nothing, registers nothing and renders nothing. A second
               flag read at the call site would be a second authority over one
               value — and the one on the inside is the one the rails measure. */}
+          {/* ⭐ A1 — in the Pine Editor the pane is the PREVIEW (fed the
+              editor's settled text, so it rebuilds once per settle, not per
+              keystroke) and the editor's own Apply is the one way out; a
+              second "Add" button here would create a second definition. */}
           <MemberPane
             sym={sym}
             tf={tf}
-            source={pineText}
+            source={buildMode === 'editor' ? editorSettled : pineText}
             settings={settings}
-            onAttach={attachPine}
+            onAttach={buildMode === 'editor' ? null : attachPine}
           />
 
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.

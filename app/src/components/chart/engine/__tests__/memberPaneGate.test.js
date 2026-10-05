@@ -266,7 +266,15 @@ describe('the member-pane gate', () => {
       // sentences would strip them off drawings that survive the flip. So the
       // census stays at one, and a second name appearing here is a question, not
       // a formality.
-      .toEqual(['src/components/chart/builder/memberPane/MemberPane.jsx'])
+      // ⭐ A1 (2026-10-04) — THE QUESTION, ANSWERED: the Pine Editor's Apply is a
+      // second way to ATTACH a Pine document (it walks `attachPine`'s doors), so
+      // it consults this gate for the same reason MemberPane's button does — with
+      // the flag off it offers no Apply. It discloses nothing, so T5b's ruling
+      // above is untouched. Its own surface is behind VITE_PINE_AUTHORING_ENABLED.
+      .toEqual([
+        'src/components/chart/builder/memberPane/MemberPane.jsx',
+        'src/components/chart/builder/pineEditor/PineEditor.jsx',
+      ])
 
     // ⛔ IMPORTING IT IS NOT CONSULTING IT, AND THAT IS ASSERTED OF EVERY
     // IMPORTER RATHER THAN OF THE ONE THIS CASE WAS WRITTEN FOR. A component that
