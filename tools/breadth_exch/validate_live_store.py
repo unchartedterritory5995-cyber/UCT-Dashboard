@@ -20,7 +20,10 @@ GOLDEN = {"2026-09-25": ((1906, 1100, 740, 53), (3404, 1520, 1660, 150)),
           "2026-09-28": ((1909, 513, 1342, 37), (3386, 1069, 2127, 109)),
           "2026-09-29": ((1905, 741, 1110, 38), (3398, 1291, 1897, 121)),
           "2026-09-30": ((1908, 526, 1329, 36), (3405, 1289, 1915, 117)),
-          "2026-10-01": ((1908, 1082, 772, 37), (3398, 1485, 1710, 124))}
+          "2026-10-01": ((1908, 1082, 772, 37), (3398, 1485, 1710, 124)),
+          "2026-10-02": ((1907, 1185, 667, 40), (3420, 1711, 1483, 128))}
+DERIVED_1002 = {"NYSE": (154810.0, -13.45, -961.93), "NASDAQ": (-206369.0, -15.62, -313.05)}
+EXCEPTION_SESSIONS = {"2026-09-25": ("p202609292209", "p202609302026"), "2026-09-28": ("p202609292209", "p202609302026")}
 c = sqlite3.connect(f"file:{DB}?immutable=1", uri=True)
 rep = {"store": DB, "lineage": dict(c.execute("SELECT key, value FROM lineage")), "checks": {}}
 chk = rep["checks"]
@@ -28,6 +31,16 @@ sess = c.execute("SELECT date, seq, vintage, us_v2_pub_id, venue_source, rows, r
                  "ORDER BY seq").fetchall()
 rep["sessions"] = [[d, s, v, p, vs, n] for d, s, v, p, vs, n, *_ in sess]
 dates = [s[0] for s in sess]
+vrows = c.execute("SELECT date, vintage, compute_vintage, vintage_exception FROM live_session ORDER BY seq").fetchall()
+rep["vintages"] = [[d, o, cv, bool(x)] for d, o, cv, x in vrows]
+honest = True
+for d, o, cv, x in vrows:
+    if d in EXCEPTION_SESSIONS:
+        ok = (o, cv) == EXCEPTION_SESSIONS[d] and json.loads(x)["true_owner_vintage"] == o             and json.loads(x)["substitute_vintage"] == cv
+    else:
+        ok = o == cv and x == ""
+    honest = honest and ok
+chk["true owner recorded; compute substitute only for the two declared sessions"] = honest
 chk["seq contiguous 1..N"] = [s[1] for s in sess] == list(range(1, len(sess) + 1))
 chk["no rows outside completed sessions"] = all(
     c.execute(f"SELECT COUNT(*) FROM {t} WHERE date NOT IN (SELECT date FROM live_session)").fetchone()[0] == 0
@@ -109,6 +122,12 @@ for u, X, start in (("nyse", "NYSE", "2009-06-11"), ("nasdaq", "NASDAQ", "2008-0
     chk[f"{X} independent full history reproduces frozen derived"] = hist_ok
     chk[f"{X} appended derived == independent full-history calc (bit-exact)"] = app_ok
 rep["derived"] = der
+for X, (ad, mco, mcs) in DERIVED_1002.items():
+    last = [r for r in der[X]["appended"] if r[0] == "2026-10-02"]
+    if last:
+        _d, a, o, m = last[0]
+        chk[f"{X} 10-02 derived == accepted (AD exact, MCO/MCS to 2 dp)"] = (a == ad and round(o, 2) == mco
+                                                                           and round(m, 2) == mcs)
 tr = c.execute("SELECT exchange, date, valid_obs FROM trend_state ORDER BY exchange, date").fetchall()
 chk["trend valid_obs increments by 1 per appended session (no reset / no second burn-in)"] = all(
     tr[i][2] == tr[i - 1][2] + 1 for i in range(1, len(tr)) if tr[i][0] == tr[i - 1][0])

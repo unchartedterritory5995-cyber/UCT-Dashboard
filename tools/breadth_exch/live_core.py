@@ -158,6 +158,7 @@ def derive_step(state: dict, adv: Optional[float], dec: Optional[float]) -> tupl
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS lineage (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS live_session (date TEXT PRIMARY KEY, seq INTEGER NOT NULL UNIQUE, vintage TEXT NOT NULL,
+    compute_vintage TEXT NOT NULL, vintage_exception TEXT NOT NULL,
     input_manifest_sha256 TEXT NOT NULL, reference_sha256 TEXT NOT NULL, us_v2_pub_id TEXT NOT NULL,
     venue_source TEXT NOT NULL, rows INTEGER NOT NULL, rows_sha256 TEXT NOT NULL, membership_sha256 TEXT NOT NULL,
     derived_sha256 TEXT NOT NULL, identity_state_sha256 TEXT NOT NULL, provenance TEXT NOT NULL, completed_at TEXT NOT NULL);
@@ -231,8 +232,9 @@ class Store:
             if crash:
                 crash("after_rows_before_marker")
             seq = (c.execute("SELECT COALESCE(MAX(seq), 0) FROM live_session").fetchone()[0]) + 1
-            c.execute("INSERT INTO live_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (date, seq, payload["vintage"], payload["input_manifest_sha256"], payload["reference_sha256"],
+            c.execute("INSERT INTO live_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (date, seq, payload["vintage"], payload["compute_vintage"], payload["vintage_exception"],
+                       payload["input_manifest_sha256"], payload["reference_sha256"],
                        payload["us_v2_pub_id"], payload["venue_source"], len(payload["rows"]), payload["rows_sha256"],
                        payload["membership_sha256"], payload["derived_sha256"], payload["identity_state_sha256"],
                        json.dumps(payload["provenance"], sort_keys=True), payload["completed_at"]))
@@ -251,7 +253,8 @@ class Store:
             n = len(self.c.execute(f"PRAGMA table_info({t})").fetchall())
             for r in self.c.execute(f"SELECT * FROM {t} ORDER BY " + ", ".join(str(i + 1) for i in range(n))):
                 h.update(json.dumps([t, list(r)], default=str).encode())
-        for r in self.c.execute("SELECT date, seq, vintage, input_manifest_sha256, reference_sha256, us_v2_pub_id, "
+        for r in self.c.execute("SELECT date, seq, vintage, compute_vintage, vintage_exception, input_manifest_sha256, "
+                                "reference_sha256, us_v2_pub_id, "
                                 "venue_source, rows, rows_sha256, membership_sha256, derived_sha256, "
                                 "identity_state_sha256, provenance FROM live_session ORDER BY seq"):
             h.update(json.dumps(["live_session", list(r)], default=str).encode())
@@ -414,3 +417,74 @@ def classify_session(session: str, us: list, dated: dict, tapes: dict, vl) -> di
         st, mic, src = vl.classify(dc, tapes.get(t))
         out[t] = {"status": st, "mic": mic, "source": src, "dated_class": dc[0], "dated_mic": dc[1], "tape": tapes.get(t)}
     return out
+
+
+# ── 8. DECLARED HISTORICAL OWNER-VINTAGE SUBSTITUTION (NOT a selection rule) ──────────────────────
+_EXC_KEYS = {"session", "true_owner_vintage", "true_owner_provenance", "substitute_vintage", "substitute_hashes",
+             "reason", "equivalence"}
+_OWNER_KEYS = {"pub_id", "pub_sha256", "input_manifest_sha256", "reference_sha256", "pit_ledger_sha256"}
+_SUB_KEYS = {"input_manifest_sha256", "reference_sha256", "archive_sha256sums_sha256", "last_session"}
+
+
+def validate_exceptions(doc: dict) -> dict:
+    """{session: entry}. Exact schema, explicit sessions only (no wildcard / range / universe), no duplicates."""
+    try:
+        ex = doc["exceptions"]
+        assert doc["approval"]["type"] and isinstance(ex, list)
+        out = {}
+        for e in ex:
+            assert set(e) == _EXC_KEYS and set(e["true_owner_provenance"]) == _OWNER_KEYS \
+                and set(e["substitute_hashes"]) == _SUB_KEYS
+            s = e["session"]
+            assert isinstance(s, str) and len(s) == 10 and s[4] == "-" and s[7] == "-" and s not in out
+            assert e["true_owner_vintage"] != e["substitute_vintage"]
+            out[s] = e
+        return out
+    except (AssertionError, KeyError, TypeError) as err:
+        raise Refused("EXCEPTION_MALFORMED", repr(err))
+
+
+def declared_substitute(session: str, prod_sessions: dict, prod_pubs: dict, archive_dir: str, exceptions: dict,
+                        verify_files: bool = True) -> dict:
+    """Called ONLY after owner_vintage refused OWNER_VINTAGE_MISSING. A session not declared here keeps that
+    refusal. A declared one is accepted only if the producer's own record still names the declared TRUE OWNER
+    with the declared hashes, the true owner is genuinely absent from the archive, and the SUBSTITUTE's archived
+    bytes match every pinned hash and contain the session. Provenance keeps both facts: the owner of record is
+    the true owner; the compute vintage is the substitute."""
+    e = exceptions.get(session)
+    if e is None:
+        raise Refused("OWNER_VINTAGE_MISSING", {"session": session, "declared_exception": None})
+    st, pub = prod_sessions.get(session), prod_pubs.get(session)
+    own = e["true_owner_provenance"]
+    if st is None or st[0] != "CURRENT" or st[1] != e["true_owner_vintage"] or st[2] != own["pub_id"]:
+        raise Refused("EXCEPTION_TRUE_OWNER_MISMATCH", {"session": session, "producer": st, "declared": e["true_owner_vintage"]})
+    if pub is None or pub[0] != own["pub_id"] or pub[1].get("vintage_tag") != e["true_owner_vintage"] or \
+            pub[1].get("input_manifest_sha256") != own["input_manifest_sha256"] or \
+            pub[1].get("reference_sha256") != own["reference_sha256"]:
+        raise Refused("EXCEPTION_PROVENANCE_MISMATCH", {"session": session})
+    if os.path.isdir(os.path.join(archive_dir, e["true_owner_vintage"])):
+        raise Refused("EXCEPTION_OWNER_PRESENT", {"session": session, "owner": e["true_owner_vintage"]})
+    tag, h = e["substitute_vintage"], e["substitute_hashes"]
+    vd, sums = os.path.join(archive_dir, tag), os.path.join(archive_dir, tag + ".SHA256SUMS")
+    if not (os.path.isdir(vd) and os.path.exists(sums)):
+        raise Refused("EXCEPTION_SUBSTITUTE_MISSING", {"session": session, "substitute": tag})
+    inputs = os.path.join(vd, "inputs_" + tag)
+    got = {"input_manifest_sha256": sha_file(os.path.join(inputs, "INPUT_MANIFEST.json")),
+           "reference_sha256": sha_file(os.path.join(inputs, "pit_reference.json")),
+           "archive_sha256sums_sha256": sha_file(sums)}
+    if any(got[k] != h[k] for k in got):
+        raise Refused("EXCEPTION_SUBSTITUTE_HASH", {"session": session, "substitute": tag, "got": got})
+    if verify_files:
+        bad = [rel for line in open(sums) for hh, rel in [line.rstrip("\n").split("  ", 1)]
+               if sha_file(os.path.join(vd, rel)) != hh]
+        if bad:
+            raise Refused("ARCHIVE_INTEGRITY", {"substitute": tag, "bad": bad[:5], "n_bad": len(bad)})
+    man = json.load(open(os.path.join(inputs, "INPUT_MANIFEST.json")))
+    if man.get("tag") != tag or man.get("last_session") != h["last_session"] or session > man["last_session"]:
+        raise Refused("EXCEPTION_SUBSTITUTE_DOES_NOT_CONTAIN", {"session": session, "substitute": tag,
+                                                                 "last_session": man.get("last_session")})
+    return {"session": session, "tag": tag, "pub_id": own["pub_id"], "inputs_dir": inputs,
+            "grouped_dir": os.path.join(vd, "grouped_" + tag), "dir": vd, "archive_sums_sha256": got["archive_sha256sums_sha256"],
+            "input_manifest_sha256": got["input_manifest_sha256"], "reference_sha256": got["reference_sha256"],
+            "owner_vintage_of_record": e["true_owner_vintage"], "owner_provenance": own,
+            "declared_exception": e}

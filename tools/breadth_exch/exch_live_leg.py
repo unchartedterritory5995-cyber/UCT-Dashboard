@@ -47,6 +47,10 @@ PARENTS = {
 ARCHIVE = X + "/live_v1/vintage_archive"
 PROD = "/data/breadth_v2_producer"
 PINS = os.path.join(HERE, "pinned", "breadth_exch_live_pins.json")
+# ⛔ The ONLY owner-vintage substitutions ever accepted: an owner-approved, hash-pinned file. Changing the file
+# without changing this pin (i.e. without a reviewed code change) refuses every run.
+EXCEPTIONS = os.path.join(HERE, "pinned", "breadth_exch_owner_vintage_exceptions.json")
+EXCEPTIONS_SHA256 = "3ddf3ac75675eccdae78b3c95ddaaa0a3a835f97aed2c3734c7eede8e5141f91"
 LAUNCH = X + "/code_grind_eff3eca45b2f/tools/breadth_v2cc/launch.py"
 FROZEN_END, NYSE_START, NASDAQ_START = "2026-09-24", "2009-06-11", "2008-01-02"
 EX = (("nyse", "NYSE", NYSE_START), ("nasdaq", "NASDAQ", NASDAQ_START))
@@ -85,11 +89,15 @@ fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 for name, (p, want) in PARENTS.items():
     if lc.sha_file(p) != want:
         raise SystemExit(f"PARENT HASH MISMATCH {name}")
+if lc.sha_file(EXCEPTIONS) != EXCEPTIONS_SHA256:
+    raise SystemExit("EXCEPTION_FILE_UNPINNED: the owner-vintage exceptions file does not match its reviewed pin")
+EXC = lc.validate_exceptions(json.load(open(EXCEPTIONS)))
 STORE = lc.Store(os.path.join(A.store, "exch_live_candidate_v1.db" if A.mode == "append" else "exch_live_PROOF.db"))
 code_commit = A.code_commit
 STORE.init_lineage({"mode": A.mode, "historical_sha256": PARENTS["historical"][1], "derived_sha256": PARENTS["derived"][1],
                     "ledger_sha256": PARENTS["ledger"][1], "identity_parent_sha256": PARENTS["identity_state"][1],
-                    "pins_sha256": lc.sha_file(PINS), "code_commit": code_commit, "frozen_end": FROZEN_END,
+                    "pins_sha256": lc.sha_file(PINS), "owner_vintage_exceptions_sha256": EXCEPTIONS_SHA256,
+                    "code_commit": code_commit, "frozen_end": FROZEN_END,
                     "nyse_start": NYSE_START, "nasdaq_start": NASDAQ_START,
                     "substitution": json.dumps(SUB, sort_keys=True), "pinned_vintage": A.pin_vintage or "",
                     "authority": "NOT member-authoritative" + ("" if A.mode == "append" else " — PROOF STORE, NOT A CANDIDATE")})
@@ -215,7 +223,15 @@ for D in todo:
                  "PROOF_SUBSTITUTION": True, "input_manifest_sha256": lc.sha_file(ip + "/INPUT_MANIFEST.json"),
                  "reference_sha256": lc.sha_file(ip + "/pit_reference.json")}
         else:
-            V = lc.owner_vintage(D, PSESS, PPUB, ARCHIVE)
+            try:
+                V = lc.owner_vintage(D, PSESS, PPUB, ARCHIVE)
+                V = dict(V, owner_vintage_of_record=V["tag"], declared_exception=None)
+            except lc.Refused as e0:
+                if e0.reason != "OWNER_VINTAGE_MISSING":
+                    raise
+                # NOT a fallback: only an owner-approved, hash-pinned declaration for THIS session can proceed;
+                # any undeclared session re-raises OWNER_VINTAGE_MISSING
+                V = lc.declared_substitute(D, PSESS, PPUB, ARCHIVE, EXC)
         last = json.load(open(os.path.join(V["inputs_dir"], "INPUT_MANIFEST.json")))["last_session"]
         if D > last:                       # a vintage never "contains" a session after its own last session
             raise lc.Refused("VINTAGE_DOES_NOT_CONTAIN_SESSION", {"session": D, "vintage": V["tag"], "last_session": last})
@@ -322,7 +338,11 @@ for D in todo:
     membership = [(D, t, sids.get(t), cap["member"][t][2], cap["member"][t][3], cap["member"][t][1]) for t in sorted(us)]
     evrows = [(r[0], r[1], sids.get(r[1]), r[3], r[4], r[5], r[6], r[7], r[8]) for r in R["evidence_rows"]]
     payload = {"rows": rows, "counts": cap["counts"], "membership": membership, "evidence": evrows, "derived": derived,
-               "trend": trend, "vintage": V["tag"], "input_manifest_sha256": V["input_manifest_sha256"],
+               "trend": trend, "vintage": V["owner_vintage_of_record"] or V["tag"], "compute_vintage": V["tag"],
+               "vintage_exception": json.dumps(V.get("declared_exception") or (
+                   {"PROOF_SUBSTITUTION": True} if V.get("PROOF_SUBSTITUTION") else None), sort_keys=True)
+               if (V.get("declared_exception") or V.get("PROOF_SUBSTITUTION")) else "",
+               "input_manifest_sha256": V["input_manifest_sha256"],
                "reference_sha256": V["reference_sha256"], "us_v2_pub_id": V.get("pub_id") or "",
                "venue_source": "ledger" if D <= LEDGER_END else "live_evidence",
                "rows_sha256": lc.rows_sha(rows), "membership_sha256": lc.rows_sha(membership),
@@ -363,7 +383,11 @@ status.update({"finished_utc": now(), "completed": comp, "logical_sha256": STORE
                                "latest_us_v2_published": latest_pub, "latest_in_candidate": comp[-1] if comp else None,
                                "latest_venue_evidence_session": max([LEDGER_END] + ([f[:10] for f in os.listdir(evd)]
                                                                                      if os.path.isdir(evd) else [])),
-                               "latest_vintage_used": json.loads(last_prov[0])["vintage"]["tag"] if last_prov else None,
+                               "latest_vintage_used": {"owner_of_record": json.loads(last_prov[0])["vintage"].get(
+                                   "owner_vintage_of_record"), "compute": json.loads(last_prov[0])["vintage"]["tag"]}
+                               if last_prov else None,
+                               "declared_vintage_exceptions_used": [r[0] for r in STORE.c.execute(
+                                   "SELECT date FROM live_session WHERE vintage_exception != '' ORDER BY seq")],
                                "last_successful_append_utc": last_prov[1] if last_prov else None,
                                "state": "CURRENT" if comp and comp[-1] == expected else
                                         "WAITING_FOR_US_V2" if refused == "NOT_YET_PUBLISHED" and comp and comp[-1] == latest_pub

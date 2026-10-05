@@ -1,0 +1,51 @@
+{
+ "kind": "exchange-v1 DECLARED HISTORICAL OWNER-VINTAGE SUBSTITUTIONS",
+ "rule": "This is NOT a vintage-selection rule. The live leg resolves every session with live_core.owner_vintage (the vintage the US V2 producer published it from). ONLY when that refuses OWNER_VINTAGE_MISSING is this file consulted, ONLY for a session listed here, and ONLY if every pinned hash below verifies. Any other missing owner vintage fails closed. There is no fallback to a later, earliest-surviving, or latest vintage.",
+ "approval": {
+  "type": "OWNER-APPROVED NARROW HISTORICAL PROVENANCE EXCEPTION",
+  "approved_on": "2026-10-05",
+  "gate": "NYSE + NASDAQ BREADTH V1 — OWNER-VINTAGE SUBSTITUTION + AUTHORITATIVE FIRST APPEND"
+ },
+ "exceptions": [
+  {
+   "session": "2026-09-25",
+   "true_owner_vintage": "p202609292209",
+   "true_owner_provenance": {
+    "pub_id": "2026-09-25-p202609292209-c9c2341809",
+    "pub_sha256": "5c3b9d7b2daa4c3a689f5f5f9b015e8cc570421030c7d02e21b2606b18242bf5",
+    "input_manifest_sha256": "2179e9b913dfbcc67c5b9d6d8b5ed52e3bb9de7b074bc6ee7256dfce3c44d8fc",
+    "reference_sha256": "c827f4a7e38fe34e06b1d5ca1e449fd27dca325dbbf20b892e07fe5a2301b28f",
+    "pit_ledger_sha256": "e729ba70f2c4f721dd88265550de8deff1823812af4c1f66c63dcf5ebbff82fe"
+   },
+   "substitute_vintage": "p202609302026",
+   "substitute_hashes": {
+    "input_manifest_sha256": "d8dc57e6b6afcb108c943147720e7022868bf8708c0b2a7bf5297d8c5528b509",
+    "reference_sha256": "9aed9740a9f656d2c47d85bfb8d0b7a6e377f0c563328606d9c9f3b83c59a8dd",
+    "archive_sha256sums_sha256": "31b9422b5fb0f4ec7580d2b8bc4d86052a95bd67cade0f55f29bb9457062ed7c",
+    "last_session": "2026-09-29"
+   },
+   "reason": "the true owner vintage was pruned by the US V2 producer (KEEP_VINTAGES=3) before the exchange vintage archive existed; its provenance hashes survive in the producer's publication record",
+   "equivalence": "bounded equivalence proof: the substitute reproduces the producer's published 2026-09-25 US rows byte-for-byte (35/35); exchange membership and rows are identical under every surviving vintage containing the session"
+  },
+  {
+   "session": "2026-09-28",
+   "true_owner_vintage": "p202609292209",
+   "true_owner_provenance": {
+    "pub_id": "2026-09-28-p202609292209-0ad9dd7b62",
+    "pub_sha256": "c47fe0b39e58a2faf7c98cf3d53cb0452412577bda00110c4ba36178394ec136",
+    "input_manifest_sha256": "2179e9b913dfbcc67c5b9d6d8b5ed52e3bb9de7b074bc6ee7256dfce3c44d8fc",
+    "reference_sha256": "c827f4a7e38fe34e06b1d5ca1e449fd27dca325dbbf20b892e07fe5a2301b28f",
+    "pit_ledger_sha256": "e729ba70f2c4f721dd88265550de8deff1823812af4c1f66c63dcf5ebbff82fe"
+   },
+   "substitute_vintage": "p202609302026",
+   "substitute_hashes": {
+    "input_manifest_sha256": "d8dc57e6b6afcb108c943147720e7022868bf8708c0b2a7bf5297d8c5528b509",
+    "reference_sha256": "9aed9740a9f656d2c47d85bfb8d0b7a6e377f0c563328606d9c9f3b83c59a8dd",
+    "archive_sha256sums_sha256": "31b9422b5fb0f4ec7580d2b8bc4d86052a95bd67cade0f55f29bb9457062ed7c",
+    "last_session": "2026-09-29"
+   },
+   "reason": "the true owner vintage was pruned by the US V2 producer (KEEP_VINTAGES=3) before the exchange vintage archive existed; its provenance hashes survive in the producer's publication record",
+   "equivalence": "bounded equivalence proof: the substitute reproduces the producer's published 2026-09-28 US rows byte-for-byte (35/35, including new_20d_highs, which the NEWEST vintage does not); exchange membership and rows are identical under every surviving vintage containing the session"
+  }
+ ]
+}

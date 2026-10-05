@@ -209,7 +209,8 @@ def _payload(d, n=3):
     rows = [("nyse", d, f"m{i}", 1.0, 2.0, 0.5, 1.5, "s") for i in range(n)]
     return {"rows": rows, "counts": {"us": 1}, "membership": [(d, "X", "X@2026", "NYSE", "ledger", "X|active")],
             "evidence": [], "derived": [("NYSE:AD", d, 1.0)], "trend": [("NYSE", d, 1.0, 0.1, 0.05, 121, 0.0)],
-            "vintage": "pV", "input_manifest_sha256": "a", "reference_sha256": "b", "us_v2_pub_id": f"{d}-pV-x",
+            "vintage": "pV", "compute_vintage": "pV", "vintage_exception": "",
+            "input_manifest_sha256": "a", "reference_sha256": "b", "us_v2_pub_id": f"{d}-pV-x",
             "venue_source": "ledger", "rows_sha256": lc.rows_sha(rows), "membership_sha256": "m", "derived_sha256": "x",
             "identity_state_sha256": "i", "provenance": {}, "completed_at": "now"}
 
@@ -422,3 +423,174 @@ def test_I_dual_class_securities_are_evidenced_independently():
     st = _cls(["BRK.A", "BRK.B"], {"XNYS": [["BRK.A"]], "XNAS": [["BRK.B"]]}, {"BRK.A": 1, "BRK.B": 3})
     assert st == {"BRK.A": "NYSE", "BRK.B": "NASDAQ"}
     assert _cls(["X"], {"XNYS": [["X"]], "XNAS": [["X"]]}, {"X": 1}) == {"X": "CONFLICT"}   # two listings: never guessed
+
+
+
+# ── DECLARED HISTORICAL OWNER-VINTAGE SUBSTITUTION: exact, hash-pinned, never a fallback ──────────
+EXC_FILE = os.path.join(TOOLS, "pinned", "breadth_exch_owner_vintage_exceptions.json")
+
+
+def _sub_world(tmp, owner_present=False, sub_last="2026-09-29"):
+    """An archive with the substitute (and a newer vintage), the producer record naming the pruned true owner."""
+    arch = str(tmp / "arch")
+    os.makedirs(arch, exist_ok=True)
+
+    def mk(tag, last):
+        vd = os.path.join(arch, tag)
+        ip, gp = os.path.join(vd, "inputs_" + tag), os.path.join(vd, "grouped_" + tag)
+        os.makedirs(ip)
+        os.makedirs(gp)
+        open(os.path.join(ip, "INPUT_MANIFEST.json"), "w").write(json.dumps({"tag": tag, "last_session": last}))
+        open(os.path.join(ip, "pit_reference.json"), "w").write(json.dumps({tag: []}))
+        open(os.path.join(gp, "x_0.json"), "w").write("[]")
+        with open(os.path.join(arch, tag + ".SHA256SUMS"), "w") as f:
+            for rel in sorted(["./inputs_%s/INPUT_MANIFEST.json" % tag, "./inputs_%s/pit_reference.json" % tag,
+                               "./grouped_%s/x_0.json" % tag]):
+                f.write("%s  %s\n" % (lc.sha_file(os.path.join(vd, rel)), rel))
+
+    mk("pSUB", sub_last)
+    mk("pNEWER", "2026-10-02")                                   # a newer vintage that also contains S
+    if owner_present:
+        mk("pOWNER", "2026-09-28")
+    own = {"pub_id": "2026-09-25-pOWNER-abc", "pub_sha256": "p", "input_manifest_sha256": "om",
+           "reference_sha256": "or", "pit_ledger_sha256": "pl"}
+    sub = os.path.join(arch, "pSUB", "inputs_pSUB")
+    e = {"session": "2026-09-25", "true_owner_vintage": "pOWNER", "true_owner_provenance": own,
+         "substitute_vintage": "pSUB", "reason": "pruned", "equivalence": "35/35",
+         "substitute_hashes": {"input_manifest_sha256": lc.sha_file(os.path.join(sub, "INPUT_MANIFEST.json")),
+                               "reference_sha256": lc.sha_file(os.path.join(sub, "pit_reference.json")),
+                               "archive_sha256sums_sha256": lc.sha_file(os.path.join(arch, "pSUB.SHA256SUMS")),
+                               "last_session": sub_last}}
+    doc = {"approval": {"type": "OWNER-APPROVED"}, "exceptions": [e]}
+    ps = {"2026-09-25": ("CURRENT", "pOWNER", own["pub_id"]),
+          "2026-10-06": ("CURRENT", "pLATER", "2026-10-06-pLATER-x")}
+    pp = {"2026-09-25": (own["pub_id"], {"vintage_tag": "pOWNER", "input_manifest_sha256": "om",
+                                         "reference_sha256": "or"}),
+          "2026-10-06": ("2026-10-06-pLATER-x", {"vintage_tag": "pLATER", "input_manifest_sha256": "x",
+                                                 "reference_sha256": "y"})}
+    return arch, doc, ps, pp
+
+
+def _resolve(arch, doc, ps, pp, d):
+    """Exactly the orchestrator's order: owner first; the declaration only after OWNER_VINTAGE_MISSING."""
+    try:
+        return lc.owner_vintage(d, ps, pp, arch)
+    except lc.Refused as e0:
+        if e0.reason != "OWNER_VINTAGE_MISSING":
+            raise
+        return lc.declared_substitute(d, ps, pp, arch, lc.validate_exceptions(doc))
+
+
+def _refuses(reason, arch, doc, ps, pp, d="2026-09-25"):
+    with pytest.raises(lc.Refused) as e:
+        _resolve(arch, doc, ps, pp, d)
+    assert e.value.reason == reason, (e.value.reason, e.value.detail)
+
+
+def test_declared_substitute_is_used_and_records_the_true_owner(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    v = _resolve(arch, doc, ps, pp, "2026-09-25")
+    assert v["tag"] == "pSUB" and v["owner_vintage_of_record"] == "pOWNER"
+    assert v["pub_id"] == "2026-09-25-pOWNER-abc" and v["declared_exception"]["reason"] == "pruned"
+
+
+def test_neg1_missing_owner_without_a_declaration_refuses(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    _refuses("OWNER_VINTAGE_MISSING", arch, {"approval": {"type": "x"}, "exceptions": []}, ps, pp)
+
+
+def test_neg2_declaration_for_another_session_does_not_apply(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    doc["exceptions"][0]["session"] = "2026-09-26"
+    _refuses("OWNER_VINTAGE_MISSING", arch, doc, ps, pp)
+
+
+def test_neg3_wrong_true_owner_refuses(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    doc["exceptions"][0]["true_owner_vintage"] = "pOTHER"
+    _refuses("EXCEPTION_TRUE_OWNER_MISMATCH", arch, doc, ps, pp)
+
+
+def test_neg4_wrong_substitute_refuses(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    doc["exceptions"][0]["substitute_vintage"] = "pNOTHERE"
+    _refuses("EXCEPTION_SUBSTITUTE_MISSING", arch, doc, ps, pp)
+    arch, doc, ps, pp = _sub_world(tmp_path / "b")
+    doc["exceptions"][0]["substitute_vintage"] = "pNEWER"      # real, archived, containing — but not the pinned one
+    _refuses("EXCEPTION_SUBSTITUTE_HASH", arch, doc, ps, pp)
+
+
+def test_neg5_wrong_hash_refuses(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    doc["exceptions"][0]["substitute_hashes"]["reference_sha256"] = "0" * 64
+    _refuses("EXCEPTION_SUBSTITUTE_HASH", arch, doc, ps, pp)
+    arch, doc, ps, pp = _sub_world(tmp_path / "b")
+    doc["exceptions"][0]["true_owner_provenance"]["input_manifest_sha256"] = "0" * 64   # owner evidence must match
+    _refuses("EXCEPTION_PROVENANCE_MISMATCH", arch, doc, ps, pp)
+
+
+def test_neg6_corrupted_archive_refuses(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    open(os.path.join(arch, "pSUB", "grouped_pSUB", "x_0.json"), "w").write("[1]")
+    _refuses("ARCHIVE_INTEGRITY", arch, doc, ps, pp)
+
+
+def test_neg7_substitute_that_does_not_contain_the_session_refuses(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path, sub_last="2026-09-24")
+    _refuses("EXCEPTION_SUBSTITUTE_DOES_NOT_CONTAIN", arch, doc, ps, pp)
+
+
+def test_neg8_lineage_mismatch_refuses(tmp_path):
+    s = lc.Store(str(tmp_path / "c.db"))
+    s.init_lineage({"owner_vintage_exceptions_sha256": "aaa"})
+    with pytest.raises(lc.Refused) as e:
+        s.init_lineage({"owner_vintage_exceptions_sha256": "bbb"})
+    assert e.value.reason == "LINEAGE_MISMATCH"
+
+
+def test_neg9_a_later_missing_owner_still_fails_closed(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    _refuses("OWNER_VINTAGE_MISSING", arch, doc, ps, pp, d="2026-10-06")
+
+
+def test_neg10_no_latest_or_earliest_fallback_exists(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    ps["2026-09-29"] = ("CURRENT", "pGONE", "2026-09-29-pGONE-x")
+    pp["2026-09-29"] = ("2026-09-29-pGONE-x", {"vintage_tag": "pGONE", "input_manifest_sha256": "a",
+                                               "reference_sha256": "b"})
+    _refuses("OWNER_VINTAGE_MISSING", arch, doc, ps, pp, d="2026-09-29")   # pSUB and pNEWER both contain it
+    src = open(os.path.join(TOOLS, "live_core.py"), encoding="utf-8").read()
+    body = src[src.index("def owner_vintage("):src.index("# ── 2. MEMBERSHIP")]
+    assert "listdir" not in body and "sorted(" not in body and "max(" not in body   # the owner is never searched for
+
+
+def test_exception_file_malformed_or_owner_present(tmp_path):
+    arch, doc, ps, pp = _sub_world(tmp_path)
+    for mutate in (lambda d: d["exceptions"][0].__setitem__("session", "2026-09-*"),
+                   lambda d: d["exceptions"].append(dict(d["exceptions"][0])),
+                   lambda d: d["exceptions"][0].__setitem__("extra", "wildcard")):
+        bad = json.loads(json.dumps(doc))
+        mutate(bad)
+        _refuses("EXCEPTION_MALFORMED", arch, bad, ps, pp)
+    arch, doc, ps, pp = _sub_world(tmp_path / "b", owner_present=True)
+    ow = os.path.join(arch, "pOWNER", "inputs_pOWNER")
+    pp["2026-09-25"][1]["input_manifest_sha256"] = lc.sha_file(os.path.join(ow, "INPUT_MANIFEST.json"))
+    pp["2026-09-25"][1]["reference_sha256"] = lc.sha_file(os.path.join(ow, "pit_reference.json"))
+    doc["exceptions"][0]["true_owner_provenance"].update(input_manifest_sha256=pp["2026-09-25"][1]["input_manifest_sha256"],
+                                                         reference_sha256=pp["2026-09-25"][1]["reference_sha256"])
+    assert _resolve(arch, doc, ps, pp, "2026-09-25")["tag"] == "pOWNER"   # a present owner always wins
+    with pytest.raises(lc.Refused) as e:                                   # and the declaration refuses to override it
+        lc.declared_substitute("2026-09-25", ps, pp, arch, lc.validate_exceptions(doc))
+    assert e.value.reason == "EXCEPTION_OWNER_PRESENT"
+
+
+def test_the_committed_exception_file_is_pinned_and_names_exactly_two_sessions():
+    raw = open(EXC_FILE, "rb").read()
+    src = open(os.path.join(TOOLS, "exch_live_leg.py"), encoding="utf-8").read()
+    pin = src.split('EXCEPTIONS_SHA256 = "')[1].split('"')[0]
+    assert hashlib.sha256(raw).hexdigest() == pin
+    ex = lc.validate_exceptions(json.loads(raw))
+    assert sorted(ex) == ["2026-09-25", "2026-09-28"]
+    for e in ex.values():
+        assert (e["true_owner_vintage"], e["substitute_vintage"]) == ("p202609292209", "p202609302026")
+        assert e["substitute_hashes"]["last_session"] == "2026-09-29"
