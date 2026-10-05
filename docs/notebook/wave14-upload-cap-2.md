@@ -112,3 +112,137 @@ the user-definitions auth rail:
   secret, and `/api/breadth/industries` behind `require_paid`), `broker_sync.py`'s signed
   webhook, and the signed webhooks in `desk_zoom_webhook.py`, `discord_interactions.py` and
   `webhooks.py`, which need the raw body for the signature. Each is bounded by the edge today.
+
+---
+
+# Round 2 (same branch)
+
+## 1. The CSV column mapper's mapping now reaches the server
+
+`POST /api/j2/trades/import/preview-mapped` declared `mapping: str = ""`. FastAPI reads a bare
+`str` parameter that sits beside a file from the **query string**. `ImportCsvModal.jsx` sends
+`form.append('mapping', JSON.stringify(mapping))`, a form field. So every mapped import was
+parsed with `{}` and answered "mapping missing required fields". The wizard never worked.
+The only callers are that modal and its vitest mock. Nothing in `api/`, `tools/` or `scripts/`
+posts to the route.
+
+The route now takes its body through `body_cap.capped_multipart(..., fields=("mapping",))` and
+reads the form field. A query-string `mapping` is still honoured for any other caller; when both
+are sent, the form field wins. Tests in `tests/test_notebook_upload_cap_2.py`:
+
+- `test_preview_mapped_reads_the_mapping_from_the_form_field_the_client_sends` sends exactly
+  what the client sends. It reads the URL and the form field name from `ImportCsvModal.jsx`, so
+  a change to the client turns it red. It failed on the old route (`format: unknown`, 0 trades).
+- `test_the_client_posts_the_mapping_as_a_form_field_not_a_query_string` pins the client side.
+- Three more tests: a query-string mapping still works, the form field wins over the query
+  string, and a bad mapping JSON still answers 400.
+
+## 2. Census row for `PUT /api/j2/onboarding/tours/{tour_id}`
+
+W14-C2 added this route without a census row, so the census rail was already red at
+`9004bd8dac`. The new row follows the onboarding rows:
+
+- session auth, not paid
+- `dep: NOTEBOOK_ONBOARDING_ENABLED`, no rate limit
+- member-scoped by `tour_seen_state.record`
+- bounded by `TourRow` validation and `MAX_TOURS` (64)
+
+`tests/test_notebook_route_security_census.py`: 9 passed.
+
+## 3. The rest of the `File(...)` doors in `api/routers`, and the helper extension
+
+**The helper.** `request_body_cap.capped_multipart(field, max_bytes, sentence, *, fields=(),
+text_parts=0, exact=True)` yields `CappedMultipart(file, fields)`:
+
+- `fields` holds the named text fields; each is `None` when absent.
+- The body cap is `max_bytes()` + `FRAMING_SLACK` + `text_parts` text parts at Starlette's own
+  per-part ceiling. That ceiling is read from `MultiPartParser.max_part_size`, never restated.
+- `exact=False` leaves a file just over its cap for the route to judge.
+
+`capped_upload` is now built on `capped_multipart`: it resolves that dependency and returns
+`.file`. It is not a second implementation, and a test pins that.
+
+Each door declares the dependency AFTER its auth dependency. Each keeps the cap and the sentence
+it already had. Both now live in one constant, which the route's existing after-read check uses
+too:
+
+| door | auth | cap (source) | sentence |
+|---|---|---|---|
+| `POST /api/auth/tickets/{t}/messages/{m}/attachments` | session | 5 MB, `support_attachments.MAX_SOURCE_BYTES` | `TOO_BIG_SENTENCE` "Image must be under 5 MB" |
+| `POST /api/auth/avatar` | session | 2 MB, `avatar.MAX_SIZE` | "Image must be under 2 MB" |
+| `POST /api/community/images` | `require_community` | 5 MB, `community._MAX_IMAGE_BYTES` | "Image must be 1 byte – 5 MB". The route's own declared-length check is gone: the helper makes it, and also catches a lying or absent length |
+| `POST /api/desk/team/{id}/photo` | admin | 4 MB, `desk.MAX_PHOTO_SIZE` | "Image must be under 4 MB" |
+| `POST /api/indicator-vision/candidates` | paid | 5 MB image (`indicator_from_image.MAX_IMAGE_BYTES`) + 2 text parts (bars, note), `exact=False` | **new**: `upload_too_large_sentence()`, used only for the body cap |
+| `POST /api/voice/vision/upload` | voice access | 5 MB (`VISION_MAX_BYTES`, was an inline literal) | "image too large (max 5MB)" |
+| `POST /api/voice/documents/upload` | voice access | 10 MB (`DOCUMENT_MAX_BYTES`, was an inline literal) | "file too large (max 10MB)" |
+| `POST /api/voice/transcribe` and `/oneshot` | voice access | 25 MB, `voice_openai.MAX_AUDIO_BYTES` (Whisper's limit) | `audio_too_big_sentence()` "audio exceeds 26214400 bytes" |
+
+**No new numeric cap.** Every number is one the route or its service already enforced after the
+read.
+
+⚰️ Round 1 said the voice audio routes "have no size cap at all". That was wrong.
+`transcribe_audio` already refused audio over 25 MB, but only after the whole body had been read
+and spooled.
+
+The one new sentence is indicator-vision's body-cap 413. That door keeps its graceful
+`200 {ok:false, gate:"vision:image-too-large"}` answer for an image just over 5 MB
+(`exact=False`), because that shape is what the member-facing UI reads. Only a body larger than
+image + bars + note + framing gets the 413.
+
+Text fields keep their old types and defaults. `symbol`, `title` and `note` default to `""`, and
+`context` to `"global"`. `cleanup` is parsed by pydantic's bool, with the same 422 shape that
+`Form(bool)` gave.
+
+What a member could notice: an over-cap upload now answers 413. Before, it answered 400; on the
+audio routes it was read in full and then refused. Each client reads `detail`.
+
+Recorded, not fixed: `useRealtimeSession.js` posts JSON to `/api/voice/oneshot`. That was a 422
+before this change and still is.
+
+## Tests (round 2)
+
+`tests/test_upload_cap_member_doors.py` has 74 tests, written first. Against the old code the
+first run was `57 failed, 14 passed, 3 errors`. It uses the same lazy-generator driver,
+imported. The shared `_multipart` gained `head=`, so the image doors stream a real PNG header
+followed by lazy padding. All nine doors run at their real caps. Per door, seven cases:
+
+- no length, just over the cap
+- far over the cap
+- exactly at the cap
+- a lying length
+- a declared length over the cap (0 bytes read)
+- an ordinary test-client request
+- no session (401, 0 bytes read)
+
+The file also covers field typing and defaults, the helper's own edges, and an AST rail: no
+handler in these seven routers has a `File(...)` or `Form(...)` default.
+
+**Mutation proof.** It ran on the three cap suites (174 tests). Each restore was checked against
+both the captured bytes and the HEAD blob, and `git status` was clean afterwards.
+
+| mutation | result |
+|---|---|
+| control | 174 passed |
+| H1 `capped_multipart` ignores `text_parts` | 1 failed, 173 passed |
+| H2 `capped_multipart` ignores `exact=False` | 2 failed, 172 passed |
+| H3 `capped_multipart` drops the text fields | 8 failed, 166 passed |
+| H4 preview-mapped ignores the form field (the old bug) | 3 failed, 171 passed |
+| H5 the avatar door back to `File(...)` before auth | 6 failed, 168 passed |
+| H6 the counting receive never trips | 46 failed, 128 passed |
+| control, after | 174 passed |
+
+Only the helper's own test catches H1, because no door test sends a body sized between the two
+body caps. That helper test is the rail for `text_parts`.
+
+**Scoped run.** 17 files: the three cap suites, the census, CSV import and presets,
+`test_no_shadowed_definitions.py`, and the existing suites of every touched router (community,
+indicator-from-image, voice router and openai, support tickets, desk, open-reads gate, community
+cards, golden journey 04/05, inline-image parity).
+Result: `491 passed, 6 skipped in 303.78s`.
+
+## Open items (round 2)
+
+- Uploads outside `api/routers` were not touched. These are `AlertTester.jsx`'s `csv_file` and
+  the LiveFlow / OptionsFlow `file` posts, which go to top-level, partner-owned routers.
+- From round 1: the signed webhooks and the breadth/broker JSON readers are still bounded only
+  at the edge.
