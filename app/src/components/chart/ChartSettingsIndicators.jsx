@@ -1435,6 +1435,9 @@ export default function ChartSettingsIndicators({
    */
   const selectRow = useCallback((rowId) => {
     setSelected(rowId)
+    // Choosing something already on the chart means MANAGING it: leave discovery so its
+    // inspector takes the right side (both doors — header Add to Chart and ＋ Add to Chart).
+    setMode((m) => (m === 'browse' ? 'active' : m))
     if (narrow) setNarrowView('inspector')
   }, [narrow])
 

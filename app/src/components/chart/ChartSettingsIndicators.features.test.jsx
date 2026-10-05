@@ -219,3 +219,72 @@ describe('Add to Chart — Research in the Indicators surface', () => {
     expect(screen.getByRole('tab', { name: 'Research' })).toBeTruthy()
   })
 })
+
+/* ⛔ REGRESSION (production, 2026-10-05): in DISCOVERY (`browse`) a click on a row of
+   what is already on the chart highlighted it and left the add surface on the right —
+   no inspector, so a Research feature had no Remove at all from the header door. Choosing
+   an existing item means managing it, through EITHER door. */
+describe('discovery → clicking something already on the chart opens its management', () => {
+  const seriesRow = (re) => [...document.body.querySelectorAll('[data-structure-row]')]
+    .find((r) => !r.hasAttribute('data-feature-row') && re.test(r.textContent))
+  const discovering = () => !!screen.queryByPlaceholderText(/Search indicators/i)
+
+  // The two doors into discovery: the chart header's Add to Chart (`scrollTo: 'add'`) and
+  // the ＋ Add to Chart button at the foot of the list.
+  const doors = {
+    header: () => render(<Host dock={{ strip: true, company: true, open: true }} scrollTo="add" />),
+    inPanel: () => {
+      render(<Host dock={{ strip: true, company: true, open: true }} />)
+      openTab()
+      fireEvent.click(screen.getByTestId('add-enter'))
+    },
+  }
+
+  for (const [door, open] of Object.entries(doors)) {
+    it(`${door} door: a normal indicator row opens its editor`, () => {
+      open()
+      expect(discovering()).toBe(true)
+      fireEvent.click(seriesRow(/^\W*EMA 9/))
+      expect(discovering()).toBe(false)
+      expect(inspector()).toBeTruthy()
+      expect(within(inspector()).getByRole('button', { name: /^Remove EMA 9/ })).toBeTruthy()
+    })
+
+    it(`${door} door: the Earnings Strip row opens its management, and Remove works`, () => {
+      open()
+      fireEvent.click(featureRow(EARNINGS_STRIP))
+      expect(discovering()).toBe(false)
+      expect(inspector().getAttribute('data-inspector-for')).toBe('feature:earningsStrip')
+      fireEvent.click(within(inspector()).getByRole('button', { name: 'Remove Earnings Strip' }))
+      expect(featureRow(EARNINGS_STRIP)).toBeNull()
+    })
+
+    it(`${door} door: the Company Info row opens its management with its controls`, () => {
+      open()
+      fireEvent.click(featureRow(COMPANY_INFO))
+      expect(discovering()).toBe(false)
+      expect(inspector().getAttribute('data-inspector-for')).toBe('feature:companyInfo')
+      expect(within(inspector()).getByRole('switch', { name: 'Collapse Company Info' })).toBeTruthy()
+      expect(within(inspector()).getByRole('button', { name: 'Remove Company Info' })).toBeTruthy()
+    })
+  }
+
+  it('searching does not leave discovery, and adding a NEW item still works', () => {
+    const seen = []
+    render(<Host seen={seen} scrollTo="add" />)
+    fireEvent.focus(searchBox())
+    fireEvent.change(searchBox(), { target: { value: 'MACD' } })
+    expect(discovering()).toBe(true)
+    fireEvent.click(result('technical:macd') || document.body.querySelector('[data-def-id="macd"]'))
+    expect(seen.length).toBe(1)
+    expect(inspector().getAttribute('data-inspector-for')).toMatch(/^inst:macd:/)
+  })
+
+  it('…and the door reopens discovery after managing an item', () => {
+    doors.header()
+    fireEvent.click(featureRow(EARNINGS_STRIP))
+    expect(discovering()).toBe(false)
+    fireEvent.click(screen.getByTestId('add-enter'))
+    expect(discovering()).toBe(true)
+  })
+})
