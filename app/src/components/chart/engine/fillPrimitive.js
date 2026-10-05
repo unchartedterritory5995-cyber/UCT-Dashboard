@@ -175,6 +175,49 @@ export function fillPolygons(args) {
 }
 
 /**
+ * ⭐⭐ W19-R2 — A GRADIENT BAND, ONE QUAD PER BAR STEP (Pine's `fill(p1, p2,
+ * top_value, bottom_value, top_color, bottom_color)`, Q-RT15d).
+ *
+ * CAP5 settled the shading: linear in PRICE from the top colour at `top_value` to
+ * the bottom colour at `bottom_value`, clipped to the two plots. The step from bar
+ * `i - 1` to bar `i` is shaded with bar `i`'s values and colours — the rule a
+ * per-bar line colour already follows here; which bar TradingView uses for the
+ * step is NOT in the capture (Q-W19R2c), and neither is the shade outside
+ * `[bottom_value, top_value]` (a canvas gradient pads with its end colours).
+ *
+ * ⛔ A STEP IS SHADED ONLY WHERE EVERY INPUT IS PRESENT: both edges at both bars,
+ * both values and both colours at bar `i`. An `na` colour or value is a gap (R30),
+ * and a lone bar has no step to shade. Equal values (no extent) shade nothing.
+ *
+ * @returns {Array<{poly: Array<{x:number,y:number}>, y0: number, y1: number, c0: string, c1: string}>}
+ */
+export function gradientSteps({ upper, lower, times, colors, gradient, timeToX, priceToY }) {
+  const out = []
+  // ⛔ `{missing: true}` (the binder's fail-closed answer) carries no columns, so
+  // every step below finds no bottom colour and NOTHING is drawn — one guard, the
+  // per-step one, rather than a second check over the same fact.
+  if (!gradient || !upper || !lower || !times || !colors) return out
+  const { top, bottom, bottomColors } = gradient
+  const n = Math.min(upper.length, lower.length, times.length)
+  for (let i = 1; i < n; i += 1) {
+    const c0 = colors[i]
+    const c1 = bottomColors && bottomColors[i]
+    if (c0 == null || c1 == null) continue
+    if (![upper[i - 1], lower[i - 1], upper[i], lower[i], top[i], bottom[i]].every(Number.isFinite)) continue
+    const xa = timeToX(times[i - 1])
+    const xb = timeToX(times[i])
+    const ys = [upper[i - 1], upper[i], lower[i], lower[i - 1], top[i], bottom[i]].map(priceToY)
+    if (xa == null || xb == null || ys.some((y) => y == null)) continue
+    if (ys[4] === ys[5]) continue
+    out.push({
+      poly: [{ x: xa, y: ys[0] }, { x: xb, y: ys[1] }, { x: xb, y: ys[2] }, { x: xa, y: ys[3] }],
+      y0: ys[4], y1: ys[5], c0, c1,
+    })
+  }
+  return out
+}
+
+/**
  * Traces a smooth curve through `points` onto the CURRENT path, assuming the
  * path's current point is already `points[0]` (a prior `moveTo`/`lineTo`).
  * Quadratic-through-midpoints: the standard, cheap technique for a smooth
@@ -240,6 +283,28 @@ export function createFillPrimitive(initial) {
         const ts = chart.timeScale()
         const timeToX = (t) => { try { return ts.timeToCoordinate(t) } catch { return null } }
         const priceToY = (p) => { try { return series.priceToCoordinate(p) } catch { return null } }
+        // ⭐⭐ W19-R2 — a gradient band draws its own steps and nothing else; a
+        // declared gradient whose columns are missing draws nothing (`missing`).
+        if (opts.gradient) {
+          const steps = gradientSteps({ upper, lower, times, colors, gradient: opts.gradient, timeToX, priceToY })
+          if (!steps.length) return
+          target.useMediaCoordinateSpace(({ context: ctx }) => {
+            ctx.save()
+            for (const st of steps) {
+              const grad = ctx.createLinearGradient(0, st.y0, 0, st.y1)
+              grad.addColorStop(0, st.c0)
+              grad.addColorStop(1, st.c1)
+              ctx.beginPath()
+              ctx.moveTo(st.poly[0].x, st.poly[0].y)
+              for (let j = 1; j < st.poly.length; j += 1) ctx.lineTo(st.poly[j].x, st.poly[j].y)
+              ctx.closePath()
+              ctx.fillStyle = grad
+              ctx.fill()
+            }
+            ctx.restore()
+          })
+          return
+        }
         const groups = fillGroups({ upper, lower, times, colors, timeToX, priceToY })
         if (!groups.length) return
         // ⭐⭐ R30 — ONE `fillStyle` PER RUN when the fill is colour-driven, and ONE

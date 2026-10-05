@@ -1124,7 +1124,7 @@ function runtimeFillsOf({ probe, version, rows, derivedRows, outputs, hiddenByOu
       const key = keyOfOut.get(out)
       const row = byKey.get(key)
       // ⛔ a colour column is not an edge — only a row that computes a value is
-      return row && row.colourFor === undefined ? key : null
+      return row && row.colourFor === undefined && row.gradientFor === undefined ? key : null
     }
     const h = hiddenByOut.get(out)
     if (!h) return null
@@ -1164,6 +1164,27 @@ function runtimeFillsOf({ probe, version, rows, derivedRows, outputs, hiddenByOu
     const host = !rowA.fill ? { row: rowA, with: b } : (!rowB.fill ? { row: rowB, with: a } : null)
     if (!host) { hold('both of its edges already carry a band, and a row carries one'); return }
     host.row.fill = { with: host.with, colorMode: `column:${colourKeyOf(k)}`, colorPacked: {} }
+    // ⭐⭐ W19-R2 — THE GRADIENT FORM (Q-RT15d, CAP5 MATCH): the band shades from
+    // the top colour (this fill's own output, above) at `top_value` to the bottom
+    // colour at `bottom_value`. The two values ride hidden value columns, the
+    // bottom colour a hidden colour column — the same carriers a plain band's
+    // colour uses, so `binder.js` reads all four through one path.
+    if (ro.gradient) {
+      const valueKeyOf = (outIndex) => {
+        const key = mintKey()
+        outputs[key] = outIndex
+        derivedRows.push({
+          key, label: '', source: '0', ast: { type: 'num', value: 0 }, mode, readback: '',
+          style: 'line', hidden: true, gradientFor: k,
+        })
+        return key
+      }
+      host.row.fill.gradient = {
+        top: valueKeyOf(ro.gradient.topValue),
+        bottom: valueKeyOf(ro.gradient.bottomValue),
+        bottomColorMode: `column:${colourKeyOf(ro.gradient.bottomColour)}`,
+      }
+    }
     result.fillOf.set(host.row.key, host.row.fill)
     result.drawn += 1
   })

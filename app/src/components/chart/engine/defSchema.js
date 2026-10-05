@@ -1999,6 +1999,23 @@ function validateFills(plots, errors) {
       )
       return
     }
+    // ⭐⭐ W19-R2 — a GRADIENT band (`fill.gradient`, the runtime door's Q-RT15d
+    // form): the top colour is the fill's own `colorMode` column, the two values and
+    // the bottom colour are columns too. A name no plot declares would draw nothing.
+    const g = plot.fill.gradient
+    if (g !== undefined) {
+      const colOf = (m) => (typeof m === 'string' && m.startsWith('column:') ? m.slice('column:'.length) : null)
+      if (!isPlainObject(g)) {
+        errors.push(`${path}.gradient: expected {top, bottom, bottomColorMode}, got ${fmt(g)}`)
+      } else {
+        for (const [k, v] of [['top', g.top], ['bottom', g.bottom], ['bottomColorMode', colOf(g.bottomColorMode)],
+          ['colorMode', colOf(plot.fill.colorMode)]]) {
+          if (!isNonEmptyString(v) || !styleByKey.has(v)) {
+            errors.push(`${path}.gradient: ${k} ${fmt(k === 'colorMode' ? plot.fill.colorMode : g[k])} names no declared column`)
+          }
+        }
+      }
+    }
     const other = plot.fill.with
     if (other === plot.key) {
       errors.push(`${path}.with: ${fmt(other)} is this plot's own key — a fill between a line and itself has no area`)

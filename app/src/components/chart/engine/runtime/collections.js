@@ -391,6 +391,57 @@ const C11_MEMBERS = {
   },
 }
 
+/** ⭐⭐ W19-R2 — `array.fill` AND `array.insert`, SERVED TO THE EXTENT THE MANUAL
+ *  TEXT SETTLES THEM, and every index the text does not settle a NAMED STOP.
+ *
+ *  The authority is the Pine user manual, Arrays page, captured 2026-10-04 into
+ *  `docs/pine/capture-queue-2026-10-05-w19-r2.md` § Manual:
+ *   · "`array.fill()` points all array elements, or the elements within the
+ *     `index_from` to `index_to` range, to a specified `value`" — and its example
+ *     `a.fill(close, 1, 3)` fills indices 1 and 2: `index_to` is EXCLUSIVE.
+ *   · "`array.insert()` inserts a new element at the specified `index` and
+ *     increases the index of existing elements at or after the `index` by one."
+ *
+ *  ⛔ WHAT THE TEXT DOES NOT SAY STOPS THE RUN BY NAME (Q-W19R2a, the probe
+ *  `vw-w19r2-collections.pine`): a NEGATIVE index (the manual lists `insert` among
+ *  the negatively-indexed members but not what `insert(a, -1, x)` lands on — before
+ *  the last element, or after it), an `insert` AT `size` (no element is "at or after"
+ *  it: an append, or the out-of-range stop `get` gives?), a `fill` range past the
+ *  array or reversed, and a non-whole index. Measured over the 266 committed
+ *  scripts: `fill` is written at 32 sites in 8 scripts, `insert` at 102 in 7. */
+const W19_UNSETTLED = 'the manual text this engine holds does not settle that index, so the run '
+  + 'stops here rather than guessing where Pine writes (Q-W19R2a)'
+const W19R2_MEMBERS = {
+  'array.fill': {
+    args: ['array', 'any', 'number', 'number'], returns: 'void', minArgs: 2, maxArgs: 4,
+    fn: (a, budget) => {
+      const arr = guardSliceWrite(a[0], 'array.fill')
+      const n = arr.length
+      const from = a.length > 2 ? a[2] : 0
+      // `index_to` defaults to `na` — the end of the array.
+      const to = a.length > 3 && !(typeof a[3] === 'number' && Number.isNaN(a[3])) ? a[3] : n
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > n || from > to) {
+        throw new CollectionError(`array.fill: the range [${from}, ${to}) over an array of ${n} — ${W19_UNSETTLED}`)
+      }
+      budget.charge('ARRAY_OPERATIONS', Math.max(1, to - from))
+      for (let i = from; i < to; i += 1) arr[i] = a[1]
+    },
+  },
+  'array.insert': {
+    args: ['array', 'number', 'any'], returns: 'void',
+    fn: (a, budget) => {
+      const arr = guardSliceWrite(a[0], 'array.insert')
+      const i = a[1]
+      if (!Number.isInteger(i) || i < 0 || i >= arr.length) {
+        throw new CollectionError(`array.insert: index ${i} into an array of ${arr.length} — ${W19_UNSETTLED}`)
+      }
+      budget.charge('ARRAY_OPERATIONS', 1)
+      budget.peak('ARRAY_ELEMENTS', arr.length + 1)
+      arr.splice(i, 0, a[2])
+    },
+  },
+}
+
 /** @type {Readonly<Record<string, ArrayFn>>} */
 const ARRAY_NEW = {
   // ⭐ `array.new<T>(size?, initial?)` — the spelling both acceptance scripts
@@ -598,6 +649,7 @@ export const ARRAY_FNS = Object.freeze({
       return out
     },
   },
+  ...W19R2_MEMBERS,
   'array.median': unmeasuredReduction('array.median'),
   'array.stdev': unmeasuredReduction('array.stdev'),
   // ⭐ C35 — not a collection member: a void call the VM dispatches through this

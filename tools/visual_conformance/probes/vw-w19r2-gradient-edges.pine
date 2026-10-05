@@ -1,0 +1,23 @@
+// W19-R2 (2026-10-05) — probe for the capture lane. Queue: docs/pine/capture-queue-2026-10-05-w19-r2.md
+// Chart: NYSE:RDDT 1D from the listing. Screenshot THREE bars at high zoom (200 px/bar) where
+// `close > m` flips, for each row, and read the fill entries the study records.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+//
+// Q-W19R2c — what CAP5's Q-RT15d did not show:
+//   X01  a per-bar TOP colour that flips: which bar's colour shades the step between bar i-1 and bar i
+//        (the step left of the flip bar: old or new colour?)
+//   X02  values OUTSIDE the two plots: top_value above the upper plot, bottom_value below the lower
+//        (is the band still clipped to the plots, and is the colour at a plot the interpolated one?)
+//   X03  top_value == bottom_value (no extent): what is painted
+//   X04  a per-bar BOTTOM colour (the capture recorded no colorer for a constant one)
+//@version=6
+indicator("vw-w19r2-gradient-edges", overlay = true)
+m = ta.sma(close, 20)
+d = ta.stdev(close, 20)
+p1 = plot(m + d, "U upper")
+p2 = plot(m - d, "L lower")
+pm = plot(m, "M mid", display = display.none)
+fill(p1, pm, m + d, m, close > m ? color.lime : color.orange, color.new(color.gray, 90), title = "X01 flip")
+fill(pm, p2, m + 2 * d, m - 2 * d, color.green, color.red, title = "X02 outside")
+fill(p1, p2, m, m, color.blue, color.yellow, title = "X03 no extent")
+fill(p1, p2, m + d, m - d, color.green, close > open ? color.red : color.purple, title = "X04 bottom colour")

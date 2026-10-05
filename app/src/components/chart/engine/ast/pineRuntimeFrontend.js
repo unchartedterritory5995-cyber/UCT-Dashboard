@@ -6852,6 +6852,48 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const upper = sideOf(0)
     const lower = sideOf(1)
 
+    // ⭐⭐ W19-R2 — THE GRADIENT FORM, `fill(p1, p2, top_value, bottom_value,
+    // top_color, bottom_color, title, …)`. SETTLED BY CAP5 (Q-RT15d,
+    // `vw-rt15-gradient-fill-rddt-1d-2026-10-04`, MATCH): TradingView records the
+    // two VALUES per bar as the fill's own data plots (`plot_2`/`plot_3` target
+    // `fill_0`, in argument order), a per-bar TOP colour as the fill's colorer, and
+    // the screenshot reads the band shaded linearly in price from `top_color` at
+    // `top_value` to `bottom_color` at `bottom_value`, clipped to the two plots.
+    // The fill's own output is the TOP colour (as a plain fill's is its colour);
+    // three `fill-gradient` outputs carry the two values and the bottom colour.
+    const gradArg = (name, pos) => (named.has(name) ? named.get(name)
+      : (positional.length >= 6 ? argOf(positional[pos]) : null))
+    const topValue = gradArg('top_value', 2)
+    const bottomValue = gradArg('bottom_value', 3)
+    const topColour = gradArg('top_color', 4)
+    const bottomColour = gradArg('bottom_color', 5)
+    if (!named.has('color') && topValue && bottomValue && topColour && bottomColour
+      && !holdsColour(topValue, scope)) {
+      if (holdsColour(bottomValue, scope)) {
+        note('runtime:colour')
+        throw new RuntimeRefusal('runtime:colour',
+          'the gradient `fill()` takes a top and a bottom VALUE before its colours, and this is a colour', at)
+      }
+      if (!holdsColour(topColour, scope) || !holdsColour(bottomColour, scope)) {
+        note('runtime:colour')
+        throw new RuntimeRefusal('runtime:colour',
+          'the gradient `fill()` paints from `top_color` to `bottom_color`, and one of them is not a colour', at)
+      }
+      outputs.push({ call: 'fill', upper, lower })
+      const fi = outputs.length - 1
+      out.push(emit(fi, lowerExpr(topColour, scope)))
+      const gradient = {}
+      for (const [part, node] of [['topValue', topValue], ['bottomValue', bottomValue], ['bottomColour', bottomColour]]) {
+        outputs.push({ call: 'fill-gradient', of: fi, part })
+        gradient[part] = outputs.length - 1
+        out.push(emit(outputs.length - 1, lowerExpr(node, scope)))
+      }
+      outputs[fi].gradient = gradient
+      describeFill(outputs[fi], named, named.has('title') ? named.get('title')
+        : (positional.length > 6 ? argOf(positional[6]) : null), at)
+      return
+    }
+
     const colourNode = named.has('color') ? named.get('color')
       : (positional.length > 2 ? argOf(positional[2]) : null)
     if (!colourNode || !holdsColour(colourNode, scope)) {
@@ -6877,23 +6919,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // keeps its exact output table. The colour IS this output (a packed integer per
     // bar); what the door still needs is WHETHER and HOW TradingView draws the
     // band: `display`, `show_last`, `fillgaps`, and the title it is listed under.
-    if (wantColours) {
-      const desc = outputs[outputs.length - 1]
-      if (at && Number.isInteger(at.line)) desc.line = at.line
-      const titleNode = named.has('title') ? named.get('title')
-        : (positional.length > 3 && !named.has('color') ? argOf(positional[3]) : null)
-      if (titleNode && titleNode.type === 'string') desc.title = titleNode.value
-      const displayNode = named.get('display')
-      if (displayNode) {
-        const dn = displayNode.type === 'name' ? displayNode.name : null
-        desc.display = dn === 'display.none' ? 'none' : (dn === 'display.all' ? 'all' : 'unread')
-      }
-      if (named.has('show_last')) desc.showLast = true
-      // `false` parses as the number 0 (`pine.js`); anything else may bridge a gap
-      const gaps = named.get('fillgaps')
-      if (gaps && !(gaps.type === 'number' && Number(gaps.value) === 0)) {
-        desc.fillGaps = true
-      }
+    describeFill(outputs[outputs.length - 1], named, named.has('title') ? named.get('title')
+      : (positional.length > 3 && !named.has('color') ? argOf(positional[3]) : null), at)
+  }
+
+  /** What a fill call said around its colour, for the pane's door — one reader
+   *  for the plain and the gradient form (W19-R2 split it out of `emitFill`). */
+  const describeFill = (desc, named, titleNode, at) => {
+    if (!wantColours) return
+    if (at && Number.isInteger(at.line)) desc.line = at.line
+    if (titleNode && titleNode.type === 'string') desc.title = titleNode.value
+    const displayNode = named.get('display')
+    if (displayNode) {
+      const dn = displayNode.type === 'name' ? displayNode.name : null
+      desc.display = dn === 'display.none' ? 'none' : (dn === 'display.all' ? 'all' : 'unread')
+    }
+    if (named.has('show_last')) desc.showLast = true
+    // `false` parses as the number 0 (`pine.js`); anything else may bridge a gap
+    const gaps = named.get('fillgaps')
+    if (gaps && !(gaps.type === 'number' && Number(gaps.value) === 0)) {
+      desc.fillGaps = true
     }
   }
 

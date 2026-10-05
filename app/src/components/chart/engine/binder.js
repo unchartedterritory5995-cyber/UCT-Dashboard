@@ -417,6 +417,25 @@ export function paintColoursFor(paint, instanceId, columns, n) {
   return c ? new Array(n).fill(c) : null
 }
 
+/** ⭐⭐ W19-R2 — A GRADIENT BAND's other three columns (`fill.gradient`, the
+ *  runtime door's Q-RT15d form): the top and bottom VALUES and the bottom colour
+ *  per bar; the top colour is the band's own `colors`. ⛔ FAIL CLOSED: a declared
+ *  gradient whose columns are not all here draws NOTHING (`{missing: true}`),
+ *  never a flat band in the top colour. */
+function fillGradient(fillSpec, instanceId, columns, n, shift) {
+  const g = fillSpec && fillSpec.gradient
+  if (!g) return undefined
+  const top = columns.get(bindingKey(instanceId, g.top))
+  const bottom = columns.get(bindingKey(instanceId, g.bottom))
+  const bottomColors = fillColours({ colorMode: g.bottomColorMode, colorPacked: {} }, instanceId, columns, n)
+  if (!top || !bottom || !bottomColors) return { missing: true }
+  return {
+    top: displacedColumn(top, shift),
+    bottom: displacedColumn(bottom, shift),
+    bottomColors: displacedColumn(bottomColors, shift),
+  }
+}
+
 function fillColours(fillSpec, instanceId, columns, n) {
   const cc = columnColorsForPlot(fillSpec)
   if (!cc) return null
@@ -2127,6 +2146,7 @@ export function createBinder({ chart, LWC }) {
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
             colors: displacedColumn(fillColours(fillSpec, b.instanceId, columns, bars.length), ownShift),
+            gradient: fillGradient(fillSpec, b.instanceId, columns, bars.length, ownShift),
           })
         }
       }
@@ -2187,6 +2207,7 @@ export function createBinder({ chart, LWC }) {
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
             colors: displacedColumn(fillColours(hp.fill, b.instanceId, columns, bars.length), drawShiftOf(hp)),
+            gradient: fillGradient(hp.fill, b.instanceId, columns, bars.length, drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
