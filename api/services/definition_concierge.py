@@ -1306,7 +1306,10 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
             gap = "no-template"
         else:
             gap = _placeholder_gap(phrase, len(args))
-        functions[name] = {"phrase": phrase, "args": args, "gap": gap}
+        # P0 0M -- roles ride with the rule so the window floor follows the
+        # evaluator's own zero-floor-by-role rule (mirrors sentence.js).
+        functions[name] = {"phrase": phrase, "args": args, "gap": gap,
+                           "arg_roles": list(spec.get("argRoles") or ())}
 
     return {"series": series, "clock": clock, "scalars": scalars,
             "operators": operators, "functions": functions, _TABLE_KEY: t}
@@ -1350,12 +1353,18 @@ def _spell_sentence_number(value: Any, path: str) -> str:
     return str(value)
 
 
+#: P0 0M -- the roles whose domain includes 0, by NAME, exactly as
+#: ``interpret.js::windowLiteral`` and ``sentence.js::spellWindow`` rule.
+_ZERO_IS_IN_DOMAIN = frozenset({"occurrence", "percentage"})
+
+
 def _spell_window(node: Any, fn_name: str, index: int, path: str,
-                  trace: List[Dict[str, str]]) -> str:
+                  trace: List[Dict[str, str]], role: Any = None) -> str:
+    floor = 0 if role in _ZERO_IS_IN_DOMAIN else 1
     ok = (isinstance(node, dict) and node.get("type") == "num"
           and type(node.get("value")) is not bool
           and isinstance(node.get("value"), (int, float))
-          and float(node["value"]).is_integer() and node["value"] >= 1)
+          and float(node["value"]).is_integer() and node["value"] >= floor)
     if not ok:
         shown = node.get("value") if isinstance(node, dict) and node.get("type") == "num" else node
         raise _SentenceRefused(
@@ -1539,7 +1548,9 @@ def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
     parts: List[str] = []
     for i, kind in enumerate(rule["args"]):
         child = f"{path}.args[{i}]"
-        parts.append(_spell_window(node["args"][i], name, i, child, trace)
+        roles = rule.get("arg_roles") or []
+        parts.append(_spell_window(node["args"][i], name, i, child, trace,
+                                   roles[i] if i < len(roles) else None)
                      if kind == "int"
                      else _render_arg(node["args"][i], rules, inputs, child, trace))
     return _fill(rule["phrase"], parts, f"function {name}", path)

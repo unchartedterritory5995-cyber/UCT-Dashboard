@@ -44,6 +44,7 @@ const IS_TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/
  *  Adding a row is the point: it means somebody looked. */
 const ACKNOWLEDGED = [
   'src/components/chart/engine',
+  'src/components/chart/engine/__truth__', // P0 truth corpus (2026-10-05, brief: one file per slice)
   'src/components/chart/engine/__tests__',
   'src/components/chart/engine/__truth__',   // P0 truth corpus (every slice's p0.<slice>.truth.test.js)
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
@@ -190,6 +191,7 @@ const ACKNOWLEDGED_CHART = [
   // (1 file / 18 tests) BEFORE this line was added.
   'src/components/chart/economic',
   'src/components/chart/engine',
+  'src/components/chart/engine/__truth__', // P0 truth corpus (2026-10-05)
   'src/components/chart/engine/__tests__',
   'src/components/chart/engine/__truth__',   // P0 truth corpus
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)

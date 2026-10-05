@@ -35,6 +35,10 @@ import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
+import { importOutcome, classifyNote, SEVERITY, controlledErrorReport } from '../engine/ast/importOutcome'
+import { foreignLanguage, foreignRefusal } from '../engine/ast/foreignLanguage'
+import { TS_CALL_SHAPES, TS_DOC_BLOCKED } from '../engine/ast/thinkscript'
+import { TABLE } from '../engine/ast/parse'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -114,7 +118,20 @@ function downstreamScopeFor(out) {
   return { ...BUILDER_INPUT_SCOPE, ...declaredInputs({ inputs: out?.memberInputs }) }
 }
 
+/** ⭐⭐ P0 0L (2026-10-05) — THE CONTROLLED ERROR. `translatePine` threw on a
+ *  public corpus script (`smart-money-breakouts-chartprime`) and `PasteBox` ran
+ *  it inside a `setTimeout` with no catch, so the box silently stopped answering —
+ *  the opposite of the "never throws" claim above. Every door below now goes
+ *  through this boundary: a throw becomes ONE report that says the engine failed
+ *  (outcome ERROR), is logged, and offers nothing to save
+ *  (`importOutcome.js::controlledErrorReport`). */
 export function inspectPine(source, opts = undefined) {
+  let r
+  try { r = inspectPineUnguarded(source, opts) } catch (e) { return controlledErrorReport(source, e, 'pine') }
+  return { ...r, outcome: importOutcome({ ...r, dialect: 'pine' }) }
+}
+
+function inspectPineUnguarded(source, opts = undefined) {
   // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
   // runs `translatePine` twice — once declaring every bound input to find which
   // ones the engine has to fold back into a window, then again declaring only the
@@ -188,7 +205,89 @@ export function inspectPine(source, opts = undefined) {
  * @param {'auto'|'pine'|'thinkscript'|'pcf'|'formula'} [dialect]
  * @returns {{ok, dialect, version, outputs, selected, refusal, ignored, folded}}
  */
+/** ⭐⭐ P0 0K — a name the native reader did not know that IS a thinkScript call
+ *  (`Average`, `ExpAverage`, `RSI` …): the one-line thinkScript scan shape with no
+ *  `def`/`plot` that `dialect.js` has no marker for. Capitalised only — the native
+ *  table's own names are lower-case, so `sma` can never be taken for one. */
+function isThinkScriptName(name) {
+  if (typeof name !== 'string' || !/[A-Z]/.test(name)) return false
+  return Object.prototype.hasOwnProperty.call(TS_CALL_SHAPES, name.toLowerCase())
+    || Object.prototype.hasOwnProperty.call(TS_DOC_BLOCKED, name)
+}
+
+const NATIVE_NAMES = new Set([
+  ...Object.keys(TABLE.series || {}), ...Object.keys(TABLE.functions || {}),
+])
+
+/**
+ * ⭐⭐ P0 — THE DOOR, GUARDED AND ROUTED. Same contract as before (one shape for
+ * every dialect) plus `outcome` (`importOutcome.js`) and, where it applies,
+ * `foreign` / `rerouted`.
+ *
+ * 0K ROUTING, CONSERVATIVELY:
+ *   • a recognisable language this engine does not read (NinjaScript, MQL,
+ *     EasyLanguage, Python, MetaStock, AFL — `foreignLanguage.js`, two markers)
+ *     is UNSUPPORTED BY NAME, instead of a TC2000 character refusal. Never for a
+ *     paste the detector reads as Pine (`foreignLanguage.js`: it never overrides
+ *     a dialect we do read).
+ *   • a native-formula refusal for an unknown function that is a thinkScript
+ *     call name is read by the thinkScript translator — its answer, success or
+ *     its own refusal, is the one about the language actually pasted.
+ *   • a TC2000 refusal of a lower-case name the engine's own grammar declares,
+ *     in a paste using lower-case `and`/`or`, says so instead of only blaming TC2000.
+ */
 export function inspectSource(source, dialect = 'auto', opts = undefined) {
+  let report
+  try {
+    report = routeAndInspect(source, dialect, opts)
+  } catch (e) {
+    return controlledErrorReport(source, e, dialect === 'auto' ? 'formula' : dialect)
+  }
+  return { ...report, outcome: importOutcome(report) }
+}
+
+function routeAndInspect(source, dialect, opts) {
+  const text = typeof source === 'string' ? source : ''
+  if (dialect !== 'auto') return inspectSourceUnguarded(text, dialect, opts)
+  const detected = detectDialect(text)
+  if (detected !== 'pine') {
+    const found = foreignLanguage(text)
+    if (found) {
+      return {
+        ok: false, dialect: detected, version: null, declaration: null, title: null,
+        outputs: [], selected: -1,
+        refusal: { guard: 'language', message: foreignRefusal(found), line: null, column: null, token: null, source: text },
+        ignored: [], folded: [], inputParams: [], objects: null, foreign: found.name,
+      }
+    }
+  }
+  const rep = inspectSourceUnguarded(text, detected, opts)
+  if (rep.dialect === 'formula' && !rep.ok && rep.refusal && rep.refusal.guard === 'resolve:function') {
+    const m = /unknown function "([^"]+)"/.exec(String(rep.refusal.message || ''))
+    if (m && isThinkScriptName(m[1])) {
+      const ts = inspectSourceUnguarded(text, 'thinkscript', opts)
+      return { ...ts, rerouted: { from: 'formula', name: m[1] } }
+    }
+  }
+  if (rep.dialect === 'pcf' && !rep.ok && rep.refusal && rep.refusal.guard === 'pcf:name'
+    && /\b(?:and|or)\b/.test(text)) {
+    const tok = /`([^`]+)`/.exec(String(rep.refusal.message || ''))
+    if (tok && NATIVE_NAMES.has(tok[1])) {
+      return {
+        ...rep,
+        refusal: {
+          ...rep.refusal,
+          message: `${rep.refusal.message}. This reads like this engine's own formula syntax `
+            + '(lower-case names such as `close` and `sma(…)`), where `and` and `or` are written '
+            + '`&&` and `||`; a TC2000 formula writes AND / OR with TC2000 names such as C and AVGC50.',
+        },
+      }
+    }
+  }
+  return rep
+}
+
+function inspectSourceUnguarded(source, dialect = 'auto', opts = undefined) {
   const chosen = dialect === 'auto' ? detectDialect(source) : dialect
   /* istanbul ignore next — `DIALECTS` is the closed set; a caller typo is a bug */
   const lang = DIALECTS.includes(chosen) ? chosen : 'formula'
@@ -270,6 +369,9 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // through THIS function. A program left unforwarded would translate
       // perfectly, save nothing, and draw nothing, with every test still green.
       objects: t.objects || null,
+      // ⭐ P0 0G — the object pass's own loss counters, forwarded BY NAME so the
+      // import outcome can say what the drawing lost (`objectLoss.js`).
+      objectDiagnostics: t.objectDiagnostics || null,
       // ⭐⭐ WAVE B — AND THIS LINE IS WHY THE WAVE EXISTS, COMMITTED TWICE.
       //
       // ⚰️ `inspectPine` above SPREADS its translation (`{...translated}`), so it
@@ -576,7 +678,14 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     const id = setTimeout(() => {
       const values = memberSettings(settings)
       const overridden = Object.keys(values).length > 0
-      const next = inspect(text, overridden ? { inputValues: values } : undefined)
+      // ⛔ P0 0L — the door is guarded, and this is the last line of defence: a
+      // throw here used to leave the box silently frozen on its previous report.
+      let next
+      try {
+        next = inspect(text, overridden ? { inputValues: values } : undefined)
+      } catch (e) {
+        next = controlledErrorReport(text, e)
+      }
       const isNewText = lastTextRef.current !== text
       lastTextRef.current = text
       setReport(next)
@@ -913,6 +1022,16 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   }, [text, commitText])
 
   const seen = report && report.dialect ? report.dialect : null
+  // ⭐ P0 0G/0I — the verdict and its visible semantic notes. A note the active
+  // output's vendor list already shows is not repeated.
+  const outcome = report ? (report.outcome || importOutcome(report)) : null
+  const semanticShown = useMemo(() => {
+    if (!outcome) return []
+    const shown = new Set(((active && active.vendorNotes) || []).map((v) => `${v.name}::${v.note}`))
+    return outcome.semantic.filter((n) => !shown.has(`${n.name}::${n.note}`))
+  }, [outcome, active])
+  const collapsedNotes = report
+    ? (report.ignored || []).filter((n) => classifyNote(n) !== SEVERITY.SEMANTIC) : []
 
   return (
     <section className={styles.wrap} aria-labelledby="uct-pine-head" data-testid="pine-box">
@@ -997,6 +1116,29 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               {`Uses imported ${report.libraries.length === 1 ? 'library' : 'libraries'}: `}
               {report.libraries.map((l) => `${l.path} (${l.licence}${l.attribution ? ` · ${l.attribution}` : ''})`).join('; ')}
             </p>
+          )}
+
+          {/* ⭐⭐ P0 0G/0I — THE VERDICT, ALWAYS SHOWN. One of exact / disclosed
+              differences / partial / not supported / failed (`importOutcome.js`). */}
+          {outcome && (
+            <p className={styles.meta} data-testid="import-outcome" data-outcome={outcome.verdict} role="status">
+              <b>{outcome.label}</b>
+              {report.foreign ? ` — this looks like ${report.foreign}` : ''}
+              {report.rerouted ? ` — read as thinkScript: \`${report.rerouted.name}\` is a thinkorswim name` : ''}
+              {outcome.reason && outcome.verdict !== 'unsupported' && outcome.verdict !== 'error'
+                ? ` — ${outcome.reason}` : ''}
+            </p>
+          )}
+          {semanticShown.length > 0 && (
+            <ul className={styles.notes} data-testid="import-semantic-notes">
+              {/* ⛔ A DIFFERENCE THAT CAN CHANGE A VALUE IS NEVER BEHIND A TOGGLE. */}
+              {semanticShown.map((n, i) => (
+                <li key={`${n.name}-${i}`} className={styles.note} data-severity="semantic">
+                  <span className={styles.noteWhere}>{n.name}</span>
+                  <span>{n.note}</span>
+                </li>
+              ))}
+            </ul>
           )}
 
           {/* ⛔ THE REFUSAL SHOWS WHENEVER THERE IS ONE, AND `translatePine`
@@ -1211,7 +1353,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
             </p>
           )}
 
-          {report.ignored.length > 0 && (
+          {collapsedNotes.length > 0 && (
             <div className={styles.notesWrap}>
               <button
                 type="button"
@@ -1220,12 +1362,12 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                 onClick={() => setShowNotes((v) => !v)}
                 data-testid="pine-notes-toggle"
               >
-                {showNotes ? 'Hide' : 'Show'} {report.ignored.length} line
-                {report.ignored.length === 1 ? '' : 's'} a screen does not read
+                {showNotes ? 'Hide' : 'Show'} {collapsedNotes.length} line
+                {collapsedNotes.length === 1 ? '' : 's'} a screen does not read
               </button>
               {showNotes && (
                 <ul className={styles.notes} data-testid="pine-notes">
-                  {report.ignored.map((n, i) => (
+                  {collapsedNotes.map((n, i) => (
                     <li key={`${n.code}-${n.line}-${i}`} className={styles.note}>
                       <span className={styles.noteWhere}>{n.line != null ? `line ${n.line}` : '—'}</span>
                       <span>{n.message}</span>
