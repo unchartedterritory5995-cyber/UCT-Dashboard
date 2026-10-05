@@ -58,7 +58,7 @@ FAQ_QUESTIONS = [
     "Is this signals to copy?",
     "Stocks or options?",
     "What do I need to get started?",
-    "Where do I join?",
+    # "Where do I join?" removed by owner ruling 2026-10-05 (page + JSON-LD).
     "Can I cancel anytime?",
     "What makes Uncharted Territory different?",
 ]
@@ -581,8 +581,6 @@ V4_NEW_FAQ_ANSWERS = {
     "What do I need to get started?":
         "A Discord account. After you join on Whop, you connect Discord, land in the room, and we set "
         "up a free 1-on-1 call to walk you through it.",
-    "Where do I join?":
-        "Only through whop.com/uncharted. We don't run other sign-up sites, free-trial pages or DM offers.",
 }
 
 

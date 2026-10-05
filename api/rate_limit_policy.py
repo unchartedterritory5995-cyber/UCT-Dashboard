@@ -256,8 +256,9 @@ FAMILIES: dict[str, Family] = {
     "public-intake": Family(
         TIER_INTAKE,
         "Writes an anonymous browser can make (waitlist, landing analytics, client "
-        "error reports, the Q1 probe sink): a few per page view at most.",
-        ("/api/waitlist", "/api/landing-analytics", "/api/client-errors",
+        "error reports, the Q1 probe sink, the live trading room call request): "
+        "a few per page view at most.",
+        ("/api/waitlist", "/api/landing-analytics", "/api/client-errors", "/api/ltr",
          "/api/q1-probe-result", "/api/q1-probe-results"),
     ),
     "inbound-alerts": Family(
