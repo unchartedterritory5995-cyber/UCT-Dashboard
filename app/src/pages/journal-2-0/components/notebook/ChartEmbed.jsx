@@ -148,7 +148,9 @@ function ChartEmbed({
     // Wave 8 (8A): a figure named by the embed's own caption (the same words
     // its archived image uses for alt), so a screen reader hears what the
     // chart IS before it meets the chart's own controls.
-    <div style={{ height: '100%' }} role="figure" aria-label={embedAutoCaption(attrs)}>
+    // `data-notebook-chart-embed` scopes the touch-tier tap floor for StockChart's mini
+    // chrome (StockChart.module.css + IndicatorChip.module.css; wave 14 playbook fixes).
+    <div style={{ height: '100%' }} role="figure" aria-label={embedAutoCaption(attrs)} data-notebook-chart-embed="">
       <ChartPane
         ref={paneRef}
         sym={params.symbol}
