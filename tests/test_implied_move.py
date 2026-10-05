@@ -184,7 +184,11 @@ def test_compute_expected_move_maps_class_share_symbol_end_to_end():
     with patch.object(po, "_safe_get", side_effect=fake_safe_get):
         out = im.compute_expected_move("BRK-B", "2026-08-06")
 
-    assert len(calls) == 2, "must call both the expirations endpoint and the chain snapshot"
+    # three calls since O1: list_expirations' one-row spot hint (limit=1), the expirations
+    # walk, and the chain snapshot -- every one of them must carry the mapped symbol.
+    assert len(calls) == 3, "must call the spot hint, the expirations endpoint and the chain"
+    assert any("reference/options/contracts" in u for u, _ in calls)
+    assert any(p.get("expiration_date") == "2026-08-07" for _, p in calls)
     for url, params in calls:
         combined = url + " " + " ".join(f"{k}={v}" for k, v in params.items())
         assert "BRK.B" in combined, f"BRK-B must reach Polygon as BRK.B: {url} {params}"

@@ -438,3 +438,14 @@ describe('pins: this shell reuses other modules\' vocabulary, it does not restat
     expect(hex).toEqual(GROUP_DOT)
   })
 })
+
+describe('O12: IVH and STRS gate on their own switches', () => {
+  it('IVH needs ivHistoryEnabled and STRS needs optionsStrategyScreensEnabled', () => {
+    expect(BY_CODE.IVH.ticker.flag).toBe('ivHistoryEnabled')
+    expect(BY_CODE.STRS.market.flag).toBe('optionsStrategyScreensEnabled')
+    expect(flagOn({ optionsChainEnabled: true }, BY_CODE.IVH.ticker.flag)).toBe(false)
+    expect(flagOn({ ivHistoryEnabled: true }, BY_CODE.IVH.ticker.flag)).toBe(true)
+    expect(flagOn({}, BY_CODE.STRS.market.flag)).toBe(false)
+    expect(flagOn({ optionsStrategyScreensEnabled: true }, BY_CODE.STRS.market.flag)).toBe(true)
+  })
+})

@@ -255,6 +255,29 @@ def _filing_blackline_flag() -> dict:
         return {}
 
 
+def _options_panel_flags() -> dict:
+    """O12: the IVH and STRS terminal panels' own switches -- the SAME readers their routes'
+    dark gates use (`iv_history.is_enabled()` for /api/research/iv-history, the options
+    analytics table's OPTIONS_STRATEGY_SCREENS_ENABLED for /api/options-screener/strategy*), so
+    the terminal knows a surface is dark BEFORE it opens an empty panel. (OSCR already rides
+    `options_screener_enabled`.) ⛔ Each key is present ONLY when on (the TERM-077 form): unset
+    => this payload is byte-identical to before. The client reads `=== true`. Never raises."""
+    out = {}
+    try:
+        from api.services.research import iv_history
+        if iv_history.is_enabled():
+            out["iv_history_enabled"] = True
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        pass
+    try:
+        from api.services.options_analytics import flags as oa_flags
+        if oa_flags.is_on("OPTIONS_STRATEGY_SCREENS_ENABLED"):
+            out["options_strategy_screens_enabled"] = True
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
 def _options_screener_flag() -> dict:
     """COV-02/03: the Screener's "Options" view -- the SAME reader the routes' dark gate
     uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
@@ -710,6 +733,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_filing_blackline_flag(),
         **_options_screener_flag(),
         **_terminal_grammar_flag(),
+        **_options_panel_flags(),
         **_research_depth_flags(),
         **_research_notice_flags(),
         **_calendar_depth_flags(),

@@ -135,10 +135,11 @@ export const FUNCTIONS = [
   // until its own switch is set. Embedded under the chain or on Options Flow, a 404 renders nothing;
   // as a whole panel that was a titled box with an empty body. With the prop, a panel whose every
   // section answered 404 says "<feature> isn't switched on yet" (optionsAnalytics/OffNotice.jsx).
-  // ⚠️ The better fix is a per-surface flag on the auth payload so the terminal knows before it
-  // opens the panel -- a backend change, deliberately not invented here.
+  // O12: IVH and STRS now gate on their OWN switch, carried on the auth payload
+  // (`iv_history_enabled`, `options_strategy_screens_enabled`), so the shell refuses them while
+  // dark instead of opening an empty panel; the off notice stays as the second line of defence.
   { code: 'IVH', label: 'IV history (implied vs realized)', group: 'Options',
-    ticker: { panel: 'IvHistory', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'IvHistory', props: { offNotice: true }, section: 'options', flag: 'ivHistoryEnabled' } },
   { code: 'VOL', label: 'Volatility stats', group: 'Options',
     ticker: { panel: 'VolStats', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'POS', label: 'Options positioning (levels, max pain)', group: 'Options',
@@ -162,7 +163,8 @@ export const FUNCTIONS = [
   { code: 'TIDE', label: 'Market Tide (net premium)', group: 'Options',
     market: { panel: 'MarketTide', props: { offNotice: true }, full: '/options-flow' } },
   { code: 'STRS', label: 'Options strategy screens', group: 'Options',
-    market: { panel: 'StrategyScreens', props: { offNotice: true }, full: '/options-flow' } },
+    market: { panel: 'StrategyScreens', props: { offNotice: true }, full: '/options-flow',
+              flag: 'optionsStrategyScreensEnabled' } },
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
     market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 

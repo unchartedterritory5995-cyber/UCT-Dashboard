@@ -356,16 +356,63 @@ _PRINTS_TTL_S = 6 * 3600
 
 
 def _default_prints(sym: str) -> list:
-    """Past prints, newest first: [{report_date, timing}] (FMP stable/earnings via
-    the engine's normalizer; FMP carries no pre/post timing, so timing is '')."""
+    """Past prints, newest first: [{reportedDate, reportTime}] (FMP stable/earnings via the
+    engine's normalizer). FMP carries no pre/post timing, so O4 fills `reportTime` from the
+    earnings calendar where it has the print ("pre-market" / "post-market", the words every
+    reader here already parses); a print the calendar does not time stays '' = unknown."""
     hit = _PRINTS_CACHE.get(sym)
     if hit and time.monotonic() - hit[0] < _PRINTS_TTL_S:
         return hit[1]
     from api.services.engine import _fetch_quarterly_history
     quarters = _fetch_quarterly_history(sym)
     if quarters:
+        quarters = with_report_times(sym, quarters)
         _PRINTS_CACHE[sym] = (time.monotonic(), quarters)
     return quarters
+
+
+_HOUR_WORDS = {"bmo": "pre-market", "amc": "post-market"}
+
+
+def _default_calendar_hours(sym: str, start: str, end: str) -> dict:
+    """{report_date: 'bmo'|'amc'} from Finnhub's earnings calendar for one symbol over a range.
+    Finnhub's `hour` is the only timing source on our plans; its symbol-filtered history is
+    patchy, so whatever it does not answer stays unknown. {} on any failure."""
+    from api.services.finnhub_client import fh_get
+    data = fh_get("/calendar/earnings", {"symbol": sym, "from": start, "to": end}, timeout=8)
+    rows = data.get("earningsCalendar") if isinstance(data, dict) else None
+    out = {}
+    for r in rows or []:
+        if not isinstance(r, dict) or (r.get("symbol") or "").upper() != sym.upper():
+            continue
+        h, d = (r.get("hour") or "").strip().lower(), str(r.get("date") or "")[:10]
+        if d and h in _HOUR_WORDS:
+            out[d] = h
+    return out
+
+
+_calendar_hours = _default_calendar_hours
+
+
+def with_report_times(sym: str, quarters: list) -> list:
+    """Copies of `quarters` with `reportTime` filled from the earnings calendar where it is
+    blank (never overwriting a vendor's own value). A failure leaves every print as it was."""
+    dates = sorted(str(q.get("reportedDate") or "")[:10] for q in quarters if q.get("reportedDate"))
+    if not dates:
+        return quarters
+    try:
+        hours = _calendar_hours(sym, dates[0], dates[-1]) or {}
+    except Exception:  # noqa: BLE001 -- timing is best-effort; unknown stays unknown
+        hours = {}
+    out = []
+    for q in quarters:
+        q = dict(q)
+        h = hours.get(str(q.get("reportedDate") or "")[:10])
+        if not (q.get("reportTime") or "").strip() and h:
+            q["reportTime"] = _HOUR_WORDS[h]
+            q["reportTimeSource"] = "earnings calendar (Finnhub)"
+        out.append(q)
+    return out
 
 
 def _default_realized(sym: str, quarters: list) -> list:

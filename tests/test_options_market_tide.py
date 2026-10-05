@@ -44,6 +44,10 @@ def _fixture_reader(fail=()):
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     mt.clear_cache()
+    # The fixture tape is the 2026-10-02 session: the clock is pinned inside it (L3's rule
+    # tides TODAY once today's session has opened).
+    import datetime as _d
+    monkeypatch.setattr(mt, "_now", lambda: _d.datetime(2026, 10, 2, 12, 6, tzinfo=mt._ET))
     monkeypatch.setattr(mt, "_read", _fixture_reader())
     yield
     mt.clear_cache()
@@ -199,3 +203,69 @@ def test_time_parsing_covers_both_tape_formats():
     assert mt._minute("12:01:00 AM") == "00:01"
     assert mt._minute("13:04:59") == "13:04"
     assert mt._minute("") is None and mt._minute("noon") is None
+
+
+# ── L3: a scope with no prints today tides TODAY (empty), never an old session as current ─────
+
+def _at(monkeypatch, *ymdhm):
+    import datetime as _d
+    monkeypatch.setattr(mt, "_now", lambda: _d.datetime(*ymdhm, tzinfo=mt._ET))
+
+
+def test_after_the_open_a_tape_without_todays_prints_is_an_empty_today(monkeypatch):
+    _at(monkeypatch, 2026, 10, 5, 15, 40)                  # Monday; the fixture tape is Friday's
+    t = mt.build("etfs")
+    assert t["session"] == "2026-10-05" and t["session_status"] == "no_prints_today"
+    assert t["minutes"] == [] and t["totals"]["net_premium"] == 0 and t["data_through"] is None
+    assert t["latest_session_on_tape"] == "2026-10-02"
+    assert t["partial"] is True and any("no prints for today" in r for r in t["partial_reasons"])
+
+
+def test_before_the_open_the_last_session_is_served_and_labelled_prior(monkeypatch):
+    _at(monkeypatch, 2026, 10, 5, 8, 0)
+    t = mt.build("all")
+    assert t["session"] == "2026-10-02" and t["session_status"] == "prior_session"
+    assert t["minutes"] and t["data_through"] == "12:05"
+
+
+def test_inside_todays_session_it_is_today(monkeypatch):
+    t = mt.build("all")                                     # the pinned clock: 2026-10-02 12:06
+    assert t["session"] == "2026-10-02" and t["session_status"] == "today"
+    assert t["data_through"] == "12:05" and t["tape_behind"] is False
+
+
+# ── L2: a tape that runs behind the clock is named and retried soon ───────────────────────────
+
+def test_a_tape_behind_the_clock_is_named_and_retried_sooner(monkeypatch):
+    _at(monkeypatch, 2026, 10, 2, 15, 40)                   # the tape stops at 12:05
+    t = mt.build("all")
+    assert t["tape_behind"] is True and t["data_through"] == "12:05"
+    assert any("runs only to 12:05" in r for r in t["partial_reasons"])
+    assert mt._ttl(t) == mt.RETRY_BEHIND_S < mt.TTL_S
+
+
+def test_the_tapes_own_version_is_reported_per_source(monkeypatch):
+    base = mt._read
+
+    def read(path, add):
+        ok = base(path, add)
+        mt._TL.meta = {"version": "29811234" if path.endswith("/data") else "29811200"}
+        return ok
+    monkeypatch.setattr(mt, "_read", read)
+    t = mt.build("all")
+    assert t["tape_versions"] == {"stocks": "29811234", "etfs": "29811200"}
+
+
+def test_a_failed_refresh_is_reported_not_swallowed(monkeypatch):
+    mt.get("all")
+    monkeypatch.setattr(mt, "TTL_S", 0.0)
+
+    def boom(path, add):
+        raise RuntimeError("tape read timed out")
+    monkeypatch.setattr(mt, "_read", boom)
+    mt.get("all")                                           # starts the background refresh
+    for t in threading.enumerate():
+        if t.name == "market-tide-all":
+            t.join(5)
+    out = mt.get("all")
+    assert out["stale"] is True and "tape read timed out" in out["refresh_error"]["error"]

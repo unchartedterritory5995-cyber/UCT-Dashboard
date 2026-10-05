@@ -38,10 +38,11 @@ _TERMS = (
      "For the nearest expiration, the strike at which open options would pay their holders the "
      "least.", "computed"),
     ("implied_move_1d", "Implied 1-Day Move",
-     "Spot x at-the-money implied volatility x the square root of 1/252: a one-standard-"
-     "deviation day.", "computed from vendor IV"),
+     "Spot x the 30-day at-the-money implied volatility x the square root of 1/252 (one "
+     "trading session): a one-standard-deviation day.", "computed from vendor IV"),
     ("implied_move_5d", "Implied 5-Day Move",
-     "Spot x at-the-money implied volatility x the square root of 5/252.", "computed from vendor IV"),
+     "Spot x the 30-day at-the-money implied volatility x the square root of 5/252 (five "
+     "trading sessions).", "computed from vendor IV"),
     ("dealer_short", "Dealer Short",
      "A contract our trade-side attribution estimates market makers are net short: customers "
      "bought more of it than they sold.", "computed"),
