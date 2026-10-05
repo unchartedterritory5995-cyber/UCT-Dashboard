@@ -21,7 +21,9 @@ const EMPTY_HOME = { continueWorking: [], favorites: [], activeTheses: [], openP
 describe('lane W14-D surface (the get started checklist)', () => {
   beforeEach(() => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
+    // W14-C1: task reminders reads ON when a payload omits it (a kill switch), which adds
+    // its tour step; pinned OFF so these cases keep their fixed step lists.
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
   })
   afterEach(() => __resetNotebookFlags())
 

@@ -86,7 +86,9 @@ beforeEach(() => {
   server = { prefs: {}, home: EMPTY_HOME, prefsGate: null }
   installFetch()
   __resetNotebookFlags()
-  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
+  // W14-C1: task reminders reads ON when a payload omits it (a kill switch), which adds
+  // its tour step; pinned OFF so these cases keep their fixed step lists.
+  latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
   __resetTourControl()
   __resetRegistryTourControl()
 })
@@ -147,7 +149,7 @@ describe('when it shows', () => {
 
   it('one item per armed registered tour: arming a capability adds its tour', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     renderList()
     const btn = await screen.findByRole('button', { name: 'Take the Formulas tour' })
     const opened = vi.fn()
@@ -259,7 +261,7 @@ describe('closing it -- ONE preference key, and D4', () => {
 
   it('D4: a dismissed list stays closed when a new capability arms later', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     server.prefs = { notebook_getting_started: JSON.stringify({ v: 1, state: 'dismissed', at: 'x' }) }
     const { container } = renderList()
     await settle(40)
@@ -292,7 +294,7 @@ describe('closing it -- ONE preference key, and D4', () => {
 
   it('D4: a list closed as done stays closed when a new capability arms later', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     server.prefs = { notebook_getting_started: JSON.stringify({ v: 1, state: 'done', at: 'x' }) }
     const { container } = renderList()
     await settle(40)
