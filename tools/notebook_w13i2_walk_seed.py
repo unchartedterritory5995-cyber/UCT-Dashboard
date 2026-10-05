@@ -29,6 +29,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))
+# ⛔ The census and the tripwire BEFORE any api.* import (tests/test_notebook_bridges_pin_the_root.py).
+# `hub_sandbox_boot.apply_sandbox_env` imports conftest too and then re-points every pin at the
+# sandbox, so importing it here first changes nothing about where the seed writes: it only makes
+# the tripwire armed from the first line, as every other notebook tool is.
+import conftest  # noqa: E402,F401
 
 
 def weekdays_through(last: dt.date, n: int) -> list[dt.date]:
