@@ -1805,12 +1805,16 @@ export default function BuilderSheet({
    *  inputs are still folded parameters (ruling R-H): two variants of one script
    *  ARE two definitions, and `memberPaneVariants` says so in its own header.
    */
-  const attachPine = useCallback(async (definition) => {
+  // ⭐ P0 gate (decision D) — `options.previewAcked` is MemberPane's repaint
+  // acknowledgement, passed straight to `saveUserDefinition` (the server's
+  // `repaint_acknowledged`; never persisted). The server stays the authority.
+  const attachPine = useCallback(async (definition, options = null) => {
     const { defs, errors } = validateUserDefinitions([definition])
     if (errors.length || defs.length !== 1) {
       return { ok: false, error: errors.join('\n') || 'The registry refused this definition.' }
     }
-    const res = await saveUserDefinition(definition, null, importTelemetryRef.current)
+    const res = await saveUserDefinition(definition, null, importTelemetryRef.current,
+      options && options.previewAcked === true ? { previewAcked: true } : null)
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}

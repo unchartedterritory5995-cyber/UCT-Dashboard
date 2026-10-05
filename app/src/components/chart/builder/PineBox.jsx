@@ -32,7 +32,7 @@ import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 import { paramLocatorsIn } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
-import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput } from '../engine/ast/parse'
+import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput, noteHeading } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
 import { importOutcome, classifyNote, SEVERITY, controlledErrorReport } from '../engine/ast/importOutcome'
@@ -1134,7 +1134,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               {/* ⛔ A DIFFERENCE THAT CAN CHANGE A VALUE IS NEVER BEHIND A TOGGLE. */}
               {semanticShown.map((n, i) => (
                 <li key={`${n.name}-${i}`} className={styles.note} data-severity="semantic">
-                  <span className={styles.noteWhere}>{n.name}</span>
+                  <span className={styles.noteWhere}>{noteHeading(n.name)}</span>
                   <span>{n.note}</span>
                 </li>
               ))}
@@ -1253,7 +1253,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                   divergence inside a note about syntax. */}
               {active.vendorNotes.map((v) => (
                 <li key={v.name} className={styles.note} data-vendor-note={v.name}>
-                  <span className={styles.noteWhere}>{v.name}</span>
+                  <span className={styles.noteWhere}>{noteHeading(v.name)}</span>
                   <span>{v.note}</span>
                 </li>
               ))}
