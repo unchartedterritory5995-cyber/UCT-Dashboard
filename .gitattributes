@@ -191,3 +191,6 @@ tests/econ/fixtures/** text=auto eol=lf
 # ends in TREE DRIFT (seen on journalGrids.seedParity.test.jsx.snap). Stored
 # blobs are LF; keep the working copy LF too.
 *.snap text eol=lf
+
+# Windows batch: cmd.exe mis-parses labels/goto on LF-only files (wave 14 OPS).
+tools/restore_drill_weekly.cmd text eol=crlf
