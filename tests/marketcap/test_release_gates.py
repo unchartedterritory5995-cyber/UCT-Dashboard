@@ -58,6 +58,9 @@ def suite(tmp_path):
         "second_order_adjudication.json": {"residual_unexplained_findings": [
             {"kind": "ONE_OFF_PARSED", "ticker": "PPBT", "disposition": "PROVEN_CORRECT", "evidence": "F-3 0001-26-1: ..."}],
             "known_wrong_discovered_and_still_served": 0},
+        "identity_delta.json": {"pass": True, "reference": {"build_id": "MCAP_V1-20261003T140306Z"},
+                                "observations": {"removed_by_class": {"EVIDENCE_HOLD": 3}}, "failing_blocks": [],
+                                "issuers": {"removed_unexplained": []}},
     }
     for n, v in J.items():
         json.dump(v, open(r / n, "w"))
@@ -93,7 +96,17 @@ MUTATIONS = {
     "M": ("scan2.json", lambda j: j["findings"].append({"kind": "STEP_10X", "ticker": "NEW", "status": "UNEXPLAINED",
                                                          "run": [None, None, None, None, "0002-26-9"]})),
     "N": ("cap_steps/cap_step_summary.json", lambda j: j["gate_N_build_validator_parity"].update(pass_=False, **{"pass": False})),
+    "R": ("identity_delta.json", lambda j: j.update(**{"pass": False, "failing_blocks": [
+        {"cik": 801337, "ticker": "WBS", "start": 20220228, "end": 20260820, "n_days": 1124, "class": "UNEXPLAINED"}]})),
 }
+
+
+def test_R_fails_when_the_retention_report_is_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(G.M, "drift", lambda: {})
+    b, r = suite(tmp_path)
+    os.remove(os.path.join(r, "identity_delta.json"))
+    v = G.evaluate(b, r)
+    assert v["failed"] == ["R"] and "missing" in v["gates"]["R"]["value"]["error"]
 
 
 @pytest.mark.parametrize("gate", sorted(MUTATIONS))

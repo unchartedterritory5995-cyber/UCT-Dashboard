@@ -46,7 +46,8 @@ PROSP_EVIDENCE_FROM = "2004-10-22"
 EVIDENCE_FILES = ("covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prosp.db", "splitev.db",
                   "pred_covers.db", "pred_text.db", "pred_econ.db")
 BUILD_INPUTS = ("inputs.db", "covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prices.db", "ref.jsonl", "acceptance.db",
-                "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db")
+                "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db",
+                "identity.db")
 SEC_BULK = {"companyfacts.zip": "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip",
             "submissions.zip": "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip"}
 REF_FIELDS = ("ticker", "name", "market", "locale", "primary_exchange", "type", "active", "cik", "composite_figi",

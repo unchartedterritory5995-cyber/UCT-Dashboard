@@ -45,7 +45,7 @@ def root(tmp_path, monkeypatch):
                 raise RuntimeError(f"injected failure in {name}")
             return {"rc": 0}
         self_.cmd = cmd
-        for n in ("_acceptance", "_harvests", "_suite"):
+        for n in ("_acceptance", "_harvests", "_suite", "_identity"):
             setattr(self_, n, stage_fn(n.strip("_")))
         self_._lineage = lambda sub: stage_fn("lineage")()
         self_._predecessors = lambda cf, sub: stage_fn("predecessors")()

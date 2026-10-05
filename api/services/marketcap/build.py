@@ -34,6 +34,7 @@ from .classecon import ClassEcon
 from .cover import num as cover_num
 from .engine import Component, Listing, Structure, company_cap
 from .identity import EDGAR_DOMESTIC, EDGAR_FOREIGN, Ref, decide, segments
+from .identity_ledger import retained as retained_tickers
 from .state import ET, Checked, Obs, timeline, validate
 from .structure import class_key, filing_keys, invalid_member, resolve, ticker_letter
 
@@ -78,6 +79,8 @@ CREATE TABLE lineage_applied(cik INTEGER, kind TEXT, status TEXT, effective TEXT
 CREATE TABLE step_context(cik INTEGER, semantics TEXT, iterations INTEGER, withheld_days INTEGER, known_splits TEXT, ev_forms TEXT);
 CREATE TABLE extreme_step(cik INTEGER, d0 INTEGER, d1 INTEGER, verdict TEXT, basis TEXT, unexplained REAL, share_ratio REAL,
   semantics TEXT, evidence TEXT);
+CREATE TABLE identity_retention(cik INTEGER, ticker TEXT, last_attributed TEXT, status TEXT, reason TEXT, bars_kept INTEGER,
+  bars_after_attribution INTEGER);
 CREATE TABLE coverage(cik INTEGER PRIMARY KEY, primary_ticker TEXT, foreign_filer INTEGER, first_bar TEXT,
   listing_start TEXT, first_value TEXT, last_day TEXT, listed_days INTEGER, valued_days INTEGER,
   evidence_span_days INTEGER, evidence_span_valued INTEGER, internal_gap_days INTEGER, unexplained_days INTEGER,
@@ -518,6 +521,7 @@ class Data:
     splitev: sqlite3.Connection | None = None   # authoritative historical split statements (splitev.db)
     lineage: sqlite3.Connection | None = None   # successor-issuer relationships (lineage.db)
     pred: object = None                         # Data over the PREDECESSOR registrants' evidence (pure reorganizations)
+    identity: sqlite3.Connection | None = None  # the durable CIK -> ticker attribution ledger (identity_ledger.py)
 
 
 def load_ref(path: str) -> dict:
@@ -735,7 +739,13 @@ def unlisted_split_events(days: list, closes: dict, ledger_splits, counts: list 
 # ---------------------------------------------------------------- per issuer
 def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None = None) -> dict:
     iss = D.inp.execute("SELECT name, tickers_json, exchanges_json FROM issuer WHERE cik=?", (cik,)).fetchone()
-    tickers = json.loads(iss[1] or "[]")
+    current = json.loads(iss[1] or "[]")
+    # ⭐ DURABLE IDENTITY (owner decision 2026-10-05, identity_ledger.py): SEC's `tickers` is the CURRENT mapping only. A
+    # symbol SEC no longer lists (WBS deregistered 2026-09-30 -> []; RITR -> RITRF; KWM -> NXAT) keeps the history SEC
+    # attributed to this CIK: it is RETAINED -- not current, valued only on bars up to the last attribution, and
+    # withheld (with a reason) when Massive now names another CIK for the symbol.
+    kept = dict(retained_tickers(D.identity, cik, current))
+    tickers = current + list(kept)
     # ⛔ public times come ONLY from the acceptance authority (submissions' acceptanceDateTime can be Eastern labelled
     # UTC -- a one-day lookahead at the daily close). See acceptance.py.
     filings = {}
@@ -753,11 +763,25 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         if ref is not None and (ref.type not in EQUITY_TYPES or NOT_COMMON_EQUITY.search(ref.name or "")):
             continue
         days, closes = bars_days(D.px, t.replace(".", "-"))
+        after = 0
+        if t in kept:
+            last = kept[t]
+            if ref is not None and ref.cik is not None and int(ref.cik) != int(cik):
+                w["identity_retention"].append((cik, t, last.isoformat(), "WITHHELD_REASSIGNED",
+                                                f"massive names cik {ref.cik} for {t}: the symbol was reassigned", 0, len(days)))
+                continue
+            after = sum(1 for d in days if d > last)
+            days = [d for d in days if d <= last]
+            closes = {d: closes[d] for d in days}
         if not days:
+            if t in kept:
+                w["identity_retention"].append((cik, t, kept[t].isoformat(), "RETAINED_NO_BARS", None, 0, after))
             continue
         dec = decide(t, cik, days, ref, first_filing, foreign)
         if dec is None:
             continue
+        if t in kept:
+            w["identity_retention"].append((cik, t, kept[t].isoformat(), "RETAINED", None, len(days), after))
         listings[t], bars[t], decisions[t] = dec.listing, (days, closes), dec
         w["ticker_map"].append((t, cik, None, dec.listing.start.isoformat(), dec.listing.end.isoformat() if dec.listing.end else None,
                                 dec.basis, dec.pre_reason, dec.pre_bars, json.dumps(dec.notes)))
@@ -963,7 +987,11 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                       and o.source in (R.COVER_XBRL, R.BALANCE_SHEET_XBRL) and o.value > 0), default=None)
         if latest and abs(latest[1] / pref.share_class_shares - 1) <= 0.05:
             diverge = False
-    multi_suspect = not is_adr and (len(listings) >= 2 or diverge)
+    # a RETAINED symbol is a second class only while it trades beside another listing (NXAT beside KWM: the accepted hold);
+    # an earlier symbol of a renamed issuer (OLD until the rename, NEW after) is the same security, never a second class
+    concurrent = [t for t in listings if t not in kept or any(
+        o != t and bars[o][0][0] <= bars[t][0][-1] and bars[t][0][0] <= bars[o][0][-1] for o in listings)]
+    multi_suspect = not is_adr and (len(concurrent) >= 2 or diverge)
 
     # per regime: structure, component class states, capitalization
     all_days = sorted({d for t in listings for d in bars[t][0]})
@@ -1424,6 +1452,7 @@ def main(argv=None) -> int:
     D.prosp = sqlite3.connect(P("prosp.db")) if os.path.exists(P("prosp.db")) else None
     D.splitev = sqlite3.connect(P("splitev.db")) if os.path.exists(P("splitev.db")) else None
     D.lineage = sqlite3.connect(P("lineage.db")) if os.path.exists(P("lineage.db")) else None
+    D.identity = sqlite3.connect(f"file:{P('identity.db')}?mode=ro", uri=True) if os.path.exists(P("identity.db")) else None
     if os.path.exists(P("pred_inputs.db")):
         D.pred = Data(sqlite3.connect(P("pred_inputs.db")),
                       sqlite3.connect(P("pred_covers.db")) if os.path.exists(P("pred_covers.db")) else None,
@@ -1436,7 +1465,7 @@ def main(argv=None) -> int:
     db.executescript(SCHEMA)
     ciks = [int(x) for x in a.ciks.split(",")] if a.ciks else [c for (c,) in D.inp.execute("SELECT cik FROM issuer ORDER BY cik")]
     tables = ("security", "ticker_map", "observation", "state_run", "regime", "cap_daily", "gap_run", "coverage", "econ_request",
-              "split_gap", "lineage_applied", "step_context", "extreme_step")
+              "split_gap", "lineage_applied", "step_context", "extreme_step", "identity_retention")
     stat = Counter()
     from .splitev import confirm
     for i, cik in enumerate(ciks):
@@ -1500,7 +1529,7 @@ def main(argv=None) -> int:
            "safety_bound_days": R.SAFETY_BOUND_DAYS, "built_at": datetime.now(timezone.utc).isoformat()}
     if not a.no_hash:
         for n in ("inputs.db", "covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prices.db", "ref.jsonl", "acceptance.db",
-                  "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db"):
+                  "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db", "identity.db"):
             if os.path.exists(P(n)):
                 man[f"input_sha256:{n}"] = sha256(P(n))
     for k, v in man.items():

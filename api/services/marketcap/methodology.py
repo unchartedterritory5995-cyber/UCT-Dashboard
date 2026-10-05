@@ -5,9 +5,14 @@ rebuilds from fresh inputs with exactly these files; a build whose methodology f
 (LF-normalised) to the ones below is refused by the release gates (gate METHODOLOGY) and can never be published.
 Changing a rule is a separate, reviewed project that bumps METHODOLOGY_VERSION and these hashes together.
 
-Pinned at commit ad40add51 (the accepted candidate MCAP_V1-20261003T140306Z): the build, every evidence parser that
-shapes an input, the shared extreme-step rule, the validator that proves gate N, and the two Fundamentals modules the
-build imports (identical to the Fundamentals V5 frozen methodology hashes).
+MCAP_V1-M1 was pinned at commit ad40add51 (the accepted candidate MCAP_V1-20261003T140306Z): the build, every evidence
+parser that shapes an input, the shared extreme-step rule, the validator that proves gate N, and the two Fundamentals
+modules the build imports (identical to the Fundamentals V5 frozen methodology hashes).
+
+MCAP_V1-M2 (owner decision 2026-10-05, DURABLE ISSUER IDENTITY): M1 plus identity_ledger.py, and build.py valuing an
+issuer over its current SEC tickers PLUS the tickers SEC attributed to it earlier (retained, never current). Every other
+pinned file is byte-identical to M1. M1 -> M2 changes ONLY issuers whose SEC ticker list lost a symbol; an M2 build from
+the M1 candidate's own inputs (one SEC snapshot) is the M1 build.
 """
 from __future__ import annotations
 
@@ -16,13 +21,14 @@ import os
 
 from .extreme_steps import SEMANTICS_VERSION
 
-METHODOLOGY_VERSION = "MCAP_V1-M1"
+METHODOLOGY_VERSION = "MCAP_V1-M2"
+METHODOLOGY_PREVIOUS = "MCAP_V1-M1"
 METHODOLOGY_COMMIT = "ad40add51b5fa94ff70599a7bdb21f1b76bdf5cf"
 EXTREME_STEP_SEMANTICS = SEMANTICS_VERSION
 SAFETY_BOUND_DAYS = 456
 
 METHODOLOGY_FILES = {
-    "build.py": "ce7fea9bdfb27204dc9576490d4e3bbb9a70ada8b44ec7656d072bc82f35b220",
+    "build.py": "34ba5831718d1ef592b414829487f10ab654f1c9c26de75646f24eb91e648b27",
     "adr.py": "30fedef57a1c6837e8fdce40aaa61f6fb2d1a4870d095d28c4e62f63e6fc3ddd",
     "classecon.py": "69979a2e7a67737ce6f21e9b48ad1a73eb5812043de5192f0c813fcbc9a09886",
     "cover.py": "35de23bf13fe0311fe65141ef19e5ec37cd65afeed25e54410e51a2edd42b261",
@@ -47,6 +53,7 @@ METHODOLOGY_FILES = {
     "step_records.py": "e838a5074a5d88063e20e2f07401ba34304b98f3f463842d2c34224df19bce7e",
     "fundamentals_pit/splits.py": "5bf44900ae934d8188d5b6e05228b21b9953671bf9ec4289586edb46a580ae79",
     "fundamentals_pit/filings.py": "d43d133ab7168e9887c65ded1183ec79aa5e5ff0fa1c1e7c2bc8738961323d13",
+    "identity_ledger.py": "7130bd8e01cbc1322740153fa0f81a65be39ec5f47cda59a39fffe83d5eea43c",
 }
 
 

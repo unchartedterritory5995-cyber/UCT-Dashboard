@@ -9,6 +9,9 @@ gates. Review inputs are FROZEN and hash-pinned in the refresh config:
   first_build         the first-pass shadow build (blocker dispositions in magnitude_scan)
   blockers            blockers63.json
   adjudication_dir    the human adjudications (split / historical / cap-step dossiers, second-order findings)
+  identity_reference  the ACCEPTED build whose history this build must retain (gate R); "NONE_FIRST_BUILD" only for a
+                      first build. Missing = gate R fails.
+  identity_attestations  optional human attestations of identity-boundary changes (identity_delta.py)
 
 Steps run `parallel` at a time (default 2: the production host is memory-tight).
 """
@@ -48,6 +51,9 @@ def run_suite(build: str, data: str, out: str, review: dict, cmd, parallel: int 
                             "--cohort", A("cap_steps_unadjudicated.json"), "--dossier", A("steps_dossier_accepted.json"),
                             "--out-dir", R("cap_steps")),
         "scan2": mod("scan2", "--build", build, "--baseline", base, "--data", data, "--out", R("scan2.json")),
+        "identity_delta": mod("identity_delta", "--build", build, "--reference", review.get("identity_reference") or "",
+                              *(["--attestations", review["identity_attestations"]] if review.get("identity_attestations") else []),
+                              "--out", R("identity_delta.json")),
     }
     res = {}
     t0 = time.time()

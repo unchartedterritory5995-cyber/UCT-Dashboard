@@ -22,6 +22,8 @@ acceptance of the first authority or of a methodology change.
   L  unknown >= 10x steps = 0                cap_step_summary unknown_but_valued
   M  known-wrong second-order states = 0     every scan2 UNEXPLAINED finding is human-adjudicated PROVEN_CORRECT
   N  build/validator semantic parity         cap_step_summary gate N
+  R  identity / history retention            identity_delta: every valued day of the accepted reference build that this
+                                             build no longer values is reason-coded or attested (never silently gone)
 plus
   METHODOLOGY  the build's methodology files are the pinned ones (methodology.drift() empty, same semantics version)
   BACKING      every state run is backed by an ACCEPTED observation
@@ -135,6 +137,14 @@ def evaluate(build: str, reports: str, adjudication: str | None = None) -> dict:
          {"unadjudicated_unexplained": open_[:20], "n": len(open_)}, "known-wrong second-order states = 0")
     n = cs["gate_N_build_validator_parity"]
     gate("N", n["pass"] and n["semantics"] == M.EXTREME_STEP_SEMANTICS, n, "build/validator semantic parity")
+    idp = os.path.join(reports, "identity_delta.json")
+    idd = json.load(open(idp)) if os.path.exists(idp) else {"pass": False, "error": "identity_delta.json missing"}
+    gate("R", idd.get("pass") is True,
+         {"reference": idd.get("reference"), "error": idd.get("error"),
+          "removed_by_class": (idd.get("observations") or {}).get("removed_by_class"),
+          "failing_blocks": (idd.get("failing_blocks") or [])[:20],
+          "issuers_removed_unexplained": (idd.get("issuers") or {}).get("removed_unexplained")},
+         "no unexplained historical issuer or observation loss vs the accepted reference")
     drift = M.drift()
     gate("METHODOLOGY", not drift and man.get("code_commit") is not None, {"drift": drift}, "pinned methodology files")
     nb = B.execute(backed).fetchone()[0]

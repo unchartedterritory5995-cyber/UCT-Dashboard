@@ -35,6 +35,7 @@ class Authority:
         self.db = sqlite3.connect(f"file:{build_path}?mode=ro", uri=True, check_same_thread=False)
         self.px = sqlite3.connect(f"file:{prices_path}?mode=ro", uri=True, check_same_thread=False) if prices_path else None
         self.build_id = dict(self.db.execute("SELECT key, value FROM manifest")).get("build_id")
+        self.has_retention = self.db.execute("SELECT 1 FROM sqlite_master WHERE name='identity_retention'").fetchone() is not None
 
     def issuer_for(self, ticker: str, on: date | None = None) -> tuple[int, dict] | None:
         """Time-bounded ticker -> issuer: the mapping whose listing interval contains `on` (default: latest)."""
@@ -43,7 +44,14 @@ class Authority:
                                (t,)).fetchall()
         for cik, s, e in rows:
             if on is None or (on.isoformat() >= s and (e is None or on.isoformat() <= e)):
-                return cik, {"start": s, "end": e}
+                lst = {"start": s, "end": e}
+                # a RETAINED symbol (identity_ledger.py): SEC no longer maps it to this issuer -- history, never current
+                if self.has_retention:
+                    r = self.db.execute("SELECT last_attributed FROM identity_retention WHERE cik=? AND REPLACE(UPPER(ticker),'.','-')=? "
+                                        "AND status='RETAINED'", (cik, t)).fetchone()
+                    if r:
+                        lst.update(current=False, last_attributed=r[0])
+                return cik, lst
         return None
 
     def series(self, ticker: str, start: str | None = None, end: str | None = None) -> dict | None:

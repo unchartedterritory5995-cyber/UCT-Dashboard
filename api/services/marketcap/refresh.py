@@ -7,8 +7,10 @@
 
 A RUN (every stage idempotent, recorded in ROOT/ledger.db with timings, CPU and peak memory):
   sources     universe, prices, reference (production-only sources, or pinned files)  -> runs/<id>/data
+              the universe is DURABLE: today's universe + every issuer / ticker the identity ledger attributed earlier
   sec_bulk    SEC companyfacts + submissions (public; Last-Modified recorded)
   inputs      inputs.db, acceptance.db, lineage (fileno.db, lineage.db), predecessors (pred_*.db)
+  identity    the previous evidence state's identity.db (identity_ledger.py) + this run's SEC snapshot recorded
   evidence    previous run's evidence DBs copied; every harvest RESUMED (new filings only); completeness checked
   build       full build (build.py, pinned methodology); build-dependent evidence (econ, held splits) harvested;
               rebuilt once if that evidence changed. The release build DB is made read-only and hashed.
@@ -38,7 +40,7 @@ import time
 import traceback
 from datetime import datetime, timezone
 
-from . import acquire as Q, methodology as M, publication as P, release_contract as C
+from . import acquire as Q, identity_ledger as IL, methodology as M, publication as P, release_contract as C
 
 PY = sys.executable
 LEDGER_DDL = """
@@ -263,6 +265,25 @@ class Refresh:
     def cmd(self, args, log):
         return run_cmd(args, os.path.join(self.logs, log), env=self.env, cwd=self.repo)
 
+    def _prev_identity(self) -> str | None:
+        prev = self.prev_success_data()
+        p = os.path.join(prev, "identity.db") if prev else None
+        return p if p and os.path.exists(p) else None
+
+    def _identity(self):
+        """Carry the durable identity ledger forward and record this run's SEC snapshot. Fails closed: a previous evidence
+        state without a ledger would make every no-longer-current issuer vanish (seed it: identity_ledger seed)."""
+        out = os.path.join(self.data, "identity.db")
+        prev = self._prev_identity()
+        if prev is None and not self.cfg.policy.get("identity_bootstrap"):
+            raise RuntimeError("no identity.db in the previous evidence state: refusing to build without durable identity")
+        if os.path.exists(out):
+            os.remove(out)
+        if prev:
+            shutil.copyfile(prev, out)
+        rec = IL.record(out, os.path.join(self.data, "inputs.db"))
+        return {"from": prev, **rec, "counts": Q.evidence_counts(out)}
+
     def prev_success_data(self) -> str | None:
         r = self.ledger.last(("ADVANCED", "PUBLISHED_NOT_ADVANCED"))
         if r and os.path.isdir(os.path.join(self.root, "runs", r["run_id"], "data")):
@@ -285,8 +306,11 @@ class Refresh:
         S = self.cfg.sources
         res = {}
         uni = os.path.join(self.data, "sec_t.json.gz")
-        res["universe"] = self._source_file("universe", "sec_t.json.gz") or \
-            {"source": "v5_security", **Q.universe_from_v5(S["universe"]["db"], uni)}
+        cur = os.path.join(self.data, "universe_current.json.gz")
+        res["universe"] = self._source_file("universe", "universe_current.json.gz") or \
+            {"source": "v5_security", **Q.universe_from_v5(S["universe"]["db"], cur)}
+        # ⭐ an issuer leaving today's universe keeps its prices / reference / SEC inputs (identity_ledger.py)
+        res["universe"]["durable"] = IL.durable_universe(self._prev_identity(), cur, uni)
         res["prices"] = self._source_file("prices", "prices.db") or \
             {"source": "bars_db", **Q.prices_from_bars(S["prices"]["db"], uni, os.path.join(self.data, "prices.db"))}
         res["reference"] = self._source_file("reference", "ref.jsonl") or \
@@ -365,6 +389,7 @@ class Refresh:
             uni = os.path.join(self.data, "sec_t.json.gz")
             self.stage("inputs", lambda: self.cmd(mod("inputs", "--companyfacts", cf, "--submissions", sub, "--universe", uni,
                                                       "--out", os.path.join(self.data, "inputs.db")), "inputs.log"))
+            self.stage("identity", self._identity)
             self.stage("acceptance", self._acceptance)
             self.stage("evidence_seed", lambda: {"copied": Q.seed_evidence(prev, self.data) if prev else {}, "from": prev})
             self.stage("lineage", lambda: self._lineage(sub))
