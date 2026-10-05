@@ -112,3 +112,33 @@ and learned delisting dates (with the snapshot that taught them).
     for exactly those two sessions.
   - It reproduces the published US V2 rows byte-for-byte (35/35 on each day).
   - The exchange rows are identical under any surviving vintage.
+
+## Declared historical owner-vintage substitution (owner-approved 2026-10-05) — the first authoritative append
+
+- **What it is.** `tools/breadth_exch/pinned/breadth_exch_owner_vintage_exceptions.json`, with sha256 `3ddf3ac7…`
+  pinned in `exch_live_leg.py`. It covers EXACTLY two sessions:
+  - 2026-09-25 and 2026-09-28: true owner `p202609292209` (pruned by the producer before the archive existed;
+    its publication hashes are bound); compute substitute `p202609302026` (its archived input, reference
+    and SHA256SUMS hashes, and `last_session`, are bound).
+- **What it is not.** It is NOT a selection rule. It is consulted only after `owner_vintage` refuses
+  `OWNER_VINTAGE_MISSING`. Any other missing owner still fails closed, and nothing falls back to a later,
+  earliest-surviving or latest vintage.
+- **Equivalence proof.**
+  - The substitute reproduces the producer's published US rows byte-for-byte (35/35 on each day).
+  - Exchange membership and rows are identical under `p202609302026`, `p202610012031` and `p202610022300`.
+- **Honest provenance.** `live_session.vintage` is the owner of record (`p202609292209`), `compute_vintage`
+  is the substitute, and `vintage_exception` holds the full declaration. `STATUS.json` lists the declared
+  exceptions used.
+- **Authoritative candidate.** `/data/_audit/exch_v1/live_v1/candidate/exch_live_candidate_v1.db`, built by
+  code `03a78ad30`, covers 2026-09-25..2026-10-02 (6 sessions), state CURRENT. NOT member-authoritative.
+
+## ⛔ HARD REQUIREMENT for the scheduling / authority gate
+
+The US V2 producer keeps only its 3 newest vintages (`KEEP_VINTAGES=3`). The exchange live leg archives every
+READY producer vintage each time it runs. The schedule MUST guarantee that run happens before the producer can
+prune an owner vintage. That means at least once per (KEEP_VINTAGES − 1) producer publications, and
+practically after every producer publication.
+
+This is how `p202609292209` was lost, and `p202609302026` was pruned on 2026-10-05, after it had been archived.
+Member scheduling must not ship until this guarantee is enforced (and alarmed). The producer's retention is
+unchanged; changing it needs separate authorization.
