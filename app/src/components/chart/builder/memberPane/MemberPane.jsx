@@ -216,7 +216,10 @@ export default function MemberPane({
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
-      res = await onAttach(built.definition)
+      // ⭐ O6 — the text this document was BUILT from (`built` is memoised on
+      // `source`, so they cannot disagree), so the host can keep the member's
+      // script with it exactly as the Pine Editor's save does.
+      res = await onAttach(built.definition, { source })
     } catch (e) {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
@@ -230,7 +233,7 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [onAttach, built])
+  }, [onAttach, built, source])
 
   if (!enabled) return null
   if (!live) return null

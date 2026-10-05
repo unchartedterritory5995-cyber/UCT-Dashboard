@@ -122,7 +122,7 @@ import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
 import PineEditor from './pineEditor/PineEditor'
 import MyScripts from './pineEditor/MyScripts'
-import { pineSourceOf, inputValuesOf, withName, storableDefinition } from './pineEditor/pineScripts'
+import { pineSourceOf, inputValuesOf, withName, storableDefinition, withPineSource } from './pineEditor/pineScripts'
 import { pineAuthoringEnabled } from '../engine/pineAuthoringGate'
 import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
@@ -1848,8 +1848,18 @@ export default function BuilderSheet({
     return { ok: true, row, installedId: installed[0].id }
   }, [])
 
-  const attachPine = useCallback(async (definition) => {
-    const stored = await storePine(definition, null)
+  const attachPine = useCallback(async (definition, built = null) => {
+    // ⭐⭐ O6 (ruled 2026-10-04) — THE IMPORT TAB'S ATTACH KEEPS THE MEMBER'S
+    // SCRIPT, EXACTLY AS THE PINE EDITOR'S SAVE DOES: the same field
+    // (`withPineSource`), the same store door, and the SERVER's same rules —
+    // private to its owner, dropped when the stage does not admit authoring,
+    // licence-stripped on share/list (`api/services/pine_authoring.py`). The
+    // text is the one MemberPane BUILT this document from, never a newer paste.
+    // ⛔ Behind the same gate as the editor, so with authoring dark the posted
+    // document is byte-for-byte what it was.
+    const src = built && typeof built.source === 'string' ? built.source : ''
+    const doc = pineAuthoringEnabled() && src.trim() ? withPineSource(definition, src) : definition
+    const stored = await storePine(doc, null)
     if (!stored.ok) return stored
     const row = stored.row
     if (settings && onChange) onChange(addInstance(settings, stored.installedId, engineRegistry))
