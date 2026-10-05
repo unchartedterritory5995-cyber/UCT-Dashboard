@@ -20,6 +20,7 @@ import { createHash } from 'node:crypto'
 import { memberPaneDefinition } from './memberPaneDefinition.js'
 import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
+import { checkBudget } from '../../engine/ast/budget.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const DIR = path.join(REPO, 'tests/fixtures/pine_param_ids')
@@ -71,6 +72,24 @@ const computeBeforePaints = (definition) => {
 
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k)))
 
+/** ⭐ H9 (2026-10-04) — A FIXTURE ENTRY NO MEMBER COULD HAVE SAVED.
+ *
+ *  The fixture records what the DOOR BUILT at `e4e24524ef`; for these scripts the
+ *  install door then REFUSED that document (and the server's twin of the same
+ *  registration check refuses it on save), so no member holds one. H9 folded the
+ *  window that refused it (`pine.js::foldBarsLength`), which moves the computation and
+ *  drops a parameter whose only occurrence was inside that window. Each entry names
+ *  the refusal, and the rail below re-proves it against today's registration reader
+ *  (unchanged by H9) on the exact pre-H9 shape. */
+const n = (value) => ({ type: 'num', value })
+const NEVER_SAVEABLE = {
+  'corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine': {
+    why: 'install refused `resolve:window`: `highestbars(high, (5 + 5) + 1)` (lb + rb + 1 unfolded)',
+    preH9Window: { type: 'call', name: 'highestbars', args: [{ type: 'series', name: 'high' },
+      { type: 'op', name: '+', args: [{ type: 'op', name: '+', args: [n(5), n(5)] }, n(1)] }] },
+  },
+}
+
 describe('C46 — documents saved under the walk-order ids', () => {
   it('NON-VACUITY — the saved documents are here, and they hold the OLD small-number ids', () => {
     expect(scripts.length).toBeGreaterThanOrEqual(35)
@@ -82,6 +101,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
   it('⛔⛔ every saved document: the door still builds the same manifest — same ids, same inputs, same places', () => {
     const moved = []
     for (const script of scripts) {
+      if (NEVER_SAVEABLE[script]) continue
       const was = SAVED[script]
       const built = build(script)
       if (!built.ok) { moved.push({ script, problem: `the door no longer builds it: ${built.reason}` }); continue }
@@ -108,6 +128,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
   it('⛔⛔ every saved document: the values a member saved, replayed BY ID, land on the same inputs', () => {
     const wrong = []
     for (const script of scripts) {
+      if (NEVER_SAVEABLE[script]) continue
       const was = SAVED[script]
       const built = build(script)
       if (!built.ok) continue
@@ -129,6 +150,15 @@ describe('C46 — documents saved under the walk-order ids', () => {
     }
     expect(wrong, `saved values landed elsewhere:\n${JSON.stringify(wrong, null, 2)}`).toEqual([])
   }, 900000)
+
+  it('⛔ H9 — each NEVER_SAVEABLE entry is in the fixture, and its pre-H9 window is refused at registration today', () => {
+    for (const [script, entry] of Object.entries(NEVER_SAVEABLE)) {
+      expect(scripts, script).toContain(script)
+      let thrown = null
+      try { checkBudget(entry.preH9Window) } catch (e) { thrown = e }
+      expect(thrown && thrown.guard, `${script}: ${entry.why}`).toBe('resolve:window')
+    }
+  })
 
   it('⛔⛔ VOLUME v2, the whole saved document: loaded, read by id, replayed onto today\'s translation', () => {
     // A real pre-C46 document with both lengths moved off their defaults.

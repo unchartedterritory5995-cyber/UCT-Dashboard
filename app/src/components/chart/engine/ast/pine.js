@@ -12595,7 +12595,9 @@ export class Resolver {
       // than reached for, so the two cannot quietly become different lists.
       const resolvedRaw = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
       const resolved = (namespacedName === 'ta.pivothigh' || namespacedName === 'ta.pivotlow')
-        ? this.foldPivotBars(resolvedRaw) : resolvedRaw
+        ? this.foldPivotBars(resolvedRaw)
+        : ((namespacedName === 'ta.highestbars' || namespacedName === 'ta.lowestbars')
+          ? this.foldBarsLength(resolvedRaw) : resolvedRaw)
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
       // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
       // sentence about ARITY rather than about pivots. ⚰️ This site used to
@@ -13099,6 +13101,39 @@ export class Resolver {
    *  exact whole number ≥ 0 or the node untouched, so a fraction (`15 / 2`) or a
    *  bar read still meets `pivotAtConfirmation`'s own refusal. A bare `num` is
    *  returned as-is, so a literal count stays byte-identical. */
+  /** `ta.highestbars` / `ta.lowestbars` (and v4's bare spelling): the LENGTH - the
+   *  last argument in both the `(length)` and the `(source, length)` form - folded
+   *  exactly as an `int` slot is in `resolveTableCall`.
+   *
+   *  ⭐⭐ H9 (2026-10-04) — THE OTHER BUILDER THAT BYPASSES `resolveTableCall`.
+   *  `negatedBars` builds `-highestbars(src, len)` from RESOLVED arguments, so the
+   *  `int`-slot fold never ran on `len`. `pivot-high-low-points` (v4) writes
+   *  `mb = lb + rb + 1` with both inputs folded to 5, and `highestbars(mb)` reached
+   *  the install door as `(5 + 5) + 1`: refused `resolve:window` at registration
+   *  over a length Pine computes before bar 0. `ta.highest(high, mb)` in the same
+   *  script would have folded to `11` through `resolveTableCall`; this is that fold.
+   *
+   *  ⛔ WHY THE TRANSLATOR AND NOT A REGISTRATION-TIME FOLD (RT13's trace said
+   *  `budget.js` + `ast_budget.py`): measured, a registration reader that accepts
+   *  literal arithmetic splits the four lookback readers (`lookbackAgreement.test.js`)
+   *  unless the repaint linter reads it too, and the linter's hand-derived corpus
+   *  rules `sma(close, 5 + 5)` typed in the formula box `repaints` (fail closed,
+   *  `tests/fixtures/ast/must_repaint.json::computed_window`). A Pine length was
+   *  never meant to reach that rule: every other Pine `int` slot is folded here.
+   *  ⛔ SAME RULE AS `foldPivotBars`: a declared input folded into the length is
+   *  recorded as window-bound first (the caller refuses that knob by name), and
+   *  `foldWindow` returns only an exact whole number or the node untouched, so a
+   *  fraction or a bar read still meets the registration window check by name. */
+  foldBarsLength(resolvedArgs) {
+    if (!Array.isArray(resolvedArgs) || !resolvedArgs.length) return resolvedArgs
+    const last = resolvedArgs.length - 1
+    return resolvedArgs.map((node, i) => {
+      if (i !== last || !node || typeof node !== 'object' || node.type === 'num') return node
+      for (const n of declaredInputNames(node)) this.windowBoundInputs.add(n)
+      return foldWindow(node)
+    })
+  }
+
   foldPivotBars(resolvedArgs) {
     if (!Array.isArray(resolvedArgs) || resolvedArgs.length < 2) return resolvedArgs
     const from = resolvedArgs.length - 2
