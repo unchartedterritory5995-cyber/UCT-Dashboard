@@ -61,3 +61,26 @@ added exactly +4 `exch_session` rows (2010-09-16, 2021-03-02, 2022-11-07, 2025-0
 (fixed in `exch_counts`, commit `3af6933de`). Nothing else changed.
 
 **Status.** Neither artifact is member-authoritative or published. Registry, authority and the live leg come later.
+
+## Live identity continuity (exch-identity-v1, 2026-10-05)
+
+`ticker|delisted_utc` stays the frozen ledger's key and is never rewritten. Live lookups go through a
+continuity layer. Each security gets an immutable SID (`TICKER@first-session`), and everything else is a
+versioned attribute: tickers, reference keys (tagged by snapshot), composite-FIGI/CIK observation counts,
+and learned delisting dates (with the snapshot that taught them).
+
+- **Assignment rules** (`tools/breadth_exch/identity/identity_model.py`; causal; evidence = run-level
+  modal FIGI/CIK, so single-day provider glitches cannot move it):
+  - The holder continues.
+  - **S1:** a gap of more than 5 sessions needs positive evidence (FIGI, else CIK).
+  - **S2:** an ended record plus a different record means a new listing, unless the FIGI matches.
+  - **S3:** a FIGI or CIK swap without a gap means a new security.
+  - **Reattach:** a FIGI (else CIK) match to a recently ended SID is a rename or glitch recovery.
+  - A learned delisting date NEVER creates a SID.
+- **Bridge:** (ticker, session) → holder SID → the accepted ledger rows of that SID's keys FOR THIS
+  TICKER that cover the session. None cover → UNRESOLVED; two cover → CONFLICT (fail closed). The
+  vintage's own key is never consulted.
+- **CIK-only is not acceptable.** CIK is company-level; share classes and junk-shared CIKs merge.
+- **Accepted limitations.** Old share-class reshuffles without FIGI (e.g. GOOG 2014) cannot be
+  separated. A de-SPAC that receives a new FIGI (HVII→ONEN) is a new security.
+  Neither affects breadth, because venue is per-session evidence.
