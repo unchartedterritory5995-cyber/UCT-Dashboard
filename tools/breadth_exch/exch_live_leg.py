@@ -232,8 +232,8 @@ for D in todo:
     if R.get("refused"):
         status["refused"] = {"session": D, "reason": "WORKER_" + R["refused"], "detail": R}
         break
-    teq = lc.tables_equivalent(V["archive_inputs_dir"], V["inputs_dir"])
-    if any(v == "DIFFERENT" for v in teq.values()):
+    teq = lc.tables_equivalent(V["archive_inputs_dir"], V["inputs_dir"], V["remap"]["replaced_path"])
+    if any(v.startswith("DIFFERENT") for v in teq.values()):
         status["refused"] = {"session": D, "reason": "REMAP_TABLES_DIFFER", "detail": teq}
         break
     crash("after_evidence")

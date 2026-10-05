@@ -342,3 +342,15 @@ def test_remap_shape_and_diff_rules_are_exact(tmp_path):
     open(os.path.join(rep["remap_inputs_dir"], "adjusted_guard_table.json"), "w").write(
         json.dumps({"input_key": "k2", "events": [2]}))
     assert lc.tables_equivalent(ip, rep["remap_inputs_dir"])["adjusted_guard_table.json"] == "DIFFERENT"
+
+
+def test_tables_equivalent_identity_may_differ_only_by_the_remapped_path(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir(), b.mkdir()
+    old, new = "/data/breadth_v2_producer/vintages/pX/grouped_pX", "/data/_audit/archive/pX/grouped_pX"
+    for d, ident in ((a, '{"dir": "%s", "n": 1}' % old), (b, '{"dir": "%s", "n": 1}' % new)):
+        (d / "first_raw_session.json").write_text(json.dumps({"identity": ident, "first": {"A": "2005-10-24"}}))
+    assert lc.tables_equivalent(str(a), str(b), (old, new))["first_raw_session.json"] == "equal"
+    (b / "first_raw_session.json").write_text(json.dumps({"identity": '{"dir": "%s", "n": 2}' % new,
+                                                          "first": {"A": "2005-10-24"}}))
+    assert lc.tables_equivalent(str(a), str(b), (old, new))["first_raw_session.json"].startswith("DIFFERENT")

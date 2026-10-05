@@ -327,9 +327,11 @@ def build_remap(archive_dir: str, tag: str, remap_root: str, producer_root: str 
     return rep
 
 
-def tables_equivalent(archive_inputs: str, remap_inputs: str) -> dict:
-    """The derived tables the engine rebuilt under the remap must equal the producer's own tables in
-    the archive in everything but `input_key` (which hashes the manifest file bytes)."""
+def tables_equivalent(archive_inputs: str, remap_inputs: str, replaced_path=None) -> dict:
+    """The tables the engine rebuilt under the remap must equal the producer's own archived tables in
+    everything but their CACHE KEY: `input_key` (guard / dividend basis: hashes the manifest file bytes)
+    and `identity` (first_raw_session: the grouped calendar identity, which embeds the grouped path —
+    it must differ ONLY by the exact remapped path)."""
     out = {}
     for fn in REMAP_TABLES:
         a, b = os.path.join(archive_inputs, fn), os.path.join(remap_inputs, fn)
@@ -340,5 +342,12 @@ def tables_equivalent(archive_inputs: str, remap_inputs: str) -> dict:
         if isinstance(ja, dict) and isinstance(jb, dict):
             ja.pop("input_key", None)
             jb.pop("input_key", None)
+            if "identity" in ja or "identity" in jb:
+                ia, ib = ja.pop("identity", None), jb.pop("identity", None)
+                if ia != ib:
+                    if not (replaced_path and isinstance(ia, str) and ia.count(replaced_path[0]) >= 1
+                            and ia.replace(replaced_path[0], replaced_path[1]) == ib):
+                        out[fn] = "DIFFERENT (identity beyond the path remap)"
+                        continue
         out[fn] = "equal" if ja == jb else "DIFFERENT"
     return out
