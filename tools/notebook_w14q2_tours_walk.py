@@ -335,16 +335,23 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
         # Back is tested once, between two plain steps: Back onto a "do this to continue" step
         # whose thing is already done moves straight forward again (by design), which would
         # read as a broken Back.
-        prev_plain = len(row["shown"]) >= 2 and not steps[row["shown"][-2] - 1].get("waitFor")
-        if not back_done and prev_plain and st["n"] == row["shown"][-1] and st["backDisabled"] is False:
+        # Back is tested once. Onto a "do this to continue" step whose thing is already done, it
+        # must SHOW that step and stay there (round 2), not jump forward again.
+        if not back_done and len(row["shown"]) >= 2 and st["n"] == row["shown"][-1] and st["backDisabled"] is False:
             n0 = st["n"]
             press_card(pg, "Back")
             b = wait_state(pg, title, lambda s: s["kind"] != "step" or s["n"] != n0, 4)
-            row["back_ok"] = b["kind"] == "step" and b["n"] < n0
-            record(P, width, tid, "Back returns to the previous shown step", row["back_ok"], frm=n0, to=b.get("n"))
+            pg.wait_for_timeout(2000)
+            b2 = state(pg, title)
+            row["back_ok"] = b["kind"] == "step" and b["n"] < n0 and b2.get("n") == b["n"]
+            record(P, width, tid, "Back returns to the previous shown step, and stays", row["back_ok"], frm=n0,
+                   to=b.get("n"), after_2s=b2.get("n"), onto_waitfor=bool(steps[(b.get("n") or 1) - 1].get("waitFor")))
             back_done = True
             continue
         n0 = st["n"]
+        wf = steps[n0 - 1].get("waitFor") if st["waiting"] else None
+        if wf and pg.evaluate(ANCHOR_JS, wf)["withBox"]:
+            st = {**st, "waiting": False}     # already done (we came Back onto it): Next moves on
         if st["waiting"]:
             # "Do this to continue": do what the card asks -- click what it points at
             try:

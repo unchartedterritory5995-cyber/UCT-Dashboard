@@ -1979,6 +1979,7 @@ export default function NotebookTab() {
             className={styles.phoneBack}
             onClick={phoneBackToNotes}
             data-nb-phone-back=""
+            data-tour="note-phone-back"
           >
             <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
             Back to notes
