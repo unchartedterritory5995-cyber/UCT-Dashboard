@@ -15,7 +15,6 @@ import {
 import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
-import AiActionsBox from './AiActionsPanel'
 import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
@@ -41,6 +40,11 @@ const CapabilityPreview = lazyChunk(() => import('./onboarding/CapabilityPreview
 // review-drafts box's doc builder (`lib/reviewDrafts.js`) loads on its first click -- the box's
 // own flag is read from `lib/reviewDraftsFlag.js`, which carries nothing else.
 const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
+// Landing 12-15 (byte gate): wave 11's "Ask Notebook to do something" box, the lever
+// docs/notebook/wave14-perf.md section 5 named. Fetched only while notebook_ai_actions_enabled is
+// on (the box still checks the flag itself), at the same tree position in every return, so a
+// quiet/full flip keeps its state exactly as before.
+const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
 const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -410,7 +414,9 @@ export default function ResearchHome({
   // the same fragment in both returns, React keeps it, and its state, across the flip.
   const aiBox = (
     <div className={styles.aiSlot}>
-      <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
+      {notebookFlag('notebook_ai_actions_enabled') === true
+        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
+        : null}
     </div>
   )
   // Wave 13 lane 13C: "Reporting soon" -- renders nothing while notebook_earnings_prep_enabled
