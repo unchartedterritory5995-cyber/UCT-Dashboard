@@ -46,9 +46,56 @@ describe('OptionsChainTab', () => {
 
   it('states the ATM IV, says IV rank is absent and why, and names the source', async () => {
     renderTab()
-    expect((await screen.findByTestId('atm-iv')).textContent).toBe('ATM IV 14.6%')
+    // mean of the 760 call (14.62%) and put (15.10%) IV, as chain_tools.py::_atm computes it -- not the call alone
+    expect((await screen.findByTestId('atm-iv')).textContent).toBe('ATM IV 14.9%')
     expect(screen.getByText('IV rank: needs IV history')).toBeTruthy()
-    expect(screen.getByTestId('chain-source').textContent).toMatch(/Live chain from Massive \(OPRA\)/)
+    expect(screen.getByTestId('chain-source').textContent).toMatch(/Live chain from Massive \(OPRA quotes\)/)
+  })
+
+  it('the source line says vendor-computed, never exchange-derived, and labels the units', async () => {
+    renderTab()
+    const src = (await screen.findByTestId('chain-source')).textContent
+    expect(src).not.toMatch(/exchange-derived/)
+    expect(src).toMatch(/vendor-computed by Massive, per share/)
+    expect(src).toMatch(/Θ per calendar day, vega per 1 vol point/)
+    expect(src).toMatch(/OI is the OCC prior-close figure/)
+    const heads = screen.getAllByRole('columnheader')
+    expect(heads.find((h) => h.textContent === 'Θ').getAttribute('title')).toMatch(/per calendar day/)
+    expect(heads.find((h) => h.textContent === 'OI').getAttribute('title')).toMatch(/prior close/)
+  })
+
+  it('shows Mid and V/OI, shades in-the-money cells, puts DTE in the expiration list and the expected move', async () => {
+    renderTab()
+    await screen.findByTestId('options-chain')
+    const atm = screen.getByTestId('atm-row')
+    expect(atm.textContent).toContain('21.25')        // call mid of 21.1 / 21.4
+    expect(atm.textContent).toContain('0.07×')        // call V/OI 88 / 1231
+    // 760 < spot 764.2: the call is in the money, the put is not
+    const cells = [...atm.querySelectorAll('td')]
+    const strikeAt = cells.findIndex((c) => c.textContent === '760.00')
+    expect(cells[0].className).toMatch(/itm/)
+    expect(cells[strikeAt + 1].className).not.toMatch(/itm/)
+    const opts = [...screen.getByLabelText('Expiration').querySelectorAll('option')].map((o) => o.textContent)
+    expect(opts[0]).toMatch(/^2026-10-23 \(-?\d+d\)$/)
+    // ATM straddle mid = 21.25 + 17.15 = 38.40; / 764.2 = 5.0%
+    expect(screen.getByTestId('expected-move').textContent).toMatch(/±\$38\.40 \(±5\.0%\)/)
+    expect(screen.getByTestId('expected-move').textContent).toMatch(/ATM straddle ÷ spot/)
+  })
+
+  it('an adjusted duplicate at a strike never overwrites the standard contract, and the drop is said', async () => {
+    const std = { ...CHAIN.calls[0], contract: 'O:SPY261023C00760000', shares_per_contract: 100 }
+    const adj = { ...CHAIN.calls[0], contract: 'O:SPY1261023C00760000', shares_per_contract: 50, bid: 1.0, ask: 1.2, iv: 0.9, delta: 0.11 }
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/expirations')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ expirations: [] }) })
+      // the adjusted contract arrives LAST: under the old strike-keyed Map it would have won
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...CHAIN, calls: [std, adj, CHAIN.calls[1]] }) })
+    })
+    renderTab()
+    await screen.findByTestId('options-chain')
+    const atm = screen.getByTestId('atm-row')
+    expect(atm.textContent).toContain('0.584')        // the standard contract's delta
+    expect(atm.textContent).not.toContain('0.110')
+    expect(screen.getByTestId('chain-merge-note').textContent).toMatch(/1 adjusted or duplicate contract sharing a strike was left out/)
   })
 
   it('a missing side renders as a dash, never a zero', async () => {

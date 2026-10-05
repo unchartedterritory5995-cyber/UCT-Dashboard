@@ -8,6 +8,8 @@
 .grid th, .grid td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); }
 .grid thead th { color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-surface); }
 .strike, .strikeHead { text-align: center !important; font-weight: 700; color: var(--text-heading); background: var(--bg-surface); position: sticky; left: 0; }
+/* In the money at today's spot (a call below it, a put above it). Lighter than the ATM row, which wins. */
+.itm { background: color-mix(in srgb, var(--text-muted) 10%, transparent); }
 .atm td { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }
 /* BRK-01 increment 2 — payoff at expiration, under the chain. */
 .payoff { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }

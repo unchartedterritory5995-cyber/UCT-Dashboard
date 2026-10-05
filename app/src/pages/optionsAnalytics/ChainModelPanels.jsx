@@ -19,6 +19,12 @@ const enc = encodeURIComponent
 const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const pct = (p) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`)
 const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
+// A candidate's identity: its expiration, view, structure and every leg (type, side, strike). The
+// "Saved" tag is keyed on THIS, never on a row index -- re-sorting, or a chain refresh that reorders
+// or drops a candidate, used to move the tag onto a structure that was never saved.
+export const candidateKey = (view, expiration, c) =>
+  [view, expiration || '', c.name, ...c.legs.map((l) => `${l.type}:${l.side}:${Number(l.strike)}`)].join('|')
+
 const legText = (l) => `${l.side > 0 ? 'buy' : 'sell'}${Math.abs(l.side) > 1 ? ` ${Math.abs(l.side)}` : ''} ${num(l.strike)} ${l.type}`
 
 // ── FT-012 ─────────────────────────────────────────────────────────────────────
@@ -153,9 +159,10 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
   const days = daysTo(expiration)
   const found = data ? findStrategies(view, rows, { spot, iv: Number(atmIv), days, sort }) : null
   const canSave = Array.isArray(book.data?.spreads)
-  async function onSave(c, i) {
+  async function onSave(c) {
+    const k = candidateKey(view, expiration, c)
     const out = await saveSpread(spreadBody(sym, c, expiration))
-    setSaved({ ...saved, [`${view}-${i}`]: out.error || 'Saved to the Spread Book.' })
+    setSaved((prev) => ({ ...prev, [k]: out.error || 'Saved to the Spread Book.' }))
     if (!out.error) mutate(SPREAD_BOOK_URL)
   }
   return (
@@ -179,8 +186,10 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
               <table className={styles.table} data-testid="finder-candidates">
                 <thead><tr><th>Structure</th><th>Legs</th><th>Net</th><th>Max profit</th><th>Max loss</th><th>Breakeven</th><th>PoP</th>{canSave && <th />}</tr></thead>
                 <tbody>
-                  {found.candidates.slice(0, 12).map((c, i) => (
-                    <tr key={`${c.name}-${c.legs.map((l) => l.strike).join('-')}`}>
+                  {found.candidates.slice(0, 12).map((c) => {
+                    const k = candidateKey(view, expiration, c)
+                    return (
+                    <tr key={k}>
                       <th>{c.name}</th>
                       <td>{c.legs.map(legText).join(' / ')}</td>
                       <td>{c.cost >= 0 ? `pay ${money(c.cost)}` : `collect ${money(-c.cost)}`}</td>
@@ -189,13 +198,14 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
                       <td>{pct(c.pop)}</td>
                       {canSave && (
                         <td>
-                          {saved[`${view}-${i}`]
-                            ? <span className={styles.muted}>{saved[`${view}-${i}`]}</span>
-                            : <button type="button" className={styles.input} onClick={() => onSave(c, i)}>Save</button>}
+                          {saved[k]
+                            ? <span className={styles.muted}>{saved[k]}</span>
+                            : <button type="button" className={styles.input} onClick={() => onSave(c)}>Save</button>}
                         </td>
                       )}
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

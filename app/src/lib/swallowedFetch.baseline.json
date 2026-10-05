@@ -4,7 +4,7 @@
     "SHRINK-ONLY. Lower a count or delete a line when you migrate a site onto a fetcher that throws;",
     "never add one. Regenerate nothing by tool: edit this file by hand."
   ],
-  "total": 64,
+  "total": 63,
   "files": {
     "components/AlertBell.jsx": 1,
     "components/RsBadge.jsx": 1,
@@ -59,7 +59,6 @@
     "pages/journal-2-0/lib/writingHelpStream.js": 1,
     "pages/modelbook/SetupsView.jsx": 1,
     "pages/research/hooks/useComparison.js": 1,
-    "pages/research/hooks/useResearchFlow.js": 1,
     "testing/device/slopSteps.js": 1
   }
 }
