@@ -1,6 +1,6 @@
 """The visual playbook and before/after (wave 13, lane 13I-2).
 
-  paid    GET /api/j2/notebook-visual-playbook/cards?setup=&setup=&outcome=&timeframe=&range=
+  paid    GET /api/j2/notebook-visual-playbook/cards?setup=&setup=&outcome=&timeframe=&range=&regime=
                                      the member's tagged chart blocks, filtered, + slice stats
   member  GET /api/j2/notebook-visual-playbook/trades/{trade_id}/before-after
                                      the trade's fills and its frozen plan levels
@@ -61,13 +61,14 @@ def list_cards(setups: list[str] = Query(default=[], alias="setup"),
                outcome: Optional[str] = Query(default=None, max_length=16),
                timeframe: Optional[str] = Query(default=None, max_length=8),
                ranges: list[str] = Query(default=[], alias="range"),
+               regime: Optional[str] = Query(default=None, max_length=16),
                user: dict = Depends(require_paid)):
     uid = str(user["id"])
     if any(len(s) > 80 for s in setups) or any(len(r) > 64 for r in ranges):
         raise HTTPException(status_code=422, detail="A setup or range is too long")
     try:
         return vp.cards(uid, setups=setups, outcome=outcome or None, timeframe=timeframe or None,
-                        ranges=ranges)
+                        ranges=ranges, regime=regime or None)
     except vp.PlaybookRequestError as e:
         raise HTTPException(status_code=422, detail=str(e)) from None
     except sqlite3.Error:
