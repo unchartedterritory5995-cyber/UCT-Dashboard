@@ -113,12 +113,50 @@ def _mention_regex(sym: str) -> re.Pattern:
     return re.compile(r"(?<![A-Za-z0-9.$-])\$?" + re.escape(sym) + r"(?![A-Za-z0-9])")
 
 
+# R20: a bare-word match is only safe for a ticker that cannot be an ordinary
+# word. AI, A, IT, NOW and ON matched every "AI capex", "it", "now" and "on" in
+# the Wire. For those the wire must NAME it: a `$` cashtag, or the wire's own
+# ticker markup (an element whose class is an `rd-...-sym` cell).
+_SHORT_TICKER_LEN = 2
+_WIRE_SYM_CELL = re.compile(
+    r"<(?P<tag>[a-z0-9]+)\b[^>]*\bclass=\"[^\"]*\brd-[a-z0-9-]*sym\b[^\"]*\"[^>]*>(?P<body>.*?)</(?P=tag)>",
+    re.IGNORECASE | re.DOTALL)
+
+
+def _is_ambiguous(sym: str) -> bool:
+    """True for a ticker that reads as an ordinary word: two letters or fewer,
+    or in the buzz board's DERIVED chat-word set (symbols that are also chat
+    vocabulary). Never raises: an unreadable set falls back to length alone."""
+    if len(sym) <= _SHORT_TICKER_LEN:
+        return True
+    try:
+        from api.services import buzz_universe
+        return sym in buzz_universe.ambiguous()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _wire_mentions(sym: str, rundown_html: str) -> int:
+    """How many times the Wire names `sym`. For an ambiguous ticker only a
+    cashtag or a ticker-markup cell counts; otherwise a whole-word match."""
+    if not _is_ambiguous(sym):
+        text = re.sub(r"<[^>]+>", " ", rundown_html)
+        return len(_mention_regex(sym).findall(text))
+    cells = 0
+    for m in _WIRE_SYM_CELL.finditer(rundown_html):
+        body = re.sub(r"<[^>]+>", " ", m.group("body")).strip().lstrip("$").upper()
+        if body == sym:
+            cells += 1
+    text = re.sub(r"<[^>]+>", " ", _WIRE_SYM_CELL.sub(" ", rundown_html))
+    cashtags = len(re.findall(r"(?<![A-Za-z0-9.$-])\$" + re.escape(sym) + r"(?![A-Za-z0-9])", text))
+    return cells + cashtags
+
+
 # ── lanes ────────────────────────────────────────────────────────────────────
 
 def wire_lane(sym: str, since: date) -> list[dict]:
     from api.services import wire_archive
 
-    pat = _mention_regex(sym)
     rows = []
     for ymd in wire_archive.held_dates():
         try:
@@ -130,8 +168,7 @@ def wire_lane(sym: str, since: date) -> list[dict]:
         entry = wire_archive.read(ymd)
         if not entry:
             continue
-        text = re.sub(r"<[^>]+>", " ", entry.get("rundown_html") or "")
-        hits = len(pat.findall(text))
+        hits = _wire_mentions(sym, entry.get("rundown_html") or "")
         if hits:
             rows.append({"date": d.isoformat(), "lane": "wire", "mentions": hits,
                          "text": f"Named in the Morning Wire ({hits} mention{'s' if hits != 1 else ''})",

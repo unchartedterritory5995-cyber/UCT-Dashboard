@@ -142,9 +142,25 @@ def ec(monkeypatch):
     return m
 
 
-def _stub_fmp(monkeypatch, m, *, annual=None, quarter=None, raise_for=()):
+AAPL_EARNINGS = [{"date": "2026-10-29", "epsActual": None, "epsEstimated": 1.7},
+                 {"date": "2026-07-30", "epsActual": 1.57, "revenueActual": 9.4e10},
+                 {"date": "2026-04-30", "epsActual": 1.65}]
+
+
+def _stub_fmp(monkeypatch, m, *, annual=None, quarter=None, raise_for=(), earnings=AAPL_EARNINGS):
     from api.services import fmp_client, provider_errors as pe
     seen = []
+
+    def fake_earnings(ticker, *, limit=20, timeout=None):
+        if "earnings" in raise_for:
+            raise RuntimeError("FMP /stable/earnings timed out")
+        if not earnings:
+            raise fmp_client._ERR.not_found("FMP /stable/earnings: no data")
+        return pe.ProviderResult(value=earnings,
+                                 provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="t"),
+                                 licensing_class=None, freshness="end_of_day")
+
+    monkeypatch.setattr(m.fmp_client, "get_earnings", fake_earnings)
 
     def fake(ticker, *, period, limit=None, timeout=None):
         seen.append((period, limit, timeout))
@@ -190,6 +206,58 @@ class TestConsensusParity:
         assert [r["label"] for r in out] == ["FY2026"]
 
 
+class TestForwardRule:
+    """R2/R3: one rule, shared with broker_estimates — a period is forward until
+    the company has REPORTED it."""
+
+    def test_R2_a_reported_quarter_inside_the_grace_window_is_not_forward(self, ec):
+        rows = [{"date": "2026-06-27", "epsAvg": 1.5}, {"date": "2026-09-27", "epsAvg": 1.7}]
+        # 2026-06-27 is 98 days before TODAY (inside the 130-day window) but was
+        # reported on 2026-07-30: the old rule kept it as the first forward row.
+        out = ec.shape_rows(rows, "quarterly", today=TODAY, last_report="2026-07-30")
+        assert [r["period_end"] for r in out] == ["2026-09-27"]
+
+    def test_a_quarter_that_ended_but_has_not_reported_is_forward(self, ec):
+        rows = [{"date": "2026-09-27", "epsAvg": 1.7}]
+        out = ec.shape_rows(rows, "quarterly", today=TODAY, last_report="2026-07-30")
+        assert [r["period_end"] for r in out] == ["2026-09-27"]
+
+    def test_the_rule_itself(self, ec):
+        assert ec.is_unreported("2026-09-27", "2026-07-30", TODAY) is True
+        assert ec.is_unreported("2026-06-27", "2026-07-30", TODAY) is False
+        assert ec.is_unreported("2026-06-27", None, TODAY) is True          # fallback: grace only
+        assert ec.is_unreported("2025-01-31", None, TODAY) is False         # dead data
+        assert ec.is_unreported("2026-09-27", "2026-07-30", "2026-10-03") is True
+
+    def test_last_report_date_reads_only_rows_with_an_actual(self, ec):
+        assert ec.last_report_date(AAPL_EARNINGS) == "2026-07-30"
+        assert ec.last_report_date([{"date": "2026-10-29", "epsActual": None}]) is None
+        assert ec.last_report_date(None) is None
+
+    def test_broker_estimates_uses_the_SAME_rule(self, ec):
+        import api.services.broker_estimates as be
+        rows = [{"date": "2026-06-27", "epsAvg": 1.5}, {"date": "2026-09-27", "epsAvg": 1.7}]
+        ee = [r["period_end"] for r in ec.shape_rows(rows, "quarterly", today=TODAY,
+                                                     last_report="2026-07-30")]
+        br = [p["period_end"] for p in be.periods(rows, today=TODAY.isoformat(),
+                                                   last_report="2026-07-30")]
+        assert ee == br == ["2026-09-27"]
+
+    def test_get_consensus_applies_the_report_date(self, ec, monkeypatch):
+        _stub_fmp(monkeypatch, ec, annual=[],
+                  quarter=[{"date": "2026-06-27", "epsAvg": 1.5}, {"date": "2026-09-27", "epsAvg": 1.7}])
+        out = ec.get_consensus("AAPL", today=TODAY)
+        assert [r["period_end"] for r in out["quarterly"]] == ["2026-09-27"]
+        assert out["last_report"] == "2026-07-30" and out["forward_rule"] == "reported_through"
+
+    def test_a_failed_earnings_read_falls_back_to_the_grace_window_and_is_held_briefly(self, ec, monkeypatch):
+        _stub_fmp(monkeypatch, ec, annual=[], raise_for=("earnings",),
+                  quarter=[{"date": "2026-06-27", "epsAvg": 1.5}, {"date": "2026-09-27", "epsAvg": 1.7}])
+        out = ec.get_consensus("AAPL", today=TODAY)
+        assert out["state"] == "ok" and out["forward_rule"] == "grace_window"
+        assert ec._test_cache.ttls["research_consensus::v2::AAPL"] == ec._TTL_ERROR
+
+
 class TestConsensusStates:
     def test_ok_reads_both_legs_with_the_existing_request_shapes(self, ec, monkeypatch):
         seen = _stub_fmp(monkeypatch, ec, annual=_load("analyst_estimates_annual_AAPL.json"),
@@ -206,7 +274,7 @@ class TestConsensusStates:
         ec.get_consensus("AAPL", today=TODAY)
         ec.get_consensus("AAPL", today=TODAY)
         assert len(seen) == 2
-        assert ec._test_cache.ttls["research_consensus::v1::AAPL"] == ec._TTL_OK
+        assert ec._test_cache.ttls["research_consensus::v2::AAPL"] == ec._TTL_OK
 
     def test_answered_nothing_is_EMPTY_not_error(self, ec, monkeypatch):
         _stub_fmp(monkeypatch, ec, annual=[], quarter=[])
@@ -217,7 +285,7 @@ class TestConsensusStates:
         _stub_fmp(monkeypatch, ec, raise_for=("annual", "quarter"))
         out = ec.get_consensus("AAPL", today=TODAY)
         assert out["state"] == "error" and set(out["errors"]) == {"annual", "quarterly"}
-        assert ec._test_cache.ttls["research_consensus::v1::AAPL"] == ec._TTL_ERROR
+        assert ec._test_cache.ttls["research_consensus::v2::AAPL"] == ec._TTL_ERROR
 
 
 class TestRoute:

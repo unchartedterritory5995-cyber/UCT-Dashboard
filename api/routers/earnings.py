@@ -342,7 +342,16 @@ def debug_earnings_sources(sym: str):
 
 @router.get("/api/earnings/intel/{ticker}")
 def earnings_intel(ticker: str):
-    """Analyst consensus, EPS beat history, and price targets for a ticker."""
+    """Analyst consensus, EPS beat history, and price targets for a ticker.
+
+    ⚠️ NOT a duplicate of `/api/earnings-intel/{ticker}` (fundamentals.py), despite
+    the name (audit L12, 2026-10-05). This route serves
+    `earnings_estimates.get_earnings_intel` (consensus / beat_history / price
+    targets); that one serves `earnings_intel.get_earnings` (the normalized
+    quarters / estimates / annual / summary model). Different payloads, both with
+    live callers: this one from research/hooks/useResearchOverview.js, that one
+    from the chart dock, ChartEarningsStrip and useLatestReport. A redirect
+    either way would hand a caller the wrong shape."""
     ticker = ticker.upper()
     try:
         result = get_earnings_intel(ticker)

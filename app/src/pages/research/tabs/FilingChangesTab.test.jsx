@@ -92,6 +92,14 @@ describe('FilingChangesTab', () => {
       .toBe('No comparison for AAPL: 1 original 10-K on file; two are needed to compare. That is a gap in what we could read, not a finding that nothing changed.')
   })
 
+  it('sections_unlocated (R9) shows the pair and says the sections could not be located', async () => {
+    body = { ...OK, state: 'sections_unlocated', sections: [OK.sections[1]] }
+    renderTab()
+    expect((await screen.findByTestId('blackline-sections-missing')).textContent)
+      .toBe('Both filings were found, but the comparable sections could not be located in them. That is a gap in what we could read, not a finding that nothing changed.')
+    expect(screen.queryByTestId('blackline-unread')).toBeNull()
+  })
+
   it('not_found with both filings shows the pair and says the sections could not be located -- never "no SEC filer"', async () => {
     body = { ...OK, state: 'not_found', sections: [OK.sections[1]] }
     renderTab()

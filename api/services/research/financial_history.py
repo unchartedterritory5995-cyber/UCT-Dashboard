@@ -192,9 +192,16 @@ def _by_date(rows) -> dict:
     return out
 
 
-def _label(date: str, period_field: str, period: str) -> str:
-    """'2026-06-27' + 'Q3' → 'Q3 2026'; annual → '2026'."""
-    year = (date or "")[:4]
+def _label(date: str, period_field: str, period: str,
+           fiscal_year=None) -> str:
+    """'2026-06-27' + 'Q3' + fiscalYear 2026 → 'Q3 2026'; annual → '2026'.
+
+    The year is FMP's `fiscalYear` when the row carries one, so it agrees with
+    the fiscal `period` beside it (as `earnings_history_fmp` already reads it).
+    The calendar year of `date` is only a fallback: AAPL's quarter ending
+    2025-12-27 is fiscal Q1 2026, and `date[:4]` mislabelled it "Q1 2025"."""
+    fy = str(fiscal_year).strip() if fiscal_year not in (None, "") else ""
+    year = fy[:4] if fy[:4].isdigit() else (date or "")[:4]
     if period == "annual":
         return year
     p = (period_field or "").upper()
@@ -222,6 +229,11 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
         "cash": "cash-flow-statement",
     }
     got: dict[str, Any] = {}
+    # A leg that RAISED for any reason other than "FMP has no such statement"
+    # is a transient failure (timeout, 5xx, rate limit). It must not be cached
+    # as an answer: a 600 s `periods: []` reads to a member as "this company
+    # has no financials" for ten minutes after the vendor has recovered.
+    transient: set[str] = set()
     try:
         with ThreadPoolExecutor(max_workers=3,
                                 thread_name_prefix="fin-hist") as ex:
@@ -233,12 +245,19 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
                 except Exception as exc:
                     _logger.warning("[fin_hist] %s failed for %s: %s", k, sym, exc)
                     got[k] = None
+                    if not isinstance(exc, fmp_client.FMPNotFound):
+                        transient.add(k)
     except Exception as exc:
         _logger.warning("[fin_hist] fetch failed for %s: %s", sym, exc)
-        return {"sym": sym, "period": period, "periods": [], "series": {}}
+        return {"sym": sym, "period": period, "periods": [], "series": {},
+                "state": "error"}
 
     income = got.get("income") or []
     if not isinstance(income, list) or not income:
+        if "income" in transient:
+            # Not cached: the next request retries the vendor.
+            return {"sym": sym, "period": period, "periods": [], "series": {},
+                    "state": "error"}
         out = {"sym": sym, "period": period, "periods": [], "series": {}}
         _cache().set(ck, out, _TTL_FAIL)
         return out
@@ -263,19 +282,33 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
     series: dict[str, list] = {key: [] for key, _leg, _names in LINE_ITEMS}
     for r in rows:
         d = r["date"]
-        periods.append(_label(d, r.get("period"), period))
+        periods.append(_label(d, r.get("period"), period, r.get("fiscalYear")))
         dates.append(d[:10])
         legs = {"income": r, "balance": bal.get(d), "cash": cash.get(d)}
         for key, leg, names in LINE_ITEMS:
             series[key].append(num(legs[leg], *names))
 
+    # The currency the statements are reported in, passed through as FMP
+    # states it (TSM reports TWD, TM reports JPY). Read off the newest row;
+    # None when FMP does not say. Nothing is converted here.
+    currency = None
+    for r in reversed(rows):
+        c = r.get("reportedCurrency")
+        if isinstance(c, str) and c.strip():
+            currency = c.strip().upper()
+            break
+
     out = {"sym": sym, "period": period, "periods": periods, "dates": dates,
            "series": series, "ratios": derive_ratios(series, period),
-           "count": len(periods),
+           "count": len(periods), "currency": currency,
            # Provenance the client shows on screen: who, which endpoints, on
            # what period basis, and when this server read them.
            "source": {"vendor": "FMP", "basis": "fiscal",
                       "endpoints": list(SOURCE_ENDPOINTS),
                       "fetched_at": int(time.time())}}
-    _cache().set(ck, out, _TTL)
+    # A balance or cash leg that failed transiently leaves real gaps in this
+    # payload: serve it, but hold it only briefly so the gap heals.
+    if transient:
+        out["partial"] = sorted(transient)
+    _cache().set(ck, out, _TTL_FAIL if transient else _TTL)
     return out

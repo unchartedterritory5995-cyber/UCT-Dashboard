@@ -376,6 +376,13 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
     }
 
 
+# L10: what the last `_fetch_snapshots` on THIS thread learned about the
+# provider: {"answered": bool, "held_back": [tickers]}. Thread-local, so the
+# function's signature (which many tests replace by name) is unchanged; a
+# replacement that never sets it reads as "not answered", the old 503.
+_FETCH_STATUS = threading.local()
+
+
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     """One Massive batch call → {ticker: value_dict}.
 
@@ -396,9 +403,15 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # herd, exhaust the 64-worker pool (the launch-day 524 class). get_batch_quotes
     # uses its own 8s internal timeout — tighter still would risk starving a large
     # batch, so this stays looser than the old 5s; no regression observed live.
+    # L10: "answered" is True only when the provider gave a real answer;
+    # "held_back" lists tickers it returned but whose read was degraded.
+    # Together they separate "the provider failed" (503) from "the provider
+    # answered and does not list these tickers" (200, absent).
+    _FETCH_STATUS.last = {"answered": False, "held_back": []}
     result = client.get_batch_quotes(tickers)
     if result.degraded is not None or result.value is None:
         return {}
+    _FETCH_STATUS.last = {"answered": True, "held_back": []}
 
     out: dict = {}
     degraded: dict = {}
@@ -449,8 +462,20 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         day_c = _f(day.get("c"))
         prev_c = _f(prev_day.get("c"))
         if day_c and prev_c and prev_c != 0:
-            chg_pct = (day_c - prev_c) / prev_c * 100.0
-            chg_abs = day_c - prev_c
+            # L4: the change is derived from the SAME `price` this row returns
+            # (rounded exactly as the payload rounds it), against the same
+            # `prev_close`. In RTH `price` is the last trade, and deriving the
+            # change from `day.c` instead served NVDA price 239.81 beside a
+            # change_pct computed from 239.845. Outside RTH `price` is day.c
+            # first, so this is still the regular-session close vs prev close.
+            basis = round(float(_f(price) or day_c), 2)
+            prev_r = round(prev_c, 2)
+            if prev_r > 0:
+                chg_abs = basis - prev_r
+                chg_pct = chg_abs / prev_r * 100.0
+            else:
+                chg_abs = day_c - prev_c
+                chg_pct = chg_abs / prev_c * 100.0
         else:
             chg_pct = _f(t.get("todaysChangePerc"))
             chg_abs = _f(t.get("todaysChange"))
@@ -545,6 +570,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             row = _last_session_row(ticker, t, last_map, prior_map)
             if row is not None:
                 out[ticker] = row
+    _FETCH_STATUS.last["held_back"] = [t for t in degraded if t not in out]
 
     # Warm the aggregate volume for any extended-hours ticker still on its
     # placeholder; the next poll reads the chart-matching value from cache.
@@ -593,6 +619,10 @@ def get_live_prices(
     # Tier 2: assemble from the shared per-ticker cache; fetch only what's missing.
     result: dict = {}
     missing: list[str] = []
+    # L10: did the provider actually answer for the tickers it was asked about?
+    # Only a real failure (no client, valve timeout, raised/degraded fetch, or a
+    # degraded read held back) may become a 503.
+    provider_failed = False
     for tk in unique:
         if tk in _breadth_set:
             continue  # served from breadth history below, not the price cache
@@ -607,8 +637,12 @@ def get_live_prices(
             client = _get_client()
         except Exception:
             client = None
+        if client is None:
+            provider_failed = True
         if client is not None:
             acquired = _MASSIVE_SEM.acquire(timeout=_SEM_WAIT_S)
+            if not acquired:
+                provider_failed = True
             try:
                 if acquired:
                     # Herd collapse: a concurrent request may have filled these
@@ -622,10 +656,14 @@ def get_live_prices(
                             still.append(tk)
                     if still:
                         session = _detect_session()
+                        _FETCH_STATUS.last = None
                         try:
                             fetched = _fetch_snapshots(client, still, session)
                         except Exception:
                             fetched = {}
+                        st = getattr(_FETCH_STATUS, "last", None) or {}
+                        if not st.get("answered") or st.get("held_back"):
+                            provider_failed = True
                         for tk, val in fetched.items():
                             cache.set(_px_key(tk), val, ttl=_CACHE_TTL)
                             result[tk] = val
@@ -642,10 +680,15 @@ def get_live_prices(
         try:
             result.update(_breadth_syms.latest_quotes(_breadth_in))
         except Exception:
-            pass
+            provider_failed = True
 
     if not result:
-        return JSONResponse(status_code=503, content={"error": "Pricing service unavailable"})
+        if provider_failed:
+            return JSONResponse(status_code=503, content={"error": "Pricing service unavailable"})
+        # L10: the provider answered and simply does not list these tickers (an
+        # unknown or delisted symbol such as DAWN). That is not an outage: 200
+        # with the tickers absent, never cached as a whole set.
+        return {}
 
     cache.set(whole_key, result, ttl=_CACHE_TTL)
 

@@ -85,7 +85,8 @@ def test_dual_class_response_translated_back_to_canonical_hyphen_key():
     assert "BRK-B" in out             # canonical key present
     assert "BRK.B" not in out         # never leaks the Massive/polygon form
     assert out["BRK-B"]["price"] == 490.5
-    assert out["BRK-B"]["change_pct"] == round((490.0 - 485.0) / 485.0 * 100, 4)
+    # L4: in RTH the change follows the price the row returns (the last trade).
+    assert out["BRK-B"]["change_pct"] == round((490.5 - 485.0) / 485.0 * 100, 4)
     assert out["AAPL"]["price"] == 220.1  # a normal (no-hyphen) ticker is unaffected
 
 

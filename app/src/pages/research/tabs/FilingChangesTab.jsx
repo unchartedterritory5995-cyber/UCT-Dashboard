@@ -149,7 +149,9 @@ function FilingChanges({ sym, form }) {
   // not_found WITH both filings: the pair was read, but no comparable section
   // could be located in it. That is a different fact from "no SEC filer" --
   // show the two filings and say what could not be found.
-  const sectionsMissing = data.state === 'not_found' && !!data.newer
+  // `sections_unlocated` is the server's name for it (R9); `not_found` with
+  // both filings is the older spelling a still-cached snapshot may carry.
+  const sectionsMissing = data.state === 'sections_unlocated' || (data.state === 'not_found' && !!data.newer)
   if (!sectionsMissing && (data.state === 'not_found' || data.state === 'unavailable')) {
     const why = data.state === 'not_found' ? `No comparison for ${s}: ${data.detail || 'no SEC filer matched'}.`
       : `SEC EDGAR could not be read for ${s} right now.`

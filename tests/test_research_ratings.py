@@ -185,6 +185,15 @@ class TestRoute:
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "composite", "components", "checkup", "method"}
 
+    def test_route_failure_is_a_503_not_an_empty_rating(self, monkeypatch):
+        # R10: a 200 with composite None read as "unrated".
+        import api.routers.research as research_router
+
+        def _boom(sym):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(research_router, "get_ratings", _boom)
+        assert self._client().get("/api/research/ratings/AAPL").status_code == 503
+
 
 class TestCompositeCoverageIsDisclosed:
     """A composite built on 4 of 6 inputs must not read like a complete one.
