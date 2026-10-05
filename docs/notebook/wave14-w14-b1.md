@@ -192,7 +192,7 @@ Full, `npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=2` at
 ```
 
 The one red is `lib/iteratorGlobalFloor.test.js` "every built asset is clear":
-`AssertionError: app/dist/assets missing — run \`npm run build\``. This worktree has no
+`AssertionError: app/dist/assets missing` (it asks for `npm run build`). This worktree has no
 `app/dist` (it was created with `node_modules` linked and never built); the rail reads
 built output and refuses to pass with none. It is not a B1 failure and not a timeout;
 on a built tree it is the same rail W14-0 passed. No build was run here, to keep load
