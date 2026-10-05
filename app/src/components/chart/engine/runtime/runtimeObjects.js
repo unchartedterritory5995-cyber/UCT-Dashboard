@@ -88,7 +88,7 @@ export function objectsRunOf(def) {
  *  0/1 number the run does not read, and a generic `input(…)` is not named here —
  *  a move of any of those still withholds the drawings by name. Graded: the
  *  hybrid rail moves atr-support-and-resistance's `mult` and the run's boxes equal
- *  a hand replay of the script at that value (`atrSrReplay.js`, itself equal to
+ *  a hand replay of the script at that value (`test-atrSrReplay.js`, itself equal to
  *  TradingView's RDDT capture at the default). */
 const _honoured = new WeakMap()
 export function honouredInputsOf(run) {
