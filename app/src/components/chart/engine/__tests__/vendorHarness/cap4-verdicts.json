@@ -209,7 +209,7 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -249,11 +249,8 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "S04 shape per-bar with text",
@@ -274,7 +271,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -314,11 +311,8 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "S04 shape per-bar with text",

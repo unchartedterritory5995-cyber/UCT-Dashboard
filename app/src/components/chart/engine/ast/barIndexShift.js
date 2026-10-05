@@ -53,6 +53,28 @@ import { RECURRENCES } from './parse.js'
 /** The clock leaves that count bars from the first one held. */
 export const BAR_INDEX_LEAVES = Object.freeze(['barindex', 'lastbarindex'])
 
+/** ⭐⭐ F9 — `ta.cum(c)` OF A CONSTANT IS A BAR COUNT: `c · (bar_index + 1)`.
+ *
+ *  ⚰️ MEASURED (`vw-bar-counters-spy-1-2026-10-02` / `-spy-30-2026-10-02`, AMEX:SPY
+ *  1 / 30 minute, our window not from the listing): TradingView's `C05_ta_cum_1`
+ *  reads 11761 / 13702 on our bar 0, this lane drew 1 — on every one of 9,300 /
+ *  8,300 bars, while the `var` counters beside it (C01-C04, the same count) were
+ *  already withheld. From the listing (`vw-bar-counters` 1D / 15 / 60 / 240) the
+ *  two agree on every bar. A running count of a constant moves with `D` exactly as
+ *  the index does (`c` per bar TradingView holds and we do not), so it is the
+ *  index's leaf here, `P1 = c`: plotted it is withheld (`bar-index:window`), as a
+ *  threshold (`ta.cum(1) < 16`, atr-trailing-stoploss) only the bars it cannot vouch
+ *  for are, and `ta.cum(1) - ta.cum(1)[n]` cancels and is served.
+ *  ⛔ A CONSTANT ONLY: `c` a finite, non-zero number literal, never `na`. A running
+ *  total of a SERIES moves by a constant this pass has no symbol for (H6's
+ *  `cum:window` covers `ta.obv`; the rest is H6's open item 1). The Python twin is
+ *  `ast_bar_index_shift.py::_counting_cum_step`. */
+export function countingCumStep(n) {
+  if (!n || n.type !== 'call' || n.name !== 'cum' || !Array.isArray(n.args) || n.args.length !== 1) return null
+  const a = n.args[0]
+  return a && a.type === 'num' && Number.isFinite(a.value) && a.value !== 0 ? a.value : null
+}
+
 /** Does this tree read a bar-index leaf at all? Iterative: it is asked of every
  *  tree, including ones too deep to recurse into. */
 export function readsBarIndex(tree) {
@@ -63,6 +85,7 @@ export function readsBarIndex(tree) {
     if (!n || typeof n !== 'object' || seen.has(n)) continue
     seen.add(n)
     if (n.type === 'series' && BAR_INDEX_LEAVES.includes(n.name)) return true
+    if (countingCumStep(n) !== null) return true
     if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
   }
   return false
@@ -417,6 +440,9 @@ export function barIndexVerdict(tree) {
       }
       return unprovable()
     }
+    // ⭐ F9 — a running count of a constant: the index's leaf, `c` per bar of `D`.
+    const step = countingCumStep(n)
+    if (step !== null) return lin(A.atom(n), A.constant(step))
     if (name === 'na') { sub(args[0]); return fixed(n) }                 // `na`-ness does not move with D
     if (name === 'nz') {
       const x = sub(args[0])

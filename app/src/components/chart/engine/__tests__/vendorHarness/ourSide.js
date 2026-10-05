@@ -590,6 +590,27 @@ export function barIndexStartsAtZero(capture) {
   return true
 }
 
+/** ⭐⭐ F9 — does the capture HOLD a `bar_index` control row (the title rule
+ *  `barIndexStartsAtZero` reads) whose readings do NOT start at 0 on its bars?
+ *  Absent, or reading 0, 1, 2 …: false (nothing contradicts the capture). */
+export function barIndexControlContradicts(capture) {
+  const plots = (capture && capture.study && capture.study.plots) || []
+  const control = plots.find((p) => /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/.test(p.title || ''))
+  const pv = capture && capture.plotValues
+  if (!control || !pv || !Array.isArray(pv.rows) || !pv.rows.length || !Array.isArray(pv.fields)) return false
+  const at = pv.fields.indexOf(control.id)
+  if (at < 0) return false
+  // The first reading must be the position of its own bar in the capture's bars
+  // (found by time: a capture may export values for only part of its bars);
+  // anything else (8172 on bar 0) is the vendor counting bars this capture does
+  // not hold.
+  const i = pv.rows.findIndex((r) => Number.isFinite(r[at]))
+  if (i < 0) return false
+  const bars = (capture.bars && capture.bars.rows) || []
+  const pos = bars.findIndex((b) => b[0] === pv.rows[i][0])
+  return pos >= 0 && pv.rows[i][at] !== pos
+}
+
 /** ⭐⭐ RT5 — a runtime document's LIVE set at the last bar, made by its own run
  *  (`runtime/runtimeObjects.js`), in the same shape the object lane reports. */
 function runtimeObjectsReport(def, bars, ctx, cols) {
@@ -832,7 +853,15 @@ export function runOurSide(capture) {
       // (`StockChart`, `listingSeed.historyFromListingOf`); a capture states it as
       // `history.startsAtBar0`, asserted only when the vendor's loaded history
       // stopped growing AND began on the listing day. Same fact, same door.
-      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      // ⭐⭐ F9 — …UNLESS THE CAPTURE'S OWN `bar_index` CONTROL SAYS OTHERWISE. A
+      // control row that exists and does not read 0, 1, 2 … is the vendor stating
+      // its series does NOT start at bar 0, and that outranks a hand-written
+      // `startsAtBar0`. ⚰️ `vw-int-cast-spy-1d-2026-09-27` (AMEX:SPY) carries RDDT's
+      // listing sentence ("NYSE:RDDT listed 2024-03-21") while its I00 control reads
+      // 8172 on its first bar; graded as from the listing, our `bar_index` was drawn
+      // from 0 where a member's SPY chart withholds it (`bar-index:window`).
+      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true)
+        && !barIndexControlContradicts(capture),
       // ⭐⭐ C45 — `bar_index` is TradingView's only where the series starts at
       // the bar TradingView counted as 0. A capture PROVES that about itself when
       // its own `plot(bar_index, …)` control row reads 0, 1, 2 … on its bars (an

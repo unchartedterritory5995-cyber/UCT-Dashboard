@@ -116,8 +116,9 @@ describe('B1 — paints graded against the captures that record them', () => {
     'vw-deadband-ticks-aapl-1d-2026-09-28.json': ['refused pine:state'],
     'vw-deadband-ticks-brk-a-1d-2026-09-28.json': ['refused pine:state'],
     'vw-deadband-ticks-spy-1d-2026-09-28.json': ['refused pine:state'],
-    'vw-rt6-runtime-colour-rddt-1d-2026-10-03.json': ['supply bar0 warmup=0', 'plot_13 agree 636/636 painted=308', 'plot_12 withheld'],
-    'vw-rt6-runtime-colour-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_13 agree 1800/1800 painted=975', 'plot_12 withheld'],
+    // ⭐ F9 — B01 `barcolor(c)` of a `var` colour: carried (`pine.js::colourStateRule`), WAS 'plot_12 withheld'
+    'vw-rt6-runtime-colour-rddt-1d-2026-10-03.json': ['supply bar0 warmup=0', 'plot_13 agree 636/636 painted=308', 'plot_12 agree 636/636 painted=636'],
+    'vw-rt6-runtime-colour-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_13 agree 1800/1800 painted=975', 'plot_12 agree 1800/1800 painted=1800'],
     'wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json': ['refused pine:state'],
     'wyckoff-accumulation-distribution-spy-1d-2026-10-02.json': ['refused pine:state'],
   }
@@ -237,8 +238,11 @@ describe('RC1 — paints replayed over the same series\' proved history', () => 
     // measured cold: 35 bars differ, every one inside the warm-up — counted apart,
     // never as agreeing, and never in the graded count. ⚰️ RE-MEASURED at the H7 x
     // wave-17 merge: WAS 15. The same 35 with the wave-17 tip's own engine files, so the
-    // move is wave 17's (not H7 / F7); the graded bars still all agree.
-    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 35 })
+    // move is wave 17's (not H7 / F7); the graded bars still all agree. ⭐ F9: 35 -> 36 —
+    // `ta.cum(1) < 16` is now a bar-index threshold off the listing (`countingCumStep`),
+    // so the cold replay WITHHOLDS the one warm-up bar it cannot vouch for that it
+    // painted before (measured: wave-17's `barIndexShift.js` swapped in reads 35).
+    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 36 })
     expect(row.compared).toBe(cap.bars.rows.length - PAINT_WARMUP_FLOOR)
     expect(row.state).toBe('agree')
   }, 120000)
