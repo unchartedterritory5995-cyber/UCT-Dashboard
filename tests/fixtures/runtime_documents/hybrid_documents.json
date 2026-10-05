@@ -76,19 +76,19 @@
        "props": {
         "x1": {
          "v": "graph",
-         "node": 128
+         "node": 119
         },
         "y1": {
          "v": "graph",
-         "node": 135
+         "node": 128
         },
         "x2": {
          "v": "graph",
-         "node": 134
+         "node": 127
         },
         "y2": {
          "v": "graph",
-         "node": 140
+         "node": 133
         },
         "xloc": {
          "v": "const",
@@ -117,7 +117,7 @@
            "t": "if",
            "cond": {
             "v": "graph",
-            "node": 19
+            "node": 18
            },
            "then": {
             "t": "lit",
@@ -143,7 +143,7 @@
         },
         "width": {
          "v": "graph",
-         "node": 19
+         "node": 18
         }
        }
       },
@@ -159,19 +159,19 @@
        "props": {
         "x1": {
          "v": "graph",
-         "node": 161
+         "node": 151
         },
         "y1": {
          "v": "graph",
-         "node": 159
+         "node": 149
         },
         "x2": {
          "v": "graph",
-         "node": 163
+         "node": 153
         },
         "y2": {
          "v": "graph",
-         "node": 165
+         "node": 155
         },
         "xloc": {
          "v": "const",
@@ -190,7 +190,7 @@
           "t": "if",
           "cond": {
            "v": "graph",
-           "node": 19
+           "node": 18
           },
           "then": {
            "t": "lit",
@@ -226,7 +226,7 @@
         },
         "width": {
          "v": "graph",
-         "node": 19
+         "node": 18
         }
        }
       },
@@ -242,19 +242,19 @@
        "props": {
         "x1": {
          "v": "graph",
-         "node": 160
+         "node": 150
         },
         "y1": {
          "v": "graph",
-         "node": 162
+         "node": 152
         },
         "x2": {
          "v": "graph",
-         "node": 158
+         "node": 148
         },
         "y2": {
          "v": "graph",
-         "node": 164
+         "node": 154
         },
         "xloc": {
          "v": "const",
@@ -273,7 +273,7 @@
           "t": "if",
           "cond": {
            "v": "graph",
-           "node": 19
+           "node": 18
           },
           "then": {
            "t": "lit",
@@ -309,7 +309,7 @@
         },
         "width": {
          "v": "graph",
-         "node": 19
+         "node": 18
         }
        }
       }
@@ -326,7 +326,7 @@
      "kind": "ast",
      "fn": "sha256:40c27277c3431621a9f1cc81da75e59b3ea186ed08836dbfe5962c5db5d8c571",
      "rev": 1,
-     "treesHash": "sha256:d4444e1aad474a08e6f926203ea3a19ac1d84dbcaa9bc5ac1174993e689ea180",
+     "treesHash": "sha256:37d25980c6049f729259650addbd4b4038bc4a7d20d0fd9a4c0f2ef050babb37",
      "scanPlot": "value",
      "graph": {
       "graphVersion": 2,
@@ -361,19 +361,19 @@
        },
        {
         "type": "num",
-        "value": 14
+        "value": 200
        },
        {
-        "type": "num",
-        "value": 200
+        "type": "series",
+        "name": "obvOnOff"
        },
        {
         "type": "series",
         "name": "rsiOS"
        },
        {
-        "type": "num",
-        "value": 14
+        "type": "series",
+        "name": "volumeOnOff"
        },
        {
         "type": "series",
@@ -397,10 +397,6 @@
        },
        {
         "type": "num",
-        "value": 21
-       },
-       {
-        "type": "num",
         "value": 3
        },
        {
@@ -420,12 +416,12 @@
         "name": "close"
        },
        {
-        "type": "num",
-        "value": 200
-       },
-       {
         "type": "series",
         "name": "rsiLevelTop"
+       },
+       {
+        "type": "num",
+        "value": 21
        },
        {
         "type": "series",
@@ -439,7 +435,7 @@
         "type": "op",
         "name": ">",
         "args": [
-         21,
+         20,
          2
         ]
        },
@@ -447,7 +443,7 @@
         "type": "op",
         "name": "+",
         "args": [
-         20,
+         19,
          11
         ]
        },
@@ -463,9 +459,9 @@
         "type": "call",
         "name": "atrPine",
         "args": [
-         20,
+         19,
          11,
-         21,
+         20,
          15
         ]
        },
@@ -473,7 +469,7 @@
         "type": "op",
         "name": "-",
         "args": [
-         20,
+         19,
          2
         ]
        },
@@ -489,7 +485,7 @@
         "type": "offset",
         "value": 1,
         "args": [
-         21
+         20
         ]
        },
        {
@@ -497,22 +493,22 @@
         "name": "lowest",
         "args": [
          11,
-         8
+         7
         ]
        },
        {
         "type": "op",
         "name": "<",
         "args": [
-         21,
+         20,
          2
         ]
        },
        {
         "type": "call",
-        "name": "highest",
+        "name": "ema",
         "args": [
-         20,
+         12,
          22
         ]
        },
@@ -520,17 +516,7 @@
         "type": "call",
         "name": "highest",
         "args": [
-         20,
-         8
-        ]
-       },
-       {
-        "type": "call",
-        "name": "atrPine",
-        "args": [
-         20,
-         11,
-         21,
+         19,
          7
         ]
        },
@@ -539,21 +525,21 @@
         "name": "sma",
         "args": [
          2,
-         8
+         7
         ]
        },
        {
         "type": "offset",
         "value": 1,
         "args": [
-         20
+         19
         ]
        },
        {
         "type": "op",
         "name": "-",
         "args": [
-         20,
+         19,
          11
         ]
        },
@@ -561,7 +547,7 @@
         "type": "op",
         "name": "+",
         "args": [
-         24,
+         23,
          0
         ]
        },
@@ -574,25 +560,9 @@
        },
        {
         "type": "call",
-        "name": "sma",
-        "args": [
-         2,
-         22
-        ]
-       },
-       {
-        "type": "call",
         "name": "change",
         "args": [
-         21
-        ]
-       },
-       {
-        "type": "call",
-        "name": "ema",
-        "args": [
-         2,
-         22
+         20
         ]
        },
        {
@@ -606,24 +576,8 @@
         "type": "call",
         "name": "ema",
         "args": [
-         12,
-         16
-        ]
-       },
-       {
-        "type": "call",
-        "name": "ema",
-        "args": [
          2,
-         8
-        ]
-       },
-       {
-        "type": "call",
-        "name": "lowest",
-        "args": [
-         11,
-         22
+         7
         ]
        },
        {
@@ -645,7 +599,7 @@
         "type": "call",
         "name": "max",
         "args": [
-         44,
+         41,
          5
         ]
        },
@@ -653,125 +607,15 @@
         "type": "op",
         "name": ">=",
         "args": [
-         20,
-         39
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         49,
-         35
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         48,
-         38
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         12,
-         51
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         21,
-         46
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         45,
-         43
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
+         19,
          37
         ]
        },
        {
         "type": "op",
-        "name": "/",
-        "args": [
-         27,
-         4
-        ]
-       },
-       {
-        "type": "call",
-        "name": "min",
-        "args": [
-         44,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<",
-        "args": [
-         21,
-         46
-        ]
-       },
-       {
-        "type": "op",
-        "name": "*",
-        "args": [
-         29,
-         25
-        ]
-       },
-       {
-        "type": "op",
-        "name": "-",
-        "args": [
-         11,
-         32
-        ]
-       },
-       {
-        "type": "op",
-        "name": "-",
-        "args": [
-         20,
-         32
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
-         29
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         11,
-         42
-        ]
-       },
-       {
-        "type": "op",
         "name": "+",
         "args": [
-         33,
+         43,
          36
         ]
        },
@@ -780,74 +624,183 @@
         "name": ">",
         "args": [
          12,
-         47
+         45
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         20,
+         42
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         12,
+         34
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sign",
+        "args": [
+         41
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         26,
+         4
+        ]
+       },
+       {
+        "type": "call",
+        "name": "min",
+        "args": [
+         41,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         20,
+         31
+        ]
+       },
+       {
+        "type": "op",
+        "name": "<",
+        "args": [
+         20,
+         42
         ]
        },
        {
         "type": "op",
         "name": "*",
         "args": [
-         37,
-         25
+         28,
+         24
         ]
        },
        {
         "type": "op",
-        "name": "/",
+        "name": "<",
         "args": [
-         68,
-         4
+         20,
+         31
         ]
        },
        {
-        "type": "call",
-        "name": "rma",
+        "type": "op",
+        "name": "-",
         "args": [
-         52,
-         15
+         11,
+         31
         ]
        },
        {
-        "type": "call",
-        "name": "rma",
+        "type": "op",
+        "name": "-",
         "args": [
-         52,
-         10
+         19,
+         31
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         28
+        ]
+       },
+       {
+        "type": "op",
+        "name": "<=",
+        "args": [
+         11,
+         40
+        ]
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         32,
+         35
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         69,
-         56
+         51,
+         49
+        ]
+       },
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         52,
+         12
         ]
        },
        {
         "type": "op",
         "name": "/",
         "args": [
-         54,
+         63,
          4
+        ]
+       },
+       {
+        "type": "call",
+        "name": "rma",
+        "args": [
+         46,
+         15
         ]
        },
        {
         "type": "op",
         "name": "u-",
         "args": [
-         61
+         54
         ]
        },
        {
         "type": "call",
         "name": "abs",
         "args": [
-         64
+         59
         ]
        },
        {
         "type": "call",
         "name": "abs",
+        "args": [
+         60
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         10,
+         64
+        ]
+       },
+       {
+        "type": "call",
+        "name": "cum",
         "args": [
          65
         ]
@@ -856,23 +809,7 @@
         "type": "call",
         "name": "rma",
         "args": [
-         76,
-         10
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         74,
-         62
-        ]
-       },
-       {
-        "type": "call",
-        "name": "rma",
-        "args": [
-         76,
+         68,
          15
         ]
        },
@@ -880,7 +817,7 @@
         "type": "op",
         "name": "==",
         "args": [
-         72,
+         67,
          5
         ]
        },
@@ -888,206 +825,7 @@
         "type": "op",
         "name": "+",
         "args": [
-         55,
-         71
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         74,
-         57
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         58,
-         75
-        ]
-       },
-       {
-        "type": "call",
-        "name": "max",
-        "args": [
-         78,
-         77
-        ]
-       },
-       {
-        "type": "op",
-        "name": "==",
-        "args": [
-         73,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         72,
-         81
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         80,
-         53
-        ]
-       },
-       {
-        "type": "op",
-        "name": "==",
-        "args": [
-         79,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         83,
-         17
-        ]
-       },
-       {
-        "type": "op",
-        "name": "==",
-        "args": [
-         81,
-         5
-        ]
-       },
-       {
-        "type": "call",
-        "name": "max",
-        "args": [
-         40,
-         86
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         85,
-         17
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         73,
-         79
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         84,
-         67
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         19,
-         88
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         93,
-         70
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
-         91
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         93,
-         63
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         18,
-         94,
-         50
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
-         93
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         19,
-         95
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         100,
-         34
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         6,
-         97
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         6,
-         103
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         91,
-         99
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         102,
+         48,
          66
         ]
        },
@@ -1095,48 +833,272 @@
         "type": "op",
         "name": "&&",
         "args": [
-         98,
-         26
+         64,
+         50
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         100,
-         26
+         64,
+         56
+        ]
+       },
+       {
+        "type": "call",
+        "name": "max",
+        "args": [
+         70,
+         69
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         67,
+         73
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         98,
-         34
+         77,
+         47
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         75,
+         16
+        ]
+       },
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         73,
+         5
+        ]
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         72,
+         22
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         71,
+         49
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         76,
+         62
+        ]
+       },
+       {
+        "type": "call",
+        "name": "max",
+        "args": [
+         38,
+         78
+        ]
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         18,
+         79
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         81
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         84,
+         58
+        ]
+       },
+       {
+        "type": "op",
+        "name": "<",
+        "args": [
+         72,
+         83
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         86,
+         57
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         72,
+         83
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         84,
+         55
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         86
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         17,
+         81,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         91,
+         33
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         6,
+         87
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         81,
+         88
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         93,
+         5
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
+         94,
+         61
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         91,
+         25
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         8,
+         90
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         8,
+         92
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         89,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
          102,
-         59
+         5
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         100,
-         108
+         91,
+         100
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         99,
+         18,
+         4
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         110,
-         108
+         101,
+         100
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         103,
+         5
         ]
        },
        {
@@ -1144,74 +1106,50 @@
         "name": "-",
         "args": [
          6,
-         106
-        ]
-       },
-       {
-        "type": "op",
-        "name": "-",
-        "args": [
-         6,
-         105
+         97
         ]
        },
        {
         "type": "op",
         "name": "&&",
+        "args": [
+         96,
+         100
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
         "args": [
          111,
-         112
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         109,
-         112
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         104,
-         108
+         53,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         119,
-         60,
-         50
+         111,
+         23,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         119,
-         24,
-         50
+         108,
+         23,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         114,
-         24,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         119,
-         19,
+         111,
+         18,
          4
         ]
        },
@@ -1219,25 +1157,149 @@
         "type": "op",
         "name": "?:",
         "args": [
-         114,
-         28,
-         50
+         108,
+         27,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         82,
+         74,
          5,
-         116
+         110
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         87,
+         108,
+         53,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         106,
+         23,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         111,
+         29,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         111,
+         2,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         105,
+         18,
+         4
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         104,
+         5,
+         107
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         111,
+         19,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         108,
+         11,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         108,
+         2,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         106,
+         39,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         106,
+         20,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         120,
+         86
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         116,
+         86
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         109,
+         5,
+         122
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         108,
          5,
          115
         ]
@@ -1246,213 +1308,74 @@
         "type": "op",
         "name": "?:",
         "args": [
-         114,
-         60,
-         50
+         106,
+         128,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         113,
-         24,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         119,
-         30,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         119,
-         2,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         119,
-         20,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         114,
-         11,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         114,
-         2,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         113,
-         41,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         113,
-         21,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         129,
-         93
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         124,
-         93
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         114,
-         5,
-         123
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         90,
+         82,
          6,
-         126
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         113,
-         135,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         92,
-         6,
-         125
+         117
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
-         141,
-         23
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         141,
-         1
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         139,
-         14
+         134,
+         21
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
-         137,
-         31
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         136,
-         31
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         139,
-         1
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         139,
+         134,
          9
         ]
        },
        {
         "type": "op",
-        "name": "<=",
+        "name": ">=",
         "args": [
-         139,
-         23
+         134,
+         1
         ]
        },
        {
         "type": "op",
-        "name": "&&",
+        "name": "<=",
         "args": [
-         147,
-         149
+         130,
+         30
+        ]
+       },
+       {
+        "type": "op",
+        "name": "<=",
+        "args": [
+         129,
+         30
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         134,
+         14
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         145,
-         19,
+         138,
+         18,
          5
         ]
        },
@@ -1460,7 +1383,48 @@
         "type": "op",
         "name": "&&",
         "args": [
-         143,
+         137,
+         135
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         139,
+         18,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         142,
+         25
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         33,
+         142
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         142,
+         33
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         25,
          142
         ]
        },
@@ -1468,203 +1432,91 @@
         "type": "op",
         "name": "?:",
         "args": [
-         146,
-         19,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         150,
-         34
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         34,
-         152
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         150,
-         26
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         26,
-         152
+         147,
+         39,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         157,
-         41,
-         50
+         145,
+         20,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         155,
-         21,
-         50
+         147,
+         23,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         157,
-         24,
-         50
+         145,
+         23,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         155,
-         24,
-         50
+         147,
+         20,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         157,
-         21,
-         50
+         145,
+         39,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         155,
-         41,
-         50
+         147,
+         152,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         157,
-         162,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         155,
-         159,
-         50
+         145,
+         149,
+         44
         ]
        }
       ],
       "outputRoots": {
-       "out10": 107,
-       "out11": 138,
-       "out2": 117,
-       "out3": 154,
-       "out4": 156,
-       "out5": 144,
-       "out6": 148,
-       "out7": 89,
-       "out8": 96,
-       "out9": 101,
-       "value": 118
+       "out10": 98,
+       "out11": 132,
+       "out12": 123,
+       "out13": 131,
+       "out2": 111,
+       "out3": 146,
+       "out4": 144,
+       "out5": 140,
+       "out6": 136,
+       "out7": 80,
+       "out8": 85,
+       "out9": 95,
+       "value": 108
       },
-      "parameters": {
-       "__uct_param_1": {
-        "sourceName": "period",
-        "title": "ATR Period",
-        "type": "int",
-        "default": 14,
-        "min": 1,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 7,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       },
-       "__uct_param_2": {
-        "sourceName": "rsiPeriod",
-        "title": "Period",
-        "type": "int",
-        "default": 14,
-        "min": null,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 10,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       },
-       "__uct_param_3": {
-        "sourceName": "volumePeriod",
-        "title": "EMA Period",
-        "type": "int",
-        "default": 21,
-        "min": null,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 16,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       },
-       "__uct_param_4": {
-        "sourceName": "maPeriod",
-        "title": "Period",
-        "type": "int",
-        "default": 200,
-        "min": null,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 22,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       }
-      }
+      "parameters": {}
      }
     },
     "meta": {
@@ -1682,6 +1534,22 @@
       {
        "name": "Drawings",
        "note": "24 of 27 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 27 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.)"
+      },
+      {
+       "name": "Period",
+       "note": "`Period` is not offered as an adjustable setting here: it also sets a colour rule, which a new value here cannot move. It stays at the script's value (200), which is what TradingView draws until it is changed. Change it in the script and paste it again."
+      },
+      {
+       "name": "ATR Period",
+       "note": "`ATR Period` is not offered as an adjustable setting here: it also sets a colour rule, which a new value here cannot move. It stays at the script's value (14), which is what TradingView draws until it is changed. Change it in the script and paste it again."
+      },
+      {
+       "name": "EMA Period",
+       "note": "`EMA Period` is not offered as an adjustable setting here: it also sets a colour rule, which a new value here cannot move. It stays at the script's value (21), which is what TradingView draws until it is changed. Change it in the script and paste it again."
+      },
+      {
+       "name": "Period",
+       "note": "`Period` is not offered as an adjustable setting here: it also sets its drawings (lines, labels, boxes, tables), which a new value here cannot move. It stays at the script's value (14), which is what TradingView draws until it is changed. Change it in the script and paste it again."
       },
       {
        "name": "Drawings",
@@ -1863,6 +1731,36 @@
       "step": 1
      },
      {
+      "key": "out12Color",
+      "type": "color",
+      "label": "out12 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out12Width",
+      "type": "int",
+      "label": "out12 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out13Color",
+      "type": "color",
+      "label": "out13 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out13Width",
+      "type": "int",
+      "label": "out13 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
       "key": "mult",
       "type": "float",
       "label": "ATR Multiple",
@@ -1896,6 +1794,18 @@
       "key": "showMA",
       "type": "int",
       "label": "showMA",
+      "default": 0
+     },
+     {
+      "key": "volumeOnOff",
+      "type": "int",
+      "label": "volumeOnOff",
+      "default": 0
+     },
+     {
+      "key": "obvOnOff",
+      "type": "int",
+      "label": "obvOnOff",
       "default": 0
      }
     ],
@@ -2084,6 +1994,30 @@
        "decimals": 2
       },
       "hidden": true
+     },
+     {
+      "key": "out12",
+      "label": "out12",
+      "style": "line",
+      "color": "$out12Color",
+      "width": "$out12Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "out13",
+      "label": "out13",
+      "style": "line",
+      "color": "$out13Color",
+      "width": "$out13Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
      }
     ],
     "paints": [
@@ -2097,20 +2031,46 @@
        "#844444",
        "rgba(0, 0, 0, 0)"
       ]
+     },
+     {
+      "kind": "barcolor",
+      "line": 273,
+      "title": "High Volume Candles",
+      "opacity": 1,
+      "colorMode": "column:out12",
+      "colorPalette": [
+       "#ef9a9a",
+       "#90bff9",
+       "rgba(0, 0, 0, 0)"
+      ]
+     },
+     {
+      "kind": "barcolor",
+      "line": 284,
+      "title": "OBV Bar Color",
+      "opacity": 1,
+      "colorMode": "column:out13",
+      "colorPalette": [
+       "#448484",
+       "#5a4484",
+       "rgba(0, 0, 0, 0)"
+      ]
      }
     ],
     "objectsRun": {
      "kind": "runtime",
      "source": "// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// Assembled by ©ClassicScott\n\n//@version=6\nindicator(title = '+ ATR Support and Resistance', shorttitle = '+ ATR S/R', overlay = true, max_lines_count = 500)\n\n//----- General inputs related to determining impulsive candles\nperiod = input.int(title = 'ATR Period', defval = 14, minval = 1, group = 'General Inputs')\nmult = input.float(title = 'ATR Multiple', defval = 1.55, step = 0.05, group = 'General Inputs', tooltip = 'Set this to determine the multiple by which an impulsive candle is calculated. A higher value will naturally return fewer candles')\n\natrMult = ta.atr(period) * mult\natr = ta.atr(period)\n\nimp = ta.tr >= atrMult and ta.tr[1] <= atr[1]\nimpUp = ta.tr >= atrMult and close > open and ta.tr[1] <= atr[1]\nimpDown = ta.tr >= atrMult and close < open and ta.tr[1] <= atr[1]\n\n\n//----- Line terminus for impulse close lines and RSI s/r lines\nlineTerminus = input.int(defval = 10, title = 'Line Length', group = 'General Inputs', tooltip = 'The number of bars ATR close lines and RSI S/R lines extend from their origin candles.')\n\n\n//----- Wick percentages maths - what percent of the candle does the wick take up?\nimpDownWick = if impDown\n    high - open\nimpUpWick = if impUp\n    open - low\nimpDownWickPercent = impDownWick / ta.tr\nimpUpWickPercent = impUpWick / ta.tr\n\ntotalPercentInput = input.int(defval = 25, minval = 0, maxval = 100, title = 'Wick %', group = 'General Inputs', tooltip = 'Defines the maximum percentage size of the wick of an impulsive candle (as defined by its ATR multiplier) that a box will be drawn from. Sometimes candles with big ATRs have huge wicks (and sometimes result in a candle that is not impulsive at all, but is something like a doji), and you, the person who has to look at your chart, doesn\\'t want a giant box drawn across it. Adjusting this number will prevent that. For example, if you set the Wick % to 25 then any wicks that take up more than 25% of that candle will not have a box drawn. Set it to 100 to draw boxes from all wicks.')\ntotalPercentCalc = totalPercentInput * .01\ntotalPercent = 1 - totalPercentCalc\n\nwickPercentDown = impDownWickPercent <= totalPercentCalc ? true : false\nwickPercentUp = impUpWickPercent <= totalPercentCalc ? true : false\n\n\n//----- Calculations and inputs for support and resistance zones -----\\\\\n//----- Impulses up\nupStyle = input.string(defval = 'Dotted', options = ['Solid', 'Dotted', 'Dashed'], title = 'Border Style', group = 'Support Zones')\nupWidth = input.int(defval = 1, maxval = 4, title = 'Border Width', group = 'Support Zones')\nupColor = input.color(color.new(#445b84, 20), title = 'Border Color', group = 'Support Zones')\nupFill = input.color(color.new(#445b84, 70), title = 'Fill Color', group = 'Support Zones')\n\nupLeft = impUp ? bar_index : na\nupTop = impUp ? low : na\nupRight = impUp ? bar_index : na\nupBottom = impUp ? open : na\nupBorderStyle = upStyle == 'Solid' ? line.style_solid : upStyle == 'Dotted' ? line.style_dotted : upStyle == 'Dashed' ? line.style_dashed : na\n\nvar upBox = array.new_box()\nvar upBoxLow = array.new_float()\n\nif wickPercentUp\n    array.push(upBoxLow, upBottom)\n    array.push(upBox, box.new(upLeft, upTop, upRight, upBottom, xloc = xloc.bar_index, border_color = upColor, border_style = upBorderStyle, border_width = upWidth, bgcolor = upFill))\n\n// Extend box then check for price break to terminate box\nif (array.size(upBox) > 0)\n    for i = 0 to array.size(upBox) - 1\n        activeBox = array.get(upBox, i)\n        activeBox.set_right(bar_index)\n\nif (array.size(upBoxLow) > 0)\n    for i = array.size(upBoxLow) - 1 to 0\n        boxLowPrice = array.get(upBoxLow, i)\n        if (close < boxLowPrice)\n            brokenBox = array.get(upBox, i)\n            brokenBox.set_right(bar_index)\n            array.remove(upBoxLow, i)\n            array.remove(upBox, i)\n            \n\n//----- Impulses down\ndownStyle = input.string(defval = 'Dotted', options = ['Solid', 'Dotted', 'Dashed'], title = 'Border Style', group = 'Resistance Zones')\ndownWidth = input.int(defval = 1, maxval = 4, title = 'Border Width', group = 'Resistance Zones')\ndownColor = input.color(color.new(#844444, 20), title = 'Border Color', group = 'Resistance Zones')\ndownFill = input.color(color.new(#844444, 70), title = 'Fill Color', group = 'Resistance Zones')\n\ndownLeft = impDown ? bar_index : na\ndownTop = impDown ? high : na\ndownRight = impDown ? bar_index : na\ndownBottom = impDown ? open : na\ndownBorderStyle = downStyle == 'Solid' ? line.style_solid : downStyle == 'Dotted' ? line.style_dotted : downStyle == 'Dashed' ? line.style_dashed : na\n \nvar downBox = array.new_box()\nvar downBoxHigh = array.new_float()\n\nif wickPercentDown\n    array.push(downBoxHigh, downTop)\n    array.push(downBox, box.new(downLeft, downTop, downRight, downBottom, xloc = xloc.bar_index, border_color = downColor, border_style = downBorderStyle, border_width = downWidth, bgcolor = downFill))\n\n// Extend box then check for price break to terminate box\nif (array.size(downBox) > 0)\n    for i = 0 to array.size(downBox) - 1\n        activeBox = array.get(downBox, i)\n        activeBox.set_right(bar_index)\n\nif (array.size(downBoxHigh) > 0)\n    for i = array.size(downBoxHigh) - 1 to 0\n        boxHighPrice = array.get(downBoxHigh, i)\n        if (close > boxHighPrice)\n            brokenBox = array.get(downBox, i)\n            brokenBox.set_right(bar_index)\n            array.remove(downBoxHigh, i)\n            array.remove(downBox, i)\n\n\n//----- Mid lines\nmidLineInput = input.bool(title = 'Display Lines', defval = true, group = 'Mid Lines', tooltip = 'Select this if you want to display the mid line of impulsive candles.')\nmidLineMeasureInput = input.string(title = 'Mid Line Range Selection', defval = 'Wicks', options = ['Wicks', 'Body'], group = 'Mid Lines', tooltip = 'Choose the price range that you would like the mid line to be determined by in impulsive candles.')\nmidStyle = input.string(defval = 'Solid', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'Mid Lines')\nmidWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'Mid Lines')\nmidColor = input.color(color.new(#000000, 0), title = 'Line Color', group = 'Mid Lines')\n\n//----- Determining the mid line of an impulsive candle\nwicks = midLineInput ? (high + low) / 2 : na\nbodies = midLineInput ? (open + close) / 2 : na\nmidLinePrice = midLineMeasureInput == 'Wicks' ? wicks : midLineMeasureInput == 'Body' ? bodies : na\n\n//----- Drawing the lines\n//----- Impulse up candles\nmidUpx1 = impUp ? bar_index : na\nmidUpy1 = impUp ? midLinePrice : na\nmidUpx2 = impUp ? bar_index : na\nmidUpy2 = impUp ? midLinePrice : na\nmidLineStyle = midStyle == 'Solid' ? line.style_solid : midStyle == 'Dotted' ? line.style_dotted : midStyle == 'Dashed' ? line.style_dashed : na\n \nvar midUpLine = array.new_line()\nvar midUpLinePriceArray = array.new_float()\n\nif midLineInput and wickPercentUp\n    array.push(midUpLinePriceArray, midLinePrice)\n    array.push(midUpLine, line.new(midUpx1, midUpy1, midUpx2, midUpy2, xloc = xloc.bar_index, color = midColor, style = midLineStyle, width = midWidth))\n\n// Extend line then check for price break to terminate line\nif (array.size(midUpLine) > 0)\n    for i = 0 to array.size(midUpLine) - 1\n        activeLine = array.get(midUpLine, i)\n        activeLine.set_x2(bar_index)\n\nif (array.size(midUpLinePriceArray) > 0)\n    for i = array.size(midUpLinePriceArray) - 1 to 0\n        upLinePrice = array.get(midUpLinePriceArray, i)\n        if (close < upLinePrice)\n            brokenUpLine = array.get(midUpLine, i)\n            brokenUpLine.set_x2(bar_index)\n            array.remove(midUpLinePriceArray, i)\n            array.remove(midUpLine, i)\n\n//----- Impulse down candles\nmidDownx1 = impDown ? bar_index : na\nmidDowny1 = impDown ? midLinePrice : na\nmidDownx2 = impDown ? bar_index : na\nmidDowny2 = impDown ? midLinePrice : na\n \nvar midDownLine = array.new_line()\nvar midDownLinePriceArray = array.new_float()\n\nif midLineInput and wickPercentDown\n    array.push(midDownLinePriceArray, midLinePrice)\n    array.push(midDownLine, line.new(midDownx1, midDowny1, midDownx2, midDowny2, xloc = xloc.bar_index, color = midColor, style = midLineStyle, width = midWidth))\n\n// Extend line then check for price break to terminate line\nif (array.size(midDownLine) > 0)\n    for i = 0 to array.size(midDownLine) - 1\n        activeLine = array.get(midDownLine, i)\n        activeLine.set_x2(bar_index)\n\nif (array.size(midDownLinePriceArray) > 0)\n    for i = array.size(midDownLinePriceArray) - 1 to 0\n        downLinePrice = array.get(midDownLinePriceArray, i)\n        if (close > downLinePrice)\n            brokenDownLine = array.get(midDownLine, i)\n            brokenDownLine.set_x2(bar_index)\n            array.remove(midDownLinePriceArray, i)\n            array.remove(midDownLine, i)\n\n\n//----- Impulse close lines\nclosesInput = input.bool(defval = false, title = 'Display Lines', group = 'Close Lines')\nclosesStyle = input.string(defval = 'Dotted', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'Close Lines')\nclosesWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'Close Lines')\nclosesColor = input.color(color.white, title = 'Line Color', group = 'Close Lines')\n\nclosesx1 = imp ? bar_index : na\nclosesy1 = imp ? close : na\nclosesx2 = imp ? bar_index + lineTerminus : na\nclosesy2 = imp ? closesy1 : na\nclosesLineStyle = closesStyle == 'Solid' ? line.style_solid : closesStyle == 'Dotted' ? line.style_dotted : closesStyle == 'Dashed' ? line.style_dashed : na\n\nif closesInput\n    line.new(closesx1, closesy1, closesx2, closesy2, xloc = xloc.bar_index, color = closesColor, style = closesLineStyle, width = closesWidth)\n\n\n\n//----- Everything RSI -----\\\\\n//----- Inputs\nrsiPeriod = input.int(defval = 14, title = 'Period', group = 'RSI Inputs')\nrsiOB = input.int(defval = 70, title = 'Overbought Level', group = 'RSI Inputs', tooltip = 'Determines the level at which the RSI is considered \"overbought.\" If the RSI reaches or exceeds this level shapes are plotted across the top of the price chart.')\nrsiOS = input.int(defval = 30, title = 'Oversold Level', group = 'RSI Inputs', tooltip = 'Determines the level at which the RSI is considered \"oversold.\" If the RSI reaches or exceeds this level shapes are plotted across the top of the price chart.')\nrsiLevelTop = input.float(defval = 52, title = 'Mid Zone Top', step = 0.1, group = 'RSI Inputs', tooltip = 'Set this as the top of the zone around the mid line of the RSI. This zone, based on price behavior is what is used to determine support or resistance.')\nrsiLevelBottom = input.float(defval = 48, title = 'Mid Zone Bottom', step = 0.1, group = 'RSI Inputs', tooltip = 'Set this as the bottom of the zone around the mid line of the RSI. This zone, based on price behavior is what is used to determine support or resistance.')\n\n//----- Function\nup = ta.rma(math.max(ta.change(close), 0), rsiPeriod)\ndown = ta.rma(-math.min(ta.change(close), 0), rsiPeriod)\nrsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)\n\n//----- Mid zone\nrsiSR = rsi >= rsiLevelBottom and rsi <= rsiLevelTop\nrsiSupport = close < open and rsiSR\nrsiResistance = close > open and rsiSR\n\n\n//----- Support\nrsiSupportInput = input.bool(defval = false, title = '', group = 'RSI Support Lines')\nrsiSupportStyle = input.string(defval = 'Solid', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'RSI Support Lines')\nrsiSupportWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'RSI Support Lines')\nrsiSupportColor = input.color(color.new(#0045ff, 0), title = 'Line Color', group = 'RSI Support Lines')\n\nrsiSupportx1 = rsiSupport ? bar_index : na\nrsiSupporty1 = rsiSupport ? close : na\nrsiSupportx2 = rsiSupport ? bar_index + lineTerminus : na\nrsiSupporty2 = rsiSupport ? rsiSupporty1 : na\nrsiSupportLineStyle = rsiSupportStyle == 'Solid' ? line.style_solid : rsiSupportStyle == 'Dotted' ? line.style_dotted : rsiSupportStyle == 'Dashed' ? line.style_dashed : na\n\nif rsiSupportInput and not rsiSR[1]\n    line.new(rsiSupportx1, rsiSupporty1, rsiSupportx2, rsiSupporty2, xloc = xloc.bar_index, color = rsiSupportColor, style = rsiSupportLineStyle, width = rsiSupportWidth)\n\n\n//----- Resistance\nrsiResistanceInput = input.bool(defval = false, title = '', group = 'RSI Resistance Lines')\nrsiResistanceStyle = input.string(defval = 'Solid', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'RSI Resistance Lines')\nrsiReistanceWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'RSI Resistance Lines')\nrsiResistanceColor = input.color(color.new(#ff0000, 0), title = 'Line Color', group = 'RSI Resistance Lines')\n\nrsiResistancex1 = rsiResistance ? bar_index : na\nrsiResistancey1 = rsiResistance ? close : na\nrsiResistancex2 = rsiResistance ? bar_index + lineTerminus : na\nrsiResistancey2 = rsiResistance ? rsiResistancey1 : na\nrsiResistanceLineStyle = rsiResistanceStyle == 'Solid' ? line.style_solid : rsiResistanceStyle == 'Dotted' ? line.style_dotted : rsiResistanceStyle == 'Dashed' ? line.style_dashed : na\n\nif rsiResistanceInput and not rsiSR[1]\n    line.new(rsiResistancex1, rsiResistancey1, rsiResistancex2, rsiResistancey2, xloc = xloc.bar_index, color = rsiResistanceColor, style = rsiResistanceLineStyle, width = rsiReistanceWidth)\n\n\n//----- Impulse bar coloring and shapes\nbarcolor(impUp ? #445b84 : impDown ? #844444 : na, title = 'Impulse Candles')\n\nplotshape(impUp, title = 'Impulse Up', style = shape.circle, location = location.belowbar, color = color.new(#445b84, 0), display = display.none)\nplotshape(impDown, title = 'Impulse Down', style = shape.circle, location = location.abovebar, color = color.new(#844444, 0), display = display.none)\n\n\n//----- RSI bar coloring and shapes\nbarcolor(rsiSR and close > open ? color.new(#ff0000, 0) : rsiSR and open > close ? color.new(#0045ff, 0) : na, title = 'RSI S/R Candles', display = display.none)\n\nplotshape(rsiSR and close < open, title = 'RSI Mid Line Support', style = shape.square, location = location.belowbar, color = color.new(#0045ff, 0), display = display.none)\nplotshape(rsiSR and close > open, title = 'RSI Mid Line Resistance', style = shape.square, location = location.abovebar, color = color.new(#ff0000, 0), display = display.none)\n\nplotshape(rsi >= rsiOB, title = 'RSI Overbought', style = shape.triangledown, location = location.top, color = color.new(color.yellow, 50))\nplotshape(rsi <= rsiOS, title = 'RSI Oversold', style = shape.triangleup, location = location.top, color = color.new(color.purple, 50))\n\n\n//----- High volume bar coloring and shapes\nvolumeOnOff = input.bool(title = '', defval = false, group = 'Volume Candle Color')\nvolumePeriod = input.int(title = 'EMA Period', defval = 21, group = 'Volume Candle Color', tooltip = 'EMA used to determine increasing or decreasing volume. Part of the formula for determining which candles have strong volume.')\nvolumeEMA = ta.ema(volume, volumePeriod)\n\nhighVolume = volume > volumeEMA and volume > volume[1]\n\nbarcolor(volumeOnOff and highVolume and volume > volume[1] and close < close[1] ? color.new(#ef9a9a, 0) : volumeOnOff and highVolume and volume > volume[1] and close > close[1] ? color.new(#90bff9, 0) : na, title = 'High Volume Candles')\n\nplotshape(highVolume and close < open[1] and high >= high[1], title = 'Ran Previous High', style = shape.circle, location = location.abovebar, color = color.new(#ef9a9a, 0), display = display.none)\nplotshape(highVolume and close > open[1] and low <= low[1], title = 'Ran Previous Low', style = shape.circle, location = location.belowbar, color = color.new(#90bff9, 0), display = display.none)\n\n\n//----- OBV bar coloring\nobvOnOff = input.bool(title = '', defval = false, group = 'OBV Candle Color')\nobvPeriod = input.int(title = 'EMA Period', defval = 21, minval = 1, group = 'OBV Candle Color', tooltip = 'An EMA with its source as the OBV. Determines bar color.')\nobvEMA = ta.ema(ta.obv, obvPeriod)\n\nbarcolor(obvOnOff and ta.obv > obvEMA ? color.new(#448484, 0) : obvOnOff and ta.obv < obvEMA ? color.new(#5a4484, 0) : na, title = 'OBV Bar Color')\n\n\n//----- EMA + SMA + Kijun average\nshowMA = input.bool(title = '', defval = false, group = 'Moving Average', tooltip = 'Blend of SMA, EMA, and Kijun moving averages.')\nmaPeriod = input.int(title = 'Period', defval = 200, group = 'Moving Average' )\n\nkijun = math.avg(ta.lowest(maPeriod), ta.highest(maPeriod))\n\nmaAvgs = (ta.ema(open, maPeriod) + ta.sma(open, maPeriod) + kijun) / 3\n\nmaColor = maAvgs > maAvgs[1] ? color.new(#445b84, 50) : color.new(#844444, 50)\n\nplot(showMA ? maAvgs : na, color = maColor, title = 'Moving Average')\n",
      "repaint": "non-repainting",
-     "trees": "sha256:d4444e1aad474a08e6f926203ea3a19ac1d84dbcaa9bc5ac1174993e689ea180",
+     "trees": "sha256:37d25980c6049f729259650addbd4b4038bc4a7d20d0fd9a4c0f2ef050babb37",
      "inputs": [
       "mult",
       "rsiLevelBottom",
       "rsiLevelTop",
       "rsiOB",
       "rsiOS",
-      "showMA"
+      "showMA",
+      "volumeOnOff",
+      "obvOnOff"
      ]
     }
    }

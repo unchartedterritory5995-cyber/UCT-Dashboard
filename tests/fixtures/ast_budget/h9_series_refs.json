@@ -1,0 +1,312 @@
+{
+ "_doc": "H9 (2026-10-04): series_refs / seriesRefs parity cases. `expected` is the count both lanes must answer; `before` is the pre-H9 count (clock columns and recurrence bindings were counted as base series). Read by app/src/components/chart/engine/ast/h9HostBudget.test.js and tests/test_ast_budget_h9.py.",
+ "cases": [
+  {
+   "name": "five data series",
+   "tree": {
+    "type": "op",
+    "name": "+",
+    "args": [
+     {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "series",
+        "name": "open"
+       },
+       {
+        "type": "series",
+        "name": "high"
+       }
+      ]
+     },
+     {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "series",
+        "name": "volume"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": 5,
+   "before": 5
+  },
+  {
+   "name": "clock columns are not base series",
+   "tree": {
+    "type": "op",
+    "name": "+",
+    "args": [
+     {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "series",
+        "name": "time"
+       },
+       {
+        "type": "series",
+        "name": "dayofweek"
+       }
+      ]
+     },
+     {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "series",
+        "name": "dayopentime"
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "series",
+          "name": "periodseconds"
+         },
+         {
+          "type": "series",
+          "name": "isintraday"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "expected": 0,
+   "before": 5
+  },
+  {
+   "name": "accum self is not a base series",
+   "tree": {
+    "type": "call",
+    "name": "accum",
+    "args": [
+     {
+      "type": "num",
+      "value": 0
+     },
+     {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "series",
+        "name": "self"
+       },
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 10
+     }
+    ]
+   },
+   "expected": 1,
+   "before": 2
+  },
+  {
+   "name": "an undeclared name is still counted",
+   "tree": {
+    "type": "op",
+    "name": "+",
+    "args": [
+     {
+      "type": "series",
+      "name": "globalThis"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     }
+    ]
+   },
+   "expected": 2,
+   "before": 2
+  },
+  {
+   "name": "an input leaf (undeclared to the table) is still counted",
+   "tree": {
+    "type": "op",
+    "name": "*",
+    "args": [
+     {
+      "type": "series",
+      "name": "fib1"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     }
+    ]
+   },
+   "expected": 2,
+   "before": 2
+  },
+  {
+   "name": "mtf-key-levels shape: 4 data + self + 5 clock",
+   "tree": {
+    "type": "call",
+    "name": "accum",
+    "args": [
+     {
+      "type": "num",
+      "value": 0
+     },
+     {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "series",
+          "name": "self"
+         },
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "series",
+            "name": "high"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "series",
+              "name": "time"
+             },
+             {
+              "type": "series",
+              "name": "dayofweek"
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "series",
+              "name": "dayopentime"
+             },
+             {
+              "type": "op",
+              "name": "+",
+              "args": [
+               {
+                "type": "series",
+                "name": "periodseconds"
+               },
+               {
+                "type": "series",
+                "name": "isintraday"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 252
+     }
+    ]
+   },
+   "expected": 4,
+   "before": 10
+  },
+  {
+   "name": "offset over a clock column",
+   "tree": {
+    "type": "op",
+    "name": "-",
+    "args": [
+     {
+      "type": "series",
+      "name": "time"
+     },
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "time"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": 0,
+   "before": 1
+  }
+ ]
+}

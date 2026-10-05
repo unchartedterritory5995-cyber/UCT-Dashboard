@@ -691,7 +691,20 @@ function carryHandoffs(from, to) {
   return to
 }
 
+/** ⭐ H10 — the options a member-door translation was made with ride on it,
+ *  non-enumerable (no saved shape moves), so a caller that is handed the
+ *  translation can make the SAME translation again at another input value
+ *  (`memberPane/knobReach.js`). */
 export function memberInputTranslation(translate, source, opts = {}) {
+  const t = memberInputTranslationOnce(translate, source, opts)
+  if (t && typeof t === 'object' && !Object.prototype.hasOwnProperty.call(t, 'memberOpts')) {
+    const { inputValues: _iv, ...made } = opts || {}
+    Object.defineProperty(t, 'memberOpts', { value: made, enumerable: false })
+  }
+  return t
+}
+
+function memberInputTranslationOnce(translate, source, opts = {}) {
   // ⭐ 2026-09-28 — `colourInputs: true` is THIS function's option, never the
   // translator's: see `withColourInputs`. Only the member door asks for it.
   const wantColour = !!(opts && opts.colourInputs === true)

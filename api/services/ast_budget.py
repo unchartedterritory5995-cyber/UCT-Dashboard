@@ -44,6 +44,7 @@ from typing import Any, Dict, Mapping, Optional
 from api.services.ast_interpret import (
     SESSION_MAX_BARS, TableRefusal, max_lookback, node_count, session_anchored_in,
 )
+from api.services.ast_table import clock_names, recurrence_bindings
 
 # --------------------------------------------------------------------------- #
 # the caps
@@ -179,6 +180,15 @@ class BudgetExceeded(TableRefusal):
 # the third measurement
 # --------------------------------------------------------------------------- #
 
+#: ⭐⭐ H9 (2026-10-04) — the names the table declares as NOT a base series: every
+#: ``clock`` column and every recurrence's own binding (``self``). Read off the
+#: manifest, never listed. Mirror of ``budget.js::NOT_A_BASE_SERIES``; the full
+#: argument (the ``budget:series`` mis-count on ``mtf-key-levels-support-and-
+#: resistance`` and ``vwap-fibo-dev-extensions-strategy``) lives there. A name the
+#: table does NOT declare is still counted, so no ``resolve:name`` case moves.
+_NOT_A_BASE_SERIES = frozenset(clock_names()) | frozenset(recurrence_bindings())
+
+
 def series_refs(ast: Any) -> int:
     """How many DISTINCT BASE SERIES a canonical tree reads.
 
@@ -219,7 +229,8 @@ def series_refs(ast: Any) -> int:
             # read this measurement cannot account for, and dropping it would
             # make a broken tree look CHEAPER than a working one.
             name = node.get("name")
-            found.add(name if isinstance(name, str) else repr(name))
+            if not (isinstance(name, str) and name in _NOT_A_BASE_SERIES):
+                found.add(name if isinstance(name, str) else repr(name))
         args = node.get("args")
         if isinstance(args, list):
             stack.extend(args)

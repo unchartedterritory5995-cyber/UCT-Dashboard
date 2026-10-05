@@ -428,5 +428,15 @@ export function applyParamEdit(definition, paramId, newValue) {
     compute.source = updatedFormulaByTreeIndex.get(null)
   }
 
+  // ⭐ H10 — `compute.fn` IS `astHash(compute.ast)` for an ast definition
+  // (`defSchema`: "the tree is the implementation"), so an edit that moved the scan
+  // tree moves its handle in the same step. Left stale, every edit that reached the
+  // scan plot produced a document the install door refuses (measured: a two-plot
+  // `ta.sma(volume, len)` edited 50 -> 10). Only a handle that WAS the old tree's
+  // hash is restamped; any other kind of handle is not this function's to change.
+  if (compute.ast !== definition.compute.ast && typeof compute.fn === 'string'
+      && compute.fn === astHash(definition.compute.ast)) {
+    compute.fn = astHash(compute.ast)
+  }
   return { ok: true, definition: { ...definition, compute, ...(plots !== definition.plots ? { plots } : {}) } }
 }

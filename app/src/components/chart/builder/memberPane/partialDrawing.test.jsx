@@ -314,7 +314,10 @@ describe.each(CASES)('$cls — $script', (c) => {
     // ⛔ WHAT THE PANE WAS HANDED IS THE DOCUMENT UNDER TEST — the installed row.
     const installed = engineRegistry.getDefinition(DEF_ID)
     expect(installed, 'the pane installed nothing').toBeTruthy()
-    const drawings = drawingItems().filter((t) => /drawing|doesn't draw yet/.test(t))
+    // ⭐ H10 — a locked knob's sentence names "its drawings" too; it is about a
+    // SETTING, not about what is drawn, so it is not one of these.
+    const drawings = drawingItems().filter((t) => /drawing|doesn't draw yet/.test(t)
+      && !/is not offered as an adjustable setting here/.test(t))
 
     if (c.kind === 'clean') {
       expect(drawings).toEqual([])

@@ -31,6 +31,7 @@ import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 import { paramLocatorsIn } from './pineParamManifest'
+import { unreachedKnobs, knobLockedNote } from './memberPane/knobReach'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
@@ -114,6 +115,41 @@ function downstreamScopeFor(out) {
   return { ...BUILDER_INPUT_SCOPE, ...declaredInputs({ inputs: out?.memberInputs }) }
 }
 
+/** ⭐⭐ H10 — the knobs of `t` an edit would only HALF apply (`knobReach.js`):
+ *  `[{id, note}]`, each with the sentence that names where it misses. A knob in
+ *  this list is never placed (`paramPlacements`), so the manifest never offers it. */
+export function knobLocksOf(source, opts, t) {
+  const params = (t && t.inputParams) || []
+  if (!params.length) return []
+  const offered = new Set()
+  for (const o of (t.outputs || [])) {
+    if (o && o.ast) for (const loc of paramLocatorsIn(params, o.ast)) offered.add(loc.id)
+  }
+  if (!offered.size) return []
+  const locks = unreachedKnobs({
+    translation: t,
+    offered,
+    retranslate: (inputValues) => memberInputTranslation(translatePine, source, {
+      paramManifest: true,
+      ...(opts || {}),
+      inputValues: { ...((opts && opts.inputValues) || {}), ...inputValues },
+    }),
+  })
+  return [...locks].map(([id, why]) => ({
+    id, note: knobLockedNote(params.find((p) => p && p.id === id), why).note,
+  }))
+}
+
+/** Each output's locators, for every parameter NOT in `report.knobLocks` (H10):
+ *  a locked knob is never placed, so `manifestFromPlacements` never offers it. */
+export function paramPlacementsOf(report) {
+  const locked = new Set(((report && report.knobLocks) || []).map((k) => k.id))
+  const params = ((report && report.inputParams) || []).filter((p) => !locked.has(p.id))
+  if (!params.length) return null
+  return (report.outputs || []).map((o) => (o && o.ast
+    ? paramLocatorsIn(params, o.ast) : []))
+}
+
 export function inspectPine(source, opts = undefined) {
   // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
   // runs `translatePine` twice — once declaring every bound input to find which
@@ -131,6 +167,7 @@ export function inspectPine(source, opts = undefined) {
   // translation result.
   const translated = memberInputTranslation(
     translatePine, source, { paramManifest: true, ...(opts || {}) })
+  const knobLocks = knobLocksOf(source, opts, translated)
   const outputs = translated.outputs.map((out) => ({
     ...out,
     ...splitFoldedInputs(out),
@@ -158,7 +195,7 @@ export function inspectPine(source, opts = undefined) {
   // function's published shape and other callers read it; the alias is what lets
   // the renderer below have exactly one spelling instead of a fallback chain that
   // silently misses whichever it was not written for.
-  return { ...translated, outputs, ignored: translated.notes || [] }
+  return { ...translated, outputs, ignored: translated.notes || [], knobLocks }
 }
 
 /**
@@ -263,6 +300,8 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // Absent for a dialect with no `paramManifest` support, which is an empty
       // list rather than a missing key.
       inputParams: t.inputParams || [],
+      // ⭐⭐ H10 — the knobs an edit would only half apply, never placed.
+      knobLocks: lang === 'pine' ? knobLocksOf(source, opts, t) : [],
       // ⭐⭐ C3B — THE OBJECT PROGRAM, FORWARDED BY NAME for the same reason
       // `presentation` had to be added below: this function does NOT spread, so
       // a new field the translator produces is invisible here until a line says
@@ -612,12 +651,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // and deduplicates against its own `taken` set — so it hands back the
   // placement and lets the one component that owns key assignment supply the
   // address. See `paramLocatorsIn`'s own header.
-  const paramPlacements = useMemo(() => {
-    const params = (report && report.inputParams) || []
-    if (!params.length) return null
-    return (report.outputs || []).map((o) => (o && o.ast
-      ? paramLocatorsIn(params, o.ast) : []))
-  }, [report])
+  const paramPlacements = useMemo(() => paramPlacementsOf(report), [report])
 
   // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
   // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
@@ -1209,6 +1243,16 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               Fixed at their defaults:{' '}
               {plainSkipped.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
             </p>
+          )}
+
+          {/* ⭐⭐ H10 — a knob an edit would only half apply is not offered; say which
+              and why, in the sentence `knobReach.js` owns. */}
+          {(report.knobLocks || []).length > 0 && (
+            <ul className={styles.notes} data-testid="pine-knob-locks">
+              {report.knobLocks.map((k) => (
+                <li key={k.id} className={styles.note}><span>{k.note}</span></li>
+              ))}
+            </ul>
           )}
 
           {report.ignored.length > 0 && (

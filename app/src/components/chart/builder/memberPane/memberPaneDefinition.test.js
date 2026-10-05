@@ -149,7 +149,13 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // READ — a `setreg` to null — and it sits behind the same unreadable guard as
     // the delete beside it, so it is one more attempted step and one more counted
     // drop. It used to vanish without a count.
-    expect(Object.keys(byName).sort()).toEqual(['Drawings', 'alertcondition', 'baseTimeframeFolds'])
+    // ⭐ H10 — `Daily Length` / `Weekly Length` also set the tables' averages, which
+    // no locator reaches: an edit would move the plot and leave the table at 50, so
+    // neither is offered, and each is named (`knobReach.js`).
+    expect(Object.keys(byName).sort()).toEqual(
+      ['Daily Length', 'Drawings', 'Weekly Length', 'alertcondition', 'baseTimeframeFolds'])
+    expect(byName['Daily Length']).toContain('it also sets its drawings')
+    expect(byName['Weekly Length']).toContain("stays at the script's value (50)")
     expect(byName.Drawings).toMatch(/^9 of 18 drawing elements in this script aren't supported yet/)
 
     // Ruling D1: the condition is not drawn, and the member is told where it went.
@@ -250,8 +256,20 @@ describe('⭐⭐ TWO DEFINITIONS with different `lookbackBarsHVE` — not two in
     // locators pointing at it — not a `defSchema` input an instance carries a
     // value for. `applyParamEdit` rewrites the literal and returns a NEW
     // definition. Varying a folded parameter therefore costs a definition.
+    // ⚰️ H10 — this used V2's `__uct_param_2` (`Daily Length`), whose edit moved
+    // the plot and left the table's average at 50 — the half-applied knob H10
+    // locks. The finding (a definition per value) is shown on a knob that reaches
+    // every use; V2's `Daily Length` now refuses by its own sentence, below.
+    const SRC = `//@version=5
+indicator("two defs")
+len = input.int(50, "Len")
+plot(ta.sma(volume, len), "Avg")
+plot(volume - ta.sma(volume, len), "Diff")
+`
+    const pid = Object.keys(memberPaneDefinition({ source: SRC }).definition.compute.paramManifest)[0]
+    expect(pid).toBeTruthy()
     const v = memberPaneVariants({
-      source: V2, paramId: '__uct_param_2', values: [50, 10],
+      source: SRC, paramId: pid, values: [50, 10],
     })
     expect(v.reason).toBe(null)
     expect(v.ok).toBe(true)
@@ -263,9 +281,15 @@ describe('⭐⭐ TWO DEFINITIONS with different `lookbackBarsHVE` — not two in
       .not.toBe(JSON.stringify(b.definition.compute.trees))
     // …and both are valid documents the install door now admits (R-G).
     for (const x of v.variants) {
-      expect(validateDefinition(x.definition).ok).toBe(true)
+      expect(validateDefinition(x.definition).ok, JSON.stringify(validateDefinition(x.definition))).toBe(true)
       expect(install(x.definition)).toHaveLength(1)
     }
+  })
+
+  it('⛔ H10 — V2 `Daily Length` CANNOT vary this pane: its drawings read it too, said by name', () => {
+    const v = memberPaneVariants({ source: V2, paramId: '__uct_param_2', values: [50, 10] })
+    expect(v.ok).toBe(false)
+    expect(v.reason).toContain('`Daily Length` is not offered as an adjustable setting here: it also sets its drawings')
   })
 
   it('⛔⛔ `lookbackBarsHVE` CANNOT vary this pane, and the reason is named', () => {

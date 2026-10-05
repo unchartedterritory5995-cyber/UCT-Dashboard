@@ -52,7 +52,7 @@ import { maxLookback, nodeCount, sessionAnchoredIn, TableRefusal } from './inter
 // ⭐ THE CAP READS THE SESSION CONSTANT FROM THE TABLE'S OWN READER, not from a
 // digit of its own — see `DEFAULT_BUDGET`. `parse.js` is already in this module's
 // graph through `interpret.js`, so this adds no reach: it names what was implicit.
-import { SESSION_MAX_BARS } from './parse.js'
+import { SESSION_MAX_BARS, TABLE, RECURRENCE_BINDINGS } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the caps
@@ -121,6 +121,11 @@ import { SESSION_MAX_BARS } from './parse.js'
  *  translate today (measured; the deepest is 285 occurrences of five series in
  *  `10-supertrend`), and lowering the cap below 5 would refuse any formula that
  *  reads O, H, L, C and V — which is an ordinary formula.
+ *
+ *  ⚰️ IT WAS REACHABLE FROM 2026-09 TO H9 (2026-10-04), BY A MIS-COUNT RATHER
+ *  THAN BY DATA: `seriesRefs` counted clock columns and `accum`'s `self` as base
+ *  series, and two corpus scripts refused "10 > 8" / "9 > 8" over four data
+ *  series each. See `NOT_A_BASE_SERIES`.
  *
  *  ⭐ WHAT MATTERS IS THAT NOBODY READS IT AS PROTECTION. It becomes live the day
  *  the table declares more than `maxSeriesRefs` series, and `budget.test.js`
@@ -191,6 +196,34 @@ export const REFUSALS = Object.freeze({
 // the third measurement
 // --------------------------------------------------------------------------- //
 
+/** ⭐⭐ H9 (2026-10-04) — THE NAMES THE TABLE DECLARES AS *NOT* A BASE SERIES:
+ *  every `clock` column and every recurrence's own binding (`self`). Read off the
+ *  manifest, never listed.
+ *
+ *  🔴 THE MIS-COUNT THIS CLOSES. The cap's argument (above `DEFAULT_BUDGET`) is
+ *  about DATA: columns that must be fetched, held and walked, and the closed
+ *  table declares five of them (`TABLE.series`). `budget.test.js` derives
+ *  "unreachable" from exactly that count. But `seriesRefs` counted EVERY `series`
+ *  node by name, so a clock column (`time`, `dayofweek`, `dayopentime`,
+ *  `periodseconds`, `isintraday` — derived from the bar's own timestamp or folded
+ *  at bind time, never fetched) and `accum`'s `self` (the recurrence's previous
+ *  value, not a read of anything) each counted as a base series. Measured on the
+ *  member door: `mtf-key-levels-support-and-resistance` refused `budget:series`
+ *  "10 > 8" over FOUR data series (volume, close, low, high) plus `self` and five
+ *  clock names; `vwap-fibo-dev-extensions-strategy` "9 > 8" over the same four
+ *  plus `self` and four clock names. The cap meant to be unreachable was firing
+ *  on a count of things it was never about.
+ *
+ *  ⛔ A NAME THE TABLE DOES NOT DECLARE IS STILL COUNTED (the `globalThis` rail):
+ *  only a name the manifest DECLARES as clock or binding is excluded, so no
+ *  `resolve:name` case moves. ⛔ THE CAP DID NOT MOVE; only the measurement did,
+ *  and the new count is ≤ the old one, so nothing that passed before can fail.
+ *  Mirrored by `ast_budget.py::_NOT_A_BASE_SERIES`. */
+const NOT_A_BASE_SERIES = new Set([
+  ...Object.keys(TABLE.clock || {}),
+  ...RECURRENCE_BINDINGS,
+])
+
 /** How many DISTINCT BASE SERIES a canonical tree reads.
  *
  *  ⭐⭐ DISTINCT, NOT REFERENCES, AND THE CAP'S OWN RATIONALE IS WHY. The note
@@ -232,7 +265,11 @@ export function seriesRefs(ast) {
     // A malformed `{type:'series'}` with no name is still a read this measurement
     // cannot account for, and dropping it would make a broken tree look CHEAPER
     // than a working one.
-    if (node.type === 'series') found.add(typeof node.name === 'string' ? node.name : JSON.stringify(node.name))
+    // ⭐ H9 — A NAME THE TABLE DECLARES AS SOMETHING OTHER THAN A BASE SERIES IS NOT
+    // A BASE-SERIES READ (`NOT_A_BASE_SERIES`, below).
+    if (node.type === 'series' && !(typeof node.name === 'string' && NOT_A_BASE_SERIES.has(node.name))) {
+      found.add(typeof node.name === 'string' ? node.name : JSON.stringify(node.name))
+    }
     if (Array.isArray(node.args)) for (const arg of node.args) stack.push(arg)
   }
   return found.size
