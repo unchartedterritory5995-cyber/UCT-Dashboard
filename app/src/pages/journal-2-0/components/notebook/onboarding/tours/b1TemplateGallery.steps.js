@@ -1,15 +1,23 @@
 // Tour `template-gallery` (wave 14, W14-B1). Data only: see ./index.js for the contract.
 // Screen: the Notebook's notes list, where the Templates button is. The gallery door is
-// inside the template picker: on screen when the picker is (an empty notebook shows it
-// inline), skipped otherwise; steps 3 and 4 explain the gallery from the Templates button.
+// inside the template picker, which opens in a sheet from that button.
+//
+// W14-Q2 (measured in a real browser, both widths): the door step could never show for a
+// member with notes -- it was not a `waitFor` step, so nothing asked the member to open the
+// picker, and the engine skipped it every time; steps 3 and 4 then pointed at the Templates
+// button to describe a gallery the member had not seen. Now step 1 asks the member to open
+// Templates (`waitFor` the door), and steps 3 and 4 point at the door, inside the open
+// picker, where the gallery they describe is one click away. A member who chooses Next
+// instead of opening it sees step 1 only.
 const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 const TAB = 'tabs/NotebookTab.jsx'
+const PICKER = 'components/notebook/TemplatePicker.jsx'
 
 export const STEPS = Object.freeze([
-  step('templates', 'templates', TAB),
-  step('door', 'template-gallery-door', 'components/notebook/TemplatePicker.jsx'),
-  step('use', 'templates', TAB),
-  step('share', 'templates', TAB),
+  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door' }),
+  step('door', 'template-gallery-door', PICKER),
+  step('use', 'template-gallery-door', PICKER),
+  step('share', 'template-gallery-door', PICKER),
 ])
 
 export const COPY = Object.freeze({

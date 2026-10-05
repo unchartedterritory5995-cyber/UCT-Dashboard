@@ -4314,6 +4314,7 @@ export default function NoteEditorPage({
               onClick={() => setFormatOpen((o) => !o)}
               aria-expanded={formatOpen}
               aria-controls={`${formatRunId}-a ${formatRunId}-b ${formatRunId}-c ${formatRunId}-d`}
+              data-tour="note-format"
               title="More formatting: font, size, colour, headings, numbered list, quote, code, links, images, files, rule and widgets"
               data-format-toggle=""
             >

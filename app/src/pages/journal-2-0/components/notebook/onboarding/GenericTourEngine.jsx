@@ -43,6 +43,7 @@ import { anchorFor } from './tourAnchorVisibility'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { cardIsTopmost, dialogHost } from './tourLayers'
+import { carryRegistryTourOpen } from './tourRegistryControl'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 
@@ -132,7 +133,13 @@ export default function GenericTourEngine({
     resolveStart(entry, location).then((r) => {
       if (!aliveRef.current) return
       if (r.none) { setUnreachable(r.none); setPhase('unreachable'); return }
-      if (r.path) navigate(r.path, { state: stripTourState(location.state) })
+      if (r.path) {
+        // A start on another PAGE remounts the app shell (RouteErrorBoundary is keyed by
+        // pathname), and this engine with it: carry the request so the new gate goes on
+        // with this tour instead of dropping it silently (W14-Q2: trade starts never opened).
+        if (new URL(r.path, 'http://tour.invalid').pathname !== location.pathname) carryRegistryTourOpen(entry.id)
+        navigate(r.path, { state: stripTourState(location.state) })
+      }
       setPhase('waiting')
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,11 +223,16 @@ export default function GenericTourEngine({
   }, [steps, moving, index, goTo])
 
   // "Do this to continue": the step waits for its `waitFor` anchor, then moves to the step
-  // that anchor belongs to (or simply the next one).
+  // that anchor belongs to (or simply the next one). It moves on when the member DOES the
+  // thing -- the anchor appearing after the step was shown -- never because it is already
+  // there: Back onto this step with the panel still open used to jump straight forward
+  // again, so Back read as broken (W14-Q2 round 2). Then only Next, or redoing it, moves on.
   useEffect(() => {
     if (!step?.waitFor || moving) return undefined
+    let seenAbsent = !anchorFor(step.waitFor)
     const timer = setInterval(() => {
-      if (!anchorFor(step.waitFor)) return
+      if (!anchorFor(step.waitFor)) { seenAbsent = true; return }
+      if (!seenAbsent) return
       clearInterval(timer)
       const owner = steps.findIndex((s, j) => j > index && s.anchor === step.waitFor)
       goTo(owner >= 0 ? owner : Math.min(index + 1, steps.length - 1))
@@ -257,10 +269,20 @@ export default function GenericTourEngine({
 
   useEffect(() => {
     if (!step) return undefined
-    const el = anchorFor(step.anchor)
+    // The marker goes on the anchor even when it has no box at this instant: a control that
+    // shows only while a tour points at it or its container (the chart toolbar, revealed by
+    // `[data-tour-active]` in WidgetEmbedView.module.css) loses its box the moment the
+    // previous step's marker is cleared, so asking "is it on screen?" here would never mark
+    // it, and it would never show (W14-Q2, measured at 1200 px). The card was already
+    // opened on it on screen; the "never point at nothing" watch below still applies.
+    const el = anchorFor(step.anchor) || document.querySelector(`[data-tour="${step.anchor}"]`)
     if (!el) return undefined
     el.setAttribute(ACTIVE_ATTR, 'true')
-    el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+    // A "do this to continue" step asks the member to press its anchor, and its card is a
+    // non-modal panel pinned to the bottom of the screen: 'nearest' parked a control at the
+    // bottom edge, UNDER the card (W14-Q2, measured at 390 px: Templates sat behind the
+    // template-gallery card and could not be tapped). Centre it, clear of the card.
+    el.scrollIntoView?.({ block: step.waitFor ? 'center' : 'nearest', inline: 'nearest' })
     return () => el.removeAttribute(ACTIVE_ATTR)
   }, [step])
 

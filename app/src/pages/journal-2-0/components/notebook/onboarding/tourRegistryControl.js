@@ -34,6 +34,14 @@ export function openRegistryTour(tourId) {
   }
 }
 
+/** Keep `tourId`'s request alive across a navigation, WITHOUT asking anyone to open it now.
+ *  The app's route boundary is keyed by pathname (components/RouteErrorBoundary.jsx), so a
+ *  tour whose start is on another page remounts the whole shell, this gate included, on the
+ *  way there; the new gate takes the request on mount and the tour goes on (W14-Q2). */
+export function carryRegistryTourOpen(tourId) {
+  pendingId = tourId
+}
+
 /** Whether a request is waiting, WITHOUT taking it. */
 export function hasPendingRegistryTourOpen() {
   return pendingId

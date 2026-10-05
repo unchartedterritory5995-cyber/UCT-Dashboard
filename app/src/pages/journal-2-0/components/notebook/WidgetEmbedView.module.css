@@ -146,6 +146,12 @@
 .frame:focus-within .toolbar,
 .selected .toolbar,
 .annotating .toolbar { display: inline-flex; }
+/* A walkthrough pointing at this chart, or at a control in it (the engine marks its target
+   `data-tour-active`), shows the toolbar: a tour cannot hover, so on a computer the chart
+   tours' Draw, Plan and Replay steps had no box and were skipped (W14-Q2, measured: Chart
+   plan basics showed 1 of 6 steps at 1200 px, 6 of 6 on a phone). */
+.frame[data-tour-active] .toolbar,
+.frame:has([data-tour-active]) .toolbar { display: inline-flex; }
 /* Touch has no hover: the toolbar is always visible and its controls meet the
    44px tap floor (canonical --tap-min; panel finding — Freeze/Draw/Remove were
    unreachable on phones). Desktop keeps the compact hover-reveal. */

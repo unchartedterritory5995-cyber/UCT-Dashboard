@@ -85,6 +85,19 @@ describe('a past day reads "not captured" — never reconstructed', () => {
     await screen.findByTestId('entry-context-not-captured')
     expect(screen.getByText(/no entry day to freeze/)).toBeTruthy()
   })
+
+  it('carries the walkthrough\'s first anchor, so the entry-context tour opens on it (W14-Q2)', async () => {
+    latchNotebookFlags({ notebook_entry_context_enabled: true })
+    mockFetch(() => json({
+      status: 'not_captured', key: { symbol: 'NVDA', entryDay: '2026-09-01' }, context: null,
+      reason: 'No market context was captured for this entry.',
+    }))
+    render(<EntryContextCard kind="trade" id="t1" />)
+    const card = await screen.findByTestId('entry-context-not-captured')
+    expect(card.getAttribute('data-tour')).toBe('entry-context-card')
+    // the steps after it describe the captured card's parts, and stay absent here
+    expect(document.querySelector('[data-tour="entry-context-fields"]')).toBeNull()
+  })
 })
 
 describe('a captured context', () => {

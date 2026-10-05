@@ -94,7 +94,9 @@ export async function resolveStart(entry, location, { fetchImpl = globalThis.fet
   try {
     if (kind === 'trade') {
       const id = await recentTradeId(fetchImpl)
-      return id ? { path: tradePath(id) } : { none: 'trade' }
+      if (!id) return { none: 'trade' }
+      // already on it (a tour carried across the page change goes on from here, W14-Q2)
+      return location.pathname === tradePath(id) ? { stay: true } : { path: tradePath(id) }
     }
     const { note, embed } = entry.start
     // `recent` with no widget asked for: any open note is the right screen.

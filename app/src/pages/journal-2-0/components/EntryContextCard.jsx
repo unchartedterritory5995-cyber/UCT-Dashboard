@@ -82,10 +82,10 @@ export default function EntryContextCard({ kind, id }) {
   // server's own sentence is the whole body, and the fields grid below is unreachable from here.
   if (status !== 'captured' || !context) {
     return (
-      <section className={styles.card} aria-labelledby="entry-context-title" data-testid="entry-context-not-captured">
+      <SettledCard testId="entry-context-not-captured">
         <h2 id="entry-context-title" className={styles.title}>Market context at the fill</h2>
         <p className={styles.muted}>{reason || 'No market context was captured for this entry.'}</p>
-      </section>
+      </SettledCard>
     )
   }
 
@@ -93,7 +93,7 @@ export default function EntryContextCard({ kind, id }) {
   const missingReasons = meta?.missingReasons || {}
 
   return (
-    <section className={styles.card} aria-labelledby="entry-context-title" data-testid="entry-context-card" data-tour="entry-context-card">
+    <SettledCard testId="entry-context-card">
       <h2 id="entry-context-title" className={styles.title}>
         Market context at the fill
         {context.capturedLate && (
@@ -133,6 +133,19 @@ export default function EntryContextCard({ kind, id }) {
         whyMaxChars={meta?.whyMaxChars}
         onSaved={() => retry()}
       />
+    </SettledCard>
+  )
+}
+
+/** The card's frame once the read has settled, captured or not. It carries the
+ *  entry-context walkthrough's first anchor in BOTH states (W14-Q2, measured in a browser):
+ *  on the captured card only, the tour never opened for a member whose newest trade has no
+ *  saved context -- every past-day entry -- and closed quietly. Its first step's sentence is
+ *  true of either card; the steps after it skip on the not-captured one. */
+function SettledCard({ testId, children }) {
+  return (
+    <section className={styles.card} aria-labelledby="entry-context-title" data-testid={testId} data-tour="entry-context-card">
+      {children}
     </section>
   )
 }

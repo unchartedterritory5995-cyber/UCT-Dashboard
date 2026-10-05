@@ -58,7 +58,11 @@ export default function ReportingSoon({ onOpenNote }) {
   const days = data?.windowDays ?? 7
 
   return (
-    <section className={styles.section} aria-labelledby="reporting-soon-title" data-reporting-soon="">
+    // W14-Q2: the earnings-prep walkthrough's first anchor is the box itself, not the list.
+    // On the list, the tour never opened for a member with no name reporting this week (the
+    // common case, and every new member's): it waited on Home and closed with nothing shown.
+    <section className={styles.section} aria-labelledby="reporting-soon-title" data-reporting-soon=""
+      data-tour="reporting-soon-list">
       <div className={styles.header}>
         <h3 id="reporting-soon-title" className={styles.title}>Reporting soon</h3>
         <span className={styles.scope}>Your watchlist, flagged and open-position names, next {days} days</span>
@@ -79,7 +83,7 @@ export default function ReportingSoon({ onOpenNote }) {
         </p>
       )}
       {items.length > 0 && (
-        <ul className={styles.list} aria-label="Names reporting soon" data-tour="reporting-soon-list">
+        <ul className={styles.list} aria-label="Names reporting soon">
           {items.map((item) => (
             <li key={item.symbol} className={styles.row}>
               <span className={styles.main}>
