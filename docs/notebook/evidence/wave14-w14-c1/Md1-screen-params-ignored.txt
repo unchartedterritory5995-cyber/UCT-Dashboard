@@ -1,0 +1,11 @@
+== Md1-screen-params-ignored  (app/src/pages/journal-2-0/components/notebook/onboarding/tourStart.js)
+verdict: KILLED (vitest exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tourStart.js (blob 026d5e813d34)
+× a member on an OPEN NOTE is not "at" Notebook Home (the W14-B3 finding) 7ms
+× nor on another notebook view, the side pane, a resurfaced version or a new note 1ms
+× navigates from ?note= to Home and opens there 3010ms
+Test Files  2 failed (2)
+Tests  3 failed | 31 passed (34)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.c1.test.jsx > (d) a Home tour opened on an open note goes Home > navigates from ?note= to Home and opens there
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourStart.test.js > (d) atStart compares the real location, not just the pathname > a member on an OPEN NOTE is not "at" Notebook Home (the W14-B3 finding)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourStart.test.js > (d) atStart compares the real location, not just the pathname > nor on another notebook view, the side pane, a resurfaced version or a new note

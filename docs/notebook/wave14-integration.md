@@ -291,3 +291,108 @@ At `8778311e0c`, `app/dist` built:
   remain. Delete or keep is a W14-E owner call.
 - Flipping on is unchanged: `NOTEBOOK_GETTING_STARTED_ENABLED` arms the checklist, preview and
   promotion together; each tour rides its own capability flag.
+
+## Round 3 (C2 merge, then lane W14-C1 built on the integration branch)
+
+### R3.1 C2 merge (step 1)
+
+| commit | lane | tip merged | conflicts |
+|---|---|---|---|
+| `9e444bb421` | W14-C2 offer once, What's new, `notebook_tours` merge route, base-tour cold replay | `3435b2289f` | none textual |
+
+C2 was built on a registry holding only the base tour; every C2 rail ran over FAKE registries.
+Meeting the real B1-B3 tours:
+
+- **The offer and What's new against the real registry.** New rail
+  `onboarding/tourEligibility.realRegistry.test.js` asks the SAME pure rules TourOfferGate and
+  Support.jsx ask (`offerableTours`, `pickOffer`, `whatsNewTours`), over the real tours and the
+  real flag reader: nothing latched -> nothing offered or new; every tour flag off -> nothing;
+  every flag on -> the 19 replayable registered tours in registry order, never the base tour or
+  the `note-resurfaces` explainer; one capability on -> only its tours; a seen row stops the
+  offer while a "Not now" row (dismissed, step null) stays in What's new. 7/7.
+- **One C2 rail broke on the merge**, and it was the fixture, not the product:
+  `Support.whatsNew.test.jsx` gave its fake tours the flags of REAL tours
+  (`notebook_template_gallery_enabled`, `notebook_ta_fingerprint_enabled`, ...), so with the B
+  tracks registered the real Template gallery and fingerprint tours joined its exact lists. The
+  fake tours now borrow flags no tour is gated on (voice notes, AI actions, trade canvas).
+  Found only by running `src/pages/Support`; the onboarding directory alone was green.
+- C2's offer gate stays in NotebookTab (it needs the note-open state and never shows while a
+  note is open); the registry gate moved to the app shell in C1 (R3.2). `RegistryToursGate.jsx`
+  was not touched by C2, so the move had no C2 conflict.
+
+### R3.2 Lane W14-C1 (engine reach)
+
+Record: `docs/notebook/wave14-w14-c1.md`. Commit `a694fab902` (code, data, rails), then the
+docs commit with `tools/notebook_w14c1_mutation_proof.py` and its evidence.
+
+In one paragraph: the registry gate is mounted once in `components/Layout.jsx`; `start` may
+be a known page (`START_ROUTES`, railed against `App.jsx`), `{note: 'sample:<key>' | 'recent',
+embed?}` or `{trade: 'recent'}`, resolved read-only (`tourStart.js`) with a "nothing to open"
+card instead of ever creating data; Next/Back re-check anchors with a bounded wait and a step
+may `waitFor` the member's click; `atStart` honours the Notebook's screen parameters; a step in
+a sheet (or a waitFor step) is a non-modal card placed in the sheet and Escape closes only the
+topmost layer; `replayable:false` is a light once-only explainer triggered by the resurfacing
+sheet; three server-only flags are on the payload with their own polarity (task reminders a
+kill switch, ON when unset) and their services read through `flag_on`; the always-skipped
+thesis-chip step is gone. **20 of 20 registered tours open from Help in the reachability rail.**
+
+The base tour is untouched: `NotebookTour.jsx`, `NotebookTourGate.jsx`, `tourSteps.js`,
+`tourCopy.js` and `NotebookTour.module.css` have no diff (the engine's new styles are in its own
+lazy `GenericTourEngine.module.css`); `baseTour.zeroDrift.test.jsx` and every `NotebookTour*`
+test pass unchanged.
+
+Fixtures that changed with item (g): `Support.notebook.test.jsx` (two Walkthroughs cases) and
+`Support.whatsNew.test.jsx` now pin `notebook_task_reminders_enabled: false`, because a payload
+that omits it now reads ON and its tour is then listed.
+
+### R3.3 Byte gate
+
+Exactly as `wave14-perf.md`: `npm run build` in `app/`, then
+`python tools/notebook_perf_budgets.py --dist app/dist` from the repo root, at `a694fab902`:
+
+```
+bytes.notebook_first_open: 2,253,565 B across 66 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+Exit 0, 7,228 B under, budget unchanged. Round 2 read 2,247,079 B; C2 plus C1 add 6,486 B
+(C2's eager offer gate, about 4.7 KB, and C1's eager remainder: the start fields in the track
+files, `START_ROUTES`/`startProblem`/`OTHER_TOURS`, and the gate's slot-drop effect). The new
+engine code (`tourStart.js`, `tourLayers.js`, the engine and its stylesheet) is lazy.
+
+### R3.4 Counts (copied)
+
+`npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=2`, `app/dist` built:
+
+- first full run, at `a694fab902`:
+  `Test Files  2 failed | 634 passed (636)`, `Tests  9 failed | 8050 passed | 1 skipped (8060)`.
+  The nine: `GettingStartedChecklist.test.jsx` (8) and `a11y/gettingStarted.a11y.test.jsx` (1),
+  the same cause as the Support fixtures: the W14-D checklist adds a step per armed tour, and a
+  payload that omits `notebook_task_reminders_enabled` now reads ON. Fixtures pin it off,
+  commit `f16b5cba21`; those files plus ResearchHome: `Tests  103 passed (103)`.
+- final full run, at `f16b5cba21`:
+
+```
+ Test Files  1 failed | 635 passed (636)
+      Tests  1 failed | 8058 passed | 1 skipped (8060)
+```
+
+  The one: `lib/iteratorGlobalFloor.test.js` "every built asset is clear",
+  `Test timed out in 15000ms` (the load-sensitive case R2 and W14-0 already record). Alone,
+  with the app-shell tests: `npx vitest run src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js
+  src/components/Layout --maxWorkers=2` -> `Test Files  8 passed (8)`, `Tests  33 passed (33)`.
+  Not banked as permitted breakage: a timeout that passes alone.
+- Pytest, one run, 21 file patterns (round 2's 17 plus `notebook_tour_seen_state`,
+  `note_tasks*`, `document_extraction*`, `note_semantic*`): `1218 passed in 630.30s`, exit 0.
+- Mutation proof: control `Tests 91 passed (91)`; 13 of 13 mutations killed (wave14-w14-c1.md
+  section 4).
+- `python tools/check_repo_hygiene.py`: clean.
+
+### R3.5 Open items
+
+- On deploy, every member whose capability is on is offered (C2) and listed in Help for the
+  task-reminders and image/docx tours, and the get-started checklist (when armed) gains a
+  task-reminders step: both capabilities are on in production, and (g) makes that visible to
+  the client. Correct by C2's rules; a member-facing change to call out before shipping.
+- Real-browser walk (W14-Q) still owed; the reachability rail runs against a stand-in app.
+- See `wave14-w14-c1.md` section 6 for the lane's own list.

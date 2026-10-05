@@ -1,0 +1,9 @@
+== Ma1-shell-mount-removed  (app/src/components/Layout.jsx)
+verdict: KILLED (vitest exit 1)
+restored: matches HEAD:app/src/components/Layout.jsx (blob dfb9a371f3ed)
+× Layout mounts RegistryToursGate exactly once; NotebookTab no longer mounts it 5ms
+× a real tour opens on a Journal page outside the Notebook (My Playbook), from a Replay link 5064ms
+Test Files  1 failed (1)
+Tests  2 failed | 1 passed (3)
+FAIL  src/components/Layout.registryTours.test.jsx > (a) one mount, in the app shell > Layout mounts RegistryToursGate exactly once; NotebookTab no longer mounts it
+FAIL  src/components/Layout.registryTours.test.jsx > (a) one mount, in the app shell > a real tour opens on a Journal page outside the Notebook (My Playbook), from a Replay link
