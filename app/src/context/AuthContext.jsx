@@ -3,6 +3,7 @@ import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAcc
 import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { latchRuntimePanePermission } from '../lib/runtimePanePermission'
+import { latchPineAuthoringPermission } from '../lib/pineAuthoringPermission'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
@@ -177,6 +178,8 @@ export function AuthProvider({ children }) {
     // the Notebook's flags (`runtimePaneGate.js`). No React state: the chart
     // engine asks `runtimePaneEnabled()`, which reads the latch.
     latchRuntimePanePermission(data)
+    // ⭐ A2 (O3) — the member Pine Editor's per-member stage, latched the same way.
+    latchPineAuthoringPermission(data)
   }
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation

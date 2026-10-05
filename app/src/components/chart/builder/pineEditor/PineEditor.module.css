@@ -134,9 +134,96 @@
   white-space: pre;
 }
 
+/* ── A2–A5: name row, My scripts, inputs ─────────────────────────────── */
+.nameRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.nameLabel { font-size: 12px; color: var(--text-muted); }
+.nameInput {
+  flex: 1 1 160px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.scripts { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.scriptsToggle {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.scriptList, .versions, .locked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scriptList { max-height: 40vh; overflow: auto; }
+.script {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.2));
+  min-width: 0;
+}
+.script[data-active='true'] { border-color: var(--border-accent, var(--accent)); }
+.scriptHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.scriptName { font-size: 13px; font-weight: 600; color: var(--text-bright); overflow-wrap: anywhere; }
+.scriptMeta { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.scriptActions, .inline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.versions li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--text-bright); }
+.danger {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  background: var(--loss);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.inputs { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.inputsHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.subhead {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.locked li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+}
+.lockedName { font-size: 12px; font-weight: 600; color: var(--text-bright); }
+
 /* TOUCH — every control reaches the tap floor. */
 @media (max-width: 1024px) {
-  .ghost, .apply, .problem { min-height: var(--tap-min); }
+  .ghost, .apply, .problem, .nameInput, .scriptsToggle, .danger { min-height: var(--tap-min); }
 }
 
 /* PHONE — the editor gives the sheet back some height; Apply spans the row. */

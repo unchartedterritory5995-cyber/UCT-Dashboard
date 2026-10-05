@@ -29,6 +29,18 @@
 // ⛔ APPLY IS INSIDE THE PANE FLAG. `memberPaneEnabled()` is the one authority
 // over "may a member's script reach a chart"; with it off the editor still
 // compiles and lists problems but offers no Apply, and says why.
+//
+// ⭐⭐ A2–A5 (2026-10-04):
+//   * the stored document carries the script it was built from
+//     (`meta.pineSource`, `withPineSource`) — the SETTLED text, never a newer
+//     keystroke (Apply is disabled while a settle is pending), so what is stored
+//     is exactly what was compiled. The server decides whether it is kept (the
+//     member's `PINE_AUTHORING_STAGE`) and says so; a withheld source is shown;
+//   * a NAME field (`meta.name`), applied at store time so typing a name never
+//     re-translates the script;
+//   * "Save" stores (create or update) without putting the script on the chart;
+//   * the INPUTS panel (`InputsPanel`) edits the preview and what Apply stores,
+//     atomically, never the source.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from '../memberPane/memberPaneDefinition'
@@ -36,6 +48,8 @@ import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { usePineLibraries } from '../usePineLibraries'
 import { PINE_DEBOUNCE_MS } from '../PineBox'
 import { authoringDiagnostics, offsetOf } from './authoringDiagnostics'
+import { applyInputValues, withName, withPineSource } from './pineScripts'
+import InputsPanel from './InputsPanel'
 import styles from './PineEditor.module.css'
 
 const STARTER = `//@version=5
@@ -60,13 +74,20 @@ const where = (it) => (it.line != null
  * @param {Function} onChange              (text) => void, per keystroke
  * @param {Function} [onSettled]           (text) => void, once per settle — the
  *                                          host feeds its preview pane from it
- * @param {Function} [onApply]             (definition) => Promise<{ok, error?, updated?}>
- * @param {{defId: string}|null} [applied] set once this session's script is on
- *                                          the chart; Apply then UPDATES it
+ * @param {Function} [onApply]             (definition, {addToChart}) =>
+ *                                          Promise<{ok, error?, updated?, pineSource?}>
+ * @param {{defId: string}|null} [applied] set once this session's script is
+ *                                          stored (or a saved one was opened);
+ *                                          Apply then UPDATES it
+ * @param {string}   [name]                the script's name (`meta.name`)
+ * @param {Function} [onNameChange]        (name) => void
+ * @param {object}   [inputValues]         {inputName: value} — the inputs panel
+ * @param {Function} [onInputValuesChange] (values) => void
  * @param {boolean}  [disabled]
  */
 export default function PineEditor({
   value = '', onChange = null, onSettled = null, onApply = null, applied = null, disabled = false,
+  name = '', onNameChange = null, inputValues = null, onInputValuesChange = null,
 }) {
   const [settled, setSettled] = useState(value)
   const [Editor, setEditor] = useState(null)
@@ -101,6 +122,12 @@ export default function PineEditor({
   )
   const report = useMemo(() => authoringDiagnostics(built, settled), [built, settled])
   const pending = value !== settled
+  // ⭐ A5 — the document as the inputs panel has it (atomic; see `applyInputValues`).
+  const shown = useMemo(
+    () => (built && built.ok && built.definition
+      ? applyInputValues(built.definition, inputValues || {}) : null),
+    [built, inputValues],
+  )
 
   // ── jump to the token the door named ────────────────────────────────────
   const jump = useCallback((it) => {
@@ -126,22 +153,28 @@ export default function PineEditor({
   // ── apply ───────────────────────────────────────────────────────────────
   const paneOn = memberPaneEnabled()
   const canApply = !!(onApply && paneOn && !disabled && !pending
-    && report.state === 'ok' && report.saveable && built && built.definition)
-  const apply = useCallback(async () => {
+    && report.state === 'ok' && report.saveable && built && built.definition
+    && shown && shown.ok)
+  const apply = useCallback(async (opts = {}) => {
     if (!canApply) return
+    const addToChart = opts.addToChart !== false
     setApplyState({ state: 'busy', message: null })
     let res = null
     try {
-      res = await onApply(built.definition)
+      // ⭐ A2 — the document, named, carrying the SETTLED script it was built from.
+      res = await onApply(withPineSource(withName(shown.definition, name), settled), { addToChart })
     } catch {
       setApplyState({ state: 'error', message: 'Could not reach the store. Nothing was saved.' })
       return
     }
     if (res && res.ok) {
-      setApplyState({
-        state: 'done',
-        message: res.updated ? 'Updated on your chart.' : 'Added to your chart.',
-      })
+      const what = addToChart
+        ? (res.updated ? 'Updated on your chart.' : 'Added to your chart.')
+        : (res.updated ? 'Saved.' : 'Saved to My scripts.')
+      // ⭐ the store's own answer about the source, verbatim when it was withheld
+      const kept = res.pineSource && res.pineSource.pine_source === 'withheld'
+        ? ` Your code was not kept with it: ${res.pineSource.reason}.` : ''
+      setApplyState({ state: 'done', message: what + kept })
       return
     }
     // ⛔ THE STORE'S SENTENCE, VERBATIM (the server's input/compute refusals
@@ -151,7 +184,7 @@ export default function PineEditor({
       message: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this script.',
     })
-  }, [canApply, onApply, built])
+  }, [canApply, onApply, shown, name, settled])
   // A new keystroke retires the last apply's outcome — it described other text.
   useEffect(() => { setApplyState({ state: 'idle', message: null }) }, [value])
 
@@ -174,6 +207,17 @@ export default function PineEditor({
             data-testid="pine-editor-starter">Start from a template</button>
         )}
       </div>
+
+      {onNameChange && (
+        <label className={styles.nameRow}>
+          <span className={styles.nameLabel}>Name</span>
+          <input className={styles.nameInput} value={name} maxLength={40}
+            placeholder={(built && built.ok && built.definition && built.definition.meta
+              && built.definition.meta.name) || 'My indicator'}
+            onChange={(e) => onNameChange(e.target.value)} disabled={disabled}
+            data-testid="pine-editor-name" />
+        </label>
+      )}
 
       <textarea
         ref={areaRef}
@@ -203,7 +247,7 @@ export default function PineEditor({
             // ⭐ THE PRIMARY PROBLEM, STAMPED WITH THE TEXT IT WAS MEASURED ON —
             // `CodeEditor` marks it only while that stamp equals its document.
             diagnostics={report.primary}
-            onApply={apply}
+            onApply={() => apply()}
             ariaLabel="Pine source editor"
             testId="pine-source-editor"
           />
@@ -218,16 +262,27 @@ export default function PineEditor({
           data-state={pending ? 'pending' : report.state}
         >{status}</p>
         {onApply && paneOn && (
-          <button
-            type="button"
-            className={styles.apply}
-            disabled={!canApply || applyState.state === 'busy'}
-            onClick={apply}
-            data-testid="pine-editor-apply"
-            title="Ctrl/Cmd + Enter"
-          >
-            {applyState.state === 'busy' ? 'Applying…' : (applied ? 'Update on chart' : 'Add to chart')}
-          </button>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.ghost}
+              disabled={!canApply || applyState.state === 'busy'}
+              onClick={() => apply({ addToChart: false })}
+              data-testid="pine-editor-save"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className={styles.apply}
+              disabled={!canApply || applyState.state === 'busy'}
+              onClick={() => apply()}
+              data-testid="pine-editor-apply"
+              title="Ctrl/Cmd + Enter"
+            >
+              {applyState.state === 'busy' ? 'Applying…' : (applied ? 'Update on chart' : 'Add to chart')}
+            </button>
+          </div>
         )}
       </div>
       {onApply && !paneOn && (
@@ -241,6 +296,15 @@ export default function PineEditor({
       )}
       {applyState.state === 'error' && (
         <p className={styles.err} role="alert" data-testid="pine-editor-apply-error">{applyState.message}</p>
+      )}
+
+      {!pending && onInputValuesChange && (
+        <InputsPanel built={built} values={inputValues || {}} onValues={onInputValuesChange} />
+      )}
+      {!pending && shown && !shown.ok && (
+        <p className={styles.err} role="alert" data-testid="pine-editor-inputs-refused">
+          {`Your input values no longer apply to this script, so it is drawn at its own values: ${shown.error}`}
+        </p>
       )}
 
       {!pending && report.items.length > 0 && (

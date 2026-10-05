@@ -569,3 +569,24 @@ export async function fetchDefinitionHistory(defId) {
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The version history could not be read (${r.status}).` }
 }
+
+/** ⭐ A3 — ONE of my definitions, as its owner reads it: the full document,
+ *  including the Pine source the LIST route leaves out (`meta.pineSource`).
+ *  ⛔ The store keys every read on the caller, so this can only ever return the
+ *  member's own row; another member's id answers 404 like a missing one. */
+export async function fetchUserDefinition(defId, version = null) {
+  let r
+  try {
+    const q = version ? `?version=${encodeURIComponent(version)}` : ''
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}${q}`, {
+      credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok && body && body.definition) return { ok: true, row: body }
+  const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
+  return { ok: false, error: detail || `That script could not be opened (${r.status}).` }
+}
