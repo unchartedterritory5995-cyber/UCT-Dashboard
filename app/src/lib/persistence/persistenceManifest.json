@@ -2486,6 +2486,17 @@
       ]
     },
     {
+      "key": "uct:notebook-tour-offer",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Walkthrough offered this session",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.js"
+      ]
+    },
+    {
       "key": "uct:staleChunkReload",
       "store": "sessionStorage",
       "scope": "device-local",
