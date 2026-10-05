@@ -250,6 +250,15 @@ class TestRoute:
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "institutional", "short", "insider"}
 
+    def test_route_failure_is_a_503_not_an_empty_record(self, monkeypatch):
+        # R10: a 200 with no holders read as "nobody owns this".
+        import api.routers.research as research_router
+
+        def _boom(sym):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(research_router, "get_ownership", _boom)
+        assert self._client().get("/api/research/ownership/AAPL").status_code == 503
+
 
 class TestShareClassMixing:
     """yfinance mixes SHARE CLASSES on dual-class tickers — it divides a
