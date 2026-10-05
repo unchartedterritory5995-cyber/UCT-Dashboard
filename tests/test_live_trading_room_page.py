@@ -52,6 +52,15 @@ FAQ_QUESTIONS = [
     "Can I cancel anytime?",
     "What makes Uncharted Territory different?",
 ]
+# v4 (owner-locked 2026-10-04, uct-growth/salespage/SITE-v4.md): five new
+# questions go in AFTER "Who are the traders?", in this order.
+FAQ_QUESTIONS = FAQ_QUESTIONS[:2] + [
+    "I'm new to trading. Is this for me?",
+    "Is this signals to copy?",
+    "Stocks or options?",
+    "What do I need to get started?",
+    "Where do I join?",
+] + FAQ_QUESTIONS[2:]
 
 
 class _Collect(HTMLParser):
@@ -424,3 +433,140 @@ def test_main_registers_mime_types_at_module_level_before_the_dist_guard():
     assert guard_at is not None, "control: the DIST guard must be visible to this walk"
     assert call_at is not None, "register_static_mime_types() is not called at module level"
     assert call_at < guard_at, "mime types must be registered BEFORE the static mounts"
+
+
+# -- the v4 copy, locked line by line by the owner (SITE-v4.md, 2026-10-04) --
+
+V4_H1 = "A live trading room run by traders who trade, and teach, every single day"
+V4_INTRO = [
+    "Before you join any trading room, you should see what happens inside it and meet the people "
+    "who run it. Here's ours.",
+    "Every market morning, about 20 minutes before the 9:30 AM ET open, co-founders TSDR (Patrick) "
+    "and Bracco go live on Zoom. They lay out the plan and the levels, then trade the open on screen "
+    "share and talk through every decision. Around them: five traders, an options flow team, and a "
+    "productive, helpful and focused main chat.",
+]
+V4_TIMELINE = [
+    ("About 9:10 AM ET.", "The Zoom link drops in the live Zoom links channel."),
+    ("Before the open.", "TSDR and Bracco walk through the market, the levels and the names on their list."),
+    ("9:30 AM ET.", "They trade the open live on screen share and talk through each decision."),
+    ("During the day.", "Each trader posts ideas and alerts in his own channel. Options flow and news "
+                        "run all day. Questions go in main chat."),
+    ("After the close.", "Every session is recorded, with a recap the same day. About 15 minutes catches you up."),
+    ("The weekend.", "Sunday Scans lands with the prep for the week ahead."),
+]
+V4_TRADERS = [
+    ("TSDR and Bracco", "Run the morning Zoom, wrote the strategy book, and explain every trade, "
+                        "including the ones they pass on."),
+    ("ChartMaster", "Swing trade ideas, educational workshops, and always easy to reach. Years of "
+                    "his workshops are in the library."),
+    ("Alex Jones and a team of three skilled contributors", "Run our robust options flow feed."),
+    ("Manrav and Jersace", "Trade ideas and alerts, each in his own channel."),
+]
+V4_TRADERS_CLOSING = "Every trader, contributor and member is helpful, easy to reach, and happy to teach."
+V4_INSIDE = [
+    "Every session recorded, with a recap the same day",
+    "Live options flow and news all day",
+    "Sunday Scans to prep the week",
+    "Years of recorded workshops",
+    "The strategy book TSDR and Bracco wrote",
+    "Post your own charts for feedback from the traders",
+    "A productive, helpful and focused main chat",
+    "A free 1-on-1 onboarding call to get you set up",
+]
+V4_NEW_FAQ_ANSWERS = {
+    "I'm new to trading. Is this for me?":
+        "Yes. You'll see how experienced traders plan the day and manage a trade, start with one or "
+        "two traders whose style fits you, and get a free 1-on-1 call to get set up. Ask anything in main chat.",
+    "Is this signals to copy?":
+        "No. The traders post their ideas and alerts and explain the why, so you learn to make your "
+        "own calls. Education only, not financial advice.",
+    "Stocks or options?":
+        "Both. The traders cover stocks and options, day trades and swings, and the options flow feed runs all day.",
+    "What do I need to get started?":
+        "A Discord account. After you join on Whop, you connect Discord, land in the room, and we set "
+        "up a free 1-on-1 call to walk you through it.",
+    "Where do I join?":
+        "Only through whop.com/uncharted. We don't run other sign-up sites, free-trial pages or DM offers.",
+}
+
+
+def _norm(s: str) -> str:
+    import html as _h
+    return re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", "", s))).strip()
+
+
+def _blocks(tag: str, cls: str | None = None) -> list[str]:
+    html = PAGE.read_text(encoding="utf-8")
+    attr = rf'[^>]*class="[^"]*\b{cls}\b[^"]*"' if cls else r"[^>]*"
+    return [_norm(m) for m in re.findall(rf"<{tag}{attr}>(.*?)</{tag}>", html, flags=re.S)]
+
+
+def _section(heading_id: str) -> str:
+    html = PAGE.read_text(encoding="utf-8")
+    start = html.index(f'aria-labelledby="{heading_id}"')
+    return html[start:html.index("</section>", start)]
+
+
+def _hero() -> str:
+    html = PAGE.read_text(encoding="utf-8")
+    start = html.index('class="hero"')
+    return html[start:html.index("<section", start)]
+
+
+def test_v4_h1_is_the_locked_headline():
+    assert _blocks("h1") == [V4_H1]
+    assert "Uncharted Territory" in _parsed().title
+
+
+def test_v4_intro_is_two_locked_paragraphs_and_keeps_the_cta_lines():
+    assert _blocks("p", "lede") == V4_INTRO
+    hero = _norm(_hero())
+    assert "Use code JOINUCT for a nice discount to join the group." in hero
+    assert "4.9 stars from 173 member reviews on Whop." in hero
+    assert "Join the live trading room" in hero
+
+
+def test_v4_a_day_inside_timeline_sits_between_the_intro_and_the_traders():
+    html = PAGE.read_text(encoding="utf-8")
+    day = _section("day")
+    assert re.search(r'<h2 id="day">\s*A day inside\s*</h2>', day)
+    assert "How a day works" in _norm(day)
+    items = [_norm(li) for li in re.findall(r"<li[^>]*>(.*?)</li>", day, flags=re.S)]
+    assert items == [f"{when} {what}" for when, what in V4_TIMELINE]
+    for when, _ in V4_TIMELINE:
+        assert re.search(rf"<strong[^>]*>\s*{re.escape(when)}\s*</strong>", day), when
+    assert html.index('class="hero"') < html.index('aria-labelledby="day"') < html.index('aria-labelledby="traders"')
+
+
+def test_v4_traders_carry_the_teaching_lines_and_the_closing_line():
+    sec = _section("traders")
+    cards = re.findall(r'<li class="trader"><h3>(.*?)</h3><p>(.*?)</p></li>', sec, flags=re.S)
+    assert [(_norm(h), _norm(p)) for h, p in cards] == V4_TRADERS
+    assert [_norm(n) for n in re.findall(r'<p class="note">(.*?)</p>', sec, flags=re.S)] == [V4_TRADERS_CLOSING]
+
+
+def test_v4_also_inside_lists_the_eight_locked_items():
+    sec = _section("inside")
+    ul = sec[sec.index('<ul class="inside">'):sec.index("</ul>")]
+    assert [_norm(li) for li in re.findall(r"<li>(.*?)</li>", ul, flags=re.S)] == V4_INSIDE
+
+
+def test_v4_visible_faq_questions_are_in_the_locked_order_and_match_the_json_ld():
+    sec = _section("faq")
+    visible_q = [_norm(q) for q in re.findall(r"<summary>(.*?)</summary>", sec, flags=re.S)]
+    visible_a = [_norm(a) for a in re.findall(r"</summary>\s*<p>(.*?)</p>", sec, flags=re.S)]
+    assert visible_q == FAQ_QUESTIONS
+    p = _parsed()
+    faq = next(json.loads(b) for a, b in p.scripts
+               if a.get("type") == "application/ld+json" and json.loads(b).get("@type") == "FAQPage")
+    assert [(q["name"], q["acceptedAnswer"]["text"]) for q in faq["mainEntity"]] == list(zip(visible_q, visible_a))
+    for q, a in V4_NEW_FAQ_ANSWERS.items():
+        assert visible_a[visible_q.index(q)] == a, q
+
+
+def test_v4_page_has_no_em_dash_and_no_dollar_sign():
+    html = PAGE.read_text(encoding="utf-8")
+    assert "\u2014" not in html and "&mdash;" not in html and "&#8212;" not in html, "an em dash appeared"
+    assert "$" not in html, "a dollar sign appeared on the page"
+    assert "\ufffd" not in html
