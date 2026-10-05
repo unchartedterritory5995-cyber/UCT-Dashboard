@@ -183,3 +183,29 @@ def test_bridge_reads_only_this_tickers_rows_after_a_rename_whose_symbol_was_reu
     br = im.Bridge(st.to_doc(), rows)
     assert br.status("TT", S[5]) == (got[("TT", 3)], "TT|active", "NYSE")      # not CONFLICT
     assert br.status("IR", S[5])[1:] == ("IR|active", "NYSE")
+
+
+def test_from_doc_round_trips_and_resumes_exactly_like_an_uninterrupted_replay():
+    # a mixed history: enrichment, rename, reuse after a gap, a glitch day, share classes
+    days = {}
+    for i in range(0, 40):
+        m = [("BRK.A", "BRK.A|active", "C", "FA"), ("BRK.B", "BRK.B|active", "C", "FB")]
+        m.append(("FB", "FB|active", "CM", "FM") if i < 15 else ("META", "META|active", "CM", "FM"))
+        if i < 8:
+            m.append(("ACI", "ACI|active", "C_ARCH", None))
+        if i >= 25:
+            m.append(("ACI", "ACI|active", "C_ALB", "F_ALB"))
+        m.append(("AAWW", "AAWW|active", "C2" if i == 20 else "C1", "F2" if i == 20 else "F1"))
+        days[i] = m
+    full = im.IdentityState(S)
+    for i in range(40):
+        full.observe(i, days[i], "LEDGER")
+    part = im.IdentityState(S)
+    for i in range(30):
+        part.observe(i, days[i], "LEDGER")
+    doc30 = part.to_doc()
+    resumed = im.IdentityState.from_doc(doc30, S)
+    assert im.doc_hash(resumed.to_doc()) == im.doc_hash(doc30)               # exact round trip
+    for i in range(30, 40):
+        resumed.observe(i, days[i], "LEDGER")
+    assert im.doc_hash(resumed.to_doc()) == im.doc_hash(full.to_doc())       # resume == uninterrupted

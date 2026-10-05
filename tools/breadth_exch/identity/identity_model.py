@@ -191,6 +191,31 @@ class IdentityState:
         return out
 
     # ── persistence ──────────────────────────────────────────────────────────────────────
+    @classmethod
+    def from_doc(cls, doc: dict, sessions: list[str]) -> "IdentityState":
+        """Resume EXACTLY from a persisted state (the accepted parent) so new sessions can be observed
+        without replaying history. `sessions` must start with the parent's session list; it may extend
+        it with the new sessions to observe. Round-trip and resume-equivalence are pinned by tests."""
+        st = cls(sessions)
+        pos = st.pos
+        first, last, n = doc["sessions_processed"]
+        st.processed = set(range(pos[first], pos[last] + 1))
+        if len(st.processed) != n:
+            raise ValueError("parent processed range is not contiguous in `sessions`")
+        for sid, r in doc["sids"].items():
+            st.sids[sid] = {"sid": sid, "first_i": pos[r["first"]], "last_i": pos[r["last"]],
+                            "tickers": [[t, pos[a], pos[b]] for t, a, b in r["tickers"]],
+                            "keys": [[k, pos[a], pos[b], snap] for k, a, b, snap in r["keys"]],
+                            "figi": dict(r["figi"]), "cik": dict(r["cik"]),
+                            "delisted_learned": dict(r["delisted_learned"]),
+                            "evidence": [list(e) for e in r["evidence"]], "n_obs": r["n_obs"]}
+        st.at = {t: [[pos[a], pos[b], sid] for a, b, sid in runs] for t, runs in doc["ticker_index"].items()}
+        st.holder = dict(doc["holder"])
+        li = pos[last]
+        st.recent = {sid for sid, r in st.sids.items() if li - r["last_i"] <= GAP}
+        st.snapshots = list(doc["snapshots"])
+        return st
+
     def to_doc(self) -> dict:
         S = self.S
         sids = {}
