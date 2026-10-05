@@ -58,7 +58,7 @@ import {
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
-import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, isVoid, argKind, CLOCK_UNSERVED_FN } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
 // so a method-form call is admitted or refused by the same table, with the same
@@ -183,6 +183,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // NAME so the next dependency is a row rather than a rumour.
   'runtime:fill-target': 'a fill spans two PLOTS, and this argument does not name one',
   'runtime:fill-gradient': 'the gradient form of `fill` — `fill(plot1, plot2, top_value, bottom_value, top_color, bottom_color)` shades vertically between two values, and this engine’s fill paints one colour across a span',
+  'runtime:colour-nz': '`nz()` of a colour with no replacement — what Pine answers for an `na` colour there is witnessed by no capture, so it is not guessed (a transparent colour and no colour are different pictures on a bar)',
   'runtime:colour': 'a colour was expected here — a colour is a packed integer in this lane, and a price packed into a colour slot would draw a plausible shade computed from the wrong thing',
   'runtime:plot-id': 'a plot id used as a number — `p = plot(…)` names a plot so that `fill()` can refer to it, and it is not a value the script can compute with',
   'runtime:history-variable': 'history over a mutable variable — that needs per-slot history committed at end of bar',
@@ -330,6 +331,13 @@ export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
  *  `plot(color.red)` and `bgcolor(close)` — which are the same mistake pointing
  *  in opposite directions. */
 export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolor']))
+
+/** ⭐ RT15 — the candle calls a runtime document does not draw (RT1's ruling:
+ *  candles have no row there) and NAMES. As a statement each is skipped, its
+ *  arguments evaluated only where they could change something, and recorded on
+ *  the build result (`undrawn`) for the door's disclosure. Exported so the door
+ *  and the rail read one set. */
+export const RUNTIME_UNDRAWN_CANDLE_CALLS = Object.freeze(new Set(['plotcandle', 'plotbar']))
 
 /** ⭐ The cross family this lane serves over RUNTIME state, Pine spelling ->
  *  the `CARRIED2` member.
@@ -1101,12 +1109,60 @@ function buildRuntimeIrLinked(source, opts, holder) {
           definedNames.add(bare ? bare.method : String(ts[0].value))
           plainFnNames.add(bare ? bare.method : String(ts[0].value))
         }
+        noteColourResult(s, ts)
       }
       if (s.sub && s.sub.length) scanDefs(s.sub)
     }
   }
   const plainFnNames = new Set()
+  /** ⭐⭐ RT15 — user functions / methods whose RESULT is a colour by its own
+   *  spelling: a one-line body (`=> color.new(x, t)`) whose expression is a
+   *  colour-producing builtin call or a colour literal. Pine types a function by
+   *  its last expression, so `bgcolor(c.transp(80))` paints with a colour; this
+   *  lane refused it "this is not a colour" (volatility-trend-score-backquant).
+   *  name → number of colour-result definitions seen; read through
+   *  `userColourResult`, which also demands the name be defined exactly once. */
+  const colourResultDefs = new Map()
+  const defCount = new Map()
+  const noteColourResult = (st, ts) => {
+    const isMethod = ts[0].value === 'method' && ts[1] && ts[1].kind === 'ident'
+    const nameTok = isMethod ? ts[1] : ts[0]
+    const open = isMethod ? ts[2] : ts[1]
+    if (!nameTok || nameTok.kind !== 'ident' || !isPunct(open, '(')) return
+    const arrow = findTop(ts, (x) => isPunct(x, '=>'))
+    if (!(arrow > 0)) return
+    const nm = String(nameTok.value)
+    defCount.set(nm, (defCount.get(nm) || 0) + 1)
+    // the body: the rest of the header line, or — `=>` closing the line — a block
+    // of exactly ONE plain expression statement (no binding, no block of its own)
+    let bodyToks = null
+    if (arrow < ts.length - 1) {
+      if (st.sub && st.sub.length) return
+      bodyToks = ts.slice(arrow + 1)
+    } else {
+      const only = st.sub && st.sub.length === 1 ? st.sub[0] : null
+      const h = only && only.header
+      if (!h || !h.length || (only.sub && only.sub.length)) return
+      // (a binding is not an expression: `parseWholeExpression` refuses it just below)
+      bodyToks = h
+    }
+    let body
+    try { body = parseWholeExpression(bodyToks) } catch { return }
+    const colourBody = !!body && ((body.type === 'call' && producesColour(body.name))
+      || body.type === 'colour')
+    if (colourBody) colourResultDefs.set(nm, (colourResultDefs.get(nm) || 0) + 1)
+  }
   scanDefs(stmts)
+  /** A call (plain `f(…)` or method form `recv.m(…)`) of a user function defined
+   *  ONCE whose one-line body is a colour (`noteColourResult`). */
+  const userColourResult = (node) => {
+    if (!node || node.type !== 'call' || typeof node.name !== 'string') return false
+    const m = methodCallOf(node)
+    const nm = m ? m.name : node.name
+    if (!m && !plainFnNames.has(nm)) return false
+    if (m && !bindableMethod(nm)) return false
+    return defCount.get(nm) === 1 && colourResultDefs.get(nm) === 1
+  }
   /** A method this lane can bind: declared exactly once, and not also a plain
    *  function of the same name (which Pine would resolve by argument types). */
   const bindableMethod = (name) => methodDecls.get(name) === 1 && !plainFnNames.has(name)
@@ -1366,6 +1422,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  per distinct set of call-site constants, shared by every call site that
    *  fixes the same values (state stays per call site, as for any function). */
   const specialisations = new Map()
+  /** ⭐⭐ RT12 — slot → `{node, scope}` for a function-body local bound ONCE
+   *  (`x = expr`, never `var`, never reassigned anywhere in the script) from an
+   *  expression of plain arithmetic: numbers, names, `+ - *`, unary minus,
+   *  comparisons and `?:` (`derivableNode`). Read only by `substFrameNames`. */
+  const frameDerived = new Map()
   /** `name@line guard` for every definition this lane skipped and nobody called
    *  — reported so an unreachable helper is NAMED rather than invisible. */
   const skippedFunctions = []
@@ -1881,6 +1942,35 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const x = args[0].value !== undefined ? args[0].value : args[0]
     return isBuiltinNa(x, scope) || holdsColour(x, scope) ? x : null
   }
+  /** ⭐⭐ RT15 — `[var] color name = na`: Pine's DECLARED type makes the `na` a
+   *  colour. `holdsColour(na)` is false (an untyped `na` says nothing about its
+   *  type), so `var color colorTrend = na` was read as a number and every later
+   *  `barcolor(… ? colorTrend : na)` refused "this is not a colour"
+   *  (atr-trend-bands-misu). `color(na)` — the CAST — was already a colour (RT9);
+   *  the declaration is the same fact spelled as a type. ⛔ Only `na`: a declared
+   *  `color` whose initialiser is anything else is read as it always was, so a
+   *  number under a `color` keyword (a script Pine itself would reject) is never
+   *  admitted on the strength of the keyword. */
+  const declaresColourNa = (toks, eq, value, scope) => {
+    if (!(eq >= 2)) return false
+    const ty = toks[eq - 2]
+    if (!ty || ty.kind !== 'ident' || ty.value !== 'color') return false
+    for (let k = 0; k < eq - 2; k += 1) {
+      const w = toks[k]
+      if (!(w && w.kind === 'ident' && (w.value === 'var' || w.value === 'varip'))) return false
+    }
+    return isBuiltinNa(value, scope)
+  }
+  /** ⭐ RT15 — a colour, read through a history offset (`c[1]`) and parentheses. */
+  const holdsColourValue = (node, scope) => {
+    let n = node
+    for (let d = 0; n && d < 8; d += 1) {
+      if (n.type === 'offset' && n.arg) { n = n.arg; continue }
+      if (n.type === 'paren' && n.expr) { n = n.expr; continue }
+      break
+    }
+    return holdsColour(n, scope)
+  }
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
@@ -1888,7 +1978,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const slot = lookupReadable(node.name, scope)
       if (slot !== null) return !!(slots[slot] && slots[slot].colour)
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
+      return !!(bound && bound.kind === 'expr' && (bound.colourType === true || holdsColour(bound.node, scope)))
     }
     // ⭐ A HEX LITERAL IS A COLOUR — `#141414`, which the parser gives its own
     // node type. Missing this made `color ROW_DARK = #141414` read as "not a
@@ -1899,6 +1989,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    if (userColourResult(node)) return true
     // ⭐ RT9 — Pine's colour CAST of `na` or of a colour (`color(na)`) is a colour:
     // `color.new(color(na), 40)` is #00000099 on TradingView (CAP3,
     // `vw-rt6-runtime-colour` C03). Lowered as its argument (`colourCastArg`).
@@ -2921,7 +3012,63 @@ function buildRuntimeIrLinked(source, opts, holder) {
     walk(f.result, 0)
     return ok
   }
-  const argumentHasEffect = (node, depth = 0) => {
+  /** ⭐⭐ RT15 — is this `if` chain (`arms` from the walk, `finalElse` its last
+   *  arm) made ONLY of strategy order calls — effect-free tests, effect-free local
+   *  declarations (`[type] name = expr`, never `:=`), nested `if`/`else` chains of
+   *  the same kind — with at least one order call? Such a chain changes nothing a
+   *  drawing reads: an order is the simulated broker's, which this engine does not
+   *  run (C50 / R1), and a local cannot be read outside its block. Anything else
+   *  — a reassignment, a loop, `switch`, `runtime.error`, an alert, a drawing, a
+   *  call that could have an effect — answers false and the chain is lowered (and
+   *  refused) exactly as before. Parse failures answer false. Answers the number
+   *  of order calls the chain holds (0 = not an order-only chain). */
+  const orderOnlyChain = (arms, finalElse) => {
+    let orders = 0
+    const exprOk = (node) => !!node && !argumentHasEffect(node)
+    const block = (stmtList, depth) => {
+      if (!Array.isArray(stmtList) || depth > 16) return false
+      for (let k = 0; k < stmtList.length; k += 1) {
+        const st2 = stmtList[k]
+        const h = (st2 && st2.header) || []
+        const w = h[0] && h[0].kind === 'ident' ? h[0].value : null
+        if (!w) return false
+        if (STRATEGY_ORDER_CALLS.has(w) && isPunct(h[1], '(')) {
+          if (st2.sub && st2.sub.length) return false
+          orders += 1
+          continue
+        }
+        if (w === 'if' || w === 'else') {
+          const testToks = w === 'if' ? h.slice(1)
+            : (h[1] && h[1].kind === 'ident' && h[1].value === 'if' ? h.slice(2) : null)
+          if (w === 'else' && k === 0) return false
+          if (testToks) {
+            let test
+            try { test = parseWholeExpression(testToks) } catch { return false }
+            if (!exprOk(test)) return false
+          } else if (h.length !== 1) return false
+          if (!block(st2.sub || [], depth + 1)) return false
+          continue
+        }
+        // (`x := …` has no top-level `=`, `:=` lexing as one token: refused just below)
+        if (st2.sub && st2.sub.length) return false
+        const eqAt = findTop(h, (t) => isPunct(t, '='))
+        if (!(eqAt > 0) || !boundName(h, eqAt)) return false
+        const rhsHead = h[eqAt + 1]
+        if (rhsHead && rhsHead.kind === 'ident' && (rhsHead.value === 'if' || rhsHead.value === 'switch')) return false
+        let value
+        try { value = parseWholeExpression(h.slice(eqAt + 1)) } catch { return false }
+        if (!exprOk(value)) return false
+      }
+      return true
+    }
+    for (const a of arms) {
+      if (!exprOk(a.test)) return 0
+      if (!block((a.from && a.from.sub) || [], 0)) return 0
+    }
+    if (finalElse && !block(finalElse.sub || [], 0)) return 0
+    return orders
+  }
+  const argumentHasEffect = (node, depth = 0, bareTable = false) => {
     if (!node || typeof node !== 'object') return false
     if (depth > 64) return true
     if (node.type === 'call') {
@@ -2929,21 +3076,31 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (methodCallOf(node) || deferredFnRefusals.has(name)) return true
       if (isUserFn(name) || definedNames.has(name)) {
         if (!fnByName.has(name) || !fnIsEffectFree(fnByName.get(name))) return true
-      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)) return true
+      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)
+        && !(bareTable && bareValueBuiltin(name))) return true
     }
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
-        && argumentHasEffect(node.n.expr, depth + 1)) return true
+        && argumentHasEffect(node.n.expr, depth + 1, bareTable)) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'of', 'recv']) {
-      if (argumentHasEffect(node[k], depth + 1)) return true
+      if (argumentHasEffect(node[k], depth + 1, bareTable)) return true
     }
     for (const k of ['args', 'elements']) {
       if (!Array.isArray(node[k])) continue
       for (const a of node[k]) {
-        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1, bareTable)) return true
       }
     }
     return false
   }
+  /** ⭐⭐ RT12 — a v1-v4 BARE builtin (`barssince`, `highest`, `atr`) the closed
+   *  table declares, by its own name or through `PINE_CALL_SHAPES`. Every table
+   *  function computes a value and nothing else: the engine grammar has no way to
+   *  write an effect. ⛔ A name the script defines is never this (asked first by
+   *  `argumentHasEffect`). */
+  const bareValueBuiltin = (name) => !name.includes('.')
+    && (Object.prototype.hasOwnProperty.call(TABLE.functions, name)
+      || (Object.prototype.hasOwnProperty.call(PINE_CALL_SHAPES, name)
+        && Object.prototype.hasOwnProperty.call(TABLE.functions, PINE_CALL_SHAPES[name].table || name)))
 
   /** ⭐ C23 — a `math.*` call the HOST lane serves as a `BUILTIN_CALL_TREE`
    *  expansion (the table declares no such name), rebuilt as a PARSE tree over
@@ -3703,27 +3860,60 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the two cannot disagree), then constant ARITHMETIC over what it resolved
    *  (`bind.js::foldScalar`, `n - 1`, `len * 2`); `{frameName}` when a frame name
    *  a call site could fix stopped it; `null` otherwise. */
+  /** ⭐⭐ ONE READER OF A FRAME'S NAMES FOR A FOLD (C35's rule, asked by
+   *  `constValueOf`, `foldConstNode` and `constantArgOf`, which held three copies
+   *  of it until RT12): a parameter the call site FIXED (`frameConsts`) becomes
+   *  its constant; ⭐ RT12 — a frame LOCAL bound once from such values
+   *  (`frameDerived`: `wper = (n*2) - 1`, range-filter-bs-signals:16) becomes its
+   *  own expression, read in the scope it was bound in, so the fold reaches the
+   *  parameter beneath it and a call site that fixes the parameter fixes the local
+   *  (Pine: a value computed only from `simple` values is `simple`). Any other
+   *  frame name stops the fold and is returned as `foreign`.
+   *  @returns {{node: object, foreign: string|null}} */
+  const substFrameNames = (e, scope) => {
+    let foreign = null
+    const sub = (x, sc, d) => {
+      if (!x || typeof x !== 'object' || d > 64) return x
+      if (Array.isArray(x)) return x.map((y) => sub(y, sc, d + 1))
+      if (x.type === 'name' && typeof x.name === 'string') {
+        const s = sc.lookup(x.name)
+        if (s !== null && slots[s] && slots[s].owner === owner) {
+          if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
+          const der = frameDerived.get(s)
+          if (der && d < 48) return sub(der.node, der.scope, d + 1)
+          if (foreign === null) foreign = x.name
+        }
+        return x
+      }
+      const out = {}
+      for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, sc, d + 1)
+      return out
+    }
+    const node = sub(e, scope, 0)
+    return { node, foreign }
+  }
+
+  /** ⭐⭐ RT12 — may a local bound to this expression be read through by a fold?
+   *  Plain arithmetic only: numbers, names, `+ - *`, unary minus, comparisons,
+   *  `and`/`or`/`not` and `?:`. ⛔ Not `/` or `%` (Pine's integer division is
+   *  version-dependent — `constantArgOf`'s H4 rule), no call, no history read:
+   *  anything else stays a slot a fold cannot see into. */
+  const DERIVABLE_OPS = new Set(['+', '-', '*', '<', '>', '<=', '>=', '==', '!=', 'and', 'or'])
+  const derivableNode = (n, d = 0) => {
+    if (!n || typeof n !== 'object' || d > 32) return false
+    if (n.type === 'number' || n.type === 'name') return true
+    if (n.type === 'unary') return (n.op === '-' || n.op === 'not') && derivableNode(n.arg, d + 1)
+    if (n.type === 'binary') return DERIVABLE_OPS.has(n.op) && derivableNode(n.left, d + 1) && derivableNode(n.right, d + 1)
+    if (n.type === 'ternary') return derivableNode(n.test, d + 1) && derivableNode(n.yes, d + 1) && derivableNode(n.no, d + 1)
+    return false
+  }
+
   const constValueOf = (e, scope) => {
     let n = substFromSizes(e, scope)
     if (owner !== null && scope) {
-      let foreign = null
-      const sub = (x, d) => {
-        if (!x || typeof x !== 'object' || d > 64) return x
-        if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
-        if (x.type === 'name' && typeof x.name === 'string') {
-          const s = scope.lookup(x.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
-            if (foreign === null) foreign = x.name
-          }
-          return x
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
-        return out
-      }
-      n = sub(e, 0)
-      if (foreign !== null) return { frameName: foreign }
+      const fs = substFrameNames(e, scope)
+      if (fs.foreign !== null) return { frameName: fs.foreign }
+      n = fs.node
     }
     let canonical
     try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
@@ -3819,25 +4009,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // constant, and any other frame name refuses by name, exactly as an unbound
     // one did. A main-program name (owner `null`) is untouched.
     if (scope && owner !== null) {
-      let foreign = null
-      const sub = (n, depth) => {
-        if (!n || typeof n !== 'object' || depth > 64) return n
-        if (Array.isArray(n)) return n.map((x) => sub(x, depth + 1))
-        if (n.type === 'name' && typeof n.name === 'string') {
-          const s = scope.lookup(n.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) {
-              return frameConstNode(frameConsts.get(s), n.tok)
-            }
-            if (foreign === null) foreign = n.name
-          }
-          return n
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(n)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
-        return out
-      }
-      const e2 = sub(e, 0)
+      const fs = substFrameNames(e, scope)
+      const foreign = fs.foreign
+      const e2 = fs.node
       if (foreign !== null) {
         note('runtime:history-dynamic-offset')
         const err = new RuntimeRefusal('runtime:history-dynamic-offset',
@@ -3901,6 +4075,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
           + 'engine can read before bar 0', at)
       }
       throw err
+    }
+    // ⭐⭐ RT12 — CONSTANT ARITHMETIC OVER WHAT RESOLVED, as `constantArgOf` (H4)
+    // and `constValueOf` already fold it: `ema(x, wper)` with `wper = (n*2) - 1`
+    // and `n` fixed by the call site is ONE length for that call site. ⛔ Not `/`
+    // or `%` (`arithmeticIsExact`, H4's rule): Pine's integer division is
+    // version-dependent, so those keep the refusal they had.
+    if (canonical && canonical.type !== 'num' && arithmeticIsExact(canonical)) {
+      try {
+        const v = foldScalar(canonical, {})
+        if (Number.isFinite(v)) canonical = { type: 'num', value: v }
+      } catch (err) {
+        if (!(err instanceof NotFoldable)) throw err
+      }
     }
     if (!canonical || canonical.type !== 'num'
       || !Number.isInteger(canonical.value) || canonical.value < 0) {
@@ -4141,7 +4328,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // call site's (`fnHistorySlotFor`), as every body local's is. A stateful
     // subexpression stays where it was written, because hoisting would step it
     // on calls whose branch never reached it.
-    if (owner !== null && (stmtHoistOwner !== owner || srcNode.type === 'name' || !hoistSafe(srcNode, scope))) return null
+    // ⭐⭐ RT12 — …and a STATEFUL one (`math.min(ta.atr(len) * 0.3, …)[20]`,
+    // smart-money-breakouts-chartprime:85) when it is evaluated on EVERY evaluation
+    // of the function's result (`onEveryEvaluation`) and nothing in that result has
+    // an effect (`argumentHasEffect`): the local then steps its state exactly when
+    // the expression written in place would, once per call — Pine's series of
+    // `expr` IS the series of that local.
+    if (owner !== null && (stmtHoistOwner !== owner || srcNode.type === 'name'
+      || !(hoistSafe(srcNode, scope) || (frameHoistRoot && onEveryEvaluation(frameHoistRoot, srcNode)
+        && !argumentHasEffect(frameHoistRoot, 0, true) && frameNamesOnly(srcNode, scope))))) return null
     if (!srcNode || typeof srcNode !== 'object') return null
     // ⭐ A NAME NO PINE IDENTIFIER CAN COLLIDE WITH — it carries spaces, exactly
     // as the request region's own hoisted sources do.
@@ -4183,12 +4378,47 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** ⭐ RT10 — lower a function's RESULT with its own body as the hoist sink, so
    *  `f(x) => ta.sma(x * 2, 5)` gives `x * 2` its committed series in the frame. */
-  const intoFrameSink = (body, fn) => {
+  const intoFrameSink = (body, fn, root = null) => {
     const prevSink = stmtHoistSink
     const prevOwner = stmtHoistOwner
+    const prevRoot = frameHoistRoot
     stmtHoistSink = body
     stmtHoistOwner = owner
-    try { return fn() } finally { stmtHoistSink = prevSink; stmtHoistOwner = prevOwner }
+    frameHoistRoot = root
+    try { return fn(root) } finally { stmtHoistSink = prevSink; stmtHoistOwner = prevOwner; frameHoistRoot = prevRoot }
+  }
+  /** ⭐⭐ RT12 — the function RESULT expression being lowered into its frame sink
+   *  (`intoFrameSink`), or null: the root a stateful hoist is measured against. */
+  let frameHoistRoot = null
+  /** ⭐⭐ RT12 — is `target` evaluated on EVERY evaluation of `root`? Only through
+   *  edges Pine always evaluates: both operands of an arithmetic or comparison
+   *  operator, an operand of a unary, the value of an offset, every argument of a
+   *  call. ⛔ Never into a `?:` arm or the right side of `and` / `or`, which run
+   *  only on some evaluations. */
+  const onEveryEvaluation = (root, target, depth = 0) => {
+    if (!root || typeof root !== 'object' || depth > 64) return false
+    if (root === target) return true
+    switch (root.type) {
+      case 'binary':
+        if (root.op === 'and' || root.op === 'or') return onEveryEvaluation(root.left, target, depth + 1)
+        return onEveryEvaluation(root.left, target, depth + 1) || onEveryEvaluation(root.right, target, depth + 1)
+      case 'unary': return onEveryEvaluation(root.arg, target, depth + 1)
+      case 'ternary': return onEveryEvaluation(root.test, target, depth + 1)
+      case 'offset': return onEveryEvaluation(root.arg, target, depth + 1)
+      case 'call': return (root.args || []).some((a) => !(a && a.name)
+        && onEveryEvaluation(a && a.value !== undefined ? a.value : a, target, depth + 1))
+      default: return false
+    }
+  }
+  /** ⭐⭐ RT12 — every name this expression reads is the frame's own (or no slot). */
+  const frameNamesOnly = (n, scope, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return depth <= 64
+    if (Array.isArray(n)) return n.every((x) => frameNamesOnly(x, scope, depth + 1))
+    if (n.type === 'name' && typeof n.name === 'string') {
+      const sl = scope.lookup(n.name)
+      return sl === null || slots[sl].owner === owner
+    }
+    return Object.entries(n).every(([k, v]) => k === 'tok' || !v || typeof v !== 'object' || frameNamesOnly(v, scope, depth + 1))
   }
 
   /** ⭐⭐ RT10 — is this call Pine's pivot (`ta.pivothigh/low`, or the bare
@@ -4349,6 +4579,134 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // anything holding `na`)
     const folded = constantTestValue(canonical)
     return folded === null ? null : folded !== 0
+  }
+
+  /** ⭐⭐ RT16 W2 — every right-hand side this script ever binds or assigns to the
+   *  main-program name `name` (`name = e`, `var string name = e`, `name := e`), as
+   *  parse nodes; `null` when one of them is a shape this cannot read (a tuple
+   *  target, a compound `+=`, an unparsable line) — so the set is COMPLETE or it
+   *  is nothing. Function bodies are walked too: a superset only adds branches. */
+  const assignedExprsOf = (name) => {
+    const out = []
+    let bad = false
+    const walk = (list) => {
+      for (const st of list || []) {
+        const t = st.header || []
+        const walrus = findTop(t, (x) => isPunct(x, ':='))
+        const eq = walrus > 0 ? -1 : findTop(t, (x) => isPunct(x, '='))
+        if (walrus > 0 && t.slice(0, walrus).some((x) => x && x.kind === 'ident' && x.value === name)) {
+          if (walrus !== 1) bad = true
+          else { try { out.push(parseWholeExpression(t.slice(walrus + 1))) } catch { bad = true } }
+        } else if (eq > 0 && t.slice(0, eq).some((x) => x && x.kind === 'ident' && x.value === name)) {
+          const nt = isPunct(t[0], '[') ? null : boundName(t, eq)
+          if (!nt || nt.value !== name) bad = true
+          else { try { out.push(parseWholeExpression(t.slice(eq + 1))) } catch { bad = true } }
+        }
+        const compound = findTop(t, (x) => x.kind === 'punct' && x.value.length === 2
+          && x.value.endsWith('=') && MUTATOR_OPS.has(x.value[0]))
+        if (compound === 1 && t[0] && t[0].kind === 'ident' && t[0].value === name) bad = true
+        if (st.sub && st.sub.length) walk(st.sub)
+      }
+    }
+    walk(stmts)
+    return bad ? null : out
+  }
+
+  /** ⭐⭐ RT16 W2 — EVERY TEXT a timeframe argument can hold, or `null`.
+   *  A quoted string; a `?:` (both arms — a `switch` arrives as one); the chart's
+   *  own `timeframe.period` (this compile's period, `periodTextOf`, as the name
+   *  lowers); an `input.timeframe` at its DEFAULT, verbatim (C48 — it has no
+   *  member knob); an `input.string` at the value in force (`fixedTextOf`); a
+   *  binding, followed; a main-program VARIABLE, through every assignment the
+   *  script writes to it (`assignedExprsOf`). Anything else — a parameter, text
+   *  built while the bar runs — answers `null`, and the call keeps the refusal it
+   *  had. */
+  const timeTextValues = (n, scope, seen, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 32) return null
+    if (n.type === 'string') return typeof n.value === 'string' ? [n.value] : null
+    if (n.type === 'ternary') {
+      const a = timeTextValues(n.yes, scope, seen, depth + 1)
+      const b = a ? timeTextValues(n.no, scope, seen, depth + 1) : null
+      return b ? [...new Set([...a, ...b])] : null
+    }
+    if (n.type === 'call') {
+      if (n.name === 'input.timeframe') {
+        const args = n.args || []
+        const d = args.find((x) => x && x.name === 'defval') || (args[0] && !args[0].name ? args[0] : null)
+        const v = d && (d.value !== undefined ? d.value : d)
+        return v && v.type === 'string' && typeof v.value === 'string' ? [v.value] : null
+      }
+      const t = fixedTextOf(n, scope)
+      return t !== null ? [t] : null
+    }
+    if (n.type !== 'name' || typeof n.name !== 'string') return null
+    const slot = scope.lookup(n.name)
+    if (slot === null) {
+      if (!env.has(n.name) && OWN_TF_NAMES.has(n.name)) {
+        notePeriodRead('timeframe.period', pineVersion)
+        return [periodTextOf(lanePeriod, pineVersion)]
+      }
+      const bound = env.get(n.name)
+      return bound && bound.kind === 'expr' ? timeTextValues(bound.node, scope, seen, depth + 1) : null
+    }
+    // (A frame's own name never reaches here: `timeOverText` serves the main
+    // program only, whose scope holds no frame slot — measured, RT16 mutation M6.)
+    if (!slots[slot]) return null
+    if (seen.has(n.name)) return []
+    seen.add(n.name)
+    const rhs = assignedExprsOf(n.name)
+    if (!rhs || !rhs.length) return null
+    const all = []
+    for (const r of rhs) {
+      const v = timeTextValues(r, scope, seen, depth + 1)
+      if (!v) return null
+      all.push(...v)
+    }
+    return [...new Set(all)]
+  }
+
+  /** ⭐⭐ RT16 W2 — `time(<text held in a variable>)`: THE HOST LANE'S OWN NODE FOR
+   *  WHICHEVER TEXT THE VARIABLE HOLDS ON THE BAR.
+   *
+   *  `time(tf)` takes a `series string`, so on each bar it is `time("<the text tf
+   *  holds then>")`. That adds no reading of the clock: every value is the host
+   *  lane's translation of the LITERAL spelling (`time("1W")`, `time("D")`,
+   *  `time("60")` …), with that lane's own witnesses and per-chart gates — this only
+   *  chooses among them. The texts are every value the script can write
+   *  (`timeTextValues`), so the choice is complete by construction.
+   *
+   *  ⛔ A SPELLING THE HOST LANE REFUSES IS NOT DROPPED AND NOT `na`: its branch
+   *  stops the run by name (`CLOCK_UNSERVED_FN`, guard `runtime:time-unserved`)
+   *  with the host's own sentence — on the charts where the script actually reaches
+   *  it, and nowhere else. `volume-profile-auto-line-v2` writes `"1"` for a seconds
+   *  chart; on every chart this engine draws, that branch is never taken.
+   *  ⛔ A frame parameter has no assignment to enumerate, so it keeps its refusal;
+   *  inside a request's value a variable is refused by the request's own rule
+   *  (`runtime:request-with-state`) before this is asked — a guard here was measured
+   *  redundant (RT16 mutation M7) and is not kept. At most 16 texts. */
+  const timeOverText = (node, scope) => {
+    const a0 = node.args[0]
+    const argNode = a0 && a0.value !== undefined ? a0.value : a0
+    if (!argNode || !readsSlot(argNode, scope)) return null
+    const values = timeTextValues(argNode, scope, new Set())
+    if (!values || !values.length || values.length > 16) return null
+    const at = locate(node.tok)
+    const stop = (why) => arrayCall(CLOCK_UNSERVED_FN, [str(why)])
+    let acc = stop('`time(<text>)` read a text none of this script\'s own assignments writes')
+    for (const v of [...values].sort().reverse()) {
+      const lit = { type: 'string', value: v, tok: node.tok }
+      const call = { ...node, args: [a0 && a0.value !== undefined ? { ...a0, value: lit } : lit] }
+      let branch
+      try {
+        branch = column(columnOf(call, at))
+      } catch (e) {
+        if (!(e && typeof e.guard === 'string')) throw e
+        branch = stop(`\`time(${JSON.stringify(v)})\` on this chart — ${String(e.message || e.guard).slice(0, 400)}`)
+      }
+      const test = lowerExpr({ type: 'binary', op: '==', left: argNode, right: lit, tok: node.tok }, scope)
+      acc = ternary(test, branch, acc)
+    }
+    return acc
   }
 
   const lowerExpr = (node, scope, opts) => {
@@ -5197,7 +5555,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // (`text.js::RUN_TEXT_FNS`): a number by the host lane's one formatter,
         // a text as itself. ⛔ Only a literal `#`/`0` format; a condition (whose
         // text is `true`/`false`, not a number) is refused by name.
-        if (objectsInRun && isRunTostring(node)) {
+        // ⭐⭐ RT11 (2026-10-04) — AND IN A VALUE BUILD TOO. A build whose drawings the
+        // host object program makes still LOWERS a binding that reads runtime state,
+        // and `row1 = ' High: ' + tostring(latest_bull_high, '#.##')` (order-block-finder,
+        // text only a label prints) refused `call-undeclared-builtin-state` for a name
+        // this lane serves one option over. Same formatter, same refusals (a condition,
+        // a non-`#`/`0` format). Its text reaches a row only through a served consumer
+        // (`str.length`, `str.contains`, ...), as the formatter's own text (C20/C43). ⛔ The ROUTE
+        // clause above keeps `objectsInRun`: a stateless `str.tostring` the columnar
+        // lane folds is still folded there, so no script that builds today moves.
+        if (isRunTostring(node)) {
           const given = (node.args || []).map((x) => (x && x.value !== undefined ? x.value : x))
           if ((node.args || []).some((a) => a && a.name && a.name !== 'value' && a.name !== 'format')
               || given.length < 1 || given.length > 2) {
@@ -5353,6 +5720,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
           const want = pw.spec.args.length
+          // ⛔⛔ RT15 — `nz(<colour>)` WITH NO REPLACEMENT IS UNSETTLED, AND IT WAS
+          // ANSWERED. `nz(x)` is lowered `nz(x, 0)`, and over a colour that is the
+          // packed integer 0 — `#00000000`, a transparent black — where Pine's own
+          // answer for an `na` colour is witnessed by no capture. On a `barcolor`
+          // the two are not the same picture (an `na` bar colour leaves the bar as
+          // the chart draws it; a transparent one can hide it). Refused by name
+          // until `capture-queue-2026-10-04-rt15-presentation.md` Q-RT15b settles
+          // it; `nz(c, replacement)` names its own answer and is served.
+          if (pw.table === 'nz' && given.length === 1 && holdsColourValue(given[0], scope)) {
+            note('runtime:colour-nz')
+            throw new RuntimeRefusal('runtime:colour-nz', `\`${node.name}(…)\` of a colour`, locate(node.tok))
+          }
           let args = given.map((a) => lowerExpr(a, scope))
           // ⭐ `nz(x)` IS `nz(x, 0)` — pine.js's own resolver says so, and this
           // mirrors that ruling rather than inventing a default.
@@ -5613,6 +5992,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // the bar being evaluated, so a computed instant (`time + 3600`, a
         // stored timestamp) is refused rather than silently answered for the
         // wrong moment.
+        // ⭐⭐ RT16 W2 — `time(<text this script holds in a variable>)`.
+        if (node.name === 'time' && node.args && node.args.length === 1 && !node.args[0].name
+            && !definedNames.has('time')) {
+          const served = timeOverText(node, scope)
+          if (served !== null) return served
+        }
         if (CLOCK_FIELDS.includes(node.name) && node.args && node.args.length) {
           const at = locate(node.tok)
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
@@ -6059,6 +6444,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const PRESENTATION_CALLS = new Set([
     'plotcandle', 'plotbar', 'alert',
   ])
+  /** ⭐ RT15 — the presentation calls a runtime document does not draw and names
+   *  (as a statement; in a value position they keep `runtime:presentation`). */
+  const UNDRAWN_CANDLE_CALLS = RUNTIME_UNDRAWN_CANDLE_CALLS
+  /** ⭐ RT15 — each skipped candle call, `{call, line}`, for the door's disclosure. */
+  const undrawnCalls = []
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
   /** ⭐ C18 — `max_bars_back(<name>, 5000)`: two positional arguments, a bare
    *  name and the literal 5000 (Pine's history ceiling). Anything else — a
@@ -7340,6 +7730,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
           finalElse = nxt
           break
         }
+        // ⭐⭐ RT15 — AN `if` THAT ONLY PLACES ORDERS IS THE ORDER CALLS IT HOLDS.
+        // R1 skips an order call as a statement (the simulated broker is not run);
+        // an `if` around nothing else — its locals feeding only the order's own
+        // arguments — draws nothing and changes nothing any other statement reads,
+        // so it is skipped whole, test included. That is what lets a test reading
+        // a broker VALUE (`if strategy.position_size > 0` …
+        // `strategy.exit(…, stop = strategy.position_avg_price * …)`) stand in a
+        // strategy whose plots and drawings never read the broker
+        // (linear-regression-channel-breakout-strategy). ⛔ `orderOnlyChain` admits
+        // only order calls, effect-free local declarations and nested `if`s of the
+        // same kind; a broker value read anywhere ELSE still refuses by name.
+        const chainOrders = orderOnlyChain(arms, finalElse)
+        if (chainOrders > 0) {
+          // counted per ORDER CALL, as R1 counts a bare one
+          for (let k = 0; k < chainOrders; k += 1) note('runtime:strategy-order')
+          continue
+        }
         // ⭐ LOWERED IN SOURCE ORDER, ASSEMBLED BACKWARDS. The two are different
         // orders and both matter: lowering allocates columns, slots and history
         // rings, so doing it back-to-front would number the artifact by an order
@@ -7568,7 +7975,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
         // slot answers `holdsColour` false one statement later, and
         // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
-        if (holdsColour(value, scope)) slots[slot].colour = true
+        if (holdsColour(value, scope) || declaresColourNa(toks, eq, value, scope)) slots[slot].colour = true
         // ⭐ THE `var` BRANCH MARKS THE ELEMENT KIND TOO. It marked text and
         // colour and not this, so `var syms = array.from("AAPL", "MSFT")` — the
         // way every watchlist in the corpus is declared — left the slot with no
@@ -7756,16 +8163,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // block would expand (and so evaluate) only on the bars the block runs.
         if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
           && !topLevelHistory(value)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth })
+          env.set(nameTok.value, {
+            kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth,
+            ...(declaresColourNa(toks, eq, value, scope) ? { colourType: true } : {}),
+          })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
+        // ⭐⭐ RT12 — a function-body local bound once from plain arithmetic is
+        // remembered by its expression, so a fold that meets it reads THROUGH it
+        // (`substFrameNames`). Its slot is still written every call, as before.
+        if (owner !== null && !mutable && !isCollection && !declarationPersists(toks)
+          && derivableNode(value)) frameDerived.set(slot, { node: value, scope })
         markDrawingSlot(slot, value, toks, eq)
         if (holdsText(value, scope)) slots[slot].text = true
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
         // slot answers `holdsColour` false one statement later, and
         // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
-        if (holdsColour(value, scope)) slots[slot].colour = true
+        if (holdsColour(value, scope) || declaresColourNa(toks, eq, value, scope)) slots[slot].colour = true
         if (isCollection) {
           slots[slot].collection = true
           slots[slot].elemText = arrayHoldsText(value, scope)
@@ -7794,16 +8209,40 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // and value builtins (`str.*`, `math.*`, `ta.*` — a `ta.*` call site's
         // state is read only through that call) is dropped, which is the same
         // program. Any other statement of this family keeps its refusal.
-        if (word === 'alert' && !definedNames.has('alert')) {
-          const call = parseWholeExpression(toks)
+        // ⭐ RT15 — ONE RULE FOR A CALL THIS LANE DROPS: an argument that could
+        // change something is evaluated where the call stands, into a slot nothing
+        // reads; the rest is dropped (the same program).
+        const evaluateDroppedArguments = (call, tag) => {
           for (const a of (call && call.args) || []) {
             const v = a && a.value !== undefined ? a.value : a
             if (!argumentHasEffect(v)) continue
-            const tmp = `alert argument ${out.length}@${first.line}:${first.column}`
+            const tmp = `${tag} argument ${out.length}@${first.line}:${first.column}`
             const slot = scope.declare(tmp, newSlot(tmp, false))
             if (holdsText(v, scope)) slots[slot].text = true
             out.push(declare(slot, lowerExpr(v, scope)))
           }
+        }
+        if (word === 'alert' && !definedNames.has('alert')) {
+          evaluateDroppedArguments(parseWholeExpression(toks), 'alert')
+          continue
+        }
+        // ⭐⭐ RT15 — `plotcandle` / `plotbar` ARE NOT DRAWN BY A RUNTIME DOCUMENT,
+        // AND SAYING SO IS RT1'S RULING, NOT A NEW ONE: candles have no row on that
+        // document (`memberPaneDefinition.js::RUNTIME_UNDRAWN_KINDS`) and the door
+        // names them to the member ("This script also writes candles, which … is not
+        // drawn here"). Refusing the whole script at the call threw away every
+        // line it ALSO draws (kernel-channel-backquant: an upper, a lower, a mid
+        // and their fill, refused for one bar-colouring `plotcandle`).
+        // ⛔ The call computes nothing any other statement reads (a candle is void
+        // in Pine and cannot be bound), so skipping it is the same program for every
+        // OTHER output; its arguments are evaluated by the one dropped-call rule.
+        // ⛔ The call is RECORDED (`undrawn`) so the door names it even when the
+        // host translation lists no such output; a script whose ONLY output is
+        // candles still refuses, below, by name.
+        if (UNDRAWN_CANDLE_CALLS.has(word) && !definedNames.has(word)) {
+          evaluateDroppedArguments(parseWholeExpression(toks), word)
+          undrawnCalls.push({ call: word, line: first.line })
+          note('runtime:undrawn-candles')
           continue
         }
         if (PRESENTATION_CALLS.has(word)) {
@@ -7953,6 +8392,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const rec = fnIdx === undefined ? null : functions[fnIdx]
           out.push(exprStmt(lowered, rec && rec.returns ? rec.returns : 1))
           continue
+        }
+        // ⭐⭐ RT12 — A VALUE BUILTIN ON A LINE OF ITS OWN, ITS VALUE DISCARDED
+        // (`barssince(c)` split off `Prev = highest(…), barssince(c)`,
+        // atr-trailing-stoploss-strategy:12). The host lane drops it; here it is
+        // dropped by the rule `alert`'s arguments already follow
+        // (`argumentHasEffect`): a call made only of names, literals, operators and
+        // value builtins changes nothing another statement can read — a `ta.*`
+        // call site's state is read only through that call, and this one is never
+        // read. ⛔ A user function, a collection, drawing or method call anywhere
+        // inside keeps the refusal below.
+        {
+          let discarded = null
+          try { discarded = parseWholeExpression(toks) } catch { discarded = null }
+          if (discarded && discarded.type === 'call' && !argumentHasEffect(discarded, 0, true)) continue
         }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
@@ -8108,6 +8561,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `method bump(Point this, …)` — marked from the DECLARED type, exactly as
       // `markUdtSlot` marks a binding, so `this.x` reads as a field path.
       if (ty && udtTypes.has(ty.word)) slots[ps].udt = ty.word
+      // ⭐ RT15 — and one declared `color` holds a colour (the declared type, as
+      // `declaresColourNa` reads a binding's): `transp(color x, int t) =>
+      // color.new(x, t)` refused "`color.new` takes a colour … this is not one".
+      if (ty && ty.word === 'color' && !ty.typeArg) slots[ps].colour = true
     })
 
     // ⭐⭐ THE BODY IS ALSO KEPT AS AN AST, for the call sites that must lower it
@@ -8284,7 +8741,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             result = read(slot)
           } else {
             try {
-              result = intoFrameSink(body, () => lowerResult(parseWholeExpression(lt), fnScope))
+              result = intoFrameSink(body, (root) => lowerResult(root, fnScope), parseWholeExpression(lt))
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
               // slot there), so the refusal it always gave is HELD for the call
@@ -8299,7 +8756,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
         }
       } else {
-        result = intoFrameSink(body, () => lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope))
+        result = intoFrameSink(body, (root) => lowerResult(root, fnScope), parseWholeExpression(toks.slice(arrow + 1)))
       }
       record.body = body
       record.result = result
@@ -8469,24 +8926,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!e) return { value: null }
     let n = e
     if (owner !== null && scope) {
-      let foreign = null
-      const sub = (x, depth) => {
-        if (!x || typeof x !== 'object' || depth > 64) return x
-        if (Array.isArray(x)) return x.map((y) => sub(y, depth + 1))
-        if (x.type === 'name' && typeof x.name === 'string') {
-          const s = scope.lookup(x.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
-            if (foreign === null) foreign = x.name
-          }
-          return x
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
-        return out
-      }
-      n = sub(e, 0)
-      if (foreign !== null) return { value: null, frameName: foreign }
+      const fs = substFrameNames(e, scope)
+      if (fs.foreign !== null) return { value: null, frameName: fs.foreign }
+      n = fs.node
     }
     // ⭐ C47 — TEXT FIRST, and by the lane's own reader (`fixedTextOf`), never by
     // the frozen resolver: that one folds an `input.string` from the AUTHOR'S
@@ -9023,6 +9465,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ RT5 — a script whose only output is drawings is a program when this
   // lane draws them.
   if (!outputs.length && !(objectsInRun && objectOpsLowered > 0)) {
+    // ⭐ RT15 — a script whose only output is the candles this lane skipped is
+    // refused by THAT name: "nothing to plot" would be false about it.
+    if (undrawnCalls.length) {
+      note('runtime:presentation')
+      return fail(new RuntimeRefusal('runtime:presentation',
+        `its only output is \`${undrawnCalls[0].call}()\`, and candles are not drawn by this lane`,
+        { line: undrawnCalls[0].line, column: null }), diagnostics)
+    }
     return fail(new RuntimeRefusal('runtime:no-output', null, null), diagnostics)
   }
   if (objectsInRun) diagnostics.objectOps = objectOpsLowered
@@ -9071,7 +9521,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to
   // render a buffer's value, and which nothing downstream of the program reads.
-  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters }
+  return {
+    ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters,
+    // ⭐ RT15 — the candle calls skipped (`{call, line}`), for the door's disclosure.
+    undrawn: undrawnCalls.map((u) => ({ ...u })),
+  }
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.

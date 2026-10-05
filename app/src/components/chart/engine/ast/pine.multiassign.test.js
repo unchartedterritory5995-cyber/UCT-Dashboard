@@ -86,15 +86,27 @@ plot(sma(close, len))`)))
   })
 
   it('⛔ a segment that is NOT an assignment blocks the split entirely', () => {
-    // ⛔⛔ ALL OR NOTHING, AND THIS IS THE ASSERTION THAT MATTERS. Splitting here
-    // would bind `a` and silently drop a `plot` the member wrote — a script that
-    // translates while missing an output it declared. It refuses instead.
-    const out = translatePine(src('a = 1, plot(close)'))
+    // ⛔⛔ ALL OR NOTHING, AND THIS IS THE ASSERTION THAT MATTERS: a segment the
+    // splitter cannot name keeps the line whole, so nothing the member wrote after
+    // the comma is silently dropped. ⭐ RT12 — a bare CALL is now a segment it can
+    // name (`commaCallSplit`): `a = 1, plot(close)` is the binding and the plot,
+    // and the plot is collected (next test).
+    const out = translatePine(src('a = 1, close + 1'))
     expect(out.ok).toBe(false)
     expect(out.refusal).toBeTruthy()
   })
 
-  it('⚰️ …though the SENTENCE it refuses with is still the wrong one', () => {
+  it('⭐ RT12 — the defect pinned here is gone: `a = 1, plot(close)` draws its plot', () => {
+    // Was: the line bound whole, the `plot` was never collected, and the member was
+    // told the script "offers no plot" (`pine:no-output`). RT12's `commaCallSplit`
+    // reads a bare call as its own statement (with at least one binding on the
+    // line, so `screener(a), screener(b)` stays exactly as it was).
+    const out = translatePine(src('a = 1, plot(close)'))
+    expect(out.ok).toBe(true)
+    expect(out.outputs.filter((o) => o.kind === 'plot' && !o.refusal).length).toBe(1)
+  })
+
+  it.skip('⚰️ …though the SENTENCE it refuses with is still the wrong one (retired by RT12, kept for its history)', () => {
     // Pinned as a known defect rather than left to be rediscovered. The line binds
     // whole, the `plot` is never collected, and the member is told the script
     // "offers no plot" while a plot sits on the line they are reading.

@@ -2222,6 +2222,56 @@ export const BUILTIN_CALL_TREE = Object.freeze({
       cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
     ])
   },
+  // ⭐⭐ RT11 — `ta.alma(src, length, offset, sigma[, floor])` (v5/v6) and v4's
+  // BARE `alma(src, length, offset, sigma)`: TradingView's published `pine_alma`,
+  // a Gaussian-weighted sum over the last `length` bars, written out here as the
+  // weighted sum of the window's own offsets — vocabulary this table already
+  // declares (`[k]`, `*`, `+`, `/`), so both interpreters run it unchanged.
+  //
+  //     m = offset * (length - 1)          (floored when `floor`)
+  //     s = length / sigma
+  //     w_i = exp(-1 * pow(i - m, 2) / (2 * pow(s, 2)))      i = 0 … length-1
+  //     alma = (Σ src[length - i - 1] * w_i) / Σ w_i
+  //
+  // ⭐ EVERY CLAUSE IS A CAPTURE, NOT A READING OF THE MANUAL:
+  //   · v4 bare `alma` COMPILES and equals that reference to 4.5e-13 on SPY and
+  //     exactly on RDDT, four argument sets (Q-H3c, `h3-alma-v4-{spy,rddt}-1d-2026-10-02`);
+  //   · `ta.alma` (v6): first value at bar `length - 1`, the `floor` form, and one
+  //     `na` in the source poisons the result for exactly `length` bars
+  //     (`vw-alma-spy-1d-2026-09-27`, A03 / A02 / A05) — which is what a plain sum
+  //     of `src[k]` terms does, and why no window-skipping is built here.
+  // ⛔ v6's BARE `alma` does NOT compile at the vendor (`r11-alma-spy-2026-09-11`),
+  // so the spelling is gated by version where this is dispatched; this builder
+  // never sees a spelling it should refuse.
+  // ⭐ The summation order is the reference's (oldest bar first, weights and norm
+  // accumulated together), so the rounding is the reference's too.
+  // ⛔ Every parameter must be a written number (a `length` the bar decides has no
+  // fixed weights); `length` a whole number 1…500 (the runtime lane's own bound,
+  // `pineRuntimeFrontend.js::runtimeRespelling`), `sigma` non-zero, `floor` 0/1.
+  alma: (a) => {
+    const num = (x) => (x && x.type === 'num' ? Number(x.value) : NaN)
+    const n = num(a[1])
+    const offset = num(a[2])
+    const sigma = num(a[3])
+    const floor = a[4] === undefined ? 0 : num(a[4])
+    if (a.length < 4 || a.length > 5) return null
+    if (!Number.isInteger(n) || n < 1 || n > 500) return null
+    if (!Number.isFinite(offset) || !Number.isFinite(sigma) || sigma === 0) return null
+    if (floor !== 0 && floor !== 1) return null
+    const m = floor ? Math.floor(offset * (n - 1)) : offset * (n - 1)
+    const s = n / sigma
+    let norm = 0
+    let sum = null
+    for (let i = 0; i <= n - 1; i += 1) {
+      const weight = Math.exp(-1 * Math.pow(i - m, 2) / (2 * Math.pow(s, 2)))
+      norm += weight
+      const back = n - i - 1
+      const term = cOp('*', [back === 0 ? a[0] : { type: 'offset', value: back, args: [a[0]] }, cNum(weight)])
+      sum = sum === null ? term : cOp('+', [sum, term])
+    }
+    if (!Number.isFinite(norm) || norm === 0) return null
+    return cOp('/', [sum, cNum(norm)])
+  },
   // ⭐⭐ `ta.correlation(source1, source2, length)` — THE PEARSON CORRELATION
   // COEFFICIENT, and it costs this table ZERO NEW VOCABULARY. TradingView's own
   // page: "Describes the degree to which two series tend to deviate from their
@@ -3129,6 +3179,37 @@ export function blockStatements(toks, indents, indent) {
       })
       continue
     }
+    // ⭐⭐ RT12 — A BINDING (OR A `:=`) AND A CALL ON ONE LINE: `Prev = highest(…),
+    // barssince(…)` (atr-trailing-stoploss-strategy:12), or a binding whose line
+    // ends in a `,` so the next line's `plot(…)` joins it (nonlinear-regression-
+    // zero-lag-moving-average-loxx:93-94). Pine runs a comma line's statements left
+    // to right, exactly as separate lines (H2's rule); a bare call segment is the
+    // statement it would be on a line of its own. ⛔ At least one segment must bind
+    // or mutate, so a line of calls only (`screener(a), screener(b)`, the owner
+    // corpus idiom the note below records) is left exactly as it was; no segment
+    // may open a block and the line may carry no body.
+    const callSplit = body.length === 0 ? commaCallSplit(header) : null
+    if (callSplit) {
+      for (const part of callSplit) out.push({ header: part, body: [], sub: [] })
+      continue
+    }
+    // ⭐⭐ RT12 — `switch` ARMS WRITTEN WITH A TRAILING COMMA
+    // (smart-money-breakouts-chartprime:78-80):
+    //     StyleSwitch = switch Linestyle
+    //         'Dashed' => line.style_dashed ,
+    //         'Dotted' => line.style_dotted ,
+    //         => line.style_solid
+    // The trailing `,` dangles each arm into the next (`danglesIntoNextLine`), so
+    // the arms arrived as ONE header and the switch read none of them. Pine
+    // compiles it as the three arms; the comma separates them as it separates any
+    // statements. ⛔ Only inside a body (a `=>` at the top level is a function
+    // definition), only a line with no body, and only when EVERY segment is an arm
+    // (holds a top-level `=>`); a trailing empty segment is the dangling comma.
+    const armSplit = body.length === 0 && indent > 0 ? commaArmSplit(header) : null
+    if (armSplit) {
+      for (const part of armSplit) out.push({ header: part, body: [], sub: [] })
+      continue
+    }
     // ⚰️ A REFUSAL HERE FOR AN UNSPLITTABLE TOP-LEVEL COMMA WAS WRITTEN AND
     // REMOVED THE SAME HOUR. The argument for it was real — `a = 1, plot(close)`
     // binds the whole line, the `plot` is never collected, and the script refuses
@@ -3162,22 +3243,77 @@ export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.valu
 function commaStatementSplit(header, hasBody) {
   const parts = splitTopLevel(header, ',')
   if (parts.length < 2) return null
-  const opens = (toks) => findTop(toks, (t) => isPunct(t, '=>')
-    || (t.kind === 'ident' && BLOCK_OPENERS.has(t.value))) >= 0
-  const isMutation = (toks) => toks.length >= 3 && toks[0].kind === 'ident'
-    && !String(toks[0].value).includes('.')
-    && toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
-    && findTop(toks.slice(2), (t) => t.kind === 'punct' && (t.value === '=' || MUTATORS.has(t.value))) < 0
   let mutates = false
   for (let k = 0; k < parts.length; k += 1) {
     const part = parts[k]
     const last = k === parts.length - 1
-    if (opens(part) && !(last && hasBody)) return null
-    if (last && hasBody && !opens(part)) return null
-    if (isMutation(part)) { mutates = true; continue }
+    if (segmentOpensBlock(part) && !(last && hasBody)) return null
+    if (last && hasBody && !segmentOpensBlock(part)) return null
+    if (isMutationSegment(part)) { mutates = true; continue }
     if (!isBindingSegment(part)) return null
   }
   return mutates ? parts : null
+}
+
+/** Does this segment open a block (a top-level `=>` or a `BLOCK_OPENERS` word)? */
+function segmentOpensBlock(toks) {
+  return findTop(toks, (t) => isPunct(t, '=>')
+    || (t.kind === 'ident' && BLOCK_OPENERS.has(t.value))) >= 0
+}
+
+/** `name <mutator> expr` — one reassignment of ONE bare name, no second `=`. */
+function isMutationSegment(toks) {
+  return toks.length >= 3 && toks[0].kind === 'ident'
+    && !String(toks[0].value).includes('.')
+    && toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
+    && findTop(toks.slice(2), (t) => t.kind === 'punct' && (t.value === '=' || MUTATORS.has(t.value))) < 0
+}
+
+/** Is this token run exactly ONE call, `name(…)`, with nothing after its `)`? */
+function isCallSegment(toks) {
+  if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return false
+  let depth = 0
+  for (let i = 1; i < toks.length; i += 1) {
+    const t = toks[i]
+    if (t.kind !== 'punct') continue
+    if (t.value === '(' || t.value === '[') depth += 1
+    else if (t.value === ')' || t.value === ']') {
+      depth -= 1
+      if (depth === 0) return i === toks.length - 1
+    }
+  }
+  return false
+}
+
+/** ⭐⭐ RT12 — `switch` arms joined by trailing commas, one per segment, or null.
+ *  Every non-empty segment holds a top-level `=>` (an arm); only the LAST segment
+ *  may be empty (the dangling comma after the last arm). */
+function commaArmSplit(header) {
+  if (findTop(header, (t) => isPunct(t, ',')) < 0) return null
+  const parts = splitTopLevel(header, ',')
+  if (parts.length && !parts[parts.length - 1].length) parts.pop()
+  if (!parts.length) return null
+  for (const part of parts) {
+    if (!part.length || findTop(part, (t) => isPunct(t, '=>')) < 0) return null
+    if (part[part.length - 1] && isPunct(part[part.length - 1], '=>')) return null
+  }
+  return parts
+}
+
+/** ⭐⭐ RT12 — the segments of a comma line made of bindings, `:=`-family
+ *  mutations and bare calls, with at least one binding or mutation; or null.
+ *  ⛔ No segment may be empty or open a block (the caller passes only a line with
+ *  no body). */
+function commaCallSplit(header) {
+  const parts = splitTopLevel(header, ',')
+  if (parts.length < 2) return null
+  let anchored = false
+  for (const part of parts) {
+    if (!part.length || segmentOpensBlock(part)) return null
+    if (isBindingSegment(part) || isMutationSegment(part)) { anchored = true; continue }
+    if (!isCallSegment(part)) return null
+  }
+  return anchored ? parts : null
 }
 
 /** Is this token run `… name = expression`, i.e. one binding?
@@ -11218,7 +11354,9 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    const isOwnTf = this.ownTimeframeOf(tfNode) !== null
+    // ⭐ RT16 — `""` IS THE CHART'S OWN TIMEFRAME HERE, by the reference's own
+    // words for this parameter (`emptyTimeframeOf`).
+    const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.emptyTimeframeOf(tfNode)
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
     const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
     if (!isOwnTf && code !== this.basePeriod) {
@@ -11385,6 +11523,27 @@ export class Resolver {
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
     return null
+  }
+
+  /** ⭐⭐ RT16 — is this `time()` timeframe argument the EMPTY STRING? Pine's
+   *  reference, for `time`'s first parameter, in every version this engine reads
+   *  (extracted from TradingView's own reference bundles 2026-10-04,
+   *  `docs/pine/capture-queue-2026-10-04-rt16-clock.md` § manual):
+   *    v4 `time(resolution, …)`: "Resolution. An empty string is interpreted as
+   *       the current resolution of the chart."
+   *    v5 `time(timeframe, …)`: "Timeframe. An empty string is interpreted as the
+   *       current timeframe of the chart."
+   *    v6 `time(timeframe, …)`: "The timeframe of the timestamp calculation. If the
+   *       value is an empty string, the function uses the script's main timeframe."
+   *  So `time("", …)` asks what `time(timeframe.period, …)` asks, and is answered
+   *  by the same node — the measured readings stay the only semantics.
+   *  ⛔ ONLY `time` asks this. The same words stand under `time_close`, whose
+   *  `timeframe.period` form is itself unmeasured and refused, so `""` stays refused
+   *  there with it; and `timeframe.in_seconds` / `input.timeframe` say nothing of
+   *  the kind (C48 measured an `input.timeframe("")` PRINTING as empty text, not as
+   *  the chart's period). Exactly `''`: a string of spaces is not empty. */
+  emptyTimeframeOf(node) {
+    return this.timeframeLiteralOf(node) === ''
   }
 
   timeframeLiteralOf(node, depth = 0) {
@@ -12386,7 +12545,15 @@ export class Resolver {
     const key = this.index.get(normaliseName(candidate))
     // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, and it is consulted only when the
     // table itself has no such name — so a future `roc` in `closedTable` wins.
-    if (!key && own(BUILTIN_CALL_TREE, bare)) {
+    // ⭐ RT11 — `alma` is served only in a spelling the script's version HAS:
+    // bare in v4 (Q-H3c), `ta.alma` from v5. Bare `alma` in v6 is a compile
+    // failure at the vendor (`r11-alma-spy-2026-09-11`), and bare in v1-v3 / v5
+    // and the version-less formula box are unmeasured: every other spelling keeps
+    // the ordinary `pine:function` refusal below.
+    const almaSpelling = bare !== 'alma' || (pineName === 'alma'
+      ? this.pineVersion === 4
+      : (pineName === 'ta.alma' && this.pineVersion !== null && this.pineVersion >= 5))
+    if (!key && own(BUILTIN_CALL_TREE, bare) && almaSpelling) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
       // `iff(then = close, condition = close > open, otherwise = open)` translated
       // to `close ? close > open : open` before this line existed.
@@ -12512,6 +12679,19 @@ export class Resolver {
           + `TO UNBLOCK: read the bare \`${bare}\` (or \`${bare}(time)\`) for this `
           + `bar's own value${CLOCK_IDENTITY_FIELDS.has(bare) ? `, or \`${bare}(timenow)\` for the newest fetched bar's` : ''}.`,
           locate(tok))
+      }
+      if (bare === 'alma') {
+        // ⛔ RT11 — the weights are fixed numbers only when every parameter is;
+        // a parameter the bar decides is refused BY NAME here rather than left to
+        // travel on as a null tree.
+        const tree = BUILTIN_CALL_TREE.alma(built)
+        if (!tree) {
+          throw new PineRefusal('pine:arity',
+            `\`${pineName}\` weights the last \`length\` bars by a Gaussian fixed before bar 0, so it needs `
+            + 'a source, a whole-number length from 1 to 500, an offset, a non-zero sigma (and an optional '
+            + '`floor` written true/false), each written as a plain number or an input', locate(tok))
+        }
+        return tree
       }
       return BUILTIN_CALL_TREE[bare](built)
     }
@@ -12702,6 +12882,8 @@ export class Resolver {
         // ⭐⭐ C36 — the chart's OWN timeframe, asked FIRST for the reason
         // `ownTimeframeOf` states (a rebound `period` is not the chart's).
         if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
+        // ⭐ RT16 — and `""`, which the reference defines as that same timeframe.
+        if (this.emptyTimeframeOf(argNode)) return this.chartOwnTimeOf('""', pineName, tok)
         const rawTf = this.timeframeLiteralOf(argNode)
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
         // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the

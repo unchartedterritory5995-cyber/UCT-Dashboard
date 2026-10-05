@@ -231,7 +231,7 @@ plot(a)
     // frame, which needs its own committed series exactly as it does at top level.
     // RT10 re-pin: a stateless `(v + 1)[1]` in a frame now builds (frame-local hoist);
     // the wall is kept for a subexpression with state.
-    ['history over an expression INSIDE a function', `${head}f(v) =>\n    (ta.ema(v, 3) + 1)[1]\nplot(f(close))\n`, 'runtime:history-expression'],
+    ['history over an expression INSIDE a function', `${head}f(v, c) =>\n    c ? (ta.ema(v, 3) + 1)[1] : 0.0\nplot(f(close, close > open))\n`, 'runtime:history-expression'],
     // ⚰️ THIS ASSERTED `runtime:call-with-state` UNTIL 2E SPLIT IT. The measured
     // population under that one label was three capabilities — a POINTWISE
     // builtin applied to a value, a WINDOWED one that needs a growing series, and
@@ -279,7 +279,9 @@ plot(a)
     // undeclared name today, verified by driving it — and it will need the same
     // treatment the day it lands (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
     ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
-    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
+    // ⚰️ RE-PINNED RT11: `str.tostring(x)` over state now lowers in every build
+    // (`rt11ValueBuildTostring`); `str.format` is the text builtin still refused.
+    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.format("{0}", x)))\n`, 'runtime:call-text-state'],
     // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
     // identity — Pine's documented casts); `bool(x)` is the conversion still refused.
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(bool(x) ? 1 : 0)\n`, 'runtime:call-conversion-state'],

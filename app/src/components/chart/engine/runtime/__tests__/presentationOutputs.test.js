@@ -111,8 +111,15 @@ describe('⭐ the presentation family, and what is left of it', () => {
     // ⚰️ `alert("hi")` stood here until C23: alert DELIVERY is the host lane's
     // path, and the statement draws nothing and writes nothing here, so it is a
     // no-op in this lane (`runtimeWallsC23.test.js` holds it, arguments and all).
-    for (const call of ['plotcandle(open, high, low, close)']) {
-      expect(refusalOf(`${call}\nplot(close)`).guard, call).toBe('runtime:presentation')
+    // ⭐⭐ RT15 — beside another output a candle is SKIPPED and RECORDED (`undrawn`,
+    // RT1's ruling: candles have no row on a runtime document, the door names them);
+    // what is still `runtime:presentation` is a script whose ONLY output is candles,
+    // and a candle in a value position (`rt15Presentation.test.js` § 1).
+    for (const call of ['plotcandle(open, high, low, close)', 'plotbar(open, high, low, close)']) {
+      expect(refusalOf(call).guard, call).toBe('runtime:presentation')
+      const beside = buildRuntimeIr(`${head}${call}\nplot(close)`, { bars: BARS, inputs: {} })
+      expect(beside.ok, call).toBe(true)
+      expect(beside.undrawn.map((u) => u.call)).toEqual([call.slice(0, call.indexOf('('))])
     }
   })
 })

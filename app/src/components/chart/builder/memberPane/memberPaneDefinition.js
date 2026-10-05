@@ -26,7 +26,7 @@ import { translatePine, hiddenOnChart } from '../../engine/ast/pine'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
-import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
+import { PINE_RECURRENCE_ORIGIN, validateUserDefinitions } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
@@ -885,9 +885,33 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     ensureRuntimeLane()
   }
 
+  // ⭐⭐ RT13 — THE INSTALL DOOR'S REFUSAL IS A HOST REFUSAL TOO. The builder
+  // can mint a host document the install door then refuses (a tree over the
+  // series-reference or lookback budget, a window that is not a whole-number
+  // literal): the member saw that refusal while the per-bar lane, which has its
+  // own budgets and folds no window into a literal, was never asked — the census
+  // read those rows as `none:install`. The door's own validation is asked here,
+  // read-only (`validateUserDefinitions` installs nothing), and only while the
+  // runtime pane is on; a refused document is offered to the per-bar lane. If it
+  // declines, the host document is returned exactly as before and the install
+  // door refuses it with its own sentence; the decline rides beside it.
+  let installDeclined = null
+  if (runtimePaneEnabled()) {
+    const { defs: validDefs, errors: installErrors } = validateUserDefinitions([definition])
+    if (!validDefs.length && installErrors.length) {
+      const viaRuntime = runtimeLaneDefinition({
+        source, id, name, t, hostReason: `install door refused: ${installErrors.join(' | ')}`,
+        hostGuard: 'install', routed: false, no,
+      })
+      if (viaRuntime.ok) return viaRuntime
+      installDeclined = viaRuntime.runtimeDeclined || null
+    }
+  }
+
   return {
     ok: true,
     definition,
+    ...(installDeclined ? { runtimeDeclined: installDeclined } : {}),
     reason: null,
     guard: null,
     translation: t,
@@ -1188,6 +1212,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
     if (r.guard === 'runtime:object-op' && own.guard) return decline(own.guard, own.why)
+    // ⭐ RT15 — and a script with NOTHING to plot is a drawing script: when its
+    // drawing build refused, that refusal is the true wall, not "nothing to plot"
+    // (strong-start-rvol-dashboard, a table-only dashboard, read `runtime:no-output`
+    // while its drawing build stopped at a `ta.sma` sized by a parameter).
+    if (r.guard === 'runtime:no-output' && own.guard) return decline(own.guard, own.why)
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold
@@ -1267,11 +1296,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     if (!pres.ok) { withheld.push({ label, why: pres.why }); withheldOut.set(out, label); continue }
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput })
   }
-  if (!carried.length && !ownObjects) {
-    return decline(withheld.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', withheld.length
-      ? `every output it draws is withheld (${withheld.map((w) => `\`${w.label}\`: ${w.why}`).join('; ')})`
-      : 'the script declares nothing a chart row draws')
-  }
+  // ⭐ RT15 — "draws nothing" is decided AFTER the paints are read (below): a
+  // script whose only output is a `barcolor` (visualizing-displacement-tfo) draws
+  // that bar colour on TradingView, and RT6 already carries a paint from the run.
+  const nothingCarried = !carried.length && !ownObjects
   const outputs = {}
   const drawnRows = carried.slice(0, CARRY_MAX)
   // ⭐⭐ RT6 — THE COLOUR COLUMNS, minted AFTER the drawn rows (a derived column
@@ -1385,6 +1413,23 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       })
     }
   }
+  if (nothingCarried && !docPaints.length) {
+    const all = [...withheld, ...paintWithheld.map(({ p, why }) => ({ label: p.kind, why }))]
+    return decline(all.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', all.length
+      ? `every output it draws is withheld (${all.map((w) => `\`${w.label}\`: ${w.why}`).join('; ')})`
+      : 'the script declares nothing a chart row draws')
+  }
+  // ⛔ RT15 — THE HOST LANE'S RULE FOR A PAINT-ONLY PANE SCRIPT, APPLIED HERE TOO
+  // (`memberPaneDefinition`'s `pine:paint-pane`): TradingView shades the script's
+  // OWN pane, and a pane exists here only when a series is bound in it — so a
+  // background with no row would land nowhere, or on the price pane. A `barcolor`
+  // recolours the chart's candles and needs no pane.
+  if (nothingCarried && !(t.presentation && t.presentation.overlay === true)
+      && docPaints.some((p) => p.kind === 'bgcolor')) {
+    return decline('pine:paint-pane', 'this script draws only a background in a pane of its own, and a pane '
+      + 'with no series in it is not built here — so the shading is not drawn rather than drawn over the '
+      + 'price chart')
+  }
   const objectsGate = paneObjectsGate(t)
   const drawsObjects = !ownObjects && objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
@@ -1486,6 +1531,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   for (const { label, why } of fillsOut.withheld) {
     notes.push({ name: label, note: `${label} is not drawn: ${why}. Nothing is drawn for it rather than a guess.` })
   }
+  // ⭐ RT15 — the runtime lane now SKIPS a candle call instead of refusing the script
+  // (`pineRuntimeFrontend.js::RUNTIME_UNDRAWN_CANDLE_CALLS`); the host translation lists
+  // every candle output (refused rows included), so this list names them.
   const undrawn = [...new Set([
     ...(t.outputs || [])
       .filter((o) => o && !hiddenOnChart(o) && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
