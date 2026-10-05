@@ -27,8 +27,10 @@ const ENTRY = { id: 'c2-a11y', flag: FLAG, title: 'Template gallery', replayable
 beforeEach(() => {
   __resetNotebookFlags()
   __resetOfferSession()
-  latchNotebookFlags({ notebook_onboarding_enabled: true, [FLAG]: true })
-  global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+  // W14-C1 ruling: registry tours need the wave-14 switch too; with it on, an open checklist
+  // holds the offer back (C2), so the member here has already closed it.
+  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [FLAG]: true })
+  global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ notebook_getting_started: JSON.stringify({ v: 1, state: 'dismissed' }) }) }))
 })
 afterEach(() => { __resetNotebookFlags(); __resetOfferSession(); registerFirstRunSlot(null); vi.restoreAllMocks() })
 

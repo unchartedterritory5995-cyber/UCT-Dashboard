@@ -1,7 +1,7 @@
 == Me2-tour-always-topmost  (app/src/pages/journal-2-0/components/notebook/onboarding/tourLayers.js)
 verdict: KILLED (vitest exit 1)
 restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tourLayers.js (blob 3e73bd64ff44)
-× a sheet opened ABOVE the tour: Escape closes the sheet, and the tour stays 70ms
+× a sheet opened ABOVE the tour: Escape closes the sheet, and the tour stays 137ms
 Test Files  1 failed (1)
 Tests  1 failed | 15 passed (16)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.c1.test.jsx > (e) Escape belongs to the TOPMOST layer > a sheet opened ABOVE the tour: Escape closes the sheet, and the tour stays

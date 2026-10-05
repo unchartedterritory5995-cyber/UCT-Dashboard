@@ -1,8 +1,8 @@
 == Mf2-explainer-ignores-seen-state  (app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx)
 verdict: KILLED (vitest exit 1)
 restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx (blob 31c11f13a540)
-× seen before: nothing shows 1258ms
-× shown ONCE per member: a member with any row for it sees nothing 4009ms
+× seen before: nothing shows 1349ms
+× shown ONCE per member: a member with any row for it sees nothing 4054ms
 Test Files  2 failed (2)
 Tests  2 failed | 21 passed (23)
 FAIL  src/pages/journal-2-0/components/notebook/ResurfaceVersionSheet.explainer.test.jsx > (f) through the real gate and engine > seen before: nothing shows

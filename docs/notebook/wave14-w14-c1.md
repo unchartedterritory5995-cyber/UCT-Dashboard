@@ -233,3 +233,132 @@ See `wave14-integration.md` section C1 for the byte gate output and the test cou
    (`notebook_ta_fingerprint_enabled`); with only the playbook flag on, the tour opens on
    nothing and closes quietly.
 5. Thesis chips have no walkthrough now (item h).
+
+## 7. Controller ruling: nothing members see changes until the owner flips the switch
+
+Ruling on open item 1: the landing must change nothing members see until the owner arms
+wave 14. Commit `517e607f14`, then the tool fix and this section in the docs commit.
+
+### 7.1 One rule, every door: `tourLive(entry, flag)` (tourRegistry.js)
+
+* The base tour (wave 8) answers exactly as before: its own flag (`notebook_onboarding_enabled`)
+  and nothing else.
+* Every other registered tour needs its own capability flag, every flag in its optional
+  `requires`, AND the wave-14 switch: `checklistEnabled()` from `gettingStartedPref.js`
+  (onboarding AND getting-started), reused, not restated.
+
+Asked by: the offer and What's new (`tourEligibility.js` `candidate`), the get-started
+checklist's tour steps (`gettingStarted.js`), every open through `RegistryToursGate.jsx`
+(Help's Replay, the offer's accept, the checklist, the resurfacing explainer's trigger, any
+`openRegistryTour`), and Help > Walkthroughs. The Walkthroughs section is itself a wave-14
+addition (W14-0), so it renders nothing at all while the switch is off; Help's wave-8 "Take the
+tour" link is unchanged.
+
+Consequence for the two capabilities already on in production (task reminders, image/docx):
+with the switch off their tours are never offered, listed or opened. Open item 1 of section 6
+is closed by this.
+
+### 7.2 `requires` (open item 4)
+
+An entry may carry `requires: [flag, ...]`; every flag must be exactly true. `OPTIONAL_FIELDS`
+is now `['requires', 'start']`, pinned by the shape rail; a malformed `requires` (empty, not a
+list, a non-flag key) is refused by tour name; every real `requires` flag must be a
+`notebookFlag()` key. `visual-playbook` requires `notebook_ta_fingerprint_enabled` (its sheet
+opens from the fingerprint panel). Open item 4 of section 6 is closed by this.
+
+### 7.3 Flags-off render parity (proved against the tree before wave 14)
+
+`tools/notebook_w14_flagsoff_parity.py`. "Before wave 14" is `b06ec4fd85`, the wave-13
+landing the first wave-14 lane branched from: master itself does not carry wave 13 yet, so
+master's files cannot be rendered with this branch's wave-13 children, and the wave-13 landing
+is exactly what this branch puts on master minus wave 14. The tool renders, with the real
+fixtures (a11y/fixtures.jsx): Help (the getting-started answer opened), Notebook Home, the
+notes list and an open note (each inside the real Layout), and Layout alone; under four flag
+sets (prod-like: every capability on and getting-started off; every capability on and
+onboarding off; onboarding only; all off) and two member states (fresh; base tour done and
+checklist closed): 40 cases. Pass A is the tree as committed; pass B swaps every non-test
+source file wave 14 changed (42) for its `b06ec4fd85` blob; then every file gets its exact
+original bytes back and `git status` must read as before. Normalised before comparing, and
+stated: `data-tour` attributes (inert markers; the wave-8 tour uses them too), React `useId`
+values (a counter of hooks, not markup) and CSS-module hash suffixes.
+
+```
+== flags-off render parity
+base b06ec4fd85 vs HEAD 517e607f14
+pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+swapped 42 source files to the base blob; restored, git status unchanged
+40 identical | 0 differ (40 cases)
+VERDICT: PASS -- identical
+```
+
+Mutation (`--mutate`: the wave-14 switch removed from `tourLive`):
+
+```
+== flags-off render parity (MUTATION: wave-14 switch removed from tourLive)
+12 identical | 28 differ (40 cases)
+  DIFFERS: help | prod-like: every capability on, getting-started off | fresh member
+    HEAD: ...<section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" ...
+VERDICT: PASS -- the mutation is caught
+```
+
+(the first difference is Help's "What's new" section appearing; the later cases differ by the
+icon gradient counter that section shifts.) Evidence: `evidence/wave14-w14-c1/flagsoff-parity*.txt`.
+
+### 7.4 Rails and mutations
+
+New or changed rails: `tourRegistry.test.js` (`requires` shape and pin, `tourLive` for the base
+tour and for every other tour without each of its four flags), `tourEligibility.test.js` (the
+switch off three ways; `requires`), `tourEligibility.realRegistry.test.js` (every tour flag on
+but the switch off: nothing offered or new), `TourOfferGate.test.jsx` (switch off: no card, no
+chunk fetched), `b3Research.test.jsx` (visual-playbook stays closed without the fingerprint
+flag), `Support.notebook.test.jsx` (Walkthroughs hidden with onboarding on and getting-started
+off). Fixtures that armed a tour without the switch now arm it; the offer's fixtures start from
+a closed checklist, because with the switch on an open checklist holds the offer back (C2).
+
+`tools/notebook_w14c1_mutation_proof.py --all`: control `Tests 265 passed (265)`; 16 of 16
+killed, the 13 of section 4 plus:
+
+| # | mutation | result |
+|---|---|---|
+| Mr1 | the wave-14 switch dropped from `tourLive` | KILLED, 7 failed |
+| Mr2 | `requires` ignored | KILLED, 3 failed |
+| Mr3 | Help > Walkthroughs not gated on the switch | KILLED, 1 failed |
+
+(The tool as committed in `517e607f14` had three broken string literals from an inline edit;
+fixed in the docs commit before this run.)
+
+### 7.5 Gates
+
+Byte gate, same procedure as section 3, at `517e607f14` (no app source changed after):
+
+```
+bytes.notebook_first_open: 2,254,199 B across 66 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+Counts: see section 7.6.
+
+### 7.6 Counts (copied)
+
+`npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=3` at `517e607f14`
+(`app/dist` built), after the disk was freed:
+
+```
+ Test Files  1 failed | 635 passed (636)
+      Tests  1 failed | 8071 passed | 1 skipped (8073)
+```
+
+The one: `a11y/tourOffer.a11y.test.jsx` "tour-offer-in-slot", a C2 fixture that armed a tour
+without the wave-14 switch (the same class as 7.4). It now arms the switch and starts from a
+closed checklist; alone: `Tests  2 passed (2)`. Committed with this section.
+
+Pytest (flags, flag parse, switch rehearsal, flag ledger, tour seen state, perf budgets, sample
+examples): `726 passed in 872.07s`, exit 0.
+
+### 7.7 Open item found while proving it
+
+W14-E's extra example notes are seeded server-side whenever a member adds the sample notebook,
+which rides `notebook_onboarding_enabled` alone (armed on web). That is a member-visible change
+the wave-14 switch does not gate. It is outside the render-parity surfaces (a server seed, not a
+render) and outside this ruling's list; flagged for the controller.

@@ -1,8 +1,8 @@
 == Me4-card-portaled-to-body  (app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx)
 verdict: KILLED (vitest exit 1)
 restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx (blob 31c11f13a540)
-× the card is non-modal and placed INSIDE the sheet, so the sheet stays the one modal 89ms
-× Tab is not trapped by the card: it walks the sheet's ring, which includes the card 95ms
+× the card is non-modal and placed INSIDE the sheet, so the sheet stays the one modal 213ms
+× Tab is not trapped by the card: it walks the sheet's ring, which includes the card 192ms
 Test Files  1 failed (1)
 Tests  2 failed | 14 passed (16)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.c1.test.jsx > (e) a step inside a Sheet > the card is non-modal and placed INSIDE the sheet, so the sheet stays the one modal

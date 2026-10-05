@@ -1,7 +1,7 @@
 == Ma2-flag-off-request-held  (app/src/pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.jsx)
 verdict: KILLED (vitest exit 1)
-restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.jsx (blob 83be2fd16f61)
-× the one-tour slot is free again: a later request for an allowed tour opens 4049ms
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.jsx (blob 8b65b47e2910)
+× the one-tour slot is free again: a later request for an allowed tour opens 4113ms
 Test Files  1 failed (1)
 Tests  1 failed | 10 passed (11)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.test.jsx > W14-C1: a request for a tour whose capability is off is dropped, never held > the one-tour slot is free again: a later request for an allowed tour opens

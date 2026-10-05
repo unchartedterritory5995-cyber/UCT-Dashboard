@@ -1,0 +1,19 @@
+== Mr1-wave-switch-dropped  (app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js)
+verdict: KILLED (vitest exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js (blob a6fa4a3badb9)
+× W14-C1 ruling: every tour flag ON but the wave-14 switch off: nothing offered, nothing new 9ms
+× onboarding false, getting-started true: nothing offered, nothing new 9ms
+× onboarding true, getting-started false: nothing offered, nothing new 1ms
+× onboarding false, getting-started false: nothing offered, nothing new 1ms
+× tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started 13ms
+× onboarding off: capability flags on, nothing renders and the card chunk is never fetched 132ms
+× getting-started off: capability flags on, nothing renders and the card chunk is never fetched 157ms
+Test Files  4 failed (4)
+Tests  7 failed | 118 passed (125)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.realRegistry.test.js > the real registry, through the real flag reader > W14-C1 ruling: every tour flag ON but the wave-14 switch off: nothing offered, nothing new
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js > W14-C1 ruling: the wave-14 switch (onboarding AND getting-started) gates every registry tour > onboarding false, getting-started true: nothing offered, nothing new
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js > W14-C1 ruling: the wave-14 switch (onboarding AND getting-started) gates every registry tour > onboarding true, getting-started false: nothing offered, nothing new
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js > W14-C1 ruling: the wave-14 switch (onboarding AND getting-started) gates every registry tour > onboarding false, getting-started false: nothing offered, nothing new
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > W14-C1 ruling: the wave-14 switch gates every offer > onboarding off: capability flags on, nothing renders and the card chunk is never fetched
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > W14-C1 ruling: the wave-14 switch gates every offer > getting-started off: capability flags on, nothing renders and the card chunk is never fetched
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.test.js > `requires` and tourLive > tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started
