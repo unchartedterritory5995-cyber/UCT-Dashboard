@@ -35,6 +35,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import entry_context as ectx
 from api.services.journal_two import public_note_payload as public
@@ -47,6 +48,7 @@ NO_CONTEXT_SENTENCE = ("No market context was captured for this entry, so there 
 
 #: A why note is at most WHY_MAX_CHARS characters; the body is bounded well above that.
 MAX_BODY_BYTES = 8 * 1024
+TOO_LARGE_SENTENCE = "Request too large"
 
 
 def _require_enabled() -> None:
@@ -72,9 +74,9 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 async def _read_json(request: Request) -> dict[str, Any]:
-    raw = await request.body()
-    if len(raw) > MAX_BODY_BYTES:
-        raise HTTPException(status_code=413, detail="Request too large")
+    # ⛔ Capped WHILE it is read (wave 14, cap 2): this was `await request.body()`
+    # then a length check, so a chunked or no-length body was buffered whole first.
+    raw = await body_cap.read_capped_body(request, MAX_BODY_BYTES, TOO_LARGE_SENTENCE)
     try:
         data = json.loads(raw) if raw.strip() else {}
     except ValueError:

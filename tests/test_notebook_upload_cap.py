@@ -77,8 +77,10 @@ class Drive:
     """One request through the app's ASGI callable. `pulled` is every body byte
     the app asked `receive` for."""
 
-    def __init__(self, app, path: str, body: Iterator[bytes], *, headers: dict[str, str]):
+    def __init__(self, app, path: str, body: Iterator[bytes], *, headers: dict[str, str],
+                 method: str = "POST"):
         self.app, self.path, self.body, self.headers = app, path, body, headers
+        self.method = method
         self.pulled = 0
         self.status: int | None = None
         self.payload = b""
@@ -110,7 +112,7 @@ class Drive:
 
         scope = {
             "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
-            "method": "POST", "scheme": "http", "path": self.path,
+            "method": self.method, "scheme": "http", "path": self.path,
             "raw_path": self.path.encode(), "query_string": b"", "root_path": "",
             "headers": [(k.lower().encode(), v.encode()) for k, v in self.headers.items()],
             "client": ("127.0.0.1", 5000), "server": ("testserver", 80),

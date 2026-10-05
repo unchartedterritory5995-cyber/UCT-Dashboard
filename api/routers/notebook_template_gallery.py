@@ -37,6 +37,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import (
     get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
 )
@@ -54,6 +55,7 @@ DAILY_REPORT_SCOPE = "notebook_gallery_report"
 PUBLISH_RATE_SENTENCE = "You've published a lot to the community gallery today. Try again later."
 REPORT_RATE_SENTENCE = "You've sent a lot of reports today. Try again later."
 MAX_BODY_BYTES = 256_000
+TOO_LARGE_SENTENCE = "Request too large"
 
 
 def _require_enabled() -> None:
@@ -79,9 +81,9 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 async def _read_json(request: Request) -> dict[str, Any]:
-    raw = await request.body()
-    if len(raw) > MAX_BODY_BYTES:
-        raise HTTPException(status_code=413, detail="Request too large")
+    # ⛔ Capped WHILE it is read (wave 14, cap 2): this was `await request.body()`
+    # then a length check, so a chunked or no-length body was buffered whole first.
+    raw = await body_cap.read_capped_body(request, MAX_BODY_BYTES, TOO_LARGE_SENTENCE)
     if not raw.strip():
         return {}
     try:
