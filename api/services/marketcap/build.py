@@ -79,6 +79,7 @@ CREATE TABLE lineage_applied(cik INTEGER, kind TEXT, status TEXT, effective TEXT
 CREATE TABLE step_context(cik INTEGER, semantics TEXT, iterations INTEGER, withheld_days INTEGER, known_splits TEXT, ev_forms TEXT);
 CREATE TABLE extreme_step(cik INTEGER, d0 INTEGER, d1 INTEGER, verdict TEXT, basis TEXT, unexplained REAL, share_ratio REAL,
   semantics TEXT, evidence TEXT);
+CREATE TABLE offering_gate(cik INTEGER, accn TEXT, kind TEXT, floor_from TEXT, pricing_accn TEXT, note TEXT);
 CREATE TABLE identity_retention(cik INTEGER, ticker TEXT, last_attributed TEXT, status TEXT, reason TEXT, bars_kept INTEGER,
   bars_after_attribution INTEGER);
 CREATE TABLE coverage(cik INTEGER PRIMARY KEY, primary_ticker TEXT, foreign_filer INTEGER, first_bar TEXT,
@@ -682,45 +683,60 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     return out, fsets, invalid
 
 
-def offering_eligibility(D: Data, cik: int, filings: dict, io: list, listing_start: date) -> tuple[list, list]:
+def offering_gates(D: Data, cik: int, filings: dict, io: list, listing_start: date) -> dict:
     """⭐ M3 (owner decisions 2026-10-05) -- for a security ALREADY PUBLICLY TRADED before this listing (offering_status.py:
     the issuer's own projection prospectuses say so, and none says there is no public market), trading on the new venue
     proves nothing about the offering:
 
-      RULE 1  a projection from a PRELIMINARY document (assumed terms) becomes usable only once the offering's PRICING is
-              public -- the first final prospectus (424B1-5) after it, timed by the ordinary acceptance authority and
-              Obs.known_from (one clock: public by 16:00 ET -> that day's close). Before that: no state -> the existing
-              IPO_CAPITALIZATION_UNRESOLVED.
+      RULE 1  a projection from a PRELIMINARY document (assumed terms) may be USED only from the close at which the
+              offering's PRICING is public -- the first final prospectus (424B1-5) after it, timed by the ordinary
+              acceptance authority and Obs.known_from (one clock: public by 16:00 ET -> that day's close).
       RULE 2  if that priced prospectus states its post-offering capitalization ASSUMING EXERCISE of pre-funded warrants,
-              no projection of this offering is a count of common shares outstanding: refused (and so withheld).
+              no projection of this offering is a count of common shares outstanding: refused.
 
-    A traditional IPO (no public market before it) and a listing whose pricing is unobservable in V1's inputs keep the
-    existing behaviour. Returns (eligible io, [(class, Obs, why)] refused)."""
+    ELIGIBILITY ONLY: the observation itself (public_at / known_from) and every validator decision are untouched -- the
+    gates are applied to the validated states just before the timeline (apply_offering_gates). A traditional IPO (no
+    public market before it) and a listing whose pricing is unobservable in V1's inputs keep the existing behaviour.
+    Returns {projection accession: ("FLOOR", first usable close, pricing accession) | ("REFUSE", why, pricing accession)}."""
     if D.offering is None or not io:
-        return io, []
-    st = [s for (s,) in D.offering.execute("SELECT status FROM market WHERE cik=? AND listing_start=?", (cik, listing_start.isoformat()))]
+        return {}
+    st = [s_ for (s_,) in D.offering.execute("SELECT status FROM market WHERE cik=? AND listing_start=?", (cik, listing_start.isoformat()))]
     if "PUBLIC" not in st or "NO_MARKET" in st or "AMBIGUOUS" in st:
-        return io, []
-    priced = {p: (f, ff, int(b)) for p, f, ff, b in D.offering.execute(
+        return {}
+    priced = {p_: (f_, ff, int(b_)) for p_, f_, ff, b_ in D.offering.execute(
         "SELECT proj_accn, final_accn, final_form, prefunded_basis FROM priced WHERE cik=? AND listing_start=?",
         (cik, listing_start.isoformat()))}
-    out, refused = [], []
-    for cls_, o, meta in io:
-        p = priced.get(o.accn)
-        if p is None:                                   # pricing unobservable in V1's inputs: existing behaviour
-            out.append((cls_, o, meta))
+    gates = {}
+    for _cls, o, _meta in io:
+        p_ = priced.get(o.accn)
+        if p_ is None:                                  # pricing unobservable in V1's inputs: existing behaviour
             continue
-        final_accn, final_form, prefunded = p
+        final_accn, final_form, prefunded = p_
         if prefunded:
-            refused.append((cls_, o, f"priced prospectus {final_form} {final_accn} counts pre-funded warrants as shares outstanding"))
-            continue
-        if not o.form.startswith("424B"):
-            f = filings.get(final_accn)
-            pa = (_ts(f["public_at"]) if f else None) or _evidence_public(D, final_accn, o.as_of.isoformat())
-            if pa > o.public_at:
-                o = _dc_replace(o, public_at=pa, tag=f"{o.tag};eligible_from_pricing:{final_accn}")
-        out.append((cls_, o, meta))
-    return out, refused
+            gates[o.accn] = ("REFUSE", f"priced prospectus {final_form} {final_accn} counts pre-funded warrants as shares outstanding",
+                             final_accn)
+        elif not o.form.startswith("424B"):
+            f_ = filings.get(final_accn)
+            pa = (_ts(f_["public_at"]) if f_ else None) or _evidence_public(D, final_accn, o.as_of.isoformat())
+            gates[o.accn] = ("FLOOR", Obs(o.as_of, pa, 1.0, R.IPO_PROSPECTUS, final_accn, final_form).known_from, final_accn)
+    return gates
+
+
+def apply_offering_gates(checked: list, gates: dict) -> list:
+    """The M3 gates on VALIDATED projection states: a FLOOR delays the first close a usable projection may be used
+    (effective_from = max(own, pricing close)); a REFUSE marks it REJECTED_PROJECTION_NOT_COMMON_BASIS."""
+    if not gates:
+        return checked
+    out = []
+    for ch in checked:
+        g = gates.get(ch.obs.accn) if ch.obs.source == R.IPO_PROSPECTUS else None
+        if g is not None and ch.usable:
+            if g[0] == "REFUSE":
+                ch = _dc_replace(ch, status=R.REJ_PROJECTION_NOT_COMMON, note=g[1])
+            elif ch.effective_from is not None and g[1] > ch.effective_from:
+                ch = _dc_replace(ch, effective_from=g[1])
+        out.append(ch)
+    return out
 
 
 def ipo_observations(D: Data, cik: int, filings: dict, listing_start: date) -> tuple[list[tuple], str]:
@@ -779,7 +795,7 @@ def unlisted_split_events(days: list, closes: dict, ledger_splits, counts: list 
 
 
 # ---------------------------------------------------------------- per issuer
-def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None = None) -> dict:
+def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None = None, gates_enabled: bool = True) -> dict:
     iss = D.inp.execute("SELECT name, tickers_json, exchanges_json FROM issuer WHERE cik=?", (cik,)).fetchone()
     current = json.loads(iss[1] or "[]")
     # ⭐ DURABLE IDENTITY (owner decision 2026-10-05, identity_ledger.py): SEC's `tickers` is the CURRENT mapping only. A
@@ -837,14 +853,14 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                                  o.value, None, "not shares", None, None, o.source, o.accn, o.form, o.tag, o.snippet[:400], o.rank,
                                  R.REJ_INVALID_UNIT, "[]", o.confidence, "invalid unit / ADR-member row", build_id))
     ipo_status = "NOT_APPLICABLE"
+    ipo_gates: dict = {}
     lstart = min(l.start for l in listings.values())
     if lstart >= edgar and (first_filing is None or lstart >= first_filing):
         io, ipo_status = ipo_observations(D, cik, filings, lstart)
-        io, refused = offering_eligibility(D, cik, filings, io, lstart)
-        for cls_, o, why in refused:
-            w["observation"].append((None, issuer_id, None, cls_, o.as_of.isoformat(), o.public_at.isoformat(), o.known_from.isoformat(),
-                                     o.value, None, "shares", None, None, o.source, o.accn, o.form, o.tag, o.snippet[:400], o.rank,
-                                     R.REJ_PROJECTION_NOT_COMMON, "[]", o.confidence, why, build_id))
+        ipo_gates = offering_gates(D, cik, filings, io, lstart) if gates_enabled else {}
+        for a_, g_ in sorted(ipo_gates.items()):
+            w["offering_gate"].append((cik, a_, g_[0], g_[1].isoformat() if g_[0] == "FLOOR" else None, g_[2],
+                                       g_[1] if g_[0] == "REFUSE" else None))
         obs += io
 
     # ⭐ SUCCESSOR-ISSUER LINEAGE (owner decision C, lineage.py). Bars before the successor's effective date belong to
@@ -1263,6 +1279,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                                    key=lambda ch: (ch.obs.as_of, -ch.obs.rank, ch.obs.public_at), default=None)
                         if cur_ and cur_.normalized and rcnt * ledger.factor_after(date.fromisoformat(rfd)) >= 3 * cur_.normalized:
                             events.append((kd, R.ISSUANCE_EXCEEDS_STATE, kd))
+                checked = apply_offering_gates(checked, ipo_gates)          # M3: after every validator decision and event
                 tl = timeline(checked, cdays, edgar, events=events)
                 states[c.class_key] = dict(zip(cdays, tl))
                 for ch in checked:
@@ -1432,6 +1449,17 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                                   v_.get("share_ratio"), XSTEP_SEMANTICS,
                                   json.dumps({k_: x_ for k_, x_ in v_.items() if not k_.startswith("_")}, default=str)[:4000]))
     first_val = min(caps) if caps else None
+    # ⭐ M3 GAP-REASON PRECEDENCE (owner ruling 2026-10-05): M3 owns only the holds it CREATES. A day the pre-M3
+    # derivation (this very issuer, gates off, same inputs and confirmed splits) also withholds keeps that derivation's
+    # reason (VS 2021: HISTORICAL_SPLIT_EVIDENCE_UNRESOLVED stays, it is not relabelled IPO_CAPITALIZATION_UNRESOLVED).
+    if gates_enabled and any(g_[0] == "FLOOR" for g_ in ipo_gates.values()):
+        w0 = {t_: [] for t_ in w}
+        r0 = build_issuer(D, cik, build_id, w0, extra_splits=extra_splits, gates_enabled=False)
+        caps0 = {d_ for (_c, d_, _v) in w0["cap_daily"]}
+        rb0 = r0.get("reasons_by_day") or {}
+        for d_ in pdays_all:
+            if d_ not in caps and _i(d_) not in caps0 and rb0.get(d_) and reasons_by_day.get(d_) != rb0[d_]:
+                reasons_by_day[d_] = rb0[d_]
     # write daily output
     for d, v in caps.items():
         w["cap_daily"].append((cik, _i(d), v))
@@ -1460,7 +1488,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                           first_val.isoformat() if first_val else None, pdays_all[-1].isoformat(), len(listed_days), len(valued),
                           len(span), len(span) - len(internal), len(internal), len(unexplained), json.dumps(struct_summary),
                           json.dumps(dict(rc))))
-    return {"cik": cik, "status": "OK", "primary": primary, "valued": len(valued), "listed": len(listed_days), "gaps": gaps}
+    return {"cik": cik, "status": "OK", "primary": primary, "valued": len(valued), "listed": len(listed_days), "gaps": gaps,
+            "reasons_by_day": reasons_by_day}
 
 
 def git_head() -> str:
@@ -1513,7 +1542,7 @@ def main(argv=None) -> int:
     db.executescript(SCHEMA)
     ciks = [int(x) for x in a.ciks.split(",")] if a.ciks else [c for (c,) in D.inp.execute("SELECT cik FROM issuer ORDER BY cik")]
     tables = ("security", "ticker_map", "observation", "state_run", "regime", "cap_daily", "gap_run", "coverage", "econ_request",
-              "split_gap", "lineage_applied", "step_context", "extreme_step", "identity_retention")
+              "split_gap", "lineage_applied", "step_context", "extreme_step", "identity_retention", "offering_gate")
     stat = Counter()
     from .splitev import confirm
     for i, cik in enumerate(ciks):

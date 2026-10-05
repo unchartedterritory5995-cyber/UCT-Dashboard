@@ -477,7 +477,8 @@ class Refresh:
         out["prosp"] = Q.harvest_prosp_windowed(inp, os.path.join(d, "prosp.db"), workers=w)
         # M3: offering status evidence (already-public market statements, pricing, priced composition), from the cache
         out["offering"] = self.cmd(mod("offering_status", "--inputs", inp, "--ipo", os.path.join(d, "ipo.db"),
-                                       "--out", os.path.join(d, "offering.db"), "--workers", w), "harvest.log")
+                                       "--out", os.path.join(d, "offering.db"), "--workers", w,
+                                       "--submissions", os.path.join(self.rdir, "sec", "submissions.zip")), "harvest.log")
         miss = {"covers": Q.missing_after("covers", d, json.load(open(os.path.join(d, "multiclass_ciks.json")))),
                 "text": Q.missing_after("text", d),
                 "ipo": Q.missing_after("ipo", d, json.load(open(os.path.join(d, "ipo_list.json")))),

@@ -12,9 +12,13 @@ new venue proves nothing about the offering, so two facts about the projection's
            NO_MARKET  "there is (currently) no public market for our common stock"
            AMBIGUOUS  both (admitted to quotation, never traded: fail closed -> no M3 effect)
            NONE       neither
-  priced   per projection document of a PUBLIC listing: the FIRST final prospectus (424B1-5) filed on/after it and within
-           30 days of the listing, and whether that priced prospectus states its post-offering capitalization ASSUMING THE
-           EXERCISE of pre-funded warrants (non-common instruments counted as shares outstanding).
+  priced   per projection document of a PUBLIC listing: the SAME OFFERING's pricing -- the first final prospectus (424B1-5)
+           under the SAME registration file number (SEC submissions `fileNumber`, 333-...) filed on/after it and within 30
+           days of the listing -- and whether that priced prospectus states its post-offering capitalization ASSUMING THE
+           EXERCISE of pre-funded warrants (non-common instruments counted as shares outstanding). A final prospectus of
+           another registration (a resale 424B3, another offering) never prices this projection (ACOG 2024: a resale 424B3
+           under 333-282675 is not the pricing of the 333-280196 offering). No file number on either side = the
+           association is unobservable: no row, never "priced".
 
 This module records evidence only; build.py decides eligibility (pricing PIT time through the ordinary acceptance
 authority and Obs.known_from -- one clock). No pricing row = pricing unobservable in V1's inputs, never "no pricing".
@@ -38,7 +42,7 @@ DDL = """
 CREATE TABLE IF NOT EXISTS market(cik INTEGER, listing_start TEXT, accn TEXT, form TEXT, status TEXT, sentence TEXT,
   PRIMARY KEY(cik, listing_start, accn));
 CREATE TABLE IF NOT EXISTS priced(cik INTEGER, listing_start TEXT, proj_accn TEXT, final_accn TEXT, final_form TEXT,
-  prefunded_basis INTEGER, sentence TEXT, PRIMARY KEY(cik, listing_start, proj_accn));
+  prefunded_basis INTEGER, sentence TEXT, file_number TEXT, PRIMARY KEY(cik, listing_start, proj_accn));
 """
 FINAL_FORMS = ("424B1", "424B2", "424B3", "424B4", "424B5")
 HEADS = (8_000_000, 600_000, 350_000, 150_000, 90_000)   # every head size a harvest caches documents under
@@ -96,7 +100,26 @@ def document(cik: int, accn: str, doc: str) -> str:
     return text_of(b)[:900_000] if b else ""
 
 
-def harvest(inputs_db: str, ipo_db: str, out: str, workers: int = 16) -> dict:
+def file_numbers(submissions_zip: str, ciks: set) -> dict[str, str]:
+    """{accession: registration file number} from SEC submissions (every page) for `ciks`."""
+    import zipfile
+    z = zipfile.ZipFile(submissions_zip)
+    names = set(z.namelist())
+    out = {}
+    for cik in ciks:
+        main = f"CIK{cik:010d}.json"
+        if main not in names:
+            continue
+        j = json.loads(z.read(main))
+        for pg in [j["filings"]["recent"]] + [json.loads(z.read(f["name"])) for f in j["filings"].get("files", []) if f["name"] in names]:
+            fnum = pg.get("fileNumber") or [None] * len(pg["accessionNumber"])
+            for a, f in zip(pg["accessionNumber"], fnum):
+                if f:
+                    out[a] = f
+    return out
+
+
+def harvest(inputs_db: str, ipo_db: str, out: str, workers: int = 16, submissions: str | None = None) -> dict:
     inp = sqlite3.connect(f"file:{inputs_db}?mode=ro", uri=True, check_same_thread=False)
     ipo = sqlite3.connect(f"file:{ipo_db}?mode=ro", uri=True)
     projections = ipo.execute("SELECT DISTINCT cik, accn, form, filing_date, listing_start FROM ipo_obs WHERE status IN ('OK','MULTI_CLASS') "
@@ -123,20 +146,29 @@ def harvest(inputs_db: str, ipo_db: str, out: str, workers: int = 16) -> dict:
     public = db.execute("SELECT DISTINCT cik, listing_start FROM market GROUP BY cik, listing_start "
                         "HAVING SUM(status='PUBLIC') > 0 AND SUM(status IN ('NO_MARKET','AMBIGUOUS')) = 0").fetchall()
     n_priced = 0
+    fnums = file_numbers(submissions, {c for c, _s in public}) if submissions else {}
+    unobservable = 0
     for cik, start in public:
         hi = (date.fromisoformat(start) + timedelta(days=30)).isoformat()
         for accn, form, fd in [(a, f, d) for c, a, f, d, s in projections if c == cik and s == start]:
-            fin = inp.execute(f"SELECT accn, form, primary_doc FROM filing WHERE cik=? AND form IN ({','.join('?' * len(FINAL_FORMS))}) "
-                              "AND filing_date BETWEEN ? AND ? ORDER BY public_at, accn LIMIT 1", (cik, *FINAL_FORMS, fd, hi)).fetchone()
+            fn = fnums.get(accn)
+            if not fn:                                     # the offering's registration is unobservable: no association
+                unobservable += 1
+                continue
+            fin = next((r for r in inp.execute(
+                f"SELECT accn, form, primary_doc FROM filing WHERE cik=? AND form IN ({','.join('?' * len(FINAL_FORMS))}) "
+                "AND filing_date BETWEEN ? AND ? ORDER BY public_at, accn", (cik, *FINAL_FORMS, fd, hi)) if fnums.get(r[0]) == fn), None)
             if fin is None:
-                continue                                   # pricing unobservable in V1's inputs: no row, never "no pricing"
+                continue                                   # this offering's pricing is unobservable in V1's inputs
             basis = prefunded_basis(document(cik, fin[0], fin[2])) if fin[2] else None
-            db.execute("INSERT OR REPLACE INTO priced VALUES (?,?,?,?,?,?,?)", (cik, start, accn, fin[0], fin[1], int(bool(basis)), basis))
+            db.execute("INSERT OR REPLACE INTO priced VALUES (?,?,?,?,?,?,?,?)",
+                       (cik, start, accn, fin[0], fin[1], int(bool(basis)), basis, fn))
             n_priced += 1
     db.commit()
     counts = dict(db.execute("SELECT status, COUNT(*) FROM market GROUP BY status").fetchall())
     db.close()
-    return {"projection_documents": len(projections), "market": counts, "public_listings": len(public), "priced": n_priced}
+    return {"projection_documents": len(projections), "market": counts, "public_listings": len(public), "priced": n_priced,
+            "registration_unobservable": unobservable}
 
 
 def main(argv=None) -> int:
@@ -145,8 +177,9 @@ def main(argv=None) -> int:
     ap.add_argument("--ipo", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=16)
+    ap.add_argument("--submissions", help="SEC submissions.zip (registration file numbers: same-offering pricing)")
     a = ap.parse_args(argv)
-    print(json.dumps(harvest(a.inputs, a.ipo, a.out, a.workers)))
+    print(json.dumps(harvest(a.inputs, a.ipo, a.out, a.workers, a.submissions)))
     return 0
 
 
