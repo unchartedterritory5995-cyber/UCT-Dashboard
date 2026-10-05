@@ -147,3 +147,147 @@ The one: `iteratorGlobalFloor` "every built asset is clear", `Test timed out in 
 shared, loaded box. The same file alone, same tree: `Tests  9 passed (9)` (1.97 s). W14-0's
 record (section 5) already lists this exact case among the load-sensitive timeouts. Not banked as
 permitted breakage: it is a timeout, and it passes alone.
+
+## Round 2 (perf + B1/B2/B3, the rails, the byte gate, the sample trade)
+
+### R2.1 Merges (one merge commit per lane, in this order)
+
+| commit | lane | tip merged | conflicts and resolution |
+|---|---|---|---|
+| `b183d69a2f` | W14-perf first-open byte fix | `6c6c1e9a41` | `ResearchHome.jsx` imports and lazy consts: kept A's `useId`, the checklist imports and lazy `CapabilityPreview`; took perf's `importWithOneRetry`, lazy `ReportingSoon`, `loadReviewDrafts` and the `reviewDraftsFlag` import. Every other `reviewDrafts` importer still resolves through the re-export. |
+| `7ad9f80da7` | W14-B1 core tours (7) | `80d6896347` | none |
+| `3cfc67ed45` | W14-B2 trading tours (6) | `d748cb5eac` | `ResearchHome.jsx`: perf's lazy `(m) => m.draft*()` calls kept, B2's three `review-drafts-*` anchors added on them. `tours/index.js`: both spreads. Both rails: see R2.2. |
+| `b49fec4299` | W14-B3 research tours (7) | `7a9c6c0c3c` | `tours/index.js`: spreads in order b1Core, b2Trading, b3Research. `tourRegistry.test.js`: B3's form committed in the merge, reconciled in the next commit. |
+
+### R2.2 The rail reconciliation (`65e4910697`)
+
+The three lanes edited the same two W14-0 rails differently. One version now keeps every lane's
+legitimate case and still fails on a real defect:
+
+- **Shape** (`tourRegistry.test.js`): B1 and B2 hard-coded `k !== 'start'`; B3 read the module's
+  `OPTIONAL_FIELDS`. Kept B3's (the module is the one authority, the same list
+  `assembleRegistry` throws on), and pinned it: a new test asserts `OPTIONAL_FIELDS` is exactly
+  `['start']`, so widening it is a visible edit and never a silent way past the shape check. A
+  declared `start` must sit under `NOTEBOOK_ROOT`.
+- **Replayable** (B3's case): a non-replayable entry must be the 1-2 step passive explainer
+  (`note-resurfaces` today, pinned as the non-vacuity case), never a hidden stepper.
+- **Orphan anchors** (`tourAnchors.test.js`): B1 accepted any anchor some registered tour names,
+  in any file; B2 accepted it only when a step names it IN THAT FILE. Took B2's per-file form
+  (strictly stronger; B1's case still passes because B1's own steps name their files), computed
+  once at module level for the base tour plus every registered tour. Offenders are now named in
+  the failure message.
+- **Step budget, new** (plan G2, section 4.2 row 21): a replayable tour has 3-6 steps, a
+  `replayable:false` explainer 1-2. The base tour (wave 8, 8 steps, held to zero drift by
+  reference equality) is the one exception, by id. Fails listing every offender by name, with
+  edge controls (2, 3, 6, 7 for a tour; 0, 2, 3 for an explainer).
+
+Today's registry: 21 entries; 20 budgeted tours of 3-6 steps plus `note-resurfaces` (2 steps,
+explainer), plus the base tour.
+
+Mutation proof (each applied by text, the two rail files run, restored by re-applying text, sha
+checked):
+
+| # | mutation | result |
+|---|---|---|
+| M1 | `OPTIONAL_FIELDS = ['start', 'foo']` | 1 failed: "`start` is the ONLY optional field" |
+| M2 | stray `data-tour="zzz-stray"` in `NoteEditorPage.jsx` | 1 failed: orphan check |
+| M3 | `data-tour="review-drafts-daily"` (declared for `ResearchHome.jsx`) in `NoteEditorPage.jsx` | 1 failed: names `NoteEditorPage.jsx: review-drafts-daily` (B1's form would have passed it) |
+| M4 | `data-tour={"x"}` (an expression) in `NoteEditorPage.jsx` | 1 failed: orphan check |
+| M5 | `chart-plan-basics` given a 7th step | 1 failed: "chart-plan-basics: 7 steps; a replayable tour must have 3-6" |
+| M6 | `passed-setups` cut to 2 steps | 1 failed: step budget |
+| M7 | `note-resurfaces` made replayable | 3 failed: explainer pin, non-vacuity, step budget |
+| M8 | `passed-setups` made non-replayable | 2 failed: explainer pin, step budget |
+
+Control: `Tests 74 passed (74)` on the two files before and after; every restore `restored=True`.
+
+### R2.3 Byte gate
+
+Exactly as `wave14-perf.md`: `npm run build` in `app/`, then
+`python tools/notebook_perf_budgets.py --dist app/dist` from the repo root, at `8778311e0c`:
+
+```
+bytes.notebook_first_open: 2,247,079 B across 66 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+Exit 0, 13,714 B under, budget unchanged (same reading after the merges and after the sample
+change). Perf's own after-reading was 2,240,291 B; the 6,788 B the integration adds over it is
+A/D's eager gate and slot plus the registry's eager track lists (each tour's steps and copy stay
+behind its `load()`). Nothing needed moving.
+
+### R2.4 The sample trade (W14-E): no longer seeded
+
+**Verdict: exclusion could not be made airtight, so the trade is gone; the example notes stay.**
+W14-E seeded a closed AAPL trade through `trades.create_trade_manual` into `j2_trades` with no
+sample marker, plus a frozen `j2_entry_context` row. `j2_trades` is read by about 60 modules
+under `api/` with raw SQL (analytics, calendar, tax report, the export route, playbook and setup
+stats, discipline, overview, books audit, verdict scorecard, excursions, Compass, community, the
+public track record, broker reconcile, push, voice tools ...). There is no single read path to
+filter a flag at, and every future query would be another place to forget it. Commit
+`8778311e0c`:
+
+- `sample_examples.seed` writes no trade, no position and no entry context. The entry-context
+  row went too: that table is keyed by (member, symbol, day), so a real AAPL trade on the same
+  day would have read the sample's fabricated context and been blocked from freezing its own.
+- The trade-plan note stays (chart, drawn entry/stop/target, frozen fingerprint), unlinked; its
+  copy now says no trade was added and that linking one of the member's own trades is what
+  earns a grade. Being untraded, it also shows on the setups board, which is truthful.
+- `remove()` keeps its trade and entry-context branches for a preference written by the earlier
+  version (it never shipped; dev boxes only).
+- Promotion copy (`capabilityList.js` `sampleTail`): "puts example notes in their own folder,
+  plus one example passed setup and one example notice. It adds no trades. You can remove it
+  all in one click."
+
+Rails, `tests/test_sample_notebook_trade_exclusion.py` (34 tests):
+
+- **Census**: after a seed, every table holding a row for the member is on a note-side
+  allowlist, and no table whose name says trade, position, option, strategy, execution, fill,
+  broker, equity, excursion, verdict, plan_grade, entry_context, review, day_note, discipline or
+  intervention holds one. Control: a real trade shows up in the census.
+- **Per consumer class**, the real read function before and after a seed, compared exactly (only
+  `id`, `ts`, `now`, `as_of` and `*_at` keys dropped): trade log, export route (JSON), analytics
+  (P&L stats and equity curve), calendar P&L, tax report, overview, playbook stats, setup stats,
+  discipline, verdict scorecard, books audit, Compass weekly data, excursions, community trader
+  summaries, community shared trades, and the public track record. Control: one real trade
+  changes 11 of them (discipline is left out with its reason: one winning trade correctly
+  leaves it unchanged).
+- **Remove**: no sample note, passed setup or trade left; and a legacy preference naming a real
+  trade gets that trade deleted.
+- **Book and UCT20**: `modelbook_service.py` and `uct20_nav.py` reference no j2 trade table.
+- **Copy**: the promotion says "no trades".
+
+Mutation: re-seeding a trade in `seed()` reds 11 of them (census, 9 consumers, the public track
+record, the legacy remove); restore sha-verified.
+
+`test_sample_notebook.py` and `test_sample_notebook_examples.py` were updated to the new
+contract (their plan-grading, entry-context and playbook n=1 assertions asserted the
+contamination). The ledger prose in `doorEnumeration.test.js` was updated to match. Section 4's
+open copy question is closed by this.
+
+### R2.5 Counts (copied)
+
+At `8778311e0c`, `app/dist` built:
+
+- `npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=2`:
+  `Test Files  1 failed | 623 passed (624)`, `Tests  7875 passed | 1 skipped (7876)`, exit 1.
+  The one file is `a11y/researchCapture.a11y.test.jsx`, which failed to LOAD with
+  `Error: ENOSPC: no space left on device, write` (C: was at 98%, 9.5 GB free); no test in it ran
+  and no test anywhere failed. Alone, same tree: `Test Files  1 passed (1)`, `Tests  6 passed (6)`.
+  Environment, not code.
+- `npx vitest run src/pages/journal-2-0/tabs src/pages/journal-2-0/JournalLayout --maxWorkers=2`
+  (the JournalLayout tests live beside it; there is no `src/layouts`):
+  `Test Files  36 passed (36)`, `Tests  391 passed (391)`, exit 0.
+- Pytest, one run of 17 files (section 6's 14 plus `sample_notebook_trade_exclusion`,
+  `notebook_perf_budgets`, `notebook_perf_scale_w10`): `882 passed`, exit 0.
+
+### R2.6 Open items
+
+- The machine's C: drive is at 98%; a full vitest run can hit ENOSPC mid-run. Free space before
+  the next gate.
+- The sample's resurfacing notice is a `voice_proactive_insights` row at importance 8 (Compass
+  inbox, Dashboard "Compass noticed"). It is not a trade statistic and Remove dismisses it, but
+  it is the one example that surfaces outside the Notebook; worth a look before arming.
+- `entry_context.freeze_static` (added by W14-E) now has no caller in the seed; its own tests
+  remain. Delete or keep is a W14-E owner call.
+- Flipping on is unchanged: `NOTEBOOK_GETTING_STARTED_ENABLED` arms the checklist, preview and
+  promotion together; each tour rides its own capability flag.
