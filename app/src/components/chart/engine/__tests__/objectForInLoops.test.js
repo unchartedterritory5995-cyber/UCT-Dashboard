@@ -758,12 +758,15 @@ describe('⛔ C40 — the cap `while`: what is not a cap, and what a cap cannot 
     expect(diag(t).collsDivergedWhy).toEqual(['ls: loop:bounds@9'])
   })
 
+  // ⚰️ H7 (step 92h): this rail's window was EMPTY (`array.max` of an empty int window),
+  // and CAP4 Q-RT7a measured that as `na` — no longer unmeasured. A real + `na` MIX is
+  // what stays withheld until the window is full, so the rail now reads one.
   it('a bound that reads an UNMEASURED window reduction withholds the loop on that bar (C11c)', () => {
-    // `array.max(w)` over an empty window is unmeasured; the cap may not run off it
+    // `array.max(w)` over a real + `na` mix is unmeasured; the cap may not run off it
     const t = tr([
-      'var int[] w = array.new_int()',
-      'if bar_index > 5 and close > open',
-      '    w.push(2)',
+      'var float[] w = array.new_float()',
+      'if bar_index > 5',
+      '    w.push(close > open ? 2.0 : na)',
       'if w.size() > 3',
       '    w.shift()',
       'var label[] lbs = array.new_label()',
@@ -779,6 +782,26 @@ describe('⛔ C40 — the cap `while`: what is not a cap, and what a cap cannot 
     expect(r.stats.withheldUnknown).toBeGreaterThan(0)
     // ⛔ nothing is drawn off a list whose length this run cannot know
     expect(r.live).toEqual([])
+  })
+
+  it('⭐ H7 — a bound over an EMPTY window reads the measured `na` (CAP4 Q-RT7a): `size > na` is false, so nothing is withheld', () => {
+    const t = tr([
+      'var int[] w = array.new_int()',
+      'if bar_index > 5 and close > open',
+      '    w.push(2)',
+      'if w.size() > 3',
+      '    w.shift()',
+      'var label[] lbs = array.new_label()',
+      'array.push(lbs, label.new(bar_index, high, str.tostring(bar_index)))',
+      'while array.size(lbs) > array.max(w)',
+      '    label.delete(array.shift(lbs))',
+    ])
+    const [loop] = loops(t)
+    expect(loop.cond).toBeTruthy()
+    const r = run(t)
+    expect(r.stats.withheldUnknown || 0).toBe(0)
+    // labels pile up while the window is empty; once it holds a 2, the loop trims to 2
+    expect(bornAt(r, 'label')).toEqual([N - 2, N - 1])
   })
 })
 

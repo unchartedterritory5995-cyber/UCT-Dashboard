@@ -1,0 +1,53 @@
+[
+  {
+    "viewport": "320",
+    "window_innerWidth": 320,
+    "window_innerHeight": 760,
+    "dropdown_box": {
+      "x": 12,
+      "y": 45.5,
+      "width": 296,
+      "height": 107.78125
+    },
+    "right_edge": 308,
+    "overflow_right_px": -12,
+    "overflow_left_px": -12,
+    "fully_inside_viewport": true,
+    "screenshot": "bell-open-320px.png",
+    "measured_at": "2026-10-04T10:56:58-0500"
+  },
+  {
+    "viewport": "390",
+    "window_innerWidth": 390,
+    "window_innerHeight": 844,
+    "dropdown_box": {
+      "x": 58,
+      "y": 45.5,
+      "width": 320,
+      "height": 107.78125
+    },
+    "right_edge": 378,
+    "overflow_right_px": -12,
+    "overflow_left_px": -58,
+    "fully_inside_viewport": true,
+    "screenshot": "bell-open-390px.png",
+    "measured_at": "2026-10-04T10:57:03-0500"
+  },
+  {
+    "viewport": "820",
+    "window_innerWidth": 820,
+    "window_innerHeight": 1180,
+    "dropdown_box": {
+      "x": 488,
+      "y": 45.5,
+      "width": 320,
+      "height": 107.78125
+    },
+    "right_edge": 808,
+    "overflow_right_px": -12,
+    "overflow_left_px": -488,
+    "fully_inside_viewport": true,
+    "screenshot": "bell-open-820px.png",
+    "measured_at": "2026-10-04T10:57:07-0500"
+  }
+]

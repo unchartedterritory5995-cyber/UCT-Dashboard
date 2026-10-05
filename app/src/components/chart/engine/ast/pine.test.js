@@ -578,9 +578,9 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // REPLACE not-computable, while a bare `na` is a literal this table has no
     // spelling for. Collapsing all three into one refusal is what made the
     // distinction invisible for as long as it was.
-    ['fixnan, which carries a value forward across bars with no stated bound',
-      '//@version=5\nindicator("t")\nplot(fixnan(ta.sma(close, 5)))\n',
-      'pine:na', 3, 6, 'fixnan'],
+    // ⚰️ `fixnan` WAS HERE (`pine:na`, "carries a value forward with no stated bound").
+    // H7 (step 92h): CAP4 Q-RT7b measured it as `ta.valuewhen(not na(x), x, 0)` per call
+    // site, and the host lane serves it so (`valuewhenOccurrence`) - pinned below.
     ['a text value',
       '//@version=5\nindicator("t")\nplot(close > 0 ? "up" : "down")\n',
       'pine:text-value', 3, 18, 'up'],
@@ -801,6 +801,13 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
       const r = refusalOf('//@version=5\nindicator("t")\nplot(zzNotARealName)\n')
       expect(r.guard).toBe('pine:undefined')
     })
+  })
+
+  it('⭐ H7 — fixnan is served as the measured `ta.valuewhen(not na(x), x, 0)` (CAP4 Q-RT7b), no longer pine:na', () => {
+    const out = translatePine('//@version=5\nindicator("t")\nplot(fixnan(ta.sma(close, 5)))\n')
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[0].formula).toMatch(/^valuewhenOccurrence\(/)
+    expect(out.outputs[0].formula).toMatch(/sma\(close, 5\)/)
   })
 
   for (const [label, script, guard, line, column, token] of CASES) {

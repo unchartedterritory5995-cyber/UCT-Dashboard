@@ -292,7 +292,12 @@ describe('TERM-037 — the binding pin, extended to the whole panel set', () => 
   })
 })
 
-describe('TERM-037 — INERT: nothing mounts the surface panels yet', () => {
+// ⚰️ Until 2026-10-02 this describe asserted that NOTHING imported panelSet.js (INERT). The
+// UCT Terminal shell now mounts surface panels through ONE door, so the rail became: exactly
+// that door imports it, and no second consumer appears without this rail moving too.
+const MOUNT_DOORS = ['pages/terminal/surfacePanels.js']
+
+describe('TERM-037 — MOUNTED THROUGH ONE DOOR: the terminal shell, and nothing else', () => {
   function stripComments(src) {
     return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
   }
@@ -309,14 +314,15 @@ describe('TERM-037 — INERT: nothing mounts the surface panels yet', () => {
     return acc
   }
 
-  it('no production file outside src/surfaces imports panelSet.js', () => {
-    const offenders = walkFiles(SRC)
+  it('the only production importer outside src/surfaces is the terminal\'s surface door', () => {
+    const importers = walkFiles(SRC)
       .filter((f) => !f.startsWith(path.join(SRC, 'surfaces')))
       .filter((f) => importsPanelSet(fs.readFileSync(f, 'utf8')))
+      .map((f) => path.relative(SRC, f).split(path.sep).join('/'))
     expect(
-      offenders.map((f) => path.relative(SRC, f)),
-      'the surface panels are declared, not mounted — an importer means the mount half shipped',
-    ).toEqual([])
+      importers.sort(),
+      'a second consumer of the surface panels is a second panel vocabulary — route it through the door',
+    ).toEqual([...MOUNT_DOORS].sort())
   }, 60_000)
 
   it('CONTROL: the import check sees a real import and ignores a commented one', () => {

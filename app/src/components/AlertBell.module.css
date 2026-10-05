@@ -221,9 +221,12 @@
   margin-top: 2px;
 }
 
-@media (max-width: 640px) {
-  .dropdown {
-    width: min(320px, calc(100vw - 24px));
-    right: -40px;
-  }
-}
+/* ⚰️ A phone-only override once restated this same width and pushed the panel
+   off-screen with `right: -40px` — the bell is the rightmost item in
+   MobileNav's top bar, so a negative right offset extends the dropdown
+   PAST the viewport's right edge instead of staying inside it. The base
+   `.dropdown` rule above (`right: 0` + `width: min(320px, calc(100vw -
+   24px))`) is already viewport-safe at every width from 320px up — it needs
+   no phone-only override. Do not reintroduce one; see
+   `AlertBell.dropdownOverflow.test.js` for the rail that fails on the old
+   value. */

@@ -148,6 +148,10 @@ _MIGRATIONS: list[tuple[str, str]] = [
     # (delivered_at/delivery_attempts/delivery_channels), so read_at extends
     # an existing pattern rather than breaking a true immutability guarantee.
     ("add_alert_fires_read_at", "ALTER TABLE alert_fires ADD COLUMN read_at REAL"),
+    # FT-035 per-alert lifecycle: an optional expiry. Past it, the lifecycle
+    # job SUSPENDS the predicate (suspended_at), never deletes it -- the same
+    # never-deleted rule as a member's own suspend (PRD §8).
+    ("add_alert_predicates_expires_at", "ALTER TABLE alert_predicates ADD COLUMN expires_at REAL"),
 ]
 
 

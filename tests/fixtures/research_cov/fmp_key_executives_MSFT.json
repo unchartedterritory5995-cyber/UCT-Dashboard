@@ -1,0 +1,102 @@
+[
+ {
+  "title": "Corporate Vice President & Chief Accounting Officer",
+  "name": "Alice L. Jolla",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1966,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Executive Vice President & Chief Financial Officer",
+  "name": "Amy E. Hood",
+  "pay": 4444191,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1972,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Vice President of Investor Relations",
+  "name": "Jonathan Neilson",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": null,
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "President & Vice Chairman",
+  "name": "Bradford L. Smith",
+  "pay": 4532750,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1959,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Corporate Vice President & Chief Legal Officer",
+  "name": "Jonathan Palmer",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Chief Technology Officer & Corporate Vice President of Worldwide Sales and Solutions",
+  "name": "Matthew Kerner",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Chairman & Chief Executive Officer",
+  "name": "Satya Nadella",
+  "pay": 12251294,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1967,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Executive Vice President & Chief Marketing Officer",
+  "name": "Takeshi Numoto",
+  "pay": 2871250,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1971,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Executive Vice President & Chief Operating Officer",
+  "name": "Carolina Dybeck Happe",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1972,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Executive Vice President & Chief Executive Officer of Commercial Business",
+  "name": "Judson Althoff",
+  "pay": 4490115,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1973,
+  "titleSince": null,
+  "active": true
+ }
+]

@@ -320,15 +320,25 @@ describe('⭐⭐ C22 — a reduction read only in a VALUE marks that value, and 
     const got = r.live.filter((o) => o.family === 'label').sort((a, b) => a.createdBar - b.createdBar)
       .map((o) => [o.createdBar, o.props.text])
     expect(got).toEqual(want)
-    // non-vacuity: the early creates DID read an empty window
-    expect(r.stats.propsUnmeasured).toBeGreaterThan(10)
+    // non-vacuity: the early creates DID read an empty window (bars 0-20 never push).
+    // ⚰️ H7 (step 92h): that read is the MEASURED `na` now (CAP4 Q-RT7a), so nothing
+    // is marked unmeasured; the control below shows the text it carried.
+    expect(want.filter(([i]) => i <= 20).length).toBe(21)
+    expect(r.stats.propsUnmeasured || 0).toBe(0)
   })
 
-  it('⛔ CONTROL — without the clean write, a label made off the empty window is held, not drawn', () => {
+  // ⚰️ H7 (step 92h): WAS "a label made off the empty window is held, not drawn". An
+  // empty window's average is the measured `na` (CAP4 Q-RT7a), and `str.tostring(na)`
+  // prints `NaN` (strTostringFormat.vendor), so those labels are DRAWN with that text.
+  it('⛔ CONTROL — without the clean write, a label made off the empty window is drawn at the measured `na` ("avg NaN")', () => {
     const t = tr(SET.filter((l) => !l.includes('set_text')))
     const r = run(t)
-    const drawn = r.live.filter((o) => o.family === 'label').map((o) => o.createdBar)
-    expect(drawn.filter((b) => b <= 20)).toEqual([])
-    expect(drawn.length).toBeGreaterThan(10)
+    const made = r.live.filter((o) => o.family === 'label').sort((a, b) => a.createdBar - b.createdBar)
+    const early = made.filter((o) => o.createdBar <= 20)
+    expect(early.map((o) => o.createdBar)).toEqual(Array.from({ length: 21 }, (_, i) => i))
+    for (const o of early) expect(o.props.text).toBe('avg NaN')
+    // after the first push the average is real
+    expect(made.filter((o) => o.createdBar > 20).every((o) => /^avg \d/.test(o.props.text))).toBe(true)
+    expect(made.length).toBeGreaterThan(30)
   })
 })

@@ -207,6 +207,43 @@ def get_timed_transcript(sym: str, year: Optional[int] = None,
     return out
 
 
+def event_meta(sym: str, year: Optional[int] = None,
+               quarter: Optional[int] = None) -> Optional[dict]:
+    """One published event's metadata (incl. `conference_date`), cached.
+
+    D-5 (call replay) needs the call's START TIME to place the recording's
+    word timings on the tape. It reads the same `/events` list `latest_event`
+    already reads. None when uncovered or the event is not on the list.
+    `year`/`quarter` omitted = the newest published event."""
+    sym = (sym or "").upper().strip()
+    if not sym or not enabled():
+        return None
+    ck = f"ec_event::{sym}::{year or 'latest'}::{quarter or ''}"
+    hit = _cache().get(ck)
+    if hit is not None:
+        return None if hit == "__null__" else hit
+    ex = _exchange_for(sym)
+    if not ex:
+        return None
+    try:
+        data = _get("/events", {"exchange": ex, "symbol": sym})
+    except Exception as exc:
+        _log.debug("[ec] events failed for %s: %s", sym, exc)
+        return None          # a failure is not cached as "no event"
+    events = [e for e in ((data or {}).get("events") or []) if e.get("is_published")]
+    events.sort(key=lambda e: (e.get("year") or 0, e.get("quarter") or 0), reverse=True)
+    if year is not None and quarter is not None:
+        events = [e for e in events if e.get("year") == year and e.get("quarter") == quarter]
+    if not events:
+        _cache().set(ck, "__null__", _TTL_MISS)
+        return None
+    top = events[0]
+    out = {"exchange": ex, "year": top.get("year"), "quarter": top.get("quarter"),
+           "conference_date": top.get("conference_date")}
+    _cache().set(ck, out, _TTL_HIT)
+    return out
+
+
 def _audio_url(sym: str, year: int, quarter: int, exchange: str) -> str:
     """PRIVATE — carries the API key. Never return this to a client."""
     from urllib.parse import urlencode

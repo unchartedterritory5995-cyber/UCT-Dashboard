@@ -1,0 +1,116 @@
+import useSWR from 'swr'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import styles from './OptionsChainTab.module.css'
+
+// RM-L01 (IV-history half) + RM-L02 (BRK-10 first slice): IV history read ONLY from our own
+// options log (api/services/research/iv_history.py). Massive sells no IV history, so this is
+// what the log has recorded forward since it began -- and it says exactly that.
+//
+// ⛔ DARK: both endpoints answer 404 until IV_HISTORY_ENABLED is set, and a 404 renders NOTHING.
+// ⛔ Every point is printed with its date and the days-to-expiry it was read at.
+// ⛔ No rank below 20 sessions and no calibration below 4 prints: the server's sentence is shown
+//    in their place, never a number.
+// ⛔ Polling: none. The log grows once a trading day; bare useSWR with no refreshInterval.
+
+const KNOWN = new Set(['ok', 'not_in_log', 'no_log'])
+const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
+const num = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d))
+
+function Spark({ points }) {
+  const ivs = points.map((p) => p.atm_iv)
+  if (ivs.length < 2) return null
+  const lo = Math.min(...ivs)
+  const hi = Math.max(...ivs)
+  const W = 320
+  const H = 60
+  const x = (i) => (i / (ivs.length - 1)) * (W - 8) + 4
+  const y = (v) => (hi === lo ? H / 2 : H - 4 - ((v - lo) / (hi - lo)) * (H - 8))
+  return (
+    <svg className={styles.payoffChart} viewBox={`0 0 ${W} ${H}`} role="img" data-testid="iv-spark"
+      aria-label={`ATM IV from ${points[0].date} to ${points[points.length - 1].date}`}>
+      <polyline className={styles.payoffLine} fill="none" points={ivs.map((v, i) => `${x(i)},${y(v)}`).join(' ')} />
+    </svg>
+  )
+}
+
+function ImpliedVsRealized({ sym }) {
+  const { data, error } = useSWR(`/api/research/iv-history/${encodeURIComponent(sym)}/implied-vs-realized`,
+    sectionFetcher, { revalidateOnFocus: false })
+  if (error || !data || data.paywalled || !Array.isArray(data.prints)) return null
+  const shown = data.prints.filter((p) => p.implied_move_pct != null || p.note)
+  return (
+    <div data-testid="ivr">
+      <div className={styles.volHead}>Implied vs realized move at earnings (our log)</div>
+      {shown.length > 0 && (
+        <ul className={styles.volList} data-testid="ivr-prints">
+          {shown.map((p) => (
+            <li key={p.report_date}>
+              {p.report_date}: implied {p.implied_move_pct == null ? '—' : `±${num(p.implied_move_pct, 2)}%`}
+              {' '}(close {p.pre_print_session}), realized {p.realized_move_pct == null ? '—' : `${num(p.realized_move_pct, 2)}%`}
+              {p.ratio != null ? ` · ${num(p.ratio, 2)}× implied` : ''}
+              {p.note ? <span className={styles.muted}> — {p.note}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {data.calibration ? (
+        <p className={styles.payoffFacts} data-testid="ivr-calibration">
+          Across {data.calibration.prints} prints the realized move averaged {num(data.calibration.mean_ratio, 2)}× the
+          implied move, and landed inside it {num(data.calibration.inside_share, 0)}% of the time.
+        </p>
+      ) : (
+        <p className={styles.note} data-testid="ivr-note">{data.calibration_note}</p>
+      )}
+      <p className={styles.muted}>{data.method}</p>
+    </div>
+  )
+}
+
+export default function IvHistoryPanel({ sym }) {
+  const s = (sym || '').toUpperCase().trim()
+  const key = s ? `/api/research/iv-history/${encodeURIComponent(s)}` : null
+  const { data, error } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
+
+  if (!key || error?.status === 404 || data?.paywalled) return null
+  if (error) {
+    return <div className={styles.note} data-testid="iv-history-unavailable">
+      The IV history is unavailable right now. That does not mean {s} has none.
+    </div>
+  }
+  if (!data || !KNOWN.has(data.status)) return null
+
+  const withIv = (data.points || []).filter((p) => p.atm_iv != null)
+  const last = withIv[withIv.length - 1]
+  return (
+    <section className={styles.payoff} data-testid="iv-history">
+      <div className={styles.volHead}>IV history (our own options log)</div>
+      {data.status === 'no_log' && <p className={styles.note}>The options log holds no sessions yet.</p>}
+      {withIv.length > 0 && (
+        <>
+          <p className={styles.payoffFacts} data-testid="iv-latest">
+            ATM IV {pct(last.atm_iv)} on {last.date} ({last.atm_dte} days to expiry)
+          </p>
+          <Spark points={withIv} />
+          <ul className={styles.volList} data-testid="iv-points">
+            {withIv.slice(-10).reverse().map((p) => (
+              <li key={p.date}>{p.date}: {pct(p.atm_iv)} at {p.atm_dte} DTE{p.rule !== 'closest-30' ? ' (first-run rule)' : ''}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className={styles.payoffFacts} data-testid="iv-rank">
+        {data.rank
+          ? `IV rank ${num(data.rank.iv_rank, 0)} · IV percentile ${num(data.rank.iv_percentile, 0)} over ${data.rank.window_sessions} sessions`
+          : `IV rank: ${data.rank_note}`}
+      </p>
+      <p className={styles.muted} data-testid="iv-coverage">
+        {data.logging_began ? `Logging began ${data.logging_began}` : 'Logging has not begun'}
+        {data.covers_from ? `; ${s} covered from ${data.covers_from}` : ''}
+        {data.covers_to ? ` to ${data.covers_to}` : ''}.
+        {data.partial && (data.partial_reasons || []).length > 0 ? ` Partial: ${data.partial_reasons.join(' ')}` : ''}
+      </p>
+      {data.status !== 'no_log' && <ImpliedVsRealized sym={s} />}
+      <p className={styles.muted}>{data.method} Source: {data.source}.</p>
+    </section>
+  )
+}

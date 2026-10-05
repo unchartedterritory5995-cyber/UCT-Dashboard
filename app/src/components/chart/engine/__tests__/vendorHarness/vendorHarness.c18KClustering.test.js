@@ -70,7 +70,11 @@ describe('⭐ C18 — k-clustering', () => {
       // ⭐ RT10 (2026-10-04): `LOOP_ITERATIONS` is now a PER-BAR ceiling held just under
       // what `INSTRUCTIONS_PER_BAR` allows (`limits.js`), so a test that raises the bar's
       // instructions raises the bar's loop passes with it.
-      const budget = new Budget({ INSTRUCTIONS_PER_BAR: 2000000, TOTAL_INSTRUCTIONS: 20000000, LOOP_ITERATIONS: 2000000 })
+      // ⭐ RT17 (2026-10-04): the same for the per-bar WORK limits (`PER_BAR_CHARGED`):
+      // the last bar's whole run of the clustering takes more array operations and
+      // calls than one product bar allows, and past `INSTRUCTIONS_PER_BAR` first.
+      const budget = new Budget({ INSTRUCTIONS_PER_BAR: 2000000, TOTAL_INSTRUCTIONS: 20000000, LOOP_ITERATIONS: 2000000,
+        ARRAY_OPERATIONS: 2000000, CALL_COUNT: 2000000 })
       budget.unmeasured = { ...probe, hits: [] }
       const res = execute(program, {
         bars: bars.length, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t),
@@ -85,9 +89,16 @@ describe('⭐ C18 — k-clustering', () => {
     expect(a.budget.counts.LOOP_ITERATIONS).toBe(22820)
     expect(a.budget.counts.LOOP_ITERATIONS).toBeGreaterThan(DEFAULT_LIMITS.LOOP_ITERATIONS)
     expect(a.budget.counts.INSTRUCTIONS_PER_BAR).toBeGreaterThan(DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR)
-    // the empty clusters (k = 3 of 6) are averaged on every pass: the probe runs
-    // agree everywhere, so no served value depends on what Pine answers there
-    expect(a.budget.unmeasured.hits.length).toBeGreaterThan(0)
+    // ⭐ RT17 — the same bar's array operations and calls, measured: past one product
+    // bar's ceiling too, and only on the bar `INSTRUCTIONS_PER_BAR` already stops.
+    expect(a.budget.counts.ARRAY_OPERATIONS).toBe(11718)
+    expect(a.budget.counts.CALL_COUNT).toBe(11550)
+    expect(a.budget.counts.ARRAY_OPERATIONS).toBeGreaterThan(DEFAULT_LIMITS.ARRAY_OPERATIONS)
+    // the empty clusters (k = 3 of 6) are averaged on every pass. ⭐ H7 (step 92h) —
+    // that answer is MEASURED now (`array.avg` of an empty array is `na`, CAP4
+    // Q-RT7a), so it no longer takes the probe: no hit, and the two runs agree
+    // everywhere because nothing in them is unknown.
+    expect(a.budget.unmeasured.hits).toEqual([])
     const last = bars.length - 1
     const value = (res, k) => res.outputs[built.objectAtOutputs[k]][last]
     const vals = rt.at.map((_, k) => value(a.res, k))

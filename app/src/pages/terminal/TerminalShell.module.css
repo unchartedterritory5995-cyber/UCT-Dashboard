@@ -1,0 +1,801 @@
+/* UCT Terminal shell. Canonical breakpoints only (640 / 1024, styles/breakpoints.css).
+ * Every finger target declared on the phone is declared on the whole touch tier too
+ * (styles/tapFloor.test.js): the floor is `--tap-min` at <=1024px, never phone-only. */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: 0;
+}
+
+.cmdWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  padding: 0 var(--space-xs) 0 var(--space-sm);
+}
+
+.cmdWrap:focus-within {
+  border-color: var(--accent);
+}
+
+/* T3: the column that holds the interpreted-parse echo ABOVE the input (IA §7.4). */
+.cmdBlock {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+.echo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-height: 16px;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.echo:empty {
+  min-height: 0;
+}
+
+.echoText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.echoShape {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  color: var(--text-faint, var(--text-muted));
+}
+
+.echo_ok { color: var(--text); }
+.echo_ask { color: var(--accent); }
+.echo_warn { color: var(--warn, #f59e0b); }
+.echo_error { color: var(--danger, #f87171); }
+
+.helpTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.helpTable td,
+.helpTable th {
+  padding: 2px var(--space-sm) 2px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.helpRule {
+  margin: var(--space-xs) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.rowNum {
+  min-width: 2ch;
+  color: var(--text-faint, var(--text-muted));
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.cmdPrompt {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.cmdInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-bright, var(--text));
+  font-family: var(--font-mono);
+  font-size: var(--text-md, 14px);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cmdGo,
+.barBtn {
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.barBtnOn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.counts {
+  display: flex;
+  gap: var(--space-xs);
+  flex: 0 0 auto;
+}
+
+.suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown, 50);
+  margin: 0;
+  padding: var(--space-xs) 0;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.suggestRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 30px;
+  padding: 0 var(--space-sm);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestOn,
+.suggestRow:hover {
+  background: var(--bg-hover);
+}
+
+.suggestLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary, var(--text-muted));
+}
+
+.suggestKind {
+  color: var(--text-faint, var(--text-muted));
+  font-size: var(--text-xs);
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--info-bg, var(--bg-surface));
+  font-size: var(--text-sm);
+}
+
+.noticeError {
+  background: var(--warn-bg, var(--bg-surface));
+}
+
+.noticeSuggest {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.chip,
+.noticeClose {
+  min-height: 26px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.noticeClose {
+  margin-left: auto;
+  border-radius: var(--radius-sm);
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.rail {
+  flex: 0 0 196px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: var(--space-xs) 0;
+}
+
+.railSection,
+.railSectionPrimary {
+  padding: var(--space-xs) 0;
+}
+
+.railSectionPrimary {
+  border-bottom: 1px solid var(--border);
+}
+
+.railHead {
+  padding: var(--space-xs) var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide, 0.06em);
+  text-transform: uppercase;
+}
+
+.railItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 28px;
+  padding: 0 var(--space-md);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.railItem:hover {
+  background: var(--bg-hover);
+}
+
+.railItemOn {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.railLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: var(--border);
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid[data-count='2'] {
+  grid-template-columns: 1fr 1fr;
+}
+
+.grid[data-count='3'] {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.grid[data-count='4'] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+}
+
+.panelFocused {
+  outline-color: var(--accent);
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 32px;
+  padding: 0 var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  min-width: 0;
+}
+
+.groupDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 2px solid var(--dot, var(--border));
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dot, var(--text-muted));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.groupDotStatic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 2px dashed var(--dot, var(--border));
+  border-radius: 50%;
+  color: var(--dot, var(--text-muted));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── lane T2: panel actions (duplicate · pop out · close) ── */
+.panelActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.panelAct {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.panelAct:hover,
+.panelAct:focus-visible {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ── lane T2: the Boards / Recents menus (inside a Sheet) ── */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+.menuHead {
+  margin-top: var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide, 0.06em);
+  text-transform: uppercase;
+}
+
+.menuNote,
+.menuWarn {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.menuWarn {
+  color: var(--text);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg, var(--bg-surface));
+}
+
+.menuForm,
+.menuShare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.menuInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.menuBoard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.menuMain,
+.menuMainBtn {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.menuMainBtn {
+  min-height: 30px;
+  padding: 0 var(--space-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuMainBtn:hover {
+  background: var(--bg-hover);
+}
+
+.menuLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.menuHint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.menuInput,
+.menuInputSm {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.menuInput {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.menuInputSm {
+  width: 96px;
+  text-transform: uppercase;
+}
+
+.menuBtn {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.menuBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menuCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-height: 30px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-normal, 1.5);
+}
+
+.panelTitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.panelLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.panelLink {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.panelBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.panelEmpty {
+  padding: var(--space-lg);
+  color: var(--text-muted);
+}
+
+.help {
+  padding: var(--space-md);
+}
+
+.helpSyntax {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary, var(--text));
+  line-height: var(--lh-normal, 1.5);
+}
+
+.helpGroup {
+  margin: var(--space-md) 0 var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide, 0.06em);
+  text-transform: uppercase;
+}
+
+.helpList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.helpRow {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 30px;
+  padding: 0 var(--space-xs);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.helpRow:hover {
+  background: var(--bg-hover);
+}
+
+.helpScope {
+  color: var(--text-faint, var(--text-muted));
+  font-size: var(--text-xs);
+}
+
+.helpAbsent {
+  padding: var(--space-xs);
+  color: var(--text-muted);
+}
+
+/* ── lane T2: board DENSITY, desktop only (the touch tier's 44px floor is never undercut) ── */
+@media (min-width: 1025px) {
+  .shell[data-density='compact'] .panelHead {
+    min-height: 26px;
+  }
+
+  .shell[data-density='compact'] .panelBody {
+    font-size: var(--text-sm);
+  }
+
+  .shell[data-density='dense'] .panelHead {
+    min-height: 22px;
+    gap: var(--space-xs);
+  }
+
+  .shell[data-density='dense'] .panelBody {
+    font-size: var(--text-xs);
+  }
+
+  .shell[data-density='dense'] .railItem {
+    min-height: 22px;
+  }
+
+  .shell[data-density='dense'] .grid {
+    gap: 0;
+  }
+}
+
+/* ── TOUCH TIER (phone + tablet): the 44px floor on every control, and the grid stacks ── */
+@media (max-width: 1024px) {
+  .cmdInput {
+    height: var(--tap-min);
+    font-size: 16px; /* >=16px: iOS does not zoom the page on focus */
+  }
+
+  .cmdGo,
+  .barBtn,
+  .suggestRow,
+  .chip,
+  .noticeClose,
+  .railItem,
+  .helpRow,
+  .panelLink,
+  .panelAct,
+  .menuBtn,
+  .menuMainBtn,
+  .menuInput,
+  .menuInputSm,
+  .menuCheck {
+    min-height: var(--tap-min);
+  }
+
+  .panelAct,
+  .menuBtn {
+    min-width: var(--tap-min);
+  }
+
+  .groupDotStatic {
+    width: var(--tap-min);
+    height: var(--tap-min);
+  }
+
+  .menuInput,
+  .menuInputSm {
+    font-size: 16px; /* >=16px: iOS does not zoom the page on focus */
+  }
+
+  .cmdGo,
+  .barBtn,
+  .noticeClose {
+    min-width: var(--tap-min);
+  }
+
+  .panelLink {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .groupDot {
+    width: var(--tap-min);
+    height: var(--tap-min);
+    border-width: 3px;
+  }
+
+  .panelHead {
+    min-height: var(--tap-min);
+  }
+
+  .rail {
+    flex-basis: 168px;
+  }
+
+  .grid[data-count='2'],
+  .grid[data-count='3'],
+  .grid[data-count='4'] {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-rows: minmax(70vh, auto);
+    overflow-y: auto;
+  }
+}
+
+/* ── PHONE: one panel, the command line pinned at the top, the rail lives in a Sheet ── */
+@media (max-width: 640px) {
+  .bar {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .helpRow {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .helpScope {
+    display: none;
+  }
+}

@@ -35,14 +35,14 @@
 // its survey date) comes back `reason: 'no_timestamp'`. That is NOT a claim of
 // freshness — the caller renders it as undated rather than bare.
 
-import { explainMustShowAge } from '../../components/provenance/freshnessAge'
+import { explainMustShowAge, freshnessClass } from '../../components/provenance/freshnessAge'
 
-/** NAAIM's publication cadence: one survey a week. A fact about the series,
- *  handed to the age authority as its input — not an age bound. */
-export const NAAIM_CADENCE_MS = 7 * 24 * 60 * 60 * 1000
-
-/** The words the age clause uses for that cadence. */
-export const NAAIM_CADENCE_LABEL = 'weekly'
+/** NAAIM publishes one survey a week: it is TERM-006's `weekly` class. The class, not this
+ *  file, holds the cadence and its words (2026-10-02: the literal that stood here was the
+ *  only second statement of a class cadence in the tree). */
+export const NAAIM_DATA_CLASS = 'weekly'
+export const NAAIM_CADENCE_MS = freshnessClass(NAAIM_DATA_CLASS).cadenceMs
+export const NAAIM_CADENCE_LABEL = freshnessClass(NAAIM_DATA_CLASS).cadence
 
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/
 
@@ -83,9 +83,9 @@ export function naaimAge(row, { now = new Date() } = {}) {
   const sessionNow = row._live ? now : (dayInstant(row.date) || now)
   const verdict = explainMustShowAge({
     asOf: asOfDate ? dayInstant(asOfDate) : null,
-    cadenceMs: NAAIM_CADENCE_MS,
+    dataClass: NAAIM_DATA_CLASS,
     now: sessionNow,
   })
   const mustLabel = verdict.mustShow || verdict.reason === 'no_timestamp'
-  return Object.freeze({ ...verdict, asOfDate, cadence: NAAIM_CADENCE_LABEL, mustLabel })
+  return Object.freeze({ ...verdict, asOfDate, dataClass: NAAIM_DATA_CLASS, cadence: NAAIM_CADENCE_LABEL, mustLabel })
 }

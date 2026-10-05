@@ -461,7 +461,11 @@ export function execute(program, ctx, limits, opts) {
   // this check runs on every instruction.
   const instrCap = budget.limits.INSTRUCTIONS_PER_BAR
   const loopCap = budget.limits.LOOP_ITERATIONS
+  // ⭐ RT17 — a nested run (a request's) counts its own bars against the per-bar
+  // limits; the outer bar it runs inside gets its count back at the end.
+  const outerBar = (opts && opts.budget) ? budget.saveBar() : null
   for (let bar = 0; bar < ctx.bars; bar += 1) {
+    budget.startBar()
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
     // call from seeing the previous bar's leftovers.
@@ -1246,6 +1250,7 @@ export function execute(program, ctx, limits, opts) {
     // drawing that belongs to this chart's.
     if (onBar) onBar(bar, iters, outputs)
   }
+  if (outerBar) budget.restoreBar(outerBar)
 
   return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store }
 }

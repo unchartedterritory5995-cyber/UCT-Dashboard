@@ -368,10 +368,13 @@ describe('⭐ length, resources and what is NOT admitted', () => {
     const { budget } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`)
     expect(budget.counts.CARRIED_INSTANCES).toBe(1)
     expect(budget.counts.CARRIED_CELLS).toBe(CARRIED.ema.cells)
-    expect(budget.counts.CARRIED_STEPS).toBe(N)
+    // ⭐ RT17 — `CARRIED_STEPS` counts ONE BAR (its worst); the run's sum is a
+    // measurement beside it, never checked.
+    expect(budget.counts.CARRIED_STEPS).toBe(1)
+    expect(budget.runTotals.CARRIED_STEPS).toBe(N)
     let err = null
     try {
-      runPine(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`, {}, { CARRIED_STEPS: 10 })
+      runPine(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`, {}, { CARRIED_STEPS: 0 })
     } catch (e) { err = e }
     expect(err).toBeInstanceOf(RuntimeLimitError)
     expect(err.limit).toBe('CARRIED_STEPS')

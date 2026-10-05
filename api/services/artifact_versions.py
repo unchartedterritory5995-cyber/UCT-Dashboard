@@ -344,6 +344,11 @@ def _prune(c, user_id, kind, artifact_id) -> list[int]:
     transaction; every removal is logged. Returns the versions removed."""
     if not is_enabled():
         return []
+    # Arch 5-B.8: member rows are removed only under a DECLARED retention entry; an
+    # undeclared prune deletes nothing (store_retention fails closed).
+    from api.services import store_retention
+    if not store_retention.may_prune("workspace_docs", "artifact_versions"):
+        return []
     rows = c.execute(
         "SELECT version, source, created_at, content_sha256 FROM artifact_versions"
         " WHERE user_id=? AND kind=? AND artifact_id=? ORDER BY version ASC",

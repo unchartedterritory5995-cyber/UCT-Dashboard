@@ -12,10 +12,10 @@
 // the runtime lane; this file grades the first against the captures and rails the
 // other two directly.
 //
-// ⛔ C01 / C02 (a `var` colour switched by a state test, and `color.new` over it)
-// still diverge, for a different cause: the host lane does not carry a `var`
-// colour, and this probe attaches on the host lane (its plots translate). Pinned
-// here so a change to that is seen.
+// ⭐ C01 / C02 (a `var` colour switched by a state test, and `color.new` over it)
+// diverged for a different cause until F9: the host lane did not carry a `var`
+// colour (drawn in the pane's gold). F9 carries it as a palette and a running
+// index (`pine.js::colourStateRule`); pinned here as MATCH with colour compared.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
@@ -50,11 +50,11 @@ describe('RT9 — the na colour edges, graded against CAP3 (vw-rt6-runtime-colou
         }
         // the C06 control (a point coloured `na`, hidden) was MATCH before and stays so
         expect(plot(v, 'C06_cond_or_na').verdict).toBe('MATCH')
-        // C01 / C02 diverge for their own cause (a `var` colour), pinned by name
+        // C01 / C02: the `var` colour, carried since F9 — every bar, colour compared
         for (const t of ['C01_var_colour', 'C02_new_var_40']) {
           const p = plot(v, t)
-          expect(p.verdict, t).toBe('DIVERGE')
-          expect(p.reason).toMatch(/color: vendor #[0-9a-f]{8} vs ours #c9a84cff/)
+          expect(p.verdict, `${t}: ${p.reason}`).toBe('MATCH')
+          expect(p.color, t).toBe('compared')
         }
       }, T)
     }

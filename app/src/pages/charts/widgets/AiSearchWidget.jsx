@@ -15,6 +15,7 @@ import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, 
 import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
 import styles from './AiSearchWidget.module.css'
 import Provenance from '../../../components/provenance/Provenance'
+import { resolveCashtags } from '../../../lib/tickerResolver'
 
 // TERM-087: the editable-object card (and, behind it, the builder) load only when
 // an answer actually carries a `scan_object`.
@@ -180,17 +181,10 @@ function AnswerSparklines({ tickers, onTicker }) {
   )
 }
 
-// Tickers mentioned in an answer (link form + bare cashtag), first few, deduped.
-const extractTickers = (text) => {
-  const out = []
-  const re = /\[[^\]]+\]\(\$([A-Za-z][A-Za-z.\-]{0,6})\)|\$([A-Z]{1,5}(?:\.[A-Z])?)\b/g
-  let m
-  while ((m = re.exec(String(text || '')))) {
-    const t = (m[1] || m[2] || '').toUpperCase()
-    if (t && !out.includes(t)) out.push(t)
-  }
-  return out.slice(0, 6)
-}
+// Tickers mentioned in an answer, first few, deduped. TERM-064: through the one
+// resolver's cashtag tier, which also reads the link form `[NVDA]($NVDA)` (its
+// `$NVDA` is a cashtag) and spells a class share BRK-B.
+const extractTickers = (text) => resolveCashtags(text).slice(0, 6)
 
 // Spread across the tool's real range so the first impression isn't "it only
 // tells me why a stock moved": live movers, head-to-head compare, setup/levels

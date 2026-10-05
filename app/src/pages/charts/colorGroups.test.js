@@ -1,0 +1,74 @@
+import { describe, expect, test } from 'vitest'
+import {
+  BASE_GROUPS, EXTRA_GROUPS, GROUP_HEX, groupCycle, linkGroups, nextGroup,
+  effectiveGroup, isSuspendedGroup,
+} from './colorGroups'
+
+// COV-10 remainder: colour groups beyond A-D, dark behind CHARTS_EXTRA_GROUPS_ENABLED.
+
+describe('OFF is byte-identical to the four-group board', () => {
+  test('the dot cycle is exactly A B C D N', () => {
+    expect(groupCycle(false)).toEqual(['A', 'B', 'C', 'D', 'N'])
+    expect(groupCycle(undefined)).toEqual(['A', 'B', 'C', 'D', 'N'])
+  })
+  test('a tab cycle (no N) is exactly A B C D', () => {
+    expect(linkGroups(false)).toEqual(['A', 'B', 'C', 'D'])
+    expect(nextGroup('D', false, { includeNone: false })).toBe('A')
+  })
+  test('the A-D and N dot colours are the values the panels typed before', () => {
+    expect(GROUP_HEX).toMatchObject({ A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' })
+  })
+  test('only literal true turns it on (an enablement gate never defaults open)', () => {
+    for (const v of [false, undefined, null, 'true', 1]) expect(groupCycle(v)).toHaveLength(5)
+  })
+})
+
+describe('ON offers E-H', () => {
+  test('the cycle runs A..H then N, and wraps', () => {
+    expect(groupCycle(true)).toEqual([...BASE_GROUPS, ...EXTRA_GROUPS, 'N'])
+    expect(nextGroup('D', true)).toBe('E')
+    expect(nextGroup('H', true)).toBe('N')
+    expect(nextGroup('N', true)).toBe('A')
+  })
+  test('every group has a dot colour', () => {
+    for (const g of groupCycle(true)) expect(GROUP_HEX[g]).toMatch(/^#[0-9a-f]{6}$/)
+  })
+  test('an extra group is itself while on', () => {
+    expect(effectiveGroup('E', true)).toBe('E')
+    expect(isSuspendedGroup('E', true)).toBe(false)
+  })
+})
+
+describe('a stored E-H while OFF: kept, not linked, never remapped', () => {
+  test('reads as not linked, not as any of A-D', () => {
+    for (const g of EXTRA_GROUPS) {
+      expect(effectiveGroup(g, false)).toBe('N')
+      expect(isSuspendedGroup(g, false)).toBe(true)
+    }
+  })
+  test('base groups and N are never suspended', () => {
+    for (const g of [...BASE_GROUPS, 'N']) {
+      expect(effectiveGroup(g, false)).toBe(g)
+      expect(isSuspendedGroup(g, false)).toBe(false)
+    }
+  })
+  test('a click on a suspended dot lands on a real choice (A), not on another hidden group', () => {
+    expect(nextGroup('F', false)).toBe('A')
+    expect(nextGroup('F', false, { includeNone: false })).toBe('A')
+  })
+})
+
+// The terminal rail (pages/terminal/functions.rail.test.js, not this lane's file) still
+// reads literals in WidgetHeader / PeriodSortPanel. They must equal this module's OFF
+// values, or the shell and /charts would disagree while both rails stayed green.
+describe('the literals the terminal rail reads are this module, not a second authority', () => {
+  test('WidgetHeader COLORS is the OFF cycle', async () => {
+    const { COLORS } = await import('./WidgetHeader')
+    expect(COLORS).toEqual(groupCycle(false))
+  })
+  test('PeriodSortPanel COLOR_HEX is GROUP_HEX for A-D and N', async () => {
+    const { COLOR_HEX } = await import('./PeriodSortPanel')
+    const base = Object.fromEntries(groupCycle(false).map((g) => [g, GROUP_HEX[g]]))
+    expect(COLOR_HEX).toEqual(base)
+  })
+})

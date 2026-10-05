@@ -5,14 +5,18 @@ import { WIDGET_TAB_TYPES, WIDGET_TAB_MENU_LABEL } from './widgetTabs'
 import { catalogMeta } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 import Input from '../../components/ui/Input'
+import { nextGroup, isSuspendedGroup } from './colorGroups'
+import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 
-// 'N' = grey "not linked": the widget syncs its ticker with nothing.
-const COLORS = ['A', 'B', 'C', 'D', 'N']
+// 'N' = grey "not linked": the widget syncs its ticker with nothing. The cycle
+// (A B C D [E F G H] N) comes from colorGroups.js — E-H only while
+// CHARTS_EXTRA_GROUPS_ENABLED is on (COV-10 remainder).
 
-function nextColor(c) {
-  const i = COLORS.indexOf(c)
-  return COLORS[(i + 1) % COLORS.length]
-}
+// The OFF cycle as a literal. app/src/pages/terminal/functions.rail.test.js reads THIS
+// declaration to prove the shell's link groups are /charts' (a file this lane may not
+// edit); colorGroups.test.js proves it equals groupCycle(false), so it cannot drift.
+// HANDOFF (Lane T2, audit V10): retarget that rail at colorGroups.js, then delete this.
+export const COLORS = ['A', 'B', 'C', 'D', 'N']
 
 export default function WidgetHeader({
   label, color, onColorChange, onRemove, onPopOut, atBottom = false, style,
@@ -33,6 +37,10 @@ export default function WidgetHeader({
   onFloatToTab,         // (floating) (targetId) => move this widget into that widget's tabs
   onHeaderDragStart,    // (floating) pointerdown on the grip → the panel begins dragging
 }) {
+  const extraGroupsOn = useExtraGroupsEnabled()
+  // A stored E-H while the flag is off: kept, shown grey, and SAID — never a silent
+  // fifth group (colorGroups.effectiveGroup).
+  const suspended = isSuspendedGroup(color, extraGroupsOn)
   const isNone = color === 'N'
   const [addOpen, setAddOpen] = useState(false)
   const [addPos, setAddPos] = useState(null)         // fixed-position anchor for the portaled menu
@@ -293,10 +301,15 @@ export default function WidgetHeader({
     >
       <button
         type="button"
-        className={`${styles.colorDot} ${styles[`colorDot${color}`]} charts-no-drag`}
-        onClick={() => onColorChange(nextColor(color))}
-        aria-label={isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
-        title={isNone
+        className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
+        onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
+        data-group-suspended={suspended ? color : undefined}
+        aria-label={suspended
+          ? `Group ${color} is switched off: not linked — click to pick a color group`
+          : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
+        title={suspended
+          ? `Group ${color} is switched off: not linked. This widget keeps group ${color} in the saved layout and links again when extra groups are on. Click to pick a color group.`
+          : isNone
           ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
           : `Color group ${color} — click to cycle (grey = not linked)`}
       />

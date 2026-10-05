@@ -32,7 +32,8 @@ def _leg(ticker, strike, prem, direction="Bull", typ="SWEEP", ts=1000.0, cp="C",
 
 
 def _ml_thresholds(dom_frac=0.6):
-    return {"multileg_window_sec": 90.0, "multileg_min_legs": 3,
+    return {"multileg_mode": "cluster",          # the 7/24 rule these tests pin
+            "multileg_window_sec": 90.0, "multileg_min_legs": 3,
             "multileg_dominant_premium_frac": dom_frac}
 
 
@@ -761,3 +762,163 @@ def test_clean_gate_disabled_is_noop():
     a = _dalert(4, "BB", 10000)
     m._demote_contaminated_sell(a, {4: 9000.0}, {"close_detector_enabled": False})
     assert a["_direction"] == "Bear"
+
+
+# ── multileg_mode="structure" (2026-10-03): only matched legs are spreads ──
+
+def _sleg(strike, size, side, ts, typ="SWEEP", cp="C", exp="10/30/2026", ticker="SPCX",
+          direction="Bull"):
+    return {"ticker": ticker, "strike": strike, "cp": cp, "exp": exp, "timestamp": ts,
+            "tradeSize": size, "_side": side, "_type": typ, "_direction": direction,
+            "alertPremium": 100_000}
+
+
+def _structure(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {
+        "multileg_mode": "structure", "multileg_pair_window_sec": 2.0,
+        "multileg_size_tol": 0.10})
+
+
+def test_busy_chain_buying_is_not_a_spread(monkeypatch):
+    # 10/2 SPCX 172.5C 9:51:25: a 3,012-lot ask sweep among other-strike ask buys.
+    _structure(monkeypatch)
+    big = _sleg(172.5, 3012, "A", 1000.0)
+    legs = [_sleg(157.5, 162, "", 1000.0), big, _sleg(150, 250, "A", 1003.0, cp="P"),
+            _sleg(155, 174, "A", 1005.0), _sleg(157.5, 627, "A", 1013.0)]
+    m._demote_multileg_structures(legs)
+    assert big["_direction"] == "Bull" and not big.get("_multileg")
+    assert all(not l.get("_multileg") for l in legs)
+
+
+def test_calendar_pair_is_demoted(monkeypatch):
+    # 7/24 SNDK: two $1500 calls, same second, 100 lots each, one bid one ask.
+    _structure(monkeypatch)
+    a = _sleg(1500, 100, "B", 1000.0, exp="8/7/2026", ticker="SNDK", direction="Bear")
+    b = _sleg(1500, 100, "A", 1000.4, exp="9/18/2026", ticker="SNDK")
+    m._demote_multileg_structures([a, b])
+    assert a["_direction"] is None and b["_direction"] is None
+    assert a["_multileg"] and b["alertName"] == "UCT Size - Not Clean"
+
+
+def test_ratio_spread_and_ml_type_pair(monkeypatch):
+    _structure(monkeypatch)
+    a = _sleg(100, 100, "A", 1000.0)
+    b = _sleg(110, 205, "B", 1001.0, direction="Bear")      # ~1:2 within 10%
+    m._demote_multileg_structures([a, b])
+    assert a["_multileg"] and b["_multileg"]
+    c = _sleg(100, 50, "A", 2000.0, typ="ML/")
+    d = _sleg(105, 50, "A", 2000.5)                          # same side, but ML-typed
+    m._demote_multileg_structures([c, d])
+    assert d["_multileg"]
+
+
+def test_unmatched_size_same_side_or_far_apart_kept(monkeypatch):
+    _structure(monkeypatch)
+    legs = [_sleg(100, 100, "A", 1000.0), _sleg(105, 100, "A", 1000.5),   # same side
+            _sleg(110, 100, "A", 3000.0), _sleg(115, 160, "B", 3000.5),   # size 1.6x
+            _sleg(120, 100, "A", 5000.0), _sleg(125, 100, "B", 5003.0)]   # 3s apart
+    m._demote_multileg_structures(legs)
+    assert not any(l.get("_multileg") for l in legs)
+
+
+def test_same_contract_same_side_is_accumulation(monkeypatch):
+    # SPCX 172.5C: repeated ask sweeps on one contract are a build, not legs.
+    _structure(monkeypatch)
+    legs = [_sleg(172.5, 3012, "A", 1000.0), _sleg(172.5, 2037, "A", 1001.0),
+            _sleg(172.5, 2002, "A", 1005.0)]
+    m._demote_multileg_structures(legs)
+    assert not any(l.get("_multileg") for l in legs)
+
+
+def test_same_contract_offsetting_round_trip_demoted(monkeypatch):
+    # 7/24 SNDK 1370P 8/7: sold 100 @ 110, bought 100 @ 110 seven seconds later.
+    _structure(monkeypatch)
+    sell = _sleg(1370, 100, "B", 1000.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bull")
+    buy = _sleg(1370, 100, "A", 1007.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bear")
+    m._demote_multileg_structures([sell, buy])
+    assert buy["_direction"] is None and sell["_direction"] is None
+    far = _sleg(1370, 100, "A", 2000.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bear")
+    far_sell = _sleg(1370, 100, "B", 2015.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bull")
+    m._demote_multileg_structures([far, far_sell])          # 15s > 10s window → kept
+    assert far["_direction"] == "Bear"
+
+
+# ── Ask Accumulation mega-cap path (2026-10-03) ─────────────────────────────
+# SPCX ($2.0T) 172.5C 10/30, 28 DTE: ~$4M of ask sweeps in one session. Mega-caps
+# were hard-excluded; now they qualify above a higher bar, single stocks, 7+ DTE.
+
+_AA = {"ask_accum_enabled": True, "ask_accum_min_aggregate_premium": 1_000_000,
+       "ask_accum_max_otm_pct": 50.0, "ask_accum_require_unusual": True,
+       "ask_accum_min_contract_voi": 1.0, "fresh_strike_min_volume": 100,
+       "ask_accum_max_mktcap": 50_000_000_000,
+       "ask_accum_mega_min_aggregate_premium": 3_000_000, "ask_accum_mega_min_dte": 7}
+
+
+def _aa(agg, mktcap=2_021_528_000_000, dte=28, is_stock=True, th=None):
+    # side A, 9% OTM, ask vol 11,620 vs OI 0 (fresh) — the SPCX 172.5C shape
+    return m._ask_accum_qualifies("A", 9.0, agg, 11_620, 0, mktcap, th or _AA,
+                                  dte=dte, is_stock=is_stock)
+
+
+def test_mega_cap_build_qualifies_above_mega_bar():
+    assert _aa(4_000_000) is True
+    assert _aa(2_500_000) is False                     # under the $3M mega bar
+
+
+def test_mega_cap_path_excludes_etfs_weeklies_and_unknowns():
+    assert _aa(9_000_000, is_stock=False) is False     # SPY/QQQ
+    assert _aa(9_000_000, dte=3) is False              # 0-6 DTE churn
+    assert _aa(9_000_000, dte=None) is False           # unknown → denied
+    assert _aa(9_000_000, is_stock=None) is False
+    assert _aa(9_000_000, mktcap=0) is False           # index (no mktcap)
+
+
+def test_mega_bar_zero_restores_hard_exclusion():
+    assert _aa(9_000_000, th={**_AA, "ask_accum_mega_min_aggregate_premium": 0}) is False
+
+
+def test_non_mega_unchanged_by_mega_path():
+    # $3B name at the normal $1M floor, no dte/is_stock needed (PPTA class)
+    assert m._ask_accum_qualifies("A", 9.0, 1_200_000, 11_620, 0, 3_000_000_000, _AA) is True
+
+
+def test_is_single_stock():
+    assert m._is_single_stock({"StockEtf": "STOCK", "source": "stocks"})
+    assert m._is_single_stock({"StockEtf": "stock"})
+    assert not m._is_single_stock({"StockEtf": "ETF", "source": "indexes"})
+
+
+# ── Top Flow (cream) direction recovery respects the deep-ITM guard ──────────
+# 10/2 GOOG 500P 12/17/27: 500 @ $160, spot $341.78 → 31.6% ITM (≈ all intrinsic,
+# a stock-like hedge). The classifier nulled its direction; call/put recovery
+# printed it as an $8.0M BEAR on the posted card.
+
+def _cream_size_row(**over):
+    a = {"_tierKey": "size", "_direction": None, "aggAskPremium": 8_000_000, "cp": "P",
+         "strike": 500.0, "averageFillPrice": 160.0, "dte": 441,
+         "moneynessPct": 31.6, "moneynessLabel": "ITM"}
+    a.update(over)
+    return a
+
+
+def test_cream_recovery_skips_deep_itm(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {"direction_max_itm_pct": 20.0})
+    assert m._cream_row_direction(_cream_size_row(), 1_000_000) == (None, False)
+
+
+def test_cream_recovery_keeps_near_money_and_otm(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {"direction_max_itm_pct": 20.0})
+    assert m._cream_row_direction(_cream_size_row(moneynessPct=8.0), 1_000_000) == ("Bear", True)
+    assert m._cream_row_direction(_cream_size_row(moneynessPct=-12.0, moneynessLabel="OTM"),
+                                  1_000_000) == ("Bear", True)
+
+
+def test_cream_recovery_spotless_parity_trip(monkeypatch):
+    # No spot: a put trading above strike*cap/(100+cap) is ~intrinsic → deep ITM.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {"direction_max_itm_pct": 20.0})
+    deep = _cream_size_row(moneynessPct=None, moneynessLabel=None, strike=17.5,
+                           averageFillPrice=6.0, dte=77)            # trip = 2.92
+    assert m._cream_row_direction(deep, 1_000_000) == (None, False)
+    near = _cream_size_row(moneynessPct=None, moneynessLabel=None, strike=17.5,
+                           averageFillPrice=1.2, dte=77)
+    assert m._cream_row_direction(near, 1_000_000) == ("Bear", True)

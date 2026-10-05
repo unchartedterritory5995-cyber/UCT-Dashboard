@@ -65,11 +65,12 @@ describe('B1 — paints graded against the captures that record them', () => {
     // paint to replay (folded to `na` or withheld), so there was nothing to warm.
     'artemis-oscillator-pro-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_32 naBoth 1800/1800 painted=0'],
     'atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json': ['refused pine:block'],
-    // plot_8 / plot_11 are the High Volume and OBV bar colours (`obvOnOff and ta.obv > obvEMA ? … : na`).
-    // ⭐ H9 (2026-10-04): since H6 (`ta.obv` on the host lane) the door CARRIES both
-    // paints (columns out12/out13, inputs volumeOnOff/obvOnOff) instead of folding them
-    // to `na`, and at the defaults both sides paint no bar on every compared bar:
-    // `naBoth` -> `agree`, 0 differ. (Was `naBoth`.)
+    // plot_8 / plot_11 are the OBV bar colour (`obvOnOff and ta.obv > obvEMA ? … : na`).
+    // ⚰️ RE-MEASURED at the H7 x wave-17 merge (2026-10-04): WAS `naBoth` (our condition
+    // column absent). H6 serves `ta.obv` on the host lane and both runs read from the
+    // listing (RDDT bar 0; SPY warm, listing=on), so the condition COMPUTES: both sides
+    // draw nothing at the default (obvOnOff false) and the grade reads `agree`. Nothing
+    // drawn changed. The same grade with the wave-17 tip's own engine files (so not H7/F7).
     'atr-support-and-resistance-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 agree 632/632 painted=0', 'plot_11 agree 632/632 painted=0'],
     'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 agree 1800/1800 painted=0', 'plot_11 agree 1800/1800 painted=0'],
     'atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_5 agree 636/636 painted=636'],
@@ -115,8 +116,9 @@ describe('B1 — paints graded against the captures that record them', () => {
     'vw-deadband-ticks-aapl-1d-2026-09-28.json': ['refused pine:state'],
     'vw-deadband-ticks-brk-a-1d-2026-09-28.json': ['refused pine:state'],
     'vw-deadband-ticks-spy-1d-2026-09-28.json': ['refused pine:state'],
-    'vw-rt6-runtime-colour-rddt-1d-2026-10-03.json': ['supply bar0 warmup=0', 'plot_13 agree 636/636 painted=308', 'plot_12 withheld'],
-    'vw-rt6-runtime-colour-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_13 agree 1800/1800 painted=975', 'plot_12 withheld'],
+    // ⭐ F9 — B01 `barcolor(c)` of a `var` colour: carried (`pine.js::colourStateRule`), WAS 'plot_12 withheld'
+    'vw-rt6-runtime-colour-rddt-1d-2026-10-03.json': ['supply bar0 warmup=0', 'plot_13 agree 636/636 painted=308', 'plot_12 agree 636/636 painted=636'],
+    'vw-rt6-runtime-colour-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_13 agree 1800/1800 painted=975', 'plot_12 agree 1800/1800 painted=1800'],
     'wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json': ['refused pine:state'],
     'wyckoff-accumulation-distribution-spy-1d-2026-10-02.json': ['refused pine:state'],
   }
@@ -234,14 +236,13 @@ describe('RC1 — paints replayed over the same series\' proved history', () => 
     expect(g.supply.warmupBars).toBe(PAINT_WARMUP_FLOOR)
     const row = g.rows.find((r) => r.id === 'plot_0')
     // measured cold: 35 bars differ, every one inside the warm-up — counted apart,
-    // never as agreeing, and never in the graded count.
-    // ⭐ H9 (2026-10-04): was 15 (bars 0-14, `cum_1 < 16 ? close`: a cold `ta.cum`
-    // starts at the window, TradingView's at the listing). The other 20 are cold
-    // warm-up bars (15-38) where the door now paints NOTHING: the trailing stop TS is
-    // NaN there (`atrPine` / `highest` over a series seeded at the window - the wave-17
-    // F5/RT8 warm-up family), so the colour reading it is not drawn rather than drawn
-    // from a cold seed. Measured by H9; the graded bars (200+) still agree on every bar.
-    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 35 })
+    // never as agreeing, and never in the graded count. ⚰️ RE-MEASURED at the H7 x
+    // wave-17 merge: WAS 15. The same 35 with the wave-17 tip's own engine files, so the
+    // move is wave 17's (not H7 / F7); the graded bars still all agree. ⭐ F9: 35 -> 36 —
+    // `ta.cum(1) < 16` is now a bar-index threshold off the listing (`countingCumStep`),
+    // so the cold replay WITHHOLDS the one warm-up bar it cannot vouch for that it
+    // painted before (measured: wave-17's `barIndexShift.js` swapped in reads 35).
+    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 36 })
     expect(row.compared).toBe(cap.bars.rows.length - PAINT_WARMUP_FLOOR)
     expect(row.state).toBe('agree')
   }, 120000)

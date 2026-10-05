@@ -78,6 +78,24 @@ class _BarIndexUnprovable(Exception):
     """The pass's own "not provable" -- never a refusal, never a crash."""
 
 
+def _counting_cum_step(node: Any) -> Any:
+    """F9 -- ``cum(c)`` of a finite, non-zero number literal is a bar count,
+    ``c * (bar_index + 1)``: the index's leaf with ``P1 = c``. None otherwise.
+    The JS twin is ``barIndexShift.js::countingCumStep``."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") != "cum":
+        return None
+    args = node.get("args")
+    if not isinstance(args, list) or len(args) != 1:
+        return None
+    a = args[0]
+    if not isinstance(a, dict) or a.get("type") != "num":
+        return None
+    v = a.get("value")
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v == 0:
+        return None
+    return v
+
+
 def reads_bar_index(tree: Any) -> bool:
     """Does this tree read a bar-index leaf at all? Iterative."""
     stack = [tree]
@@ -88,6 +106,8 @@ def reads_bar_index(tree: Any) -> bool:
             continue
         seen.add(id(node))
         if node.get("type") == "series" and node.get("name") in BAR_INDEX_LEAVES:
+            return True
+        if _counting_cum_step(node) is not None:
             return True
         args = node.get("args")
         if isinstance(args, list):
@@ -455,6 +475,10 @@ def bar_index_verdict(tree: Any) -> dict:
                     return lin(alg.atom(node), body["p1"])
                 del thresholds[kept:]
             raise _BarIndexUnprovable()
+        # F9 -- a running count of a constant: the index's leaf, ``c`` per bar of D.
+        step = _counting_cum_step(node)
+        if step is not None:
+            return lin(alg.atom(node), alg.constant(step))
         if name == "na":
             sub(args[0])
             return fixed(node)

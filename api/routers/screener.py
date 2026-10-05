@@ -123,8 +123,57 @@ class ScanSpec(BaseModel):
     # page by top_n; it just never reached the query because the model dropped
     # the field. None = a plain sorted list, exactly as before.
     rank: dict | None = None
+    # FT-026: an optional all-of / any-of / none-of tree ANDed with `filters`
+    # (see services/screener/logic.py). Refused with a sentence while
+    # SCREENER_LOGIC_ENABLED is off -- never silently dropped.
+    logic: dict | None = None
     page: int = 1
     page_size: int = 50
+
+
+class GrammarIn(BaseModel):
+    text: str
+
+
+def _logic_armed() -> None:
+    from api.services.screener import logic as scr_logic
+    if not scr_logic.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/screener/grammar", dependencies=[Depends(_logic_armed)])
+def screener_grammar(_user=Depends(require_paid)):
+    """FT-029: the machine-readable `where` grammar -- operators, number
+    suffixes, field-to-field, and every field with its type and unit."""
+    from api.services.screener import grammar
+    return grammar.describe()
+
+
+@router.post("/api/screener/grammar/parse", dependencies=[Depends(_logic_armed)])
+def screener_grammar_parse(body: GrammarIn, _user=Depends(require_paid)):
+    """Text -> the `logic` tree a screen runs, plus one plain sentence per
+    criterion (the explanation panel). A malformed text is a 400 whose detail
+    says where and why -- never a guess.
+
+    FT-029 v2 (dark, SCREENER_ALERT_GRAMMAR_ENABLED): a `$TICKER` / `#list`
+    scope comes back as `scope_filters` -- flat filters resolved for THIS
+    caller (a list name is looked up among their own lists only) -- which the
+    screen ANDs into `filters`, where reserved keys already live."""
+    from api.services.screener import grammar, logic as scr_logic
+    try:
+        out = grammar.compile_text(body.text)
+        node = out["logic"]
+        n = scr_logic.validate(node) if node is not None else 0
+        scope_filters = grammar.resolve_scopes(out["subjects"],
+                                               (_user or {}).get("id"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    resp = {"logic": node, "criteria": n,
+            "explanation": grammar.explain(node) if node is not None else []}
+    if scope_filters:
+        resp["scope_filters"] = scope_filters
+        resp["subjects"] = out["subjects"]
+    return resp
 
 
 @router.get("/api/screener/meta")

@@ -94,7 +94,7 @@ describe('🔴 the library is wired into the app', () => {
     const guard = fs.readFileSync(
       path.resolve(process.cwd(), 'src/components/AuthGuard.jsx'), 'utf8')
     expect(guard, 'AuthGuard no longer imports the shared FREE_PAGES')
-      .toMatch(/import \{ FREE_PAGES \} from '\.\.\/constants\/freePages'/)
+      .toMatch(/import \{ FREE_PAGES(?:,[^}]*)? \} from '\.\.\/constants\/freePages'/)
     expect(guard, 'AuthGuard no longer applies FREE_PAGES to the live pathname')
       .toContain('FREE_PAGES.some(p => location.pathname.startsWith(p))')
 

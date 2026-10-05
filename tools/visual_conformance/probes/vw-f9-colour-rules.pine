@@ -1,0 +1,31 @@
+// F9 (2026-10-04) — probe for the capture lane. Queue: docs/pine/capture-queue-2026-10-04-f9-divergences.md
+// Chart: NYSE:RDDT 1D from the listing (AMEX:SPY 1D as a second witness).
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+//@version=6
+indicator("vw-f9-colour-rules", overlay = false)
+
+plot(bar_index, "K00_bar_index_CONTROL")
+
+// ── N: an `na` leaf inside a conditional, under color.new ─────────────────────
+// RT9 (C03) measured `color.new(color(na), 40)` = #00000099 (black at 40). Does the
+// same hold for an `na` that a TEST selects, and inside a chain?
+plot(close, "N01 new(cond ? blue : na, 40)", color = color.new(close > open ? color.blue : na, 40))
+plot(close, "N02 new(cond ? na : red, 0)", color = color.new(close > open ? na : color.red, 0))
+plot(close, "N03 new(a ? g : b ? r : na, 70)", color = color.new(close > open ? color.green : close < open ? color.red : na, 70))
+
+// ── V: a `var` colour with an `na` write ─────────────────────────────────────
+var color v = color.white
+if close > close[1]
+    v := color.lime
+if close < close[1]
+    v := na
+plot(close, "V01 var colour with an na write", color = v)
+plot(close, "V02 new(var with na, 40)", color = color.new(v, 40))
+
+// ── R: a colour name read ABOVE its own reassignment ─────────────────────────
+// Pine runs top to bottom: R01 should draw what `col` held at its line. This door
+// reads plot colours against the END of the program (see the queue).
+col = color.red
+plot(close, "R01 colour read before its reassignment", color = col)
+col := close > open ? color.green : color.orange
+plot(close, "R02 the same name after it", color = col)

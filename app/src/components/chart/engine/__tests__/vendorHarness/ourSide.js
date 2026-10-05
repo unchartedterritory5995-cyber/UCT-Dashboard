@@ -387,11 +387,21 @@ export function tfCodeOf(interval) {
 
 const isDailyLike = (interval) => /^\d*[DWM]$/.test(String(interval || '').trim())
 
-/** The ISO date a unix time falls on, in the exchange's timezone. */
+/** The ISO date a unix time falls on, in the exchange's timezone.
+ *  ⭐ G17 — ONE formatter per timezone, reused. This built a fresh
+ *  `Intl.DateTimeFormat` per BAR; `toProductBars` calls it for every daily row of
+ *  every committed capture when the other-symbol index is first built, and with
+ *  wave 16's 337 captures (163 MB, master: 139 / 78 MB) that build measured 66 s
+ *  of a 64 s first `request.security` read — past C26's 60 s case budget. The
+ *  formatter is pure, so the dates are byte-identical. */
+const ISO_DATE_FORMATTERS = new Map()
 export function isoDateIn(unixSeconds, timeZone) {
-  const f = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timeZone || 'Etc/UTC', year: 'numeric', month: '2-digit', day: '2-digit',
-  })
+  const zone = timeZone || 'Etc/UTC'
+  let f = ISO_DATE_FORMATTERS.get(zone)
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    ISO_DATE_FORMATTERS.set(zone, f)
+  }
   return f.format(new Date(unixSeconds * 1000))
 }
 
@@ -588,6 +598,27 @@ export function barIndexStartsAtZero(capture) {
     if (pv.rows[i][0] !== bars[i][0] || pv.rows[i][at] !== i) return false
   }
   return true
+}
+
+/** ⭐⭐ F9 — does the capture HOLD a `bar_index` control row (the title rule
+ *  `barIndexStartsAtZero` reads) whose readings do NOT start at 0 on its bars?
+ *  Absent, or reading 0, 1, 2 …: false (nothing contradicts the capture). */
+export function barIndexControlContradicts(capture) {
+  const plots = (capture && capture.study && capture.study.plots) || []
+  const control = plots.find((p) => /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/.test(p.title || ''))
+  const pv = capture && capture.plotValues
+  if (!control || !pv || !Array.isArray(pv.rows) || !pv.rows.length || !Array.isArray(pv.fields)) return false
+  const at = pv.fields.indexOf(control.id)
+  if (at < 0) return false
+  // The first reading must be the position of its own bar in the capture's bars
+  // (found by time: a capture may export values for only part of its bars);
+  // anything else (8172 on bar 0) is the vendor counting bars this capture does
+  // not hold.
+  const i = pv.rows.findIndex((r) => Number.isFinite(r[at]))
+  if (i < 0) return false
+  const bars = (capture.bars && capture.bars.rows) || []
+  const pos = bars.findIndex((b) => b[0] === pv.rows[i][0])
+  return pos >= 0 && pv.rows[i][at] !== pos
 }
 
 /** ⭐⭐ RT5 — a runtime document's LIVE set at the last bar, made by its own run
@@ -832,7 +863,15 @@ export function runOurSide(capture) {
       // (`StockChart`, `listingSeed.historyFromListingOf`); a capture states it as
       // `history.startsAtBar0`, asserted only when the vendor's loaded history
       // stopped growing AND began on the listing day. Same fact, same door.
-      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      // ⭐⭐ F9 — …UNLESS THE CAPTURE'S OWN `bar_index` CONTROL SAYS OTHERWISE. A
+      // control row that exists and does not read 0, 1, 2 … is the vendor stating
+      // its series does NOT start at bar 0, and that outranks a hand-written
+      // `startsAtBar0`. ⚰️ `vw-int-cast-spy-1d-2026-09-27` (AMEX:SPY) carries RDDT's
+      // listing sentence ("NYSE:RDDT listed 2024-03-21") while its I00 control reads
+      // 8172 on its first bar; graded as from the listing, our `bar_index` was drawn
+      // from 0 where a member's SPY chart withholds it (`bar-index:window`).
+      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true)
+        && !barIndexControlContradicts(capture),
       // ⭐⭐ C45 — `bar_index` is TradingView's only where the series starts at
       // the bar TradingView counted as 0. A capture PROVES that about itself when
       // its own `plot(bar_index, …)` control row reads 0, 1, 2 … on its bars (an
@@ -864,21 +903,59 @@ export function runOurSide(capture) {
     // (asked whenever the script records a paint at all, so a grade whose paints the
     // door folded to `na` still says which history it stands on)
     const recordsPaints = (def.paints || []).length > 0 || runtimeAwarePaints(built, def).length > 0
-    const paintSupply = recordsPaints ? warmBarsSupply(capture) : null
-    if (paintSupply) notes.push(`paints: ${paintSupply.kind}: ${paintSupply.reason}`)
-    const warm = !!(paintSupply && paintSupply.kind === 'warm' && (def.paints || []).length > 0)
-    const pre = warm ? paintSupply.bars : 0
-    const paintBars = warm
+    let paintSupply = recordsPaints ? warmBarsSupply(capture) : null
+    let warm = !!(paintSupply && paintSupply.kind === 'warm' && (def.paints || []).length > 0)
+    let pre = warm ? paintSupply.bars : 0
+    let paintBars = warm
       ? toProductBars({ ...capture, bars: { ...capture.bars, rows: paintSupply.rows.concat(capture.bars.rows) } })
       : bars
     // ⭐ the warm replay's own context: the listing flag comes from the SUPPLIER
-    const paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
-    const paintColsRaw = warm ? registry.computeFor(def, paintBars, undefined, paintCtx) : cols
+    let paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
+    let paintColsRaw = warm ? registry.computeFor(def, paintBars, undefined, paintCtx) : cols
+    // ⭐⭐ W17R — A WARM REPLAY THAT STOPS IS NAMED, NEVER READ AS "NOTHING PAINTED".
+    // The replay is the harness's device for TradingView's history; it runs the
+    // engine over MORE bars than the window (wyckoff SPY: 6,677 + 1,800), and a run
+    // can stop on that length by name (`runtime:limit`, a run-wide ceiling) where the
+    // window's own run does not. Before W17R the stop was dropped (`colErrors` read
+    // the WINDOW's columns only) and the paint graded `notDrawn` with no reason —
+    // 0 bars painted, no error. Now: a paint the window's run colours and the warm
+    // run does not refuses the supplier BY NAME (the warm run's own sentence) and
+    // the paints fall back to the cold replay, labelled — RC1's rule for a supplier
+    // that cannot be used (its warm-up region is then graded apart, never agreeing).
+    if (warm) {
+      const coldCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
+      const warmCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
+      const lost = (def.paints || []).filter((p) => paintColoursFor(p, 'harness', coldCols, bars.length)
+        && !paintColoursFor(p, 'harness', warmCols, paintBars.length))
+      if (lost.length) {
+        const errs = Object.values((registry.columnErrors && registry.columnErrors(paintColsRaw)) || {})
+        const why = errs.length
+          ? errs.map((e) => `${e.guard || 'refused'}: ${String(e.message || '').slice(0, 300)}`).join(' | ')
+          : 'the warm run computed no column for it, and named no reason'
+        const stop = `the warm replay over ${paintBars.length} bars (${paintSupply.file}) coloured none of ${lost.length} paint(s) `
+          + `the window's own run colours: it stopped (${why})`
+        paintSupply = { kind: 'cold', rows: null, file: null, bars: 0, historyFromListing: null,
+          refused: [...(paintSupply.refused || []), `${paintSupply.file}: ${stop}`],
+          reason: `${stop}; cold replay` }
+        warm = false
+        pre = 0
+        paintBars = bars
+        paintCtx = ctx
+        paintColsRaw = cols
+      }
+    }
+    if (paintSupply) notes.push(`paints: ${paintSupply.kind}: ${paintSupply.reason}`)
     const paintCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
+    // ⭐ W17R — a paint the run coloured nothing for carries the run's own named
+    // stop(s), so a `notDrawn` grade says WHY (`paintColours.gradePaints`).
+    const paintRunErrors = Object.values((registry.columnErrors && registry.columnErrors(paintColsRaw)) || {})
     const paints = (def.paints || []).map((p) => {
       const all = paintColoursFor(p, 'harness', paintCols, paintBars.length)
       return { kind: p.kind, line: p.line ?? null, title: p.title ?? null,
-        colors: Array.isArray(all) ? all.slice(pre) : all }
+        colors: Array.isArray(all) ? all.slice(pre) : all,
+        ...(all ? {} : { reason: paintRunErrors.length
+          ? paintRunErrors.map((e) => `${e.guard || 'refused'}: ${String(e.message || '').slice(0, 300)}`).join(' | ')
+          : null }) }
     })
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {

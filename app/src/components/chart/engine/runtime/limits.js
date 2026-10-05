@@ -63,11 +63,14 @@ export const LIMIT_NAMES = Object.freeze([
   // `sma(x, 200)` on 5,000 bars touches a million of them. Counted here so a
   // program whose windows are quietly enormous stops BY NAME rather than by
   // taking a very long time.
+  // ⭐⭐ RT17 — counted PER BAR (`PER_BAR_CHARGED`): the cells one bar reads. A
+  // run-wide total of it scaled with history, not with the script.
   'WINDOW_CELLS',
   // ⭐ 2F-2C. A carried builtin's cost is the OPPOSITE SHAPE to a window's: a
   // window reads `span` cells per bar and holds none between bars; a recurrence
   // reads ONE value per bar and holds a few forever. So both axes are counted
-  // — the peak STATE a program allocates, and the total STEPS it takes.
+  // — the peak STATE a program allocates, and the STEPS it takes (⭐⭐ RT17:
+  // per bar, `PER_BAR_CHARGED` — a run-wide total scaled with history).
   'CARRIED_INSTANCES',
   'CARRIED_CELLS',
   'CARRIED_STEPS',
@@ -82,6 +85,31 @@ export const LIMIT_NAMES = Object.freeze([
  *  `lesson_an_acceptance_number_is_a_forecast_until_derived`. Each is generous
  *  enough that no honest indicator meets it and tight enough that a runaway
  *  stops in well under a second. */
+// ⭐⭐ RT17 (2026-10-04) — THE RUN'S TIME SAFETY AND THE LONGEST HISTORY A RUN
+// ACCEPTS, named once so the per-bar work ceiling below is DERIVED from them,
+// never retyped. `TOTAL_INSTRUCTIONS` is the one run-wide count kept: its
+// TradingView counterpart is run-wide too (a script's whole execution is limited
+// to 20 s / 40 s, `pine-presentation-spec.md` §3.5).
+const RUN_INSTRUCTIONS = 200000000
+const HISTORY_BARS = 20000
+// ⭐⭐ RT17 — ONE BAR'S CEILING FOR EVERY `PER_BAR_CHARGED` LIMIT: what a bar may
+// spend so that the LONGEST history this runtime accepts can never spend more of
+// it, over the whole run, than the run's instruction safety allows
+// (10,000 x 20,000 = 200,000,000). That matters for the two limits that count
+// ELEMENT work one instruction does not show — an `array.sum` over n elements,
+// a window reduction over `span` cells — so the run's time stays bounded by
+// name with no wall clock (the harness, a census). The two that are themselves
+// instructions (a call, a carried step) are bounded by `TOTAL_INSTRUCTIONS`
+// already; for them it is the stop ON THE BAR a runaway happens in.
+// MEASURED (RT17: 62 corpus scripts the runtime builds, SPY 8,477 and AAPL 11,534
+// daily bars from the listing; + every vendor capture, runtime pane on): the
+// worst bar any script FINISHES is 1,504 array operations (wyckoff, AAPL),
+// 1,201 calls (delta-rsi), 100 window cells (elliott-wave-3), 27 carried steps
+// (price-action-fibonacci) — 6.6x / 8.3x / 100x / 370x under this ceiling.
+// k-clustering takes 2,891 calls and 2,732 array operations on its last bar and
+// already stops there by `INSTRUCTIONS_PER_BAR` (R-B, not raised).
+const PER_BAR_WORK = RUN_INSTRUCTIONS / HISTORY_BARS
+
 export const DEFAULT_LIMITS = Object.freeze({
   PROGRAM_SIZE: 512 * 1024,
   IR_SIZE: 200000,
@@ -89,7 +117,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // script today (dual-view and poor-man stop earlier on the host lane, on loop state and a
   // withheld text gate; only the dark runtime pane meets this ceiling). Revisit with R-RT.
   INSTRUCTIONS_PER_BAR: 200000,
-  TOTAL_INSTRUCTIONS: 200000000,
+  TOTAL_INSTRUCTIONS: RUN_INSTRUCTIONS,
   // ⭐⭐ RT10 (2026-10-04) — PER BAR, NOT PER RUN. It was a run-wide 100,000, and
   // a run-wide count of a per-bar cost scales with HISTORY, not with the script:
   // delta-rsi-oscillator-strategy walks a fixed regression window, 1,163 passes
@@ -130,12 +158,18 @@ export const DEFAULT_LIMITS = Object.freeze({
   WHILE_ITERATIONS: 10000,
   LOOP_NESTING: 8,
   CALL_DEPTH: 64,
-  CALL_COUNT: 5000000,
+  // ⭐⭐ RT17 — PER BAR (`PER_BAR_CHARGED`), was a run-wide 5,000,000: delta-rsi
+  // calls 1,201 a bar and would have stopped near bar 4,160 of a long chart.
+  CALL_COUNT: PER_BAR_WORK,
+  // ⭐ A TradingView limit, kept as it is: a collection holds at most 100,000
+  // elements (`[UM]` Writing / Limitations; `pine-presentation-spec.md` §3.5).
   ARRAY_ELEMENTS: 100000,
-  ARRAY_OPERATIONS: 2000000,
+  // ⭐⭐ RT17 — PER BAR (`PER_BAR_CHARGED`), was a run-wide 2,000,000: wyckoff
+  // costs ~262 a bar and stopped on bar 7,628 of SPY's 8,477 (W17R).
+  ARRAY_OPERATIONS: PER_BAR_WORK,
   LIVE_OBJECTS: 500,
   OBJECT_OPERATIONS: 200000,
-  HISTORY: 20000,
+  HISTORY: HISTORY_BARS,
   // ⚠️ MEASURED, NOT GUESSED — and the measurement is why they are this small.
   // The 2F-2 census over all five corpora (169 scripts) found 35 that read
   // history over a value they mutate, and their DEPTH demand is: 29 scripts at
@@ -144,14 +178,16 @@ export const DEFAULT_LIMITS = Object.freeze({
   // runaway long before it can matter.
   HISTORY_SLOTS: 512,
   HISTORY_VALUES: 262144,
-  WINDOW_CELLS: 100000000,
+  // ⭐⭐ RT17 — PER BAR (`PER_BAR_CHARGED`), was a run-wide 100,000,000.
+  WINDOW_CELLS: PER_BAR_WORK,
   // ⚠️ MEASURED, and deliberately small. Every member of `CARRIED` holds THREE
   // scalars, so 4,096 instances is 12,288 doubles — 98 KB — which is already far
   // past any honest indicator. The ceiling exists so a generated program cannot
   // quietly allocate per-symbol state that a 5,000-symbol scan multiplies.
   CARRIED_INSTANCES: 4096,
   CARRIED_CELLS: 65536,
-  CARRIED_STEPS: 100000000,
+  // ⭐⭐ RT17 — PER BAR (`PER_BAR_CHARGED`), was a run-wide 100,000,000.
+  CARRIED_STEPS: PER_BAR_WORK,
   REQUEST_COUNT: 16,
   REQUEST_FANOUT: 64,
   MEMORY: 64 * 1024 * 1024,
@@ -185,6 +221,27 @@ export function resolveLimits(overrides) {
   return Object.freeze(out)
 }
 
+/** ⭐⭐ RT17 (2026-10-04) — THE CHARGED LIMITS THAT COUNT ONE BAR, NOT THE RUN.
+ *  Each was a run-wide total with no TradingView counterpart (TradingView bounds
+ *  a script by ELAPSED TIME — 20 s / 40 s a run, 500 ms a loop — and by
+ *  collection SIZE, never by a count of operations; `pine-presentation-spec.md`
+ *  §3.5). A run-wide count of a per-bar cost scales with HISTORY, not with the
+ *  script: wyckoff-accumulation-distribution costs ~262 array operations a bar
+ *  and stopped by `ARRAY_OPERATIONS` on bar 7,628 of SPY's 8,477 (W17R). Each is
+ *  now reset at the start of every bar (`startBar`, `vm.js`), stops by name on
+ *  the bar it runs away in, and keeps the WORST BAR as its count (a peak).
+ *  What the run-wide totals stood in for — the run's time — is bounded by
+ *  `TOTAL_INSTRUCTIONS`, by `HISTORY` x each per-bar ceiling, and on the
+ *  member's pane by its wall clock (`runtimeColumns.js`). `runTotals` keeps
+ *  the run's sum of each, measured and never checked. */
+export const PER_BAR_CHARGED = Object.freeze([
+  'CALL_COUNT',
+  'ARRAY_OPERATIONS',
+  'WINDOW_CELLS',
+  'CARRIED_STEPS',
+])
+const IS_PER_BAR = Object.freeze(Object.fromEntries(PER_BAR_CHARGED.map((n) => [n, true])))
+
 /** The running account. ⭐ ONE OBJECT, PASSED DOWN — never module state, because
  *  the runtime must be re-entrant across symbols in one screener pass and module
  *  state would let symbol 4,000 inherit symbol 3,999's budget. */
@@ -193,11 +250,36 @@ export class Budget {
     this.limits = resolveLimits(limits)
     this.counts = Object.create(null)
     for (const n of LIMIT_NAMES) this.counts[n] = 0
+    // ⭐ RT17 — this bar's running count of each per-bar limit, and the run's
+    // sum of it (a measurement, never checked).
+    this.bar = Object.create(null)
+    this.runTotals = Object.create(null)
+    for (const n of PER_BAR_CHARGED) { this.bar[n] = 0; this.runTotals[n] = 0 }
     this.startedAt = 0
   }
 
-  /** Charge `n` against a limit and stop by name if it is exceeded. */
+  /** ⭐ RT17 — a new bar: every per-bar limit starts from zero. */
+  startBar() {
+    for (let i = 0; i < PER_BAR_CHARGED.length; i += 1) this.bar[PER_BAR_CHARGED[i]] = 0
+  }
+
+  /** ⭐ RT17 — a run nested inside a bar (a request's sub-run shares this
+   *  budget and runs its own bars) must hand the outer bar its count back. */
+  saveBar() { return { ...this.bar } }
+  restoreBar(saved) { Object.assign(this.bar, saved) }
+
+  /** Charge `n` against a limit and stop by name if it is exceeded. A per-bar
+   *  limit (`PER_BAR_CHARGED`) counts this bar only and keeps its worst bar. */
   charge(limit, n) {
+    if (IS_PER_BAR[limit] === true) {
+      const atBar = this.bar[limit] + n
+      this.bar[limit] = atBar
+      this.runTotals[limit] += n
+      if (atBar > this.counts[limit]) this.counts[limit] = atBar
+      const cap = this.limits[limit]
+      if (atBar > cap) throw new RuntimeLimitError(limit, cap, atBar)
+      return atBar
+    }
     const next = this.counts[limit] + n
     this.counts[limit] = next
     const ceiling = this.limits[limit]

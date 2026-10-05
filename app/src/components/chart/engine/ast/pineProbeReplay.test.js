@@ -178,8 +178,12 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // 'ff55463c3a36e466'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
         plain: [856, 7194, 'c264e378ba65bd90'], manifest: [856, 7194, 'c264e378ba65bd90'] },
+      // ⭐ H7 (step 92h) moved pro-trading-art: a window reduction's ambiguity is now
+      // "a real AND an `na` element both present" (an empty / all-`na` window is the
+      // measured `na`, CAP4 Q-RT7a), one more token run per read — 216 more steps,
+      // same 85 Resolvers. Pre-H7: [85, 356778, '9fcabbf403bf29e0'] both.
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
-        plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
+        plain: [85, 356994, '746ef82d8c5ee0aa'], manifest: [85, 356994, '746ef82d8c5ee0aa'] },
       // ⭐ WAVE 16 (H5 B, 2026-10-03) moved adaptive-trend: default parameters now
       // resolve on the plot lane, so its `pine:function-def` wall is gone and the walk
       // goes further before `pine:block` (corpus_metric guards: function-def dropped,

@@ -336,3 +336,37 @@ def test_heal_recent_divergence_checks_the_newest_collector_day(_iso):
     healed = [h["date"] for h in res["healed"]]
     assert healed == ["2026-08-31"], "the newest collector day was divergence-healed"
     assert bm.raw_row("2026-08-31")["pct_above_200sma"] == 58.8
+
+
+# ── TERM-059: a carried daily print names the session it came from ────────────
+
+def test_a_carried_daily_print_is_stamped_with_its_source_session(_iso):
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    _put(bm, "2026-08-27", {"universe_count": 2606, "stage2_count": 539,
+                            "up_4pct_today": 42, "down_4pct_today": 342,
+                            "cboe_putcall": 0.91})
+    _put(bm, "2026-08-28", {"universe_count": 2606, "stage2_count": 539,
+                            "up_4pct_today": 42, "down_4pct_today": 342,
+                            "cnn_fear_greed": 54})
+    _put(bm, "2026-08-31", DEGRADED)            # CNN = 0 sentinel, no CBOE at all
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(GOOD_RECON))
+    from api.services import breadth_self_heal as heal
+    assert heal.heal_date("2026-08-31")["healed"]
+    stored = bm.raw_row("2026-08-31")
+    assert stored["cnn_fear_greed"] == 54 and stored["cnn_fear_greed_asof"] == "2026-08-28"
+    assert stored["cboe_putcall"] == 0.91 and stored["cboe_putcall_asof"] == "2026-08-27"
+    # CONTROL: a value the collector got itself is not stamped, and a weekly survey
+    # (which carries its own date field) is outside this stamp.
+    assert "aaii_bulls_asof" not in stored and stored["aaii_bulls"] == 32.9
+
+
+def test_a_chain_of_carries_names_the_original_print(_iso):
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    _put(bm, "2026-08-28", {"universe_count": 2606, "stage2_count": 539,
+                            "up_4pct_today": 42, "down_4pct_today": 342,
+                            "cboe_putcall": 0.77, "cboe_putcall_asof": "2026-08-20"})
+    _put(bm, "2026-08-31", DEGRADED)
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(GOOD_RECON))
+    from api.services import breadth_self_heal as heal
+    heal.heal_date("2026-08-31")
+    assert bm.raw_row("2026-08-31")["cboe_putcall_asof"] == "2026-08-20"

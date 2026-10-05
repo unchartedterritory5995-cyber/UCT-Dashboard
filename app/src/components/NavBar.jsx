@@ -18,7 +18,12 @@ const fetcher = (url) =>
 // with comments so the two read together.
 export const NAV_ITEMS = [
   // HOME
-  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
+  // ⭐ TERMINAL-NEXT: the entry stays `/calendar` while the shell is cohort-gated. For a
+  // member the `terminal-next` cohort admits, `/calendar` REDIRECTS into the shell's Calendar
+  // section (App.jsx `CalendarRoute`), so this entry lands them in `/terminal`; for everyone
+  // else it is today's page. `/terminal` becomes the literal `to` at graduation, when
+  // `viewportLockedRoutes.test.js` gets the new route's measurement it requires.
+  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/terminal'] },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   // MARKETS
@@ -43,6 +48,16 @@ export const NAV_ITEMS = [
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
+
+// An entry whose surface also answers on another path (UCT Terminal: `/calendar` AND the
+// shell at `/terminal`) stays lit there. Read off `window.location` inside NavLink's own
+// className callback, which re-runs on every route change, rather than adding a
+// `useLocation` import that every router-mocking NavBar test would have to grow.
+function alsoActive(item) {
+  if (!item.alsoActive || typeof window === 'undefined') return false
+  const p = window.location.pathname || ''
+  return item.alsoActive.some((r) => p === r || p.startsWith(`${r}/`))
+}
 
 // Bucket NAV_ITEMS under the shared taxonomy's groups (./navGroups.js) —
 // MobileTabBar's bottom tab bar groups the same routes, so the two surfaces
@@ -133,7 +148,7 @@ export default function NavBar({ onOpenPalette }) {
         key={item.to}
         to={item.to}
         className={({ isActive }) =>
-          [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
+          [styles.item, (isActive || alsoActive(item)) ? styles.active : ''].filter(Boolean).join(' ')
         }
         aria-label={item.label}
       >

@@ -419,6 +419,17 @@
 
 .proof:hover .proofArrow { transform: translateX(3px); }
 
+/* The live-trading-room door. Same quiet register as the proof link (it must
+   not compete with the waitlist either), set a step brighter so a room visitor
+   who landed here by mistake finds the way back. */
+.roomLink {
+  margin-top: 4px;
+  color: var(--text, #b6b09d);
+  animation-delay: 840ms;
+}
+
+.roomLink:hover { color: var(--ut-gold, #dcbb5e); }
+
 /* ── Countdown ──────────────────────────────────────────────────────────── */
 
 .clock {

@@ -129,27 +129,30 @@ PAID_NOW: set[tuple[str, str]] = {
     ("GET", "/api/stock-brief/{sym}"),
     ("GET", "/api/news-catalysts/{sym}"),
     # ── Morning Wire replay: PAST issues (api/routers/engine_data.py) ───────
-    # TERM-089. Today's wire stays the free tier (`/api/rundown`, LEFT_OPEN);
-    # the archive of past mornings is the paid product.
+    # TERM-089: the archive of past mornings.
     ("GET", "/api/wire/archive"),
     ("GET", "/api/wire/archive/{ymd}"),
+    # ── Morning Wire: TODAY's issue (owner ruling 2026-10-02, TERM-081 / OI-12)
+    # "Everything is paywall": these were LEFT_OPEN as the free tier's content
+    # until FREE_PAGES was emptied.
+    ("GET", "/api/rundown"),
+    ("GET", "/api/rundown/speech-text"),
     ("GET", "/api/theme-index/{slug}"),
     ("GET", "/api/single-stock-etfs/{symbol}"),
     ("GET", "/api/research/expected-move/{sym}"),
     ("GET", "/api/fundamentals/earnings-table"),
 }
 
-#: ✋ DELIBERATELY STILL SESSION-ONLY, AND THAT IS THE DECISION THIS PINS.
+#: ✋ STILL SESSION-ONLY, AND THAT IS PINNED SO IT CHANGES ONLY ON PURPOSE.
 #:
-#: `FREE_PAGES = ['/morning-wire']` — all three frontend copies agree
-#: (`AuthGuard.jsx:88`, `NavBar.jsx:35`, `MoreSheet.jsx:60`). Each route below is
-#: reached by a FREE member walking that page, so `require_paid` here would not
-#: be a paywall, it would be the free tier failing to load.
+#: ⚰️ The reason recorded per row was the free tier: `FREE_PAGES =
+#: ['/morning-wire']` and a FREE member walked that page. The owner ruled
+#: "everything is paywall" on 2026-10-02 (TERM-081 / OI-12); FREE_PAGES is now
+#: empty and the Wire's own content (`/api/rundown*`) moved to PAID_NOW. The
+#: rows below are shared reads the same components make on PAID pages too; with
+#: no free page left, each is a candidate for a later paid pass, recorded here
+#: rather than silently re-justified.
 LEFT_OPEN: dict[tuple[str, str], str] = {
-    ("GET", "/api/rundown"):
-        "the Morning Wire itself — the free tier's entire content",
-    ("GET", "/api/rundown/speech-text"):
-        "the same rundown for Read Aloud",
     ("GET", "/api/catalysts/today"):
         "`MorningWire.jsx:353` renders <CatalystTable> — it is ON the free page",
     ("GET", "/api/catalysts/by-date/{ymd}"):
@@ -592,27 +595,26 @@ def test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal(
 
 # ── 5. THE FREE TIER, WHICH A PAYWALL FIX MUST NOT BREAK ─────────────────────
 
-def test_a_FREE_member_completes_the_MORNING_WIRE_journey(app, clean_overrides):
-    """🔴 THE FUNNEL REGRESSION TEST.
+def test_a_FREE_member_is_refused_the_MORNING_WIRE_itself(app, clean_overrides):
+    """⭐ OWNER RULING 2026-10-02 (TERM-081 / OI-12): "Everything is paywall".
 
-    `FREE_PAGES = ['/morning-wire']`. A free member is invited in to read exactly
-    one page, and this drives every route that page's own components fetch. The
-    two rundown routes must be 200 — they ARE the content, and anything else is
-    the free tier failing to load. The rest must merely not be REFUSED, because
-    on a dev box the catalyst, tweet and alert stores are empty and an empty
-    store is a data fact, not an auth fact."""
+    ⚰️ This was THE FUNNEL REGRESSION TEST, requiring a free member to get 200
+    on the two rundown routes: the Wire was the one free page. The ruling
+    emptied FREE_PAGES, so the content now refuses a free member with the
+    router's own 402 sentence. The session-only LEFT_OPEN rows must still merely
+    not be REFUSED (they are pinned as session-only; on a dev box their stores
+    are empty and an empty store is a data fact, not an auth fact)."""
     client = _client(app, FREE_USER)
 
     for path in ("/api/rundown", "/api/rundown/speech-text"):
         resp = client.get(path)
-        assert resp.status_code == 200, (
-            f"{path} answered a FREE member {resp.status_code} — that is the "
-            f"Morning Wire itself, and this closes the funnel: {resp.text[:200]}")
+        assert resp.status_code == 402, (
+            f"{path} answered a FREE member {resp.status_code} — the Morning Wire "
+            f"is paid since 2026-10-02: {resp.text[:200]}")
+        assert resp.json()["detail"] == "The daily wire surface requires a paid plan"
 
     table = _table(app)
     for key, why in sorted(LEFT_OPEN.items()):
-        if key in (("GET", "/api/rundown"), ("GET", "/api/rundown/speech-text")):
-            continue
         url, kwargs = _request_for(table[key], key, with_body=True)
         resp = client.request(key[0], url, **kwargs)
         assert resp.status_code not in REFUSALS, (
@@ -753,6 +755,25 @@ REACHED_FROM_FREE_PAGE = {
         "member; a free member sees today's wire exactly as before.",
     "/api/wire/archive/":
         "Same component, the by-date read behind its date picker; same gate.",
+    # ⭐ 2026-10-02, TERM-081 / OI-12 ("everything is paywall"): the Wire's OWN
+    # content. This walk still starts at pages/MorningWire.jsx, but no free member
+    # renders that page any more: FREE_PAGES is empty and AuthGuard sends a
+    # non-paid member to /subscribe before the page mounts.
+    "/api/rundown":
+        "MorningWire.jsx's own content; paid like the page itself since "
+        "2026-10-02, and a free member never mounts the page.",
+    "/api/rundown/speech-text":
+        "Read Aloud of the same rundown, on the same now-paid page.",
+    # ⚰️ Red on integrate/terminal-fixes before this lane: Notebook wave 11
+    # (#263, 2026-10-02) added ModelBookEmbed, reached through the same lazy
+    # editor import as the widget embeds above. Verdict, made out loud: each stays
+    # require_paid, and since 2026-10-02 there is no free page at all, so no free
+    # member walks this tree.
+    "/api/modelbook/stocks":
+        "ModelBookEmbed in the Notebook editor (lazy import); paid, and no free "
+        "member renders the shell since the 2026-10-02 ruling.",
+    "/api/modelbook/stock/":
+        "Same embed, the per-stock read; same gate, same reach.",
 }
 
 
