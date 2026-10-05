@@ -47,10 +47,23 @@ function EntryProvenance({ entry }) {
 }
 
 export default function CatalystsTab({ sym }) {
-  const { data, isLoading } = useCatalystHistory(sym)
+  const { data, isLoading, error, mutate } = useCatalystHistory(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading catalyst history…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not a genuinely empty catalyst history.
+  // Render the error distinctly so a backend hiccup never reads as "no
+  // catalysts recorded for this ticker yet".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="catalysts-error">
+        Couldn't load catalyst history for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const entries = (data && data.entries) || []

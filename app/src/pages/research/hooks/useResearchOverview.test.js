@@ -1,15 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 
 // Mock useMobileSWR to capture the URLs requested and return canned data.
+// Each entry is the honest { ok, httpStatus, body } shape the real fetcher
+// now returns (TERM-088) -- never a bare value. `mutate` refs are module-level
+// (stable per key) to mirror real SWR's guarantee.
 const calls = []
+const noop1 = () => {}
+const noop2 = () => {}
+const noop3 = () => {}
+const noop4 = () => {}
 vi.mock('../../../hooks/useMobileSWR', () => ({
   default: (url) => {
     calls.push(url)
-    if (url?.includes('/api/ticker-meta/')) return { data: { name: 'Apple Inc.', sector: 'Technology', industry: 'Consumer Electronics' } }
-    if (url?.includes('/api/fundamentals/')) return { data: { market_cap: '$2.95T', forward_pe: 28.5, beta: 1.22, week52_high: 243, week52_low: 164, div_yield: 0.42 } }
-    if (url?.includes('/api/earnings/intel/')) return { data: { consensus: { buy: 37, hold: 8, sell: 1 }, price_target: { targetLow: 230, targetMean: 251, targetHigh: 280 } } }
-    return { data: null }
+    if (url?.includes('/api/ticker-meta/')) return { data: { ok: true, httpStatus: 200, body: { name: 'Apple Inc.', sector: 'Technology', industry: 'Consumer Electronics' } }, mutate: noop1 }
+    if (url?.includes('/api/fundamentals/')) return { data: { ok: true, httpStatus: 200, body: { market_cap: '$2.95T', forward_pe: 28.5, beta: 1.22, week52_high: 243, week52_low: 164, div_yield: 0.42 } }, mutate: noop2 }
+    if (url?.includes('/api/earnings/intel/')) return { data: { ok: true, httpStatus: 200, body: { consensus: { buy: 37, hold: 8, sell: 1 }, price_target: { targetLow: 230, targetMean: 251, targetHigh: 280 } } }, mutate: noop3 }
+    return { data: undefined, mutate: noop4 }
   },
 }))
 vi.mock('../../../hooks/useLivePrices', () => ({ default: () => ({ prices: { AAPL: { price: 256.5, change_pct: 1.8 } } }) }))
@@ -32,5 +39,14 @@ describe('useResearchOverview', () => {
     expect(result.current.stats.forward_pe).toBe(28.5)
     expect(result.current.analyst.consensus.buy).toBe(37)
     expect(result.current.live.change_pct).toBe(1.8)
+    expect(result.current.error).toBe(false)
   })
 })
+
+// TERM-088 -- `fetchResearchOverviewPart` honesty + error/H14 coverage for the
+// composed hook live in useResearchOverview.errorAndHonesty.test.js. A file
+// with its own static `vi.mock` of the same module (above) cannot reliably
+// have that mock overridden per-test by `vi.doMock` + dynamic import, so
+// that coverage is isolated in a sibling file with no competing static mock
+// -- the same pattern useDecisionRecord.test.js and the other research hooks
+// use.

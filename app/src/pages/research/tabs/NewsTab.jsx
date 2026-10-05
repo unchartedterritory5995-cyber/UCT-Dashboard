@@ -71,11 +71,23 @@ function hideBrokenImage(e) {
 }
 
 export default function NewsTab({ sym }) {
-  const { data, isLoading } = useCompanyNews(sym)
+  const { data, isLoading, error, mutate } = useCompanyNews(sym)
   const session = useMarketOpen()
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading news…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not a genuinely empty news feed. Render the
+  // error distinctly so a backend hiccup never reads as "no recent news".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="news-error">
+        Couldn't load news for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const e = data || {}
@@ -121,7 +133,7 @@ export default function NewsTab({ sym }) {
         </section>
       )}
 
-      {!items.length && <div className={styles.fnote}>No recent news for this ticker.</div>}
+      {!items.length && !error && <div className={styles.fnote}>No recent news for this ticker.</div>}
     </div>
   )
 }
