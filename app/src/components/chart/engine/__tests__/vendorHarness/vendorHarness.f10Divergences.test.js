@@ -62,8 +62,9 @@ describe('F10 (2, 3) — mtf-key-levels: D-VWAP to the cent, and `is_today` on a
     for (const state of ['off', 'on', 'runtime']) {
       it(`${id} (${state}): every VWAP plot MATCHES on every bar, D-VWAP's colour compared`, () => {
         const c = cap(id)
-        // vendor facts: captured on a Sunday (UTC), newest bar a Friday, closed
-        expect(new Date(c.capturedAtUTC).getUTCDay()).toBe(0)
+        // vendor facts: captured on a Sunday in New York (00:45Z Monday = 20:45 EDT), newest bar a Friday, closed
+        expect(new Date(Date.parse(c.capturedAtUTC) - 4 * 3600000).getUTCDay()).toBe(0)
+        expect(new Date(c.bars.rows[c.bars.rows.length - 1][0] * 1000).getUTCDay()).toBe(5)
         expect(c.newestBarIsForming).toBe(false)
         const v = graded(id, state)
         for (const t of ['D-VWAP', 'W-VWAP', 'M-VWAP', 'Y-VWAP']) {
@@ -94,7 +95,7 @@ describe('F10 (2, 3) — mtf-key-levels: D-VWAP to the cent, and `is_today` on a
     const src = '//@version=5\nindicator("t")\nplot(year(timenow))\n'
     const closed = translatePine(src, { strict: true })
     expect(closed.ok, JSON.stringify(closed.refusal)).toBe(true)
-    expect(closed.outputs[closed.selected].formula).not.toContain('lastbaryear')
+    expect(closed.outputs.map((o) => o.formula)).toEqual(['0 / 0'])
     const forming = translatePine(src, { strict: true, newestBarIsForming: true })
     expect(forming.outputs[forming.selected].formula).toBe('lastbaryear')
   })

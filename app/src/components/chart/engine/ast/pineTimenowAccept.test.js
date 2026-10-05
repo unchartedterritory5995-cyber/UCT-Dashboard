@@ -100,7 +100,8 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
     expect(t.outputs[t.selected].formula).toBe(target)
     const closed = translatePine(S(`${fn}(timenow)`), { strict: true })
     expect(closed.ok, JSON.stringify(closed.refusal)).toBe(true)
-    expect(closed.outputs[closed.selected].formula).not.toContain(target)
+    // `na` on every bar: the one output is the canonical `na` tree, hidden as all-`na`
+    expect(closed.outputs.map((o) => o.formula)).toEqual(['0 / 0'])
   })
 
   // ⭐⭐ VALUE CORRECTNESS, NOT JUST TRANSLATION — measured directly against
