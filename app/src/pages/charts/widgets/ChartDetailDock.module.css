@@ -185,6 +185,60 @@
 .rdSearch:hover { color: var(--text, #d8d2c2); border-color: rgba(255, 255, 255, 0.22); }
 .rdSearchOn { color: var(--accent, #c9a84c); border-color: var(--accent, #c9a84c); }
 
+/* Collapse chevron — folds the panel to its edge rail. Borderless and quieter
+   than search: it is a layout gesture, not a feature. 18px box + 2px right
+   margin is the 20px chartDock's TABSTRIP_FIT_W budgets for it. */
+.rdCollapse {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 24px;
+  margin: 0 2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #8b8574);
+  cursor: pointer;
+}
+.rdCollapse:hover { color: var(--text, #d8d2c2); background: rgba(255, 255, 255, 0.06); }
+
+/* ── Collapsed rail ──────────────────────────────────────────────────────────
+   The Company panel folded to its edge: the same divider and canvas as the
+   open panel, 16px wide, one glyph at the top on the header line. It exists
+   only while Company Info is added. */
+.dockRail {
+  flex: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  border-left: 1px solid var(--divider, rgba(255, 255, 255, 0.09));
+  background: var(--widget-canvas, var(--bg, #0e0f0d));
+}
+.railBtn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 34px;              /* the header row height, so the glyph sits on the header line */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #8b8574);
+  cursor: pointer;
+}
+.railBtn:hover:not(:disabled) { color: var(--accent, #c9a84c); }
+.railBtn:disabled { cursor: default; opacity: 0.55; }
+.railBtn:focus-visible, .rdCollapse:focus-visible {
+  outline: 1px solid var(--accent, #c9a84c);
+  outline-offset: -2px;
+}
+
 /* segmented Profile | News switch */
 .seg {
   display: inline-flex;

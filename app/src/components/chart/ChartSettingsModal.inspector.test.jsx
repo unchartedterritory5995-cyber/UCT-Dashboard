@@ -1316,7 +1316,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     const btn = addBtn()
     // ⚠️ THE GLYPH IS ITS OWN ELEMENT with a flex `gap` between, so `textContent`
     // carries no space — the space a member SEES is layout, not a character.
-    expect(btn.textContent.replace(/\s+/g, ' ').trim()).toBe('＋Add Indicator')
+    expect(btn.textContent.replace(/\s+/g, ' ').trim()).toBe('＋Add to Chart')
     // ⛔ IT IS IN THE LEFT COLUMN AND BELOW THE LIST — both halves matter: in the
     // heading it read as chrome, and inside the scroller a member with fifteen
     // indicators would have to scroll to reach it.

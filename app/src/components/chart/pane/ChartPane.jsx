@@ -112,6 +112,9 @@ function ChartPane({
   onSymbolChange = null,
   onTfChange = null,
   density = 'full',
+  // Host features for the settings modal's Indicators tab (a ChartWidget's
+  // Earnings Strip / Company Info). Passed straight through; null elsewhere.
+  chartFeatures = null,
   stored = null,
   onStore = null,
   chartId = null,
@@ -1058,6 +1061,7 @@ function ChartPane({
            (absent prop ⇒ absent door), and this is the handler that reaches the
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
+        chartFeatures={chartFeatures}
       />
     </div>
   )

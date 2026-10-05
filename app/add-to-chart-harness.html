@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  UNIFIED ADD TO CHART — LIVE HARNESS.
+
+  The REAL ChartWidget (ChartPane, Chart settings → Indicators → Add to Chart,
+  ChartDetailDock, Earnings Strip, Company Info) with its opts in page state, so
+  the host-feature lifecycle can be driven end to end without a workspace — and
+  without Main Trading. Drive it through window.__a2c (opts / writes / setSym /
+  setWidth / reload / blocked).
+
+  ⛔ IT CANNOT WRITE A PREFERENCE OR A LAYOUT (see addToChartHarness.jsx).
+  Dev-server only — `vite build` takes index.html as its single input; railed by
+  src/testing/addToChart/addToChartHarnessAbsent.test.js.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>    (from app/, backend on :8000)
+  Then: http://127.0.0.1:<port>/add-to-chart-harness.html?sym=AAPL&w=1400
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>add to chart harness</title>
+    <style>
+      html, body { margin: 0; background: #101216; color: #e6e8ec;
+        font: 12.5px/1.45 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
+      #root { padding: 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/addToChart/addToChartHarness.jsx"></script>
+  </body>
+</html>
