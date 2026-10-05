@@ -302,6 +302,17 @@ const SERVER_LEDGER = {
     + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
     + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
     + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',
+  // Wave 14 lane W14-E (integration): one seeded example per capability, written by the SAME
+  // "Add a sample notebook" call. Every note write targets a note this module created moments
+  // earlier inside that call (import_confirm, then update_note for the thesis property and
+  // append_document_excerpt for the cited passage on those fresh ids), so no tab holds one yet.
+  // Its note ids are folded into the sample's recorded ids, so removal is sample_notebook.py's
+  // own pre-checked trash above; this module deletes no note itself.
+  'api/services/journal_two/sample_examples.py':
+    'import_confirm seeds NEW example notes no tab holds yet; update_note (the thesis property) and '
+    + 'append_document_excerpt (the cited passage) then write ONLY those fresh ids inside the same seed call; '
+    + 'its notes are trashed by sample_notebook.py\'s own pre-checked removal (their ids are recorded with the sample\'s), '
+    + 'and its own remove() touches only non-note rows (a trade, an entry context, a passed setup, an insight)',
   // Wave 11 lane 11C ("Ask Notebook to do something"): a member-APPROVED batch, applied server-side change by
   // change through the member's own writers, each against the revision the member reviewed.
   'api/services/journal_two/ai_actions.py':
@@ -712,6 +723,12 @@ const DOOR_CLASSIFICATION = {
     why: 'seeds NEW notes nobody holds; removal trashes only the sample ids after the bulk pre-check refuses '
       + 'any holding unsent words (a later save to one reads 404 and the words stay queued).',
     evidence: ['tests/test_sample_notebook.py'],
+  },
+  'api/services/journal_two/sample_examples.py': {
+    class: NONE,
+    why: 'seeds NEW example notes nobody holds and writes only those fresh ids inside the same call; removal is '
+      + 'the sample notebook\'s own pre-checked trash over the same recorded ids, so unsent words are never trashed.',
+    evidence: ['tests/test_sample_notebook_examples.py', 'tests/test_sample_notebook.py'],
   },
   'api/services/journal_two/note_connectors/engine.py': {
     class: FORK,
