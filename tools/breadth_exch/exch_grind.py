@@ -74,6 +74,7 @@ from api.services import breadth_pit_frame as bpf          # noqa: E402
 here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, here)
 import breadth_venue_ledger as vl                          # noqa: E402
+import exch_counts as xc                                   # noqa: E402
 
 LDOC = json.load(open(LEDGER_PATH))
 if vl.ledger_hash(LDOC["rows"]) != LDOC["sha256"]:
@@ -82,7 +83,7 @@ L = vl.Ledger(LDOC["rows"])
 cp.FLOORS["nyse"], cp.FLOORS["nasdaq"] = NYSE_START, NASDAQ_START
 
 _orig = cp.resolve_universes
-_counts = {}
+_counts = xc.SessionCounts()   # ⛔ never a bare dict: see exch_counts (v1 lost 4 rows)
 
 
 def resolve_universes(D, traded, inp, ref_map, universes):
@@ -105,7 +106,7 @@ def resolve_universes(D, traded, inp, ref_map, universes):
         base["nyse"] = nyse
     if "nasdaq" in universes and D >= NASDAQ_START:
         base["nasdaq"] = nas
-    _counts[D] = c
+    _counts.put(D, c)
     return base
 
 
@@ -113,11 +114,7 @@ cp.resolve_universes = resolve_universes
 
 # side table written in the same artifact by the 5-minute pump and at the end (idempotent)
 def _write_counts(conn):
-    conn.execute("CREATE TABLE IF NOT EXISTS exch_session (date TEXT PRIMARY KEY, counts TEXT)")
-    for d, c in list(_counts.items()):
-        conn.execute("INSERT OR REPLACE INTO exch_session VALUES(?,?)", (d, json.dumps(c, sort_keys=True)))
-    conn.commit()
-    _counts.clear()
+    xc.flush(_counts, conn)
 
 
 cal = [d for d in gh.session_calendar() if "2008-01-02" <= d <= TO]
