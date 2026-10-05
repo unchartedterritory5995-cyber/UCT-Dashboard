@@ -192,10 +192,12 @@ without it; each row below is a full re-grade of the 47 captures.
 | 90 | H6 host-lane state and UDT walls (section H6): `ta.obv` / v4 `obv` served on the host lane as Pine's reference definition `cum(sign(change(close)) * volume)`, its level withheld off the listing by name (`cum:window`, both lanes, plot and object); a user-defined type's field read off an instance that is the same on every bar becomes its constructor argument (`udtConstFields.js`). multicator RDDT OBV cell prints `-29.984M`, SPY withheld; its HUD colours 15 / 15 TradingView's on RDDT and SPY (control Light 15 / 15 differ); still withheld whole for the HUD's `visibleRange` tuple. H2's state walls routed per script: the runtime lane owns the attached ones (graded MATCH from the listing), the rest refused, Q-H6c queued | `7591471ccd`, `4fb83c72d5`, merge `09bef68824` | sweep 368 x 2: 0 entries changed, 0 MATCH -> DIVERGE | census 56 / 82 / 99 (libraries) and 56 / 80 / 96 unchanged, 0 lost; lorentzian `pine:type` -> `pine:reassign` | mutations M1-M6, U1-U7 red; Q-H6a-c |
 | 91 | CAP4 capture lane (section CAP4): the 2026-10-03 queues captured as unsaved drafts - Q-H5a format.volume (K below a million, trailing zeros trimmed, ties up, no roll-over `1000M`, `2.5T`), Q-H5b `timeframe.*` inside a request is the REQUESTED timeframe (W 10080, M 43830, 240, 3), Q-RT7a/b empty / all-na reductions are `na` and fixnan equals the replay (SPY full history, 8477 bars), Q-RT8a `ta.wma` rule A (W01 bar 26, W03 bar 58), Q-RT8b/c per-bar shape and fill colours, Q-RT8d v4 fill default transparency 90 | `cf5e6b7e8c`, `0738cc8edf`, `f4bf3beffa` | 6 harness files + `cap4-verdicts.json` (12 rows) | - | our grade: H5a DIVERGE (16 cells withheld), H5b INCONCLUSIVE (pine:request 240), RT7 INCONCLUSIVE (objects pine:na; runtime stops on `array.sum` of an empty array), RT8 followups DIVERGE (host lane wma rule B-like + bar-0 mid), RT8d MATCH (A/B; fills not graded) |
 | 92 | RT10 the runtime lane's next walls (section RT10): `switch` as a statement; a pivot over runtime state at its confirmation bar (one `pivotAt` rule shared with the columnar `pivotCol`); an expression's own committed series inside a function frame (stateless, frame-local names only); `ta.cum` over runtime state on a pane (`cumCol`'s vendor rule); `for … in` over an array as the LIVE walk C48 measured | `230375bde2`, `4f0444e652`, `51220005ee`, `e67056a1ed`, `98ac7d7637`, `63a644350f` | census (libraries) 56/82/99 -> 56/82/100 measured after W2 (volume-divergence-by-mm attaches; 0 lost); after W3-W5 not measured (measure hold) | harness 335 files, runtime pane permitted, base vs W2: identical entry for entry (MATCH 106 / DIVERGE 107 / INC 122); after W3-W5 not measured |
-| 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
+| 92h | H7 what CAP4 proved, served (section H7): `format.volume` K/M/B/T exactly as Q-H5a (ties up, no roll-over `1000M`, `2.5T`, negatives) per pass of a loop over a constant `array.from`; the plain `x = init` / `x := ... x[1] ...` form runs its update on bar 0 (H7's seed mark, replaced at the wave-17 merge by F5's `listingReading`, the same answer with no tree change) - R01/S01/S04 and R03_trend bar 0; empty / all-na `array.max/min/sum/avg` answer the measured `na` with no stop in the runtime AND object lanes (F8's interim two-probe run removed); `fixnan` served on the host lane per call site; v4 `fill` with no `transp` holds 90 (`cap4-rt8d-fill-state-2026-10-04.json`); `ta.wma` warm-up is F7's (row 93) | `de52c4fe0e`, `9c0281c616`, `fbb9f529ad`, `0fa3de61f0`, this tip | - | CAP4 re-measured (`CAP4_MEASURE=1`): H5a DIVERGE->MATCH, RT7 INCONCLUSIVE->MATCH 11/11 (both states), RT8 followups 8 of 9 MATCH (S03 DIVERGE: F8 NOT DRAWN, then after H8 a per-bar colour difference - H8's); merged with wave 17 `6c557c3308`, re-measured, 0 MATCH lost |
+| 93 | F7 the host lane's FFILL warm-up (section F7): `ta.wma` first answers on its n-th FINITE input in the host lane too (`interpret.js::rolling`, `ast_interpret.py::_rolling`), one rule with RT8's VM (host == VM on 18 gappy warm-ups; host `ema(wma(x,40),14)` over trend-targets RDDT's own input == TradingView's Baseline from bar 140; JS == Python by fixture; Q-RT8a unseparated, the VM's rule kept). B1 paint pins re-measured: 14 unchanged, 26 CAP3-era captures added, 7 off-listing SPY rows differ only inside the first 100 bars or undrawn. Harness lower-timeframe supply cut at the capture's clock (c41 1W); c41 / c47 re-pinned (CAP round 4's 60m capture; H5's listing anchor) | `8e90125e53`, `912187ddc8` | harness 335 files x off/on/runtime with libraries: 70/92/107 MATCH before and after, 0 rows changed (full content); CAP3 signatures unchanged | unchanged | none; census 56/82/99, 0 rows changed |
+| 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
-| 96 | F9 values we DRAW that TradingView does not (section F9): `color.new(<per-bar rule>, t)` carried as the rule at one alpha (rt8 S03); a `var` colour set by its `if`s carried as a palette and a running index (rt6 C01 / C02 / B01); a valued bar whose palette index is not computable withheld (`seed:held`) instead of drawn in gold; `ta.wma` first answers on its n-th finite input on the host lane, both lanes (rt8 W01-W03, rule A); `ta.cum(<constant>)` is the bar index's leaf, withheld off the listing (`bar-index:window`, vw-bar-counters SPY 1 / 30 C05); harness: a capture's own `bar_index` control outranks its listing sentence (vw-int-cast) | `4fff2c63fb`, `dd2430c61c`, `67185dfa6c`, `1ab3639324` | `ast/pine.js`, `ast/interpret.js`, `ast/barIndexShift.js`, `nativeRegistry.js`, `api/services/ast_interpret.py`, `api/services/ast_bar_index_shift.py`, `vendorHarness/ourSide.js` | harness 746 graded (on + runtime), base 286 / 169 / 291 -> 290 / 161 / 295 (M / D / I); 4 DIVERGE -> MATCH, 4 DIVERGE -> INCONCLUSIVE; MATCH lost 0; cap4 + cap3 signatures regenerated by their writers | 11 / 11 mutations red; corpus translation census 1 output moved (an arity note) |
+| 96 | F9 values we DRAW that TradingView does not (section F9): `color.new(<per-bar rule>, t)` carried as the rule at one alpha (rt8 S03); a `var` colour set by its `if`s carried as a palette and a running index (rt6 C01 / C02 / B01); a valued bar whose palette index is not computable withheld (`seed:held`) instead of drawn in gold; `ta.wma` rule A (rt8 W01-W03; F9's copy dropped at the merge for F7's identical rule); `ta.cum(<constant>)` is the bar index's leaf, withheld off the listing (`bar-index:window`, vw-bar-counters SPY 1 / 30 C05); harness: a capture's own `bar_index` control outranks its listing sentence (vw-int-cast) | `4fff2c63fb`, `dd2430c61c`, `67185dfa6c`, `1ab3639324` | `ast/pine.js`, `ast/interpret.js`, `ast/barIndexShift.js`, `nativeRegistry.js`, `api/services/ast_interpret.py`, `api/services/ast_bar_index_shift.py`, `vendorHarness/ourSide.js` | harness 746 graded (on + runtime), base 286 / 169 / 291 -> 290 / 161 / 295 (M / D / I); 4 DIVERGE -> MATCH, 4 DIVERGE -> INCONCLUSIVE; MATCH lost 0; cap4 + cap3 signatures regenerated by their writers | 11 / 11 mutations red; corpus translation census 1 output moved (an arity note) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7826,6 +7828,218 @@ merge with the old limits: `LOOP_ITERATIONS ... reached 100001 on bar 85 of 636`
 stays INCONCLUSIVE on `runtime:history-start`. Re-pinned: c18 k-clustering's test-only budget
 (raises `LOOP_ITERATIONS` with `INSTRUCTIONS_PER_BAR`; pins 22,820), coverageAudit wyckoff SPY
 paint (notDrawn -> MATCH). Server rails 70 passed.
+## F7 - the host lane's FFILL warm-up is the runtime lane's, B1's paint pins re-measured, and two integration-tip reds traced (2026-10-04, step 93)
+
+Lane F7, branch `pine/f7-host-warmup-parity` (from `integrate/wave16-2026-10-02` `17330e6289`), merged with
+`origin/pine/rt8-runtime-followups` (`d458a0f691`) first and with the wave-16 tip `20ba63f668` before the last
+measurements. Commits `8e90125e53` (warm-up + B1), `912187ddc8` (lower-timeframe clock, c41 / c47).
+
+### 1. `ta.wma` (FFILL) warm-up - ONE rule in the VM, the JS host and the Python host
+
+**The defect.** RT8 taught the runtime VM `ta.wma`'s witnessed warm-up (a hole in the lookback is the last finite
+input at its own weight; `na` on an `na` bar; the first answer on the n-th FINITE input). The host lane's
+`rolling` FFILL answered as soon as its forward-filled window was full - on trend-targets' input shape (finite on
+bar 0 = 0, `na` to 88, finite from 89) that is bar 89 where TradingView's is bar 127.
+
+**The fix.** `interpret.js::rolling` and `ast_interpret.py::_rolling` count the finite inputs seen through bar `i`
+and an FFILL window answers only once that count reaches `n` - the VM's own counter (`runtime/vm.js` OP.WINDOW
+`ffill`). `wma` is the only FFILL member (railed), so that is the whole reach. Off the listing the same count
+starts at the window's first bar: no earlier answer than before (F5 owns the off-listing rule; nothing withheld
+here).
+
+**Graded** (`vendorHarness.f7HostWmaWarmup.test.js`, 24 tests):
+* **trend-targets-algoalpha NYSE:RDDT 1D, from the listing.** The wma's input is taken from the runtime lane's own
+  run of the script's supertrend on the capture's bars (bar 0 = 0, `na` 1-88, finite from 89 - RT8's solved
+  shape). HOST `FN.ema(FN.wma(x, 40), 14)` first answers on bar 140 like TradingView's `Baseline`, agrees with it
+  to rel < 1e-9 on every bar it answers (> 400 compared, `na` on exactly TradingView's `na` bars) and with the VM
+  to < 1e-12. Control: the pre-F7 rule, written out, answers from bar 89 and the ema does not start on 140.
+* **host vs VM, 18 synthetic gappy warm-ups** (6 shapes x lengths 1 / 4 / 9): equal on every bar. ⚠️ The VM side
+  uses `var x` + `:=`: a pure `x = <expr>` is compiled to the host's column and would compare the host with itself
+  (found when the pre-fix run passed every shape).
+* **JS vs Python:** `tests/fixtures/ast/ffill_warmup_parity.json` (written by the JS lane, asserted by both;
+  `tests/test_ast_ffill_warmup_parity.py`, 20 tests).
+* `finiteWindowNa.test.js`'s hand-checked 80.5 row (58, 95, na, 68) was read deep in a capture; on a 4-bar
+  series it is warm-up now, so it is replayed behind one earlier finite bar (same window) and the bare 4-bar
+  form is asserted withheld.
+
+**Not separated: Q-RT8a.** "n-th finite input" (rule A) and "the window holds n - 1 finite inputs" (rule B) both
+put trend-targets' first wma on bar 127 with bar 0's 0 in the oldest slot. Rule A is kept because it is the
+VM's, so the lanes are one rule; the separating capture is RT8's queue.
+
+**The host lane on the real script is still one bar late, and not because of the wma.** The host translates a
+trimmed trend-targets (supertrend + `Baseline`) on RDDT, but its `math.avg(lwr, upr)` is `na` on bar 0 where the
+VM's (and TradingView's, per RT8) is 0 - so the host's wma starts on bar 128 under either rule and its Baseline
+on 141 (one `na` mismatch, then a decaying seed, max rel 3e-4). That is the H1 ratchet's bar-0 value
+(`lowerBand := ... nz(lowerBand[1]) ...` with v6's false `na` comparisons): host state, owner H6 / H1. Measured,
+not changed here.
+
+**Measured** (worktree f7, `--maxWorkers=1`, library store loaded):
+
+| | before (`f2e9c59759`) | after (`8e90125e53`) |
+|---|---|---|
+| harness, 335 captures, off: MATCH / DIVERGE / INCONCLUSIVE | 70 / 70 / 195 | 70 / 70 / 195 |
+| on | 92 / 100 / 143 | 92 / 100 / 143 |
+| runtime | 107 / 106 / 122 | 107 / 106 / 122 |
+| verdict rows changed (full content, all three states) | - | **0** |
+| census attach off / on / runtime (266) | 56 / 82 / 99 | 56 / 82 / 99, every row identical |
+| `tools/ast_conformance.py --check` | 2,344 findings (exit 1) | the same 2,344, line for line - none names `wma` (pre-existing: cases not in the frozen log, two pivot digests) |
+
+### 2. `vendorHarness.b1Paints` - re-pinned from measurement
+
+**Cause.** The pin list predates CAP3: 26 captures that record a paint were added (most SPY 1D, 1,800 bars from
+2019-08-06, NOT from the listing). Grades printed with `B1_PRINT=1`; nothing typed.
+* **The 14 old rows: unchanged**, verdict for verdict.
+* **19 new rows agree / `naBoth` / withheld / refused** as their RDDT twins (or as the probe expects):
+  `vw-bgcolor-barcolor` SPY (B1's own probe, captured) and `vw-bgcolor-v4-default` SPY agree on every drawn row
+  (plot_3 - an `offset` that is not a whole-number literal - stays withheld); `vw-rt6-runtime-colour` x2 agree;
+  heat-map / supertrend-strategy x2 withheld (`paint:colour`); 7 refused by name (`pine:state` / `pine:block` /
+  `pine:collection`).
+* **7 SPY rows DIFFER, all off the listing** - pinned with their differing span and undrawn count:
+  atr-support-and-resistance (bar 13 only), atr-trailing-stoploss (bars 0-14), btc-charlie (bars 0-50), elliott
+  (58-97 and bar 7), ema-ribbon (7-53), fibonacci-pivot-points (0-1): a series seeded off the listing (F5's
+  class) - every differing bar inside the first 100. **atr-trailing-stop-by-ceyhun SPY: 1,088 bars, every one
+  UNDRAWN** (runs 0-138, 522-1351, 1601-1719): the two trails' H1 ratchet is unknown from an off-listing window,
+  so the door draws no colour there - with the listing asserted (a control, not a fact) the same run leaves 23
+  bars, all from bar 0. Its RDDT twin agrees 636 / 636.
+
+**The rule, now:** a capture FROM the listing may differ on no bar (unchanged); a `differ` row is allowed only on
+the named off-listing captures, only as a plain colour difference, and only on bars inside the first 100 or bars
+the door leaves undrawn. 100 is the measured bound (elliott's 97), a pin, not a derivation.
+`paintColours.js` now reports each `differ` row's last differing bar and its undrawn count. 45 / 45 green.
+
+### 3. The focused vendor-harness set at the tip: two more reds, both traced
+
+* **`c41LowerTfServe` (4 red).** CAP round 4 committed `vw-request-htf-alignment-spy-60-2026-10-02` (60m bars to
+  2026-10-02 19:30Z). The harness supplies every committed capture of the listing, so the 1W capture taken
+  **2026-10-01T03:10Z** read its forming week from 10-01 / 10-02 closes - 769.65 where TradingView, then, read
+  762.46. **Fixed in the harness** (`ourSide.js::lowerTfSupply`): an intrabar that opened after the capture's own
+  `capturedAtUTC` is not supplied. The 1D count 2,950 -> **2,952** is the new capture supplying 2026-09-29 / 09-30
+  (the 2015 capture ends 09-28) - before the capture's clock, and both equal TradingView: re-pinned with that
+  reason. Harness off / on / runtime after the cut: **0 rows changed**; CAP3 signatures regenerated with
+  `cap3SpyGaps.measure.test.js`: content identical (no signature moved).
+* **`c47OhlmDivider` (1 red).** Bar 0's divider condition is no longer unknown: H5 (`8579b64f75`, ruling R-W)
+  reads a period anchor for the bar before a listing series as `na` instead of withholding it, so on the listing
+  day `ta.change(time("W"))` is computable and false - no divider, which the 504 / 504 line count (TradingView's)
+  agrees with. Re-pinned (`unknownAt` [], no create withheld, bar 0 reads 0). Control: H5's one line reverted ->
+  `[0]` returns.
+
+Both reds are independent of item 1: with the pre-F7 `interpret.js` swapped in, the same 5 fail.
+
+### Mutations (bytes captured, restored, sha verified)
+
+`f7_mutate.py`, each alone: JS FFILL count gate removed (10 red); the count read off the FILLED series (8); the
+pre-window inputs not counted (17); Python gate removed (6); paint `undrawn` never counted (3); paint last
+differing bar not recorded (7); the warm-up bound tightened to 60 (below elliott's 97: 1); an off-listing
+allowlist entry dropped (1); the capture-clock cut removed (c41 weekly row red); H5's anchor line reverted
+(c47's new pin red) - **10 of 10 red.**
+
+### Tests (totals lines)
+
+vitest (`--maxWorkers=1`), the focused vendor-harness set (`__tests__/vendorHarness/`, `*.measure` excluded) on the
+F7 tip: **92 files, 3 failed | 1,375 passed | 10 skipped (1,388)** - the 3 are per-test timeouts, not results:
+c26OtherSymbol and c29BareSymbol (60 s limit; c26 takes 65.8 s alone, identical with and without the supply cut,
+CPU 83 % busy from other sessions) and c37ObjectColours (120 s; passes alone). Before F7's c41 / c47 work the same set
+read 5 failed | 1,373 passed (the five traced above). Scoped rails on the merged tree (b1Paints, b1PaintVerdict,
+f7HostWmaWarmup, rt8Followups, rt8DoorState, finiteWindowNa, runtime finiteWindow, paramIds, paramIdPinned,
+paramIdSourceStability, pineProbeReplay) **11 files, 193 passed | 1 skipped**; c41 31 / 31, c47 4 / 4; window /
+wma batch (finiteWindowNa, runtime finiteWindow, warmupParity, boundedSlotOffset, pine.window, pine.windowAdvice,
+pine.vendorParity, pine.derived, pine.namedargs, objectFnInline, pine.test) 11 files, 343 passed. pytest
+(`test_ast_ffill_warmup_parity.py`, `test_ast_interpret.py`, `test_ast_conformance.py`, `test_ast_indicators.py`,
+`test_ast_multi_tree_parity.py`, `test_ast_scalars.py`, `test_ast_bars_ago.py`) **381 passed, 5 skipped**.
+
+### Open
+
+- Q-RT8a (rule A vs B) - RT8's queue; the host follows the VM.
+- The host lane's trimmed trend-targets Baseline: one bar late from the H1 ratchet's bar-0 `na` (H6 / H1).
+- `vw-bgcolor-barcolor` SPY plot_3: the withholding sentence says "no capture" for a non-literal `offset`, and
+  B1's probe is now captured - whether that capture settles it is the paint owner's call (not measured here).
+- The other-symbol supply (`otherSymbolSupply`) is not cut at the capture's clock; no red needs it today (not
+  measured).
+
+## H7 - what CAP4 proved, served: format.volume, the plain form's bar 0, empty reductions, fixnan, v4 fill transp (2026-10-04, step 92h)
+
+Every answer below is a TradingView capture (CAP4, `tests/fixtures/vendor/harness/vw-*-2026-10-04`); nothing is inferred.
+
+1. **`format.volume` (Q-H5a)** - `pineTextFormat.js::volumeNumberText`: 0, 7, 999, 1K, 1.5K, 12.345K, 999.999K, 1M,
+   3.1M, 3.126M (a tie rounds up), 1000M (999,999,600: the unit does NOT roll over), 1B, -1.5K, -3.1M, 2.5T. The probe's
+   per-pass cell (`array.get(vals, i)` of an unchanged `array.from`) is read on the host lane (`pine.js::loopFromGetOf`).
+   Still withheld (no capture): a non-whole or negative value below 1,000, a negative tie, -0, >= 1e15.
+   H5a DIVERGE -> MATCH (on, runtime).
+2. **The plain form's bar 0 (Q-RT8a R01)** - `x = init` then `x := ... x[1] ...` folds to `accum(0 / 0, update)`. From
+   the listing the pass held two bar-0 readings (the `na` seed, and the update run from `na`) and drew bar 0 only where
+   they agreed, so the supertrend ratchet's mid (`math.avg(lw, up)`) was withheld where TradingView reads 0. The plain
+   form ALWAYS means the update. H7 first served it with a seed mark (`1 * (1 * (0 / 0))`, budget-neutral in both
+   lanes); F5 (wave 17, `interpret.js` `listingReading`) served the same answer with NO tree change - an unmarked
+   `na` seed from the listing runs the update on bar 0. ⚰️ At the H7 x wave-17 merge the mark was REMOVED (one
+   authority over one value; F5's rule is broader and costs the node budget nothing), and H7's rails
+   (`h7Cap4Findings` "H7 2") now pin the shared answer: the plain `0 / 0` tree, bar 0 = the update. Moved: RT8
+   followups R01 / S01 / S04 DIVERGE -> MATCH (bar 0; S01 / S04 colour follows R01); capRound4 R03_trend MATCH
+   636/636; coverage audit optimized-keltner-channels RDDT -> MATCH. Python has no listing pass for recurrences
+   (pre-existing; its answer from the listing is withheld, never wrong).
+3. **Empty / all-na reductions (Q-RT7a) and `fixnan` (Q-RT7b)** - `array.max/min/sum/avg` of an empty array, and
+   `sum/avg` of (na, na), answer `na` with no runtime error, in the runtime lane (`runtime/collections.js`) and the
+   object lane (window reductions: an empty or all-na window is drawn at `na`; a real + na mix stays withheld until
+   full). This REPLACES F8's interim probe: `interimProbedZeroReals` and `runtimeColumns.js INTERIM_PANE_PROBED` (the
+   two-probe pane run) are removed; `probeAllows` stays for the older unmeasured probe (median / stdev).
+   `fixnan(x)` is served on the host lane as `ta.valuewhen(not na(x), x, 0)` (`valuewhenOccurrence`), each call site
+   its own memory - F01 / F02a / F02b match on all 8,477 bars; the objects pane no longer refuses the probe
+   (`pine:na`). RT7 INCONCLUSIVE -> MATCH 11/11 (on, runtime).
+   **F8 rails changed**: `vendorHarness.f8Ungraded` Z - delta-rsi RDDT runtime now MATCHes on its four markers
+   (was INCONCLUSIVE `runtime:limit`); the INTERIM control (a column that moves with the sum stopped
+   `runtime:unmeasured`) is now SERVED equal to `close` bar for bar; the unit rail asserts `na` with no probe
+   consulted. `runtimePaneSafety` x2: the named-stop fixture is a REAL collection error now (`array.get` index 5 of
+   a 2-element array), still `runtime:failed`. `vendorHarness.coverageAudit` delta-rsi RDDT -> MATCH (SPY still
+   `runtime:history-start`).
+4. **v4 `fill` default transparency (Q-RT8d)** - no `transp` => 90, `transp = 60` => 60
+   (`cap4-rt8d-fill-state-2026-10-04.json`); `pine.js::v4FillArgs` adds the default over a plain colour. Focused rail:
+   `vendorHarness.h7Cap4Findings` "H7 4".
+5. **`ta.wma` warm-up** - F7's implementation (row 93) is kept byte for byte; H7's parity pair
+   (`wmaRuleAParity.test.js`, `tests/test_ast_wma_rule_a_parity.py`) passes on it: W01 26, W02 30, W03 58.
+
+### CAP4 re-measured (`CAP4_MEASURE=1 cap4Captures.measure.test.js`)
+
+| capture | state | before (wave 17 tip) | after |
+|---|---|---|---|
+| vw-h5-format-volume-spy | on / runtime | DIVERGE | MATCH |
+| vw-rt7-empty-reduce-fixnan-spy | on / runtime | INCONCLUSIVE | MATCH 11/11 |
+| vw-rt8-runtime-followups-rddt | on / runtime | DIVERGE, 2/9 MATCH | DIVERGE, 8/9 MATCH |
+| vw-rt8-v4-fill-transp-rddt | on / runtime | MATCH | MATCH |
+| vw-h5-request-timeframe-text-spy | on / runtime | INCONCLUSIVE | INCONCLUSIVE |
+
+Moved rows: W01 / W02 / W03 DIVERGE -> MATCH (F7 + H7 rule A); R01 / S01 / S04 DIVERGE -> MATCH (item 2);
+S03 INCONCLUSIVE -> DIVERGE `not-drawn` 636 - F8's NOT DRAWN rule (row 94), not an engine change, owner H8.
+0 MATCH lost.
+
+### Rails that asserted the old refusal, re-pinned to the measured answer
+
+`pine.test.js` (fixnan `pine:na` row retired, served rail added), `pine.variables.test.js` (the non-constant-branch control refuses on `ta.nvi` instead of fixnan), `pineValuewhenOccurrenceAccept` (support-and-resistance__1505 translates whole), `objectForInLoops` C11c (the withheld bound now reads a real + na MIX; a new rail pins the empty window's `na`), `objectWindowPositions` C22 (early labels drawn with "avg NaN"). Reds on the merged tree NOT from H7 (identical with the plain-form mark switched off; listed as pre-existing in section H6): pineMathCeilAccept, pineTimenowAccept, syminfoMintick, freshness, udfTypedParams, varReadOrderLanes. flipCGeometry, objectFnInline.vendor, productScorecard, vendorTruth time out at 15 s under the box's load and pass with a longer timeout.
+
+### Mutation checks
+
+Before the merge: the plain-form mark off in `pine.js` -> 5 red; the listing pass not reading it -> 2 red; the JS
+budget counting the wrappers -> 1 red; the Python budget counting them -> 1 red (the mark is gone since the merge,
+see item 2). `array.sum` of zero reals answering 0 -> 2 red (f8Ungraded). Each restored from captured bytes, sha256
+verified.
+
+### The H7 x wave-17 merge (`6c557c3308`: G16, F5, H8)
+
+- `paintColours.js`: both sides kept - F7's `last` / `undrawn` and RC1's `warmup` on every row.
+- `b1Paints`, `c41LowerTfServe`, `c47OhlmDivider`: G16 / RC1's side (they carry F7's measured numbers and supersede
+  its table). b1Paints re-measured on the merged tree: atr-support-and-resistance RDDT / SPY plot_8 / plot_11
+  `naBoth` -> `agree` (H6's `ta.obv` computes from the listing; nothing drawn changed) and the cold-replay warm-up
+  15 -> 35 differing bars (graded bars still all agree). Both reproduce with the wave-17 tip's own engine files, so
+  neither is H7 / F7.
+- `capRound4` / `coverageAudit`: F5's rails (the same answer as H7's; item 2).
+- `compare.mjs`: the NOT DRAWN no-column item carries F5's seed counts (`seedWithheld`, `seedWithheldFirst`,
+  `seedWithheldLast`, `seedBoundViolations`) - f8Ungraded "ND with no column" was red on the wave-17 harness.
+- CAP4 re-measured: RT8 followups S03 `not-drawn` -> DIVERGE `color` persistent on 636 bars (H8 draws the row now;
+  its per-bar `color.new` colour differs - H8's). Against the wave-17 tip's pins: 0 MATCH lost.
+
+### Open
+
+- RT8 followups S03 (`color.new` per-bar shape) NOT DRAWN - H8.
+- F7's trimmed trend-targets Baseline one bar late from the ratchet's bar-0 `na` may be served by item 2 (not measured here).
+- `format.volume`'s withheld shapes (item 1) need a capture.
 
 ## H8 - constant rows TradingView draws are drawn on the chart (2026-10-04, step 95)
 
@@ -7983,9 +8197,11 @@ TradingView does not; "missing" = ours `na` or withheld by name where TradingVie
   F5's `seedColourOntoValue`: off the listing the running index above is `NaN` on bars 0-250 and the renderer fell back to
   the pane's gold beside a drawn value. Withheld there, named `seed:held`, bound unbounded. rt6 SPY: 251 bars withheld, all
   1,549 drawn bars in TradingView's colour (read past the harness's colour warm-up, against the vendor's colorer).
-* **`ta.wma` first answers on its n-th finite input** (rule A, Q-RT8a) - `interpret.js::rolling` (`finiteSeen`) and its
-  Python twin `ast_interpret.py::_rolling`; the runtime lane's `vm.js` OP.WINDOW `ffill` already did. W01 / W02 / W03
-  DIVERGE -> MATCH; the whole rt8 capture MATCHES in both states.
+* **`ta.wma` first answers on its n-th finite input** (rule A, Q-RT8a). F9 built it in `interpret.js::rolling`
+  (`finiteSeen`) and `ast_interpret.py::_rolling`; F7 (step 93) landed the SAME rule (an inline `seen` count) on wave 17
+  first. At the merge with wave 17 (`fa4cf57011`) F9's copy was DROPPED in both lanes - one mechanism, F7's, which has its
+  own rails; F9's `f9WmaRuleA.test.js` / `test_f9_wma_rule_a.py` stay as rails on it (the W01 bar 26 / W03 bar 58
+  readings of Q-RT8a). W01 / W02 / W03 DIVERGE -> MATCH; the whole rt8 capture MATCHES in both states.
 * **`ta.cum(c)` of a constant is a bar count** - `barIndexShift.js::countingCumStep` / `ast_bar_index_shift.py::
   _counting_cum_step`: the index's leaf with `P1 = c`. Plotted off the listing it is withheld (`bar-index:window`); a
   threshold (`ta.cum(1) < 16`, atr-trailing-stoploss) masks only the bars it cannot vouch for (SPY still MATCH, 1,694
@@ -8016,7 +8232,7 @@ now that test at one alpha, never flat), `rt9NaColour` C01 / C02 (DIVERGE -> MAT
 
 Mutations (bytes captured, restored, sha verified; never `git checkout`), **11 of 11 red**: colorNewOverRule never answers
 (14 red); alpha not applied (7); `na` leaf carried (1); var-colour rule never asked (7); positional last-word check
-dropped (1); JS wma count dropped (4); Python wma count dropped (2); JS counting cum not a leaf (14); Python counting cum
+dropped (1); JS wma count dropped (4); Python wma count dropped (2) - these two mutated F9's own copy, dropped at the wave-17 merge for F7's; JS counting cum not a leaf (14); Python counting cum
 not a leaf (5); capture control never contradicts (1); unknown palette index not withheld (2).
 
 Pre-existing on the base bytes (re-run swapped to `6c557c3308`, restored by sha): `cap4Captures` RT7 and RT8 signature
@@ -8048,3 +8264,65 @@ Pinned grades regenerated by their writers only:
   rt6 SPY DIVERGE -> INCONCLUSIVE (F9); atr-trailing-stoploss / btc-charlie / elliott-wave-3 SPY DIVERGE -> MATCH, F5's
   wave-17 paint drift (red on the base bytes: `coverageAudit` 8 red there, 2 here - wyckoff and delta-rsi, both
   pre-existing, RT10b / F8).
+
+## W17R - wave-17 reds: wyckoff SPY's silent paint, and the H6-listed "pre-existing" five (2026-10-04)
+
+Lane W17R, branch `pine/w17r-wave17-reds`, base `integrate/wave17-2026-10-03` (`33bac2c06b`).
+
+### 1. `coverageAudit` "control: wyckoff" - SPY runtime barcolor NOT DRAWN, no error (REGRESSION, fixed)
+
+Root cause, measured (probe on the base, runtime pane on): RC1's warm supply hands the paint replay
+6,677 bars of SPY prehistory (`vw-clock-close-tfchange-spy-1d-2026-09-28`, from the listing) + the
+1,800-bar window = 8,477 bars. On that length the run STOPS by name: `runtime:limit`,
+`ARRAY_OPERATIONS` (a RUN-WIDE ceiling, 2,000,000) on bar 7,628. The window alone (1,800) and the
+last 5,000 bars run whole; 7,000 from the listing runs, 8,000 does not. Two places then lost the name:
+
+- `runtimeColumns.js::computeRuntimeColumns` - a document that owns its drawings first meets
+  `calc_bars_count = 1000` (drawings withheld), re-runs plain, and when the plain run ALSO stopped it
+  rethrew the DRAWINGS' reason. The column error read `runtime:calc-bars-count`, not the run's stop.
+- `ourSide.js::runOurSide` - `colErrors` read the WINDOW's columns only; the warm run's error was
+  dropped, `paintColoursFor` returned null and `gradePaints` graded `notDrawn` with no reason.
+
+Fix:
+- the plain run's part-way stop (`runtime:limit` / `runtime:failed`) is the error the columns carry; a
+  plain run that cannot start (a drawing-only document, "nothing to plot") keeps the drawings' wall
+  (`runtimeObjectsDoor` RT5 rail, measured red on the first cut and kept).
+- a paint the window's run colours and the warm run does not REFUSES the supplier by the warm run's
+  own sentence and falls back to the cold replay, labelled (RC1's rule for an unusable supplier; the
+  first 200 bars graded apart as warm-up). A `notDrawn` paint row now carries the run's named stop.
+- SPY wyckoff runtime: paints DIVERGE (`notDrawn`, 0 bars) -> **MATCH** ("1 paint agree bar for bar",
+  cold replay); whole verdict DIVERGE -> INCONCLUSIVE (objects stay withheld by `calc-bars-count`).
+- Rail: the control now pins `paintSupply.kind === 'cold'`, the reason naming `runtime:limit` /
+  `ARRAY_OPERATIONS` and NOT `calc-bars-count`. Mutations (bytes captured, restored, sha verified):
+  rethrow the drawings' error -> control red (reason regex); fallback disabled -> control red
+  (paints DIVERGE).
+
+### 2. The five listed as pre-existing in section H6 (each run alone, `--maxWorkers=1`)
+
+| rail | alone at `33bac2c06b` | class | action |
+|---|---|---|---|
+| `pineMathCeilAccept` | 6 / 6, 1.4 s | RULE-MEETS-RULE (H5's function-parameter timeframe moved the script to its session-clock wall) | none: re-pinned by G16 `b5b503c17a`, measured reason in the commit |
+| `pineTimenowAccept` | 10 / 10, 0.5 s | RULE-MEETS-RULE (same move) | none: G16 `b5b503c17a` |
+| `syminfoMintick` | 17 / 17, 0.3 s | RULE-MEETS-RULE (CAP round 4 added 8 vw-mintick captures, 10 -> 18) | none: G16 `5a25bb7a23` |
+| `freshness` | 29 / 29, 0.1 s | RULE-MEETS-RULE (RT4 declared the clock's right edge) | none: G16 `bf946a5d3c` |
+| `udfTypedParams` | 7 / 7, 0.1 s | RULE-MEETS-RULE (L2 + H5 serve a literal default) | none: G16 `62ad4ac9bd` |
+
+None is LOAD or a REGRESSION on the wave-17 bytes: all five are green at the default 15 s timeout, and
+each red H6 / H7 listed is accounted for by a G16 re-pin that reached wave 17 through the wave-16
+merge. `varReadOrderLanes` is H9's (green alone here, not acted on).
+
+### 3. The focused set (`--maxWorkers=1`, each file alone)
+
+`vendorHarness.test.js` 59 / 59; `cap4Captures` 29 / 29; `f8Ungraded` 21 / 21; `b1Paints` 52 / 52
+(every pinned paint grade and supply line unchanged); `coverageAudit` 173 passed | 7 skipped.
+`runtime/` + `runtimeObjectsDoor` on the first cut: 1,372 passed, 2 red - `runtimeObjectsDoor` RT5
+(fixed by the narrowed rethrow above, 7 / 7) and `objectLaneDrawerCensus.measure`, which takes ~20 s and
+times out at the 15 s default (green alone with a longer timeout; not this lane's). **0 MATCH
+lost**: the only grade that moved is SPY wyckoff's paint, DIVERGE -> MATCH.
+
+### Open
+
+- `ARRAY_OPERATIONS` is still a run-wide total: the class RT10 fixed for `LOOP_ITERATIONS` (a per-bar
+  cost counted over the run scales with history). Wyckoff costs ~262 array ops a bar, so it stops past
+  ~7,600 bars; a member chart loads 5,000 and draws. Making it a per-bar peak (measured ceiling, as RT10
+  did) would let the warm replay run and grade SPY's paints warm; owner: the runtime-limits lane.

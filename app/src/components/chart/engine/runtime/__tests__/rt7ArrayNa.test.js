@@ -63,11 +63,13 @@ describe('⭐⭐ RT7 — the vw-array-na probe, run by the runtime lane, equals 
 describe('⛔ RT7 — what the capture does not pin stays a named stop', () => {
   const rows = CAP.bars.rows.slice(0, 5)
   const head = '//@version=6\nindicator("t")\n'
-  it('`array.sum` / `array.avg` of an EMPTY array, or of an all-na array, stop by name', () => {
-    expect(() => run(`${head}plot(array.sum(array.new_float(0)))\n`, rows)).toThrow(/array\.sum of an empty array/)
-    expect(() => run(`${head}plot(array.avg(array.new_float(0)))\n`, rows)).toThrow(/array\.avg of an empty array/)
-    expect(() => run(`${head}plot(array.sum(array.new_float(2)))\n`, rows)).toThrow(/array\.sum of an array whose every element is na/)
-    expect(() => run(`${head}plot(array.avg(array.new_float(2)))\n`, rows)).toThrow(/array\.avg of an array whose every element is na/)
+  // ⚰️ H7 (step 92h) — the stop this pinned is ANSWERED now: CAP4 Q-RT7a
+  // (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`) reads all four as `na` on every
+  // bar with no runtime error. `vendorHarness.h7Cap4Findings.test.js` grades the run.
+  it('`array.sum` / `array.avg` of an EMPTY array, or of an all-na array, are na (H7, measured) - not 0, not a stop', () => {
+    for (const e of ['array.sum(array.new_float(0))', 'array.avg(array.new_float(0))', 'array.sum(array.new_float(2))', 'array.avg(array.new_float(2))']) {
+      expect(run(`${head}plot(${e})\n`, rows)[0], e).toEqual([null, null, null, null, null])
+    }
   })
   it('a negative index counts from the end in v6 only; below -size it stops in every version', () => {
     const v5 = '//@version=5\nindicator("t")\n'

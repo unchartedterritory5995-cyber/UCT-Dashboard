@@ -38,7 +38,8 @@ function grade(id, state = 'on') {
     if (state === 'runtime') vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     const cap = loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
     expect(cap, `${id} is a v1 capture`).toBeTruthy()
-    verdicts.set(key, { cap, v: gradeCapture(cap).verdict })
+    const g = gradeCapture(cap)
+    verdicts.set(key, { cap, v: g.verdict, paintSupply: g.ours && g.ours.paintSupply })
     vi.unstubAllEnvs()
   }
   return verdicts.get(key)
@@ -376,7 +377,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       expect(v.paints.verdict).toBe('MATCH')
       expect(v.paints.reason).toMatch(/agree bar for bar/)
     }
-    const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
+    const { v, paintSupply } = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime')
     expect(v.objects.verdict).toBe('INCONCLUSIVE')
     expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
     // ⭐ RT10 (2026-10-04): SPY's barcolor used to be not drawn because the run met the
@@ -386,6 +387,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     // name (calc_bars_count, above) — that gate is about the drawings, not the paint.
     expect(v.paints.verdict).toBe('MATCH')
     expect(v.paints.reason).toMatch(/agree bar for bar/)
+    // ⭐⭐ W17R (2026-10-04) — RC1's warm supply (6,677 bars of SPY prehistory from the
+    // listing) makes the run 8,477 bars long, and on that length the run STOPS by name:
+    // `runtime:limit`, ARRAY_OPERATIONS (a run-wide 2,000,000) on bar 7,628. Before W17R
+    // the stop was dropped and the paint graded `notDrawn`, 0 bars, no reason (and the
+    // runtime lane named the drawings' `calc-bars-count` instead of the run's stop). The
+    // supplier is now refused BY that name and the paint is graded on the cold replay
+    // of the window, its first 200 bars apart as warm-up (RC1's fallback, labelled).
+    expect(paintSupply.kind).toBe('cold')
+    expect(paintSupply.replayed).toBe(false)
+    expect(paintSupply.reason).toMatch(/warm replay over 8477 bars .* stopped \(runtime:limit: .*ARRAY_OPERATIONS/)
+    expect(paintSupply.reason).not.toMatch(/calc-bars-count/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
@@ -442,12 +454,18 @@ describe('CAP2 coverage audit — INCONCLUSIVE', () => {
   // ⭐ F8 — the reason is now the door's own (columnErrors): RDDT runs past its array.sum
   // over zero real elements and stops at the run-wide LOOP_ITERATIONS ceiling (RT10's);
   // SPY is refused runtime:history-start. Never an unexplained column.
-  it('delta-rsi-oscillator-strategy (runtime pane): the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short, and says why', () => {
-    for (const id of ['delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02']) {
-      const v = grade(id, 'runtime').v
-      expect(v.verdict, id).toBe('INCONCLUSIVE')
-      for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column for \w+ — runtime:(limit|history-start)/)
-    }
+  // ⭐ H7 (step 92h) — RDDT MATCHes now: its bar-0 `array.sum` over 21 `na` elements is
+  // the measured `na` (CAP4 Q-RT7a) in ONE run, with RT10b's per-bar LOOP_ITERATIONS;
+  // F8's interim two-probe run (which doubled the loop work) is gone. SPY is still
+  // refused `runtime:history-start` (a window not from the listing).
+  it('delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHes on its four markers; SPY computes no column and says why', () => {
+    const r = grade('delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'runtime').v
+    expect(r.verdict, r.reason).toBe('MATCH')
+    for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(r, t).verdict, t).toBe('MATCH')
+    const id = 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02'
+    const v = grade(id, 'runtime').v
+    expect(v.verdict, id).toBe('INCONCLUSIVE')
+    for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column for \w+ — runtime:(limit|history-start)/)
   }, T)
   it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low); F8 pairs the 11 by declaration order and the capture grades MATCH', () => {
     const v = grade('opening-range-initial-balance-opening-price-rddt-1d-2026-10-02').v
