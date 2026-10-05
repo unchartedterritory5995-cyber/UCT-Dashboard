@@ -3,7 +3,8 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useDarkSection from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
-import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+import { formatCompact, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import OffNotice from './OffNotice'
 
 // The tide's own ladder: B at two decimals, M at one, K whole.
 const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
@@ -30,6 +31,18 @@ export function money(v) {
   const a = Math.abs(n)
   const s = formatCompact(a, { tiers: TIDE_TIERS })
   return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
+}
+
+/** A stale tide says WHEN it was last computed, not a bare "Refreshing." that reads as live.
+ *  `computed_at` is a UTC ISO stamp (market_tide.py); `cache_age_s` is the fallback. */
+export function staleText(data) {
+  const at = formatTimeEt(data?.computed_at)
+  if (at) return `Not updated since ${at} ET; a refresh is running.`
+  const age = Number(data?.cache_age_s)
+  if (Number.isFinite(age) && age > 0) {
+    return `Not updated for ${Math.max(1, Math.round(age / 60))} min; a refresh is running.`
+  }
+  return 'Not freshly computed; a refresh is running.'
 }
 
 const W = 720
@@ -117,7 +130,7 @@ function TidePanel({ scope, setScope, onPickMinute }) {
       )}
       <p className={styles.muted} data-testid="market-tide-filters">
         {data.filters} {data.prints_counted} prints counted, {data.prints_unsigned} at the mid or unsided (counted, not signed).
-        {data.stale ? ' Refreshing.' : ''}
+        {data.stale ? <span data-testid="market-tide-stale"> {staleText(data)}</span> : ''}
       </p>
       <p className={styles.muted}>{data.method}</p>
     </section>
@@ -210,7 +223,9 @@ export function TideMinute({ scope, minute, setMinute }) {
   )
 }
 
-export default function MarketTidePanel() {
+// `offNotice`: set by the terminal's TIDE, which opens this panel on its own. When the tide and both
+// siblings answer 404 it says so; on the Options Flow page it stays absent.
+export default function MarketTidePanel({ offNotice = false }) {
   const [scope, setScope] = useState('all')
   const [minute, setMinute] = useState('')
   // the same key TideMinute probes (SWR shares the one request): the chart is clickable exactly
@@ -219,6 +234,11 @@ export default function MarketTidePanel() {
   const clickable = isMinuteList(probe.data?.minutes)
   return (
     <>
+      {offNotice && <OffNotice feature="Market Tide" urls={[
+        `/api/options/market-tide?scope=${scope}`,
+        `/api/options/market-tide/sectors?scope=${scope}`,
+        `/api/options/market-tide/minute?scope=${scope}`,
+      ]} />}
       <TidePanel scope={scope} setScope={setScope} onPickMinute={clickable ? setMinute : undefined} />
       <SectorTide scope={scope} />
       <TideMinute scope={scope} minute={minute} setMinute={setMinute} />

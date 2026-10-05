@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import { EdgePanel, SpreadBookPanel, StrategyFinder, spreadBody } from './ChainModelPanels'
+import { EdgePanel, SpreadBookPanel, StrategyFinder, spreadBody, candidateKey } from './ChainModelPanels'
 import { RrBfTable, Surface3D, meshQuads } from './VolSkewPanels'
 import MarketTidePanel, { minuteAt } from './MarketTidePanel'
 import StrategyScreensPanel from './StrategyScreensPanel'
@@ -154,6 +154,33 @@ describe('FT-014 strategy finder / FT-072 Spread Book', () => {
     await screen.findByText('Saved to the Spread Book.')
     expect(posted.underlying).toBe('TST')
     expect(posted.legs.every((l) => [-2, -1, 1, 2].includes(l.side) && l.expiration === '2026-11-20')).toBe(true)
+  })
+
+  it('"Saved" follows the SAVED structure through a re-sort, never the row index it was clicked at', async () => {
+    route([[/strategy-finder/, FINDER], [/spread-book$/, (u, init) => (init?.method === 'POST' ? ok({ id: 'x' }) : ok(BOOK))]])
+    mount(<StrategyFinder sym="TST" rows={ROWS} spot={100} expiration="2099-01-01" atmIv={0.3} />)
+    const table = await screen.findByTestId('finder-candidates')
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Save' }).length).toBeGreaterThan(1))
+    const rowText = (tr) => [...tr.querySelectorAll('th, td')].slice(0, 2).map((c) => c.textContent).join(' ')
+    const before = [...table.querySelectorAll('tbody tr')].map(rowText)
+    const savedRow = before[0]
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    await screen.findByText('Saved to the Spread Book.')
+    fireEvent.change(screen.getByLabelText('Sort candidates'), { target: { value: 'reward' } })
+    const after = [...screen.getByTestId('finder-candidates').querySelectorAll('tbody tr')]
+    // the re-sort must actually move the saved row, or this case proves nothing about index keying
+    expect(rowText(after[0])).not.toBe(savedRow)
+    const tagged = after.filter((tr) => tr.textContent.includes('Saved to the Spread Book.'))
+    expect(tagged.map(rowText)).toEqual([savedRow])
+  })
+
+  it('candidateKey is the legs identity: same legs same key; a different strike, side, view or expiry differs', () => {
+    const c = { name: 'Bull call spread', legs: [{ type: 'call', side: 1, strike: 100 }, { type: 'call', side: -1, strike: 105 }] }
+    expect(candidateKey('bullish', '2026-11-20', c)).toBe(candidateKey('bullish', '2026-11-20', { ...c, legs: c.legs.map((l) => ({ ...l, premium: 9 })) }))
+    expect(candidateKey('bullish', '2026-11-20', c)).not.toBe(candidateKey('bullish', '2026-11-20', { ...c, legs: [c.legs[0], { ...c.legs[1], strike: 110 }] }))
+    expect(candidateKey('bullish', '2026-11-20', c)).not.toBe(candidateKey('bullish', '2026-11-20', { ...c, legs: [c.legs[0], { ...c.legs[1], side: 1 }] }))
+    expect(candidateKey('bullish', '2026-11-20', c)).not.toBe(candidateKey('neutral', '2026-11-20', c))
+    expect(candidateKey('bullish', '2026-11-20', c)).not.toBe(candidateKey('bullish', '2026-12-18', c))
   })
 
   it('the book lists saved spreads and says it is not a position; off renders nothing', async () => {

@@ -112,6 +112,23 @@ describe('FlowTab', () => {
     expect(panel).not.toHaveTextContent(/Observed:/)
   })
 
+  it('a FAILED read says unavailable with a retry, never "no qualifying options flow"', () => {
+    const retry = vi.fn()
+    mockReturn = { data: null, error: { httpStatus: 503 }, isLoading: false, retry }
+    renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
+    expect(screen.getByTestId('flow-unavailable')).toHaveTextContent('Options flow for AAPL is unavailable right now (the request answered 503)')
+    expect(screen.queryByTestId('flow-empty-state')).toBeNull()
+    fireEvent.click(screen.getByTestId('flow-retry'))
+    expect(retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('a dropped connection (status 0) is also a failure, not an empty tape', () => {
+    mockReturn = { data: null, error: { httpStatus: 0 }, isLoading: false, retry: () => {} }
+    renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
+    expect(screen.getByTestId('flow-unavailable')).toHaveTextContent('did not complete')
+    expect(screen.queryByTestId('flow-empty-state')).toBeNull()
+  })
+
   it('is a real control: the empty state cites nothing', () => {
     mockReturn = {
       data: { ok: true, symbol: 'AAPL', net: null, window: { days_requested: '5' }, contracts: [] },

@@ -14,6 +14,7 @@ import useDarkSection from '../../optionsAnalytics/useDarkSection'
 import { extraGreeks } from '../../optionsAnalytics/chainModels'
 import { EdgePanel, SpreadBookPanel, StrategyFinder } from '../../optionsAnalytics/ChainModelPanels'
 import VolSkewPanels from '../../optionsAnalytics/VolSkewPanels'
+import { mergeChain, atmIvOf, midOf, volOiOf, isItm, expectedMove } from './chainMath'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -27,10 +28,17 @@ import VolSkewPanels from '../../optionsAnalytics/VolSkewPanels'
 // ⛔ IV RANK is not shown: it needs IV history, which is not licensed yet. The header shows the
 //    current at-the-money IV and says why rank is absent.
 
+// [key, header, format, header tooltip]. Units are Massive's (vendor-computed, per share): theta is
+// per CALENDAR day, vega per 1 vol point; OI is the OCC figure as of the prior close. Mid and Vol/OI are
+// computed here from the same row (chainMath.js).
 const COLS = [
-  ['bid', 'Bid', 2], ['ask', 'Ask', 2], ['last', 'Last', 2], ['iv', 'IV', 'pct'],
-  ['delta', 'Δ', 3], ['gamma', 'Γ', 4], ['theta', 'Θ', 3], ['vega', 'Vega', 3],
-  ['open_interest', 'OI', 'int'], ['day_volume', 'Vol', 'int'],
+  ['bid', 'Bid', 2], ['ask', 'Ask', 2], ['mid', 'Mid', 2, 'Midpoint of bid and ask (computed; blank without a two-sided quote)'],
+  ['last', 'Last', 2], ['iv', 'IV', 'pct', 'Implied volatility, vendor-computed (Massive)'],
+  ['delta', 'Δ', 3, 'Delta per share, vendor-computed'], ['gamma', 'Γ', 4, 'Gamma per share per $1 move, vendor-computed'],
+  ['theta', 'Θ', 3, 'Theta: $ per share per calendar day, vendor-computed'], ['vega', 'Vega', 3, 'Vega: $ per share per 1 vol point, vendor-computed'],
+  ['open_interest', 'OI', 'int', 'Open interest: the OCC figure as of the prior close (does not move intraday)'],
+  ['day_volume', 'Vol', 'int', 'Contracts traded today'],
+  ['vol_oi', 'V/OI', 'ratio', "Today's volume ÷ prior-close open interest (computed)"],
 ]
 // FT-015 (lane/o-options-remainders), DARK behind OPTIONS_CHAIN_FULL_GREEKS_ENABLED: computed rho,
 // lambda and epsilon (chainModels.extraGreeks) and a Calls / Puts / Both view. 404 = the chain above.
@@ -42,6 +50,7 @@ function fmt(v, how) {
   const n = Number(v)
   if (how === 'pct') return `${(n * 100).toFixed(1)}%`
   if (how === 'int') return Math.round(n).toLocaleString()
+  if (how === 'ratio') return `${n.toFixed(2)}×`
   return n.toFixed(how)
 }
 
@@ -72,14 +81,13 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const full = greeks.data && greeks.data.rho ? greeks.data : null
   const [mode, setMode] = useState('both')
 
-  const rows = useMemo(() => {
+  // One row per strike. An adjusted contract sharing a strike with the standard one no longer
+  // overwrites it: the standard (100-share, root = underlying) contract wins and the rest are counted.
+  const { rows, dropped } = useMemo(() => {
     const d = chain.data
-    if (!d || d.paywalled) return []
-    const byStrike = new Map()
-    for (const c of d.calls || []) byStrike.set(c.strike, { strike: c.strike, call: c })
-    for (const p of d.puts || []) byStrike.set(p.strike, { ...(byStrike.get(p.strike) || { strike: p.strike }), put: p })
-    return [...byStrike.values()].sort((a, b) => a.strike - b.strike)
-  }, [chain.data])
+    if (!d || d.paywalled) return { rows: [], dropped: 0 }
+    return mergeChain(d.calls, d.puts, d.ticker || s)
+  }, [chain.data, s])
 
   if (chain.error) {
     return <div className={styles.note} data-testid="chain-unavailable">
@@ -91,14 +99,18 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
 
   const d = chain.data
   const atm = atmStrike(rows, d.spot)
-  const atmIv = rows.find((r) => r.strike === atm)?.call?.iv ?? null
+  // Mean of call and put IV at the strike nearest spot, as chain_tools.py computes it -- the same
+  // number the payoff panel's PoP and the strategy finder consume below, and the probability panel's.
+  const atmIv = atmIvOf(rows, d.spot)
+  const move = expectedMove(rows, d.spot)
   const expList = exps.data?.expirations || []
   const cols = full ? FULL_COLS : COLS
   const showCalls = !full || mode !== 'puts'
   const showPuts = !full || mode !== 'calls'
   const days = daysTo(d.expiration)
+  const derive = (q) => (q ? { ...q, mid: midOf(q), vol_oi: volOiOf(q) } : q)
   const aug = (q, type) => (q && full ? { ...q, ...extraGreeks({ ...q, type }, Number(d.spot), days) } : q)
-  const shown = full ? rows.map((r) => ({ ...r, call: aug(r.call, 'call'), put: aug(r.put, 'put') })) : rows
+  const shown = rows.map((r) => ({ ...r, call: derive(aug(r.call, 'call')), put: derive(aug(r.put, 'put')) }))
 
   return (
     <section data-testid="options-chain">
@@ -106,11 +118,19 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         <label className={styles.expiry}>
           Expiration{' '}
           <select value={d.expiration || ''} onChange={(e) => setPicked(e.target.value)} aria-label="Expiration">
-            {(expList.length ? expList : [d.expiration]).filter(Boolean).map((x) => <option key={x} value={x}>{x}</option>)}
+            {(expList.length ? expList : [d.expiration]).filter(Boolean).map((x) => {
+              const n = daysTo(x)
+              return <option key={x} value={x}>{n == null ? x : `${x} (${n}d)`}</option>
+            })}
           </select>
         </label>
         <span>{s} <b>{fmt(d.spot, 2)}</b></span>
-        <span data-testid="atm-iv">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>
+        <span data-testid="atm-iv" title="Mean of the call and put implied volatility at the strike nearest spot (vendor IV)">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>
+        <span data-testid="expected-move" title="At-the-money straddle mid (call mid + put mid at the strike nearest spot) ÷ spot. A rule of thumb from today's quotes, not a forecast.">
+          Expected move to {d.expiration || 'expiry'}{days != null ? ` (${days}d)` : ''}{' '}
+          {move ? <b>±${move.dollars.toFixed(2)} (±{move.pct.toFixed(1)}%)</b> : <b>—</b>}
+          <span className={styles.muted}> ATM straddle ÷ spot</span>
+        </span>
         {full && (
           <span className={styles.mode} role="group" aria-label="Chain view" data-testid="chain-mode">
             {MODES.map(([k, l]) => <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>)}
@@ -127,23 +147,29 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
           <thead>
             <tr>{showCalls && <th colSpan={cols.length}>Calls</th>}<th />{showPuts && <th colSpan={cols.length}>Puts</th>}</tr>
             <tr>
-              {showCalls && cols.map(([k, l]) => <th key={`c-${k}`}>{l}</th>)}
+              {showCalls && cols.map(([k, l, , t]) => <th key={`c-${k}`} title={t}>{l}</th>)}
               <th className={styles.strikeHead}>Strike</th>
-              {showPuts && cols.map(([k, l]) => <th key={`p-${k}`}>{l}</th>)}
+              {showPuts && cols.map(([k, l, , t]) => <th key={`p-${k}`} title={t}>{l}</th>)}
             </tr>
           </thead>
           <tbody>
             {shown.map((r) => (
               <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
                   data-testid={r.strike === atm ? 'atm-row' : undefined}>
-                {showCalls && cols.map(([k, , how]) => <td key={`c-${k}`} onClick={() => r.call && setDrill(r.call)}>{fmt(r.call?.[k], how)}</td>)}
+                {showCalls && cols.map(([k, , how]) => <td key={`c-${k}`} className={isItm('call', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.call && setDrill(r.call)}>{fmt(r.call?.[k], how)}</td>)}
                 <td className={styles.strike}>{fmt(r.strike, 2)}</td>
-                {showPuts && cols.map(([k, , how]) => <td key={`p-${k}`} onClick={() => r.put && setDrill(r.put)}>{fmt(r.put?.[k], how)}</td>)}
+                {showPuts && cols.map(([k, , how]) => <td key={`p-${k}`} className={isItm('put', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.put && setDrill(r.put)}>{fmt(r.put?.[k], how)}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {dropped > 0 && (
+        <p className={styles.muted} data-testid="chain-merge-note">
+          {dropped} adjusted or duplicate contract{dropped === 1 ? '' : 's'} sharing a strike {dropped === 1 ? 'was' : 'were'} left out;
+          each row shows the standard 100-share contract.
+        </p>
+      )}
       {full && (
         <p className={styles.muted} data-testid="chain-greeks-basis">
           ρ, λ, ε computed: {full.rho} {full.lambda} {full.epsilon} {full.assumptions} {full.streaming}
@@ -166,7 +192,9 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
       <VolStatsPanel sym={s} />
       <PositioningPanel sym={s} />
       <p className={styles.muted} data-testid="chain-source">
-        Live chain from Massive (OPRA), greeks and IV exchange-derived · refreshed every {d.cache_seconds || 60}s
+        Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
+        (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money
+        · refreshed every {d.cache_seconds || 60}s
         {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}
       </p>
     </section>

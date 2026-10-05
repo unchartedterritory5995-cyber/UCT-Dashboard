@@ -38,8 +38,24 @@ describe('BacktestPanel with FT-011 switched on', () => {
     expect(opts.length).toBe(FX.catalog.strategies.length)
   })
 
-  it('an earnings run sends the anchor, no entry days, no exit rule, and shows the AMC/BMO rule', async () => {
+  it('by default the earnings anchor is offered DISABLED with the reason, and an earnings pick cannot be sent', async () => {
     wrap(<BacktestPanel sym="SPY" />)
+    const anchor = await screen.findByLabelText('Entry anchor')
+    const opt = [...anchor.querySelectorAll('option')].find((o) => o.value === 'earnings')
+    expect(opt.disabled).toBe(true)
+    expect(opt.textContent).toContain('not available yet')
+    expect(screen.getByTestId('backtest-earnings-off').textContent).toMatch(/before the open or after the close/)
+    // even a forced pick (a stale DOM, a keyboard path) runs the monthly study, never a zero-trade earnings run
+    fireEvent.change(anchor, { target: { value: 'earnings' } })
+    expect(screen.getByLabelText('Entry days before expiry')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    await waitFor(() => expect(postBody).not.toBeNull())
+    expect(postBody.anchor).toBeUndefined()
+    expect(postBody.dte).toBe(30)
+  })
+
+  it('an earnings run sends the anchor, no entry days, no exit rule, and shows the AMC/BMO rule', async () => {
+    wrap(<BacktestPanel sym="SPY" earningsAnchor />)
     fireEvent.change(await screen.findByLabelText('Backtest strategy'), { target: { value: 'long_straddle' } })
     fireEvent.change(screen.getByLabelText('Entry anchor'), { target: { value: 'earnings' } })
     expect(screen.queryByLabelText('Entry days before expiry')).toBeNull()
@@ -95,7 +111,7 @@ describe('BacktestPanel with FT-011 switched on', () => {
       if (u.includes('/backtest/j1')) return json(200, { job: 'j1', state: 'queued' })
       return json(404, {})
     })
-    wrap(<BacktestPanel sym="SPY" />)
+    wrap(<BacktestPanel sym="SPY" earningsAnchor />)
     fireEvent.change(await screen.findByLabelText('Entry anchor'), { target: { value: 'earnings' } })
     fireEvent.click(screen.getByTestId('backtest-simulate'))
     const earnings = await screen.findByTestId('backtest-running')

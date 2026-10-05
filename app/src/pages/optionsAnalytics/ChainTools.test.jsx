@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import { ProbabilityPanel, ContractDrill, ContractPicker, PositionBuilder, StancePanel, priceLegs, netGreeks, daysTo } from './ChainTools'
+import { ProbabilityPanel, ContractDrill, ContractPicker, PositionBuilder, StancePanel, priceLegs, netGreeks, daysTo, etDateParts } from './ChainTools'
 
 // Route bodies are the shapes api/services/options_analytics/chain_tools.py returns
 // (tests/test_options_chain_tools.py); chain rows are polygon_options.get_chain rows.
@@ -126,6 +126,31 @@ describe('PositionBuilder (FT-002)', () => {
     expect(container.querySelector('[data-testid="position-builder"]')).toBeNull()
   })
   it('daysTo counts calendar days', () => {
-    expect(daysTo('2026-10-16', new Date(Date.UTC(2026, 9, 2)))).toBe(14)
+    expect(daysTo('2026-10-16', new Date('2026-10-02T16:00:00Z'))).toBe(14)
+  })
+  // The date is New York's, not UTC's. UTC turns over at 8 pm EDT / 7 pm EST; the old UTC count made
+  // every evening one day short. Fixed instants either side of 8 pm, 11:59 pm and midnight ET.
+  it.each([
+    ['2026-10-02T23:30:00Z', 14, '7:30 pm EDT Oct 2'],
+    ['2026-10-03T00:00:00Z', 14, '8:00 pm EDT Oct 2 (UTC already Oct 3)'],
+    ['2026-10-03T00:30:00Z', 14, '8:30 pm EDT Oct 2'],
+    ['2026-10-03T03:59:00Z', 14, '11:59 pm EDT Oct 2'],
+    ['2026-10-03T04:00:00Z', 13, 'midnight EDT Oct 3'],
+  ])('EDT: at %s the DTE to 2026-10-16 is %i (%s)', (iso, want) => {
+    expect(daysTo('2026-10-16', new Date(iso))).toBe(want)
+  })
+  it.each([
+    ['2026-12-02T00:30:00Z', 17, '7:30 pm EST Dec 1'],
+    ['2026-12-02T01:30:00Z', 17, '8:30 pm EST Dec 1'],
+    ['2026-12-02T04:59:00Z', 17, '11:59 pm EST Dec 1'],
+    ['2026-12-02T05:00:00Z', 16, 'midnight EST Dec 2'],
+  ])('EST: at %s the DTE to 2026-12-18 is %i (%s)', (iso, want) => {
+    expect(daysTo('2026-12-18', new Date(iso))).toBe(want)
+  })
+  it('is DST-correct on the fall-back day (2026-11-01 has 25 hours in New York)', () => {
+    expect(etDateParts(new Date('2026-11-01T04:30:00Z'))).toEqual([2026, 11, 1])   // 12:30 am EDT
+    expect(etDateParts(new Date('2026-11-02T04:30:00Z'))).toEqual([2026, 11, 1])   // 11:30 pm EST
+    expect(etDateParts(new Date('2026-11-02T05:00:00Z'))).toEqual([2026, 11, 2])   // midnight EST
+    expect(daysTo('2026-11-06', new Date('2026-11-02T04:30:00Z'))).toBe(5)
   })
 })
