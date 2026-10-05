@@ -1,0 +1,16 @@
+// RT15 (2026-10-04) — probe for the capture lane. Queue: docs/pine/capture-queue-2026-10-04-rt15-presentation.md
+// Chart: NYSE:RDDT 1D from the listing.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+//
+// Q-RT15c — a paint `offset` that is an INPUT-dependent expression
+// (visualizing-displacement-tfo: `barcolor(…, offset = require_fvg ? -1 : na)`).
+// CAP5 VARIANT of vw-rt15-paint-offset.pine: the ONLY changes are the input default (false)
+// and the indicator title, so the second Q-RT15c reading is a committed file (sha-gated)
+// and not a hand edit of the settings dialog. Capture once as written (flag true -> offset -1), once with the input set false
+// (offset = na): is `offset = na` drawn as offset 0, or not drawn?
+//@version=5
+indicator("vw-rt15-paint-offset-flag-false", overlay = true)
+flag = input.bool(false, "flag")
+up = close > open and close > close[1]
+barcolor(up ? color.yellow : na, offset = flag ? -1 : na, title = "P01 barcolor input offset")
+plot(up ? 1 : 0, "P02 up", display = display.data_window)

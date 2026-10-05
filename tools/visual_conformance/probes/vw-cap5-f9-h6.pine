@@ -1,0 +1,42 @@
+//@version=6
+indicator("UCTPROBE CAP5 F9 colour rules + H6 obv level", overlay = false)
+// CAP5 (2026-10-04) - ONE study carrying two lane probes that share their charts, so a
+// capture round takes one add instead of two. Runbook: docs/pine/capture-round-5-runbook.md.
+// Rows are COPIED VERBATIM (titles and expressions) from:
+//   vw-f9-colour-rules.pine  (F9, docs/pine/capture-queue-2026-10-04-f9-divergences.md: Q-F9a/b/c)
+//   vw-h6-obv-level.pine     (H6, docs/pine/capture-queue-2026-10-03-h6-state-udt.md: Q-H6a/b)
+// Both are v6, overlay = false, no tables, no runtime-error rows. If this file does not
+// compile, capture the two source probes separately instead (they stay committed).
+// CAPTURE: NYSE:RDDT 1D from the listing (startsAtBar0) and AMEX:SPY 1D FULL history from
+// 1993-01-29 (startsAtBar0). Inputs: none.
+
+// ---- F9 (vw-f9-colour-rules.pine) ------------------------------------------------
+plot(bar_index, "K00_bar_index_CONTROL")
+
+// N: an `na` leaf inside a conditional, under color.new
+plot(close, "N01 new(cond ? blue : na, 40)", color = color.new(close > open ? color.blue : na, 40))
+plot(close, "N02 new(cond ? na : red, 0)", color = color.new(close > open ? na : color.red, 0))
+plot(close, "N03 new(a ? g : b ? r : na, 70)", color = color.new(close > open ? color.green : close < open ? color.red : na, 70))
+
+// V: a `var` colour with an `na` write
+var color v = color.white
+if close > close[1]
+    v := color.lime
+if close < close[1]
+    v := na
+plot(close, "V01 var colour with an na write", color = v)
+plot(close, "V02 new(var with na, 40)", color = color.new(v, 40))
+
+// R: a colour name read ABOVE its own reassignment
+col = color.red
+plot(close, "R01 colour read before its reassignment", color = col)
+col := close > open ? color.green : color.orange
+plot(close, "R02 the same name after it", color = col)
+
+// ---- H6 (vw-h6-obv-level.pine) ---------------------------------------------------
+plot(ta.obv, "O01 ta.obv")
+plot(ta.cum(math.sign(ta.change(close)) * volume), "O02 cum(sign(change(close)) * volume)")
+plot(ta.obv - ta.cum(math.sign(ta.change(close)) * volume), "O03 difference (0 or na)")
+plot(close == close[1] ? 1 : 0, "O04 an unchanged close")
+plot(ta.change(ta.obv), "O05 the bar's term")
+plot(bar_index, "O00 bar_index control")

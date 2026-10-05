@@ -1,0 +1,22 @@
+//@version=5
+// RT13 probe (never compiled here) - capture queue docs/pine/capture-queue-2026-10-04-rt13-requests-inputs.md
+// Each row is ONE plot, titled by its id. Values are read per bar, on a 1D chart.
+indicator("vw-rt13-requests", overlay = false)
+
+// R00 control: the chart's own close
+plot(close, "R00 close control")
+// R01-R02: an EMPTY SYMBOL string. Pine's reference names "" for the TIMEFRAME
+// (chart's own); whether "" as the SYMBOL is the chart's symbol is not captured.
+plot(request.security("", "", close), "R01 sec('', '', close)")
+plot(request.security("", "D", close[1]), "R02 sec('', 'D', close[1])")
+// R03-R04: a request at the chart's own symbol and timeframe whose value is a
+// FUNCTION-LOCAL mutable (multiple-mtf-moving-average-xdecow's shape, `_tf` = '').
+f(len, tf) =>
+    float ma = na
+    ma := ta.ema(close, len)
+    request.security(syminfo.tickerid, tf, ma)
+plot(f(10, ""), "R03 f(10,'') local ma")
+plot(ta.ema(close, 10), "R04 ema(close,10) control")
+// R05: a historical barstate offset inside an identity request
+// (machine-learning-logistic-regression-v3's `ds[barstate.ishistory ? 0 : 1]`).
+plot(request.security("", "", close[barstate.ishistory ? 0 : 1]), "R05 sec offset on barstate")

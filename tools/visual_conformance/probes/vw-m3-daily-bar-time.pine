@@ -1,0 +1,35 @@
+//@version=6
+indicator("uct-M3-daily-bar-time", overlay = false)
+// CAP5 (2026-10-04) - vendor packet M3 (the owed fields), copied from docs/pine/rvol-slice-vendor-packet.md on
+// origin/feat/pine-vendor-packet (3f963ec88f); the answers go to that branch's
+// docs/pine/rvol-slice-vendor-answers.json (see docs/pine/capture-round-5-runbook.md).
+// AMEX:SPY 1D. Owed: time_close, the prior bar's stamps, the exchange-tz rendering.
+
+var table t = table.new(position.top_right, 2, 12, border_width = 1)
+
+if barstate.islast
+    table.cell(t, 0, 0,  "symbol",            text_color = color.white)
+    table.cell(t, 1, 0,  syminfo.tickerid,    text_color = color.yellow)
+    table.cell(t, 0, 1,  "chart tf",          text_color = color.white)
+    table.cell(t, 1, 1,  timeframe.period,    text_color = color.yellow)
+    table.cell(t, 0, 2,  "syminfo.timezone",  text_color = color.white)
+    table.cell(t, 1, 2,  syminfo.timezone,    text_color = color.yellow)
+    table.cell(t, 0, 3,  "time (ms)",         text_color = color.white)
+    table.cell(t, 1, 3,  str.tostring(time),  text_color = color.yellow)
+    table.cell(t, 0, 4,  "time @ UTC",        text_color = color.white)
+    table.cell(t, 1, 4,  str.format_time(time, "yyyy-MM-dd HH:mm:ss", "UTC"), text_color = color.yellow)
+    table.cell(t, 0, 5,  "time @ New_York",   text_color = color.white)
+    table.cell(t, 1, 5,  str.format_time(time, "yyyy-MM-dd HH:mm:ss", "America/New_York"), text_color = color.yellow)
+    table.cell(t, 0, 6,  "time @ exchange tz", text_color = color.white)
+    table.cell(t, 1, 6,  str.format_time(time, "yyyy-MM-dd HH:mm:ss", syminfo.timezone), text_color = color.yellow)
+    table.cell(t, 0, 7,  "time_close (ms)",   text_color = color.white)
+    table.cell(t, 1, 7,  str.tostring(time_close), text_color = color.yellow)
+    table.cell(t, 0, 8,  "time_close @ NY",   text_color = color.white)
+    table.cell(t, 1, 8,  str.format_time(time_close, "yyyy-MM-dd HH:mm:ss", "America/New_York"), text_color = color.yellow)
+    // The PREVIOUS bar is definitely closed, so the live forming bar cannot confuse it.
+    table.cell(t, 0, 9,  "time[1] (ms)",      text_color = color.white)
+    table.cell(t, 1, 9,  str.tostring(time[1]), text_color = color.yellow)
+    table.cell(t, 0, 10, "time[1] @ NY",      text_color = color.white)
+    table.cell(t, 1, 10, str.format_time(time[1], "yyyy-MM-dd HH:mm:ss", "America/New_York"), text_color = color.yellow)
+    table.cell(t, 0, 11, "time[1] @ UTC",     text_color = color.white)
+    table.cell(t, 1, 11, str.format_time(time[1], "yyyy-MM-dd HH:mm:ss", "UTC"), text_color = color.yellow)

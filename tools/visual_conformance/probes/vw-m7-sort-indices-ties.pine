@@ -1,0 +1,37 @@
+//@version=6
+indicator("uct-M7-sort-indices-ties", overlay = false)
+// CAP5 (2026-10-04) - vendor packet M7 (the owed cases), copied from docs/pine/rvol-slice-vendor-packet.md on
+// origin/feat/pine-vendor-packet (3f963ec88f); the answers go to that branch's
+// docs/pine/rvol-slice-vendor-answers.json (see docs/pine/capture-round-5-runbook.md).
+// AMEX:SPY 1D (any chart). Owed: the all-equal array and the already-descending control.
+
+// Deliberate ties at three different values, planted at spread-out indices.
+var float[] a = array.from(5.0, 3.0, 5.0, 1.0, 3.0, 5.0)
+// Every element identical -- the purest tie there is.
+var float[] b = array.from(7.0, 7.0, 7.0, 7.0)
+// Already descending -- separates "stable" from "happens to look stable".
+var float[] c = array.from(3.0, 2.0, 1.0)
+
+aAsc  = array.sort_indices(a, order.ascending)
+aDesc = array.sort_indices(a, order.descending)
+bAsc  = array.sort_indices(b, order.ascending)
+bDesc = array.sort_indices(b, order.descending)
+cAsc  = array.sort_indices(c, order.ascending)
+
+var table t = table.new(position.top_right, 2, 7, border_width = 1)
+
+if barstate.islast
+    table.cell(t, 0, 0, "a = values",        text_color = color.white)
+    table.cell(t, 1, 0, array.join(a, ","),  text_color = color.yellow)
+    table.cell(t, 0, 1, "a asc indices",     text_color = color.white)
+    table.cell(t, 1, 1, array.join(aAsc, ","),  text_color = color.yellow)
+    table.cell(t, 0, 2, "a desc indices",    text_color = color.white)
+    table.cell(t, 1, 2, array.join(aDesc, ","), text_color = color.yellow)
+    table.cell(t, 0, 3, "b = all equal",     text_color = color.white)
+    table.cell(t, 1, 3, array.join(b, ","),  text_color = color.yellow)
+    table.cell(t, 0, 4, "b asc indices",     text_color = color.white)
+    table.cell(t, 1, 4, array.join(bAsc, ","),  text_color = color.yellow)
+    table.cell(t, 0, 5, "b desc indices",    text_color = color.white)
+    table.cell(t, 1, 5, array.join(bDesc, ","), text_color = color.yellow)
+    table.cell(t, 0, 6, "c desc input, asc", text_color = color.white)
+    table.cell(t, 1, 6, array.join(cAsc, ","),  text_color = color.yellow)

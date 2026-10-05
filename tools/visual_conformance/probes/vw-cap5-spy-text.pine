@@ -1,0 +1,69 @@
+//@version=6
+indicator("UCTPROBE CAP5 text: format.volume edges + for direction", overlay = true)
+// CAP5 (2026-10-04) - two text questions no committed capture answers, one table.
+// Runbook: docs/pine/capture-round-5-runbook.md. Never compiled on TradingView: if a row
+// does not compile, the error names the line - record it verbatim, delete that row only.
+// CAPTURE: AMEX:SPY 1D (any depth; the cells are constants printed on the last bar).
+//
+// F rows - `str.tostring(x, format.volume)` for the shapes H7 still WITHHOLDS
+//   (objects triage, section H7 item 1: "a non-whole or negative value below 1,000, a
+//   negative tie, -0, >= 1e15"). Q-H5a (vw-h5-format-volume-spy-1d-2026-10-04) measured
+//   0, 7, 999, 1K .. 2.5T; these are the rows it did not ask. Column 2 is the plain
+//   str.tostring of the same number, so each row names its own input.
+// L rows - Q-C31b (objects triage, C31: "a descending `for` (`for i = 9 to 0`) - a probe
+//   building text in a descending and in an empty-range loop (`for i = 0 to -1`)").
+//   Each row prints the indices the loop visited, in order, and the pass count.
+vals = array.from(0.25, 7.5, 999.4, 999.5, 999.9999, -7.0, -999.5, -0.0, -3125500.0, -1500.5, 1.0e15, 2.5e15, 1.0e18, 123456789012345.0)
+var table t = table.new(position.top_right, 3, 24)
+cellRow(r, id, txt, n) =>
+    table.cell(t, 0, r, id, text_color = color.white, bgcolor = color.black)
+    table.cell(t, 1, r, txt, text_color = color.white, bgcolor = color.black)
+    table.cell(t, 2, r, n, text_color = color.white, bgcolor = color.black)
+if barstate.islast
+    cellRow(0, "F00_control_3126M", str.tostring(3125951.0, format.volume), "3125951")
+    for i = 0 to array.size(vals) - 1
+        cellRow(i + 1, "F" + str.tostring(i + 1, "00"), str.tostring(array.get(vals, i), format.volume), str.tostring(array.get(vals, i)))
+    // L01: a range written high-to-low
+    string s1 = ""
+    int n1 = 0
+    for i = 9 to 0
+        s1 := s1 + str.tostring(i) + ","
+        n1 += 1
+    cellRow(16, "L01_for_9_to_0", s1, str.tostring(n1))
+    // L02: an "empty" range (to is one below from)
+    string s2 = ""
+    int n2 = 0
+    for i = 0 to -1
+        s2 := s2 + str.tostring(i) + ","
+        n2 += 1
+    cellRow(17, "L02_for_0_to_minus1", s2, str.tostring(n2))
+    // L03: a single-pass range (control)
+    string s3 = ""
+    int n3 = 0
+    for i = 3 to 3
+        s3 := s3 + str.tostring(i) + ","
+        n3 += 1
+    cellRow(18, "L03_for_3_to_3_CONTROL", s3, str.tostring(n3))
+    // L04: a high-to-low range with an explicit positive step
+    string s4 = ""
+    int n4 = 0
+    for i = 9 to 0 by 3
+        s4 := s4 + str.tostring(i) + ","
+        n4 += 1
+    cellRow(19, "L04_for_9_to_0_by_3", s4, str.tostring(n4))
+    // L05: an ascending range with a step (control)
+    string s5 = ""
+    int n5 = 0
+    for i = 0 to 6 by 2
+        s5 := s5 + str.tostring(i) + ","
+        n5 += 1
+    cellRow(20, "L05_for_0_to_6_by_2_CONTROL", s5, str.tostring(n5))
+    // L06: a bound computed below the start (array.size of an empty array, minus 1 = -1)
+    array<float> e = array.new_float(0)
+    string s6 = ""
+    int n6 = 0
+    for i = 0 to array.size(e) - 1
+        s6 := s6 + str.tostring(i) + ","
+        n6 += 1
+    cellRow(21, "L06_for_0_to_size_empty_minus1", s6, str.tostring(n6))
+plot(bar_index, "X00 bar_index CONTROL", display = display.data_window)

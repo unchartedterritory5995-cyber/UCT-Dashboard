@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE CAP5 barstate index on a forming bar", overlay = false)
+// CAP5 (2026-10-04) - C38: "an index that moves only with `barstate.*` (`x[barstate.isrealtime ? 1 : 0]`)
+// - pine:offset-literal - the rule was measured on closed bars; a capture of this probe on a
+// FORMING bar." R07 is high_engagement__20-ehlers-fisher-transform's non-repainting idiom.
+// Runbook: docs/pine/capture-round-5-runbook.md. MARKET HOURS ONLY: the newest bar must be
+// forming (`newestBarIsForming: true`, derived). Capture TWICE a few minutes apart.
+// CAPTURE: AMEX:SPY 1D during regular hours (and optionally AMEX:SPY 5 the same session).
+k = barstate.isrealtime ? 1 : 0
+plot(bar_index, "R00 bar_index CONTROL")
+plot(barstate.isrealtime ? 1 : 0, "R01 isrealtime")
+plot(close[k], "R02 close[isrealtime ? 1 : 0]")
+plot(close, "R03 close CONTROL")
+plot(close[1], "R04 close[1] CONTROL")
+plot(barstate.isconfirmed ? 1 : 0, "R05 isconfirmed")
+plot(close[barstate.islast ? 1 : 0], "R06 close[islast ? 1 : 0]")
+plot(request.security(syminfo.tickerid, "W", close[barstate.isrealtime ? 1 : 0])[barstate.isrealtime ? 0 : 1], "R07 ehlers idiom: sec(W, close[rt?1:0])[rt?0:1]")
+plot(request.security(syminfo.tickerid, "W", close), "R08 sec(W, close) CONTROL")

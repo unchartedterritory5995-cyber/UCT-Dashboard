@@ -183,3 +183,21 @@ semantics.
 ⛔ **Follow `docs/pine/capture-procedure.md`.** In particular: never add a study while the
 tab is hidden, and restore symbol, timeframe, pane stretch factors and study visibility
 afterwards.
+
+## Capture round 5 (prepared 2026-10-04) — `docs/pine/capture-round-5-runbook.md`
+
+The run-book names every probe, chart, export and fixture id. Files added for it:
+
+| File | Answers | Source |
+|---|---|---|
+| `vw-rt11-builtins.pine`, `vw-rt11-alma-v5-bare.pine`, `vw-rt11-alma-v3-bare.pine` | Q-RT11a-e | copied byte-exact from `pine/rt11-builtins` |
+| `vw-rt12-statements-history.pine` | Q-RT12a/b | `pine/rt12-statements-history` |
+| `vw-rt13-requests.pine` | Q-RT13c/d | `pine/rt13-requests-inputs` |
+| `vw-rt15-colour-nz.pine`, `vw-rt15-paint-offset.pine`, `vw-rt15-gradient-fill.pine` | Q-RT15b/c/d | `pine/rt15-presentation-libraries` |
+| `vw-rt15-paint-offset-flag-false.pine` | Q-RT15c's second run (input default false + title only) | CAP5 variant |
+| `vw-f9-colour-rules.pine` | Q-F9a/b/c | `pine/f9-divergence-sweep` |
+| `vw-cap5-f9-h6.pine` | F9 + H6 rows verbatim in ONE study (both v6, no tables, no error rows) | CAP5 combined |
+| `vw-cap5-spy-text.pine` | H7's withheld `format.volume` shapes + Q-C31b (`for` direction) | CAP5 new |
+| `vw-cap5-max-bars-back.pine`, `vw-cap5-buffer-overrun.pine`, `vw-cap5-barstate-index.pine` | triage owed row 12 (C38): the per-series call, a declared-buffer overrun (alone), a `barstate` index on a forming bar | CAP5 new |
+| `vw-cap5-version-defaults-v6.pine`, `vw-cap5-version-defaults-v4.pine` | triage owed row 14 (C37): unset box fill / cell text (v6), box border (v4) | CAP5 new |
+| `vw-m1-request-merge.pine`, `vw-m1-request-merge-30.pine`, `vw-m2-request-session-spy.pine`, `vw-m3-daily-bar-time.pine`, `vw-m4a-wrong-exchange.pine`, `vw-m5-request-ceiling.pine`, `vw-m7-sort-indices-ties.pine`, `vw-m8b-timeframe-in-request-string.pine` | the RVOL vendor packet's owed readings (answers on `feat/pine-vendor-packet`) | packet scripts + a provenance header |

@@ -1,0 +1,14 @@
+//@version=6
+indicator("UCTPROBE CAP5 declared buffer overrun", overlay = false, max_bars_back = 50)
+// CAP5 (2026-10-04) - C38: "a declared buffer OVERRUN (count >= max_bars_back) ... A probe that
+// overruns a declared buffer would say what TradingView shows". Engine today: the object lane
+// stops its run, the plot lane withholds the bars within reach and draws the rest.
+// ALONE IN ITS FILE: the expected reading is a RUNTIME ERROR - record the message verbatim,
+// the bar it names, and whether ANY plot rows survive. If the capture tool refuses an
+// errored study, the error text + a screenshot of the legend IS the reading (record it in
+// the runbook's results table; no fixture).
+// CAPTURE: AMEX:SPY 1D, any depth >= 200 bars.
+e = bar_index % 60
+plot(bar_index, "V00 bar_index CONTROL")
+plot(e, "V01 e (reaches 50..59 every 60 bars)")
+plot(close[e], "V02 close[e] past max_bars_back = 50")

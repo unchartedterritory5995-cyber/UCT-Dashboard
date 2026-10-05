@@ -1,0 +1,7 @@
+//@version=5
+// RT11 probe (never compiled here) - Q-RT11b. Does BARE `alma` compile in v5? (v4: yes, Q-H3c; v6: no, r11-alma)
+// ALONE IN ITS FILE: a compile failure takes every plot with it. Record the error verbatim.
+indicator("vw-rt11-alma-v5-bare", overlay = false)
+plot(bar_index, "A00 bar_index CONTROL")
+plot(alma(close, 9, 0.85, 6), "A01 bare alma v5")
+plot(ta.alma(close, 9, 0.85, 6), "A02 ta.alma v5")

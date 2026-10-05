@@ -1,0 +1,16 @@
+//@version=4
+study("UCTPROBE CAP5 version defaults v4", overlay = true, max_boxes_count = 10)
+// CAP5 (2026-10-04) - the v4 twin of vw-cap5-version-defaults-v6.pine (objects triage row 14,
+// C37: "v4 box border" left unset). Runbook: docs/pine/capture-round-5-runbook.md.
+// Never compiled on TradingView: a compile error names the line - record it, delete that line.
+// CAPTURE: NYSE:RDDT 1D (any depth).
+//   D01 box: nothing set   D02 box: fill set, border unset   D03 box: border set, fill unset
+//   D05 cell: text, no colours   D06 cell: text + bgcolor only
+var table t = table.new(position.top_right, 2, 1)
+if barstate.islast
+    box.new(bar_index - 20, high, bar_index - 12, low)
+    box.new(bar_index - 10, high * 1.02, bar_index - 4, low * 0.98, bgcolor = color.blue)
+    box.new(bar_index - 30, high * 1.04, bar_index - 24, low * 0.96, border_color = color.red)
+    table.cell(t, 0, 0, "D05")
+    table.cell(t, 1, 0, "D06", bgcolor = color.yellow)
+plot(bar_index, "D00 bar_index CONTROL", display = display.none)

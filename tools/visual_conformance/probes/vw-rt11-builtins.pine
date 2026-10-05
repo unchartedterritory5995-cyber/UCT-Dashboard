@@ -1,0 +1,42 @@
+//@version=6
+// RT11 probe (never compiled here) - capture queue docs/pine/capture-queue-2026-10-04-rt11-builtins.md
+// Each row is ONE plot, titled by its id. Values are read per bar. A compile error is a reading:
+// record it verbatim (placeholders and all) and do not split the probe.
+indicator("vw-rt11-builtins", overlay = false, max_bars_back = 500)
+
+plot(bar_index, "B00 bar_index CONTROL")
+
+// Q-RT11a: str.tostring of a value that is ALREADY text (scalping-strategy-with-williams-r: `str.tostring(timeframe.period) == "1"`)
+plot(str.tostring(timeframe.period) == timeframe.period ? 1 : 0, "A01 tostring(tf.period)==tf.period")
+plot(str.tostring(syminfo.ticker) == syminfo.ticker ? 1 : 0, "A02 tostring(ticker)==ticker")
+plot(str.tostring("abc") == "abc" ? 1 : 0, "A03 tostring(literal)==literal")
+plot(str.length(str.tostring(timeframe.period)), "A04 len(tostring(tf.period))")
+plot(str.length(timeframe.period), "A05 len(tf.period) CONTROL")
+
+// Q-RT11c: time() over timeframe strings a script COMPUTES (volume-profile-auto-line-v2: '1W', '1D', '1M', '12M', '60')
+plot(time("1W") - time("W"), "T01 time(1W)-time(W)")
+plot(time("1D") - time("D"), "T02 time(1D)-time(D)")
+plot(time("1M") - time("M"), "T03 time(1M)-time(M)")
+plot(time("12M"), "T04 time(12M) RAW")
+plot(time("60"), "T05 time(60) RAW on this chart")
+var string tf = "1"
+if timeframe.isdaily
+    tf := "1W"
+else
+    tf := "1D"
+plot(ta.change(time(tf)) != 0 ? 1 : 0, "T06 change(time(runtime tf))!=0")
+plot(ta.change(time("W")) != 0 ? 1 : 0, "T07 change(time(W))!=0 CONTROL")
+
+// Q-RT11d: ta.swma (atr-god-strategy) - the manual's weights, warm-up and an na in the window
+plot(ta.swma(close), "W01 swma(close) RAW")
+plot(ta.swma(close) - (close[3] / 6 + close[2] * 2 / 6 + close[1] * 2 / 6 + close / 6), "W02 swma - manual weights")
+holed = bar_index % 50 == 25 ? na : close
+plot(ta.swma(holed), "W03 swma over na hole")
+plot(na(ta.swma(close)) ? 1 : 0, "W04 swma is na")
+
+// Q-RT11e: math.asin (screener-mean-reversion-channel, v4 `2 * asin(1)`), str.tonumber of a period (power-of-3)
+plot(math.asin(1) * 2, "M01 2*asin(1)")
+plot(math.asin(0.5), "M02 asin(0.5)")
+plot(math.asin(2), "M03 asin(2) out of domain")
+plot(str.tonumber(timeframe.period), "N01 tonumber(tf.period)")
+plot(str.tonumber("60"), "N02 tonumber(60)")

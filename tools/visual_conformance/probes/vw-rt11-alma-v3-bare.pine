@@ -1,0 +1,6 @@
+//@version=3
+// RT11 probe (never compiled here) - Q-RT11b. Does BARE `alma` compile in v3, and is it pine_alma?
+// ALONE IN ITS FILE: a compile failure takes every plot with it. Record the error verbatim.
+study("vw-rt11-alma-v3-bare", overlay = false)
+plot(n, "A00 bar index CONTROL")
+plot(alma(close, 9, 0.85, 6), "A01 bare alma v3")

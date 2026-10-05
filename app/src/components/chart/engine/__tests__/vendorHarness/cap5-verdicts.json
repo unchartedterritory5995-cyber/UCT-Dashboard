@@ -1,0 +1,905 @@
+{
+  "about": "CAP5 (capture round 5): every capture the round-5 runbook (docs/pine/capture-round-5-runbook.md) can grade with the harness. Rows are keyed by idPrefix; cap5Captures.measure.test.js (CAP5_MEASURE=1) resolves each to the NEWEST tests/fixtures/vendor/harness/<idPrefix>-<yyyy-mm-dd>.json, writes `id`, and rewrites `signature` from the harness's own verdict through cap3Signature. Never edit a signature by hand. A row whose capture is absent keeps id null and signature null. Vendor-packet items (M1-M10) and the theme captures are read, not graded, and are not listed here.",
+  "captures": [
+    {
+      "idPrefix": "vw-cap5-f9-h6-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
+      "queue": "Q-F9a-c, Q-H6a",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-f9-h6-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
+      "queue": "Q-F9a-c, Q-H6a",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-colour-nz-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
+      "queue": "Q-RT15b",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-colour-nz-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
+      "queue": "Q-RT15b",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-paint-offset-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-paint-offset.pine",
+      "queue": "Q-RT15c (flag true)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-paint-offset-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-paint-offset.pine",
+      "queue": "Q-RT15c (flag true)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-paint-offset-flag-false-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-paint-offset-flag-false.pine",
+      "queue": "Q-RT15c (flag false)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-paint-offset-flag-false-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-paint-offset-flag-false.pine",
+      "queue": "Q-RT15c (flag false)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-gradient-fill-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-gradient-fill.pine",
+      "queue": "Q-RT15d",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-gradient-fill-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-gradient-fill.pine",
+      "queue": "Q-RT15d",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt13-requests-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt13-requests.pine",
+      "queue": "Q-RT13c/d",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt13-requests-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt13-requests.pine",
+      "queue": "Q-RT13c/d",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt12-statements-history-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt12-statements-history.pine",
+      "queue": "Q-RT12a/b",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt12-statements-history-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt12-statements-history.pine",
+      "queue": "Q-RT12a/b",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt10-runtime-walls-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt10-runtime-walls.pine",
+      "queue": "Q-RT10a/b/c/e",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt10-runtime-walls-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt10-runtime-walls.pine",
+      "queue": "Q-RT10a/b/c/e",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-version-defaults-v6-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v6.pine",
+      "queue": "owed row 14",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-version-defaults-v6-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v6.pine",
+      "queue": "owed row 14",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-version-defaults-v4-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v4.pine",
+      "queue": "owed row 14",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-version-defaults-v4-rddt-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v4.pine",
+      "queue": "owed row 14",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "order-block-finder-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+      "queue": "Q-RT11f",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "order-block-finder-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+      "queue": "Q-RT11f",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "mtf-key-levels-support-and-resistance-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "queue": "Q-RT13a",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "mtf-key-levels-support-and-resistance-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "queue": "Q-RT13a",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vwap-fibo-dev-extensions-strategy-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+      "queue": "Q-RT13b",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vwap-fibo-dev-extensions-strategy-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+      "queue": "Q-RT13b",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "pivot-high-low-points-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
+      "queue": "Q-RT13e",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "pivot-high-low-points-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
+      "queue": "Q-RT13e",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "kernel-channel-backquant-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
+      "queue": "Q-RT15a1",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "kernel-channel-backquant-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
+      "queue": "Q-RT15a1",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "linear-regression-channel-breakout-strategy-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+      "queue": "Q-RT15a2",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "linear-regression-channel-breakout-strategy-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+      "queue": "Q-RT15a2",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "volatility-trend-score-backquant-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/volatility-trend-score-backquant__0794882a37.pine",
+      "queue": "Q-RT15a3",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "volatility-trend-score-backquant-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/volatility-trend-score-backquant__0794882a37.pine",
+      "queue": "Q-RT15a3",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "range-filter-bs-signals-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
+      "queue": "Q-RT12c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "range-filter-bs-signals-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
+      "queue": "Q-RT12c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+      "queue": "Q-RT12d",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+      "queue": "Q-RT12d",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "atr-trailing-stoploss-strategy-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+      "queue": "Q-RT12e",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "atr-trailing-stoploss-strategy-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+      "queue": "Q-RT12e",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "volume-divergence-by-mm-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
+      "queue": "Q-RT10d",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "volume-divergence-by-mm-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
+      "queue": "Q-RT10d",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": true,
+      "signature": null
+    },
+    {
+      "idPrefix": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": true,
+      "signature": null
+    },
+    {
+      "idPrefix": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "bolingger-bands-inside-bar-boxes-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "bolingger-bands-inside-bar-boxes-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "inside-bar-boxes-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "inside-bar-boxes-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "neural-network-buy-and-sell-signals-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "neural-network-buy-and-sell-signals-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "williams-fractal-trailing-stops-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
+      "queue": "Q-H6c",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "williams-fractal-trailing-stops-rddt-1d",
+      "id": null,
+      "script": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
+      "queue": "Q-H6c",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-f9-h6-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
+      "queue": "Q-H6b, Q-F9 second witness",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-f9-h6-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
+      "queue": "Q-H6b, Q-F9 second witness",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-builtins-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
+      "queue": "Q-RT11a/c/d/e (1D)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-builtins-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
+      "queue": "Q-RT11a/c/d/e (1D)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-alma-v5-bare-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-alma-v5-bare.pine",
+      "queue": "Q-RT11b v5",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-alma-v5-bare-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-alma-v5-bare.pine",
+      "queue": "Q-RT11b v5",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-alma-v3-bare-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-alma-v3-bare.pine",
+      "queue": "Q-RT11b v3",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-alma-v3-bare-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-alma-v3-bare.pine",
+      "queue": "Q-RT11b v3",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt12-statements-history-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt12-statements-history.pine",
+      "queue": "Q-RT12a/b (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt12-statements-history-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt12-statements-history.pine",
+      "queue": "Q-RT12a/b (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-spy-text-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-spy-text.pine",
+      "queue": "H7 format.volume, Q-C31b",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-spy-text-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-spy-text.pine",
+      "queue": "H7 format.volume, Q-C31b",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-max-bars-back-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-max-bars-back.pine",
+      "queue": "owed row 12",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-max-bars-back-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-max-bars-back.pine",
+      "queue": "owed row 12",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-buffer-overrun-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-buffer-overrun.pine",
+      "queue": "owed row 12 (expected runtime error)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-buffer-overrun-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-buffer-overrun.pine",
+      "queue": "owed row 12 (expected runtime error)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-colour-nz-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
+      "queue": "Q-RT15b SPY witness (optional)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt15-colour-nz-spy-1d",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
+      "queue": "Q-RT15b SPY witness (optional)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "order-block-finder-spy-1d",
+      "id": null,
+      "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+      "queue": "Q-RT11f (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "order-block-finder-spy-1d",
+      "id": null,
+      "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+      "queue": "Q-RT11f (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "mtf-key-levels-support-and-resistance-spy-1d",
+      "id": null,
+      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "queue": "Q-RT13a (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "mtf-key-levels-support-and-resistance-spy-1d",
+      "id": null,
+      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "queue": "Q-RT13a (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vwap-fibo-dev-extensions-strategy-spy-1d",
+      "id": null,
+      "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+      "queue": "Q-RT13b (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vwap-fibo-dev-extensions-strategy-spy-1d",
+      "id": null,
+      "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+      "queue": "Q-RT13b (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "kernel-channel-backquant-spy-1d",
+      "id": null,
+      "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
+      "queue": "Q-RT15a1 (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "kernel-channel-backquant-spy-1d",
+      "id": null,
+      "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
+      "queue": "Q-RT15a1 (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "range-filter-bs-signals-spy-1d",
+      "id": null,
+      "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
+      "queue": "Q-RT12c (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "range-filter-bs-signals-spy-1d",
+      "id": null,
+      "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
+      "queue": "Q-RT12c (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-spy-1d",
+      "id": null,
+      "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+      "queue": "Q-RT12d (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-spy-1d",
+      "id": null,
+      "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+      "queue": "Q-RT12d (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "atr-trailing-stoploss-strategy-spy-1d",
+      "id": null,
+      "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+      "queue": "Q-RT12e (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "atr-trailing-stoploss-strategy-spy-1d",
+      "id": null,
+      "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+      "queue": "Q-RT12e (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "volume-divergence-by-mm-spy-1d",
+      "id": null,
+      "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
+      "queue": "Q-RT10d (SPY)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "volume-divergence-by-mm-spy-1d",
+      "id": null,
+      "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
+      "queue": "Q-RT10d (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-builtins-spy-60",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
+      "queue": "Q-RT11c (60)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-builtins-spy-60",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
+      "queue": "Q-RT11c (60)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-builtins-spy-1",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
+      "queue": "Q-RT11a (1)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-rt11-builtins-spy-1",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
+      "queue": "Q-RT11a (1)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "rolling-vwap-spy-5",
+      "id": null,
+      "script": "corpus/committed/rolling-vwap__043320bb57.pine",
+      "queue": "Q-L2a SPY 5 (optional)",
+      "state": "on",
+      "library": true,
+      "signature": null
+    },
+    {
+      "idPrefix": "rolling-vwap-spy-5",
+      "id": null,
+      "script": "corpus/committed/rolling-vwap__043320bb57.pine",
+      "queue": "Q-L2a SPY 5 (optional)",
+      "state": "runtime",
+      "library": true,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-request-htf-alignment-spy-1d-rth",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-request-htf-alignment.pine",
+      "queue": "Q-R2 (forming daily bar)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-request-htf-alignment-spy-1d-rth",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-request-htf-alignment.pine",
+      "queue": "Q-R2 (forming daily bar)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-barstate-index-spy-1d-rth",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-barstate-index.pine",
+      "queue": "owed row 12 (forming bar)",
+      "state": "on",
+      "library": false,
+      "signature": null
+    },
+    {
+      "idPrefix": "vw-cap5-barstate-index-spy-1d-rth",
+      "id": null,
+      "script": "tools/visual_conformance/probes/vw-cap5-barstate-index.pine",
+      "queue": "owed row 12 (forming bar)",
+      "state": "runtime",
+      "library": false,
+      "signature": null
+    }
+  ]
+}
