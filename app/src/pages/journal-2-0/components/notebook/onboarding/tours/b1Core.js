@@ -57,6 +57,8 @@ export const TOURS = Object.freeze([
     flag: 'notebook_template_gallery_enabled',
     title: 'Template gallery',
     replayable: true,
+    // its door is in the notes list's header (W14-Q1 S6: from Home it never opened)
+    start: '/journal/notebook?view=all',
     load: steps(() => import('./b1TemplateGallery.steps')),
   },
   {
@@ -64,6 +66,7 @@ export const TOURS = Object.freeze([
     flag: 'notebook_semantic_search_enabled',
     title: 'Search by meaning',
     replayable: true,
+    start: '/journal/notebook?view=all',
     load: steps(() => import('./b1MeaningSearch.steps')),
   },
   {

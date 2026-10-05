@@ -44,15 +44,15 @@ describe('the B1 track is registered', () => {
     }
   })
 
-  it('W14-C1: the four editor tours start in a note; the rest on a Notebook screen', () => {
+  it('W14-C1: the four editor tours start in a note; the rest on a Notebook screen (every one declares a start)', () => {
     const starts = Object.fromEntries(TOURS.map((t) => [t.id, t.start ?? null]))
     expect(starts).toEqual({
       'writing-help': { note: 'recent' },
       'image-docx-import': { note: 'recent' },
       'publish-share': { note: 'recent' },
       'task-reminders': '/journal/notebook?view=tasks',
-      'template-gallery': null,
-      'meaning-search': null,
+      'template-gallery': '/journal/notebook?view=all',
+      'meaning-search': '/journal/notebook?view=all',
       'formulas-rollups': { note: 'recent' },
     })
   })

@@ -30,7 +30,7 @@ import {
 } from '../../../../../components/firstRun/firstRunStage'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
-import { openRegistryTour } from './tourRegistryControl'
+import { REGISTRY_TOUR_CLOSED_EVENT, openRegistryTour } from './tourRegistryControl'
 import { TOURS_PREF, TOUR_STATES, recordTourState } from './tourSeenState'
 import { TOUR_PREF, readTourPref, tourFinished, tourIsForThisMember } from './tourPref'
 import { CHECKLIST_PREF, checklistClosed, checklistEnabled } from './gettingStartedPref'
@@ -40,6 +40,13 @@ import {
 
 /** The attribute the card's root carries, so the slot watcher can tell it from others. */
 export const OFFER_ATTR = 'data-tour-offer'
+
+/** Tours whose accepted offer did not open in this page load (W14-Q1 finding S6). Not offered
+ *  again until the next load, so the session's one offer can go to a tour that can open; the
+ *  failed one stays queued (nothing is recorded for it) for a later load. */
+const failedThisLoad = new Set()
+/** Rails only. */
+export function __resetOfferFailures() { failedThisLoad.clear() }
 
 class TourOfferCatch extends Component {
   constructor(props) {
@@ -93,7 +100,9 @@ export function makeTourOfferGate(load, waitMs = RETRY_WAIT_MS) {
     const [session, setSession] = useState(() => readOfferSession())
     const [showing, setShowing] = useState(false)
 
+    const [pendingId, setPendingId] = useState(null)   // accepted, waiting to hear if it opened
     const offerable = offerableTours({ tours, flagOn: notebookFlag, toursPrefRaw: prefs?.[TOURS_PREF] })
+      .filter((t) => !failedThisLoad.has(t.id))
     const entry = pickOffer({ offerable, session })
 
     const onboarding = notebookFlag('notebook_onboarding_enabled') === true
@@ -113,7 +122,7 @@ export function makeTourOfferGate(load, waitMs = RETRY_WAIT_MS) {
       slotBusy: showing ? false : slotBusy,
     }) : 'nothing-to-offer'
 
-    const show = Boolean(entry) && !blocked
+    const show = Boolean(entry) && !blocked && !pendingId
     useEffect(() => { setShowing(show) }, [show])
 
     // the stage is held exactly while the card is on screen
@@ -129,13 +138,39 @@ export function makeTourOfferGate(load, waitMs = RETRY_WAIT_MS) {
       setSession(rec)
     }, [show, entryId, session])
 
+    // An accepted offer is NOT spent by the click (W14-Q1 finding S6): it is spent when the
+    // gate reports that the tour opened. If the tour never opens, nothing is recorded, the
+    // session is handed back for the next tour, and this one waits for a later page load.
+    useEffect(() => {
+      if (!pendingId) return undefined
+      const onClosed = (e) => {
+        if (e?.detail?.tourId !== pendingId) return
+        if (e.detail.opened) {
+          const rec = { id: pendingId, answered: true }      // it opened: this session's offer is spent
+          writeOfferSession(rec)
+          setSession(rec)
+        } else {
+          failedThisLoad.add(pendingId)                       // never opened: not spent, still queued
+          writeOfferSession(null)
+          setSession(null)
+        }
+        setPendingId(null)
+      }
+      window.addEventListener(REGISTRY_TOUR_CLOSED_EVENT, onClosed)
+      return () => window.removeEventListener(REGISTRY_TOUR_CLOSED_EVENT, onClosed)
+    }, [pendingId])
+
     const answer = useCallback((accept) => {
       if (!entryId) return
+      if (accept) {
+        setPendingId(entryId)
+        openRegistryTour(entryId)
+        return
+      }
       const rec = { id: entryId, answered: true }
       writeOfferSession(rec)
       setSession(rec)
-      if (accept) openRegistryTour(entryId)
-      else recordTourState(setPrefMerged, entryId, TOUR_STATES.dismissed, null)
+      recordTourState(setPrefMerged, entryId, TOUR_STATES.dismissed, null)
     }, [entryId, setPrefMerged])
     const onAccept = useCallback(() => answer(true), [answer])
     const onLater = useCallback(() => answer(false), [answer])

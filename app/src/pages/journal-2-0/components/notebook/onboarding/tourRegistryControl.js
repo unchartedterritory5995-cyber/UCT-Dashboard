@@ -10,6 +10,17 @@
 // queueing design to build once more than one tour exists to queue.
 
 export const REGISTRY_TOUR_OPEN_EVENT = 'uct:notebook-registry-tour-open'
+/** Fired by the gate whenever a requested tour ends, `{tourId, opened}`: `opened` is false
+ *  when it never showed a step (nothing to point at, nothing to open, or its flags off). */
+export const REGISTRY_TOUR_CLOSED_EVENT = 'uct:notebook-registry-tour-closed'
+
+export function announceRegistryTourClosed(tourId, opened) {
+  try {
+    window.dispatchEvent(new CustomEvent(REGISTRY_TOUR_CLOSED_EVENT, { detail: { tourId, opened: opened === true } }))
+  } catch {
+    // no window (never in the app)
+  }
+}
 
 let pendingId = null
 

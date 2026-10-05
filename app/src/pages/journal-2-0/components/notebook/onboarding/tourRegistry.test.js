@@ -412,3 +412,12 @@ describe('`requires` and tourLive', () => {
     expect(tourLive(null, () => true)).toBe(false)
   })
 })
+
+// W14-Q1 finding S6: an offer or What's new can only open a tour the engine can GET to.
+describe('every replayable registry tour declares where it starts', () => {
+  it('no replayable tour beyond the base one is without a start (the engine navigates there)', () => {
+    const missing = OTHER_TOURS.filter((t) => t.replayable && !startKind(t)).map((t) => t.id)
+    expect(missing).toEqual([])
+    expect(OTHER_TOURS.filter((t) => t.replayable).length, 'non-vacuity').toBeGreaterThan(10)
+  })
+})

@@ -13,13 +13,15 @@
 // A tour opens only by explicit request: Help's Replay (a `startRegistryTourId`
 // navigation state), the offer (TourOfferGate.jsx), the checklist, or the resurfacing
 // notice's passive explainer, each through `openRegistryTour` or the navigation state.
-import { Component, Suspense, useCallback, useEffect, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
 import { getTourEntry, tourLive } from './tourRegistry'
-import { REGISTRY_TOUR_OPEN_EVENT, takePendingRegistryTourOpenAny } from './tourRegistryControl'
+import {
+  REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, takePendingRegistryTourOpenAny,
+} from './tourRegistryControl'
 
 /** This gate's own boundary: a failed chunk (or a throw while it renders) renders
  *  NOTHING, never the route's error screen. Mirrors NotebookTourGate.jsx's
@@ -79,14 +81,23 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
       if (fromState && tours.some((t) => t.id === fromState)) setWantedId((cur) => cur ?? fromState)
     }, [location.state, tours])
 
-    const close = useCallback(() => setWantedId(null), [])
+    const wantedRef = useRef(wantedId)
+    wantedRef.current = wantedId
+    // Every end is announced with whether the tour ever showed a step, so the offer is spent
+    // only on a tour that opened (TourOfferGate.jsx, W14-Q1 finding S6).
+    const close = useCallback((info) => {
+      const id = wantedRef.current
+      wantedRef.current = null
+      setWantedId(null)
+      if (id) announceRegistryTourClosed(id, info?.opened === true)
+    }, [])
 
     const entry = wantedId ? getTourEntry(wantedId, tours) : null
     // tourLive: own flag, `requires`, and the wave-14 onboarding switch (tourRegistry.js)
     const allowed = tourLive(entry, notebookFlag)
     // A request for a tour whose capability is off is dropped, not held: the slot is one
     // tour wide, so a held request would block every later one (W14-C1).
-    useEffect(() => { if (wantedId && !allowed) setWantedId(null) }, [wantedId, allowed])
+    useEffect(() => { if (wantedId && !allowed) close({ opened: false }) }, [wantedId, allowed, close])
 
     if (!allowed) return null
     return (

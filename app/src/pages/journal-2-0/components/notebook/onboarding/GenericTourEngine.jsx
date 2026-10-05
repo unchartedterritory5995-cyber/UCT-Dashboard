@@ -91,6 +91,9 @@ export default function GenericTourEngine({
   const returnFocusRef = useRef(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  // Whether this tour ever showed a step. Handed to onClose, so a caller that spent
+  // something on opening it (the offer: one per session) can tell "taken" from "never opened".
+  const openedRef = useRef(false)
   const titleId = useId()
   const bodyId = useId()
 
@@ -117,10 +120,10 @@ export default function GenericTourEngine({
     if (!content || startedRef.current) return
     if (passive && prefsLoading) return
     startedRef.current = true
-    if (!content.steps.length) { onCloseRef.current(); return }
+    if (!content.steps.length) { onCloseRef.current({ opened: false }); return }
     if (passive) {
       // Shown once per member: any row means it was seen (or dismissed) already.
-      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current(); return }
+      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current({ opened: false }); return }
       setPhase('waiting')
       return
     }
@@ -142,6 +145,7 @@ export default function GenericTourEngine({
     const open = (at) => {
       if (!returnFocusRef.current && !passive) returnFocusRef.current = document.activeElement
       setIndex(at)
+      openedRef.current = true
       setPhase('open')
       record(TOUR_STATES.started, steps[at].id)
     }
@@ -150,7 +154,7 @@ export default function GenericTourEngine({
       if (Date.now() - began < startWaitMs) return false
       const at = presentFrom(steps, 0, 1)
       if (at >= 0) open(at)
-      else onCloseRef.current()
+      else onCloseRef.current({ opened: false })
       return true
     }
     if (tick()) return undefined
@@ -166,7 +170,7 @@ export default function GenericTourEngine({
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
-    onCloseRef.current()
+    onCloseRef.current({ opened: openedRef.current })
   }, [])
 
   const close = useCallback((state) => {
@@ -329,7 +333,7 @@ export default function GenericTourEngine({
   if (passive) {
     // A light note: the title of its first step, every step's sentence, one button.
     const shown = steps.filter((s, i) => i >= index && anchorFor(s.anchor))
-    const done = () => { setPhase('closed'); record(TOUR_STATES.done, steps[steps.length - 1].id); onCloseRef.current() }
+    const done = () => { setPhase('closed'); record(TOUR_STATES.done, steps[steps.length - 1].id); onCloseRef.current({ opened: true }) }
     return createPortal(
       <aside ref={cardRef} className={own.explainer} aria-labelledby={titleId} data-tour-explainer="">
         <h2 id={titleId} className={own.explainerTitle}>{copy.title}</h2>

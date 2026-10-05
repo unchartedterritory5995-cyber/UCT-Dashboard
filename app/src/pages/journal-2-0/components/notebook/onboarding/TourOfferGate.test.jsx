@@ -13,8 +13,12 @@ import {
   registerFirstRunSlot, claimFirstRunStage, isFirstRunStageHeld, getFirstRunStageHolderCount,
 } from '../../../../../components/firstRun/firstRunStage'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
-import { makeTourOfferGate, OFFER_ATTR } from './TourOfferGate'
-import { REGISTRY_TOUR_OPEN_EVENT, __resetRegistryTourControl } from './tourRegistryControl'
+import { makeTourOfferGate, OFFER_ATTR, __resetOfferFailures } from './TourOfferGate'
+import RegistryToursGate from './RegistryToursGate'
+import { MemoryRouter } from 'react-router-dom'
+import {
+  REGISTRY_TOUR_OPEN_EVENT, __resetRegistryTourControl, announceRegistryTourClosed,
+} from './tourRegistryControl'
 import { __resetOfferSession, readOfferSession } from './tourEligibility'
 import { OFFER_COPY } from './tourOfferCopy'
 import { TOURS_PREF } from './tourSeenState'
@@ -68,7 +72,10 @@ const Gate = () => makeTourOfferGate(() => import('./TourOfferPrompt'))
 const card = (opts) => screen.findByRole('region', { name: OFFER_COPY.title('Tour A') }, { timeout: 2000, ...opts })
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
+const cleanupSlot = () => registerFirstRunSlot(null)
+
 beforeEach(() => {
+  __resetOfferFailures()
   __resetNotebookFlags()
   __resetRegistryTourControl()
   __resetOfferSession()
@@ -125,7 +132,8 @@ describe('the offer', () => {
     expect(await screen.findByRole('region', { name: OFFER_COPY.title('Tour B') }, { timeout: 2000 })).toBeInTheDocument()
   })
 
-  it('"Take the tour" opens it through the registry door and spends the session', async () => {
+  // W14-Q1 finding S6 (W14-C1): an accepted offer is spent by the tour OPENING, not by the click.
+  it('"Take the tour" opens it through the registry door; the session is spent once the tour opens', async () => {
     const opened = []
     const onOpen = (e) => opened.push(e.detail.tourId)
     window.addEventListener(REGISTRY_TOUR_OPEN_EVENT, onOpen)
@@ -136,8 +144,29 @@ describe('the offer', () => {
     window.removeEventListener(REGISTRY_TOUR_OPEN_EVENT, onOpen)
     expect(opened).toEqual([TOUR_A.id])
     await waitFor(() => expect(screen.queryByRole('region')).toBeNull())
-    expect(readOfferSession()).toEqual({ id: TOUR_A.id, answered: true })
     expect(writes().filter(([u]) => String(u).includes('/tours/'))).toEqual([])   // the ENGINE records, not the offer
+    expect(readOfferSession()).toEqual({ id: TOUR_A.id, answered: false })   // not by the click
+    act(() => { announceRegistryTourClosed(TOUR_A.id, true) })                  // the tour opened
+    await flush()
+    expect(screen.queryByRole('region')).toBeNull()
+    expect(readOfferSession()).toEqual({ id: TOUR_A.id, answered: true })
+  })
+
+  it('an accepted offer whose tour NEVER OPENS is not spent: nothing recorded, the next tour is offered, it stays queued', async () => {
+    const G = Gate()
+    render(<Page Gate={G} />)
+    await card()
+    fireEvent.click(screen.getByRole('button', { name: OFFER_COPY.accept }))
+    await waitFor(() => expect(screen.queryByRole('region')).toBeNull())    // hidden while it tries
+    act(() => { announceRegistryTourClosed(TOUR_A.id, false) })             // the engine gave up
+    // the session's one offer is not spent: it goes to the next tour that can be offered
+    expect(await screen.findByRole('region', { name: OFFER_COPY.title('Tour B') }, { timeout: 2000 })).toBeInTheDocument()
+    expect(writes().filter(([u, i = {}]) => String(u).includes('/tours/') || /notebook_tours/.test(i.body || ''))).toEqual([])
+    expect(readOfferSession()).toEqual({ id: TOUR_B.id, answered: false })
+    // and Tour A is still queued: a later page load offers it again (nothing was recorded)
+    __resetOfferFailures()
+    __resetOfferSession()
+    cleanupSlot()
   })
 
   it('an unanswered offer is shown again after a remount in the same session (a reload)', async () => {
@@ -316,5 +345,23 @@ describe('W14-C1 ruling: the wave-14 switch gates every offer', () => {
     await flush()
     expect(screen.queryByRole('region')).toBeNull()
     expect(load).not.toHaveBeenCalled()
+  })
+})
+
+describe('W14-Q1 S6 end to end: the REAL registry gate and engine report the tour that never opened', () => {
+  it('a tour with nothing to show closes without opening; the offer moves on and nothing is recorded', async () => {
+    const G = Gate()
+    render(
+      <MemoryRouter>
+        <Page Gate={G} />
+        <RegistryToursGate tours={TOURS} />
+      </MemoryRouter>,
+    )
+    await card()
+    fireEvent.click(screen.getByRole('button', { name: OFFER_COPY.accept }))
+    // TOUR_A has no steps: the real engine closes it at once, never having shown a step
+    expect(await screen.findByRole('region', { name: OFFER_COPY.title('Tour B') }, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(writes().filter(([u, i = {}]) => String(u).includes('/tours/') || /notebook_tours/.test(i.body || ''))).toEqual([])
   })
 })
