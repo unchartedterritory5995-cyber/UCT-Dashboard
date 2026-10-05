@@ -22,10 +22,19 @@
 //   v5  cell.text_color           `color.black`, `#363A45` (htf-liquidity, vold,
 //                                  keltner-center-of-gravity: 32 cells)
 //
-// ⛔ ONLY THE (version, slot) PAIRS A CAPTURE SHOWS. A v6 box's unset fill, a v4
-// box's border, a v6 cell's text colour are unwitnessed: they keep the base
-// default (`objectRenderState.js::OBJECT_DEFAULTS`; a cell's is the table
-// renderer's own) until a capture says otherwise.
+//   ⭐ H11 (CAP5, `vw-cap5-version-defaults-v6-rddt-1d-2026-10-04` /
+//   `-v4-…`, 3 boxes + 2-3 cells each, every colour left UNSET on purpose):
+//   v6  box.bgcolor               `color.blue`, OPAQUE `#2962FF` (as v5)
+//   v6  cell.text_color           `color.black`, `#363A45` (as v5)
+//   v4  box.border_color          `color.blue` of v4, `#2196F3`
+//   v4  box.bgcolor               `color.blue` of v4, OPAQUE `#2196F3`
+//   v4  cell.text_color           `color.black`, `#363A45`
+//   (v6's unset box border is `#2962FF`, the base default — no row.)
+//
+// ⛔ ONLY THE (version, slot) PAIRS A CAPTURE SHOWS. A v6 / v4 box's text colour
+// and every v1-v3 slot are unwitnessed: they keep the base default
+// (`objectRenderState.js::OBJECT_DEFAULTS`; a cell's is the table renderer's own)
+// until a capture says otherwise.
 // ⛔ The hexes come from the palette authority (`pinePalette.js`) AT THAT
 // VERSION, never typed here — `color.blue` is `#2196F3` in v4 and `#2962FF`
 // from v5.
@@ -39,10 +48,16 @@ const VERSION_DEFAULTS = Object.freeze({
   4: Object.freeze({
     line: Object.freeze({ color: 'color.blue' }),
     label: Object.freeze({ color: 'color.blue', textcolor: 'color.black' }),
+    box: Object.freeze({ border_color: 'color.blue', bgcolor: 'color.blue' }),
+    cell: Object.freeze({ text_color: 'color.black' }),
   }),
   5: Object.freeze({
     label: Object.freeze({ textcolor: 'color.black' }),
     box: Object.freeze({ bgcolor: 'color.blue', text_color: 'color.black' }),
+    cell: Object.freeze({ text_color: 'color.black' }),
+  }),
+  6: Object.freeze({
+    box: Object.freeze({ bgcolor: 'color.blue' }),
     cell: Object.freeze({ text_color: 'color.black' }),
   }),
 })
@@ -50,6 +65,22 @@ const VERSION_DEFAULTS = Object.freeze({
 /** The versions whose defaults differ from the base — the only ones an object
  *  program needs to state (`pine.js` stamps `pineVersion` for exactly these). */
 export const VERSIONS_WITH_OBJECT_DEFAULTS = Object.freeze(Object.keys(VERSION_DEFAULTS).map(Number))
+
+/** ⭐ H11 — the versions stamped on EVERY program of theirs (v4, v5, as C37 shipped
+ *  them). v6's rows reach only boxes and cells, so a v6 program states its version
+ *  only when it draws one (`versionStampedFor`): every other v6 program — lines,
+ *  labels, linefills — keeps its bytes. */
+const STAMPED_ALWAYS = Object.freeze([4, 5])
+
+/** Whether a program of `pineVersion` that uses `families` (an iterable of object
+ *  families, `cell` for a table cell) states its version. */
+export function versionStampedFor(pineVersion, families) {
+  if (!VERSIONS_WITH_OBJECT_DEFAULTS.includes(pineVersion)) return false
+  if (STAMPED_ALWAYS.includes(pineVersion)) return true
+  const reached = Object.keys(VERSION_DEFAULTS[pineVersion] || {})
+  for (const f of families || []) if (reached.includes(f)) return true
+  return false
+}
 
 const memo = new Map()
 

@@ -403,3 +403,5 @@ the lanes whose fixes are on unmerged branches (RT10-RT15, F9, H6, H7) should re
    scripts that grade MATCH become starter-allowlist CANDIDATES (owner ruling D6) — an owner act, not this one.
 5. **Record.** A `CAP5` section in `docs/pine/vendor-harness/objects-triage-2026-09-28.md` (rig state, route,
    per-item vendor fact and our door, pins, owed / left), as CAP4's.
+
+**Steps 3-5 done (H11, branch `pine/h11-cap5-findings`, 2026-10-04).** Pins: `vendorHarness.cap5Captures.test.js`. Hand-back table (each queue item -> what the capture settles -> the lane / rule it feeds, and what H11 served) and the record: the `CAP5` section of `docs/pine/vendor-harness/objects-triage-2026-09-28.md`. Re-graded on the wave-18 + F9 merge with the 50-library store: MATCH 5 -> 16, MATCH lost 0.

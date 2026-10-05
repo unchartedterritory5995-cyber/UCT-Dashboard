@@ -545,10 +545,12 @@ export const ARRAY_FNS = Object.freeze({
   // precisely because M7 is partial. A refusal backed by a measurement is not a
   // gap to be filled in passing.
   //
-  // ⚠️ STILL OWED, AND EXTRAPOLATED RATHER THAN MEASURED: M7's all-equal and
-  // already-descending halves. The reversed-tie rule below covers them by
-  // construction, so they are consistent with what WAS measured — but nobody
-  // has watched the vendor do them, and that is the honest status.
+  // ⭐ H11 — AND NOW THE REST OF M7 IS MEASURED (CAP5, 2026-10-04,
+  // `vw-m7-sort-indices-ties-spy-1d-2026-10-04`, TradingView Premium): over
+  // 5,3,5,1,3,5 ascending is 3,1,4,0,2,5 and descending 5,2,0,4,1,3; over the
+  // ALL-EQUAL 7,7,7,7 ascending is 0,1,2,3 and descending 3,2,1,0; over the
+  // already-descending 3,2,1 ascending is 2,1,0. The reversed-tie rule below
+  // answers every one of them (`vendorHarness.cap5Captures.test.js`).
   //
   // ⚠️ `na` SINKS IN BOTH DIRECTIONS — also unmeasured. A comparator returning
   // NaN makes the order implementation-defined, so a rule had to exist; sinking
@@ -583,6 +585,29 @@ export const ARRAY_FNS = Object.freeze({
         return desc ? -c : c
       })
       return idx
+    },
+  },
+  // ⭐ H11 — `array.sort(id, order)`: the VALUES reordered in place. Equal keys
+  // are the same value, so the tie order M7 measured (`sort_indices`, above)
+  // cannot show in the result; the order of distinct keys is the comparison.
+  // ⛔ An `na` element STOPS the run by name: where Pine sorts `na` is not
+  // measured (`sort_indices`' sinking rule is a choice, not a finding, and an
+  // in-place sort would hand that choice to every later read of the array).
+  'array.sort': {
+    args: ['array', 'string'], returns: 'void', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      const src = guardSliceWrite(a[0], 'array.sort')
+      const desc = a[1] === 'descending'
+      budget.charge('ARRAY_OPERATIONS', src.length)
+      const strings = src.length > 0 && src.every((x) => typeof x === 'string')
+      if (!strings && !src.every((x) => typeof x === 'number' && Number.isFinite(x))) {
+        throw new CollectionError('array.sort over an array holding `na` (or a non-number) — where '
+          + 'Pine places `na` in a sort has not been measured, so this runtime stops rather than guess')
+      }
+      src.sort((x, y) => {
+        const c = x < y ? -1 : x > y ? 1 : 0
+        return desc ? -c : c
+      })
     },
   },
   'array.size': { args: ['array'], returns: 'number', fn: (a) => a[0].length },

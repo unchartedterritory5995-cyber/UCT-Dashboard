@@ -12,7 +12,7 @@ import { translatePine } from './pine.js'
 import { interpret, maxLookback, historyReadMask, historyBackOf, historyReadable, FN } from './interpret.js'
 import { TABLE } from './parse.js'
 import { DEFAULT_BUDGET } from './budget.js'
-import { AUTO_MAX_BARS_BACK } from './objectProgram.js'
+import { AUTO_MAX_BARS_BACK, historyReachOf } from './objectProgram.js'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../nativeRegistry'
 
@@ -45,12 +45,25 @@ describe('C38 — the translator writes ONE read, bounded by ONE buffer', () => 
     expect(AUTO_MAX_BARS_BACK).toBe(400)
   })
 
-  it('a declared `max_bars_back` is the buffer — the same declaration the object lane reads', () => {
+  // ⭐⭐ H11 (CAP5, `vw-cap5-buffer-overrun-spy-1d-2026-10-04`) — a declared buffer
+  // is NOT a ceiling: TradingView read `close[59]` under `max_bars_back = 50` with no
+  // error. The reach is `historyReachOf(declared)` = max(declared, the measured 400),
+  // and both lanes carry the same number.
+  it('a declared `max_bars_back` below the automatic reach does not shrink it — both lanes read 400', () => {
     const head = '//@version=6\nindicator("t", max_bars_back = 77)\n'
-    expect(formula('plot(close[bar_index - 3])', head)).toMatch(/, 77\)$/)
-    // …and the object lane, on the same script, carries the same number
+    expect(formula('plot(close[bar_index - 3])', head)).toMatch(new RegExp(`, ${AUTO_MAX_BARS_BACK}\\)$`))
     const t = host('label.new(bar_index, close[bar_index - 3])', head)
-    expect(JSON.stringify(t.objects)).toContain('"limit":77')
+    expect(JSON.stringify(t.objects)).toContain(`"limit":${AUTO_MAX_BARS_BACK},"auto":true`)
+    expect(historyReachOf(77)).toBe(AUTO_MAX_BARS_BACK)
+  })
+
+  it('…and one above it raises the reach — the same declaration in both lanes', () => {
+    const head = '//@version=6\nindicator("t", max_bars_back = 500)\n'
+    expect(formula('plot(close[bar_index - 3])', head)).toMatch(/, 500\)$/)
+    const t = host('label.new(bar_index, close[bar_index - 3])', head)
+    expect(JSON.stringify(t.objects)).toContain('"limit":500,"auto":true')
+    expect(historyReachOf(500)).toBe(500)
+    expect(historyReachOf(null)).toBe(AUTO_MAX_BARS_BACK)
   })
 
   it('…and never more than the index can take: `na`, a ternary, `%`, `min`, a bounded `barssince`', () => {
@@ -124,10 +137,11 @@ describe('C38 — what stays refused, by name', () => {
     expect(formula('plot(close[close > open ? 1 : 0])')).toBe('barsAgo(close, close > open ? 1 : 0, 2)')
   })
 
-  it('`max_bars_back(x, n)` — the per-series buffer this read does not model', () => {
-    const r = refusal('max_bars_back(close, 50)\nplot(close[bar_index % 3])')
-    expect(r.guard).toBe('pine:offset-literal')
-    expect(r.message).toMatch(/max_bars_back\(x, n\)/)
+  // ⭐ H11 (CAP5, `vw-cap5-max-bars-back-spy-1d-2026-10-04`): `max_bars_back(src, 50)`
+  // then `src[e]` read the real bar on all 8,477 bars — the per-series call changes no
+  // read, so it is served with the declaration's reach (it refused by name before).
+  it('`max_bars_back(x, n)` — served: the per-series call is not a ceiling either (CAP5)', () => {
+    expect(formula('max_bars_back(close, 50)\nplot(close[bar_index % 3])')).toBe('barsAgo(close, mod(barindex, 3), 3)')
   })
 
   it('a source the script reassigns — its history is the end-of-bar value', () => {

@@ -4,7 +4,9 @@
 //
 // `ta.pivothigh(x, L, R)` answers on bar t with x[R] when x[R] beats every bar on
 // its right (x[R-1] … x[0]) and at least matches every bar on its left (x[R+1] …
-// x[R+L]), and `na` otherwise or when any bar of the window is `na`. That is the
+// x[R+L]), and `na` otherwise. ⭐ H11 (CAP5, `vw-rt10-runtime-walls-rddt-1d-2026-
+// 10-04`, 4 x 636 bars): an `na` in the window is a BARRIER — the comparison walks
+// outward from the candidate and stops at the first `na` on each side. That is the
 // host lane's `pivotCol` rule (H1, graded against `pivot-point-supertrend` RDDT:
 // a LEFT tie pivots, a RIGHT tie does not) read through Pine's `[R]` confirmation
 // shift. Graded two ways: against a hand replay of that sentence, and against the
@@ -38,12 +40,15 @@ const replay = (xs, L, R, high) => xs.map((_, t) => {
   const c = t - R
   const v = xs[c]
   if (v === null) return null
-  for (let j = c - L; j <= c + R; j += 1) {
-    if (j === c) continue
+  for (let j = c - 1; j >= c - L; j -= 1) {
     const w = xs[j]
-    if (w === null) return null
-    const beats = high ? v > w : v < w
-    if (!(beats || (j < c && v === w))) return null
+    if (w === null) break
+    if (!((high ? v > w : v < w) || v === w)) return null
+  }
+  for (let j = c + 1; j <= c + R; j += 1) {
+    const w = xs[j]
+    if (w === null) break
+    if (!(high ? v > w : v < w)) return null
   }
   return v
 })
@@ -63,6 +68,12 @@ describe('⭐⭐ RT10 — ta.pivothigh / ta.pivotlow over runtime state', () => 
     expect(lo.filter((v) => v !== null).length).toBeGreaterThan(2)
     expect(hi[6 + 3]).toBe(30) // the LEFT tie (bars 5/6) pivots on its last bar
     expect(hi[13 + 3]).toBe(null) // the RIGHT tie (bars 13/14) does not pivot on its first bar
+    // ⭐ H11 — the hole at bar 30 is a BARRIER (CAP5): bar 29 (16) beats 14 / 12 on
+    // its left and nothing past the hole is compared, so it pivots HIGH (confirmed on
+    // bar 32); bar 28 (12) beats 20 / 14 and 16, and pivots LOW (confirmed on bar 30).
+    // Under the old "a hole vetoes" rule both were `na`.
+    expect(hi[32]).toBe(16)
+    expect(lo[30]).toBe(12)
     expect(outputs[0]).toEqual(hi)
     expect(outputs[1]).toEqual(lo)
     expect(outputs[2]).toEqual(hi)

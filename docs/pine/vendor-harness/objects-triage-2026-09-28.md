@@ -201,6 +201,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | RT12 | RT12 statements and history (section RT12): a comma line of bindings / `:=` and bare calls splits into its statements, and `switch` arms written with a trailing comma are the arms (`pine.js::blockStatements`, both lanes); a discarded value builtin on its own line is dropped, a function local bound from call-site-fixed values is fixed per call site, `+ - *` folds in a length, and a STATEFUL expression's history in a function result hoists when it runs on every evaluation (runtime lane) | `774c47af00` + doc | - | probe (runtime state, libraries loaded): atr-trailing-stoploss-strategy (host), nonlinear-regression-zero-lag-moving-average-loxx and range-filter-bs-signals (runtime) attach; smart-money-breakouts-chartprime no longer THROWS out of `translatePine` (two walls further). Census not measured (coordinator hold). Graded: the 6 captures whose statements split differently, `on` and `runtime`, identical before/after (position-size-calculator MATCH x4, renko runtime MATCH kept); 0 MATCH lost |
 | 96 | RT16 clock, session and timeframe (section RT16): `time("", …)` / `time("")` is the chart's own timeframe by Pine's reference text (v4 / v5 / v6, extracted from the reference bundles) - the same nodes as the measured `timeframe.period` forms; the runtime lane's `time(<text variable>)` chooses the host's node for each literal the variable can hold, a refused spelling a named run-stop (`runtime:time-unserved`). Renumber on merge | `c10714b749`, `3b4cbf432f`, `28ba6c2da1` | unchanged (no committed capture names either script; ict-killzones-pivots-tfo's two captures identical before/after, all three states) | unchanged | member door 58 / 84 / 104: ict-killzone-index-version attaches (host, on + runtime), volume-profile-auto-line-v2 (runtime); welotrades walks `time` -> `pine:collection`; 0 lost. Q-RT16a-i queued (`capture-queue-2026-10-04-rt16-clock.md`) |
 | 96 | F9 values we DRAW that TradingView does not (section F9): `color.new(<per-bar rule>, t)` carried as the rule at one alpha (rt8 S03); a `var` colour set by its `if`s carried as a palette and a running index (rt6 C01 / C02 / B01); a valued bar whose palette index is not computable withheld (`seed:held`) instead of drawn in gold; `ta.wma` first answers on its n-th finite input on the host lane, both lanes (rt8 W01-W03, rule A); `ta.cum(<constant>)` is the bar index's leaf, withheld off the listing (`bar-index:window`, vw-bar-counters SPY 1 / 30 C05); harness: a capture's own `bar_index` control outranks its listing sentence (vw-int-cast) | `4fff2c63fb`, `dd2430c61c`, `67185dfa6c`, `1ab3639324` | `ast/pine.js`, `ast/interpret.js`, `ast/barIndexShift.js`, `nativeRegistry.js`, `api/services/ast_interpret.py`, `api/services/ast_bar_index_shift.py`, `vendorHarness/ourSide.js` | targeted re-grades: rt8 followups DIVERGE -> MATCH (on, runtime); rt6 RDDT DIVERGE -> MATCH, SPY DIVERGE -> INCONCLUSIVE (K00 withheld; C01 / C02 MATCH); vw-bar-counters SPY 1 / 30 C05 DIVERGE -> INCONCLUSIVE (captures stay DIVERGE on C01-C04, missing); vw-int-cast DIVERGE -> INCONCLUSIVE. Full sweep owed (gate) | 11 / 11 mutations red; corpus translation census 1 output moved (an arity note) |
+| 97 | CAP5 ingest + facts served (section CAP5): a declared `max_bars_back` is not a ceiling (`historyReachOf`) and `max_bars_back(x, n)` no longer refuses; an `na` leaf under `color.new` is black at t; output colours read at the output's line; `nz(<colour rule>)`; v6 / v4 unset box / cell defaults; a pivot window's `na` is a barrier (both lanes + Python); alma bare in v3; `ta.lowest` 0 / `na` length refused in RE10001's words; `REQUEST_COUNT` 40; `array.sort` (runtime) and the host vector lane's unmodelled in-place writes | see branch `pine/h11-cap5-findings` | `ast/pine.js`, `ast/objectProgram.js`, `ast/interpret.js`, `objectDefaults.js`, `runtime/limits.js`, `runtime/collections.js`, `ast/pineRuntimeFrontend.js`, `api/services/ast_interpret.py` | CAP5 measure: MATCH 5 -> 16, lost 0 | `vendorHarness.cap5Captures.test.js` |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -8409,3 +8410,73 @@ Targeted re-grades (the harness's own `gradeCapture`, one process, `--maxWorkers
 lane was told to wait for the integrator's "gate done" before any sweep or measure run, and that message had not come
 when this section was written. Owed: the 746-grade sweep base `6c557c3308` vs this branch (MATCH lost must read 0), and
 the CAP4 signature regeneration (rt8 followups DIVERGE -> MATCH in both states).
+
+## CAP5 - capture round 5 ingested: pins, hand-back, and the facts H11 served (2026-10-04, step 97)
+
+Lane H11, branch `pine/h11-cap5-findings`, from `pine/cap5-capture-prep` (`d76a7f568b`, the 48 CAP5 fixtures),
+merged with `integrate/wave18-2026-10-04` (`b90963c714`: RT11, RT12, RT13, RT15, RT16) and with
+`pine/f9-divergence-sweep` (`091e886aa8`, not in wave 18: CAP5 captured F9's own queue Q-F9a/b/c, whose code is
+F9's `colorNewOverRule` / `colourStateRule`). Rig, route and the results table: `docs/pine/capture-round-5-runbook.md`
+§ 6 (the CAP5 capture lane's own notes; route change: sources fetched at the pinned commit and admitted only on a
+sha256 match; S5 not taken - rig fault).
+
+**Grade.** `CAP5_MEASURE=1` with the 50-library store (`PINE_LIBRARY_STORE`, so smc-structures is graded: INCONCLUSIVE
+both states, `pine:state`), `--maxWorkers=1`, 88 rows graded / 12 absent. Baseline = the wave-18 merge before any
+H11 change (committed as the first H11 checkpoint): MATCH 5. After H11: **MATCH 16, MATCH lost 0.**
+
+| row (door state) | wave-18 base | H11 | why |
+|---|---|---|---|
+| vw-cap5-f9-h6 RDDT + SPY (on, runtime) | DIVERGE | **MATCH** | F9 merge (V01) + H11 `na` leaf under `color.new` is black at t (N01-N03, V02) + colours read at the output's line (R01) |
+| vw-cap5-buffer-overrun SPY (on, runtime) | DIVERGE | **MATCH** | a declared `max_bars_back` is not a ceiling (`historyReachOf`) |
+| vw-cap5-max-bars-back SPY (on, runtime) | INCONCLUSIVE | **MATCH** | `max_bars_back(x, n)` no longer refuses |
+| vw-cap5-version-defaults-v6 RDDT (on, runtime) | DIVERGE | **MATCH** | v6 unset box fill opaque `color.blue`, unset cell text `color.black` |
+| vw-rt10-runtime-walls RDDT (runtime) | DIVERGE | **MATCH** | a pivot's `na` neighbour is a barrier (`pivotAt`, both lanes + Python) |
+| vw-rt15-colour-nz RDDT + SPY (on, runtime) | DIVERGE (gold, every bar) | DIVERGE (bars 0-9 only) | `nz(<colour rule>)` carried; the 10 remaining bars are the vendor palette colorer's index 0 for an `na` colour (see below) |
+| vw-rt15-gradient-fill, kernel-channel RDDT (runtime), loxx RDDT + SPY (runtime) | MATCH | MATCH | unchanged (wave 18) |
+
+### The facts, and what H11 did with each
+
+| queue item | capture | what the capture settles | served by H11 | lane / rule it feeds |
+|---|---|---|---|---|
+| Q-F9a | `vw-cap5-f9-h6-{rddt,spy}-1d` N01-N03 | `color.new(cond ? c : na, t)`: the `na` leaf is BLACK at t (`#00000099` at 40, `#000000ff` at 0) | **yes** - `pine.js::colorNewOverRule` maps the palette's `na` entry to `#000000` | F9 |
+| Q-F9b | same, V01 / V02 | a `var` colour's `na` write: no colour bare (colorer `null`), black at t under `color.new` | **yes** (V01 by F9's `colourStateRule`, V02 by the rule above) | F9 |
+| Q-F9c | same, R01 / R02 | a colour name read ABOVE its reassignment is the value at that line (R01 static `#F23645`) | **yes** - every output's colour reads `positionEnv(out)` (`outEnv`), as its value does | F9 |
+| Q-H6a / Q-H6b | same, O01-O05 | OBV from the listing (RDDT, SPY 1993-) - MATCH on both | nothing to do | H6 (`vendorHarness.h6Obv`) |
+| Q-RT15b | `vw-rt15-colour-nz-{rddt,spy}-1d` | `nz(c, gray)` gray where c is `na`; `nz(c)` c's colours, and on c's `na` bars NO paint (B01 screenshot: candles keep the chart's colours); the palette colorer records index 0 there | **yes** on the host lane (`nzColourRule`, incl. `nz(c[k])` of a `var` colour). Pinned DIVERGE on bars 0-9 / 1-10: the harness reads the vendor's palette index 0 as green | RT15 (may lift `runtime:colour-nz` with the same rule); harness owner (`compare.mjs`: a palette colorer's index 0 on an `na`-colour bar is not a colour) |
+| Q-RT15c | `vw-rt15-paint-offset{,-flag-false}-rddt-1d` | `offset = flag ? -1 : na`: drawn at -1 when true, at 0 when `na` | **no** - needs an input-bound paint offset (the input becomes a displacement-bound knob, as a plot offset's does); still withheld `paint:offset`, pinned DIVERGE | RT15 (`pine.js::resolvePaint`) |
+| Q-RT15d | `vw-rt15-gradient-fill-rddt-1d` | MATCH both states; screenshot: linear in price, clipped to the two plots | nothing to do | RT15 |
+| Q-RT13c/d | `vw-rt13-requests-rddt-1d` | `""` as the symbol, a frame-local request, a barstate offset in a request: all compiled and ran (6 plots) | no (ours `pine:request`) | RT13 |
+| Q-RT12a/b | none (S1-7, S2-5) | `ta.lowest(low, lenNa)` (na on bar 0) stops on bar 0: RE10001 "Invalid value of the 'length' argument (0) in the 'lowest' function. It must be > 0." - an `na` length reads as 0; the rest of the probe is unread | **yes** - a `ta.lowest` length that folds to 0 or `na` is refused in TradingView's words (both lanes); nothing drawn either side | RT12 (re-capture the probe without L03/L04 to read L01/L02/L05/L06, C01/C02, D01) |
+| Q-RT10a | `vw-rt10-runtime-walls-rddt-1d` P01-P04 | a pivot window's `na` is a BARRIER: compare outward from the candidate, stop at the first `na` each side (0 of 4 x 636 bars differ; veto 72, skip 17) | **yes** - `interpret.js::pivotAt` + `ast_interpret._pivot_col` (columnar and runtime lanes share it) | RT10 |
+| Q-RT10b/c/e | same | the duplicate `1 =>` switch arm COMPILED; S/H/C rows MATCH | nothing to do (on: `pine:reassign`) | RT10 |
+| row 14 | `vw-cap5-version-defaults-v6-rddt-1d` | v6 unset box border + fill OPAQUE `color.blue`; unset cell text `color.black` | **yes** - `objectDefaults.js` v6 row; a v6 program states its version only when it draws a box or a cell (`versionStampedFor`), so every other v6 program keeps its bytes | C37 |
+| row 14 | `vw-cap5-version-defaults-v4-rddt-1d` | v4 unset box border + fill OPAQUE v4 `color.blue` `#2196F3`; unset cell text `color.black` | **yes** (v4 rows); not graded - the probe's only plot is `display.none` (`pine:hidden-only`) | C37 |
+| row 12a | `vw-cap5-max-bars-back-spy-1d` | `max_bars_back(src, 50)` compiles; `src[e]` (e <= 44) is the real `close[e]` on 8,477 bars | **yes** - the per-series call no longer refuses (`pine:offset-literal` / `max-bars-back-call` gone) | C38 |
+| row 12b | `vw-cap5-buffer-overrun-spy-1d` | NO runtime error: `close[e]` past a declared 50 (to 59) is the real close on all 1,410 such bars | **yes** - `objectProgram.js::historyReachOf` = max(declared, the measured 400); past it withheld (`auto`), never an error; both lanes | C38 / C29 rule 7 |
+| Q-RT11a/c/d/e | `vw-rt11-builtins-spy-{1d,60,1}` | compiled whole, 22 plots | no (ours `pine:builtin`) | RT11 |
+| Q-RT11b | `vw-rt11-alma-v3-bare-spy-1d`; S2-3 (none) | bare `alma` COMPILES in v3 (= `pine_alma` on 8,477 bars, first value bar 8); in v5 it is a compile error "Could not find function or function reference 'alma'" | **yes** - the alma gate admits bare in v3 and v4 | RT11 (the probe's next wall: v3's `n`, the bar index - A00 reads 0..8476) |
+| Q-H7a | `vw-cap5-spy-text-spy-1d` F00-F14 | `format.volume` below 1,000 is a whole number, a .5 tie AWAY from zero (999.5 -> `1000`, no K; -999.5 -> `-1000`), -0 -> `0`, -3,125,500 -> `-3.126M`, -1,500.5 -> `-1.501K`, `1000T` / `2500T` / `1000000T` (T never rolls over), 123,456,789,012,345 -> `123.457T` | no (cells withheld, missing not wrong) | H7 (`pineTextFormat.js::volumeNumberText`, branch `pine/h7-cap4-findings`) |
+| Q-C31b | same, L01-L06 | `for i = 9 to 0` counts DOWN (10 passes); a positive `by` is a magnitude (`9 to 0 by 3`: 9,6,3,0); `0 to -1` runs TWICE (0, -1) - incl. `0 to array.size(empty) - 1` | no change needed (the engine counts down); cells withheld | C31 loops |
+| M3 | `vw-m3-daily-bar-time-spy-1d` | daily `time` = 09:30 New_York (13:30 UTC), `time_close` = 16:00 NY, `time[1]` the prior session's 09:30 | - | vendor packet (`feat/pine-vendor-packet`) |
+| M4 part A | none (S2-19) | `NASDAQ:JPM` without `ignore_invalid_symbol`: runtime error "Invalid symbol: NASDAQ:JPM", the script stops | - | vendor packet |
+| M5 | none (S2-20) | 40 unique `request.*()` calls run (Premium); the 41st stops: RE10137 "...The limit is 40..." | **yes** - runtime `REQUEST_COUNT` 16 -> 40 (41st stops by name) | runtime limits; vendor packet |
+| M7 | `vw-m7-sort-indices-ties-spy-1d` | ties keep order ascending, reverse descending; all-equal asc 0..n-1, desc n-1..0; already-descending asc 2,1,0 | **yes** - `sort_indices` already answered every row (now railed); `array.sort` added to the runtime lane; ⚰️ the host vector lane silently ignored `array.sort` / `reverse` / `fill` / `concat` (drew the creation order, 312 for 123) - now an unmodelled write, refused by name | runtime collections; H14 vector writes |
+| corpus Q-RT11f, Q-RT13a/b/e, Q-RT15a1-3, Q-RT12c-e, Q-RT10d, Q-H6c | 36 corpus captures | grades in `cap5-verdicts.json`; MATCH: kernel-channel RDDT, loxx RDDT + SPY (runtime) | - | D6 starter-allowlist CANDIDATES (owner act); the runtime DIVERGEs below to their lanes |
+
+### Not served, and to whom
+
+* **Runtime DIVERGE on corpus scripts** (wave-18 tree, not caused by H11; MATCH lost 0): order-block-finder RDDT + SPY,
+  mtf-key-levels RDDT + SPY, vwap-fibo strategy RDDT + SPY, volatility-trend-score RDDT, kernel-channel SPY,
+  atr-trailing-stoploss RDDT + SPY (also `on`) - see the first-divergence notes beside each lane's queue (RT11 / RT13 /
+  RT15 / RT12 / RT10). These are values our door DRAWS: the owning lanes should classify them first.
+* Q-RT15c paint offset (above); v3 `n` (RT11); rt12 re-capture (RT12); `format.volume` / loop text cells (H7, C31);
+  harness palette-index-0 reading (Q-RT15b).
+* Not taken this round: S5 (M2 runs A/B, M8 part B, rolling-vwap SPY 5), the market-hours block (Q-R2 `-rth`, row 12c
+  barstate index, M1, M10), theme backgrounds S2-T1/T2 (owner declined).
+
+### Rails and mutations
+
+`vendorHarness.cap5Captures.test.js` (vendor facts per capture, the four no-fixture readings, the measured signature of
+every graded row); restated where they pinned the old rule: `pine.historyRead.test.js` (declared buffer; the
+per-series call), `colorNewOverRule.test.js` + `vendorHarness.rt9NaColour.test.js` (the `na` leaf),
+`vendorHarness.c37ObjectColours.test.js` (v6 / v4 rows, v6 stamping), `rt10PivotOverState.test.js` (the barrier).

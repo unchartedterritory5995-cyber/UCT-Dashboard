@@ -9,7 +9,7 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -19,51 +19,33 @@
           ],
           [
             "N01 new(cond ? blue : na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "N02 new(cond ? na : red, 0)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "N03 new(a ? g : b ? r : na, 70)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "V01 var colour with an na write",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "V02 new(var with na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "R01 colour read before its reassignment",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "R02 the same name after it",
@@ -116,7 +98,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -126,51 +108,33 @@
           ],
           [
             "N01 new(cond ? blue : na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "N02 new(cond ? na : red, 0)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "N03 new(a ? g : b ? r : na, 70)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "V01 var colour with an na write",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "V02 new(var with na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "R01 colour read before its reassignment",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "R02 the same name after it",
@@ -231,8 +195,8 @@
             "DIVERGE",
             0,
             "color",
-            636,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N02 nz(c[1]) plot colour",
@@ -244,11 +208,8 @@
           ],
           [
             "N03 nz(c, gray) plot colour",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
@@ -274,8 +235,8 @@
             "DIVERGE",
             0,
             "color",
-            636,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N02 nz(c[1]) plot colour",
@@ -287,11 +248,8 @@
           ],
           [
             "N03 nz(c, gray) plot colour",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
@@ -536,40 +494,28 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "P01 pivothigh(x,2,3)",
-            "DIVERGE",
-            39,
-            "na",
-            19,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "P02 pivotlow(x,2,2)",
-            "DIVERGE",
-            41,
-            "na",
-            15,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "P03 f(x) pivotlow(1,2)",
-            "DIVERGE",
-            3,
-            "na",
-            19,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "P04 f(x+1) pivotlow(1,2)",
-            "DIVERGE",
-            3,
-            "na",
-            19,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "P00 x control",
@@ -622,7 +568,7 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -632,7 +578,7 @@
           ]
         ],
         "objects": [
-          "DIVERGE",
+          "MATCH",
           []
         ],
         "paints": null
@@ -646,7 +592,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -656,7 +602,7 @@
           ]
         ],
         "objects": [
-          "DIVERGE",
+          "MATCH",
           []
         ],
         "paints": null
@@ -1569,7 +1515,7 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -1579,51 +1525,33 @@
           ],
           [
             "N01 new(cond ? blue : na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "N02 new(cond ? na : red, 0)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "N03 new(a ? g : b ? r : na, 70)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "V01 var colour with an na write",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "V02 new(var with na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "R01 colour read before its reassignment",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "R02 the same name after it",
@@ -1676,7 +1604,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -1686,51 +1614,33 @@
           ],
           [
             "N01 new(cond ? blue : na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "N02 new(cond ? na : red, 0)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "N03 new(a ? g : b ? r : na, 70)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "V01 var colour with an na write",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "V02 new(var with na, 40)",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "R01 colour read before its reassignment",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "R02 the same name after it",
@@ -1939,10 +1849,44 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:offset-literal): a bar offset has",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "M00 bar_index CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "M01 e (0..44, inside the declared 50)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M02 src[e], max_bars_back(src, 50)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M03 close[e] CONTROL (auto buffer)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M04 difference (0, or na where the buffer is short)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M05 src[e] is na",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -1954,10 +1898,44 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:offset-literal): a bar offset has",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "M00 bar_index CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "M01 e (0..44, inside the declared 50)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M02 src[e], max_bars_back(src, 50)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M03 close[e] CONTROL (auto buffer)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M04 difference (0, or na where the buffer is short)",
+            "MATCH",
+            8477
+          ],
+          [
+            "M05 src[e] is na",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -1969,7 +1947,7 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -1984,11 +1962,8 @@
           ],
           [
             "V02 close[e] past max_bars_back = 50",
-            "DIVERGE",
-            50,
-            "na",
-            1410,
-            "scattered"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
@@ -2006,7 +1981,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -2021,11 +1996,8 @@
           ],
           [
             "V02 close[e] past max_bars_back = 50",
-            "DIVERGE",
-            50,
-            "na",
-            1410,
-            "scattered"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
@@ -2051,8 +2023,8 @@
             "DIVERGE",
             0,
             "color",
-            8477,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N02 nz(c[1]) plot colour",
@@ -2064,11 +2036,8 @@
           ],
           [
             "N03 nz(c, gray) plot colour",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
@@ -2094,8 +2063,8 @@
             "DIVERGE",
             0,
             "color",
-            8477,
-            "persistent"
+            10,
+            "scattered"
           ],
           [
             "N02 nz(c[1]) plot colour",
@@ -2107,11 +2076,8 @@
           ],
           [
             "N03 nz(c, gray) plot colour",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
