@@ -1696,7 +1696,14 @@ export default function BuilderSheet({
     // cleared on a store refusal below — a member who fixes a validation
     // error and re-clicks Save is still finishing the SAME import attempt,
     // and `import_accepted` should still join back to it.
-    const res = await saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current)
+    // ⭐ P0/0P — THE SERVER IS NOW THE SAVE AUTHORITY and refuses an
+    // unacknowledged `preview-repaints` plot. `canSave` already required each
+    // such row's own tick, so this states what the member did, per save.
+    const previewRows = rows.filter((r) => r.mode === 'preview-repaints')
+    const previewAcked = previewRows.length > 0
+      && allRows.every((r, i) => rows[i].mode !== 'preview-repaints' || r.acknowledged === true)
+    const saveOptions = previewAcked ? { previewAcked: true } : null
+    const res = await saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current, saveOptions)
     savingRef.current = false
     setSaving(false)
     if (!res.ok) { setStoreError(res.error); return }

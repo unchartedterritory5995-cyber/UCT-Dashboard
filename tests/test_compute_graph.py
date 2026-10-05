@@ -25,6 +25,9 @@ from api.services import compute_graph as cg
 from api.services import indicator_alert_service as ias
 from api.services import param_manifest as pms
 from api.services import user_definitions as svc
+# ⭐ P0/0P — `test_attack_stale_manifest_against_a_moved_graph` stores a graph
+# the engine cannot run (a non-literal window); planted as a pre-gate row.
+from tests._p0_legacy_rows import save_legacy
 
 USER = "c2c-user"
 DEF_ID = "u_c2c000000001"
@@ -529,12 +532,12 @@ def test_attack_stale_manifest_against_a_moved_graph(store):
     """The topology changed under a manifest that still claims the old node.
     Reconciliation is derived FRESH every save, so the stale claim reconciles
     to what is actually there — never to what the client asserted."""
-    svc.save(USER, DEF_ID, _doc(_param_graph(14)))
+    save_legacy(USER, DEF_ID, _doc(_param_graph(14)))
     g = _param_graph(14)
     # Swap the literal the locator names for a series read — no longer a number.
     g["nodes"][1] = {"type": "series", "name": "high"}
     g["nodes"][3] = {"type": "call", "name": "sma", "args": [0, 0]}
-    svc.save(USER, DEF_ID, _doc(g))
+    save_legacy(USER, DEF_ID, _doc(g))
     stored = json.loads(svc._newest(_conn(), USER, DEF_ID)["definition"])
     st = stored["compute"]["paramState"]["__uct_param_1"]
     # ⚠️ `detached`, not `non_literal`, and the difference is real: a `series`

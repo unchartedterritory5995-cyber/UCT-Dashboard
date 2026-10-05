@@ -1003,6 +1003,132 @@ def lint_verdict(definition: dict) -> dict:
     return {r["plotKey"]: r["mode"] for r in rows}
 
 
+# ─── P0 / 0P — THE SAVE ADMISSION, AT THE SERVER ─────────────────────────────
+#
+# ⛔⛔ THE BROWSER IS UX; THIS IS THE AUTHORITY. Before this gate a direct API
+# caller (and the Pine attach door, which carries no repaint gate of its own)
+# could store a formula the browser's Save button refuses: a `repaints` verdict,
+# an unacknowledged `preview-repaints` one, an over-budget tree, or a tree naming
+# a function the closed table does not hold. The store stamped the verdict and
+# kept the row; the refusal then arrived later — at the chart (budget), at alert
+# admission, or never.
+#
+# ⭐ THE RULE IS THE BROWSER'S (`FormulaField.canSaveFormula` + the budget gate
+# of `nativeRegistry.validateAstLane`), applied PER TREE:
+#   * every data-bearing tree must pass `ast_budget.budget_result` — a
+#     `TableRefusal` from another guard (resolve:function, …) is reported under
+#     ITS guard, never relabelled as budget;
+#   * a plot measuring `repaints` is refused;
+#   * a plot measuring `preview-repaints` needs an acknowledgement — the
+#     request's `repaint_acknowledged` (never persisted, exactly as the
+#     browser's per-row checkbox is never persisted) or a recorded
+#     `meta.repaintAck` in the document itself.
+#
+# ⛔ NEW MATHS ONLY. `save()` applies this iff the save is a CREATE or an edit
+# whose maths moved (`rev_bumped` — `ast_hash` OR `treesHash`). A presentation
+# edit of a row stored before this gate existed is admitted unchanged, so no
+# member is stranded on a definition they already own; the way OUT of a legacy
+# refused row (edit the maths into an admissible formula) stays open.
+
+#: The closed set of gates a `SaveRefused` names. Branch on the gate, never on
+#: the prose.
+SAVE_GATES = ("tree", "budget", "repaint", "repaint-ack")
+
+
+class SaveRefused(ValueError):
+    """A save refused by the admission gate. IS a `ValueError`, so every caller
+    that already turns store refusals into a 4xx keeps doing so; the router
+    reads the structure off it for a 422."""
+
+    def __init__(self, gate: str, message: str, *, plot: Optional[str] = None,
+                 mode: Optional[str] = None, guard: Optional[str] = None) -> None:
+        if gate not in SAVE_GATES:
+            raise AssertionError(f"unknown save gate {gate!r}")
+        super().__init__(message)
+        self.gate, self.plot, self.mode, self.guard = gate, plot, mode, guard
+
+    def as_dict(self) -> dict:
+        return {"gate": self.gate, "plot": self.plot, "mode": self.mode,
+                "guard": self.guard}
+
+
+def _lanes(definition: dict) -> list:
+    """`[(plotKey, tree)]` for every tree the document computes — the browser's
+    `validateAstLane` lanes: the trees map on a multi-tree document, else
+    `compute.ast` under the first data-bearing plot's key."""
+    compute = definition.get("compute") or {}
+    trees = compute.get("trees")
+    if isinstance(trees, dict):
+        return sorted(trees.items())
+    data = [p.get("key") for p in (definition.get("plots") or [])
+            if isinstance(p, dict) and p.get("style") != "hlines" and p.get("key")]
+    return [(data[0] if data else "value", compute.get("ast"))]
+
+
+def _ack_covers(ack: Any, plot_key: str, definition: dict) -> bool:
+    """Does `ack` (`True` = every plot, or a `{plotKey: True}` map) acknowledge
+    `plot_key`? A plot with no tree of its own (an `hlines` guide) lints the scan
+    alias, so the scan plot's acknowledgement covers it."""
+    if isinstance(ack, Mapping):
+        if ack.get(plot_key) is True:
+            return True
+        compute = definition.get("compute") or {}
+        trees = compute.get("trees") if isinstance(compute.get("trees"), dict) else {}
+        if plot_key in trees:
+            return False
+        scan = compute.get("scanPlot") if trees else _lanes(definition)[0][0]
+        return ack.get(scan) is True
+    return ack is True
+
+
+def _admit_new_maths(definition: dict, verdict: Mapping[str, str],
+                     repaint_acknowledged: Any = None) -> None:
+    """RAISE `SaveRefused` unless `definition` (the materialised forest) is a
+    formula the browser's Save would admit. Called by `save()` for NEW MATHS
+    only. `verdict` is `lint_verdict(definition)`, already computed there."""
+    from api.services import ast_budget
+    from api.services.ast_interpret import TableRefusal
+
+    compute = definition.get("compute") or {}
+    for key, tree in _lanes(definition):
+        try:
+            result = ast_budget.budget_result(tree, compute.get("budget"))
+        except TableRefusal as exc:
+            raise SaveRefused(
+                "tree",
+                f"plot {key!r}: refused by {exc.guard!r} — {exc}. A tree the "
+                "engine cannot run is never stored",
+                plot=key, guard=exc.guard) from exc
+        if not result["ok"]:
+            raise SaveRefused(
+                "budget",
+                f"plot {key!r}: {result['error']} (guard {result['guard']!r}; "
+                f"measured {result['measured']} against caps {result['caps']}). "
+                "A formula over budget can never draw, so it is never stored",
+                plot=key, guard=result["guard"])
+
+    doc_ack = (definition.get("meta") or {}).get("repaintAck")
+    for key in sorted(verdict):
+        mode = verdict[key]
+        if mode == "non-repainting":
+            continue
+        if mode == "preview-repaints":
+            if (_ack_covers(repaint_acknowledged, key, definition)
+                    or _ack_covers(doc_ack, key, definition)):
+                continue
+            raise SaveRefused(
+                "repaint-ack",
+                f"plot {key!r} measures 'preview-repaints' (its value moves until a "
+                "later bar closes) and the author has not acknowledged that badge — "
+                "it is saved only with that acknowledgement (repaint_acknowledged)",
+                plot=key, mode=mode)
+        raise SaveRefused(
+            "repaint",
+            f"plot {key!r} measures {mode!r}: a formula whose past values can change "
+            "after the fact is not saved",
+            plot=key, mode=mode)
+
+
 def requirement_tags(definition: dict) -> list:
     """What this script needs from a consumer, DERIVED FROM THE MANIFEST.
 
@@ -1281,7 +1407,9 @@ def _live_def_count(c: sqlite3.Connection, user_id: Any) -> int:
 # ─── the write path ──────────────────────────────────────────────────────────
 
 def save(user_id: Any, def_id: str, definition: dict,
-         limits: Any = None, *, role: Any = None) -> dict:
+         limits: Any = None, *, role: Any = None,
+         repaint_acknowledged: Any = None,
+         _copy_of_stored: bool = False) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
     Returns ``{def_id, version, rev, rev_bumped, migrated, notified, ast_hash,
@@ -1308,6 +1436,12 @@ def save(user_id: Any, def_id: str, definition: dict,
     production transport. A test that wants to observe a notice spies the
     TRANSPORT (`watchlist_alert_service.deliver_alert_payload`), which is the
     same thing a real delivery goes through.
+
+    ⭐ P0/0P — `repaint_acknowledged` is the author's save-time acknowledgement
+    of a `preview-repaints` badge (`True`, or `{plotKey: True}`), read by
+    `_admit_new_maths` and NEVER persisted. `_copy_of_stored` is passed by
+    `install_share` ONLY: that document is a copy of a row the store already
+    holds, so its maths is not new and the admission gate does not re-run.
     """
     from api.services import alert_rev_migration
     # ⚠️ FUNCTION-LOCAL, AND IT IS THE CYCLE, NOT A STYLE. `entitlements.TOOLKITS`
@@ -1411,14 +1545,23 @@ def save(user_id: Any, def_id: str, definition: dict,
             "store names its caps rather than inheriting `user_preferences`', "
             "which has none")
 
-    repaint = json.dumps(lint_verdict(definition), sort_keys=True,
-                         separators=(",", ":"))
+    verdict = lint_verdict(definition)
+    repaint = json.dumps(verdict, sort_keys=True, separators=(",", ":"))
     # ⭐ STAMPED AT SAVE TIME FOR THE REASON `repaint` IS: the contract a member
     # saved under and the contract a consumer admits under must be ONE fact, not
     # two derivations that agree today. `requirement_tags` reads the manifest, so
     # adding the next fetch-dependent builtin is an edit to data.
     requirements = json.dumps(requirement_tags(definition), separators=(",", ":"))
     now = int(time.time())
+
+    # ⭐ P0/0P — THE ADMISSION IS MEASURED HERE, OUTSIDE THE LOCK (it is pure
+    # CPU), and APPLIED inside phase 1 once `prev` says whether the maths is new.
+    admission: Optional[SaveRefused] = None
+    if not _copy_of_stored:
+        try:
+            _admit_new_maths(definition, verdict, repaint_acknowledged)
+        except SaveRefused as exc:
+            admission = exc
 
     # ── phase 1: decide. Short, locked, no network. ──────────────────────────
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
@@ -1484,6 +1627,12 @@ def save(user_id: Any, def_id: str, definition: dict,
             rev_bumped = (prev["ast_hash"] != new_hash
                           or trees_identity(json.loads(prev["definition"])) != new_trees)
             rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
+
+        # ⛔ P0/0P — NEW MATHS (a create, or an edit whose tree moved) must pass
+        # today's admission; a presentation edit of a stored row never re-meets
+        # it, so a definition saved before this gate existed is never stranded.
+        if admission is not None and (prev is None or rev_bumped):
+            raise admission
 
     # ── phase 2: MIGRATE — outside the lock, because it delivers ─────────────
     #
@@ -2045,7 +2194,9 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
         "ast_hash": resolved["origin_ast_hash"],
         "table_version": resolved["table_version"],
     }
-    out = save(user_id, def_id, doc, limits=limits, role=role)
+    # ⭐ P0/0P — a COPY of a stored row: its maths was admitted (or predates the
+    # admission gate) where it was saved, so the gate does not re-run here.
+    out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True)
     out["origin"] = doc["origin"]
     return out
 

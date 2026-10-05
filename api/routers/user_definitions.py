@@ -31,9 +31,10 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Optional
+from typing import Dict, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
@@ -68,6 +69,12 @@ class DefinitionIn(BaseModel):
     # `import_accepted` still fires, just without a linkable `import_id`.
     import_id: Optional[str] = None
     source_dialect: Optional[str] = None
+    # ⭐ P0/0P — the author's save-time acknowledgement of a `preview-repaints`
+    # badge: `true` (every plot) or `{plotKey: true}`. The browser's per-row
+    # checkbox, carried to the authority. NEVER persisted (it is a save-time
+    # gate, like the checkbox); `meta.repaintAck` — the ALERT-arm
+    # acknowledgement — is a different fact and is not written from this.
+    repaint_acknowledged: Optional[Union[bool, Dict[str, bool]]] = None
 
 
 class ProposeIn(BaseModel):
@@ -160,7 +167,8 @@ def _save_or_400(user_id, def_id: str, definition: dict,
                  limits: Limits | None = None, *,
                  import_id: Optional[str] = None,
                  source_dialect: Optional[str] = None,
-                 role: Optional[str] = None) -> dict:
+                 role: Optional[str] = None,
+                 repaint_acknowledged=None):
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -180,7 +188,15 @@ def _save_or_400(user_id, def_id: str, definition: dict,
     caller that predates this track, present for BuilderSheet's own save path.
     """
     try:
-        row = svc.save(user_id, def_id, definition, limits=limits, role=role)
+        row = svc.save(user_id, def_id, definition, limits=limits, role=role,
+                       repaint_acknowledged=repaint_acknowledged)
+    except svc.SaveRefused as exc:
+        # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
+        # is still the store's own sentence (so every client that renders
+        # `detail` keeps working) and whose `refusal` names the gate, plot,
+        # measured mode and guard — branch on those, never on the prose.
+        return JSONResponse(status_code=422,
+                            content={"detail": str(exc), "refusal": exc.as_dict()})
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     telemetry.log_event(
@@ -315,7 +331,8 @@ def create_definition(body: DefinitionIn,
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition, limits,
                         import_id=body.import_id, source_dialect=body.source_dialect,
-                        role=user.get("role"))
+                        role=user.get("role"),
+                        repaint_acknowledged=body.repaint_acknowledged)
 
 
 @router.post("/propose")
@@ -479,7 +496,8 @@ def save_definition(def_id: str, body: DefinitionIn,
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition, limits,
                         import_id=body.import_id, source_dialect=body.source_dialect,
-                        role=user.get("role"))
+                        role=user.get("role"),
+                        repaint_acknowledged=body.repaint_acknowledged)
 
 
 @router.delete("/{def_id}")
