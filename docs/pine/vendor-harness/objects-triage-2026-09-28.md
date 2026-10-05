@@ -195,7 +195,11 @@ without it; each row below is a full re-grade of the 47 captures.
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
+<<<<<<< HEAD
 | 96 (RT13, renumber on merge) | RT13 requests, inputs and the install / builder doors (section RT13): an install-door refusal (series-reference / lookback budget, an unfolded window) is offered to the per-bar runtime lane, as every host refusal has been since RT1; built there the member pane carries the runtime document, declined the host document comes back unchanged and the install door says what it always said (the decline rides beside it). Every request / input-kind row of the family measured and named; none completes a script without a capture, a lower-timeframe store, or data we do not hold | `61ebc9b5b3` | census not measured (measure hold); scoped probe (runtime state, libraries loaded, the family's 31 scripts): attach 1 -> 3 (mtf-key-levels-support-and-resistance, vwap-fibo-dev-extensions-strategy; camarilla-screener already attached at base) | vendorHarness + rt1/rt2/rt6 rails 87/87 unchanged; no committed capture exercises the two scripts (Q-RT13a/b) |
+=======
+| 96 | RT11 missing builtins (section RT11): the 42 scripts whose first runtime wall is `pine:builtin` / `runtime:call-undeclared-builtin-state` / `pine:function`, name by name, each with its NEXT wall by substitution; the two names that complete scripts are served - `alma` on the host lane (v4 bare + v5/v6 `ta.alma`, `BUILTIN_CALL_TREE.alma` = `pine_alma`; Q-H3c + `vw-alma` captures) and `str.tostring` / v4 `tostring` over runtime state in a VALUE build (RT5's formatter, C20 `#.##`); the rest refused by name, Q-RT11a-f queued | W1 `ee4e30dc19`, W2 `76861b393a` | `pine.js`, `pineRuntimeFrontend.js` | census (libraries) 56/82/101 before, after NOT measured (gate hold); single-script probes: highlow-channel-swing, relative-volume (host), order-block-finder (runtime) attach | `vendorHarness.rt11Alma` 10, `rt11ValueBuildTostring` 3 |
+>>>>>>> origin/pine/rt11-builtins
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7934,6 +7938,7 @@ Mutations (pine.js bytes captured and restored, sha verified):
   compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
   (`memberPane/atrSrReplay.js` unreached).
 
+<<<<<<< HEAD
 ## RT13 - requests, inputs and the install / builder doors (2026-10-04, step 96 - renumber on merge)
 
 Branch `pine/rt13-requests-inputs`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Runtime pane
@@ -7988,11 +7993,57 @@ document and install errors equal the pane-off ones, and the permission withdraw
 
 Production: the two documents are runtime documents, so a member sees them only once each is
 graded MATCH and listed (D6 starter allowlist); neither has a capture (Q-RT13a/b).
+=======
+## RT11 - missing builtins: name by name, the walls behind them, `alma` and value-build `tostring` served (2026-10-04, step 96)
+
+Branch `pine/rt11-builtins`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Runtime pane still dark.
+
+### Step 1 - the names, and what each one hides
+
+Source of the 42 rows: the wave-17 census (`memberDoorCensus`, libraries loaded, runtime state, 56 / 82 / 101),
+re-entered script by script through `enterMemberDoor` (scratch probe, never committed). NEXT wall = the first wall
+once the name is replaced by a served stand-in in the script's own source (same scratch probe).
+
+| name refused | scripts | next wall once served (substitution) | taken? |
+|---|---|---|---|
+| `alma` (v4 bare) | highlow-channel-swing, relative-volume | **both ATTACH (host lane)** | **served, W1** |
+| v4 `tostring(x, '#.##')` over state, value build | order-block-finder | **ATTACHES (runtime lane)** | **served, W2** |
+| `str.tostring(<text>)` | scalping-strategy-with-williams-r-macd-and-sma-1-minute-only | **attaches (host)** | refused: identity on text unmeasured -> Q-RT11a |
+| `time(<var string>)` | volume-profile-auto-line-v2 | **attaches (runtime)** | refused: computed spellings `1W`/`1D`/`12M` unmeasured -> Q-RT11c |
+| `time(res)` (a parameter) | chart-champions-part-1, fair-value-gap | `time(tf, session)` wrapping midnight; `pine:input-kind` | no |
+| `time(AlternativeTF)` | zigzag-ma-pattern-recognition | `lower-tf:store-unmeasured` | no |
+| `time("", session, tz)` | ict-killzone-index-version | session clocks (C49) | no |
+| `ta.swma` | atr-god-strategy-by-tradesmart | `ta.hma` over state, then `time(tf, session)` | no -> Q-RT11d |
+| `asin` (v4) | screener-mean-reversion-channel | `pine:text-value` | no -> Q-RT11e |
+| `str.tonumber` | power-of-3-ict-01 | `time(tf, session)` wrapping midnight | no -> Q-RT11e |
+| `str.length` | smarter-snr | `int` conversion over state (H3: then `pine:window`) | no |
+| `deviations.size()` / `str.tonumber` | ipda-standard-deviations | `str.tonumber` over input text | no |
+| `line(na)` / `label(na)` casts (runtime lane) | market-structure-trend-targets, trend-levels | `line_h.get_y1` method; `ta.highest` dynamic length | no (the host object lane already reads them, `pineObjects.js::naHandleFamily`) |
+| `size.small` in a bound ternary | auto-harmonic-patterns | `pine:statement` | no |
+| `session.isfirstbar` | higher-time-frame-fvg-zeroherotrading | `time_close(tf)` with 2 arguments | no |
+| `security` (v4) | boom-hunter, camarilla, delta-volume-v21, moving-averages-as-sr-mtf, mtf-watchlist | requests (`pine:collection`, `pine:request`) | no |
+| `ticker.heikinashi` | deviation-scaled-ma-dsl-loxx, std-filtered-aehma-loxx | requests | no |
+| `timeframe.from_seconds` | volatility-stop-mtf, cvd-candles (library `lower_tf`) | `pine:input-kind` (`input.timeframe`) | no |
+| `timeframe.in_seconds` (library `ta/10`) | smart-money-breakout-channels | not measured (inside a library) | no |
+| `ta.pivot_point_levels` | previous-day-high-and-low-separators | not measured | no |
+| `chart.left_visible_bar_time` | cvd-chart, volume-oi-footprint, volume-profile-plus | viewer-dependent, refused by design | no |
+| `syminfo.type` | atr-stop-loss, elliot-wave-detector-pro, market-profile-with-tpo | unserved by design (`symbolScope.json`) | no |
+| `barstate.isnew`, `ta.nvi` | smart-money-volume-activity; smart-money-interest/volume-index | ruled | no |
+| a UDT field read misfiled `pine:builtin` (`volData.higherVol`, `currentOB.breaker`, `curRS.isSupport`) | volume-delta-hapharmonic, volumized-order-blocks, support-and-resistance-logistic-regression | the runtime UDT lane (a record from a function / `array.get` / `for ... in`), not a builtin | routed to the UDT owner |
+
+### Step 2 - served (one commit each)
+
+| wall | commit | rule, evidence, rails | scripts moved (single-script probe) |
+|---|---|---|---|
+| `alma` / `ta.alma`, host lane | W1 `ee4e30dc19` | `pine.js::BUILTIN_CALL_TREE.alma`: `pine_alma` (m = offset(n-1), floored if `floor`; s = n/sigma; weights summed oldest first) as `sum src[n-1-i]*w_i / sum w_i` - no new vocabulary; the Python lane interprets the same tree (scratch check: 0 difference on RDDT, 636 bars). Spelling by version: bare only in v4 (Q-H3c), `ta.alma` from v5 (`vw-alma`); v6 bare stays refused (`r11-alma`: the vendor refuses it); v1-v3 / v5 bare and the formula box refused (Q-RT11b). Graded in `vendorHarness.rt11Alma` (10): A01 = ours bar for bar on RDDT (from the listing; first value bar 8 = A07) and SPY (from bar 19, off the listing); A04-A06 argument sets = the reference to 1e-12; `vw-alma` A01 raw and A02 `floor` on 8472 SPY bars; A05 an `na` poisoning exactly `length` bars, `na` on the same bars. `refusalsThatMeanOppositeThings` re-pinned for `ta.alma` with that capture | highlow-channel-swing, relative-volume -> **attach (host)** |
+| `tostring` / `str.tostring` over runtime state in a value build | W2 `76861b393a` | the RT5 lowering (`text.js::RUN_TEXT_FNS`, `objectRuntime.formatNumber`; `#.##` graded on max-pain's labels, C20) now runs in every build; its refusals stand (a condition, a non-`#`/`0` format). The ROUTE clause keeps `objectsInRun`, so a stateless `str.tostring` the columnar lane folds still folds there; its text reaches a row only through a served text consumer (`str.length`, `str.contains`, ...), as the formatter's own text. Re-pinned with that reason: `finiteWindow` and `sourceToRuntime` (their 'text builtin over state still refused' example is now `str.format`). `rt11ValueBuildTostring` (3) | order-block-finder -> **attaches (runtime)**; no capture of it exists (Q-RT11f) |
+>>>>>>> origin/pine/rt11-builtins
 
 ### Measured
 
 | | before | after |
 |---|---|---|
+<<<<<<< HEAD
 | census off / on / runtime | 56 / 82 / 101 (wave-17 run) | **not measured** (measure hold). Expected +2 runtime, 0 off / on (the change reads `runtimePaneEnabled()`) |
 | scoped probe, the family's 31 scripts, runtime state | 1 attached | 3 attached (+mtf-key-levels, +vwap-fibo-dev-extensions) |
 | vendor harness (`vendorHarness.test.js` + rt1 / rt2 / rt6 runtime rails) | - | 4 files, 87 passed; no committed capture names either script |
@@ -8010,3 +8061,25 @@ decline not carried: 1 red.
 - Not taken: a constant window fold before the registration budget (pivot-high-low-points; JS
   `budget.js` and Python `ast_budget.py` together), `""` as a request symbol, an identity request
   of a frame-local value, `input.time` defaults (timestamp timezone), the `switchBinding` throw.
+=======
+| census off / on / runtime (libraries loaded) | 56 / 82 / 101 (wave 17) | **not measured** (gate hold; the integrator runs it after "gate done") - the single-script probes predict +2 off, +2 on, +3 runtime |
+| harness sweep | - | **not measured** (hold); the alma captures are graded directly in `vendorHarness.rt11Alma` |
+| focused vitest | - | W1: `ast/pine*` + `runtime/__tests__`, 223 files / 2783 tests, 1 red = `pineStrictCensus` timing out at 15 s under the six-shard gate (green alone); param-id rails 34 passed / 1 skipped. W2: `runtime/__tests__` + `memberPane/runtime*` + `ast/pineRuntime*` + `vendorHarness.rt*`, 125 files / 1488 tests, 2 red re-pinned with the reason (`finiteWindow`, `sourceToRuntime`) |
+
+### Mutations (bytes captured, applied asserted, restored, sha-verified)
+
+W1: version gate dropped (red), weight orientation reversed (6 red), `floor` ignored (red), the 500 bound dropped (red),
+the named `pine:arity` refusal dropped (red), the `ta.alma` gate at `>= 6` (red). W2: lowering gated back to
+`objectsInRun` (2 red), format dropped (red). A `holdsText` widening tried with W2 was removed: its mutation stayed
+green and order-block-finder attaches without it (one mechanism).
+
+### Open
+
+- Q-RT11a-e: `docs/pine/capture-queue-2026-10-04-rt11-builtins.md` (probes `vw-rt11-builtins.pine`,
+  `vw-rt11-alma-v5-bare.pine`, `vw-rt11-alma-v3-bare.pine`).
+- Q-RT11f: `order-block-finder` as written, RDDT 1D and SPY 1D, runtime pane permitted - its attach is the runtime
+  lane's and ungraded until captured (it stays behind GT's starter allowlist).
+- `time(<var string>)` (volume-profile-auto-line-v2) after Q-RT11c; `str.tostring(<text>)` (scalping) after Q-RT11a.
+- The runtime lane's RT3 respelling serves bare `alma` over runtime state for ANY version below 5; the host lane now
+  serves v4 only. Narrowing the runtime rule to v4 is the consistent move once Q-RT11b reads.
+>>>>>>> origin/pine/rt11-builtins
