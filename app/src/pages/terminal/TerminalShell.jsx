@@ -265,7 +265,12 @@ export default function TerminalShell() {
   } = useTerminalLayout()
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null)           // 'functions' | 'boards' | 'recents' | null
-  const [channelMenu, setChannelMenu] = useState(null) // { index, anchor }
+  // Keyed by the panel's STABLE `id` (never a positional index): `onClose`/`onDuplicate`/
+  // `undoClose`/`setCount` all reshuffle `layout.panels`, and this popover is non-modal, so a
+  // click can land long after a close/duplicate shifted every index behind it. Resolving by id
+  // at click time means a closed panel's menu just stops matching anything (closes, no-ops)
+  // instead of silently relinking whatever panel now sits at the old index.
+  const [channelMenu, setChannelMenu] = useState(null) // { panelId, anchor }
   const [functionRecents, setFunctionRecents] = useState(() => readFunctionRecents())
   const inputRef = useRef(null)
   const layoutRef = useRef(layout)
@@ -562,6 +567,7 @@ export default function TerminalShell() {
   const urlCmdRef = useRef(undefined)      // the last `?cmd=` value acted on or written
   const pendingRef = useRef(null)          // the panel text an arriving URL command will show
   const writesRef = useRef([])
+  const urlSyncTrippedRef = useRef(false) // H14: true once the write-budget notice has fired
   const urlCmd = new URLSearchParams(location.search).get('cmd')
   // A pop-out window is one frozen panel: it neither runs nor writes `?cmd=`.
   useEffect(() => {
@@ -582,6 +588,13 @@ export default function TerminalShell() {
     writesRef.current = writesRef.current.filter((t) => now - t < 2000)
     if (writesRef.current.length >= 6) {
       console.warn('[terminal] ?cmd= write budget spent; URL sync paused (H14)')
+      // H14: console.warn alone is invisible to the member — bookmarking/back/forward/copy-link
+      // go stale with zero signal. Surface it once via the same notice idiom used everywhere
+      // else in this file, so it is dismissable like any other notice.
+      if (!urlSyncTrippedRef.current) {
+        urlSyncTrippedRef.current = true
+        setNotice({ kind: 'error', text: 'The address bar stopped following your panels (too many changes too fast). Reload the page to restore it.' })
+      }
       return
     }
     writesRef.current.push(now)
@@ -651,8 +664,18 @@ export default function TerminalShell() {
     save(setPopout(layout, i, true))
   }
 
-  const pickChannel = (i, id) => save(setPanelChannel(layoutRef.current, i, id, symsRef.current))
-  const newChannel = (i) => {
+  // Resolve the menu's target panel by STABLE id, at the moment of the click — never by the
+  // index captured when the menu opened (FIX: see the channelMenu state comment above). If the
+  // panel was closed in the meantime, the lookup fails and this is a no-op: no silent relink.
+  const panelIndexById = (panelId) => layoutRef.current.panels.findIndex((p) => p.id === panelId)
+  const pickChannel = (panelId, id) => {
+    const i = panelIndexById(panelId)
+    if (i < 0) return
+    save(setPanelChannel(layoutRef.current, i, id, symsRef.current))
+  }
+  const newChannel = (panelId) => {
+    const i = panelIndexById(panelId)
+    if (i < 0) return
     const { layout: withNew, id } = addChannel(layoutRef.current)
     if (!id) { setNotice({ kind: 'error', text: 'This board has the most groups it can hold.' }); return }
     save(setPanelChannel(withNew, i, id, symsRef.current))
@@ -715,8 +738,8 @@ export default function TerminalShell() {
   }
 
   const visible = layout.panels.slice(0, count)
-  const menuIndex = channelMenu?.index
-  const menuPanel = menuIndex != null ? layout.panels[menuIndex] : null
+  const menuPanelId = channelMenu?.panelId
+  const menuPanel = menuPanelId != null ? layout.panels.find((p) => p.id === menuPanelId) || null : null
   const activeId = activeChannelOf(layout)
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
@@ -866,7 +889,7 @@ export default function TerminalShell() {
                 onFocus={() => setFocus(i)}
                 onChannelMenu={(e) => {
                   const r = e.currentTarget.getBoundingClientRect?.() || { left: 0, bottom: 0 }
-                  setChannelMenu({ index: i, anchor: { x: r.left, y: r.bottom + 4 } })
+                  setChannelMenu({ panelId: p.id, anchor: { x: r.left, y: r.bottom + 4 } })
                 }}
                 onRun={runTyped}
                 onRows={onRows}
@@ -892,10 +915,10 @@ export default function TerminalShell() {
             key: c.id,
             label: `${c.name}${syms[c.id] ? ` · ${syms[c.id]}` : ''}${panelChannel(menuPanel) === c.id ? ' (this panel)' : ''}${c.id === activeId ? ' · active' : ''}`,
             icon: c.id,
-            onClick: () => pickChannel(menuIndex, c.id),
+            onClick: () => pickChannel(menuPanelId, c.id),
           })),
-          { key: 'new', label: 'New group', icon: '+', onClick: () => newChannel(menuIndex) },
-          { key: 'none', label: 'Not linked (keep this security)', icon: '·', onClick: () => pickChannel(menuIndex, null) },
+          { key: 'new', label: 'New group', icon: '+', onClick: () => newChannel(menuPanelId) },
+          { key: 'none', label: 'Not linked (keep this security)', icon: '·', onClick: () => pickChannel(menuPanelId, null) },
         ] : []}
       />
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">

@@ -362,6 +362,96 @@ describe('linked panels', () => {
   })
 })
 
+describe('FIX: the H14 ?cmd= write-budget guard surfaces a user-facing notice when it trips', () => {
+  it('6+ URL writes inside 2s trips the guard AND sets the notice (not just console.warn)', async () => {
+    const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      renderAt('/terminal')
+      // Each distinct command on the focused panel changes `focusedText`, which is what drives
+      // a `?cmd=` write. Running 7 distinct commands back-to-back (all well inside 2s of real
+      // time in a test) exceeds the budget (>=6 writes/2s).
+      const codes = ['NVDA DES', 'AMD DES', 'MSFT DES', 'TSLA DES', 'AAPL DES', 'META DES', 'GOOG DES']
+      for (const c of codes) await type(c)
+
+      const notice = screen.getByTestId('terminal-notice')
+      expect(notice).toHaveTextContent(/reload/i)
+      expect(notice.textContent.toLowerCase()).toMatch(/address bar|url/)
+      expect(quiet).toHaveBeenCalledWith(expect.stringContaining('write budget'))
+    } finally {
+      quiet.mockRestore()
+    }
+  })
+})
+
+describe('FIX: the channel-link popover survives a layout mutation (re-keyed by panel id)', () => {
+  it('closing panel 1 while panel 2\'s menu is open relinks the RIGHT panel, not whatever shifted into its old index', async () => {
+    // 4 panels, all 4 visible. Panel ids are b/c/d/e (closePanel renumbers by splice, not by
+    // rewriting ids) so "panel at index 2" and "the panel whose menu is open" can diverge.
+    // v2 shape (not v1): the v1 migration shim discards a stored id and renumbers p1..p4, which
+    // would hide exactly the bug this test exists to catch.
+    store.prefs = { terminal_layout: JSON.stringify({ v: 2, count: 4, focus: 0, channels: [], closed: [], panels: [
+      { id: 'b', code: 'GP', channel: 'A', sym: 'AAA' },
+      { id: 'c', code: 'DES', channel: null, sym: 'BBB' },
+      { id: 'd', code: 'CN', channel: null, sym: 'CCC' },
+      { id: 'e', code: 'FA', channel: null, sym: 'DDD' },
+    ] }) }
+    renderAt('/terminal')
+    expect(screen.getAllByTestId(/^terminal-panel-/)).toHaveLength(4)
+
+    // Open "link this panel" on the panel at index 2 (id 'd', CCC).
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-group-2')) })
+    expect(screen.getByRole('menu')).toBeTruthy()
+
+    // Now close panel at index 1 (id 'c', BBB) — every panel after it shifts down one index.
+    // The menu is non-modal and stays open across this mutation.
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-close-1')) })
+    expect(screen.getAllByTestId(/^terminal-panel-/)).toHaveLength(3)
+    // Confirm the shift actually happened: what was at index 2 (id 'd') is now at index 1.
+    expect(screen.getByTestId('terminal-panel-1')).toHaveTextContent('CCC')
+
+    // The still-open menu's "New group" picks a channel for panel id 'd' — the panel the
+    // member actually opened the menu on — never whatever panel the STALE index 2 now names.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /New group/ })) })
+
+    const layout = JSON.parse(store.prefs.terminal_layout)
+    const relinked = layout.panels.find((p) => p.id === 'd')
+    const wrongTarget = layout.panels.find((p) => p.id === 'e')
+    expect(relinked.channel).toBeTruthy()   // CCC (the intended panel) got the new group
+    expect(wrongTarget.channel == null || wrongTarget.channel === undefined || wrongTarget.channel === 'N' || !wrongTarget.channel)
+      .toBeTruthy() // DDD (what a stale index would have hit) was untouched
+  })
+
+  it('closing the panel the menu was opened on makes the still-open menu a no-op', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 2, count: 2, focus: 0, channels: [], closed: [], panels: [
+      { id: 'b', code: 'GP', channel: 'A', sym: 'AAA' },
+      { id: 'c', code: 'DES', channel: null, sym: 'BBB' },
+    ] }) }
+    renderAt('/terminal')
+
+    // Open the menu on panel index 1 (id 'c'), then close panel index 0 — panel 'c' slides to
+    // index 0, but count drops to 1 and panel 'c' becomes the LAST panel, so it cannot close.
+    // Instead: duplicate panel 0 first so a close is always available, keeping this test to
+    // "the targeted panel itself is gone" rather than "count hit the floor".
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-dup-0')) })
+    expect(screen.getAllByTestId(/^terminal-panel-/)).toHaveLength(3)
+    // Panel ids after duplicate: b, (copy of b), c — in that order (duplicate inserts after i).
+    const before = JSON.parse(store.prefs.terminal_layout)
+    const dupId = before.panels[1].id
+    expect(dupId).not.toBe('b')
+
+    // Open the menu on the duplicate (index 1), then close that exact panel.
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-group-1')) })
+    expect(screen.getByRole('menu')).toBeTruthy()
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-close-1')) })
+    expect(JSON.parse(store.prefs.terminal_layout).panels.some((p) => p.id === dupId)).toBe(false)
+
+    // The menu's own target panel no longer exists on the board: resolving by id fails, so the
+    // popover closes itself (`menuPanel` resolves to null) rather than staying open and letting
+    // a later click fall through to whatever panel now sits at the stale index.
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+})
+
 describe('PHONE (<=640): one panel, the command line pinned first, functions in a Sheet', () => {
   beforeEach(() => setViewport(390))
 

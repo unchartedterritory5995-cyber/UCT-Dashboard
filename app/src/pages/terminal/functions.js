@@ -97,10 +97,14 @@ export const FUNCTIONS = [
   { code: 'RSCH', label: 'My research (notes on this ticker)', group: 'Security',
     ticker: { panel: 'MyResearch', section: 'research' } },
   { code: 'CMP', label: 'Compare two securities', group: 'Security',
-    // `NVDA CMP AMD` — the research compare page, the comparator is the first arg.
-    ticker: { door: '/research/{sym}/compare/{arg0}', needsArg: 'a comparator, e.g. NVDA CMP AMD' } },
+    // `NVDA CMP AMD` — the research compare page, the comparator is the first arg. Unlike
+    // every other Security code this leaves the multi-panel Terminal entirely (`leavesTerminal`
+    // — describeCommand reads it to say so in the interpreted-parse echo).
+    ticker: { door: '/research/{sym}/compare/{arg0}', needsArg: 'a comparator, e.g. NVDA CMP AMD',
+      why: 'the compare page is a side-by-side two-security layout with its own URL shape; a panel cannot hold two securities', leavesTerminal: true } },
   { code: 'RES', label: 'Full research page', group: 'Security',
-    ticker: { door: '/research/{sym}' } },
+    ticker: { door: '/research/{sym}',
+      why: 'the full research page is the same tabs already embedded here, plus the ones this build does not panel-ize yet; RES is the escape hatch to all of it at once', leavesTerminal: true } },
   { code: 'ASK', label: 'Ask AI', group: 'Security',
     ticker: { panel: 'AskAi', section: 'ai' },
     market: { door: '/ai-search', why: 'the AI search page owns a streaming conversation and its own history rail' } },
