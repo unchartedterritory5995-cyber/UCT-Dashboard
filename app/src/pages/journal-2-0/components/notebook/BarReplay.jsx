@@ -214,7 +214,7 @@ export default function BarReplay({
                 )}
               </div>
             )}
-            <div className={styles.controls}>
+            <div className={styles.controls} data-tour="chart-replay-controls">
               <button
                 type="button"
                 className={styles.playBtn}

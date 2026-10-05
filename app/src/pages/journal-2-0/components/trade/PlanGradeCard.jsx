@@ -129,7 +129,7 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
     const checks = grade.checks || {}
     body = (
       <>
-        <p className={styles.source}>
+        <p className={styles.source} data-tour="plan-grade-source">
           {plan.sourceLabel || 'Plan'}
           {plan.matchTier ? <span className={styles.muted}> · {TIER_TEXT[plan.matchTier] || plan.matchTier}</span> : null}
           {plan.noteId ? (
@@ -137,7 +137,7 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
           ) : null}
           {checks.r ? <span className={styles.muted}> · 1R = {px(checks.r)}</span> : null}
         </p>
-        <ul className={styles.checks} aria-label="Plan checks">
+        <ul className={styles.checks} aria-label="Plan checks" data-tour="plan-grade-checks">
           {CHECKS.map(({ key, label }) => {
             const c = checks[key]
             const v = checkVerdict(key, c)
@@ -155,7 +155,7 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
             {grade.labels.map((l) => <li key={l} className={styles.label}>{LABEL_TEXT[l] || l}</li>)}
           </ul>
         ) : null}
-        <p className={styles.frozen}>
+        <p className={styles.frozen} data-tour="plan-grade-frozen">
           Frozen when it was first matched{plan.relinkedAt ? ', then re-linked by you' : ''}. Editing the plan does not change this grade.
         </p>
         {grade.setupChip && onTagSetup ? (
@@ -172,12 +172,12 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
   const canReview = grade && grade.status === 'planned'
 
   return (
-    <section className={styles.card} aria-labelledby="plan-grade-title" data-testid="plan-grade-card">
+    <section className={styles.card} aria-labelledby="plan-grade-title" data-testid="plan-grade-card" data-tour="plan-grade-card">
       <h2 id="plan-grade-title" className={styles.title}>Plan vs execution</h2>
       {body}
       {actionError && <p className={styles.error} role="alert">{actionError}</p>}
       {(canRelink || canReview) && (
-        <div className={styles.actions}>
+        <div className={styles.actions} data-tour="plan-grade-actions">
           {canReview && (
             <button type="button" className={styles.actionBtn} onClick={writeReview} disabled={reviewState === 'saving'}>
               {reviewState === 'saving' ? 'Writing…' : 'Write review note'}

@@ -76,7 +76,7 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   }
 
   return (
-    <div className={styles.wrap} data-testid="why-prompt-editing">
+    <div className={styles.wrap} data-testid="why-prompt-editing" data-tour="entry-context-why">
       <label className={styles.label} htmlFor="why-prompt-text">Why did you take it?</label>
       <div className={styles.row}>
         <textarea
@@ -94,7 +94,7 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
           </span>
         )}
       </div>
-      <div className={styles.actions}>
+      <div className={styles.actions} data-tour="entry-context-why-save">
         <button type="button" className={styles.saveBtn} onClick={save} disabled={busy}>
           {busy ? 'Saving…' : 'Save'}
         </button>

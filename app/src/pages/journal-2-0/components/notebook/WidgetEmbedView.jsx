@@ -605,6 +605,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   return (
     <NodeViewWrapper
       ref={wrapRef}
+      data-tour="chart-embed"
       className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''} ${frozen ? styles.frozen : ''}`}
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
@@ -642,6 +643,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               onChange={(e) => switchTf(e.target.value)}
               title="Switch timeframe (re-anchors around the same moment)"
               aria-label="Embed timeframe"
+              data-tour="chart-embed-timeframe"
             >
               {[['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'],
                 ['D', 'D'], ['W', 'W'], ['M', 'M']].map(([code, label]) => (
@@ -668,6 +670,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               type="button"
               className={`${styles.toolBtn} ${annotate ? styles.toolBtnActive : ''}`}
               onClick={toggleAnnotate}
+              data-tour="chart-plan-draw"
               title={annotate ? 'Exit drawing mode' : 'Draw on this snapshot (lines, text — saved with the embed)'}
             >
               {annotate ? 'Done' : 'Draw'}
@@ -710,6 +713,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               type="button"
               className={`${styles.toolBtn} ${planOpen ? styles.toolBtnActive : ''}`}
               onClick={() => setPlanOpen((o) => !o)}
+              data-tour="chart-plan-open"
               aria-expanded={planOpen}
               title="Trade plan — mark drawn lines as entry, stop or target; size it; arm alerts"
             >
@@ -721,6 +725,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               type="button"
               className={styles.toolBtn}
               onClick={() => setReplayOpen(true)}
+              data-tour="chart-plan-replay"
               title="What happened next — replay bar by bar from this note's date"
             >
               Replay

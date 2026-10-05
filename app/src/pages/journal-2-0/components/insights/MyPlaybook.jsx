@@ -115,7 +115,7 @@ function SetupCard({ rec, idx, notes, open, onDrill, onClose }) {
   const openItem = open ? stats.find((s) => s.key === open) : null
   const sampleWord = rec.sample?.wording
   return (
-    <article className={styles.card} aria-labelledby={`pb-setup-${idx}`} data-setup={rec.setup}>
+    <article className={styles.card} aria-labelledby={`pb-setup-${idx}`} data-setup={rec.setup} data-tour="my-playbook-setup-card">
       <div className={styles.cardHead}>
         <h3 id={`pb-setup-${idx}`} className={styles.setupName}>{rec.setup}</h3>
         <span className={styles.muted} data-n={rec.tradeCount}>
@@ -128,7 +128,7 @@ function SetupCard({ rec, idx, notes, open, onDrill, onClose }) {
         ))}
       </div>
       {openItem && <Drill setup={rec.setup} idx={idx} item={openItem} trades={rec.trades || []} onClose={onClose} />}
-      <div className={styles.notes}>
+      <div className={styles.notes} data-tour="my-playbook-notes">
         <h4 className={styles.subTitle}>From your notes</h4>
         {notes.length ? (
           <ul className={styles.noteList}>
@@ -183,7 +183,7 @@ function Finding({ f }) {
 function Patterns({ pat }) {
   if (!pat) return null
   return (
-    <section className={styles.patterns} aria-labelledby="pb-patterns" data-testid="playbook-patterns">
+    <section className={styles.patterns} aria-labelledby="pb-patterns" data-testid="playbook-patterns" data-tour="my-playbook-patterns">
       <h3 id="pb-patterns" className={styles.sectionTitle}>What you wrote before losses vs wins</h3>
       <p className={styles.caption}>{pat.caption}. Counts of your own words in notes linked to a trade, read as they stood at entry.</p>
       {pat.status !== 'ok' ? (
@@ -266,12 +266,12 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
       <div className={styles.head}>
         <div>
           <h2 id="pb-title" className={styles.title}>My Playbook</h2>
-          <p className={styles.sub}>
+          <p className={styles.sub} data-tour="my-playbook-intro">
             Your own edge, per setup. Under {data?.sample?.tooFewBelow ?? 10} trades a number is {WORDING.too_few};
             under {data?.sample?.normalFrom ?? 25} it is a {WORDING.thin} with a likely range. Every number opens its trades.
           </p>
         </div>
-        <button type="button" className={styles.primaryBtn} onClick={save}
+        <button type="button" className={styles.primaryBtn} onClick={save} data-tour="my-playbook-snapshot"
                 disabled={!data || snap?.state === 'saving'}>
           {snap?.state === 'saving' ? 'Saving…' : 'Save a snapshot note'}
         </button>

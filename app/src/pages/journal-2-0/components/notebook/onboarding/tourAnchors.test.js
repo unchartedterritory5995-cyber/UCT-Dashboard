@@ -44,14 +44,17 @@ function tourAnchorsIn(src) {
 const read = (rel) => fs.readFileSync(path.join(WAVE, rel), 'utf8')
 const FILES = [...new Set(TOUR_STEPS.map((s) => s.file))]
 const FOUND = Object.fromEntries(FILES.map((f) => [f, tourAnchorsIn(read(f))]))
-// Wave 14 (W14-B1): a registered tour may anchor in the base tour's files too (the
-// editor, the sidebar, the notes list are where most capabilities live). Its anchor is
-// read by THAT tour, and the registry check below holds it to exactly-once by name, so
-// it is not an orphan. The orphan check therefore accepts any anchor some registered
-// tour names, and still refuses one nobody reads.
-const REGISTERED_ANCHORS = new Set(
-  (await Promise.all(TOUR_REGISTRY.map((t) => t.load()))).flatMap(({ steps }) => steps.map((s) => s.anchor)),
-)
+// Wave 14 (W14-B1/B2/B3, reconciled at integration): a registered tour may anchor in the
+// base tour's files too (the editor, the sidebar, the notes list, Research Home are where
+// most capabilities live). Such an anchor is read by THAT tour, and the registry check below
+// holds it to exactly-once by name, so it is not an orphan. The orphan check therefore
+// accepts an anchor only when a step of the base tour or of a registered tour names it AND
+// names THIS file (B2's per-file form: a name declared for some other file does not excuse a
+// stray here). It still refuses one nobody reads, and an expression.
+const DECLARED_IN = {}
+for (const { steps } of [{ steps: TOUR_STEPS }, ...(await Promise.all(TOUR_REGISTRY.map((t) => t.load())))]) {
+  for (const s of steps) (DECLARED_IN[s.file] ||= new Set()).add(s.anchor)
+}
 
 describe('the tour step list', () => {
   it('is frozen, non-empty, and every step is exactly {id, anchor, file}', () => {
@@ -86,9 +89,8 @@ describe('every step\'s anchor is in its named file (lane 8A cannot delete one s
     },
   )
 
-  it('every data-tour in those files is a literal AND belongs to a step of a registered tour (no orphan, no expression)', () => {
-    const declared = new Set([...TOUR_STEPS.map((s) => s.anchor), ...REGISTERED_ANCHORS])
-    const strays = FILES.flatMap((f) => FOUND[f].filter((a) => !declared.has(a)).map((a) => `${f}: ${a}`))
+  it('every data-tour in those files is a literal AND some step of a registered tour names it IN THAT FILE (no orphan, no expression)', () => {
+    const strays = FILES.flatMap((f) => FOUND[f].filter((a) => !DECLARED_IN[f]?.has(a)).map((a) => `${f}: ${a}`))
     expect(strays, 'an anchor no step names is an attribute nobody reads; an expression evades this rail').toEqual([])
   })
 })
