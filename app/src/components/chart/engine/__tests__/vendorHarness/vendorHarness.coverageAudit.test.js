@@ -102,13 +102,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('atr-trailing-stop-by-ceyhun SPY: MATCH', () => {
     expect(grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY Slow Trail / BUY / SELL are na on ours where TradingView has a value, from bar 522 (scattered); barcolor differs from bar 0', () => {
+  it('control: SPY Slow Trail / BUY / SELL are na on ours where TradingView has a value, from bar 522 (scattered); the barcolor AGREES', () => {
     const { v } = grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02')
     expect(first(item(v, 'Slow Trail'))).toMatchObject({ bar: 522, kind: 'na' })
     expect(item(v, 'Slow Trail').stats.steady.divergent).toBe(949)
     expect(first(item(v, 'BUY'))).toMatchObject({ bar: 554, kind: 'na' })
     expect(first(item(v, 'SELL'))).toMatchObject({ bar: 531, kind: 'na' })
-    expect(v.paints.verdict).toBe('DIVERGE')
+    // ⭐ RC1 — was DIVERGE ("barcolor differs from bar 0"): the paint is now replayed over
+    // SPY's own proved history with the supplier's listing flag (`ourSide.warmBarsSupply`)
+    // and agrees on all 1800 bars. The PLOT lane above still replays the window cold and
+    // without the listing flag, so its na-from-bar-522 divergence is unchanged.
+    expect(v.paints.verdict).toBe('MATCH')
   }, T)
 
   // cpr-with-mas-super-trend-vwap (wave-16 H2/H3 attach) ------------------------
@@ -118,10 +122,12 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it('cpr-with-mas-super-trend-vwap RDDT: MATCH (F1)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it.fails('cpr-with-mas-super-trend-vwap SPY: MATCH', () => {
+  // ⭐ F5 + F1 — FLIPPED on the merged tree: F1 made the VWAP row agree on every
+  // bar, F5 withholds the EMA(50)'s seed warm-up (its one remaining divergence).
+  it('cpr-with-mas-super-trend-vwap SPY: MATCH (F1 + F5)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY VWAP agrees on every bar now (F1); EMA a converging prefix; CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
+  it('control: SPY VWAP agrees on every bar now (F1); EMA agrees past its seed warm-up (F5); CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
     const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02')
     expect(item(v, 'VWAP').verdict).toBe('MATCH')
     for (const t of ['CP', 'BC', 'TC', 'D-S1', 'D-R1']) {
@@ -131,7 +137,14 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       expect(p.colorWarmupBars, t).toBe(2)
       expect(p.warmupBars, t).toBe(1)
     }
-    expect(item(v, 'EMA').stats.steady.pattern.kind).toBe('converging-prefix')
+    // ⭐ F5 — was "a converging prefix" (bars 50..412, error 7.7e-1 -> 3.9e-7): the
+    // window does not start at SPY's listing, so our EMA(50) is seeded where
+    // TradingView's is not. Its warm-up is now WITHHELD by its own decay, and every
+    // withheld bar sits inside the bound it was withheld by.
+    const ema = item(v, 'EMA')
+    expect(ema.verdict).toBe('MATCH')
+    expect(ema.stats.seedWithheld).toBeGreaterThan(400)
+    expect(ema.stats.seedBoundViolations).toBe(0)
   }, T)
 
   // implied-volatility-suite: MATCH since F2 (above) ---------------------------
@@ -166,22 +179,26 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // optimized-keltner-channels-sltp-strategy-for-btc -----------------------------
-  // ⭐ H7 (step 92h) — the two untitled plots' bar 0 (ours na, TradingView 0) is served
-  // now: the plain `x = …` / `x := … x[1] …` runs its update on bar 0
-  // (`interpret.js::plainUpdateSeed`), so RDDT MATCHes.
-  it('optimized-keltner-channels-sltp-strategy RDDT: MATCH (H7, the plain form\'s bar-0 update)', () => {
+  it('optimized-keltner-channels-sltp-strategy RDDT: MATCH (F5 — bar 0 of the plain form runs the update from `na`)', () => {
     expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT the two untitled plots agree on every bar, bar 0 included; SPY Upper/Basis/Lower are converging prefixes (a window not from the listing)', () => {
+  it('control: RDDT the two untitled plots agree on bar 0 too (were `na`, TradingView 0 — F5); SPY Upper/Basis/Lower agree past their seed warm-up (F5 — were converging prefixes)', () => {
     const r = grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v
     const plots = items(r, 'Plot')
     expect(plots.length).toBe(2)
     for (const p of plots) {
-      expect(p.verdict, p.reason).toBe('MATCH')
-      expect(p.stats.steady.divergent).toBe(0)
+      expect(p.verdict).toBe('MATCH')
+      expect(p.stats.steady.compared).toBe(636)
     }
     const s = grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v
-    for (const t of ['Upper', 'Basis', 'Lower']) expect(item(s, t).stats.steady.pattern.kind, t).toBe('converging-prefix')
+    for (const t of ['Upper', 'Basis', 'Lower']) {
+      expect(item(s, t).verdict, t).toBe('MATCH')
+      expect(item(s, t).stats.seedWithheld, t).toBeGreaterThan(50)
+      expect(item(s, t).stats.seedBoundViolations, t).toBe(0)
+    }
+  }, T)
+  it('⭐ F5 — optimized-keltner-channels-sltp-strategy SPY: MATCH (the converging prefixes were a seed warm-up, now withheld by its decay)', () => {
+    expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
 
   // pmax-explorer ---------------------------------------------------------------
@@ -191,7 +208,14 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it('control: SPY PMax is na on ours from bar 512 to the last (1139 bars, TradingView a value); the screener label is not drawn; RDDT PMax / MA agree', () => {
     const s = grade('pmax-explorer-spy-1d-2026-10-02').v
     expect(first(item(s, 'PMax'))).toMatchObject({ bar: 512, kind: 'na' })
-    expect(item(s, 'PMax').stats.steady.divergent).toBe(1139)
+    // ⭐ F5 — 1139 -> 1038: bars 889..1037 now draw, every one TradingView's value
+    // (the diff over all 1800 bars has NO bar where both draw and differ). The rest
+    // stays missing, never wrong: the `dir` latch is switched (C12s) and the window
+    // cannot prove it independent of its seed there.
+    expect(item(s, 'PMax').stats.steady.divergent).toBe(1038)
+    // ⭐ F5 — the MA was a converging prefix (bars 10..84): its seed warm-up is withheld
+    expect(item(s, 'Moving Avg Line').verdict).toBe('MATCH')
+    expect(item(s, 'Moving Avg Line').stats.seedWithheld).toBeGreaterThan(50)
     // ⭐ F3 — the screener label lists 38 other symbols' PMax states
     // (`request.security` per symbol): withheld by name, never drawn.
     expect(s.objects.withheld).toBe('pine:object-ops-refused')
@@ -252,7 +276,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('swing-highlow-zigzag-chartprime SPY: MATCH', () => {
     expect(grade('swing-highlow-zigzag-chartprime-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY we hold 12 of TradingView\'s 52 zigzag lines — a WINDOW, not the engine', () => {
+  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY we hold 8 of TradingView\'s 52 zigzag lines — a WINDOW, not the engine', () => {
     const r = grade('swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02').v.objects
     expect(r.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 10, ours: 10 })
     expect(r.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
@@ -260,7 +284,12 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const s = v.objects
     expect(s.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
     expect(s.texts.find((t) => t.family === 'labels text').agree).toBe(true)
-    expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 12 })
+    // ⭐ F5 — 12 -> 8 under the held-state rule (`interpret.js::holdsUntilSet`): 3 of the 4 lines
+    // no longer held had x1 = the seed of `var int index_h / index_l = 0` (1970; the harness
+    // counted them as held with an na coordinate); the 4th (459.44 -> 409.21) is correct and is
+    // withdrawn because its y reads `line_l.get_y1()` of a line whose x is now unknown. Every
+    // object still held pairs with TradingView's at one id offset.
+    expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 8 })
     // ⭐ F3 — the 40 lines we do not hold were drawn on bars BEFORE the loaded
     // window: TradingView ran the script over SPY's whole history (the capture is
     // 1800 bars from 2019-08, not from the listing), and the zigzag segments it
@@ -274,15 +303,16 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // twin-range-filter (RDDT only — SPY is a MATCH above) --------------------------
-  it.fails('twin-range-filter RDDT: MATCH', () => {
-    expect(grade('twin-range-filter-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
-  }, T)
-  it('control: RDDT (from the listing) Long na on 5 bars from 177, Short on 6 from 171 (TradingView 1); the filter line agrees', () => {
+  // ⭐ F5 — MATCH. Long / Short were `na` on 5 / 6 bars from 177 / 171 (TradingView 1):
+  // their switched states (`upward`, `downward`, `CondIni`, plain `x = 0.0` + `x := …`)
+  // were unknown on bar 0 because the tree did not record that bar 0 of the plain form
+  // runs the UPDATE from `na`; `switchedDependencyMask` then withheld every bar within
+  // the 250-bar window's reach. An `na` seed is now read as `'update'` on bar 0
+  // (`interpret.js`, `listingReading`).
+  it('twin-range-filter RDDT: MATCH (F5 — the bar-0 reading of an na seed is recorded)', () => {
     const v = grade('twin-range-filter-rddt-1d-2026-10-02').v
-    expect(first(item(v, 'Long'))).toMatchObject({ bar: 177, kind: 'na' })
-    expect(item(v, 'Long').stats.steady.divergent).toBe(5)
-    expect(first(item(v, 'Short'))).toMatchObject({ bar: 171, kind: 'na' })
-    expect(item(v, 'Short').stats.steady.divergent).toBe(6)
+    expect(v.verdict).toBe('MATCH')
+    for (const t of ['Long', 'Short']) expect(item(v, t).stats.steady.compared, t).toBe(636)
   }, T)
 
   // runtime-only attaches ----------------------------------------------------------
@@ -374,30 +404,33 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
 // ─── F2 (step 78) — RT3 Q-NL: `and` / `or` / `not` over an `na` operand ───────────
 // TradingView (v5 and v4, RDDT 1D from the listing): an `na` operand reads as FALSE and
 // the answer is never `na`. Before F2 the door drew `na` on B02 / B03 / B07 and a wrong 1
-// on B04 / B05 (`na(w or false)`, `na(not w)`). The capture stays INCONCLUSIVE only for
-// the four rows our pane folds to a hidden constant (B01 / B06 / B07 / B09), whose values agree.
+// on B04 / B05 (`na(w or false)`, `na(not w)`). The four rows our pane folds to a constant
+// (B01 / B06 / B07 / B09) were NOT DRAWN (F8) until H8 drew them; every row now MATCHES.
 describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 and v5)', () => {
   it.each([
     ['rt3-na-logic-rddt-1d-2026-10-02'],
     ['rt3-na-logic-v4-rddt-1d-2026-10-02'],
-  ])('%s: every graded row agrees; only the four rows our pane hides as constants diverge (NOT DRAWN)', (id) => {
+  ])('%s: every graded row agrees, the four constant rows drawn as TradingView draws them (H8)', (id) => {
     const { v } = grade(id)
-    // ⭐ F8 — the four rows this engine folds to a hidden constant (B01 / B06 / B07 / B09)
-    // are drawn by TradingView and not by our chart: NOT DRAWN, a DIVERGE (it was
-    // INCONCLUSIVE, "our side's colour could not be resolved"). Their VALUES agree.
+    // ⭐ H8 — the four rows this engine folds to a constant (B01 / B06 / B07 / B09) are
+    // hidden from the SCREENER only; the pane draws them (`pine.js::hiddenOnChart`), so
+    // they MATCH on value and colour (F8 graded them NOT DRAWN, a DIVERGE).
     const nd = ['B01_naBool_or_true', 'B06_naLiteral_or_true', 'B07_not_naLiteral', 'B09_naFloat_or_true']
-    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title).sort()).toEqual(nd)
-    for (const t of nd) expect(item(v, t).reason, `${id} ${t}`).toMatch(/NOT DRAWN.*hiddenReason "constant"/)
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
+    for (const t of nd) {
+      expect(item(v, t).verdict, `${id} ${t}: ${item(v, t).reason}`).toBe('MATCH')
+      expect(item(v, t).color, `${id} ${t}`).toBe('compared')
+    }
     for (const t of ['B02_not_naBool', 'B03_naBool_and_true_CONTROL', 'B04_na_of_naBool_or_false',
       'B05_na_of_not_naBool', 'B08_naFloat_or_false', 'B10_not_naFloat']) {
       expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
     }
-    // B07 `not <na literal>` now folds to a constant 1 on every bar (TradingView's 1): its
-    // VALUES agree on all 636 bars; only its colour is unresolvable (a hidden constant row)
+    // B07 `not <na literal>` folds to a constant 1 on every bar (TradingView's 1): its
+    // VALUES agree on all 636 bars, and since H8 it is drawn, in TradingView's colour
     const b07 = item(v, 'B07_not_naLiteral')
-    expect(b07.verdict).toBe('DIVERGE')
+    expect(b07.verdict).toBe('MATCH')
     expect(b07.stats.valueMismatches + b07.stats.naMismatches).toBe(0)
-    expect(b07.stats.steady.first.kind).toBe('not-drawn')
+    expect(b07.stats.steady.compared).toBe(636)
     // non-vacuity: the rows are graded from bar 0 (a capture from the listing), so the
     // `na` warm-up bars 0..18 are compared, not excused
     expect(item(v, 'B04_na_of_naBool_or_false').stats.steady.compared).toBe(636)
@@ -608,7 +641,11 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
 // `cap3SpyGaps.measure.test.js` from the harness's own verdict, never by hand. MATCH
 // rows are an `expect`; a DIVERGE row is an `it.fails` asserting MATCH beside the
 // signature control that names what diverges (item, first bar, kind, count; object
-// families vendor vs ours). Most SPY value divergences are converging prefixes: the
+// families vendor vs ours). ⭐ RC1 (2026-10-04): the `paints` field of seven SPY rows
+// moved DIVERGE -> MATCH, and fibonacci-pivot-points-cc's whole verdict with it, when
+// the paint lane started replaying over SPY's proved history (`warmBarsSupply`). Those
+// eight values were edited by hand from this rail's own failing output, because the
+// measure test that writes the file could not be run beside a live gate. Most SPY value divergences are converging prefixes: the
 // 1800-bar window does not start at SPY's listing, so a recursive series (EMA, RMA)
 // seeds differently (CAP2 records the same); the signature says which.
 /** ⛔ Scripts whose DRAWN COUNTS read the wall clock (`timenow`): black-scholes computes

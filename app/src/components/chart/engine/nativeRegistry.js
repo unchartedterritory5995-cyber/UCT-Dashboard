@@ -2504,6 +2504,8 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     const crossMemo = new Map()
     // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
     const clock = {}
+    // ⭐ F5 — per plot, the bars a recursive series' seed withholds (`seedWarmupMask`).
+    const seed = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -2557,7 +2559,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
-            chartClockSink: (clock[key] = new Map()) })
+            chartClockSink: (clock[key] = new Map()), seedWarmupSink: (seed[key] = {}) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -2587,10 +2589,12 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       if (runsWhy) {
         delete out[key]
         delete clock[key]
+        delete seed[key]
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
-    return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
+    seedColourOntoValue(def, out, seed)
+    return withSeedWarmup(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), seed)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -2614,6 +2618,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
   const clock = { [keys[0]]: new Map() }
+  const seed = { [keys[0]]: {} }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
@@ -2621,7 +2626,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: clock[keys[0]] })
+      chartClockSink: clock[keys[0]], seedWarmupSink: seed[keys[0]] })
   // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
   // AFTER its tree computed (a tree that cannot keeps its own reason, above).
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
@@ -2633,7 +2638,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: new Map() }))
   if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
+  return withSeedWarmup(withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower), seed)
 }
 
 /** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
@@ -2737,6 +2742,75 @@ function withChartClock(out, byKey) {
  *  `otherSymbolReport`: the decision rides on the columns it was made for. */
 export function chartClockReport(columns) {
   return (columns && columns[CHART_CLOCK]) || null
+}
+
+/** ⭐⭐ F5 — A PLOT WHOSE PER-BAR COLOUR IS WITHHELD FOR A SEED IS WITHHELD WHOLE ON
+ *  THAT BAR. The colour column (`colorMode: 'column:K'`) is its own tree and is
+ *  withheld by its own bound; a value drawn beside a withheld colour would fall
+ *  back to the series colour — a colour the script never chose on that bar
+ *  (measured: pivot-point-supertrend AMEX:SPY bar 1043 drew the pane's gold where
+ *  TradingView drew red). So the value is withheld there too, reported with an
+ *  unbounded bound (its colour, not its number, is what could not be vouched for). */
+function seedColourOntoValue(def, out, seed) {
+  for (const p of (def && Array.isArray(def.plots) ? def.plots : [])) {
+    const mode = p && typeof p.colorMode === 'string' ? p.colorMode : ''
+    if (!mode.startsWith('column:') || !p.key) continue
+    const k = mode.slice('column:'.length)
+    const cs = seed[k]
+    const col = out[p.key]
+    if (!cs || !cs.mask || !col || typeof col.length !== 'number') continue
+    const own = seed[p.key] && seed[p.key].mask ? seed[p.key] : null
+    const mask = own ? Float64Array.from(own.mask) : new Float64Array(col.length)
+    const bound = own ? Float64Array.from(own.bound) : new Float64Array(col.length)
+    const raw = own ? own.raw : Float64Array.from(col)
+    const next = Float64Array.from(col)
+    let moved = false
+    for (let i = 0; i < next.length; i++) {
+      if (!cs.mask[i] || next[i] !== next[i]) continue
+      next[i] = NaN
+      mask[i] = 1
+      bound[i] = Infinity
+      moved = true
+    }
+    if (!moved) continue
+    out[p.key] = next
+    seed[p.key] = { mask, bound, raw }
+  }
+}
+
+/** The key a column map carries its seed withholdings under — non-enumerable,
+ *  like `__chartClock`. */
+const SEED_WARMUP = '__seedWarmup'
+
+/** `byKey`: plot key → the sink `interpret.js::seedWarmupMask` filled (`{mask,
+ *  bound, raw}`, or empty when nothing was withheld). Only the filled ones ride. */
+function withSeedWarmup(out, byKey) {
+  const plots = {}
+  for (const [key, s] of Object.entries(byKey || {})) {
+    if (s && s.mask) plots[key] = Object.freeze({ ...s, withheld: countWithheld(s.mask) })
+  }
+  if (Object.keys(plots).length) {
+    Object.defineProperty(out, SEED_WARMUP, { value: Object.freeze(plots), enumerable: false })
+  }
+  return out
+}
+
+function countWithheld(mask) {
+  let n = 0
+  for (let i = 0; i < mask.length; i++) if (mask[i]) n += 1
+  return n
+}
+
+/** ⭐⭐ F5 — PER PLOT, THE BARS A RECURSIVE SERIES' SEED WITHHOLDS OFF THE LISTING:
+ *  `{[key]: {mask, bound, raw, withheld}}`, or null when none is. `mask` (1 =
+ *  withheld) is decided by `interpret.js::seedWarmupMask` from each series' own
+ *  decay; `bound` is the per-bar bound on |ours − TradingView's| it was decided
+ *  from; `raw` the value the bar would have shown. The member's disclosure strip
+ *  reads the reason through `chartClockReport` (`seed:window`); the vendor
+ *  harness reads THIS, so a withheld bar is graded by its own bound
+ *  (`compare.mjs::comparePlot`). */
+export function seedWarmupReport(columns) {
+  return (columns && columns[SEED_WARMUP]) || null
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine

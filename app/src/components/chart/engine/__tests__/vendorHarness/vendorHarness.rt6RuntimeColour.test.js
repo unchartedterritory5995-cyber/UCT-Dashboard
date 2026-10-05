@@ -113,20 +113,22 @@ describe('RT6 — fvg-trend against its TradingView capture (RDDT 1D)', () => {
     flagsOn()
     const c = cap()
     const v = gradeCapture(c).verdict
-    // ⭐ F8 — the only DIVERGE is the zero line below (NOT DRAWN), never a colour.
-    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.stats.steady.first.kind)).toEqual(['not-drawn'])
+    // ⭐ H8 — nothing DIVERGES: the zero line below (F8's NOT DRAWN) is drawn now.
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
     const counter = v.plots.find((p) => p.title === 'fvgCounter')
     expect(counter.verdict).toBe('MATCH')
     expect(counter.color).toBe('compared')
     const bg = v.paints.rows.find((r) => r.kind === 'bgcolor')
     expect(bg.state).toBe('agree')
-    // ⚠️ what keeps it from MATCH is NOT a colour: `plot(0, color=color.black)` is a
-    // column that reads no bar, which the host translator hides (`hiddenReason:
-    // 'constant'`) on both lanes. Named so a later change to that rule reads here.
-    // ⭐ F8 — TradingView draws that zero line and our chart does not: NOT DRAWN.
+    // ⚰️ what kept it from MATCH was NOT a colour: `plot(0, color=color.black)` is a
+    // column that reads no bar, which the host translator hides from the SCREENER
+    // (`hiddenReason: 'constant'`), and the runtime document read that as "draw
+    // nothing" (F8: NOT DRAWN). ⭐ H8 — the document asks `hiddenOnChart`, draws the
+    // zero line in black as TradingView does, and it MATCHES on value and colour.
     const zero = v.plots.find((p) => p.title === 'Plot' || p.title == null)
-    expect(zero.verdict).toBe('DIVERGE')
-    expect(zero.reason).toMatch(/NOT DRAWN.*hidden on this runtime document \(constant\)/)
+    expect(zero.verdict, zero.reason).toBe('MATCH')
+    expect(zero.color).toBe('compared')
+    expect(v.verdict, v.reason).toBe('MATCH')
   })
 
   it('the transparency rides the paint as written: `transp=90` over an opaque ternary', () => {
@@ -157,9 +159,13 @@ describe('RT6 — the style-transparency rules, on fvg-trend\'s own source (v4)'
     expect(p.notes.map((n) => n.note).join(' | ')).toMatch(/`bgcolor` \(line \d+\) is not drawn: a transparency applies over a colour that may carry its own/)
     const q = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
       'color=(fvgCounter > 0 ? color.new(color.green, 50) : color.red), transp=30, title="fvgCounter"', false)
-    // its one drawn row withheld, the document declines, naming why
-    expect(q.ok).toBe(false)
-    expect(q.runtimeDeclined.why).toMatch(/`fvgCounter`: .*`transp =` applies over a colour that may carry its own/)
+    // ⚰️ its one drawn row withheld, the document DECLINED, naming why. ⭐ H8 — the
+    // script's `plot(0)` zero line is a drawn row now (TradingView draws it), so the
+    // document attaches with the zero line and `fvgCounter` withheld BY NAME.
+    expect(q.ok, q.reason).toBe(true)
+    expect(q.withheld).toContain('fvgCounter')
+    expect(q.definition.plots.some((x) => x.label === 'fvgCounter')).toBe(false)
+    expect(q.notes.map((n) => n.note).join(' | ')).toMatch(/`fvgCounter` is not drawn: .*`transp =` applies over a colour that may carry its own/)
     // CONTROL — the same plot over fixed colours carries the transparency
     const r = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
       'color=(fvgCounter > 0 ? color.green : color.red), transp=30, title="fvgCounter"')

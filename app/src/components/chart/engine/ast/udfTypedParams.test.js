@@ -46,11 +46,23 @@ describe('typed function parameters', () => {
     expect(String((out.refusal && out.refusal.message) || '')).not.toMatch(/float/)
   })
 
-  it('still refuses a default value BY NAME, in both lanes', () => {
-    const r = runtime('f(float a, int n = 2) =>\n    a * n\nplot(f(close))')
+  // ⚰️ RE-PINNED 2026-10-04 (G16, the wave-16 gate). This case was "still refuses a
+  // default value BY NAME, in both lanes" on `int n = 2`. Wave 16 SERVES that shape
+  // on purpose, graded against TradingView: L2 (4106fc6be2) on the runtime lane and
+  // H5 (71ca1694c5) on the host lane, ONE rule (`pine.js::paramDefaultShapeOk`: a
+  // literal, a dotted built-in constant, or a bar series) - vw-default-param-spy-1d-
+  // 2026-10-02 D01-D15 MATCH on 1,800 bars. So a literal default now reads in both
+  // lanes, and the by-name refusal is kept for the shape the rule still refuses: an
+  // EXPRESSION default (measured: runtime names `default values`, host refuses).
+  it('reads a literal default in both lanes, and still refuses an expression default BY NAME', () => {
+    const lit = 'f(float a, int n = 2) =>\n    a * n\nplot(f(close))'
+    expect(runtime(lit).ok).toBe(true)
+    expect(host(lit).ok).toBe(true)
+    const expr = 'f(float a, float n = close + 1) =>\n    a * n\nplot(f(close))'
+    const r = runtime(expr)
     expect(r.ok).toBe(false)
     expect(r.refusal.message).toMatch(/default value/i)
-    expect(host('f(float a, int n = 2) =>\n    a * n\nplot(f(close))').ok).toBe(false)
+    expect(host(expr).ok).toBe(false)
   })
 
   it('leaves the translator unchanged on both spellings', () => {

@@ -37,6 +37,9 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from '../../runtime/runtimeObjects'
 import { maxLookback } from '../../ast/interpret'
+// ⭐ H8 — what the member's CHART hides, the pane's own predicate (never `hidden`,
+// which is the screener's "not a column" and includes constants TradingView draws).
+import { hiddenOnChart } from '../../ast/pine'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -233,6 +236,137 @@ function otherSymbolSupply(def, capture) {
     return e && e.exchange ? e.exchange : null
   }
   return { secondary, exchangeOf, notes }
+}
+
+// ─── ⭐⭐ RC1 — WARM BARS: THE SAME SERIES' OWN HISTORY, FROM COMMITTED CAPTURES ─
+//
+// A capture that does NOT start at the listing (`history.startsAtBar0 !== true`)
+// was computed by TradingView with history BEFORE its first bar: its study engine
+// holds more bars than it ships to the chart, so `window.studyBarsLoaded` is the
+// output buffer, not the computation depth. Measured 2026-10-04 (lane RC1) on SPY
+// 1D, window 2019-08-06..2026-10-02: TradingView's `ema(close, 35)`-based plots are
+// numeric ON BAR 0, which no cold start can produce; a cold replay of the 1800
+// window bars disagreed on 109 bars across six scripts' paints, and the same
+// window with SPY's 1993+ history in front of it agreed on every one.
+//
+// The member's chart is warm the same way (a standalone D chart loads 12,500 bars
+// and `binder.sync` computes over all of them), so replaying [prehistory + window]
+// is what the product does, not a tolerance.
+//
+// ⛔⛔ NOTHING IS SPLICED THAT IS NOT PROVED. A supplier is another committed
+// capture of the SAME listing at the SAME timeframe that holds bars before the
+// window AND holds the window's first bar. Every window bar inside the supplier's
+// span must be in it, equal on time, open, high, low, close AND volume. One field
+// off on one bar and that supplier is REFUSED BY NAME (the note says which file,
+// which bar, which field); the next supplier is tried, and with none left the
+// replay is cold and says so. The deepest proved supplier wins.
+// ⛔ A capture whose own `bar_index` control reads 0 on its first bar is never
+// warmed: TradingView itself started counting there, so its history did too.
+// ⭐ THE LISTING FLAG IS INHERITED FROM THE SUPPLIER, NEVER ASSUMED (lane B1P,
+// 2026-10-04, atr-trailing-stop-by-ceyhun-spy): the replay over [prehistory +
+// window] carries `historyFromListing` exactly when the SUPPLIER asserts
+// `startsAtBar0` (its first bar is the listing, so the replayed series is too, as
+// on a member's standalone D chart). A supplier that does not start at the listing
+// keeps it off. ⛔ It is NEVER forced on for the short capture itself: that seeds a
+// listing-only pass at a bar that is not the listing (B1P probe C: 23 WRONG colours).
+const OHLCV_FIELDS = ['time', 'open', 'high', 'low', 'close', 'volume']
+
+// ⭐ RC1 — `TICKER|tf` → what each committed capture spans (metadata only, so the index
+// costs one parse of the directory and holds no bars). A candidate's own rows are read
+// back, and its receipt validated, only once it is actually considered.
+// ⛔ Deliberately NOT `otherCaptureIndex`: that validates every capture's receipt up
+// front (measured ~57 s for the directory), which every paint capture would then pay.
+let warmCandidateIndex = null
+const warmCandidateRows = new Map()
+
+function warmCandidates() {
+  if (warmCandidateIndex) return warmCandidateIndex
+  warmCandidateIndex = new Map()
+  if (!fs.existsSync(OTHER_CAPTURE_DIR)) return warmCandidateIndex
+  for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
+    if (!name.endsWith('.json')) continue
+    let cap
+    try { cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, name), 'utf8')) } catch { continue }
+    if (!cap || cap.schema !== 'uct.vendor-capture/v1' || !cap.bars || !Array.isArray(cap.bars.rows)) continue
+    const rows = cap.bars.rows
+    if (!rows.length) continue
+    const { ticker } = symbolOf(cap)
+    if (!ticker) continue
+    const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
+    if (!warmCandidateIndex.has(key)) warmCandidateIndex.set(key, [])
+    warmCandidateIndex.get(key).push({ file: name, timeUnit: cap.bars.timeUnit,
+      firstT: rows[0][0], lastT: rows[rows.length - 1][0],
+      listing: !!(cap.history && cap.history.startsAtBar0 === true) })
+  }
+  return warmCandidateIndex
+}
+
+/** A candidate's own rows, or null when its receipt does not validate. */
+function warmCandidateRowsOf(file) {
+  if (!warmCandidateRows.has(file)) {
+    let rows = null
+    try {
+      const cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, file), 'utf8'))
+      if (validateCapture(cap).ok) rows = cap.bars.rows
+    } catch { rows = null }
+    warmCandidateRows.set(file, rows)
+  }
+  return warmCandidateRows.get(file)
+}
+
+/** The prehistory a capture's paints are replayed over, or why there is none.
+ *  @returns {{kind: 'warm'|'cold'|'bar0', rows: any[]|null, file: string|null,
+ *             bars: number, refused: string[], reason: string}} */
+export function warmBarsSupply(capture) {
+  const none = (kind, reason, refused = []) => ({ kind, rows: null, file: null, bars: 0, refused, reason, historyFromListing: null })
+  if (capture && capture.history && capture.history.startsAtBar0 === true) {
+    return none('bar0', 'the capture starts at the listing (history.startsAtBar0); there is no history before bar 0')
+  }
+  if (barIndexStartsAtZero(capture)) {
+    return none('bar0', "the capture's own bar_index control reads 0 on its first bar; TradingView's history started there")
+  }
+  const rows = (capture && capture.bars && capture.bars.rows) || []
+  if (!rows.length) return none('cold', 'the capture holds no bars')
+  const { ticker } = symbolOf(capture)
+  const key = `${String(ticker || '').toUpperCase()}|${tfCodeOf(capture.timeframe)}`
+  const first = rows[0][0]
+  const refused = []
+  const proved = []
+  for (const meta of warmCandidates().get(key) || []) {
+    // only a capture that starts BEFORE the window and reaches its first bar
+    if (meta.timeUnit !== capture.bars.timeUnit || !(meta.firstT < first) || meta.lastT < first) continue
+    const candRows = warmCandidateRowsOf(meta.file)
+    if (!candRows) { refused.push(`${meta.file}: its receipt does not validate`); continue }
+    const cand = { file: meta.file, rows: candRows, listing: meta.listing }
+    const at = cand.rows.findIndex((r) => r[0] === first)
+    if (at <= 0) continue // the window's first bar is not in it
+    const byT = new Map(cand.rows.map((r) => [r[0], r]))
+    const candLast = cand.rows[cand.rows.length - 1][0]
+    let why = null
+    for (const w of rows) {
+      if (w[0] > candLast) break
+      const c = byT.get(w[0])
+      if (!c) { why = `window bar ${w[0]} is absent from it inside its span`; break }
+      for (let k = 1; k < OHLCV_FIELDS.length; k += 1) {
+        if (c[k] !== w[k]) { why = `bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}`; break }
+      }
+      if (why) break
+    }
+    if (why) { refused.push(`${cand.file}: ${why}`); continue }
+    proved.push({ file: cand.file, rows: cand.rows.slice(0, at), listing: cand.listing })
+  }
+  if (!proved.length) {
+    return none('cold', refused.length
+      ? `every candidate supplier was refused, cold replay (${refused.join('; ')})`
+      : `no committed capture of ${key} holds bars before ${first}, cold replay`, refused)
+  }
+  proved.sort((a, b) => (b.rows.length - a.rows.length) || (a.file < b.file ? -1 : 1))
+  const pick = proved[0]
+  return { kind: 'warm', rows: pick.rows, file: pick.file, bars: pick.rows.length, refused,
+    historyFromListing: pick.listing === true,
+    reason: `${pick.rows.length} bars of prehistory from ${pick.file}`
+      + `${pick.listing ? ' (which starts at the listing: historyFromListing on)' : ' (not from the listing: historyFromListing off)'}`
+      + `, every overlapping window bar equal on ${OHLCV_FIELDS.join('/')}` }
 }
 
 /** The id every harness run installs under. Satisfies `defSchema.ID_RE` (it is
@@ -659,6 +793,13 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/** What a withholding code is about, for the note that names it. */
+function whatWithheld(code) {
+  if (code.startsWith('bar-index:')) return '`bar_index`'
+  if (code.startsWith('seed:')) return 'a recursive series\' seed'
+  return 'time(<timeframe>)'
+}
+
 /**
  * Run the member door on the capture's bars.
  *
@@ -716,11 +857,29 @@ export function runOurSide(capture) {
     const colErrors = (registry.columnErrors && registry.columnErrors(cols)) || {}
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
-    const paintCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
-    const paints = (def.paints || []).map((p) => ({
-      kind: p.kind, line: p.line ?? null, title: p.title ?? null,
-      colors: paintColoursFor(p, 'harness', paintCols, bars.length),
-    }))
+    // ⭐⭐ RC1 — over [prehistory + window] when a proved supplier exists
+    // (`warmBarsSupply`), then SLICED to the window. Paint lane only: the plot lane
+    // carries its own warm-up model (`compare.mjs` `warmupBars`) and its pinned
+    // verdicts are another lane's.
+    // (asked whenever the script records a paint at all, so a grade whose paints the
+    // door folded to `na` still says which history it stands on)
+    const recordsPaints = (def.paints || []).length > 0 || runtimeAwarePaints(built, def).length > 0
+    const paintSupply = recordsPaints ? warmBarsSupply(capture) : null
+    if (paintSupply) notes.push(`paints: ${paintSupply.kind}: ${paintSupply.reason}`)
+    const warm = !!(paintSupply && paintSupply.kind === 'warm' && (def.paints || []).length > 0)
+    const pre = warm ? paintSupply.bars : 0
+    const paintBars = warm
+      ? toProductBars({ ...capture, bars: { ...capture.bars, rows: paintSupply.rows.concat(capture.bars.rows) } })
+      : bars
+    // ⭐ the warm replay's own context: the listing flag comes from the SUPPLIER
+    const paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
+    const paintColsRaw = warm ? registry.computeFor(def, paintBars, undefined, paintCtx) : cols
+    const paintCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
+    const paints = (def.paints || []).map((p) => {
+      const all = paintColoursFor(p, 'harness', paintCols, paintBars.length)
+      return { kind: p.kind, line: p.line ?? null, title: p.title ?? null,
+        colors: Array.isArray(all) ? all.slice(pre) : all }
+    })
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
       for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
@@ -740,10 +899,13 @@ export function runOurSide(capture) {
     // ⛔ Only `bar-index:window`: the C36 whole-series codes keep their grading
     // (changing another lane's verdict is not this one's to do).
     const clockReport = registry.chartClockReport(cols)
+    // ⭐ F5 — per plot, the bars a recursive series' seed withholds off the
+    // listing, with the bound each was decided from (`compare.mjs::seedWithheldAt`).
+    const seedReport = registry.seedWarmupReport(cols)
     const withheldWhole = new Map()
     if (clockReport) {
       for (const r of clockReport.withheld) {
-        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+        const what = whatWithheld(r.code)
         notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
         // ⭐ H6 — `cum:window` (`ta.obv`'s level off the listing) is the same kind
         // of withholding: every bar, by name, never a value that differs.
@@ -758,6 +920,24 @@ export function runOurSide(capture) {
       colours = { ok: false, reason: `binder threw: ${String((err && err.message) || err)}`, byKey: new Map() }
     }
     if (!colours.ok) notes.push(`colours unresolvable: ${colours.reason}`)
+    // ⭐ RC1 — what the binder hands the chart for the PAINTS, over the same warm
+    // bars the paints were graded on, sliced to the window (backgrounds by index,
+    // candle overrides by the window's own bar times).
+    let drawnPaints = colours && colours.paints ? colours.paints : null
+    if (warm) {
+      try {
+        const w = drawnColours(def, paintBars, paintCtx)
+        const keep = new Set(bars.map((b) => String(b.t)))
+        drawnPaints = w && w.paints ? {
+          backgrounds: w.paints.backgrounds.map((b) => ({ ...b, colors: Array.isArray(b.colors) ? b.colors.slice(pre) : b.colors })),
+          barColours: w.paints.barColours
+            ? new Map([...w.paints.barColours].filter(([t]) => keep.has(String(t)))) : w.paints.barColours,
+        } : null
+      } catch (err) {
+        notes.push(`paints: the warm binder pass threw (${String((err && err.message) || err)}); no drawn paints`)
+        drawnPaints = null
+      }
+    }
 
     const rowByAst = new Map((built.rows || []).map((r) => [r.ast, r]))
     // ⭐ A RUNTIME-LANE document (`memberPaneDefinition`'s route for a script the
@@ -791,7 +971,7 @@ export function runOurSide(capture) {
           ? `withheld by name on this runtime document — ${String(disclosedWhy.get(doorLabel)).slice(0, 400)}`
           : o && o.refusal
             ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
-            : built.lane === 'runtime' && o && (o.hidden || o._authorHidden === true)
+            : built.lane === 'runtime' && o && (hiddenOnChart(o) || o._authorHidden === true)
               ? `hidden on this runtime document (${(o && o.hiddenReason) || 'display.none'}): a hidden row computes no column here`
               : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
@@ -806,23 +986,27 @@ export function runOurSide(capture) {
         // and why OUR side hid the row (`pine.js` `hiddenReason`), which the verdict
         // reads to tell "the author hid it" from "this engine did not draw it".
         kind: o ? o.kind || null : null,
-        hiddenReason: o && o.hidden ? (o.hiddenReason || 'unstated') : null,
+        // ⭐ H8 — only a row the CHART hides carries a reason: a constant the pane now
+        // draws (`plot(0)`) and that another wall withholds is named by that wall.
+        hiddenReason: o && hiddenOnChart(o) ? (o.hiddenReason || 'unstated') : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
-        hidden: !!(o && o.hidden),
+        hidden: !!(o && hiddenOnChart(o)),
         column: col || null,
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        // ⭐ F5 — the seed withholding, or null (see `seedReport`).
+        seedWithheld: row && col && seedReport && seedReport[row.key] ? seedReport[row.key] : null,
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
         treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
         colorsReason: row && !colours.byKey.has(row.key)
-          ? (o && o.hidden
+          ? (o && hiddenOnChart(o)
             ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
             : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
           : null,
@@ -844,7 +1028,7 @@ export function runOurSide(capture) {
         : objectsOf(def, bars, ctx, cols, built))
     if (objects && hybrid) objects.objectsRun = { drawn: !!hybrid.payload, withheld: hybrid.withheld }
     for (const r of (objects && objects.chartClock) || []) {
-      const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+      const what = whatWithheld(r.code)
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
     }
     if (objects && objects.ok && objects.drawn) {
@@ -864,8 +1048,14 @@ export function runOurSide(capture) {
       // ⭐ B1 — what the door carried (every call, withheld ones included, in source
       // order), what the document draws, and what the binder handed the chart.
       paints,
+      // ⭐ RC1 — which bars the paints were replayed over: `warm` (with the
+      // supplier's file and bar count), `cold`, or `bar0`. Read by `gradePaints`.
+      paintSupply: paintSupply ? { kind: paintSupply.kind, file: paintSupply.file, bars: paintSupply.bars,
+        replayed: warm,
+        historyFromListing: warm ? paintCtx.historyFromListing : ctx.historyFromListing,
+        refused: paintSupply.refused, reason: paintSupply.reason } : null,
       translationPaints: runtimeAwarePaints(built, def),
-      drawnPaints: colours && colours.paints ? colours.paints : null,
+      drawnPaints,
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

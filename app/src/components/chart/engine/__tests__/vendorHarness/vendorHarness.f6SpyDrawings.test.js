@@ -157,7 +157,10 @@ describe('F6 — pro-trading-art, rsi-swing, price-action, trend-duration SPY: t
   const CASES = [
     // [id, offset, ours, vendor, extra made before our first object, of them outside the window's prices]
     ['pro-trading-art-double-top-bottom-with-alert', 267, 39, 306, 267, 234],
-    ['rsi-swing-indicator', 360, 85, 100, 15, 0],
+    // ⭐ F5 — 360 -> 352 under the held-state rule (`holdsUntilSet`): our ids of the
+    // same 85 objects are 8 higher (what moved the creation counter was not traced;
+    // the held set is unchanged). All 85 still pair, in order, at one offset.
+    ['rsi-swing-indicator', 352, 85, 100, 15, 0],
     ['price-action-as-in-book-fibonacci-supportresistant-trendline', 3768, 507, 509, 2, 0],
     ['trend-duration-forecast-chartprime', 887, 53, 56, 3, 0],
   ]
@@ -438,29 +441,31 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
 describe('F6 — market-structure-by-leviathan SPY: lines 117/21, labels 368/63 are the WINDOW, plus ONE wrong caption (an engine defect, owner F5)', () => {
   const ID = 'market-structure-by-leviathan-spy-1d-2026-10-03'
 
-  it('83 of our 84 objects are TradingView\'s at id + 401; its 401 others were made before our bar 0 (348 wholly outside the window\'s prices)', () => {
+  // ⭐ F5 — FIXED (withheld, never wrong). Before F5 we held 84 objects, 83 at
+  // id + 401 and ONE wrong caption (`LH` at 454.05 where TradingView prints `HH`).
+  // A hold-or-set `var` off the listing is now switched (`interpret.js::holdsUntilSet`):
+  // `prevHigh` is unknown where no set lies inside its 250-bar window, and the label
+  // decided from it is withheld. Withheld objects take no creation id here, so the
+  // offset is no longer one number: pairing is IN ORDER.
+  it('all 82 objects we hold are TradingView\'s, in order; the wrong `LH` at 454.05 is no longer drawn (F5)', () => {
     const c = cap(ID)
     const V = vendorObjects(c)
     const O = ourObjects(ours(ID))
-    const { misses, extra } = idOffsetPairing(V, O, 401)
-    expect(O.length).toBe(84)
-    expect(misses.map(key)).toEqual(['label|LH|454.05'])
-    const pre = extra.filter((v) => v.id <= 401)
-    expect(pre.length).toBe(401)
-    expect(pre.filter((v) => outsideWindow(v, windowRange(c))).length).toBe(348)
-    // the one vendor object beyond the window that we do not pair is the SAME label, captioned HH
-    expect(extra.filter((v) => v.id > 401).map((v) => [v.id, key(v)])).toEqual([[409, 'label|HH|454.05']])
+    expect(O.length).toBe(82)
+    const { pairs, unO, unV } = inOrderPairing(V, O)
+    expect(unO).toEqual([])
+    expect(pairs.length).toBe(82)
+    expect(O.some((o) => key(o) === 'label|LH|454.05')).toBe(false)
+    // TradingView's HH there is one we do not hold (withheld), never one we got wrong
+    expect(unV.some((v) => key(v) === 'label|HH|454.05')).toBe(true)
   }, T)
 
-  it('⛔ OPEN (owner F5): the swing high at our bar 524 is captioned LH where TradingView prints HH — `prevHigh` is a bounded accumulator re-seeded 250 bars back, and its last set (bar 272, confirmed at 292) is 252 bars before', () => {
+  it('⛔ the cause stays pinned: the swing high at bar 524 reads `prevHigh` set at bar 272 (confirmed 292), 252 bars back, past the 250-bar window', () => {
     const c = cap(ID)
     // the previous 20-bar pivot high on the window's own bars is bar 272 (358.75) — nothing between
     const highs = pivotCentres(c, 20).filter((p) => p.k === 'H').map((p) => p.bar)
     expect(highs.filter((b) => b > 200 && b <= 524)).toEqual([211, 272, 524])
-    // 454.05 >= 358.75 is HH; reading the seed (na) makes `pivHi >= prevHigh` false -> LH
     expect((524 + 20) - (272 + 20)).toBeGreaterThan(250)
-    const O = ourObjects(ours(ID))
-    expect(O.find((o) => o.id === 8)).toMatchObject({ t: 'LH', y: [454.05] })
   }, T)
 
   it('control: on RDDT (from the listing) the same script MATCHES', () => {

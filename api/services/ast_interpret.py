@@ -1976,12 +1976,85 @@ def switched_seed_of(n: Any) -> Any:
     return None
 
 
-def reads_switched_state(tree: Any) -> bool:
-    """Does this tree hold a switched recurrence anywhere? Iterative."""
-    stack = [tree]
+def held_seed_switched_of(opts: Optional[Mapping[str, Any]]) -> bool:
+    """``interpret.js::heldSeedSwitchedOf`` (F5) -- a Pine document off the listing,
+    on the chart's own bars: a hold-or-set state is read as switched."""
+    o = opts or {}
+    return (o.get("barIndexAbsolute") is True and o.get("historyFromListing") is not True
+            and o.get("heldSeedNested") is not True)
+
+
+def holds_until_set(node: Any) -> bool:
+    """``interpret.js::holdsUntilSet`` (F5) -- is this recurrence a HOLD-OR-SET
+    state: every arm of its body's ternaries a bare hold (``self``, ``nz(self[, k])``)
+    or free of the running value, at least one of each, and no ``self[k]`` anywhere?"""
+    if not (isinstance(node, dict) and node.get("type") == "call"
+            and node.get("name") in RECURRENCES and isinstance(node.get("args"), list)):
+        return False
+    rec = RECURRENCES[node["name"]]
+    args = node["args"]
+    seed_at, body_at = rec.get("seed"), rec.get("body")
+    if not (isinstance(seed_at, int) and isinstance(body_at, int) and body_at < len(args)):
+        return False
+    if seed_at < len(args) and switched_seed_of(args[seed_at]):
+        return False
+    bind = rec.get("binds")
+
+    def is_self(n: Any) -> bool:
+        return isinstance(n, dict) and n.get("type") == "series" and n.get("name") == bind
+
+    def walk_any(n: Any, hit) -> bool:
+        stack = [n]
+        while stack:
+            x = stack.pop()
+            if not isinstance(x, dict):
+                continue
+            if hit(x):
+                return True
+            if x.get("type") == "call" and x.get("name") in RECURRENCES:
+                continue
+            a = x.get("args")
+            if isinstance(a, list):
+                stack.extend(a)
+        return False
+
+    def carries(n: Any) -> bool:
+        return walk_any(n, is_self)
+
+    def lagged(n: Any) -> bool:
+        return walk_any(n, lambda x: (x.get("type") == "offset" and isinstance(x.get("args"), list)
+                                      and len(x["args"]) > 0 and is_self(x["args"][0])))
+
+    held = [False]
+
+    def arm(n: Any) -> bool:
+        if not isinstance(n, dict) or not carries(n):
+            return True
+        if is_self(n):
+            held[0] = True
+            return True
+        a = n.get("args")
+        if (n.get("type") == "call" and n.get("name") == "nz" and isinstance(a, list) and a
+                and is_self(a[0]) and (len(a) == 1 or not carries(a[1]))):
+            held[0] = True
+            return True
+        # a test that reads the running value is not a hold-or-set (JS twin)
+        if n.get("type") == "op" and n.get("name") == _TERNARY_NAME and isinstance(a, list) and len(a) == 3:
+            return (not carries(a[0])) and arm(a[1]) and arm(a[2])
+        return False
+
+    body = args[body_at]
+    return (not lagged(body)) and arm(body) and held[0] and not is_self(body)
+
+
+def reads_switched_state(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> bool:
+    """Does this tree hold a switched recurrence anywhere -- or, off the listing
+    (``held_seed_switched_of``), a hold-or-set one on the chart's own bars? Iterative."""
+    held = held_seed_switched_of(opts)
+    stack = [(tree, False)]
     seen = set()
     while stack:
-        n = stack.pop()
+        n, under = stack.pop()
         if not isinstance(n, dict) or id(n) in seen:
             continue
         seen.add(id(n))
@@ -1992,8 +2065,11 @@ def reads_switched_state(tree: Any) -> bool:
             seed_at = rec.get("seed") if isinstance(rec, Mapping) else None
             if isinstance(seed_at, int) and seed_at < len(args) and switched_seed_of(args[seed_at]):
                 return True
+            if held and not under and holds_until_set(n):
+                return True
+        into = under or n.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
-            stack.extend(args)
+            stack.extend((a, into) for a in args)
     return False
 
 
@@ -3963,34 +4039,9 @@ def evaluation_units(root: Any) -> int:
         child_scope = "%s>%s" % (scope, sid) if node.get("type") in _SCOPE_TYPES else scope
         spec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
         body_at = spec.get("body") if isinstance(spec, Mapping) and isinstance(spec.get("body"), int) else -1
-        seed_at = spec.get("seed") if isinstance(spec, Mapping) and isinstance(spec.get("seed"), int) else -1
         for ai, a in enumerate(args):
-            # H7 -- a plain-update seed mark is counted as its inner seed, as the JS
-            # lane counts it (``interpret.js::isPlainUpdateSeed``): the wrappers are
-            # read only by the JS listing pass. Mirror of ``evaluationUnits``.
-            if ai == seed_at and _is_plain_update_seed(a):
-                a = a["args"][1]["args"][1]
             stack.append((a, child_scope, "%s|%s" % (scope, sid) if ai == body_at else rec))
     return len(units)
-
-
-def _is_one_times(n: Any) -> bool:
-    args = n.get("args") if isinstance(n, dict) else None
-    return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "*"
-            and isinstance(args, list) and len(args) == 2 and isinstance(args[0], dict)
-            and args[0].get("type") == "num" and args[0].get("value") == 1)
-
-
-def _is_plain_update_seed(n: Any) -> bool:
-    """H7 (step 92h) -- ``1 * (1 * (0 / 0))``, the plain form's ``na`` seed marked with
-    its bar-0 reading (``interpret.js::plainUpdateSeed``). Evaluates to NaN here."""
-    if not (_is_one_times(n) and _is_one_times(n["args"][1])):
-        return False
-    z = n["args"][1]["args"][1]
-    za = z.get("args") if isinstance(z, dict) else None
-    return (isinstance(z, dict) and z.get("type") == "op" and z.get("name") == "/"
-            and isinstance(za, list) and len(za) == 2
-            and all(isinstance(x, dict) and x.get("type") == "num" and x.get("value") == 0 for x in za))
 
 
 # --------------------------------------------------------------------------- #
@@ -4132,7 +4183,7 @@ def interpret(ast: Any, bars: List[dict],
             return [None] * len(bars)
     column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     if (not probing and (opts or {}).get("switchedAgreement") is not False
-            and reads_switched_state(ast)):
+            and reads_switched_state(ast, opts)):
         real = list(column)
         # the proof: every bar within reach of an unknown switched bar is withheld
         dep = switched_dependency_mask(ast, bars, inputs, budget, scalars, opts)
@@ -4148,6 +4199,17 @@ def interpret(ast: Any, bars: List[dict],
                     real[i] = math.nan
         column = real
     if not probing:
+        # F5 -- ``interpret.js::seedWarmupMask``: off the listing, in a Pine document,
+        # a recursive series' early bars are withheld by their own decay. Decided
+        # on the column BEFORE the three withholdings below, as the JS lane decides
+        # it beside them (``withheldReadMask`` computes every mask off one column).
+        # H6 -- ...and its running-total half (``interpret.js::cumulativeLevelMask``):
+        # off the listing, ``ta.obv``'s level is TradingView's minus a constant. It
+        # withholds the WHOLE tree, so the seed mask is not asked (one code, ``cum:window``,
+        # never a ``seed:window`` beside it): the JS lane's ``withheldReadMask`` order.
+        summed = cumulative_level_mask(ast, bars, inputs, budget, scalars, opts)
+        seeded = (None if summed is not None
+                  else seed_warmup_mask(ast, bars, inputs, budget, scalars, opts, raw=column))
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
@@ -4158,9 +4220,8 @@ def interpret(ast: Any, bars: List[dict],
         indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
         if indexed is not None:
             column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
-        # H6 -- ...and its running-total half (``interpret.js::cumulativeLevelMask``):
-        # off the listing, ``ta.obv``'s level is TradingView's minus a constant.
-        summed = cumulative_level_mask(ast, bars, inputs, budget, scalars, opts)
+        if seeded is not None:
+            column = [math.nan if seeded[i] else v for i, v in enumerate(column)]
         if summed is not None:
             column = [math.nan if summed[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
@@ -4255,6 +4316,10 @@ def _reads_recurrence_binding(tree: Any) -> bool:
         if isinstance(args, list):
             stack.extend(args)
     return False
+# F5 -- the seed warm-up bound lives in its own module (a 600-line pass kept out
+# of this file).
+from api.services.ast_seed_warmup import seed_warmup_mask  # noqa: E402
+
 # C45 -- the bar-index shift analysis lives in its own module (it catches its own
 # "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
@@ -4520,6 +4585,10 @@ CHART_CLOCK_WHOLE = (
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars",
+    # F5 -- a recursive series seeded at the window (``ast_seed_warmup``)
+    "seed:window",
+    # F5 -- a hold-or-set state whose window saw no set (``holds_until_set``)
+    "seed:held",
 )
 
 
@@ -5009,6 +5078,48 @@ def period_anchor_mask(tree: Any, bars: List[dict],
     return mask
 
 
+def path_reach(root: Any, a: Any) -> float:
+    """``interpret.js::pathReach`` (F5) -- the largest sum of lookbacks along a path
+    from the root DOWN TO ``a`` (a call's own window, an offset's bars), never the
+    whole tree's sum. A path through ``tf`` / ``sym`` / ``ltf`` answers infinity."""
+    r_of: Dict[int, float] = {}
+    neg = -math.inf
+    for node in _flatten(root):
+        if node is a:
+            r_of[id(node)] = 0
+            continue
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        kind = node.get("type")
+        best = neg
+        if kind in ("op", "textop"):
+            for x in args:
+                r = r_of.get(id(x), neg)
+                if r > best:
+                    best = r
+        elif kind == "offset":
+            r = r_of.get(id(args[0]), neg) if args else neg
+            if r > neg:
+                best = _offset_bars(node) + r
+        elif kind == "call":
+            spec = _fn_spec(node.get("name"))
+            b = neg
+            for i, x in enumerate(args):
+                if spec["args"][i] == "int":
+                    continue
+                r = r_of.get(id(x), neg)
+                if r > b:
+                    b = r
+            if b > neg:
+                best = _own_lookback(node, spec) + b
+        elif args:
+            for x in args:
+                if r_of.get(id(x), neg) > neg:
+                    best = math.inf
+        r_of[id(node)] = best
+    r = r_of.get(id(root), neg)
+    return 0 if r == neg else r
+
+
 def switched_dependency_mask(tree: Any, bars: List[dict],
                              inputs: Optional[Mapping[str, Any]] = None,
                              budget: Optional[Mapping[str, Any]] = None,
@@ -5026,6 +5137,8 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
     n = len(bars)
     nodes: List[dict] = []
     crosses = False
+    held = held_seed_switched_of(opts)
+    held_nodes = set()
     stack = [(tree, False)]
     seen = set()
     while stack:
@@ -5041,6 +5154,10 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
                 if under:
                     crosses = True
                 nodes.append(node)
+            elif held and not under and holds_until_set(node):
+                # F5 -- a hold-or-set state off the listing (``holds_until_set``)
+                nodes.append(node)
+                held_nodes.add(id(node))
         into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
@@ -5054,7 +5171,8 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
     root_reach = max_lookback(tree)
     mask = [0] * n
     for a in nodes:
-        reach = max(0, root_reach - max_lookback(a))
+        # F5 -- a held node is reached along the paths that hold it (``path_reach``)
+        reach = path_reach(tree, a) if id(a) in held_nodes else max(0, root_reach - max_lookback(a))
         hi = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=PREFIX_PROBE))
         lo = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=-PREFIX_PROBE))
         last = -math.inf
@@ -5325,6 +5443,10 @@ def _interpret_column(ast: Any, bars: List[dict],
     #: never be handed to a different set of bars.
     _id_of, _free_of, _ = structural_maps(ast)
     _memo: dict = {}
+    # F5 -- ``ast_seed_warmup._Env`` reads every self-free node's value off ONE
+    # evaluation through this sink (``id(node)`` -> value). Absent, nothing is
+    # recorded and nothing else changes.
+    _value_sink = (opts or {}).get("seedValueSink")
 
     # C49 -- ``time(<period>)`` / ``time_close(<period>)`` on a New York session
     # chart are the VENDOR'S CALENDAR, not the tree's literal reading: the port of
@@ -5378,12 +5500,16 @@ def _interpret_column(ast: Any, bars: List[dict],
         _key = id(n)
         _slot = _id_of.get(_key) if _free_of.get(_key) else None
         if _slot is not None and _slot in _memo:
+            if _value_sink is not None:
+                _value_sink[_key] = _memo[_slot]
             return _memo[_slot]
         _value = _chart_clock_value(n)
         if _value is None:
             _value = _eval_raw(n)
         if _slot is not None:
             _memo[_slot] = _value
+            if _value_sink is not None:
+                _value_sink[_key] = _value
         return _value
 
     def _eval_raw(n: Any) -> Any:
@@ -5479,7 +5605,9 @@ def _interpret_column(ast: Any, bars: List[dict],
             # HTF code so a nested clock or `tf` reads the right base.
             child = _to_column(
                 interpret(n["args"][0], htf, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {}, tf=code)),
+                          scalars=scalars, opts=dict(opts or {}, tf=code,
+                                                     seedValueSink=None, seedWarmupSink=None,
+                                                     heldSeedNested=True)),
                 len(htf))
 
             # \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base
@@ -5538,7 +5666,8 @@ def _interpret_column(ast: Any, bars: List[dict],
 
             child = _to_column(
                 interpret(n["args"][0], series, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {})),
+                          scalars=scalars, opts=dict(opts or {}, seedValueSink=None,
+                                                     seedWarmupSink=None, heldSeedNested=True)),
                 len(series))
 
             # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -5870,13 +5999,26 @@ def _interpret_column(ast: Any, bars: List[dict],
         # ⭐ C12s -- a switched mark carries the real seed; the switched window
         # never reads it (it starts from an unknown state).
         switched_real = switched_seed_of(node["args"][rec["seed"]])
+        # F5 -- off the listing a hold-or-set state is switched (``held_seed_switched_of``)
+        held_switch = (switched_real is None and lag["max"] == 0
+                       and held_seed_switched_of(opts) and holds_until_set(node))
         seed = _to_column(eval_node(switched_real if switched_real is not None
                                     else node["args"][rec["seed"]]), length)
         probe = (opts or {}).get("prefixProbe")
         fill = (float(probe) if isinstance(probe, (int, float)) and not isinstance(probe, bool)
                 else math.nan)
 
-        if switched_real is not None:
+        # F5 -- a held state withheld where the bounded window would have drawn
+        # its seed is NAMED (``seed:held``), never blank silently
+        late_unknown = [False]
+
+        def held_named(col: List[float]) -> List[float]:
+            if held_switch and late_unknown[0] and not (
+                    isinstance(probe, (int, float)) and not isinstance(probe, bool)):
+                _name_chart_clock(opts, ("seed:held",))
+            return col
+
+        if switched_real is not None or held_switch:
             if lag["max"] > 0:
                 _refuse("interpret:recurrence",
                         f"— a switched {node['name']}(…) reads `{bind}[{lag['max']}]`; the "
@@ -6086,8 +6228,11 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if v is not None and latest_start[t] > latest_in_segment:
                         latest_in_segment = latest_start[t]
                     known = v
-                    col[t] = v if (v is not None and latest_in_segment >= t - warmup + 1) else fill
-                return col
+                    ok = v is not None and latest_in_segment >= t - warmup + 1
+                    col[t] = v if ok else fill
+                    if not ok and t >= warmup:
+                        late_unknown[0] = True
+                return held_named(col)
 
             col = _nan_col(length)
             state: Any = _UNKNOWN
@@ -6102,8 +6247,11 @@ def _interpret_column(ast: Any, bars: List[dict],
                 else:
                     v = step_unknown(body, j, state)
                 state = v
-                col[j] = v if (v is not _UNKNOWN and last_forget > j - warmup) else fill
-            return col
+                ok = v is not _UNKNOWN and last_forget > j - warmup
+                col[j] = v if ok else fill
+                if not ok and j >= warmup:
+                    late_unknown[0] = True
+            return held_named(col)
 
         out = _nan_col(length)
         # ⭐ C12s -- the probe the root agreement asks with fills the not-computable

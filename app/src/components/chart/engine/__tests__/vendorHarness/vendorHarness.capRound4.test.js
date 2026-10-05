@@ -60,9 +60,10 @@ describe('Q-H1b — ratchet stops, RDDT from the listing', () => {
       expect(p.stats.compared).toBe(636)
     })
 
-  // ⭐ H7 (step 92h) — R03_trend's bar 0 (ours na, TradingView 1) is served now: a plain
-  // `x = …` / `x := … x[1] …` runs its update on bar 0 (`interpret.js::plainUpdateSeed`).
-  it('⭐ door: R03_trend MATCH on all 636 bars, bar 0 included (H7, the plain form\'s bar-0 update)', () => {
+  // ⭐ F5 — was a KNOWN DIVERGE on bar 0 only (ours na, TradingView 1): the listing
+  // pass did not know whether bar 0 of an `na` seed IS the seed or runs the update.
+  // It runs the update (`interpret.js`, `listingReading`), so bar 0 draws 1.
+  it('⭐ door: R03_trend MATCH on all 636 bars, bar 0 included (F5)', () => {
     const p = item(grade(RATCHET_RDDT), 'R03_trend')
     expect(p.verdict, p.reason).toBe('MATCH')
     expect(p.stats.compared).toBe(636)
@@ -82,15 +83,19 @@ describe('Q-H1a — ratchet stops, SPY behind the curtain', () => {
     '⭐ door: %s MATCH on every steady bar', (title) => {
       const p = item(grade(RATCHET_SPY), title)
       expect(p.verdict, p.reason).toBe('MATCH')
-      expect(p.stats.steady.compared).toBeGreaterThan(1200)
+      // ⭐ F5 — a ratchet that reads `ta.atr` is withheld by its seed warm-up off the
+      // listing; every bar compared or withheld-within-bound, and none violated
+      expect(p.stats.steady.compared + (p.stats.seedWithheld || 0)).toBeGreaterThan(1200)
+      expect(p.stats.steady.compared).toBeGreaterThan(700)
+      expect(p.stats.seedBoundViolations || 0).toBe(0)
     })
 
-  it('door: R05_range_filter is a CONVERGING PREFIX (bars 331..446, error falling), every later bar agrees', () => {
+  it('door: R05_range_filter MATCHes (F5 — was a CONVERGING PREFIX, bars 331..446: its seed warm-up is now withheld by its own decay, every withheld bar within its bound)', () => {
     const p = item(grade(RATCHET_SPY), 'R05_range_filter')
-    expect(p.verdict).toBe('DIVERGE')
-    expect(p.stats.steady.pattern.kind).toBe('converging-prefix')
-    expect(p.stats.steady.pattern.lastDivergentBar).toBe(446)
-    expect(p.stats.steady.pattern.agreeingAfter).toBe(1353)
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.stats.seedWithheld).toBeGreaterThan(446 - 331)
+    expect(p.stats.seedWithheldLast).toBeGreaterThanOrEqual(446)
+    expect(p.stats.seedBoundViolations).toBe(0)
   })
 
   it('door: R00 bar_index is withheld by name on a chart that does not start at the listing', () => {

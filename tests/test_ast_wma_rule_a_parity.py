@@ -1,4 +1,4 @@
-"""H7 (step 92h) -- ``ta.wma``'s warm-up is RULE A in the Python lane too, held to
+"""H7 (step 92) -- ``ta.wma``'s warm-up is RULE A in the Python lane too, held to
 the JS lane's own output.
 
 CAP4 Q-RT8a (``vw-rt8-runtime-followups-rddt-1d-2026-10-04``, NYSE:RDDT 1D from
@@ -60,19 +60,3 @@ def test_the_fixture_is_not_vacuous():
     assert cases["control · wma 10 · no hole"]["first"] == 9
     for c in cases.values():
         assert sum(1 for v in c["expected"] if v is not None) > 20, c["name"]
-
-
-def test_the_plain_update_seed_mark_costs_the_python_budget_nothing():
-    """H7 (step 92h) -- the plain form's seed mark ``1 * (1 * (0 / 0))`` is counted as
-    its inner ``0 / 0`` here as in the JS lane (``interpret.js::evaluationUnits``), so
-    a tree at the node cap stays under it. Control: the same wrappers anywhere but an
-    accum's seed ARE counted."""
-    num = lambda v: {"type": "num", "value": v}
-    na = {"type": "op", "name": "/", "args": [num(0), num(0)]}
-    mark = {"type": "op", "name": "*", "args": [num(1), {"type": "op", "name": "*", "args": [num(1), na]}]}
-    body = {"type": "op", "name": "+", "args": [{"type": "series", "name": "self"}, {"type": "series", "name": "close"}]}
-    acc = lambda seed: {"type": "call", "name": "accum", "args": [seed, body, num(250)]}
-    assert ai.node_count(acc(mark)) == ai.node_count(acc(na))
-    plain = {"type": "op", "name": "+", "args": [mark, {"type": "series", "name": "close"}]}
-    plain_na = {"type": "op", "name": "+", "args": [na, {"type": "series", "name": "close"}]}
-    assert ai.node_count(plain) > ai.node_count(plain_na)

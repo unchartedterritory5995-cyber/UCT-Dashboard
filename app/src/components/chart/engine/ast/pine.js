@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, plainUpdateSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -4105,13 +4105,28 @@ export function forgetsItsSeed(node, table, warmup) {
    *  (conjunctively) is not; one guarded by `not na(self)` is the only one that
    *  is. Anything this does not recognise answers yes — it narrows exactly the
    *  latch-once shape and leaves every other verdict to `ok`. */
-  const isNaSelf = (t) => !!t && t.type === 'call' && t.name === 'na'
-    && Array.isArray(t.args) && t.args.length === 1 && isSelf(t.args[0])
-  const impliesUnset = (t) => {
+  // ⭐ G16 (2026-10-04) — F2 (362278f50b) reads a v4/v5 `and`/`or`/`not` operand
+  // AS A CONDITION, so `na(first) and …` now arrives here as `na(self) != 0 && …`.
+  // `x != 0` IS `x` as a condition (`interpret.js::pineBool`), so it is unwrapped
+  // before the shape is asked; without this the latch-once guard stopped seeing
+  // `na(self)` and the window drew `bar_index - 250` (measured: 382 on the RDDT
+  // capture's last bar where the runtime lane draws 0).
+  const asCondition = (t) => (t && t.type === 'op' && t.name === '!='
+    && Array.isArray(t.args) && t.args.length === 2
+    && t.args[1] && t.args[1].type === 'num' && t.args[1].value === 0
+    ? asCondition(t.args[0]) : t)
+  const isNaSelf = (t0) => {
+    const t = asCondition(t0)
+    return !!t && t.type === 'call' && t.name === 'na'
+      && Array.isArray(t.args) && t.args.length === 1 && isSelf(t.args[0])
+  }
+  const impliesUnset = (t0) => {
+    const t = asCondition(t0)
     if (isNaSelf(t)) return true
     return !!t && t.type === 'op' && t.name === '&&' && (t.args || []).some(impliesUnset)
   }
-  const impliesSet = (t) => {
+  const impliesSet = (t0) => {
+    const t = asCondition(t0)
     if (t && t.type === 'op' && t.name === '!' && (t.args || []).length === 1 && isNaSelf(t.args[0])) {
       return true
     }
@@ -7362,12 +7377,8 @@ export class Resolver {
         this.resolveBinding(seedBinding, tok, name)
         const seed = historySeed()
         const args = []
-        // ⭐⭐ H7 (step 92h) — a NON-switched plain form says its bar-0 reading too
-        // (`interpret.js::plainUpdateSeed`): bar 0 runs the update from `na`, as Pine
-        // does (CAP4 Q-RT8a R01: the supertrend ratchet's mid is 0 on bar 0).
-        // ⛔ Never on a SCREEN (no listing there; the plain `0 / 0` is unchanged).
         args[spec.recurrence.seed] = plainCounter ? switchedVarSeed(readingSeed(seed, 'update'))
-          : switchedState ? switchedVarSeed(seed) : this.screen ? seed : plainUpdateSeed()
+          : switchedState ? switchedVarSeed(seed) : seed
         args[spec.recurrence.body] = body
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
@@ -27742,6 +27753,32 @@ export function readsBars(node, table = TABLE) {
     if (Array.isArray(n.args)) stack.push(...n.args)
   }
   return false
+}
+
+/** ⭐⭐ H8 (step 95) — DOES A CHART DRAW NO SERIES FOR THIS ROW?
+ *
+ *  `hidden` answers the SCREENER's question ("is this a column a screen can
+ *  answer from?", `f19a350581`): the author's `display.none`, an untitled fill
+ *  anchor, a bare-source candle role, and a tree that reads no bar. The last is
+ *  a fact about SCREENING (the same number on every symbol matches nothing) and
+ *  was never a fact about DRAWING — `strictOk` above already says so in words.
+ *  The member pane read `hidden` as "draw nothing", so every `plot(0)` zero
+ *  line, `plot(syminfo.mintick)`, `ta.cum(1)` and constant probe row TradingView
+ *  draws was missing from the member's chart (F8's NOT DRAWN, 208 plot grades).
+ *
+ *  ⛔ ONE EXCEPTION, AND IT IS TRADINGVIEW'S: a constant that IS `na` (this
+ *  translator's `0 / 0`, e.g. `cond ? x : na` with `cond` folded false from an
+ *  input's default) draws nothing on TradingView either — cc-yata's b1..b5 /
+ *  s1..s5 are exactly that — so it stays undrawn, and a script whose only rows
+ *  are such constants still "declares nothing a chart can draw".
+ *  ⛔ Every other hidden reason is the AUTHOR's statement or this engine's
+ *  reading of one (`display.none`, a fill anchor, a passthrough candle) and is
+ *  unchanged: hidden on the chart too.
+ *  Every chart consumer asks THIS; none re-derives it from `hiddenReason`. */
+export function hiddenOnChart(row) {
+  if (!row || !row.hidden) return false
+  if (row.hiddenReason !== 'constant') return true
+  return isStaticNa(row.ast)
 }
 
 /** Compiled sentence rules for ONE table object, memoised.

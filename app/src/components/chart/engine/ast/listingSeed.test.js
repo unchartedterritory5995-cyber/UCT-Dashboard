@@ -42,8 +42,12 @@ const pine = (lines) => ['//@version=5', 'indicator("c12w")', ...lines].join('\n
 /** Bars the listing pass may withhold at the very start, per form. The tree cannot
  *  tell a `var` from the self-reference spelling `x = na(x[1]) ? S : U`, whose
  *  bar-0 value is the seed with no update run; where the two readings differ on
- *  bar 0 that bar is withheld (never guessed) and the next bar settles it. */
-const WITHHELD_AT_START = { guarded: 1 }
+ *  bar 0 that bar is withheld (never guessed) and the next bar settles it.
+ *  ⭐ F5: `guarded` is no longer withheld. Its seed is `na` (a `var` read only
+ *  through history), and the one spelling whose bar 0 is its seed, with an `S` of
+ *  `na`, does not translate at all (rail below), so an `na` seed has ONE reading:
+ *  bar 0 runs the update, as Pine does. */
+const WITHHELD_AT_START = {}
 
 const REFERENCE = {
   bareOnly: () => {
@@ -125,6 +129,13 @@ describe('C12w — the listing pass is Pine, bar for bar, on every form the tran
       expect(at, `${name} bar ${at + skip}: ours ${got[at + skip]} vs Pine ${ref[at + skip]}`).toBe(-1)
     })
   }
+
+  it('⛔ F5 — the only spelling an `na` seed could be read as instead, `x = na(x[1]) ? na : U`, is refused', () => {
+    // If this ever translates, an `na` seed has two readings again and the listing
+    // pass must go back to withholding bar 0 of `guarded` (interpret.js, F5).
+    const t = translatePine(pine(['x = na(x[1]) ? na : close * 0.5 + nz(x[1]) * 0.5', 'plot(x)']))
+    expect((t.outputs || []).some((o) => o && o.ast)).toBe(false)
+  })
 
   it('⭐ NON-VACUITY — the bounded window really did withhold the prefix these forms now fill', () => {
     // bare-only holds 7 (then the bar-3 latch) on every bar in Pine; the bounded

@@ -46,26 +46,19 @@ describe('C38 — vw-gradient: a colour component is a column', () => {
     const { verdict, integrity } = gradeCapture(joinedFromListing(cap, { control: CONTROL }))
     expect(integrity.ok, (integrity.errors || []).join('; ')).toBe(true)
     const matched = verdict.plots.filter((p) => p.verdict === 'MATCH').map((p) => p.title)
-    // R-P (2026-10-01): the pane's ceiling is TradingView's 64, so every non-constant row is
-    // carried and graded - 17 MATCH (was the first 12 under the old ceiling).
-    expect(matched).toEqual(TITLES.filter((t) => !CONSTANT_ROWS.includes(t)))
-    expect(matched).toHaveLength(17)
+    // R-P (2026-10-01): the pane's ceiling is TradingView's 64, so every row is carried
+    // and graded. ⭐ H8 — the six constant rows are DRAWN now (`pine.js::hiddenOnChart`),
+    // as TradingView draws them, so all 23 MATCH (17 before; the six were NOT DRAWN).
+    expect(matched).toEqual(TITLES)
+    expect(matched).toHaveLength(23)
+    for (const t of CONSTANT_ROWS) expect(plotOf(verdict, t).color, t).toBe('compared')
     for (const t of matched) {
       expect(plotOf(verdict, t).stats.matching, t).toBe(300)
       expect(plotOf(verdict, t).warmupBars, t).toBe(0)
     }
-    // the rest are not WRONG on a value: a constant row is hidden by the pane's rule (its
-    // values still agree). ⭐ F8 — TradingView draws it and our chart does not: NOT DRAWN.
-    for (const p of verdict.plots.filter((x) => x.verdict !== 'MATCH')) {
-      if (CONSTANT_ROWS.includes(p.title)) {
-        expect(p.verdict, p.title).toBe('DIVERGE')
-        expect(p.reason, p.title).toMatch(/NOT DRAWN.*hiddenReason "constant"/)
-        expect(p.stats.matching, p.title).toBe(300)
-      } else {
-        expect(p.verdict, p.title).toBe('INCONCLUSIVE')
-        expect(p.reason, p.title).toMatch(/did not carry this output/)
-      }
-    }
+    // ⚰️ until H8 the six constant rows were hidden by the pane's constant rule (F8:
+    // NOT DRAWN, their values agreeing); nothing is left that is not MATCH.
+    expect(notMatch(verdict)).toEqual([])
   })
 
   it('rows G00–G11 (g1, the clamped g2, g3\'s red): MATCH', () => {
