@@ -232,7 +232,7 @@ export function Panel({
             <PanelFreshnessContext.Provider value={setFreshness} key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}>
               <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
                 {r.name === 'Help'
-                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} auth={auth} />
                   : r.name === 'Move'
                     ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
                     : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
@@ -922,7 +922,7 @@ export default function TerminalShell() {
         ] : []}
       />
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
-        <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} />
+        <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} auth={auth} />
       </Sheet>
       <Sheet open={sheet === 'boards'} onClose={() => setSheet(null)} title="Boards">
         <BoardsMenu

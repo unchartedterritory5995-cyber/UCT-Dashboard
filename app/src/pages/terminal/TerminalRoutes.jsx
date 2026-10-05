@@ -20,13 +20,14 @@ import { TERMINAL_BOARDS_PREF } from './useTerminalLayout'
  *  (`terminal_boards.keepCalendar`, set from the shell's Boards menu); `/terminal` stays open
  *  to them. ⚠️ This is a preference, and that is safe ONLY because it can narrow what a member
  *  sees, never widen it: a closed cohort never reaches this branch (terminalGate.js). While the
- *  preference is loading nothing renders, so the redirect never fires ahead of the choice. */
+ *  preference is loading a neutral placeholder renders (never a blank screen) so the redirect
+ *  never fires ahead of the choice. */
 export function CalendarRoute({ children }) {
   const open = useTerminalNext()
   const { search, hash } = useLocation()
   const { prefs, loading } = usePreferences(open)
   if (!open) return children
-  if (loading) return null
+  if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>
   if (readLibrary(prefs?.[TERMINAL_BOARDS_PREF]).library.keepCalendar) return children
   return <Navigate to={calendarIntoShell(search, hash)} replace />
 }
