@@ -7,7 +7,7 @@ import useLatestReport from '../../research/hooks/useLatestReport'
 import OverviewTab from '../../research/tabs/OverviewTab'
 
 export default function OverviewPanel({ sym }) {
-  const data = useResearchOverview(sym)
+  const data = useResearchOverview(sym, { header: false })
   const report = useLatestReport(sym)
   // error + mutate: a failed read renders "couldn't load" with a Retry, never
   // "will appear here once available" -- the same props ResearchPage passes.

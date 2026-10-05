@@ -38,6 +38,6 @@ export default function useMobileSWR(key, fetcher, options = {}) {
   return useSWR(key, fetcher, {
     ...options,
     refreshInterval: visible ? mobileInterval : 0,  // Stop polling when tab is hidden
-    revalidateOnFocus: options.revalidateOnFocus ?? true,
+    revalidateOnFocus: options.revalidateOnFocus ?? false,
   })
 }
