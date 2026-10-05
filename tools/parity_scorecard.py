@@ -839,6 +839,23 @@ QUOTES = {
  "O_sandbox": [
   "obsidian__getting_started__sandbox_vault",
   "Obsidian’s sandbox vault is a feature that lets you explore various functionalities without affecting your existing data."
+ ],
+ # ── wave 14 evidence pass, lane W14-EVID: the five cells settled by evidence alone (R21) ──
+ "O_findinnote": [
+  "obsidian__changelog_desktop_v0_5_0_w14",
+  "Ctrl+F to open the search, and use F3 to jump to next match, or Shift+F3 to the previous match."
+ ],
+ "O_findreplace": [
+  "obsidian__changelog_desktop_v0_6_0_w14",
+  "You can now now search AND replace, Ctrl+H by default."
+ ],
+ "O_touchundo": [
+  "obsidian__changelog_mobile_v1_9_10_w14",
+  "The default toolbar now shows undo and redo at the start of the row."
+ ],
+ "N_remindnotify": [
+  "notion__reminders_w14",
+  "When you add a reminder, Notion will send you a notification to draw your attention back to a particular task"
  ]
 }
 
@@ -1953,6 +1970,43 @@ SOURCES = {
   "sha256": "f60decc353992abb4eb8ac0517e85210c0b4d02065b718e8542a905b7b85d2fe",
   "fetched_utc": "2026-10-04T14:48:00Z",
   "rrow": "R20"
+ },
+ # ── wave 14 evidence pass, lane W14-EVID: pages for the five settled cells (R21); fetched_utc is the saved text's mtime ──
+ "obsidian__changelog_desktop_v0_5_0_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2020-05-10-desktop-v0.5.0/",
+  "read_from": "https://obsidian.md/changelog/2020-05-10-desktop-v0.5.0/",
+  "status": 200,
+  "sha256": "9a7e5298332a621f39d62cdd55438980e4d29c5591ca6c6b8fee7e2216bbabb9",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "obsidian__changelog_desktop_v0_6_0_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2020-05-18-desktop-v0.6.0/",
+  "read_from": "https://obsidian.md/changelog/2020-05-18-desktop-v0.6.0/",
+  "status": 200,
+  "sha256": "63adc46f73a2ec6d1f56829f63e4a1cfed1df04b52661677f9472c242805c021",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "obsidian__changelog_mobile_v1_9_10_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2025-08-18-mobile-v1.9.10/",
+  "read_from": "https://obsidian.md/changelog/2025-08-18-mobile-v1.9.10/",
+  "status": 200,
+  "sha256": "550460c90dace91d6570ee20df6d5a264a80334aa8faed7433309624c2338fbf",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "notion__reminders_w14": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/reminders",
+  "read_from": "https://www.notion.com/help/reminders",
+  "status": 200,
+  "sha256": "124965b97ad67aa19e480ee46bb28d98de6a986ce3bf187c6320dbe57996105f",
+  "fetched_utc": "2026-10-05T04:27:00Z",
+  "rrow": "R21"
  }
 }
 
@@ -3475,8 +3529,10 @@ def build(pages_dir=None):
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
     R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 37, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
-    R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
-      {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
+    R('G-032', ('P', 'P', 'P'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
+      {'N': ['N_find'], 'E': ['E_find'], 'O': ['O_findinnote']},
+      'B20: Ctrl+F opened the find bar. Obsidian\'s own public release note states the same in-file search on Ctrl+F '
+      '(R21; a release note dates when it shipped, the same standing as Evernote\'s release note on this row).')
     R('G-033', 'P', [code(f'{NB}/NoteLinkMenu.jsx', 2, 'triggered internal-note-link autocomplete'), walk9('B17_older_rows')],
       {'N': ['N_wikilink'], 'E': ['E_mention'], 'O': ['O_links']}, 'B17: typing [[ offered the target note.')
     R('G-034', 'NA', [code('app/src/widgets/registry.js', 296, 'journal: true'), walk9('B28_widget_insert')], {'N': NA, 'E': NA, 'O': NA},
@@ -3497,14 +3553,15 @@ def build(pages_dir=None):
     # Capture
     R('G-040', 'NA', [D(8, 'G-040: stays descoped')], {'N': NA, 'E': NA, 'O': NA},
       'Internal UCT capture coverage (widgets into the Notebook); descoped by the owner.')
-    R('G-041', 'NV', [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note'), walk15uct('G041_capture_desktop_1200'),
+    R('G-041', ('NV', 'P', 'NV'), [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note'), walk15uct('G041_capture_desktop_1200'),
                       walk15uct('G041_capture_mobile_390')],
       {'N': NFN, 'E': ['E_clipcomment'], 'O': NFO},
       'Wave 15 (lane W15-UCT) drove the source-capture dialog at 1200 and 390px: the "Your note" annotation field '
       'round-tripped through the real POST /api/j2/capture response and was found verbatim, correctly attributed, by '
       'the excerpt search. The widget-capture path (CaptureMenu.jsx) stays on a code read only (ledger: DONE, '
       'verified live 2026-09-22). Evernote\'s Web Clipper guide states a comment added before the clip' + R18 +
-      '; no verdict against Notion or Obsidian, neither of which has a page fetched that states one.')
+      ', and the walk now evidences the UCT side, so Evernote reads PARITY (wave 14 evidence pass); no verdict '
+      'against Notion or Obsidian, neither of which has a page fetched that states one.')
     R('G-042', 'NA', [code(f'{JT}/note_trade_links.py', 68, 'def resolve_trade_ref(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (trade references).')
     R('G-043', 'BO', [code('extension/manifest.json', 3, '"name": "UCT Browser Capture",'),
@@ -3739,8 +3796,10 @@ def build(pages_dir=None):
     R('G-137', ('P', 'P', 'P'), [code(f'{LB}/noteStats.js', 12, 'READING TIME'), walk9('B04_drag_outline_stats')],
       {'N': ['N_wordcount'], 'E': ['E_wordcount'], 'O': ['O_wordcount']},
       'Reading time is UCT\'s addition; not claimed as AHEAD (an absence cannot be cited).')
-    R('G-138', ('NV', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B05_typing_features')],
-      {'N': NFN, 'E': ['E_find'], 'O': NFO}, 'B05: Replace all turned every "alpha" into "gamma".')
+    R('G-138', ('NV', 'P', 'P'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B05_typing_features')],
+      {'N': NFN, 'E': ['E_find'], 'O': ['O_findreplace']},
+      'B05: Replace all turned every "alpha" into "gamma". Obsidian\'s own public release note states search AND '
+      'replace on Ctrl+H (R21; a release note, the same standing as Evernote\'s).')
     R('G-139', ('P', 'P', 'NV'), [code(f'{NB}/EmojiMenu.jsx', 2, 'the emoji picker'), walk9('B05_typing_features')],
       {'N': ['N_emoji'], 'E': ['E_emoji'], 'O': NFO})
     R('G-140', ('P', 'P', 'NV'), [code(f'{LB}/dateMentionNode.js', 5, '@date mentions'), walk9('B05_typing_features')],
@@ -3755,13 +3814,13 @@ def build(pages_dir=None):
       {'N': ['N_headings'], 'E': ['E_headings'], 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six. Evernote\'s own '
       'list of its text styles stops at H4' + R18 + ', the limit stated on its page, so AHEAD as for Notion.')
-    R('G-144', ('P', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 248, 'export function canRunHistory(editor, cmd)'),
+    R('G-144', ('P', 'P', 'P'), [code(f'{NB}/NoteEditorPage.jsx', 248, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
-      {'N': ['N_touchundo'], 'E': ['E_undo'], 'O': NFO},
+      {'N': ['N_touchundo'], 'E': ['E_undo'], 'O': ['O_touchundo']},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
       'B10 reached Undo after 60 lines. Evernote states an Undo button in its editing toolbar that is clicked or '
       'tapped' + R18 + '; Notion\'s own page states the same control is reachable from the on-mobile ••• menu (R20). '
-      'No Obsidian page fetched states a touch undo.')
+      'Obsidian\'s public mobile release note states undo and redo on the default mobile toolbar (R21).')
     R('G-145', ('P', 'NV', 'P'), [code(f'{LB}/noteSwitcher.js', 2, 'find ANY note'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the switcher opened the OLDEST note by title.')
     R('G-146', ('P', 'P', 'P'), [code(f'{NB}/BulkActionBar.jsx', 52, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
@@ -3787,10 +3846,13 @@ def build(pages_dir=None):
       '-- controller ruling, 2026-10-04 -- it opens a page beside a DATABASE VIEW, continuing to show that view '
       'interactive on the left, not a second arbitrary note opened beside the first the way UCT\'s split view and '
       'Obsidian\'s tabs both are; stays NOT-VERIFIED rather than PARITY.')
-    R('G-153', 'NV', [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
+    R('G-153', ('P', 'NV', 'NV'), [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
                       walk7('W11_reminders'), walk15uct('G153_reminder_delivered_server'),
                       walk15uct('G153_reminder_bell_mobile_390')],
-      {'N': ['N_remind'], 'E': ['E_tasks'], 'O': NFO},
+      {'N': ['N_remind', 'N_remindnotify'], 'E': ['E_tasks'], 'O': NFO},
+      'Notion\'s reminders page states a notification for a reminder set on a date (R21), and the walk below '
+      'evidences the UCT side, so Notion reads PARITY (wave 14 evidence pass). Evernote\'s reminder is per note, '
+      'not driven by a date mention or Review Date, so it stays NOT-VERIFIED pending a controller ruling. '
       'Wave 15 (lane W15-UCT) observed a reminder end to end on a real sandbox, where wave-6 and wave-7\'s walks were '
       'INCONCLUSIVE (no reachable trigger): a seeded overdue task\'s reminder landed on the real GET /api/alerts 48.7s '
       'after seeding, shaped exactly as note_tasks.reminder_copy declares, and was read correctly off the real bell '

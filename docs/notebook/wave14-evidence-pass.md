@@ -23,7 +23,7 @@ checked many of the obvious pages today, so this pass went after sources wave 15
 - An absence on a competitor page is never cited. AHEAD stands only where the competitor's own page states the limit.
 - A quote is at most 25 words and verbatim. Every quote below was checked with `grep -F` (or an exact substring test) against the saved text of its page, and the lead lane re-ran the check by hand on every quote that backs a proposed move.
 - Only `public`-channel Obsidian changelog entries are used as a basis. Catalyst (early-access) entries are recorded but never relied on.
-- All fetches were dated **2026-10-04**. The fetched vendor text was saved outside the repo, as wave 15 did:
+- All fetches were made on **2026-10-04 local time (US Central)**. In UTC, which is the clock the tool's `fetched_utc` and its rendered dates use, the four pages applied below were saved at **2026-10-05 04:27–04:34 UTC**. The scorecard therefore prints `(2026-10-05)` beside those four quotes. That is the true UTC fetch date, so it was not back-dated to match the local one. The fetched vendor text was saved outside the repo, as wave 15 did:
   `C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\d589caff-6bf7-402f-8cdd-39d4514de50f\scratchpad\w14\pages\{notion,evernote,obsidian}\`.
   It holds 42 Evernote pages, about 190 Notion pages and 13 Obsidian pages, each indexed with its URL and sha256 (`notion/index.jsonl`, `evernote/_index.tsv`).
 
@@ -33,24 +33,80 @@ PARITY rests on `evernote.com/release-notes/11.35.6`. A release note dates when 
 though, not that it is still current. The integrator should treat that as the standing caveat for
 every changelog quote below.
 
-## What was applied to the scorecard: nothing, and why
+## What was applied to the scorecard
 
-**No cell in `docs/notebook/parity-scorecard.md` was edited.** The scorecard is generated:
+**First commit (`5046b6b0d`): nothing.** The scorecard is generated:
 `python tools/parity_scorecard.py --write --pages <dir>` renders every cell from the tool's own
-`QUOTES` and `SOURCES` banks, re-checks each quote verbatim against the archived page texts, and
-computes the verdict-count table, the §C owed list and the Citations index (with its R-row tie to
-`docs/notebook/competitive-research-ledger.md`). This lane's authority is docs only, and
-`tools/parity_scorecard.py` is a tool. So a cell move would have meant either editing the tool
-(not permitted) or hand-editing generated output. A hand edit is a second authority over one value:
-the next `--write` reverts it silently, and until then the counts table, the §C list and the
-Citations index disagree with the cell. The "rule-sanctioned" moves below are therefore
-**queued for an integrator with tool authority**. Each one needs a `QUOTES` key, a `SOURCES` entry
-(page id, URL, sha256, `read_from`), a new research-ledger R-row (next free: **R21**; R20 is
-wave 15's), the saved page text in the `--pages` directory, and then `--write` / `--verify`.
+`QUOTES` and `SOURCES` banks and from its `R()` row entries. It re-checks every quote verbatim
+against the archived page texts and computes the counts table, the §C owed list and the Citations
+index. At that point the lane's authority was docs only. A hand edit would have been reverted by the
+next `--write`, so the five moves were queued.
 
-`python tools/parity_scorecard.py --verify --rev HEAD` was run on the base, unedited:
-`checked against HEAD: CODE 150, FLAG 11, MEASURE 35, RECORD 108, RULING 18, TEST 36, WALK 67` —
-`VERIFY: PASS`. Every UCT-side citation the rows below lean on still holds its fragment on this branch.
+**Second commit (authority extended by the coordinator): the five cells in §1 are applied, and
+nothing else is.** What changed:
+- **`tools/parity_scorecard.py`, data only.** 4 new `QUOTES` keys (`O_findinnote`, `O_findreplace`,
+  `O_touchundo`, `N_remindnotify`) and 4 new `SOURCES` entries, all `rrow: "R21"`. The Obsidian pages are
+  `obsidian__changelog_desktop_v0_5_0_w14`, `obsidian__changelog_desktop_v0_6_0_w14` and
+  `obsidian__changelog_mobile_v1_9_10_w14`. The fourth is `notion__reminders_w14`, a re-fetch of the page
+  R12 cites under `notion__reminders`; its sha256 differs, so it gets its own `_w14` id rather than
+  overwriting R12's.
+  - ⚠️ **Applying the cells also took edits to five `R()` row entries** (G-032, G-041, G-138, G-144,
+    G-153). Each edit changes the verdict tuple, adds the quote key to the competitor list, and adds
+    one note sentence. These are the row data the cells render from. A cell cannot move without them.
+    No function, rule or check was changed.
+  - **G-041 E needs no new quote.** It moves on its existing R18 quote (`E_clipcomment`, fetched
+    2026-10-02 and re-confirmed verbatim 2026-10-04), now that the wave-15 walk evidences the UCT side.
+- **`docs/notebook/competitive-research-ledger.md`**: new row **R21**.
+- **`--pages`**: a merged directory, 127 files, in this lane's scratchpad (`w14\w14-merged-pages`).
+  It is wave 15's `w15-merged-pages` copied unmodified, plus this pass's 4 page texts under their
+  page ids.
+- **`docs/notebook/parity-scorecard.md`**: regenerated by `--write`. Besides the five cells, the
+  counts table and the §C owed list, one more thing moved, mechanically: every
+  `RECORD docs/feature_flags.json at <rev>` now names the revision `--write` read the flag ledger at
+  (`5046b6b0d`, this branch's previous tip). That is the same mechanism wave 15's write followed.
+
+Checks on the second commit's tree (output verbatim):
+
+```
+python tools/parity_scorecard.py --write --pages <w14-merged-pages>
+  wrote docs/notebook/parity-scorecard.md 420921 chars: {'rows': 133, 'quote_keys_used': 173, 'at_bar': 3,
+  'clauses': {1: '0/3', 2: '4/4', 3: '2/3', 4: '5/6', 5: '1/4', 6: '3/3', 7: '2/3', 8: '3/4', 9: '3/4',
+  10: '0/3', 11: '3/4', 12: '2/4', 13: '3/4', 14: '3/4', 15: '4/4', 16: '3/4'}, 'quotes_verbatim_checked': True}
+python tools/parity_scorecard.py --verify --rev HEAD
+  checked against HEAD: CODE 150, FLAG 11, MEASURE 35, RECORD 108, RULING 18, TEST 36, WALK 67
+  VERIFY: PASS
+python tools/check_repo_hygiene.py
+  clean: 22480 tracked file(s), no oversized file, no .env* outside the allowlist, and no line-ending flip against the stored blobs
+python -m pytest tests/test_parity_scorecard.py tests/test_parity_scorecard_evernote_fold.py -q
+  52 passed, 2609 warnings in 362.91s (0:06:02)
+```
+
+§A verdict counts after the write (NOT-VERIFIED N 23→22, E 36→35, O 37→34; PARITY N 58→59, E 47→48,
+O 45→48). Every other row of the table is unchanged; the §B clause breakdown is identical before and after.
+
+## Controller rulings owed
+
+The 12 cells from §2 below. **None is applied.** Each needs a ruling before an integrator moves it.
+"Recommended" is this lane's reading, not a decision.
+
+| row | col | recommended verdict | one-line reason |
+|---|---|---|---|
+| G-153 | E | PARITY | Evernote's per-note reminder notifies on its date; the row names "on date mentions / Review Date", which Evernote does not tie it to. Rule whether the trigger is part of the capability. |
+| G-123 | N | PARITY | Notion's release note says a citation locates "the specific block being cited", a location inside the source. The UCT side is CODE+TEST, not a walk; G-124/G-125 already accept that tier. |
+| G-003 | O | PARITY | The privacy page says account deletion is permanent and Sync/Publish data is deleted on cancel. That is as modest as the reading Notion's PARITY already rests on. Local vault files are untouched by design. |
+| G-158 | O | NOT-VERIFIED | A link-valued property showing in backlinks is not a typed relation property. The quote covers the backlink half only. |
+| G-169 | O | PARITY | "You can now export notes to PDF." is the same PDF-only reading Evernote's PARITY on this row rests on, so consistency argues for it. |
+| G-045 | O | AHEAD | "Obsidian only searches the contents of notes and canvases." states that a scanned PDF's text is outside its search. This is the G-113 stated-limit pattern. |
+| G-121 | O | AHEAD | Same quote and same reasoning as G-045, applied to OCR. |
+| G-160 | O | AHEAD | Same quote: image text and docx/xlsx text are outside Obsidian's stated search scope. |
+| G-133 | E | NOT-VERIFIED | Wrap-left/right is text wrapping, not alignment, and names no centre option, which UCT's B26 checked. |
+| G-110 | E | PARITY | Tabs are "restored exactly as you left them" after reopening, a resumption surface as modest as the Obsidian recents list this row already accepts. It is desktop only. |
+| G-141 | E | NOT-VERIFIED | The Bookmark clip makes a new note from a page; it is not a link preview or embed inside a note. |
+| G-085 | E | NOT-VERIFIED | The general API is "deprecated", not gone, and the live door is an MCP server for AI clients, a different mechanism. The existing "different mechanisms" note still applies. |
+
+The G-041 N note (a possible AHEAD read from the web-clipper page's tags limit) is **not** a
+ruling owed. It would be an inference from absence, which the rules forbid; it is recorded in §2
+for the owner only.
 
 ## Clause-status (§B) changes
 
@@ -61,7 +117,7 @@ NOT-VERIFIED to PARITY cannot change a clause from MET to NOT MET or back. The h
 
 ---
 
-## 1. Settled by evidence alone (5 cells, both sides evidenced; queued for the integrator)
+## 1. Settled by evidence alone (5 cells, both sides evidenced; APPLIED in the second commit)
 
 Each of these has a UCT-side WALK already on the row, and a competitor page fetched 2026-10-04
 that states the capability as the row names it. No judgment beyond the scorecard's rules is involved.
@@ -175,5 +231,5 @@ behaviour, so none of these rows can take a comparative verdict until it is walk
 - **12 cells flagged for a controller ruling**: G-153 E, G-123 N, G-003 O, G-158 O, G-169 O, G-045 O, G-121 O, G-160 O, G-133 E, G-110 E, G-141 E, G-085 E. The G-041 N AHEAD-by-inference note is recorded but not counted as a candidate.
 - **9 cells with the competitor side now evidenced** but blocked on the UCT side: G-044 and G-084 in N, E and O; G-166 N; G-159 E; G-162 E; G-165 E (G-050, G-051 and G-165 N re-confirmed).
 - All other cells **stay NOT-VERIFIED** for the reasons in §4.
-- **Scorecard cells edited: 0** (generated file; see "What was applied").
+- **Scorecard cells moved: 5** in the second commit (G-032 O, G-138 O, G-144 O, G-041 E, G-153 N), regenerated by `--write`; 0 in the first.
 - **§B clause-status changes: 0 proposed, 0 flagged.**
