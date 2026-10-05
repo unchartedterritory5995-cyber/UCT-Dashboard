@@ -1108,6 +1108,15 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.services.breadth_live import warm
             log.info("[dashboard-warm] breadth-live %s", warm())
 
+        def _screener_meta():
+            # L9 (terminal live audit, 2026-10-05): `/api/screener/meta` measured
+            # 8.3 s on first open. The cost is `distribution.distributions()` --
+            # p5..p95 over every range column of the snapshot -- which is cached
+            # per snapshot vintage, so the first member after each deploy paid it.
+            # Local SQLite only; no outbound call.
+            from api.services.screener import distribution
+            distribution.distributions()
+
         def _calendar():
             from api.routers.calendar import get_calendar
             get_calendar()
@@ -1185,6 +1194,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("news", _news)
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
+            _warm("screener-meta", _screener_meta)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
             # NOT `_enrichment` — and `_enrichment` is the 60-100s step in this
@@ -1703,6 +1713,10 @@ def register_screener_jobs(scheduler):
                 print(f"[scheduler] screener snapshot build: "
                       f"built={stats.get('built')} skipped={stats.get('skipped')} "
                       f"errors={stats.get('errors')}")
+                # L9: a rebuilt snapshot is a new vintage, so the screener panel's
+                # bands go cold with it. Compute them here, not on the first open.
+                from api.services.screener import distribution
+                distribution.distributions()
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
