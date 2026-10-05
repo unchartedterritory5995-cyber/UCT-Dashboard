@@ -99,6 +99,10 @@ describe('⭐⭐ RT12 (2) — a local fixed by its call site, and constant arith
     const b = build('f(x, n) =>\n    w = n / 2\n    ta.ema(x, w)\nplot(f(close, 8))\n')
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe('runtime:history-dynamic-offset')
+    // …and as a bar OFFSET (`constValueOf`, which folds arithmetic on its own):
+    // the local is not read through at all, so the quotient never reaches a fold
+    const o = build('var float s = 0.0\ns := s + close\nf(x, n) =>\n    w = n / 2\n    x[w]\nplot(f(s, 8))\n')
+    expect(o.ok).toBe(false)
   })
 
   it('control: a local that is REASSIGNED, or a `var`, is not read through', () => {

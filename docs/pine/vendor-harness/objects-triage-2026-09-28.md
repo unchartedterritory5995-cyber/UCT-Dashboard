@@ -195,6 +195,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
+| RT12 | RT12 statements and history (section RT12): a comma line of bindings / `:=` and bare calls splits into its statements, and `switch` arms written with a trailing comma are the arms (`pine.js::blockStatements`, both lanes); a discarded value builtin on its own line is dropped, a function local bound from call-site-fixed values is fixed per call site, `+ - *` folds in a length, and a STATEFUL expression's history in a function result hoists when it runs on every evaluation (runtime lane) | `774c47af00` + doc | - | probe (runtime state, libraries loaded): atr-trailing-stoploss-strategy (host), nonlinear-regression-zero-lag-moving-average-loxx and range-filter-bs-signals (runtime) attach; smart-money-breakouts-chartprime no longer THROWS out of `translatePine` (two walls further). Census not measured (coordinator hold). Graded: the 6 captures whose statements split differently, `on` and `runtime`, identical before/after (position-size-calculator MATCH x4, renko runtime MATCH kept); 0 MATCH lost |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7932,3 +7933,83 @@ Mutations (pine.js bytes captured and restored, sha verified):
   `b1Paints` pinned capture list (27 newer captures record paints), `c41LowerTfServe` (2952 vs 2950
   compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
   (`memberPane/atrSrReplay.js` unreached).
+
+## RT12 - statements and history: comma lines, switch arms, frame-fixed locals, stateful frame hoist (2026-10-04)
+
+Branch `pine/rt12-statements-history`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Runtime pane
+still dark; `runtime/limits.js` untouched. Builtins left to RT11.
+
+### Step 1 - the family, measured
+
+First `runtimeDeclined` code on wave 17 (`rt10-census-w17.json`, runtime state, libraries loaded):
+`pine:statement` 10, `runtime:statement` 10, `runtime:history-expression` 5, `runtime:history-dynamic-offset` 9.
+Each script's construct was read off `probeRuntimeProgram`'s refusal line (both builds, with and
+without its own drawings), and its NEXT wall by scratch substitution through `enterMemberDoor`
+(never committed):
+
+| cluster | scripts | construct | next wall once served |
+|---|---|---|---|
+| comma line: binding + call | atr-trailing-stoploss-strategy, nonlinear-regression-…-loxx (trailing `,` carries the next line's `plot`), correlation-matrix, fibonacci-retracement-mtflog | `blockStatements` kept the line whole | atr-trailing **attaches (host)**, loxx **attaches (runtime)**; correlation-matrix `runtime:function`, fibonacci `runtime:call-text-state` |
+| frame local from call-site values | range-filter-bs-signals (`wper = (n*2) - 1`, `ema(avrng, wper)`) | the fold stopped at a body local | **attaches (runtime)** |
+| series window length | market-structure-break-order-block (`ta.lowest(nz(barssince…))`), zigzag-multi-time-frame (`highestbars(high, nz(len,1))`) | a length that changes per bar | msbob **attaches** by substitution; zigzag then `valuewhen` with a dynamic occurrence. **Refused, Q-RT12a** |
+| input-derived with `/` | optimized-trend-tracker (`zxLag = length/2 == round(length/2) ? …`) | a quotient (version-dependent division) | then `linreg` (RT11's builtin) |
+| `var x = input.*` passed as `simple` | strength-of-divergence-across-multiple-indicators | | then a library `highestbars` with a series length |
+| UDT field / mutable as length | ict-institutional-order-flow-fadi, volatility-coil-edge-bullbyte | | ict: `Trend_Settings.displacement_show` (`pine:builtin`); coil: `str.tostring` text |
+| stateful history in a frame | neural-network-buy-and-sell-signals, advanced-custom-multi-ma, 72s-strategy (`=> _return = …` one-line binding body, then `wma` of a quotient length) | | conditional history (`ta.linreg` / `ta.ema` in a block); 72s is also a strategy |
+| `pivothigh(L, R)` with frame-param lengths | market-structure-inducements-ict | `FTD ? int(LongP/2) : LongP` | not reached |
+| requests | ad-line-of-sp-sectors, banknifty-mcclellan-oscillator | `request.security(…)[…]` of another symbol | request walls |
+| sessions | asianrange, initial-balance, sessions, session-highs-and-lows, session-hilo, session-tpo-profile, smt-divergence-ict-killzones, volume-profile-v054beta | `input.session` has no carrier; a v4 session without a day list is unmeasured; overnight; `time(<other tf>, sess)` | each stops on another session wall; liquidity-levels-sonarlab: `pivothigh` rightbars only known at runtime |
+| `enum` (Pine 6) | footprint-iq-pro, stop-loss-clustering, volume-footprint, trailing-take-profit (`jason5480/chrono_utils/7` line 31) | no enum declaration | lower-timeframe requests (3), a strategy (1) |
+| builtins | chart-vwap (`ta.vwap` tuple with bands), bollinger-band-width-percentile (`ta.hma` over state, after its `var string` default) | | RT11 |
+
+Integrator item: smart-money-breakouts-chartprime (RT13's `none:builder`) THREW out of `translatePine`
+because its `switch` arms end in `,`, which dangled the three arms into one header. Taken (below); it
+now refuses by name: `runtime:history-expression` at `volAdj` (served below), then
+`Volume.SCR.push(close[i])` - a method on a UDT's array field (`runtime:expression-statement`), the
+collection/UDT lane's.
+
+### Step 2 - constructs served (`774c47af00`)
+
+| construct | where | rule | graded |
+|---|---|---|---|
+| comma line of bindings / `:=` and bare calls | `pine.js::commaCallSplit` (host + runtime, shared `blockStatements`) | Pine runs a comma line's statements left to right (H2's rule); a bare call segment is the statement it is on its own line; at least one binding or mutation, so `screener(a), screener(b)` stays whole; no segment opens a block | comma form translates to exactly the separate-lines form (host), runs equal (runtime) |
+| `switch` arms with a trailing comma | `pine.js::commaArmSplit` | inside a body only (a top-level `=>` is a definition); every segment an arm; the dangling comma after the last arm dropped | same, host |
+| a discarded value builtin on its own line | `pineRuntimeFrontend.js` bare-call branch | dropped by the rule `alert`'s arguments already follow (`argumentHasEffect`), now also v1-v4 bare table builtins (`bareValueBuiltin`); a user function, collection, drawing or method call keeps its lowering or refusal | equal to the program without the line |
+| a function local fixed by its call site | `frameDerived`, `substFrameNames` (one reader replacing three copies in `constValueOf` / `foldConstNode` / `constantArgOf`) | a body local bound once (never `var`, never reassigned) from numbers, names, `+ - *`, comparisons, `and`/`or`/`not`, `?:` is read through by a fold, in the scope it was bound in; no `/` or `%` | equal to the literal window per call site; two call sites, two windows |
+| constant arithmetic in a length | `foldConstNode` | H4's `arithmeticIsExact` + `foldScalar`, as `constantArgOf` and `constValueOf` already fold | `finiteWindow`'s pinned gap (`ta.sma(x, k + 2)`) closed, asserted by value against `ta.sma(x, 7)` |
+| a stateful expression's history in a function result | `hoistCommittedSeries` (`onEveryEvaluation`, `frameNamesOnly`) | hoisted into the frame when evaluated on EVERY evaluation of the result (both operands of an operator, a unary, an offset's value, every call argument; never a `?:` arm or the right of `and`/`or`) and nothing in the result has an effect | equal to the hand-bound local (`v = …` then `v[3]`); two lengths, two series |
+
+Re-pinned with measured reasons: `h2CommaStatements`, `o1DrawingOnly`, `pine.multiassign` (the
+`a = 1, plot(close)` defect it pinned is gone: the plot is drawn), `pineTimeAnchorAccept`
+(fibonacci-retracement-mtflog now stops on `pine:block`), `pineProbeReplay` (72s-strategy +1 Resolver,
++7 steps: four `x := 0, alert(…)` lines split), `bothLanesAgreeOnFacts` (throw finding retired),
+`docs/pine/param-ids.json` (smart-money's `threw` marker -> `{}`; no id moved), and the five RT10
+stateful-frame-wall pins (`history`, `historyExpression` x2, `requestHoist`, `sourceToRuntime`,
+`rt10FrameHoist`) moved to the `?:` arm form, where the wall still stands. `tools/corpus_metric.json`:
+host_ok 77 -> 78, threw 1 -> 0.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| census off / on / runtime (libraries loaded) | 56 / 82 / 101 (`rt10-census-w17.json`) | **not measured** (coordinator measure hold); probe over the family: +3 attach (above) |
+| harness captures whose statements split differently (scan of every capture source, old vs new `blockStatements`) | pmax-explorer x2, position-size-calculator x2, renko-candles-overlay x2 | every verdict, object verdict, plot and paint identical in `on` and `runtime` |
+| focused vitest | - | ast dir 301 files: 4454 passed, 3 skipped; runtime dir 109 files: 1357 passed; failures only the pre-existing reds below (plus two load timeouts that pass alone); `vendorHarness.test.js` 59 passed |
+
+### Mutations (bytes captured, restored, sha verified; 12 of 12 red)
+
+commaCallSplit off (5 red), commaArmSplit off (2), the binding/mutation anchor dropped (1, the
+calls-only control), discarded call kept refused (2), bare table builtin not a value (1), frameDerived
+never recorded (2), derivable admits `/` (1, the offset control), foldConstNode arithmetic off (3),
+every-evaluation check dropped (2), stateful hoist off (2), `?:` arms walked (1), `and`/`or` right
+walked (1).
+
+### Open
+
+- Q-RT12a-e (`docs/pine/capture-queue-2026-10-04-rt12-statements-history.md`, probe
+  `tools/visual_conformance/probes/vw-rt12-statements-history.pine`): series window lengths (L01-L06),
+  the comma / frame-local rows, and the three attached corpus scripts as written.
+- Pre-existing reds on the base, unchanged: `barIndexShift` (2, C45 off-listing fixture),
+  `runtimePaneSafety` (2, `runtime:unmeasured` where `runtime:failed` is pinned), `vendorTruth`
+  (1, timeout).
+- Census + harness sweep when the hold lifts.
