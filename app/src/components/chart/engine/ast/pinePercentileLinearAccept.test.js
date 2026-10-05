@@ -160,8 +160,9 @@ describe('⭐ ta.percentile_linear_interpolation is a declared, window, cross-la
     // reassigns it inside an `if` whose fold stops at the `for` on line 378, so
     // at line 387 its value is not the declaration's. The first wall is now
     // that write, named where it is.
+    // ⭐ W19-H1 — re-pinned: the main walk steps over the `for` on line 378 (Q-C46a), so
+    // `isContracted` folds and the first wall is the name that loop writes, ruling R7.
     expect(t.refusal.guard).toBe('pine:reassign')
-    expect(t.refusal.message).toMatch(/`isContracted`/)
-    expect(t.refusal.message).toMatch(/line 378/)
+    expect(t.refusal.message).toMatch(/`recentExpansion` — a running total built inside a `for`/)
   })
 })

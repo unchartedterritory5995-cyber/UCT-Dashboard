@@ -168,7 +168,9 @@ const REFUSES = Object.freeze({
   // ⛔ THE LESSON IS ABOUT THE MEASUREMENT, NOT THE VENDOR: "the refusal moved"
   // and "the member gained something" are different claims, and only the first was
   // ever checked. 28 has the identical story one guard along.
-  '27-support-resistance-channels.pine': ['pine:reassign', 183, ':='],
+  // ⭐ W19-H1 — the main walk steps over the loop in its `if` chain (Q-C46a): the first
+  // wall is now the name that loop WRITES, named at the loop (was 183 `:=`).
+  '27-support-resistance-channels.pine': ['pine:reassign', 174, 'for'],
   // ⭐ A BOOLEAN ACCUMULATED ACROSS A `for` OVER A RUNTIME ARRAY — the same shape
   // as 27's, caught by the block guard first because 28 wraps it in a function.
   '28-support-resistance-dynamic-v2.pine': ['pine:block', 133, 'for'],

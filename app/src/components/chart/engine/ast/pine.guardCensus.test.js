@@ -232,7 +232,8 @@ const EXPECTED_UNEXERCISED = [
   // ⚠️ It will LEAVE this list the day a corpus script legitimately exceeds the
   // budget, and that would be a defect in the translator, not in the script.
   'pine:timeout',
-  'pine:type',
+  // ⚰️ `pine:type` LEFT 2026-10-05 (W19-H1): 20-smc-toolkit's `if` chain no longer stops
+  // at its loop (Q-C46a), so its outputs reach the user-defined type they read.
   // ⭐⭐ MOVED HERE 2026-08-28, and the move IS the measurement. `pine:undefined`
   // was reached by exactly one published script — `10-ehlers-instantaneous-trend`,
   // whose `it = … it[1] … it[2]` is a plain self-reference — and it refused

@@ -291,14 +291,14 @@
    "repaint": "non-repainting"
   },
   "refusal": {
-   "guard": "pine:reassign",
-   "line": 386,
-   "column": 31,
-   "token": ":="
+   "guard": "pine:type",
+   "line": 379,
+   "column": 29,
+   "token": "liqs.size"
   },
   "perOutputRefusals": {
    "pine:budget": 4,
-   "pine:reassign": 2
+   "pine:type": 2
   }
  },
  "21-volume-profile-plus.pine": {
@@ -309,13 +309,13 @@
   "selectedFormula": null,
   "downstream": null,
   "refusal": {
-   "guard": "pine:state",
-   "line": 90,
-   "column": 18,
-   "token": "alert_poc"
+   "guard": "pine:reassign",
+   "line": 137,
+   "column": 5,
+   "token": "for"
   },
   "perOutputRefusals": {
-   "pine:state": 1
+   "pine:reassign": 1
   }
  }
 }

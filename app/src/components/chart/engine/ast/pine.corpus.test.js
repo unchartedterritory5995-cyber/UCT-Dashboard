@@ -409,7 +409,10 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // test that reads the stop, which the RANGE window decides — so its fill edge
     // sits beside real columns and ruling 1.2 has nothing to refuse. Constructed
     // cases in `pine.hiddenOnly.test.js` still rail the guard.
-    expect(fired.size).toBe(9)
+    // ⭐ 9 → 10 ON 2026-10-05 (W19-H1). `pine:type` JOINS: 20-smc-toolkit's `if` chain
+    // no longer stops at its loop (the main walk steps over it, Q-C46a), so its two
+    // outputs reach the user-defined type they really read (`liqs.size`).
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {

@@ -57,8 +57,14 @@ describe('C28 — a snapshot does not see the closing pass', () => {
   it('🔴 a name bound BELOW the unfoldable write refuses with the condemnation\'s own sentence', () => {
     const out = lastOutput(src(...HEAD, 'plot(knnIsBull ? 1 : 0, "kb")'))
     expect(out.refusal, out.ast && printFormula(out.ast)).toBeTruthy()
-    expect(out.refusal.guard).toBe('pine:reassign')
-    expect(out.refusal.message).toContain('`knnVal`')
+    // ⭐ W19-H1 — re-pinned. Since the main walk steps over a loop in an `if` chain
+    // (Q-C46a, `vw-loop-in-block-spy-1d-2026-10-02`), `knnVal := array.min(kDist)` FOLDS and
+    // the read refuses on what it really cannot know: `knnF1`, written in a block this
+    // lane does not model. What C28 forbids still holds — the declaration's `50 >= 60` is
+    // never served. The condemnation sentence itself stays railed on the real script
+    // (`vendorHarness.c28StaleSnapshot.test.js`).
+    expect(out.refusal.guard).toBe('pine:collection')
+    expect(out.refusal.message).toContain('`knnF1`')
   })
 
   it('⭐ CONTROL — a name bound ABOVE it reads the value it held there (Pine\'s value)', () => {

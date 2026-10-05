@@ -186,7 +186,9 @@ describe('bool(x) is x != 0, which is what TradingView publishes', () => {
     const out = translatePine(src)
     expect(out.ok).toBe(false)
     expect(out.refusal.guard).toBe('pine:reassign')
-    expect(out.refusal.line).toBe(183)
+    // ⭐ W19-H1 — 174: the loop-written name, named at its loop, since the main walk
+    // steps over a loop in an `if` chain (Q-C46a). Was 183.
+    expect(out.refusal.line).toBe(174)
     // ⛔ THE NON-VACUITY HALF. Without this, deleting the whole `bool` fold would
     // still leave a refusal and a plausible-looking test; the point is that it is
     // no longer THIS one, and no longer at line 37.
