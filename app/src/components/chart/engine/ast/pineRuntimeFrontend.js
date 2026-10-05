@@ -462,10 +462,16 @@ function readTypeFields(toks) {
     if (idents.length < 2) continue
     const nameTok = idents[idents.length - 1]
     const typeTok = idents[idents.length - 2]
+    // ⭐ RT14 — `line [] f` / `float[] f` IS `array<line> f` (Pine's two spellings
+    // of one type). Read as its element type it made an ARRAY field look like a
+    // drawing handle or a number.
+    const ti = head.indexOf(typeTok)
+    const suffixArray = ti >= 0 && isPunct(head[ti + 1], '[') && isPunct(head[ti + 2], ']')
     out.push({
       name: nameTok.value,
-      type: typeTok.value,
-      typeArgs: Array.isArray(typeTok.typeArgs) ? typeTok.typeArgs.slice() : null,
+      type: suffixArray ? 'array' : typeTok.value,
+      typeArgs: suffixArray ? [String(typeTok.value)]
+        : (Array.isArray(typeTok.typeArgs) ? typeTok.typeArgs.slice() : null),
       def: eq > 0 ? run.slice(eq + 1) : null,
       tok: nameTok,
     })
@@ -1012,6 +1018,53 @@ export function paramDefaultsOf(toks, arrow) {
   return any ? { names, defaults } : null
 }
 
+/** ⭐⭐ RT14 — `f(float[] a) =>` IS `f(array<float> a) =>`, AND A HEADER IS READ
+ *  IN THE SECOND SPELLING ONLY.
+ *
+ *  Pine has two spellings of an array type: the v5 suffix (`float[] a`, and with
+ *  a space, `float []a`) and the generic (`array<float> a`). The manual's "Arrays"
+ *  page gives them as the same type. The lexer already folds the generic one into
+ *  one `array` token carrying `typeArgs` (`stripTypeArguments`); the suffix
+ *  reaches a function HEADER as `float [ ] a`, which `functionParams` reads as
+ *  "not a parameter list" (`[` is not a word), and the whole function refused
+ *  `runtime:function` naming the `[` (kalman-psar-backquant).
+ *
+ *  So a header's `T [ ] name` is rewritten to the token the generic spelling
+ *  produces — `array` with `typeArgs: [T]` — followed by the name. ⛔ ONLY INSIDE
+ *  A DEFINITION HEADER'S PARAMETER LIST (`name(…) =>`, `method name(…) =>`), and
+ *  only when `[ ]` is EMPTY and sits between a word and a word: `a[1]` inside a
+ *  default, or any expression, is never this shape. A declaration
+ *  (`float[] a = …`) already binds through `boundName` and is left alone. */
+function foldArrayTypeSuffixes(list) {
+  for (const st of list || []) {
+    const h = st && st.header
+    if (Array.isArray(h) && h.length > 3) {
+      const at = h[0] && h[0].kind === 'ident' && h[0].value === 'method' ? 1 : 0
+      const arrow = findTop(h, (t) => isPunct(t, '=>'))
+      if (arrow > at + 1 && h[at] && h[at].kind === 'ident' && isPunct(h[at + 1], '(')) {
+        const close = h.findIndex((t, i) => i > at + 1 && isPunct(t, ')'))
+        if (close > 0 && close < arrow) {
+          const out = h.slice(0, at + 2)
+          let changed = false
+          for (let i = at + 2; i < h.length; i += 1) {
+            const t = h[i]
+            if (i < close && t && t.kind === 'ident' && isPunct(h[i + 1], '[') && isPunct(h[i + 2], ']')
+                && h[i + 3] && h[i + 3].kind === 'ident' && i + 3 < close) {
+              out.push({ ...t, value: 'array', typeArgs: [String(t.value)] })
+              i += 2
+              changed = true
+              continue
+            }
+            out.push(t)
+          }
+          if (changed) st.header = out
+        }
+      }
+    }
+    if (st && st.sub && st.sub.length) foldArrayTypeSuffixes(st.sub)
+  }
+}
+
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
   const built = buildRuntimeIrLinked(source, opts, holder)
@@ -1072,6 +1125,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  foldArrayTypeSuffixes(stmts)
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
@@ -1692,6 +1746,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call') {
       const uf = splitMethodName(String(node.name || ''))
       if (uf && lookupReadable(uf.recv, scope) !== null) return true
+      // ⭐ RT14 — and a method called on a FIELD of a user type (`t.xs.size()`):
+      // the same head rule the field read below uses.
+      if (uf && String(uf.recv).indexOf('.') > 0
+        && udtHeadOf({ type: 'name', name: uf.recv, tok: node.tok }, scope)) return true
     }
     // ⭐⭐ A FIELD PATH READS ITS HEAD, AND THE HEAD IS A SLOT. `ob.top`
     // arrives as ONE dotted `name` token, so the plain lookup above cannot see
@@ -2364,10 +2422,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
       if (slot !== null) return !!(slots[slot] && slots[slot].collection)
+      // ⭐ RT14 — a field path whose field is DECLARED an array (`store.lines`)
+      if (arrayField(node.name, scope)) return true
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsArray(bound.node, scope))
     }
     return false
+  }
+  /** ⭐ RT14 — `a.b.f` where the user type declares `f` an array. */
+  const arrayField = (name, scope) => {
+    if (!String(name).includes('.')) return false
+    const p = fieldPathOf({ type: 'name', name: String(name) }, scope)
+    return !!(p && p.leaf && p.leaf.type === 'array')
   }
 
   // ── ⭐⭐ USER-DEFINED TYPES, RESOLVED ────────────────────────────────────
@@ -2408,6 +2474,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call') {
       const ctor = udtCtorOf(node)
       if (ctor) return ctor.name
+      // ⭐ RT14 — a call to this script's own function whose body returns a
+      // record answers that record's type (`volData = calcVolumes(ohlcv)`).
+      {
+        const nm = String(node.name || '')
+        if (fnByName.has(nm)) { const f = functions[fnByName.get(nm)]; return (f && f.resultUdt) || null }
+      }
       // ⭐⭐ READING AN ELEMENT OUT OF AN `array<Foo>` YIELDS A `Foo`. The
       // roster is `ARRAY_READS_ELEMENT`, the SAME one the text/colour element
       // kinds already ride, so a call added there carries the user type too
@@ -2416,7 +2488,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const first = (node.args || [])[0]
         const fv = first && first.value !== undefined ? first.value : first
         if (fv && fv.type === 'name') {
-          const s0 = scope.lookup(fv.name)
+          const s0 = lookupReadable(fv.name, scope)
           if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
         }
       }
@@ -2427,7 +2499,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       {
         const uf = splitMethodName(String(node.name || ''))
         if (uf && ARRAY_READS_ELEMENT.has(`array.${uf.method}`)) {
-          const s0 = scope.lookup(uf.recv)
+          const s0 = lookupReadable(uf.recv, scope)
           if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
         }
       }
@@ -2508,9 +2580,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     if (!type) return null
     const steps = []
+    let leaf = null
     for (let i = 1; i < parts.length; i += 1) {
       const spec = fieldSpec(type, parts[i])
       if (!spec) return null
+      leaf = spec
       steps.push(parts[i])
       // ⭐ THE NEXT STEP'S TYPE IS THE FIELD'S DECLARED ONE — which is a user
       // type for `ob.info.top` and a Pine word (`float`, `box`) at the leaf.
@@ -2519,7 +2593,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       type = udtTypes.has(spec.type) ? spec.type : null
       if (!type && i < parts.length - 1) return null
     }
-    return { head, steps, type, slot }
+    return { head, steps, type, slot, leaf }
   }
 
   /**
@@ -4709,6 +4783,84 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return acc
   }
 
+  /** ⭐⭐ RT14 — A ROOT BINDING IS A VARIABLE PINE EVALUATES ON EVERY BAR.
+   *
+   *  A name this script binds at the root and never mutates, to a value reading
+   *  no slot, is an `env` MACRO here: substituted at each use, so the columnar
+   *  lane can run it as one column. That is exact wherever the use runs on every
+   *  bar too. It is NOT exact where the use sits in a block (or a loop body) and
+   *  the value carries its own state — a `ta.valuewhen`, a `ta.change` ring —
+   *  because the substituted call then steps only on the bars the block runs,
+   *  while Pine stepped the declaration on every bar. RT5 made such a binding a
+   *  slot at the binding for the drawing build (`topLevelHistory`); in the pane
+   *  build the use either refused (`ta.change(top)` had no slot to read:
+   *  `runtime:function-global-state`, support-and-resistance) or stepped wrong.
+   *
+   *  So the slot is made when it is first needed: the binding's value lowered
+   *  in the ROOT list's context and declared at the END of that list as it stands
+   *  — immediately before the root statement being lowered. Its position inside
+   *  the bar does not matter: a macro reads no slot, so its value depends on the
+   *  bar alone, and the root list runs once on every bar. Every later use reads
+   *  the same slot.
+   *
+   *  ⛔ Only a ROOT binding (`root`), never a parameter or body local of an
+   *  inlined call (`frame`), never from inside a function's own frame or a
+   *  request's value, and — unless the caller needs a slot (`force`, the
+   *  `ta.change` read) — only for a STATEFUL value used in a block. A text,
+   *  colour, collection or drawing value keeps its expansion. */
+  const rootMacros = new Map()
+  let rootOut = null
+  let rootScope = null
+  // A value the column resolver cannot read is asked the syntactic question
+  // instead: does it (through its own bindings) call one of Pine's stateful
+  // twins (`ta.valuewhen`, `ta.barssince`)? A style or text choice is not.
+  const statefulMacro = (bound) => {
+    try { return statefulTree(makeResolver().resolve(bound.node), false) } catch { return holdsPineTwin(bound.node) }
+  }
+  const rootMacroSlot = (name, bound, force = false) => {
+    if (!bound || bound.kind !== 'expr' || !bound.root) return null
+    if (rootOut === null || owner !== null || stmtHoistOwner !== null || inRequestValue || hoistSink) return null
+    if (rootMacros.has(bound)) return rootMacros.get(bound)
+    if (!force && !(condDepth > 0 && statefulMacro(bound))) return null
+    const v = bound.node
+    if (holdsText(v, rootScope) || holdsColour(v, rootScope) || holdsArray(v, rootScope)
+      || holdsRunObject(v) || holdsObjectCall(v)) return null
+    const saved = { sink: stmtHoistSink, depth: condDepth, entries: [...env.entries()] }
+    stmtHoistSink = rootOut
+    condDepth = 0
+    env.clear()
+    for (const [k, b] of (bound.env || saved.entries)) env.set(k, b)
+    let slot
+    try {
+      const value = lowerExpr(v, rootScope)
+      // declared while the root context stands: the slot is the root's, at depth 0
+      const tmp = `${name} root ${rootMacros.size}`
+      slot = rootScope.declare(tmp, newSlot(tmp, false))
+      rootOut.push(declare(slot, value))
+    } finally {
+      stmtHoistSink = saved.sink
+      condDepth = saved.depth
+      env.clear()
+      for (const [k, b] of saved.entries) env.set(k, b)
+    }
+    rootMacros.set(bound, slot)
+    return slot
+  }
+
+  const variadicMinMax = (node) => {
+    if (!node || node.type !== 'call') return node
+    const nm = String(node.name || '')
+    const variadic = nm === 'math.max' || nm === 'math.min'
+      || ((nm === 'max' || nm === 'min') && pineVersion !== null && pineVersion <= 4)
+    const args = node.args || []
+    if (!variadic || args.length < 3 || definedNames.has(nm) || isUserFn(nm)
+      || args.some((a) => !a || a.name)) return node
+    const leaves = args.map((a) => (a.value !== undefined ? a.value : a))
+    return leaves.slice(1).reduce((acc, nx) => ({
+      type: 'call', name: nm, tok: node.tok,
+      args: [{ name: null, value: acc, tok: node.tok }, { name: null, value: nx, tok: node.tok }],
+    }), leaves[0])
+  }
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
@@ -4725,6 +4877,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
         node = folded
       }
     }
+    // ⭐⭐ RT14 — `math.max(a, b, c, …)` / `math.min(…)`, and v1–v4's bare `max` /
+    // `min` (the same variadic builtins): the LEFT FOLD of the two-argument call,
+    // `pine.js::variadicFold`'s own rule (vendor: max(5 args) = 5, min(5 args) = 1),
+    // made BEFORE the route decision so both routes see two-argument calls. Over
+    // runtime state it refused (bare: "takes 2 arguments, given 4") or threw inside
+    // the column resolver (`math.max`: a third argument it never read), while the
+    // host lane folded the same call. Only at three or more arguments, and never
+    // over a definition of the script's own.
+    node = variadicMinMax(node)
     // ⭐ THE ROUTE DECISION, ASKED ONCE PER SUBTREE. A pure subtree becomes one
     // column no matter how large it is, which is what keeps a stateful program
     // paying runtime cost only for the parts that are actually stateful.
@@ -5006,7 +5167,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
           }
           const bound = env.get(node.name)
-          if (bound && bound.kind === 'expr') return lowerExpr(bound.node, scope)
+          if (bound && bound.kind === 'expr') {
+            // RT14: a root binding already given its every-bar slot is read from it,
+            // and a STATEFUL one expanded inside a block is given that slot now.
+            const rooted = rootMacroSlot(node.name, bound)
+            if (rooted !== null) return read(rooted)
+            return lowerExpr(bound.node, scope)
+          }
           // ⭐ A PLOT ID IS NOT A NUMBER, and saying so is the whole point of
           // binding it. Falling through from here reached `runtime:unbound` —
           // *"this Pine name was never given a value"* — about a name the script
@@ -5489,6 +5656,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw new RuntimeRefusal('runtime:function', fn.valuelessEnd === 'drawing'
               ? `\`${node.name}\` ends in a drawing, which the object program draws — its value is `
                 + 'not computed in this lane, so call it on a line of its own'
+              : fn.valuelessEnd === 'field'
+              ? `\`${node.name}\` ends in a write to a field, which this lane does not carry as its `
+                + 'value — call it on a line of its own'
+              : fn.valuelessEnd === 'if'
+              ? `\`${node.name}\` ends in an \`if\` block whose branches run statements rather than `
+                + 'yield one value, which this lane does not carry — call it on a line of its own'
               : fn.valuelessEnd
               ? `\`${node.name}\` ends in \`${fn.valuelessEnd}(…)\`, which returns nothing, so its `
                 + 'value cannot be read — call it on a line of its own'
@@ -5668,7 +5841,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             return admitArrayCall(methodFormCall(node, () => 'array', (m) => definedNames.has(m)).node,
               scope, false)
           }
-          if (rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection) {
+          // ⭐ RT14 — and a receiver that is a field DECLARED an array (`t.xs.size()`)
+          if ((rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection)
+            || (uf && !definedNames.has(uf.method) && (rslot === null || rslot === undefined)
+              && arrayField(uf.recv, scope))) {
             const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
             if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
               return admitArrayCall(rew.node, scope, false)
@@ -5924,7 +6100,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
               histSlot(hoisted.slot, owner !== null
                 ? fnHistorySlotFor(owner, hoisted.slot, 1, at) : historySlotFor(hoisted.slot, 1, at), 1))
           }
-          const varSlot = scope.lookup(srcNode.name)
+          let varSlot = scope.lookup(srcNode.name)
+          // RT14: `ta.change(top)` over a ROOT binding (`float top = ta.valuewhen(…)`,
+          // never mutated, so an `env` macro with no slot) reads the binding's
+          // every-bar slot — the variable Pine keeps, history included.
+          if (varSlot === null) varSlot = rootMacroSlot(srcNode.name, env.get(srcNode.name), true)
           if (varSlot === null) {
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
@@ -6808,6 +6988,51 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
   /** ⭐ C18 — `var`/`varip` open state, never an arm-local binding. */
   const STATE_WORDS_ARM = new Set(['var', 'varip'])
+  /** ⭐ RT14 — does an `if` chain YIELD a value in the shapes `armAssignerFor`
+   *  lowers? Every arm: arm-local declarations, then a bare expression, a nested
+   *  chain that yields, or a `switch`. A chain whose arms end in a write (`x := 1`)
+   *  or a call made for its effect is a chain run for its EFFECT. */
+  const armYields = (sub) => {
+    const lines = sub || []
+    if (!lines.length) return false
+    const localDecl = (ln) => {
+      const t = (ln && ln.header) || []
+      if (!t.length || (ln.sub && ln.sub.length)) return false
+      if (findTop(t, (x) => isPunct(x, ':=')) >= 0) return false
+      if (findTop(t, (x) => x.kind === 'punct' && x.value.length === 2 && x.value.endsWith('=')
+        && MUTATOR_OPS.has(x.value[0])) >= 0) return false
+      const eq = findTop(t, (x) => isPunct(x, '='))
+      return eq > 0 && !!boundName(t, eq) && !(t[0].kind === 'ident' && STATE_WORDS_ARM.has(t[0].value))
+    }
+    let k = lines.length - 1
+    while (k >= 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
+    if (k >= 0 && k < lines.length - 1 && blockKeywordOf(lines[k]) !== 'if') return false
+    if (k >= 0 && blockKeywordOf(lines[k]) === 'if') {
+      return lines.slice(0, k).every(localDecl) && chainYields(lines, k)
+    }
+    const last = lines[lines.length - 1]
+    if (!lines.slice(0, -1).every(localDecl)) return false
+    if (blockKeywordOf(last) === 'switch') return true
+    const lt = last.header || []
+    if (!lt.length || (last.sub && last.sub.length)) return false
+    // a call that returns nothing yields nothing: a void collection call
+    // (`array.push`), or a function of this script compiled VALUELESS
+    if (lt[0].kind === 'ident' && isPunct(lt[1], '(')) {
+      const w = String(lt[0].value)
+      if (ARRAY_FNS[w] && isVoid(w)) return false
+      if (fnByName.has(w) && functions[fnByName.get(w)].valueless) return false
+    }
+    return findTop(lt, (t) => isPunct(t, '=') || isPunct(t, ':=')) < 0
+      && findTop(lt, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
+        && MUTATOR_OPS.has(t.value[0])) < 0
+  }
+  const chainYields = (lines, at) => {
+    for (let k = at; k < lines.length; k += 1) {
+      if (k > at && blockKeywordOf(lines[k]) !== 'else') break
+      if (!armYields(lines[k].sub)) return false
+    }
+    return true
+  }
   const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
     const lines = sub || []
     if (!lines.length) {
@@ -6865,6 +7090,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const last = lines[lines.length - 1]
     const lt = last.header || []
+    // ⭐⭐ RT14 — AN ARM WHOSE LAST STATEMENT IS A `switch` BLOCK yields that
+    // switch's value, exactly as an arm ending in a nested `if` chain does (above):
+    // seeded `na` (a switch with no default that matches nothing has no value),
+    // its arms through this same assigner. fvg-detector-tradingfinder writes
+    // `x = if a … else if b` + a `switch` on the next line as the arm's value.
+    if (blockKeywordOf(last) === 'switch' && (last.sub || []).length && prefixOk(lines.length - 1)) {
+      const body = lowerStmts(lines.slice(0, -1), armScope)
+      body.push(assign(slot, naValue()))
+      for (const st2 of lowerSwitchInto(last.sub, lt.slice(1), armScope, slot,
+        armAssignerFor(slot, label, armScope), label, lt[0])) body.push(st2)
+      objectBlocks.push({ scope: armScope, body })
+      return body
+    }
     const binds = findTop(lt, (t) => isPunct(t, '=') || isPunct(t, ':=')) >= 0
       || findTop(lt, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
         && MUTATOR_OPS.has(t.value[0])) >= 0
@@ -7264,6 +7502,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
     const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
+    // RT14: the root list and its scope, where `materializeRootMacro` declares.
+    if (rootHoist && !frameHoist && !inline && owner === null && rootOut === null) { rootOut = out; rootScope = scope }
     const outerStmtSink = stmtHoistSink
     const outerStmtOwner = stmtHoistOwner
     if (!inline) stmtHoistSink = null
@@ -7940,10 +8180,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const varBlk = toks[eq + 1]
         if (varBlk && varBlk.kind === 'ident'
             && (varBlk.value === 'if' || varBlk.value === 'switch')) {
-          note('runtime:block-value')
-          throw new RuntimeRefusal('runtime:block-value',
-            `\`var ${nameTok.value} = ${varBlk.value} …\` initialises ONCE, and this `
-            + 'lane has no once-only guard around a block yet', locate(first))
+          // ⭐⭐ RT14 — THE ONCE-ONLY GUARD, BUILT FROM WHAT THE LANE ALREADY HAS.
+          // A `var` declaration's `declare` runs once (`JUMP_IF_INIT`), so the
+          // variable is declared `na` once and a second persistent slot, declared
+          // `0` once, says whether the block has run: the chain runs on the first
+          // execution of this line and assigns, and every later execution skips
+          // it — Pine's `var` (the initialiser is evaluated on the first bar and
+          // the value kept). The arms are the binding form's own
+          // (`armAssignerFor`, `lowerIfChainInto`, `lowerSwitchInto`), so an
+          // unmatched chain leaves the `na` it was declared with.
+          const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
+          out.push(declare(slot, naValue()))
+          const onceName = `${nameTok.value} var once`
+          const once = scope.declare(onceName, newSlot(onceName, true))
+          out.push(declare(once, num(0)))
+          const mkArm = armAssignerFor(slot, `var ${nameTok.value} = ${varBlk.value} …`, scope)
+          let body
+          if (varBlk.value === 'if') {
+            const chain = lowerIfChainInto(list, i, toks.slice(eq + 2), scope, mkArm)
+            i = chain.next
+            body = [chain.stmt]
+          } else {
+            body = lowerSwitchInto(st.sub, toks.slice(eq + 2), scope, slot, mkArm,
+              `var ${nameTok.value} =`, varBlk)
+          }
+          out.push(ifStmt(binary('==', read(once), num(0)), [...body, assign(once, num(1))], []))
+          continue
         }
         const value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
@@ -8166,6 +8428,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           env.set(nameTok.value, {
             kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth,
             ...(declaresColourNa(toks, eq, value, scope) ? { colourType: true } : {}),
+            // RT14: a ROOT binding (the list that runs on every bar) — see `materializeRootMacro`.
+            root: rootHoist && owner === null && condDepth === 0,
           })
           continue
         }
@@ -8330,7 +8594,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
               () => 'array', (m) => definedNames.has(m)).node, scope))
             continue
           }
-          if (rslot !== null && slots[rslot] && slots[rslot].collection) {
+          if ((rslot !== null && slots[rslot] && slots[rslot].collection)
+            || ((rslot === null || rslot === undefined) && arrayField(uf.recv, scope))) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
@@ -8707,6 +8972,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
+        } else if (chainAt >= 0 && !chainYields(lines, chainAt)) {
+          // ⭐⭐ RT14 — A BODY THAT ENDS IN AN `if` RUN FOR ITS EFFECT (its arms
+          // write or call, they do not yield: double-topbottom's `add_to_array`,
+          // fvg-detector's `FVGDetector`) is the loop case's twin: compiled
+          // VALUELESS by the same rule — every statement lowered, its result `na`,
+          // and a call that READS the result refused by name at the call site.
+          // Called on a line of its own, the result is discarded and nothing is lost.
+          body = lowerStmts(lines, fnScope, false, true)
+          record.valueless = true
+          record.valuelessEnd = 'if'
+          result = naValue()
         } else if (chainAt >= 0) {
           body = lowerStmts(lines.slice(0, chainAt), fnScope, false, true)
           // ⛔ `na` IS THE SEED AND IT IS LOAD-BEARING. An `if` with no `else`
@@ -8734,13 +9010,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
             body = body.concat(lowerStmts([last], fnScope, false, true))
             const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
             const slot = bound ? fnScope.lookup(bound.value) : null
-            if (slot === null) {
+            if (slot === null && walrus > 0 && fieldPathOf({ type: 'name', name: String(lt[walrus - 1].value) }, fnScope)) {
+              // ⭐ RT14 — A BODY THAT ENDS IN A FIELD WRITE (`sr.label := na`) is a
+              // helper called for its effect: compiled VALUELESS (the effect-`if`
+              // rule), and a call that reads the result refuses by name.
+              record.valueless = true
+              record.valuelessEnd = 'field'
+              result = naValue()
+            } else if (slot === null) {
               throw new RuntimeRefusal('runtime:function',
                 'a body whose last statement binds nothing this front end can return', locate(nameTok))
+            } else {
+              result = read(slot)
             }
-            result = read(slot)
           } else {
             try {
+              // ⭐ RT14 — the user type a returned record has, for a caller's field reads.
+              try { record.resultUdt = udtTypeOf(parseWholeExpression(lt), fnScope) || null } catch { record.resultUdt = null }
               result = intoFrameSink(body, (root) => lowerResult(root, fnScope), parseWholeExpression(lt))
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
