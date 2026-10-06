@@ -43,7 +43,7 @@ async function renderWith(result, isLoading = false) {
 describe('DecisionRecordTab', () => {
   it('a recorded rejection renders its STAGE, its reason and its issue -- beside the pass', async () => {
     await renderWith({ ok: true, httpStatus: 200, body: considered })
-    expect(screen.getByText('Dropped at stage 2 · gate')).toBeInTheDocument()
+    expect(screen.getByText('Dropped at the swing-trade gate (stage 2)')).toBeInTheDocument()
     expect(screen.getByText('failed gate: extended from 10ema')).toBeInTheDocument()
     expect(screen.getByText('Passed every stage')).toBeInTheDocument()
     expect(screen.getAllByTestId('decision-record-row')).toHaveLength(3)
