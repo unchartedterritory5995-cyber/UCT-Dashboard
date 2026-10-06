@@ -4,6 +4,7 @@
 // the shell through a callback, so the shell stays the ONE writer of the board documents.
 import { useState } from 'react'
 import { TICKER_RE } from '../../components/provenance/AbsenceReceipt'
+import UIcon from '../../components/ui/UIcon'
 import { BY_CODE } from './functions'
 import { FAVORITES_MAX, boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
 import TerminalVersions from './TerminalVersions'
@@ -103,7 +104,9 @@ export function BoardsMenu({
                   data-testid={`terminal-board-preset-${b.slug}`}>Set</button>
                 {presets.map((p) => (
                   <button key={p} type="button" className={styles.chip} disabled={!libraryWritable}
-                    onClick={() => onPreset(p, null)} aria-label={`Stop opening ${b.name} for ${p}`}>{p} ×</button>
+                    onClick={() => onPreset(p, null)} aria-label={`Stop opening ${b.name} for ${p}`}>
+                    {p} <UIcon name="x" size={10} gold={false} />
+                  </button>
                 ))}
               </div>
               {presetError?.id === b.id && (
@@ -158,10 +161,13 @@ export function RecentsMenu({ layout, library, libraryWritable = true, functionR
         <span className={styles.code}>{code}</span>
         <span className={styles.menuLabel}>{BY_CODE[code]?.label || ''}</span>
       </button>
-      <button type="button" className={styles.menuBtn} onClick={() => star(code)} disabled={!libraryWritable}
+      <button type="button" className={`${styles.menuBtn} ${library.favorites.includes(code) ? styles.favOn : ''}`}
+        onClick={() => star(code)} disabled={!libraryWritable}
         aria-pressed={library.favorites.includes(code)}
         aria-label={library.favorites.includes(code) ? `Unfavourite ${code}` : `Favourite ${code}`}
-        data-testid={`terminal-fav-${code}`}>{library.favorites.includes(code) ? '★' : '☆'}</button>
+        data-testid={`terminal-fav-${code}`}>
+        <UIcon name={library.favorites.includes(code) ? 'star-fill' : 'star'} size={14} gold={false} />
+      </button>
     </li>
   )
   const channels = layout.channels.filter((c) => c.history.length > 0)

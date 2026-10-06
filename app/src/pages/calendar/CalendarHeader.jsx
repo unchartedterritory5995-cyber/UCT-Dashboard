@@ -5,6 +5,7 @@ import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
+import { useInTerminalPanel } from '../../components/terminal/terminalPanel'
 import useSectorRead from '../../hooks/useSectorRead'
 import { currentWeekMonday, localIso } from './weekAnchor'
 import { todayIsoEt } from './calendarTime'
@@ -285,6 +286,7 @@ export default function CalendarHeader({
   econProvenance = null,
 }) {
   const isPhone = useIsPhone()
+  const inTerminalPanel = !!useInTerminalPanel()
   const [panelOpen, setPanelOpen] = useState(false)            // desktop ⚙ Filters popover
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -678,7 +680,12 @@ export default function CalendarHeader({
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
-        <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />UCT Terminal</span>
+        {/* Inside a UCT Terminal panel the panel header already names the function ("CAL
+            Earnings & events calendar"); a second title reading "UCT Terminal" inside the
+            terminal is the double header the visual audit flagged (finding 2). */}
+        {!inTerminalPanel && (
+          <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />UCT Terminal</span>
+        )}
         <span className={styles.view}>
           {VIEWS.map(([key, lbl, tip]) => (
             <span key={key} className={view === key ? styles.viewOn : ''}

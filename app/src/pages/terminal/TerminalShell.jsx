@@ -32,17 +32,18 @@ import ErrorBoundary from '../../components/ErrorBoundary'
 import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
+import { PanelFreshnessContext, PanelSkeleton, PanelState, TerminalPanelContext } from '../../components/terminal'
+import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
-import { PanelFreshnessContext } from './panelFreshness'
 import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
-import { panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
+import { FLUSH_PANELS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
@@ -94,9 +95,10 @@ export function aliasFailure(cmd, status) {
 /** What a panel shows when the component inside it throws: the rest of the shell lives on. */
 function PanelCrashed({ code }) {
   return (
-    <div className={styles.panelEmpty} role="alert" data-testid="terminal-panel-crashed">
-      {code} hit an error and stopped. The other panels are unaffected; run {code} again to retry.
-    </div>
+    <PanelState kind="error" role="alert" testId="terminal-panel-crashed"
+      title={`${code} hit an error and stopped.`}>
+      The other panels are unaffected; run {code} again to retry.
+    </PanelState>
   )
 }
 
@@ -182,6 +184,7 @@ function channelOf(layout, id) {
 export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
+  density = 'comfortable',
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -195,12 +198,17 @@ export function Panel({
   const rowsProp = useMemo(() => (focused && onRows ? (rows) => onRows(rows, owner) : undefined),
     [focused, onRows, owner])
   // V8 — panel freshness badges. OPT-IN: a panel that never calls `usePanelFreshness` never
-  // calls this setter, so `freshness` stays null and no badge renders (`panelFreshness.js`).
+  // calls this setter, so `freshness` stays null and no badge renders (`components/terminal/terminalPanel.js`).
   // The Provider below is keyed identically to the body's ErrorBoundary, so switching the
   // panel's security/args unmounts the old subtree (running `usePanelFreshness`'s cleanup,
   // which clears this via the same setter) before the new one mounts — never a stale badge
   // held over from the previous security.
   const [freshness, setFreshness] = useState(null)
+  // ONE header per panel: what the embedded component learns about the frame it sits in, so a
+  // page can drop its own title and page padding (components/terminal/terminalPanel.js).
+  const flush = !!(r.name && FLUSH_PANELS.has(r.name))
+  const frame = useMemo(() => ({ code: panel.code, density, inset: !flush }), [panel.code, density, flush])
+  const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''}`}
@@ -244,53 +252,66 @@ export function Panel({
           <span className={styles.panelActions}>
             {!isPhone && (
               <button type="button" className={styles.panelAct} onClick={onDuplicate}
-                aria-label={`Duplicate panel ${index + 1}`} title="Duplicate" data-testid={`terminal-dup-${index}`}>⧉</button>
+                aria-label={`Duplicate panel ${index + 1}`} title="Duplicate" data-testid={`terminal-dup-${index}`}>
+                <UIcon name="copy" size={14} gold={false} />
+              </button>
             )}
             {!isPhone && r.state === 'ready' && !panel.popout && (
               <button type="button" className={styles.panelAct} onClick={onPopout}
-                aria-label={`Pop out panel ${index + 1}`} title="Pop out" data-testid={`terminal-popout-${index}`}>↗</button>
+                aria-label={`Pop out panel ${index + 1}`} title="Pop out" data-testid={`terminal-popout-${index}`}>
+                <UIcon name="popOut" size={14} gold={false} />
+              </button>
             )}
             {canClose && (
               <button type="button" className={styles.panelAct} onClick={onClose}
-                aria-label={`Close panel ${index + 1}`} title="Close" data-testid={`terminal-close-${index}`}>×</button>
+                aria-label={`Close panel ${index + 1}`} title="Close" data-testid={`terminal-close-${index}`}>
+                <UIcon name="x" size={14} gold={false} />
+              </button>
             )}
           </span>
         )}
       </header>
-      <div className={styles.panelBody}>
+      <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
+        data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
-          <div className={styles.panelEmpty} data-testid={`terminal-popped-${index}`}>
-            {panel.code} is open in its own window.{' '}
-            <button type="button" className={styles.chip} onClick={onBringBack}>Bring it back</button>
-          </div>
+          <PanelState kind="paused" testId={`terminal-popped-${index}`}
+            title={`${panel.code} is open in its own window.`}
+            action={<button type="button" className={styles.chip} onClick={onBringBack}>Bring it back</button>} />
         )}
         {Comp && (
-          <ErrorBoundary
-            key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}
-            fallback={<PanelCrashed code={panel.code} />}
-          >
+          <ErrorBoundary key={identity} fallback={<div className={styles.panelState}><PanelCrashed code={panel.code} /></div>}>
             {/* V8: a fresh Provider per panel identity (same key as the ErrorBoundary above) so
                 switching security/args clears a stale badge rather than carrying the previous
                 security's freshness into the next one's loading state. */}
-            <PanelFreshnessContext.Provider value={setFreshness} key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}>
-              <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
-                {r.name === 'Help'
-                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} auth={auth} />
-                  : r.name === 'Move'
-                    ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
-                    : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
-              </Suspense>
+            <PanelFreshnessContext.Provider value={setFreshness} key={identity}>
+              <TerminalPanelContext.Provider value={frame}>
+                {/* ONE loading treatment: the same skeleton a panel shows while its own data
+                    loads (components/terminal/PanelSkeleton), never a "Loading CODE..." line
+                    followed by a second, different loader. */}
+                <Suspense fallback={<PanelSkeleton label={`Loading ${panel.code}`} shape={flush ? 'chart' : 'rows'}
+                  testId={`terminal-loading-${index}`} />}>
+                  {r.name === 'Help'
+                    ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} auth={auth} />
+                    : r.name === 'Move'
+                      ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
+                      : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
+                </Suspense>
+              </TerminalPanelContext.Provider>
             </PanelFreshnessContext.Provider>
           </ErrorBoundary>
         )}
         {!panel.popout && r.state === 'needs-ticker' && (
-          <div className={styles.panelEmpty}>Type a ticker for {panel.code} — e.g. <kbd>NVDA {panel.code}</kbd></div>
+          <PanelState kind="input" title={`${panel.code} needs a ticker.`}>
+            Type one first, e.g. <kbd>NVDA {panel.code}</kbd>
+          </PanelState>
         )}
         {!panel.popout && r.state === 'disabled' && (
-          <div className={styles.panelEmpty}>{panel.code} is not enabled for your account yet.</div>
+          <PanelState kind="locked" title={`${panel.code} is not enabled for your account yet.`} />
         )}
         {!panel.popout && r.state === 'unknown' && (
-          <div className={styles.panelEmpty}>Unknown function {panel.code}. Type <kbd>HELP</kbd>.</div>
+          <PanelState kind="empty" title={`Unknown function ${panel.code}.`}>
+            Type <kbd>HELP</kbd> for the list.
+          </PanelState>
         )}
       </div>
     </section>
@@ -1077,7 +1098,11 @@ export default function TerminalShell() {
           {popoutPanel ? (
             <Panel index={0} panel={popoutPanel} focused={false} syms={{}} auth={auth} channel={null}
               onFocus={() => {}} onRun={popoutRun} standalone isPhone={isPhone} />
-          ) : <div className={styles.panelEmpty}>This pop-out link could not be read.</div>}
+          ) : (
+            <div className={styles.popoutMissing}>
+              <PanelState kind="error" role="status" title="This pop-out link could not be read." />
+            </div>
+          )}
         </div>
       </div>
     )
@@ -1202,7 +1227,9 @@ export default function TerminalShell() {
             <button key={a.id} type="button" className={styles.chip} onClick={() => noticeAction(a)}
               data-testid={`terminal-notice-${a.id}`}>{a.label}</button>
           ))}
-          <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">×</button>
+          <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">
+            <UIcon name="x" size={14} gold={false} />
+          </button>
         </div>
       )}
       <div className={styles.body}>
@@ -1255,6 +1282,7 @@ export default function TerminalShell() {
                 onBringBack={() => onBringBack(i)}
                 canClose={count > 1}
                 isPhone={isPhone}
+                density={layout.density}
               />
           ))}
         </div>
@@ -1271,7 +1299,7 @@ export default function TerminalShell() {
             icon: c.id,
             onClick: () => pickChannel(menuPanelId, c.id),
           })),
-          { key: 'new', label: 'New group', icon: '+', onClick: () => newChannel(menuPanelId) },
+          { key: 'new', label: 'New group', icon: <UIcon name="plus" size={12} gold={false} />, onClick: () => newChannel(menuPanelId) },
           { key: 'none', label: 'Not linked (keep this security)', icon: '·', onClick: () => pickChannel(menuPanelId, null) },
         ] : []}
       />
