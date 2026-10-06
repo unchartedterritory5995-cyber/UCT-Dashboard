@@ -264,6 +264,8 @@ def publish_build(target, *, build_db: str, prices_db: str, manifest_fields: dic
     t0 = time.time()
     build_id = manifest_fields["build_id"]
     C.build_prefix(build_id)
+    C.assert_not_revoked(build_id, (manifest_fields.get("build") or {}).get("db_sha256"))
+    C.assert_not_revoked(None, file_sha(build_db)[0])        # the bytes, not just what the manifest claims
     if validation.get("status") != "PASS":
         raise PublishError(f"validation status {validation.get('status')}: an unvalidated build is never published")
     if target.exists(C.manifest_key(build_id)):

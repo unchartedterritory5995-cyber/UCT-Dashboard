@@ -37,6 +37,27 @@ class ContractError(ValueError):
     pass
 
 
+# ⛔⛔ REVOKED BUILDS -- a build listed here can NEVER be published, pointed at (advance / rollback / cutover), pinned
+# (MCAP_PIT_PIN) or served, whatever a manifest, pointer or operator says. Matched by build id AND by DB sha256, so a
+# re-wrapped copy of the same DB under a new build id is refused too. Append-only: an entry is never removed.
+REVOKED_BUILDS = {
+    "MCAP_V1-20261005T205248Z": {
+        "db_sha256": "fae1dbb5701d28cd857d3a8d2bf7a5f6e6f7f9d05bfe73b6208fdb373624a7ba",
+        "reason": "REJECTED first M3 build (diagnostic only): its offering gate shifted Obs.public_at, changing split-basis"
+                  " and validator decisions (OPTH/SURG/CTM holds, an ACOG value, label drift). Superseded by"
+                  " MCAP_V1-20261005T234206Z (accepted M3, 20/20 holds).",
+    },
+}
+REVOKED_DB_SHA = {v["db_sha256"]: k for k, v in REVOKED_BUILDS.items()}
+
+
+def assert_not_revoked(build_id: str | None = None, db_sha256: str | None = None) -> None:
+    if build_id in REVOKED_BUILDS:
+        raise ContractError(f"{build_id} is REVOKED: {REVOKED_BUILDS[build_id]['reason']}")
+    if db_sha256 in REVOKED_DB_SHA:
+        raise ContractError(f"build DB {db_sha256[:16]} is REVOKED ({REVOKED_DB_SHA[db_sha256]})")
+
+
 def obj_key(sha: str) -> str:
     if not SHA_RE.match(sha or ""):
         raise ContractError(f"not a sha256: {sha!r}")
@@ -90,6 +111,8 @@ def validate_manifest(m: dict, *, build_id: str | None = None) -> None:
     if m["dataset"] != "MCAP_V1":
         raise ContractError("manifest is not MCAP_V1")
     build_prefix(m["build_id"])
+    assert_not_revoked(m["build_id"], (m.get("build") or {}).get("db_sha256"))
+    assert_not_revoked(None, ((m.get("artifacts") or {}).get("db") or {}).get("sha256"))
     if build_id is not None and m["build_id"] != build_id:
         raise ContractError(f"manifest names {m['build_id']}, expected {build_id}")
     if m["schema"].get("document_format") not in COMPATIBLE_DOC_FORMATS:
@@ -141,6 +164,7 @@ def validate_pointer(p: dict) -> None:
     if not isinstance(p, dict) or p.get("format") != POINTER_FORMAT:
         raise ContractError("pointer format unsupported")
     build_prefix(p.get("build_id", ""))
+    assert_not_revoked(p["build_id"])
     if p.get("manifest_key") != manifest_key(p["build_id"]):
         raise ContractError("pointer manifest_key does not match its build id")
     if not SHA_RE.match(str(p.get("manifest_sha256", ""))):

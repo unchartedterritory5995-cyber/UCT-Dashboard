@@ -307,8 +307,10 @@ class Refresh:
         res = {}
         uni = os.path.join(self.data, "sec_t.json.gz")
         cur = os.path.join(self.data, "universe_current.json.gz")
-        res["universe"] = self._source_file("universe", "universe_current.json.gz") or \
-            {"source": "v5_security", **Q.universe_from_v5(S["universe"]["db"], cur)}
+        su = S.get("universe", {})
+        res["universe"] = self._source_file("universe", "universe_current.json.gz") or (
+            {"source": "v5_published", **Q.universe_from_v5_published(cur)} if su.get("kind") == "v5_published" else
+            {"source": "v5_security", **Q.universe_from_v5(su["db"], cur)})
         # ⭐ an issuer leaving today's universe keeps its prices / reference / SEC inputs (identity_ledger.py)
         res["universe"]["durable"] = IL.durable_universe(self._prev_identity(), cur, uni)
         res["prices"] = self._source_file("prices", "prices.db") or \

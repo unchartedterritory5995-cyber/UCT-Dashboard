@@ -4,7 +4,8 @@ The accepted candidate's inputs were assembled by hand over several sessions (ad
 This module is that assembly as code, so a scheduled refresh can reproduce it without anyone at a shell:
 
   SOURCE (production-only)        STAGE                         OUTPUT (the build's --data dir)
-  Fundamentals V5 live.db         universe                      sec_t.json.gz   {cik: ["", [tickers]]}
+  Fundamentals V5 PUBLISHED       universe                      sec_t.json.gz   {cik: ["", [tickers]]}
+   (R2 CURRENT -> manifest; or the live.db security table where V5's DB is local)
   bars.db (daily, split-adjusted) prices                        prices.db       (prices.py schema)
   Massive reference API           reference                     ref.jsonl       [ticker, details, splits, events]
   SEC bulk (public)               sec_bulk                      companyfacts.zip, submissions.zip (+ Last-Modified)
@@ -75,6 +76,29 @@ def universe_from_v5(live_db: str, out: str) -> dict:
         raise AcquisitionError(f"universe has only {len(uni)} issuers")
     open(out, "wb").write(gzip.compress(json.dumps(uni).encode()))
     return {"issuers": len(uni), "tickers": sum(len(v[1]) for v in uni.values())}
+
+
+def universe_from_v5_published(out: str, *, target=None, min_issuers: int = 5000) -> dict:
+    """The universe from Fundamentals V5's PUBLISHED authority (read-only): CURRENT.json -> its manifest, verified by
+    sha256, -> {cik: ["", [tickers]]} from the manifest's {ticker: cik} map. This is the production path: V5's pipeline
+    runs on its own service (fundamentals-v5-runner), so the worker cannot read V5's live.db; the published manifest is
+    exactly what V5 members are served. Never writes; a missing pointer, a sha mismatch or a thin manifest fails closed."""
+    from api.services.fundamentals_pit import v5_publish as V5P
+    t = target if target is not None else V5P.R2Target()
+    cur = V5P.read_current(t)
+    if not cur or not cur.get("version") or not cur.get("manifest_sha256"):
+        raise AcquisitionError("V5 CURRENT pointer missing or incomplete")
+    man = V5P.read_manifest(t, cur["version"], verify_sha=cur["manifest_sha256"])
+    if not man or not isinstance(man.get("tickers"), dict):
+        raise AcquisitionError(f"V5 manifest {cur['version']} missing or has no ticker map")
+    uni: dict[str, list] = {}
+    for tk, cik in sorted(man["tickers"].items()):
+        uni.setdefault(str(int(cik)), ["", []])[1].append(tk)
+    if len(uni) < min_issuers:
+        raise AcquisitionError(f"V5 published universe has only {len(uni)} issuers")
+    open(out, "wb").write(gzip.compress(json.dumps(uni, sort_keys=True).encode(), mtime=0))
+    return {"issuers": len(uni), "tickers": sum(len(v[1]) for v in uni.values()), "v5_version": cur["version"],
+            "v5_manifest_sha256": cur["manifest_sha256"], "v5_published_at": cur.get("published_at")}
 
 
 def tickers_of(universe_path: str) -> list[str]:

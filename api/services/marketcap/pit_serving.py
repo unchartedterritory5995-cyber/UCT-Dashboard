@@ -116,6 +116,8 @@ def bound(force: bool = False) -> dict:
     except Exception as e:  # noqa: BLE001 -- unverifiable authority: keep the last verified one, or nothing
         with _lock:
             _state.update(checked_at=now, error=f"{type(e).__name__}: {e}"[:300], error_at=now)
+            if isinstance(e, C.ContractError) and "REVOKED" in str(e):
+                _state["bound"] = None                      # a revoked build is never kept as "last verified"
             if _state["bound"] is not None:
                 return _state["bound"]
         raise Unavailable(str(e))
