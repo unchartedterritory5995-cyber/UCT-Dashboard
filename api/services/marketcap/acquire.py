@@ -74,7 +74,7 @@ def universe_from_v5(live_db: str, out: str) -> dict:
         c.close()
     if len(uni) < 1000:
         raise AcquisitionError(f"universe has only {len(uni)} issuers")
-    open(out, "wb").write(gzip.compress(json.dumps(uni).encode()))
+    open(out, "wb").write(gzip.compress(json.dumps(uni).encode(), mtime=0))
     return {"issuers": len(uni), "tickers": sum(len(v[1]) for v in uni.values())}
 
 

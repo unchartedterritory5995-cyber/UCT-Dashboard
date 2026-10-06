@@ -561,7 +561,7 @@ class Refresh:
     def _predecessors(self, cf, sub):
         pu = Q.predecessor_universe(os.path.join(self.data, "lineage.db"), os.path.join(self.data, "inputs.db"))
         upath = os.path.join(self.rdir, "pred_universe.json.gz")
-        open(upath, "wb").write(__import__("gzip").compress(json.dumps(pu).encode()))
+        open(upath, "wb").write(gzip.compress(json.dumps(pu).encode(), mtime=0))   # deterministic bytes
         cpath = os.path.join(self.rdir, "pred_ciks.json")
         json.dump(sorted(int(k) for k in pu), open(cpath, "w"))
         pin = os.path.join(self.data, "pred_inputs.db")
