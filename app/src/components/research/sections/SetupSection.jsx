@@ -21,6 +21,9 @@ import { SkeletonBlock } from '../../Skeleton'
 import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
 import { moveIsUnavailable, moveUnavailableTitle } from '../../../constants/expectedMoveOutcome'
 import { buildQuarters } from '../earningsHistoryModel'
+import {
+  formatCompactTerminal, formatCurrency, formatNumber, formatPercent,
+} from '../../../lib/presentation/presentationPrimitives'
 import SectionLead from '../SectionLead'
 import { sectionFetcher } from './sectionFetch'
 import styles from './SetupSection.module.css'
@@ -38,7 +41,7 @@ const num = (v) => {
 /** `$X.XX`, or an em dash for a missing value — never `$0.00` for `null`. */
 export const money = (v) => {
   const n = num(v)
-  return n == null ? '—' : `$${n.toFixed(2)}`
+  return n == null ? '—' : formatCurrency(n)
 }
 
 /** Market cap: pass-through, NOT a numeric formatter. `/api/fundamentals/{sym}`
@@ -51,17 +54,18 @@ export function compactCap(v) {
   return typeof v === 'string' && v.length > 0 ? v : '—'
 }
 
-/** Compact average volume: `245.0M` / `0K` — the same null/zero split as above. */
+/** Compact average volume on the terminal ladder: `245.0M` / `512K` / `0` —
+ *  the same null/zero split as above (a genuine zero is a number, never `—`). */
 export function compactVol(v) {
   const n = num(v)
   if (n == null) return '—'
-  return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1e3)}K`
+  return formatCompactTerminal(n)
 }
 
 /** Fixed-decimal stat text (Fwd P/E, Beta). `0` renders as `0.0`, not `—`. */
 export function fixedText(v, digits) {
   const n = num(v)
-  return n == null ? '—' : n.toFixed(digits)
+  return n == null ? '—' : formatNumber(n, { decimals: digits })
 }
 
 /** Dividend yield — the endpoint already returns a PERCENT number, not a
@@ -75,14 +79,14 @@ export function fixedText(v, digits) {
  *  `SetupSection` in line with it rather than the other way around. */
 export function divYieldText(v) {
   const n = num(v)
-  return n == null ? '—' : `${n.toFixed(2)}%`
+  return n == null ? '—' : formatPercent(n, { decimals: 2 })
 }
 
 /** "Priced ±X.X% " prefix for the break-even horizon line. Empty string (not
  *  a phantom "±0.0%") when the live pct itself is missing. */
 export function moveText(pct) {
   const n = num(pct)
-  return n == null ? '' : `Priced ±${Math.abs(n).toFixed(1)}% `
+  return n == null ? '' : `Priced ±${formatPercent(Math.abs(n), { decimals: 1 })} `
 }
 
 /** The horizon clause the payload can speak for, or '' — never invented. */
@@ -102,7 +106,7 @@ export function pricedLine(live) {
   const pct = num(live?.pct)
   if (pct == null) return null
   const horizon = horizonOf(live)
-  return `Options price a ±${Math.abs(pct).toFixed(1)}% move${horizon ? ` ${horizon}` : ''}.`
+  return `Options price a ±${formatPercent(Math.abs(pct), { decimals: 1 })} move${horizon ? ` ${horizon}` : ''}.`
 }
 
 /**

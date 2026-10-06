@@ -9,6 +9,8 @@
 // build time on the live path, and a server-side imp would flip the Main
 // Event seconds after first paint when the enrichment overlay lands.
 
+import { formatCompactTerminal, formatPercent } from '../../lib/presentation/presentationPrimitives'
+
 // ── math ─────────────────────────────────────────────────────────────────────
 
 function mean(xs) { return xs.reduce((a, b) => a + b, 0) / xs.length }
@@ -267,7 +269,7 @@ export function tierWeek(days, weekDates, weightBuckets) {
 
 function fmtCap(mcB) {
   if (mcB == null || mcB <= 0) return null
-  return mcB >= 1000 ? `$${(mcB / 1000).toFixed(1)}T` : mcB >= 1 ? `$${Math.round(mcB)}B` : `$${Math.round(mcB * 1000)}M`
+  return formatCompactTerminal(mcB * 1e9, { money: true, absent: null })   // mc_b arrives in $B
 }
 
 /**
@@ -287,7 +289,7 @@ export function editorialLine(entry, isLargest) {
   if (em != null) {
     let s = `options price a ±${em}% swing`
     const typ = entry.hist_stats?.avg_abs_move
-    if (typ != null) s += ` · typically moves ±${typ.toFixed(1)}%`
+    if (typ != null) s += ` · typically moves ±${formatPercent(typ, { decimals: 1 })}`
     parts.push(s)
   }
   const bh = entry.beat_history || []

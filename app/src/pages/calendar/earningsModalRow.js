@@ -2,6 +2,7 @@
 // Normalize a calendar earnings entry → EarningsModal `row` + session `label`.
 // Shared by Calendar.jsx and MyStocksHub.jsx so the modal renders identically
 // from both surfaces (no drift between the two copies).
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 
 function verdict(eps_act, eps_est) {
   if (eps_act == null) return 'pending'
@@ -14,7 +15,7 @@ function verdict(eps_act, eps_est) {
 export function calcSurprise(act, est) {
   if (act == null || est == null || est === 0) return null
   const pct = ((act - est) / Math.abs(est)) * 100
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
+  return formatPercent(pct, { decimals: 1, signed: true })
 }
 
 // Calendar entry → EarningsModal row shape.

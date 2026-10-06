@@ -5,21 +5,23 @@ import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
 import { BeatDots, ReactionSpark, ExpectedMovePair, DateMovedChip } from './cardBits'
 import { isReportingNow } from './calendarTime'
+import { formatCompactTerminal, formatCurrency, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 // NOTE: FwdPeChip (useFundamentals per card) removed — firing ~60 requests on
 // feed load is too expensive. If fwd-P/E is wanted on cards, batch it via the
 // enrichment payload (/api/calendar/enrichment) instead.
 
-function fmtEps(v) { return v == null ? '—' : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
-function fmtRev(v) { if (v == null) return '—'; return v >= 1000 ? `$${(v/1000).toFixed(1)}B` : `$${Math.round(v)}M` }
+function fmtEps(v) { return v == null ? '—' : formatCurrency(v) }
+// Revenue arrives in $M; it reads on the terminal compact ladder.
+function fmtRev(v) { return v == null ? '—' : formatCompactTerminal(v * 1e6, { money: true }) }
 function surprise(a, e) { if (a == null || e == null || e === 0) return null
-  const p = ((a - e) / Math.abs(e)) * 100; return `${p >= 0 ? '+' : ''}${p.toFixed(1)}%` }
+  const p = ((a - e) / Math.abs(e)) * 100; return formatPercent(p, { decimals: 1, signed: true }) }
 
 // A4: Format extended-hours change vs regular-session close
 function fmtExtChange(extPrice, closePrice) {
   if (extPrice == null || closePrice == null || closePrice === 0) return null
   const pct = ((extPrice - closePrice) / Math.abs(closePrice)) * 100
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
+  return formatPercent(pct, { decimals: 2, signed: true })
 }
 
 // A5: Format countdown from now to a report time
@@ -54,7 +56,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
   // Live SSE price first, day-metrics price as the fallback (covers past days
   // and names outside the live-prices universe). Null → the row is SUPPRESSED.
   const priceVal = livePrice ?? entry._price ?? null
-  const px = priceVal != null ? `$${Number(priceVal).toFixed(2)}` : null
+  const px = priceVal != null ? formatCurrency(Number(priceVal)) : null
 
   // A4: Extended-hours price — only shown when regular session is closed
   const extPrice   = liveSnap?.ext_price ?? null
@@ -135,7 +137,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {showExt && (
               <div className={styles.extRow}>
                 <span className={styles.extLbl}>EXT</span>
-                <span className={styles.mono}>${extPrice.toFixed(2)}</span>
+                <span className={styles.mono}>{formatCurrency(extPrice)}</span>
                 {extChange && (
                   <span className={extChange.startsWith('+') ? styles.pos : styles.neg}>
                     ({extChange})
@@ -182,7 +184,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {reaction != null && (
               <div className={styles.react}><span className={styles.dim}>Post-print gap</span>
                 <span className={reaction >= 0 ? styles.pos : styles.neg}>
-                  {reaction >= 0 ? '▲ +' : '▼ '}{reaction.toFixed(1)}%</span></div>
+                  {reaction >= 0 ? '▲ +' : '▼ '}{formatPercent(reaction, { decimals: 1 })}</span></div>
             )}
             {(entry.beat_history?.length > 0 || entry.hist_stats?.last_n?.length > 1) && (
               <div className={styles.cardMetaRow}>
@@ -194,7 +196,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {showExt && (
               <div className={styles.extRow}>
                 <span className={styles.extLbl}>EXT</span>
-                <span className={styles.mono}>${extPrice.toFixed(2)}</span>
+                <span className={styles.mono}>{formatCurrency(extPrice)}</span>
                 {extChange && (
                   <span className={extChange.startsWith('+') ? styles.pos : styles.neg}>
                     ({extChange})

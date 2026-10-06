@@ -64,11 +64,24 @@ export const MARKET_TIME_ZONE = 'America/New_York'
  *
  * `formatNumber(v)` is byte-identical to `CoverageLine.jsx`'s retired `n(v)`.
  *
+ * `grouping: false` drops the thousands separator ("1234.50", not
+ * "1,234.50") for a value that sits in a dense numeric column or is a strike /
+ * level a reader compares digit by digit — the options panels' old `toFixed`
+ * grammar, which never grouped. With `decimals` it IS `toFixed(decimals)`, the
+ * same rounding `formatPercent` / `formatCurrency` use: the locale formatter
+ * rounds the SHORTEST decimal form (1.005 -> "1.01") where `toFixed` rounds
+ * the stored double (1.005 -> "1.00"), and a migrated column must not move.
+ *
  * @param {*} value
- * @param {{decimals?: number|null, absent?: *}} [options]
+ * @param {{decimals?: number|null, grouping?: boolean, absent?: *}} [options]
  */
-export function formatNumber(value, { decimals = null, absent = ABSENT } = {}) {
+export function formatNumber(value, { decimals = null, grouping = true, absent = ABSENT } = {}) {
   if (!Number.isFinite(value)) return absent
+  if (!grouping) {
+    return decimals == null
+      ? Number(value).toLocaleString(LOCALE, { useGrouping: false })
+      : Number(value).toFixed(decimals)
+  }
   if (decimals == null) return Number(value).toLocaleString(LOCALE)
   return Number(value).toLocaleString(LOCALE, {
     minimumFractionDigits: decimals,
@@ -163,6 +176,36 @@ export const COMPACT_TIERS = Object.freeze([
   Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
   Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
 ])
+
+/**
+ * ⭐ THE TERMINAL LADDER (round 2 visual pass, 2026-10-06). Every terminal
+ * panel that prints a large number — revenue, market cap, flow premium, share
+ * counts, volume — uses this ONE rule so the same quantity reads the same in
+ * every panel:
+ *
+ *     T and B   two decimals     "$2.91T"  "$391.04B"
+ *     M         one decimal      "$45.3M"  "12.4M"
+ *     K         no decimals      "$950K"   "24K"
+ *     < 1,000   whole number     "$812"
+ *
+ * Unit letters are always K/M/B/T, a currency sign sits inside the minus
+ * ("-$1.25B"), and the tier is picked on the magnitude before rounding (see
+ * `formatCompact`). It is the research tabs' money grammar (EE/FA/OWN/FLOW and
+ * the statement tables already agreed on it); the panels that disagreed
+ * (calendar cards at one decimal on B/T, QuoteStrip volume at two on M, the
+ * money columns that had no K tier) moved onto it.
+ */
+export const TERMINAL_COMPACT_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
+
+/** `formatCompact` on the terminal ladder. `money: true` adds the "$". */
+export function formatCompactTerminal(value, { money = false, absent = ABSENT } = {}) {
+  return formatCompact(value, { tiers: TERMINAL_COMPACT_TIERS, prefix: money ? '$' : '', absent })
+}
 
 /**
  * A number with a magnitude suffix — "11.8M", "$25.0B", "24K".

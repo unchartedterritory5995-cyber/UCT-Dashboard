@@ -10,11 +10,13 @@ import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
 import { BeatDots, DateMovedChip, MoveUnavailableMark, moveIsUnavailable } from './cardBits'
+import { formatCompactTerminal, formatCurrency, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 
-function fmtEps(v) { return v == null ? '' : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
-function fmtRev(v) { if (v == null) return ''; return v >= 1000 ? `$${(v / 1000).toFixed(1)}B` : `$${Math.round(v)}M` }
-function fmtCap(v) { if (v == null || v <= 0) return ''; return v >= 1000 ? `$${(v / 1000).toFixed(1)}T` : v >= 1 ? `$${Math.round(v)}B` : `$${Math.round(v * 1000)}M` }
+function fmtEps(v) { return v == null ? '' : formatCurrency(v) }
+// Revenue arrives in $M and market cap in $B; both read on the terminal compact ladder.
+function fmtRev(v) { return v == null ? '' : formatCompactTerminal(v * 1e6, { money: true, absent: '' }) }
+function fmtCap(v) { return v == null || v <= 0 ? '' : formatCompactTerminal(v * 1e9, { money: true, absent: '' }) }
 
 const SESSIONS = [
   ['bmo', 'Before Open'],
@@ -71,7 +73,7 @@ function Row({ e, gap, enrichReady, onSelect, longPressProps }) {
       <span className={styles.dtNum}>
         {reported
           ? <>{fmtEps(e.eps_act)}{surp != null && (
-              <span className={surp >= 0 ? styles.pos : styles.neg}> {surp >= 0 ? '+' : ''}{surp.toFixed(1)}%</span>
+              <span className={surp >= 0 ? styles.pos : styles.neg}> {formatPercent(surp, { decimals: 1, signed: true })}</span>
             )}</>
           : fmtEps(e.eps_est)}
       </span>
@@ -94,7 +96,7 @@ function Row({ e, gap, enrichReady, onSelect, longPressProps }) {
       <span className={`${styles.dtNum} ${styles.dtMoveCell} ${reported && gap != null ? '' : styles.dtMove}`}>
         {reported && gap != null
           ? <span className={gap >= 0 ? styles.pos : styles.neg}>
-              {gap >= 0 ? '▲ +' : '▼ '}{gap.toFixed(1)}%
+              {gap >= 0 ? '▲ +' : '▼ '}{formatPercent(gap, { decimals: 1 })}
             </span>
           : e.expected_move?.pct != null ? `±${e.expected_move.pct}%`
           : enrichReady && moveIsUnavailable(e.expected_move_outcome)

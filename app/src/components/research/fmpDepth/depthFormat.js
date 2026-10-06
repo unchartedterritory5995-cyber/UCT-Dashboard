@@ -4,25 +4,22 @@
 // drive them without a render. Every number reaches the screen through
 // lib/presentation/presentationPrimitives; nothing here formats by hand.
 import {
-  formatCompact,
+  TERMINAL_COMPACT_TIERS,
+  formatCompactTerminal,
   formatCurrency,
   formatNumber,
   formatPercent,
 } from '../../../lib/presentation/presentationPrimitives'
 
-/** Statement magnitudes span nine orders: $3.12T / $94.93B / $48.8M / $512.0K.
- *  The ladder is a parameter of formatCompact, so this one is declared, not
- *  hand-rolled. */
-export const MONEY_TIERS = Object.freeze([
-  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
-  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
-  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
-  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
-])
+/** Statement magnitudes span nine orders: $3.12T / $94.93B / $48.8M / $512K.
+ *  The terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS) — the
+ *  same rule every terminal panel uses, so a revenue line reads identically
+ *  here and on the FA/EE tabs. */
+export const MONEY_TIERS = TERMINAL_COMPACT_TIERS
 
-export const fmtMoney = (v) => formatCompact(v, { tiers: MONEY_TIERS, prefix: '$' })
+export const fmtMoney = (v) => formatCompactTerminal(v, { money: true })
 export const fmtEps = (v) => formatCurrency(v)
-export const fmtShares = (v) => formatCompact(v)
+export const fmtShares = (v) => formatCompactTerminal(v)
 export const fmtPct = (v) => formatPercent(v, { decimals: 1 })
 export const fmtGrowth = (v) => formatPercent(v, { decimals: 1, signed: true })
 export const fmtTimes = (v) => {
