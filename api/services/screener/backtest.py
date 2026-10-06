@@ -735,7 +735,8 @@ class _SymbolScan:
 
 def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
                  frm: str, to: str, warmup: int,
-                 fields: Sequence[str]) -> _SymbolScan:
+                 fields: Sequence[str],
+                 opts: Optional[Mapping[str, Any]] = None) -> _SymbolScan:
     """Evaluate the tree over this symbol's bars and tally the window.
 
     ⭐ THE WHOLE ENGINE IS THIS FUNCTION PLUS ARITHMETIC. ``interpret`` already
@@ -768,7 +769,9 @@ def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
     it is. The check runs over ALL bars, not just in-window ones, because the
     forward legs reach past ``to``.
     """
-    col = interpret(tree, list(bars))
+    # ⭐ `opts` carries ONLY the definition semantics (owner decision A): the same
+    # `ast_interpret` contract the chart, the sweep and the alert lane run under.
+    col = interpret(tree, list(bars), opts=dict(opts) if opts else None)
     # ⭐ ASKED AT THE LEAF, BECAUSE THE TOP OF THE TREE CANNOT ANSWER IT — see
     # `_unanswerable_bars`. This is the honest hole; `col[i] is None` alone finds
     # it only for a tree that is a bare series.
@@ -868,7 +871,8 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                  horizons: Sequence[int] = DEFAULT_HORIZONS,
                  min_signals: int = DEFAULT_MIN_SIGNALS,
                  membership: str = "current",
-                 bars_source: Optional[str] = None) -> Receipt:
+                 bars_source: Optional[str] = None,
+                 opts: Optional[Mapping[str, Any]] = None) -> Receipt:
     """Backtest one screen. Returns a ``Receipt`` — an answer or a named refusal.
 
     :param tree:        a canonical AST (``parse.js::canonicalise``'s output)
@@ -964,7 +968,7 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                 continue
             bars = list(bars)
             scan = _scan_symbol(tree, bars, frm=frm, to=to, warmup=warmup,
-                                fields=fields)
+                                fields=fields, opts=opts)
             tallies.append(scan)
             if scan.in_window == 0:
                 no_window_bars += 1

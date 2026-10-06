@@ -10,6 +10,9 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import styles from './CustomizePanel.module.css'
 import { DEFAULT_PRESET, validatePresetName } from './useBreadthCustomize'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Checkbox from '../../components/ui/Checkbox'
 
 /**
  * Group ordering follows the COLS layout in Breadth.jsx. Cols within a group
@@ -130,14 +133,14 @@ export default function CustomizePanel({
       </div>
 
       <div className={styles.presetRow}>
-        <select
+        <Select
           className={styles.presetSelect}
           value={activePreset}
           onChange={(e) => onSwitchPreset(e.target.value)}
           aria-label="Active preset"
         >
           {presetNames.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
+        </Select>
         <div className={styles.presetActions}>
           <button
             className={styles.smallBtn}
@@ -168,7 +171,7 @@ export default function CustomizePanel({
       {mode === 'saveAs' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Save current selection as:</div>
-          <input aria-label="New preset name"
+          <Input aria-label="New preset name"
             ref={inputRef}
             className={styles.inlineInput}
             value={draftName}
@@ -188,7 +191,7 @@ export default function CustomizePanel({
       {mode === 'rename' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Rename "{activePreset}" to:</div>
-          <input aria-label="New name"
+          <Input aria-label="New name"
             ref={inputRef}
             className={styles.inlineInput}
             value={draftName}
@@ -219,7 +222,7 @@ export default function CustomizePanel({
           <div className={styles.inlineLabel}>
             Default cannot be edited. Save changes as a new preset:
           </div>
-          <input aria-label="New preset name"
+          <Input aria-label="New preset name"
             ref={inputRef}
             className={styles.inlineInput}
             value={draftName}
@@ -244,8 +247,7 @@ export default function CustomizePanel({
               const isVisible = !hidden.has(col.key)
               return (
                 <label key={col.key} className={styles.checkRow}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     className={styles.checkbox}
                     checked={isVisible}
                     onChange={() => handleCheckClick(col.key)}

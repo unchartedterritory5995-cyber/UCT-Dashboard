@@ -15,6 +15,8 @@ import { epochSecondsToIso } from '../../components/provenance/presentationForma
 import { computeSessionStale } from '../../components/provenance/sessionStale'
 import { sessionModel } from '../../components/dashboard/sessionModel'
 import useMarketOpen from '../../hooks/useMarketOpen'
+import { formatCurrency, formatNumber, formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { signedPct } from './researchFormat'
 import styles from './ResearchComparePage.module.css'
 
 // Cross-Security Comparison V1 (owner authorization, Phase B). Deterministic
@@ -22,28 +24,23 @@ import styles from './ResearchComparePage.module.css'
 // securities. See api/services/research/comparison.py for the full scope
 // note and what's deliberately excluded.
 
-function fmtNum(v, digits = 2) {
-  return typeof v === 'number' ? v.toFixed(digits) : '—'
-}
-function fmtPct(v, digits = 1) {
-  return typeof v === 'number' ? `${v.toFixed(digits)}%` : '—'
-}
-function fmtPrice(v) {
-  return typeof v === 'number' ? `$${v.toFixed(2)}` : '—'
-}
+// One formatter (lib/presentation): a non-number is the shared em dash.
+const numOrNaN = (v) => (typeof v === 'number' ? v : NaN)
+const fmtNum = (v, digits = 2) => formatNumber(numOrNaN(v), { decimals: digits })
+const fmtPercentCell = (v, digits = 1) => formatPercent(numOrNaN(v), { decimals: digits })
+const fmtPrice = (v) => formatCurrency(numOrNaN(v))
 
 // Compare Coverage V1 (2026-09-06): day-change %, signed and colored, the
 // same red/green convention used everywhere else in the app.
 function ChangePctCell({ v }) {
   if (typeof v !== 'number') return <td>—</td>
   const cls = v > 0 ? styles.pos : v < 0 ? styles.neg : undefined
-  const sign = v > 0 ? '+' : ''
-  return <td className={cls}>{sign}{v.toFixed(2)}%</td>
+  return <td className={cls}>{signedPct(v, 2)}</td>
 }
 
 function Week52Cell({ lo, hi }) {
   if (typeof lo !== 'number' || typeof hi !== 'number') return <td>—</td>
-  return <td>${lo.toFixed(2)} – ${hi.toFixed(2)}</td>
+  return <td>{formatCurrency(lo)} – {formatCurrency(hi)}</td>
 }
 
 function EntityLabel({ side }) {
@@ -119,7 +116,7 @@ function AnalystSide({ leg, sym, side, value, meta, sessionContext }) {
       data-testid="compare-analyst-provenance-side"
       data-leg={leg}
       data-side={sym}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+      className={styles.provSide}
     >
       <b>{sym}</b> {body}
     </span>
@@ -133,7 +130,7 @@ function AnalystProvenance({ sides, sessionContext }) {
   return (
     <div className={styles.footnote} data-testid="compare-analyst-provenance">
       {ANALYST_LEGS.map(({ leg, label, value, meta }) => (
-        <div key={leg} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
+        <div key={leg} className={styles.provLeg}>
           <span>{label}:</span>
           {sides.map(([sym, side]) => (
             <AnalystSide
@@ -275,9 +272,9 @@ export default function ResearchComparePage() {
               <SummaryRow label="P/E (forward)" a={a?.fundamentals?.pe_forward} b={b?.fundamentals?.pe_forward} fmt={(v) => fmtNum(v)} />
               <SummaryRow label="P/S" a={a?.fundamentals?.ps} b={b?.fundamentals?.ps} fmt={(v) => fmtNum(v)} />
               <SummaryRow label="EV/Revenue" a={a?.fundamentals?.ev_to_revenue} b={b?.fundamentals?.ev_to_revenue} fmt={(v) => fmtNum(v)} />
-              <SummaryRow label="Revenue Growth" a={a?.fundamentals?.revenue_growth_pct} b={b?.fundamentals?.revenue_growth_pct} fmt={(v) => fmtPct(v)} />
-              <SummaryRow label="Operating Margin" a={a?.fundamentals?.operating_margin_pct} b={b?.fundamentals?.operating_margin_pct} fmt={(v) => fmtPct(v)} />
-              <SummaryRow label="ROE" a={a?.fundamentals?.roe_pct} b={b?.fundamentals?.roe_pct} fmt={(v) => fmtPct(v)} />
+              <SummaryRow label="Revenue Growth" a={a?.fundamentals?.revenue_growth_pct} b={b?.fundamentals?.revenue_growth_pct} fmt={(v) => fmtPercentCell(v)} />
+              <SummaryRow label="Operating Margin" a={a?.fundamentals?.operating_margin_pct} b={b?.fundamentals?.operating_margin_pct} fmt={(v) => fmtPercentCell(v)} />
+              <SummaryRow label="ROE" a={a?.fundamentals?.roe_pct} b={b?.fundamentals?.roe_pct} fmt={(v) => fmtPercentCell(v)} />
             </tbody>
           </table>
           {data?.fundamentals_period_note && (

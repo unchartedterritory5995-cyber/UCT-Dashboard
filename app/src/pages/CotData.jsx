@@ -14,7 +14,7 @@ import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import Sheet from '../components/mobile/Sheet'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import PositioningRail from './cot/PositioningRail'
-import { SERIES_COLORS, HOVER_COLORS } from './cot/cotPalette'
+import useCotPalette from './cot/useCotPalette'
 import { fmtDate, fmtNum, fmtCompact } from './cot/cotFormat'
 import { tooltipRows } from './cot/cotTooltip'
 import { proxyFor } from './cot/cotProxies'
@@ -32,9 +32,8 @@ ChartJS.register(
 const jsonFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
-const AXIS_TEXT  = '#706b5e'
-const GRID_FAINT = 'rgba(168, 162, 144, 0.07)'
-const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
+// Axis text, rules, the zero line and every series ink come from useCotPalette()
+// (cot/useCotPalette.js), resolved off the member's theme and re-resolved on a switch.
 
 // Match Chart.js canvas text to the app UI font (default is Helvetica/Arial).
 ChartJS.defaults.font.family = CHART_FONT_FAMILY
@@ -104,7 +103,6 @@ const FETCH_WEEKS = 520
 // divergence checks, and the price pane). 600 > FETCH_WEEKS so every report
 // week has a bar; missing weeks simply align to null.
 const PRICE_BARS = 600
-const PRICE_COLOR = '#f0ead8'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -129,7 +127,7 @@ class ChartErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: '24px', color: '#ff6b6b', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ padding: '24px', color: 'var(--loss)', fontSize: 'var(--text-md)', fontFamily: 'var(--font-mono)' }}>
           Chart error: {String(this.state.error.message || this.state.error)}
         </div>
       )
@@ -152,6 +150,13 @@ function initialCotSymbol() {
 }
 
 export default function CotData() {
+  const pal = useCotPalette()
+  const SERIES_COLORS = pal.series
+  const HOVER_COLORS = pal.hover
+  const PRICE_COLOR = pal.price
+  const AXIS_TEXT = pal.axis
+  const GRID_FAINT = pal.grid
+  const ZERO_LINE = pal.zero
   const [symbol,       setSymbol]       = useState(initialCotSymbol)
   const [weeks,        setWeeks]        = useState(52)
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -613,7 +618,7 @@ export default function CotData() {
             border: { display: false },
             ticks:  {
               color: AXIS_TEXT,
-              font:  { size: 10 },
+              font:  { size: pal.fontSize },
               callback: v => {
                 if ((v === yMax && upPadded) || (v === yMin && dnPadded)) return ''
                 return fmtNet(v)
@@ -658,7 +663,7 @@ export default function CotData() {
         afterFit: AXIS_FIT,
         grid:     { color: GRID_FAINT },
         border:   { display: false },
-        ticks:    { color: AXIS_TEXT, maxTicksLimit: 4, font: { size: 10 },
+        ticks:    { color: AXIS_TEXT, maxTicksLimit: 4, font: { size: pal.fontSize },
                     callback: v => (Math.abs(v) >= 1000 ? fmtCompact(v) : String(Math.round(v))) },
       },
     },
@@ -672,7 +677,7 @@ export default function CotData() {
         label:           'Open Interest',
         data:            view.map(d => d.open_interest),
         borderColor:     SERIES_COLORS.openInterest,
-        backgroundColor: 'rgba(212, 201, 168, 0.10)',
+        backgroundColor: pal.oiFill,
         fill:            true,
         borderWidth:     1.5,
         tension:         0.35,
@@ -695,12 +700,12 @@ export default function CotData() {
     scales: {
       x: {
         grid:   { display: false },
-        border: { color: 'rgba(168, 162, 144, 0.15)' },
+        border: { color: pal.border },
         ticks:  {
           color:         AXIS_TEXT,
           maxTicksLimit: 13,
           maxRotation:   0,
-          font:          { size: 10 },
+          font:          { size: pal.fontSize },
         },
       },
       y: {
@@ -710,7 +715,7 @@ export default function CotData() {
         ticks:    {
           color:         AXIS_TEXT,
           maxTicksLimit: 4,
-          font:          { size: 10 },
+          font:          { size: pal.fontSize },
           callback: v => fmtCompact(v),
         },
       },

@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { OffLine } from './OffNotice'
 import styles from './optionsAnalytics.module.css'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { volPts } from './optionsFormat'
 
 // FT-006 IV rank in the chain header, FT-019 option monitor strip, FT-020 volatility stats.
 // (api/services/options_analytics/vol.py)
@@ -12,7 +14,8 @@ import styles from './optionsAnalytics.module.css'
 // ⛔ HV is computed from completed sessions; volume and earnings are the vendor's / our file's.
 
 const enc = encodeURIComponent
-const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
+// A fraction rendered as a percent through the shared formatter (em dash when absent).
+const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
 
 // A hover title cannot be read on a touch screen, so a note that explains how a
 // number is measured is ALSO a tap-to-open line. The title stays for desktop.
@@ -145,7 +148,7 @@ export function VolStatsPanel({ sym, offNotice = false }) {
         <li data-testid="vol-iv30">30-day constant-maturity IV: {readState(cm) || (cm.data?.iv != null ? pct(cm.data.iv) : (cm.data?.reason || 'not computed'))}
           <span className={styles.muted}> (from vendor ATM IV by expiration)</span></li>
         <li data-testid="vol-vrp">Variance risk premium (IV30 − HV30): {readState(vp) || (vp.data?.vrp_points != null
-          ? `${vp.data.vrp_points >= 0 ? '+' : ''}${(vp.data.vrp_points * 100).toFixed(1)} vol pts` : (vp.data?.note || 'not computed'))}</li>
+          ? `${vp.data.vrp_points >= 0 ? '+' : ''}${volPts(vp.data.vrp_points)} vol pts` : (vp.data?.note || 'not computed'))}</li>
       </ul>
       <p className={styles.muted}>{rv.data?.method} {cm.data?.method}</p>
     </section>

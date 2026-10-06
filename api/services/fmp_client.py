@@ -89,6 +89,18 @@ def _take_token() -> bool:
         return False
 
 
+def tokens_available() -> float:
+    """Tokens a call could take RIGHT NOW, refill included, WITHOUT taking one.
+
+    `budget()["tokens_remaining"]` is the bucket as of its last take, so after a quiet
+    spell it under-reads. A background caller that wants to leave headroom for members
+    (`research_panel_warm`) asks this instead. Read-only: it never moves the bucket."""
+    with _bucket_lock:
+        elapsed = max(0.0, time.monotonic() - _bucket_updated)
+        return min(_FMP_RATE_LIMIT_PER_MIN,
+                   _bucket_tokens + elapsed * (_FMP_RATE_LIMIT_PER_MIN / 60.0))
+
+
 def budget() -> dict:
     """Spec §7.1's `budget(vendor)` primitive — ships to target shape from
     day one (spec §4.4: this does not depend on D2/S3 at all)."""

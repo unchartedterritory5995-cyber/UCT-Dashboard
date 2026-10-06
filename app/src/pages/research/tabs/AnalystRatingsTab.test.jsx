@@ -57,7 +57,7 @@ describe('AnalystRatingsTab', () => {
     const consensusSection = screen.getByText('Analyst consensus').closest('section')
     expect(within(consensusSection).getByText('111 analysts')).toBeInTheDocument()
     // the headline consensus label (distinct from the per-bucket "69 Buy" breakdown)
-    expect(within(consensusSection).getByText('Buy', { selector: 'span[style*="font-size: 18px"]' })).toBeInTheDocument()
+    expect(within(consensusSection).getByTestId('consensus-label')).toHaveTextContent(/^Buy$/)
 
     const ptSection = screen.getByText('Price target').closest('section')
     expect(within(ptSection).getByText('$250')).toBeInTheDocument() // consensus mid

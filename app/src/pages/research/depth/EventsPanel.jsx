@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import HighlightThesis from '../../../utils/highlightThesis'
 import { memberText } from '../../../lib/presentation/memberCopy'
@@ -15,6 +16,7 @@ import { memberText } from '../../../lib/presentation/memberCopy'
 const KIND = { earnings: 'Earnings', uct_catalyst: 'UCT catalyst', filing: 'Filing', room_spike: 'Room' }
 
 export default function EventsPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
@@ -23,8 +25,8 @@ export default function EventsPanel({ sym }) {
   const reask = usePendingReask(pendingKinds.length > 0, mutate, s)
 
   let body
-  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
-  else if (!data) body = <div className={styles.note}>Loading events…</div>
+  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading events" />
   else if (data.paywalled) body = <div className={styles.note}>Events require a paid plan.</div>
   else {
     const errs = Object.entries(data.sources || {}).filter(([, v]) => v.state === 'error')
@@ -61,11 +63,11 @@ export default function EventsPanel({ sym }) {
                       <td title={e.print_date ? `${e.print_label} (${e.print_state}) on ${e.print_date}` : undefined}>
                         {e.stage ? `${e.stage} ${e.print_label}` : '—'}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>
+                      <td className={styles.text}>
                         <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{memberText(e.source)}</td>
+                      <td className={styles.text}>{memberText(e.source)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -77,8 +79,8 @@ export default function EventsPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="events-panel">
-      <h3 className={styles.panelTitle}>Events around the print</h3>
+    <section className={chrome.panelClass} data-testid="events-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Events around the print</h3>}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings read" />
       {body}
     </section>

@@ -33,6 +33,7 @@ import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
+import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -45,6 +46,13 @@ beforeEach(() => {
   __permitRuntimePaneForTests()
   __allowEveryRuntimeScriptForTests()
 })
+
+// ── 2026-10-06: the shared research fetchers re-ask a transient first failure once, after a
+// pause (utils/warmRetry.js: a cold pod after a deploy is not a failed read). The suites
+// written before that pin ONE attempt per read, so the retry is off here by default.
+// ⛔ The retry itself is railed with it ON, through a real panel, in
+// `components/research/sections/sectionFetch.warmRetry.test.jsx`.
+beforeEach(() => { __setWarmRetryDelaysForTests([]) })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers

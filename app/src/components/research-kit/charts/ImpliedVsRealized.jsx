@@ -6,6 +6,7 @@ import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import VerdictChip from '../VerdictChip'
 import styles from './ImpliedVsRealized.module.css'
+import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
 
 // `width` is the FALLBACK only. The rendered chart re-cuts its viewBox to the
 // wrapper's MEASURED pixel width (see `useMeasuredWidth`) so the viewBox scale
@@ -195,14 +196,14 @@ export function impliedVerdict(pairs, live) {
   const rich = avgRealized < reference
 
   const horizon = live?.horizon || (live?.expiry ? `through ${live.expiry}` : null)
-  const priced = livePct == null ? '' : `priced ±${livePct.toFixed(1)}%${horizon ? ` ${horizon}` : ''}, `
+  const priced = livePct == null ? '' : `priced ±${formatPercent(livePct, { decimals: 1 })}${horizon ? ` ${horizon}` : ''}, `
   return {
     rich,
     tone: 'gold',
     glyph: rich ? '▲' : '▼',
     avgImplied,
     avgRealized,
-    label: `PREMIUM ${rich ? 'RICH' : 'CHEAP'} — ${priced}typically moves ±${avgRealized.toFixed(1)}%`,
+    label: `PREMIUM ${rich ? 'RICH' : 'CHEAP'} — ${priced}typically moves ±${formatPercent(avgRealized, { decimals: 1 })}`,
   }
 }
 
@@ -382,7 +383,7 @@ export default function ImpliedVsRealized({
   // not — the coverage disclosure renders instead, so the widget never shows
   // nothing.
   const coverageCaption = chip ? null : cold.coverageText
-  const bandText = livePct == null ? null : `±${livePct.toFixed(1)}% priced tonight`
+  const bandText = livePct == null ? null : `±${formatPercent(livePct, { decimals: 1 })} priced tonight`
   const built = ariaLabel || (chip
     ? `Implied versus realized move by quarter. ${chip.label}.`
     : `Realized move by quarter. ${bandText ? `${bandText}. ` : ''}${coverageCaption ?? ''}`.trim())
@@ -460,7 +461,7 @@ export default function ImpliedVsRealized({
                 y={c.dir > 0 ? c.realized.y - 4 : c.realized.y + c.realized.h + 10}
                 textAnchor="middle"
               >
-                {`${c.value > 0 ? '+' : ''}${c.value.toFixed(1)}%`}
+                {formatPercent(c.value, { decimals: 1, signed: c.value > 0 })}
               </text>
             )}
             {(i % step === 0 || c.isCurrent) && (

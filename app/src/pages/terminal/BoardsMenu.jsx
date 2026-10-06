@@ -4,10 +4,13 @@
 // the shell through a callback, so the shell stays the ONE writer of the board documents.
 import { useState } from 'react'
 import { TICKER_RE } from '../../components/provenance/AbsenceReceipt'
+import UIcon from '../../components/ui/UIcon'
 import { BY_CODE } from './functions'
 import { FAVORITES_MAX, boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
 import TerminalVersions from './TerminalVersions'
 import styles from './TerminalShell.module.css'
+import Input from '../../components/ui/Input'
+import Checkbox from '../../components/ui/Checkbox'
 
 function validPresetTicker(raw) {
   const s = raw.trim().toUpperCase()
@@ -54,7 +57,7 @@ export function BoardsMenu({
       >
         <label className={styles.menuLabel} htmlFor="terminal-board-name">Save this board as</label>
         <div className={styles.menuInline}>
-          <input id="terminal-board-name" className={styles.menuInput} value={name} maxLength={60}
+          <Input id="terminal-board-name" className={styles.menuInput} value={name} maxLength={60}
             onChange={(e) => setName(e.target.value)} placeholder="Earnings morning" data-testid="terminal-board-name" />
           <button type="submit" className={styles.menuBtn} disabled={!libraryWritable || !name.trim()}
             data-testid="terminal-board-save">Save</button>
@@ -88,7 +91,7 @@ export function BoardsMenu({
                 <span className={styles.menuHint}>
                   {presets.length ? `Opens for ${presets.map((p) => (p === PRESET_ANY_TICKER ? 'any ticker' : p)).join(', ')}` : 'Open it for a ticker:'}
                 </span>
-                <input className={styles.menuInputSm} value={presetSym[b.id] || ''} maxLength={10}
+                <Input className={styles.menuInputSm} value={presetSym[b.id] || ''} maxLength={10}
                   placeholder="NVDA or *" aria-label={`Ticker that opens ${b.name}`}
                   onChange={(e) => { setPresetSym((s) => ({ ...s, [b.id]: e.target.value })); setPresetError(null) }}
                   data-testid={`terminal-board-preset-input-${b.slug}`} />
@@ -103,7 +106,9 @@ export function BoardsMenu({
                   data-testid={`terminal-board-preset-${b.slug}`}>Set</button>
                 {presets.map((p) => (
                   <button key={p} type="button" className={styles.chip} disabled={!libraryWritable}
-                    onClick={() => onPreset(p, null)} aria-label={`Stop opening ${b.name} for ${p}`}>{p} ×</button>
+                    onClick={() => onPreset(p, null)} aria-label={`Stop opening ${b.name} for ${p}`}>
+                    {p} <UIcon name="x" size={10} gold={false} />
+                  </button>
                 ))}
               </div>
               {presetError?.id === b.id && (
@@ -117,14 +122,14 @@ export function BoardsMenu({
       {shared && (
         <div className={styles.menuShare} role="status" data-testid="terminal-share-link">
           <span className={styles.menuHint}>Share link for {shared.label} (copied when your browser allows):</span>
-          <input className={styles.menuInput} readOnly value={shared.url} aria-label="Share link"
+          <Input className={styles.menuInput} readOnly value={shared.url} aria-label="Share link"
             onFocus={(e) => e.target.select()} />
         </div>
       )}
 
       <div className={styles.menuHead}>Classic calendar</div>
       <label className={styles.menuCheck}>
-        <input type="checkbox" checked={library.keepCalendar} disabled={!libraryWritable}
+        <Checkbox checked={library.keepCalendar} disabled={!libraryWritable}
           onChange={(e) => onKeepCalendar(e.target.checked)} data-testid="terminal-keep-calendar" />
         <span>Open <code>/calendar</code> as the classic page instead of this terminal. The terminal stays at <code>/terminal</code>.</span>
       </label>
@@ -158,10 +163,13 @@ export function RecentsMenu({ layout, library, libraryWritable = true, functionR
         <span className={styles.code}>{code}</span>
         <span className={styles.menuLabel}>{BY_CODE[code]?.label || ''}</span>
       </button>
-      <button type="button" className={styles.menuBtn} onClick={() => star(code)} disabled={!libraryWritable}
+      <button type="button" className={`${styles.menuBtn} ${library.favorites.includes(code) ? styles.favOn : ''}`}
+        onClick={() => star(code)} disabled={!libraryWritable}
         aria-pressed={library.favorites.includes(code)}
         aria-label={library.favorites.includes(code) ? `Unfavourite ${code}` : `Favourite ${code}`}
-        data-testid={`terminal-fav-${code}`}>{library.favorites.includes(code) ? '★' : '☆'}</button>
+        data-testid={`terminal-fav-${code}`}>
+        <UIcon name={library.favorites.includes(code) ? 'star-fill' : 'star'} size={14} gold={false} />
+      </button>
     </li>
   )
   const channels = layout.channels.filter((c) => c.history.length > 0)

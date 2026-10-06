@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import rp from '../ResearchPage.module.css'
 import styles from './FilingChangesTab.module.css'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
@@ -139,7 +140,7 @@ function FilingChanges({ sym, form }) {
 
   if (error) {
     return <div className={styles.note} data-testid="blackline-unavailable">
-      Filing changes are unavailable right now. That is a gap in what we could read, not a finding about {s}.
+      Filing changes are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>
     </div>
   }
   if (!data) return <div className={styles.note}>Loading filing changes…</div>

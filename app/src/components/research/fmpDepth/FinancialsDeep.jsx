@@ -16,6 +16,7 @@
 import useSWR from 'swr'
 import { EmptyState } from '../../research-kit'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
+import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import StatementPanels from '../sections/StatementPanels'
 import FinancialsTab from '../../../pages/research/tabs/FinancialsTab'
 import StatementTables, { historyKey } from './StatementTables'
@@ -26,6 +27,7 @@ export default function FinancialsDeep({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? historyKey(s, 'quarter') : null, sectionFetcher,
     { revalidateOnFocus: false, keepPreviousData: true })
+  const warming = useWarming(s ? historyKey(s, 'quarter') : null)
 
   if (!s) return null
   if (error) {
@@ -36,7 +38,13 @@ export default function FinancialsDeep({ sym }) {
     )
   }
   if (data === undefined) {
-    return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note}>Loading financials…</p></div>
+    return (
+      <div className={styles.wrap} data-testid="fa-deep">
+        {warming
+          ? <p className={styles.note} data-testid="fa-warming">{WARMING_UP}</p>
+          : <p className={styles.note}>Loading financials…</p>}
+      </div>
+    )
   }
   if (data?.paywalled) {
     return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note}>Financial statement history requires a paid plan.</p></div>

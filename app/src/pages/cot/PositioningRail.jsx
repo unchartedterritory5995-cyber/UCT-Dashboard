@@ -24,7 +24,7 @@ import { useCotNarrative } from './useCotNarrative'
 import { useCotNarrativeArchive } from './useCotNarrativeArchive'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import Provenance from '../../components/provenance/Provenance'
-import { SERIES_COLORS } from './cotPalette'
+import useCotPalette from './useCotPalette'
 import { fmtDate, fmtNum, fmtSignedCompact, fmtPct } from './cotFormat'
 import SaveToNotebookButton from '../journal-2-0/components/SaveToNotebookButton'
 import { buildCotCapture } from './cotNotebookCapture'
@@ -77,6 +77,7 @@ function Row({ color, label, net, wow, pctOi, index }) {
 }
 
 function Points({ points }) {
+  const SERIES_COLORS = useCotPalette().series
   return (
     <ul className={styles.points}>
       {points.map(p => (
@@ -165,6 +166,8 @@ const PositioningRail = forwardRef(function PositioningRail(
   { rows, symbol, name, bars = null, priceAligned = null, proxy = null },
   ref,
 ) {
+  // Swatch inks follow the member's theme (cot/useCotPalette.js).
+  const SERIES_COLORS = useCotPalette().series
   const [idx, setIdx] = useState(null)
   useImperativeHandle(ref, () => ({ setIndex: i => setIdx(i) }), [])
 

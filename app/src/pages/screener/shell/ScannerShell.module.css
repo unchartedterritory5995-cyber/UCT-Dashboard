@@ -187,6 +187,10 @@
 .cell { display: flex; align-items: center; padding: 0 9px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--bg-surface); }
 .numCell { font-family: var(--font-mono); font-size: 11.5px; }
 .gridRow:hover .cell { background: var(--bg-hover); }
+/* A dense UCT Terminal board (VirtualResults `effectiveDensity`): 24px rows, so the header and
+   cell text step down one size with them. */
+.gridScroll[data-density='dense'] .hbtn { padding-block: var(--space-xs); }
+.gridScroll[data-density='dense'] .cell, .gridScroll[data-density='dense'] .numCell { font-size: var(--text-sm); }
 .stickyCol { position: sticky; left: 0; z-index: 2; }
 .gridHead .stickyCol { z-index: 5; background: var(--bg); }
 .symCell { color: var(--ut-gold); font-weight: 600; gap: 6px; }

@@ -169,6 +169,15 @@ def _fetch_grades(sym: str) -> Optional[dict]:
     return get_analyst_grades(sym)
 
 
+def _fetch_currency(sym: str) -> Optional[str]:
+    """The company's reporting currency (TSM -> "TWD"): FMP's consensus rows are
+    in it and carry no currency field. Off the request path, cached 24h per
+    symbol by reporting_currency. None = not known. Nothing is converted."""
+    from api.services.research import reporting_currency
+    state, code = reporting_currency.read(sym)
+    return code if state == "ok" else None
+
+
 def _read(sym: str) -> None:
     payload: Any
     try:
@@ -187,6 +196,11 @@ def _read(sym: str) -> None:
             payload["last_report"] = None
         if payload["last_report"] is None and payload["rows"]:
             ttl = _TTL_FAIL          # decided on the grace window alone: re-check soon
+    if payload is not None and payload["state"] == "ok":
+        try:
+            payload["currency"] = _fetch_currency(sym)
+        except Exception:  # noqa: BLE001 -- unknown, never a guess
+            payload["currency"] = None
     if payload is not None:
         try:
             payload["grades"] = _fetch_grades(sym)
@@ -258,4 +272,10 @@ def view(sym: str, today: Optional[str] = None) -> dict:
     if not ps:
         return {**base, "state": "none", "read_at": read_at,
                 "reason": "no upcoming quarter carries a consensus estimate"}
-    return {**base, "state": "ok", "read_at": read_at, "periods": ps}
+    # Cache-only: the stored read's currency, else whatever reporting_currency
+    # already holds. None renders with no label rather than a guess.
+    currency = payload.get("currency")
+    if not currency:
+        from api.services.research import reporting_currency
+        currency = reporting_currency.peek(sym)
+    return {**base, "state": "ok", "read_at": read_at, "periods": ps, "currency": currency}

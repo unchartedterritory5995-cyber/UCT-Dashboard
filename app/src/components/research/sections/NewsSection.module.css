@@ -18,7 +18,7 @@
   padding: 1px 5px; border-radius: var(--radius-sm); font-weight: 700; letter-spacing: var(--ls-label);
   font-size: var(--text-xs);
 }
-.wire { background: rgba(90, 169, 230, .18); color: #5aa9e6; }
+.wire { background: var(--info-bg); color: var(--info); }
 .release { background: var(--ut-gold-dim); color: var(--ut-gold); }
 .pub { font-weight: 600; }
 .when { margin-left: auto; font-variant-numeric: tabular-nums; }

@@ -3,7 +3,10 @@ import { STRATEGIES, buildLegs, summary, curve } from './optionPayoff'
 import useDarkSection from '../../optionsAnalytics/useDarkSection'
 import { todayPnl, popAtExpiry, priceSlices } from '../../optionsAnalytics/chainModels'
 import { daysTo } from '../../optionsAnalytics/ChainTools'
+import { fractionPct } from '../researchFormat'
+import { num } from '../../optionsAnalytics/optionsFormat'
 import styles from './OptionsChainTab.module.css'
+import Select from '../../../components/ui/Select'
 
 // BRK-01 increment 2: the profit-and-loss picture at expiration, under the chain.
 // Read-only. Every number is stated with its assumption (mid fill, one contract,
@@ -25,7 +28,7 @@ const W = 520
 const H = 180
 const PAD = 28
 
-const pct = (p) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`)
+const pct = (p) => fractionPct(p, 1)
 
 export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atmIv = null }) {
   const model = useDarkSection(sym ? `/api/research/options/${encodeURIComponent(sym)}/payoff-model` : null)
@@ -82,18 +85,18 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
   }
 
   const strikeSelect = (value, set, label) => (
-    <select aria-label={label} value={value ?? ''} onChange={(e) => set(Number(e.target.value))}>
-      {strikes.map((k) => <option key={k} value={k}>{k.toFixed(2)}</option>)}
-    </select>
+    <Select aria-label={label} value={value ?? ''} onChange={(e) => set(Number(e.target.value))}>
+      {strikes.map((k) => <option key={k} value={k}>{num(k)}</option>)}
+    </Select>
   )
 
   return (
     <div className={styles.payoff} data-testid="payoff">
       <div className={styles.head}>
         <strong>Payoff at expiration</strong>
-        <select aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
           {Object.entries(STRATEGIES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        </Select>
         {strikeSelect(k1, setK1, two ? 'Lower strike' : 'Strike')}
         {two && strikeSelect(k2, setK2, 'Upper strike')}
       </div>
@@ -112,7 +115,7 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
             {s.cost >= 0 ? `Costs ${money(s.cost)}` : `Collects ${money(-s.cost)}`}
             {' · '}Max loss {money(s.maxLoss)}
             {' · '}Max profit {money(s.maxProfit)}
-            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => b.toFixed(2)).join(' and ')}` : ''}
+            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => num(b)).join(' and ')}` : ''}
           </p>
           {today && (
             <div data-testid="payoff-today">
@@ -128,7 +131,7 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
                   <tbody>
                     {slices.map((r) => (
                       <tr key={r.price}>
-                        <td>{r.price.toFixed(2)}</td><td>{r.today == null ? '—' : money(r.today)}</td>
+                        <td>{num(r.price)}</td><td>{r.today == null ? '—' : money(r.today)}</td>
                         <td>{money(r.expiry)}</td><td>{pct(r.below)}</td>
                       </tr>
                     ))}

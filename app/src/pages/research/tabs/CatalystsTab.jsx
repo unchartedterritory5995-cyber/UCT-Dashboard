@@ -3,6 +3,7 @@ import Provenance from '../../../components/provenance/Provenance'
 import AbsenceReceipt from '../../../components/provenance/AbsenceReceipt'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../../../utils/highlightThesis'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
@@ -51,7 +52,7 @@ export default function CatalystsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useCatalystHistory(sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading catalyst history…</div></div></div>
+    return <ResearchLoading label="Loading catalyst history" />
   }
 
   if (paywalled) {
@@ -80,15 +81,15 @@ export default function CatalystsTab({ sym }) {
           <div className={styles.ct}>Catalyst history</div>
           <ul className={styles.newsList} data-testid="catalyst-history-list">
             {entries.map((e, i) => (
-              <li key={`${e.market_date}-${i}`} className={styles.newsItem}>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <li key={`${e.market_date}-${i}`} className={styles.newsItem} data-panel-row>
+                <div className={styles.rowBody}>
+                  <div className={styles.rowHead}>
                     <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>
                     <span className={styles.muted}>{whenLabel(e.market_date)}</span>
                   </div>
                   {hasNoWriteup(e)
-                    ? <p className={styles.muted} style={{ padding: '4px 0 0' }} data-testid="catalyst-no-writeup">{FAILED_SYNTHESIS_NOTE}</p>
-                    : e.thesis_text ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}><HighlightThesis text={e.thesis_text} /></p> : null}
+                    ? <p className={styles.rowNote} data-testid="catalyst-no-writeup">{FAILED_SYNTHESIS_NOTE}</p>
+                    : e.thesis_text ? <p className={styles.rowNote}><HighlightThesis text={e.thesis_text} /></p> : null}
                   <EntryProvenance entry={e} />
                 </div>
               </li>

@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
-import { withDeadline } from '../../../utils/withDeadline'
+import { fetchWithWarmRetry } from '../../../utils/warmRetry'
 
 // TERM-088 -- company news (CN). A failed read is not an empty news feed; see
 // useDecisionRecord.js for why the fetcher keeps the HTTP outcome instead of
 // collapsing a non-2xx into null.
 export async function fetchCompanyNews(url) {
   try {
-    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
+    const r = await fetchWithWarmRetry(url, { credentials: 'include' })
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {

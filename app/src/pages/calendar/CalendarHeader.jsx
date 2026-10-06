@@ -5,6 +5,7 @@ import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
+import { useInTerminalPanel } from '../../components/terminal/terminalPanel'
 import useSectorRead from '../../hooks/useSectorRead'
 import { currentWeekMonday, localIso } from './weekAnchor'
 import { todayIsoEt } from './calendarTime'
@@ -13,6 +14,9 @@ import { todayIsoEt } from './calendarTime'
 // actually lands on.
 import { DEFAULT_FILTERS } from './filterLogic'
 import styles from './Calendar.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Checkbox from '../../components/ui/Checkbox'
 
 const AUDIENCE = [
   ['mine', 'My Stocks', 'star-fill'], ['watchlist', 'Watchlist'], ['positions', 'Positions'],
@@ -156,7 +160,7 @@ function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
   return (
     <span className={styles.searchWrap} ref={boxRef}>
       <UIcon name="search" size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-      <input
+      <Input
         ref={inputRef}
         className={styles.searchInput}
         placeholder="Filter or find a ticker…  ( / )"
@@ -285,6 +289,7 @@ export default function CalendarHeader({
   econProvenance = null,
 }) {
   const isPhone = useIsPhone()
+  const inTerminalPanel = !!useInTerminalPanel()
   const [panelOpen, setPanelOpen] = useState(false)            // desktop ⚙ Filters popover
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -480,32 +485,32 @@ export default function CalendarHeader({
   ))
 
   const sortSelect = (
-    <select aria-label="Sort" className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
+    <Select aria-label="Sort" className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
       {SORTS.map(([k, lbl]) => <option key={k} value={k}>Sort: {lbl}</option>)}
-    </select>
+    </Select>
   )
   const metricInputs = (
     <>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Min avg vol</label>
-        <input aria-label="Minimum average volume" className={styles.filterInput} type="number" min={0} inputMode="numeric"
+        <Input aria-label="Minimum average volume" className={styles.filterInput} type="number" min={0} inputMode="numeric"
                placeholder="e.g. 500000" value={filters.minAvgVol ?? ''}
                onChange={e => setNum('minAvgVol', e.target.value)} />
       </div>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Price min ($)</label>
-        <input aria-label="Minimum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
+        <Input aria-label="Minimum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
                placeholder="e.g. 5" value={filters.priceMin ?? ''}
                onChange={e => setNum('priceMin', e.target.value)} />
       </div>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Price max ($)</label>
-        <input aria-label="Maximum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
+        <Input aria-label="Maximum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
                placeholder="e.g. 500" value={filters.priceMax ?? ''}
                onChange={e => setNum('priceMax', e.target.value)} />
       </div>
       <label className={styles.gearRow} title="Hide reporters whose date is only a projection">
-        <input type="checkbox" checked={!!filters.confirmedOnly}
+        <Checkbox checked={!!filters.confirmedOnly}
                onChange={e => set('confirmedOnly', e.target.checked)} /> Confirmed dates only
       </label>
     </>
@@ -513,7 +518,7 @@ export default function CalendarHeader({
 
   const sourcesCheckboxes = SOURCES.map(([k, lbl]) => (
     <label key={k} className={styles.gearRow}>
-      <input type="checkbox" checked={mySources.includes(k)} onChange={() => toggleSource(k)} /> {lbl}
+      <Checkbox checked={mySources.includes(k)} onChange={() => toggleSource(k)} /> {lbl}
     </label>
   ))
 
@@ -564,13 +569,13 @@ export default function CalendarHeader({
       {view !== 'month' && availableSectors.length > 1 && (
         <div className={styles.sheetSec}>
           <div className={styles.sheetLbl}>Sector</div>
-          <select aria-label="Sector" className={styles.sel} value={filters.sector || ''}
+          <Select aria-label="Sector" className={styles.sel} value={filters.sector || ''}
                   onChange={e => set('sector', e.target.value || null)}>
             <option value="">All sectors</option>
             {availableSectors.map(([s, c]) => (
               <option key={s} value={s}>{s} ({c})</option>
             ))}
-          </select>
+          </Select>
         </div>
       )}
       <div className={styles.sheetSec}>
@@ -678,7 +683,12 @@ export default function CalendarHeader({
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
-        <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />UCT Terminal</span>
+        {/* Inside a UCT Terminal panel the panel header already names the function ("CAL
+            Earnings & events calendar"); a second title reading "UCT Terminal" inside the
+            terminal is the double header the visual audit flagged (finding 2). */}
+        {!inTerminalPanel && (
+          <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />UCT Terminal</span>
+        )}
         <span className={styles.view}>
           {VIEWS.map(([key, lbl, tip]) => (
             <span key={key} className={view === key ? styles.viewOn : ''}
@@ -766,7 +776,7 @@ export default function CalendarHeader({
           <span className={styles.wkBtnWrap} ref={pickerRef}>
             <button className={styles.wkBtn} onClick={() => setPickerOpen(o => !o)}
                     aria-label="Pick a week">
-              {weekLabel || 'Pick a week'} <span aria-hidden="true">▾</span>
+              {weekLabel || 'Pick a week'} <span className={styles.chevInline} aria-hidden="true"><UIcon name="chevronDown" size={12} gold={false} /></span>
             </button>
             {pickerOpen && (
               <WeekPicker

@@ -13,9 +13,9 @@
   align-items: center;
   gap: 12px;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--color-border, #222);
-  font-size: 13px;
-  min-height: var(--tap-min, 44px);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-md);
+  min-height: var(--tap-min);
 }
 
 /* Seam 20: the row is now a real <button> (Calendar TickerActions Reuse
@@ -25,20 +25,20 @@
   width: 100%;
   background: none;
   border: none;
-  border-bottom: 1px solid var(--color-border, #222);
+  border-bottom: 1px solid var(--border);
   font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 .rowBtn:hover {
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+  background: var(--bg-elevated);
 }
 
 .time {
-  color: var(--color-text-muted, #8a8a8a);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--text-base);
 }
 
 .sym {
@@ -50,7 +50,7 @@
 .down { color: var(--loss); font-variant-numeric: tabular-nums; }
 
 .pending {
-  color: var(--color-text-muted, #8a8a8a);
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -58,53 +58,53 @@
 
 /* Significance = WEIGHT, never position. */
 .loud {
-  background: rgba(220, 187, 94, 0.10);
-  font-size: 14px;
-  border-left: 2px solid rgba(220, 187, 94, 0.55);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
+  font-size: var(--text-lg);
+  border-left: 2px solid color-mix(in srgb, var(--ut-gold) 55%, transparent);
 }
-.mid   { background: rgba(220, 187, 94, 0.04); }
+.mid   { background: color-mix(in srgb, var(--ut-gold) 4%, transparent); }
 .quiet { opacity: 0.72; }
 
 .empty {
   padding: 48px 16px;
   text-align: center;
-  color: var(--color-text-muted, #8a8a8a);
-  font-size: 14px;
+  color: var(--text-muted);
+  font-size: var(--text-lg);
 }
 
 /* The trust line — quiet when complete, loud only when something is MISSING.
    Unknown renders as unknown, never as clean. */
 .covOk {
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: var(--text-base);
   color: var(--gain);
   opacity: 0.75;
-  border-bottom: 1px solid var(--color-border, #222);
+  border-bottom: 1px solid var(--border);
 }
 
 .covWarn {
   padding: 8px 14px;
-  font-size: 12.5px;
+  font-size: var(--text-md);
   color: var(--warn);
-  background: rgba(226, 185, 59, 0.08);
-  border-left: 2px solid rgba(226, 185, 59, 0.55);
-  border-bottom: 1px solid var(--color-border, #222);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  border-bottom: 1px solid var(--border);
 }
 
 .covUnknown {
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: var(--text-base);
   font-style: italic;
-  color: var(--color-text-muted, #8a8a8a);
-  border-bottom: 1px solid var(--color-border, #222);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
 }
 
 @media (max-width: 640px) {
   .row {
     grid-template-columns: 62px 56px 76px 1fr;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--text-base);
     padding: 8px 10px;
   }
-  .time { font-size: 11px; }
+  .time { font-size: var(--text-sm); }
 }

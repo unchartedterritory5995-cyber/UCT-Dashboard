@@ -1,6 +1,7 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import { money } from './MarketTidePanel'
+import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 
 // BRK-08 positioning extensions under the option chain: FT-047 named levels, FT-049 heatmap,
@@ -13,7 +14,6 @@ import styles from './optionsAnalytics.module.css'
 //    server's closed vocabulary (positioning_vocab.py), never typed here.
 
 const enc = encodeURIComponent
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 
 function Block({ title, testid, children, failed, what }) {
   return (
@@ -45,7 +45,7 @@ function Levels({ sym }) {
           {(data.notes || []).map((n) => <p key={n} className={styles.muted}>{n}</p>)}
           {Number.isFinite(data.atm_iv?.value) && (
             <p className={styles.muted} data-testid="levels-atm-iv">
-              ATM IV {(data.atm_iv.value * 100).toFixed(1)}%{data.atm_iv.expiration ? ` on ${data.atm_iv.expiration}` : ' (30-day interpolated)'}.
+              ATM IV {fracPct(data.atm_iv.value)}{data.atm_iv.expiration ? ` on ${data.atm_iv.expiration}` : ' (30-day interpolated)'}.
             </p>
           )}
           <p className={styles.muted}>{data.method}</p>

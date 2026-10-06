@@ -4,6 +4,7 @@ import TranscriptPanel from '../../../components/calendar/TranscriptPanel'
 import useCallRecap from '../hooks/useCallRecap'
 import useEarningsAudio from '../hooks/useEarningsAudio'
 import { recapEmptyState } from '../../../components/research/callRecap'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
@@ -19,12 +20,12 @@ export default function CallsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {recapData?.entity && recapData.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       <SentimentGauge ticker={sym} />
-      {isLoading && !recap && <div className={styles.fnote}>Loading earnings call recap…</div>}
+      {isLoading && !recap && <ResearchLoading label="Loading earnings call recap" />}
       {/* The WHOLE payload, not `.recap`: webcast_url, rating_changes and
           review_status ride the outer object, and normalizeCallRecap (inside
           CallRecapSection) flat-merges them -- same as CallSection does. */}

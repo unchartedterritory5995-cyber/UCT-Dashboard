@@ -3,12 +3,13 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useDarkSection from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
-import { formatCompact, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import OffNotice from './OffNotice'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
+import Select from '../../components/ui/Select'
 
-// The tide's own ladder: B at two decimals, M at one, K whole.
-const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
+// Premium reads on the terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS):
+// T/B at two decimals, M at one, K whole -- the tide's own old ladder, now shared.
 
 // FT-056 Market Tide: market-wide net call / net put premium by minute, COMPUTED from our flow
 // tape (api/services/options_analytics/market_tide.py).
@@ -30,7 +31,7 @@ export function money(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
   const a = Math.abs(n)
-  const s = formatCompact(a, { tiers: TIDE_TIERS })
+  const s = formatCompactTerminal(a)
   return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
 }
 
@@ -210,10 +211,10 @@ export function TideMinute({ scope, minute, setMinute }) {
     <section className={styles.panel} data-testid="tide-minute">
       <div className={styles.head}>
         <span className={styles.title}>Tape at a minute</span>
-        <select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
+        <Select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
           <option value="">pick a minute, or click the tide…</option>
           {probe.data.minutes.map((t) => <option key={t} value={t}>{t} ET</option>)}
-        </select>
+        </Select>
       </div>
       {one.failed && <p className={styles.note}>That minute&apos;s prints are unavailable right now.</p>}
       {d && Array.isArray(d.prints) && (

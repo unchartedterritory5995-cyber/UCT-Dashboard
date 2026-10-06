@@ -7,6 +7,8 @@
 // a reason it does not recognise is shown as-is when it is already prose, and as a neutral
 // sentence when it is a bare slug, never as raw engine text.
 
+import { formatCompactTerminal } from '../../../lib/presentation/presentationPrimitives'
+
 const STAGE_NAMES = { universe: 'the universe screen', gate: 'the swing-trade gate', lens: 'the final setup review' }
 
 export function stageText(row) {
@@ -18,7 +20,8 @@ export function stageText(row) {
   return `Dropped at stage ${n}`
 }
 
-const fmtCapB = (b) => (b >= 1 ? `$${b.toFixed(1)}B` : `$${Math.round(b * 1000)}M`)
+// The engine states caps in $B; they read on the terminal compact ladder.
+const fmtCapB = (b) => formatCompactTerminal(b * 1e9, { money: true })
 
 function tierSentence(t) {
   let m

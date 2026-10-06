@@ -138,6 +138,10 @@ def ec(monkeypatch):
     importlib.reload(m)
     cache = _Cache()
     monkeypatch.setattr(m, "_cache", lambda: cache)
+    # The reporting-currency leg caches through its own module; give it this
+    # test's cache too, so nothing leaks between tests.
+    from api.services.research import reporting_currency
+    monkeypatch.setattr(reporting_currency, "_cache", lambda: cache)
     m._test_cache = cache
     return m
 
@@ -147,7 +151,8 @@ AAPL_EARNINGS = [{"date": "2026-10-29", "epsActual": None, "epsEstimated": 1.7},
                  {"date": "2026-04-30", "epsActual": 1.65}]
 
 
-def _stub_fmp(monkeypatch, m, *, annual=None, quarter=None, raise_for=(), earnings=AAPL_EARNINGS):
+def _stub_fmp(monkeypatch, m, *, annual=None, quarter=None, raise_for=(), earnings=AAPL_EARNINGS,
+              reported_currency="USD"):
     from api.services import fmp_client, provider_errors as pe
     seen = []
 
@@ -174,6 +179,16 @@ def _stub_fmp(monkeypatch, m, *, annual=None, quarter=None, raise_for=(), earnin
                                  licensing_class=None, freshness="end_of_day")
 
     monkeypatch.setattr(m.fmp_client, "get_analyst_estimates", fake)
+
+    def fake_income(ticker, *, period="quarter", limit, timeout=None):
+        # The reporting-currency leg (reporting_currency.read): one annual row.
+        if "income" in raise_for:
+            raise RuntimeError("FMP /stable/income-statement timed out")
+        return pe.ProviderResult(value=[{"date": "2025-12-31", "reportedCurrency": reported_currency}],
+                                 provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="t"),
+                                 licensing_class=None, freshness="end_of_day")
+
+    monkeypatch.setattr(m.fmp_client, "get_income_statement", fake_income)
     return seen
 
 
@@ -255,7 +270,7 @@ class TestForwardRule:
                   quarter=[{"date": "2026-06-27", "epsAvg": 1.5}, {"date": "2026-09-27", "epsAvg": 1.7}])
         out = ec.get_consensus("AAPL", today=TODAY)
         assert out["state"] == "ok" and out["forward_rule"] == "grace_window"
-        assert ec._test_cache.ttls["research_consensus::v2::AAPL"] == ec._TTL_ERROR
+        assert ec._test_cache.ttls["research_consensus::v3::AAPL"] == ec._TTL_ERROR
 
 
 class TestConsensusStates:
@@ -274,7 +289,7 @@ class TestConsensusStates:
         ec.get_consensus("AAPL", today=TODAY)
         ec.get_consensus("AAPL", today=TODAY)
         assert len(seen) == 2
-        assert ec._test_cache.ttls["research_consensus::v2::AAPL"] == ec._TTL_OK
+        assert ec._test_cache.ttls["research_consensus::v3::AAPL"] == ec._TTL_OK
 
     def test_answered_nothing_is_EMPTY_not_error(self, ec, monkeypatch):
         _stub_fmp(monkeypatch, ec, annual=[], quarter=[])
@@ -285,7 +300,7 @@ class TestConsensusStates:
         _stub_fmp(monkeypatch, ec, raise_for=("annual", "quarter"))
         out = ec.get_consensus("AAPL", today=TODAY)
         assert out["state"] == "error" and set(out["errors"]) == {"annual", "quarterly"}
-        assert ec._test_cache.ttls["research_consensus::v2::AAPL"] == ec._TTL_ERROR
+        assert ec._test_cache.ttls["research_consensus::v3::AAPL"] == ec._TTL_ERROR
 
 
 class TestRoute:

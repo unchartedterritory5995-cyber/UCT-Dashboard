@@ -1,7 +1,9 @@
 import useRatings from '../hooks/useRatings'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import UIcon from '../../../components/ui/UIcon'
 import { CoverageNote } from '../../../components/research-kit'
+import { ABSENT } from '../../../lib/presentation/presentationPrimitives'
 
 const NUM_COMPONENTS = [
   ['eps', 'EPS Strength'],
@@ -15,31 +17,36 @@ const LETTER_COMPONENTS = [
   ['sponsorship', 'Sponsorship'],
 ]
 
-function scoreColor(v) {
-  if (v == null) return 'var(--text-muted)'
-  if (v >= 80) return '#3cb868'
-  if (v >= 60) return '#7fb84e'
-  if (v >= 40) return '#c9a84c'
-  if (v >= 20) return '#e08a3c'
-  return '#e74c3c'
+// Composite + sub-score inks come from the --score-* ladder in tokens.css (one
+// ladder, one home), applied through ResearchPage.module.css's .score* / .fill*
+// classes. Never a hex here: a hex cannot follow the member's app theme.
+function scoreTier(v) {
+  if (v == null) return 'None'
+  if (v >= 80) return 'Elite'
+  if (v >= 60) return 'Strong'
+  if (v >= 40) return 'Neutral'
+  if (v >= 20) return 'Weak'
+  return 'Poor'
 }
-function letterColor(l) {
-  if (!l) return 'var(--text-muted)'
-  if (l === 'A') return '#3cb868'
-  if (l === 'B') return '#7fb84e'
-  if (l === 'C') return '#c9a84c'
-  if (l === 'D') return '#e08a3c'
-  return '#e74c3c'
+function letterTier(l) {
+  if (!l) return 'None'
+  if (l === 'A') return 'Elite'
+  if (l === 'B') return 'Strong'
+  if (l === 'C') return 'Neutral'
+  if (l === 'D') return 'Weak'
+  return 'Poor'
 }
-function checkColor(s) {
-  return s === 'pass' ? '#3cb868' : s === 'fail' ? '#e74c3c' : 'var(--text-muted)'
+const ink = (tier) => styles[`score${tier}`]
+const fill = (tier) => styles[`fill${tier}`]
+function checkTier(s) {
+  return s === 'pass' ? 'Elite' : s === 'fail' ? 'Poor' : 'None'
 }
 
 export default function RatingsTab({ sym }) {
   const { data, isLoading, error, mutate } = useRatings(sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Computing UCT ratings…</div></div></div>
+    return <ResearchLoading label="Computing UCT ratings" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty rating. Render the
@@ -81,35 +88,35 @@ export default function RatingsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {r.entity && r.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
       <section className={styles.card}>
         <div className={styles.compHero}>
-          <div className={styles.compNum} style={{ color: scoreColor(r.composite) }}>{r.composite ?? '—'}</div>
+          <div className={`${styles.compNum} ${ink(scoreTier(r.composite))}`}>{r.composite ?? ABSENT}</div>
           <div>
-            <div className={styles.ct} style={{ marginBottom: 2 }}>UCT Composite Rating</div>
-            <div className={styles.muted} style={{ fontSize: 12 }}>0–99 · higher is stronger</div>
+            <div className={`${styles.ct} ${styles.compLabel}`}>UCT Composite Rating</div>
+            <div className={styles.compSub}>0–99 · higher is stronger</div>
             <CoverageNote coverage={r.coverage} />
           </div>
         </div>
 
-        <div className={styles.ratingGrid}>
+        <div className={styles.ratingGrid} data-panel-tiles>
           {NUM_COMPONENTS.map(([k, label]) => (
-            <div key={k} className={styles.ratingCard}>
+            <div key={k} className={styles.ratingCard} data-panel-tile>
               <div className={styles.ratingLbl}>{label}</div>
-              <div className={styles.ratingVal} style={{ color: scoreColor(comp[k]) }}>{comp[k] ?? '—'}</div>
+              <div className={`${styles.ratingVal} ${ink(scoreTier(comp[k]))}`}>{comp[k] ?? ABSENT}</div>
               <div className={styles.meter}>
-                <div className={styles.meterFill} style={{ width: `${comp[k] ?? 0}%`, background: scoreColor(comp[k]) }} />
+                <div className={`${styles.meterFill} ${fill(scoreTier(comp[k]))}`} style={{ width: `${comp[k] ?? 0}%` }} />
               </div>
             </div>
           ))}
           {LETTER_COMPONENTS.map(([k, label]) => (
-            <div key={k} className={styles.ratingCard}>
+            <div key={k} className={styles.ratingCard} data-panel-tile>
               <div className={styles.ratingLbl}>{label}</div>
-              <div className={styles.ratingVal} style={{ color: letterColor(comp[k]) }}>{comp[k] ?? '—'}</div>
+              <div className={`${styles.ratingVal} ${ink(letterTier(comp[k]))}`}>{comp[k] ?? ABSENT}</div>
             </div>
           ))}
         </div>
@@ -119,9 +126,10 @@ export default function RatingsTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Stock Checkup</div>
           {checkup.map((c, i) => (
-            <div key={`${c.label}-${i}`} className={styles.checkRow}>
-              <span className={styles.checkIcon} style={{ color: checkColor(c.status) }}>
-                {c.status === 'pass' ? <UIcon name="check" size={13} /> : c.status === 'fail' ? <UIcon name="x" size={13} /> : '–'}
+            <div key={`${c.label}-${i}`} className={styles.checkRow} data-panel-row>
+              <span className={`${styles.checkIcon} ${ink(checkTier(c.status))}`}>
+                {c.status === 'pass' ? <UIcon name="check" size={13} gold={false} />
+                  : c.status === 'fail' ? <UIcon name="x" size={13} gold={false} /> : ABSENT}
               </span>
               <span>{c.label}</span>
               <span className={styles.muted}>{c.value}</span>

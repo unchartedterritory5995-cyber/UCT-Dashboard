@@ -36,6 +36,7 @@ import useEarningsModalRoute, { normalizeSym } from './useEarningsModalRoute'
 import useSettledSym from '../../hooks/useSettledSym'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
+import Checkbox from '../../components/ui/Checkbox'
 
 // `todayIso`/`shouldUnwindHistory` come from ./earningsModalRow.js (T11
 // review round 1, minor) — no longer duplicated here. That module is ALREADY
@@ -661,8 +662,7 @@ function SourceCustomizer({ mySources, setMySources }) {
           <div className={styles.scolLbl}>Count toward &ldquo;My Stocks&rdquo;:</div>
           {SOURCES.map(([k, lbl]) => (
             <label key={k} className={styles.gearRow}>
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={mySources.includes(k)}
                 onChange={() => toggleSource(k)}
               />

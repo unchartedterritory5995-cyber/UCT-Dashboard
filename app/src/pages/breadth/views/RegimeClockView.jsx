@@ -4,7 +4,8 @@
  * where we are; momentum says which way we are going. No snapshot view can
  * show both, which is the whole reason this lens exists.
  */
-import { resolveViewColors, WIDEN_WINDOW_HINT, quadrantOf } from './breadthViewShared'
+import { WIDEN_WINDOW_HINT, quadrantOf } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 import { optionLabel } from './viewMetricConfig'
@@ -60,8 +61,8 @@ const momTickLabel = (v) => {
 // HTML label can be placed with the SAME X()/Y() the trail is drawn with.
 const GUTTER_L = 34
 const GUTTER_B = 26
-const tickText = { position: 'absolute', font: '600 8px \'Instrument Sans\', sans-serif',
-                   color: '#64748b', whiteSpace: 'nowrap' }
+const tickText = { position: 'absolute', font: '600 var(--text-xs) var(--font-sans)',
+                   color: 'var(--text-muted)', whiteSpace: 'nowrap' }
 
 // The trail dot under the pointer, found once per event instead of one handler
 // per dot. Each hit target names the session it stands for.
@@ -76,7 +77,7 @@ export default function RegimeClockView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
   const { hostRef, tipRef, show, hide } = useHoverReadout()
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const roc = Number(options.rocWindow ?? 20)
   const trailLen = Number(options.trail ?? 30)
   const levelKey = options.level ?? 'pct_above_50sma'
@@ -92,11 +93,11 @@ export default function RegimeClockView({
 
   if (win.length < need || levelAt(0) == null || levelAt(roc) == null) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+      <div style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
         <div data-testid="clock-refusal">
           Needs {need} sessions of {levelLabel(levelKey)} to measure momentum — has {win.length}.
         </div>
-        <div data-testid="clock-refusal-hint" style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
+        <div data-testid="clock-refusal-hint" style={{ marginTop: 6, color: 'var(--text-muted)', fontSize: 11 }}>
           {WIDEN_WINDOW_HINT}
         </div>
       </div>
@@ -129,14 +130,14 @@ export default function RegimeClockView({
                   padding: '10px 18px 16px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <span data-testid="clock-regime"
-              style={{ font: '800 20px \'Instrument Sans\', sans-serif', color: colors.bull }}>
+              style={{ fontWeight: 800, fontSize: 'var(--text-2xl)', fontFamily: 'var(--font-sans)', color: colors.bull }}>
           {regime}
         </span>
-        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+        <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
           {QUADRANT_NOTE[regime]}
         </span>
-        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
-          level <strong style={{ color: '#e2e8f0' }}>{today.level.toFixed(1)}</strong>
+        <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+          level <strong style={{ color: 'var(--text-bright)' }}>{today.level.toFixed(1)}</strong>
           {'  ·  '}{roc}d momentum{' '}
           <strong data-testid="clock-momentum" style={{ color: today.mom >= 0 ? colors.bull : colors.bear }}>
             {today.mom >= 0 ? '+' : ''}{today.mom.toFixed(1)}
@@ -171,19 +172,19 @@ export default function RegimeClockView({
                       [`level ${p.level.toFixed(1)}`, `${roc}d momentum ${p.mom >= 0 ? '+' : ''}${p.mom.toFixed(1)}`])
                }}
                onMouseLeave={hide}>
-            <rect x="0" y="0" width="100" height="100" fill="none" stroke="#151d28"
+            <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--border)"
                   strokeWidth="1" vectorEffect="non-scaling-stroke" />
             {/* The quarter gridlines are what make a position READABLE off the
                 plot; the two quadrant boundaries stay the stronger pair because
                 they are the only lines that mean something. */}
             {LEVEL_TICKS.filter(v => v !== 0 && v !== 100).map(v => (
               <line key={`gx${v}`} x1={X(v)} y1="0" x2={X(v)} y2="100"
-                    stroke={v === 50 ? '#233043' : '#161f2b'} strokeWidth={v === 50 ? 0.9 : 0.6}
+                    stroke={v === 50 ? 'var(--border-accent)' : 'var(--border)'} strokeWidth={v === 50 ? 0.9 : 0.6}
                     vectorEffect="non-scaling-stroke" />
             ))}
             {momTicks.map(v => (
               <line key={`gy${v}`} x1="0" y1={Y(v)} x2="100" y2={Y(v)}
-                    stroke={v === 0 ? '#233043' : '#161f2b'} strokeWidth={v === 0 ? 0.9 : 0.6}
+                    stroke={v === 0 ? 'var(--border-accent)' : 'var(--border)'} strokeWidth={v === 0 ? 0.9 : 0.6}
                     vectorEffect="non-scaling-stroke" />
             ))}
 
@@ -202,7 +203,7 @@ export default function RegimeClockView({
             {pts.map((p, k) => (
               <line key={p.date ?? k} data-testid={`clock-mark-${k}`}
                     x1={X(p.level)} y1={Y(p.mom)} x2={X(p.level)} y2={Y(p.mom) + 0.01}
-                    stroke={k === 0 ? colors.bull : '#475569'}
+                    stroke={k === 0 ? colors.bull : 'var(--border-accent)'}
                     strokeWidth={k === 0 ? 10 : 6} strokeLinecap="round"
                     vectorEffect="non-scaling-stroke"
                     opacity={k === 0 ? 1 : Math.max(0.15, 1 - k / pts.length)} />
@@ -245,17 +246,17 @@ export default function RegimeClockView({
                 {v}
               </span>
             ))}
-            <span style={{ ...tickText, left: '50%', top: '100%', fontSize: 7,
-                           letterSpacing: '.7px', color: '#475569',
-                           transform: 'translate(-50%, 14px)' }}>
+            <span style={{ ...tickText, left: '50%', top: '100%',
+                           letterSpacing: '.7px', color: 'var(--text-muted)',
+                           transform: 'translate(-50%, 16px)' }}>
               PARTICIPATION LEVEL %
             </span>
             {QUADRANT_CORNERS.map(q => (
               <span key={q.name}
                     style={{ position: 'absolute', [q.x]: 4, [q.y]: 4,
-                             font: '800 8px \'Instrument Sans\', sans-serif',
+                             font: '800 var(--text-xs) var(--font-sans)',
                              letterSpacing: '.7px', textTransform: 'uppercase',
-                             color: q.name === regime ? '#94a3b8' : '#3d4a5c' }}>
+                             color: q.name === regime ? 'var(--text-muted)' : 'color-mix(in srgb, var(--text-muted) 60%, transparent)' }}>
                 {q.name}
               </span>
             ))}
@@ -268,7 +269,7 @@ export default function RegimeClockView({
           compare two screenshots of this lens and read a change in the SHAPE as
           a change in the market. */}
       <div data-testid="clock-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginTop: 6 }}>
         {pts.length} sessions plotted · since {pts[pts.length - 1].date}
         {' · x-axis level 0–100 · y-axis '}{roc}d momentum ±{maxMom.toFixed(0)}
       </div>

@@ -64,11 +64,24 @@ export const MARKET_TIME_ZONE = 'America/New_York'
  *
  * `formatNumber(v)` is byte-identical to `CoverageLine.jsx`'s retired `n(v)`.
  *
+ * `grouping: false` drops the thousands separator ("1234.50", not
+ * "1,234.50") for a value that sits in a dense numeric column or is a strike /
+ * level a reader compares digit by digit — the options panels' old `toFixed`
+ * grammar, which never grouped. With `decimals` it IS `toFixed(decimals)`, the
+ * same rounding `formatPercent` / `formatCurrency` use: the locale formatter
+ * rounds the SHORTEST decimal form (1.005 -> "1.01") where `toFixed` rounds
+ * the stored double (1.005 -> "1.00"), and a migrated column must not move.
+ *
  * @param {*} value
- * @param {{decimals?: number|null, absent?: *}} [options]
+ * @param {{decimals?: number|null, grouping?: boolean, absent?: *}} [options]
  */
-export function formatNumber(value, { decimals = null, absent = ABSENT } = {}) {
+export function formatNumber(value, { decimals = null, grouping = true, absent = ABSENT } = {}) {
   if (!Number.isFinite(value)) return absent
+  if (!grouping) {
+    return decimals == null
+      ? Number(value).toLocaleString(LOCALE, { useGrouping: false })
+      : Number(value).toFixed(decimals)
+  }
   if (decimals == null) return Number(value).toLocaleString(LOCALE)
   return Number(value).toLocaleString(LOCALE, {
     minimumFractionDigits: decimals,
@@ -163,6 +176,36 @@ export const COMPACT_TIERS = Object.freeze([
   Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
   Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
 ])
+
+/**
+ * ⭐ THE TERMINAL LADDER (round 2 visual pass, 2026-10-06). Every terminal
+ * panel that prints a large number — revenue, market cap, flow premium, share
+ * counts, volume — uses this ONE rule so the same quantity reads the same in
+ * every panel:
+ *
+ *     T and B   two decimals     "$2.91T"  "$391.04B"
+ *     M         one decimal      "$45.3M"  "12.4M"
+ *     K         no decimals      "$950K"   "24K"
+ *     < 1,000   whole number     "$812"
+ *
+ * Unit letters are always K/M/B/T, a currency sign sits inside the minus
+ * ("-$1.25B"), and the tier is picked on the magnitude before rounding (see
+ * `formatCompact`). It is the research tabs' money grammar (EE/FA/OWN/FLOW and
+ * the statement tables already agreed on it); the panels that disagreed
+ * (calendar cards at one decimal on B/T, QuoteStrip volume at two on M, the
+ * money columns that had no K tier) moved onto it.
+ */
+export const TERMINAL_COMPACT_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
+
+/** `formatCompact` on the terminal ladder. `money: true` adds the "$". */
+export function formatCompactTerminal(value, { money = false, absent = ABSENT } = {}) {
+  return formatCompact(value, { tiers: TERMINAL_COMPACT_TIERS, prefix: money ? '$' : '', absent })
+}
 
 /**
  * A number with a magnitude suffix — "11.8M", "$25.0B", "24K".
@@ -403,4 +446,62 @@ export function formatFreshnessAsOf({ tier = null, asOf = null, seconds = false 
   if (tier === 'real_time') return null
   const t = formatTimeEt(asOf, { seconds, zoneSuffix: 'ET' })
   return t ? `as of ${t}` : null
+}
+
+// --------------------------------------------------------------------------
+// 6. REPORTING CURRENCY — figures that are not US dollars
+// --------------------------------------------------------------------------
+//
+// A US-listed ADR trades in dollars, but its statements and the analyst
+// consensus on them are in the company's own currency: TSMC's FY2026 consensus
+// EPS is 535.87 TAIWAN dollars, and printing it "$535.87" told a member TSM earns
+// fifty times what it does (seen live 2026-10-06). The server states the
+// currency (`currency: "TWD"`); these helpers put it on screen.
+//
+// ⛔ NOTHING HERE CONVERTS. A converted per-share figure would also need the
+// ADR ratio (one TSM ADR = 5 ordinary shares), so the honest render is the
+// figure in its own currency, labelled with the ISO code — never "$".
+//
+// ⭐ USD AND UNKNOWN RENDER EXACTLY AS BEFORE: `formatCurrencyIn(v, 'USD')` and
+// `formatCurrencyIn(v, null)` are `formatCurrency(v)`, byte for byte, so a US
+// name (and a payload that predates the field) moves nothing.
+
+/** 'twd ' -> 'TWD'; anything that is not a three-letter code -> null. */
+export function normalizeCurrencyCode(code) {
+  if (typeof code !== 'string') return null
+  const c = code.trim().toUpperCase()
+  return /^[A-Z]{3}$/.test(c) ? c : null
+}
+
+/** True only when the figures are KNOWN not to be US dollars. */
+export function isForeignCurrency(code) {
+  const c = normalizeCurrencyCode(code)
+  return c !== null && c !== 'USD'
+}
+
+/** The prefix for an amount in `code`: '$' for USD or unknown, 'TWD ' otherwise. */
+export function currencyPrefix(code) {
+  return isForeignCurrency(code) ? `${normalizeCurrencyCode(code)} ` : '$'
+}
+
+/** `formatCurrency` in the figure's own currency: "TWD 535.87", "-TWD 2.90". */
+export function formatCurrencyIn(value, code, { decimals = 2, absent = ABSENT } = {}) {
+  if (!isForeignCurrency(code)) return formatCurrency(value, { decimals, absent })
+  if (!Number.isFinite(value)) return absent
+  return signOutside(currencyPrefix(code), Number(value).toFixed(decimals))
+}
+
+/** Relabel text a dollar formatter already produced ("$1.59B", "-$450M") for
+ *  figures in `code`. For callers whose formatter is not theirs to change. */
+export function relabelDollarText(text, code) {
+  if (!isForeignCurrency(code) || typeof text !== 'string') return text
+  return text.replace('$', currencyPrefix(code))
+}
+
+/** The one sentence a non-dollar table carries, or null for USD / unknown. */
+export function reportingCurrencyNote(code) {
+  if (!isForeignCurrency(code)) return null
+  const c = normalizeCurrencyCode(code)
+  return `Figures in ${c}, the company's reporting currency. Not converted to US dollars; `
+    + 'per-share figures are on the company\'s own share basis, which for an ADR may differ from one US-listed share.'
 }

@@ -9,6 +9,7 @@ import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import { useReactions } from './useCalendarData'
 import useSeen from '../../hooks/useSeen'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 
 // _sources → the single most meaningful badge (a broker POSITION outranks a
@@ -142,7 +143,7 @@ export default function TodaysBrief({ days, weekDates, todayIso, onSelect }) {
                   {beat != null && <span>{beat ? 'BEAT' : 'MISS'}</span>}
                   {gap != null && (
                     <span className={gap >= 0 ? styles.pos : styles.neg}>
-                      {gap >= 0 ? '+' : ''}{gap.toFixed(1)}%
+                      {formatPercent(gap, { decimals: 1, signed: true })}
                     </span>
                   )}
                 </button>

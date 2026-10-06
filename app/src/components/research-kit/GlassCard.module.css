@@ -1,9 +1,12 @@
+/* Inside a terminal panel the card follows the board density (--panel-gap / --panel-inset:
+   12 / 8 / 4px on desktop); everywhere else those tokens hold their comfortable values, so the
+   card is the same 12px gap and 16px padding it always was. */
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--panel-gap);
   min-width: 0;
-  padding: var(--space-lg);
+  padding: calc(var(--panel-inset) + var(--space-xs));
   border: 1px solid var(--glass-border-neutral);
   border-radius: var(--radius-xl);
   background: var(--glass-surface);

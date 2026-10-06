@@ -20,9 +20,9 @@
 .dialog:focus { outline: none; }
 
 .dialog {
-  background: var(--bg-elevated, #1d1f23);
-  border: 1px solid var(--border, #2a2c31);
-  border-radius: var(--radius-lg, 8px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 1600px;
   height: 96vh;
@@ -39,42 +39,42 @@
   align-items: center;
   gap: 10px;
   padding: 9px 14px;
-  border-bottom: 1px solid var(--border, #2a2c31);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .title {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
-  color: var(--text-bright, #f8f7f3);
+  color: var(--text-bright);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 .count {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 400;
-  color: var(--text-muted, #cfcac0);
+  color: var(--text-muted);
   letter-spacing: 0;
   text-transform: none;
 }
 .when {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted, #8f8b83);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 .close {
   margin-left: auto;
   background: transparent;
   border: none;
-  color: var(--text-muted, #8f8b83);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   transition: color 0.15s;
 }
-.close:hover { color: var(--text, #f0efea); }
+.close:hover { color: var(--text); }
 
 /* Pop-up blocked: surfaced, never swallowed — the click looked like it did
    nothing, and "nothing happened" is the worst possible feedback. */
@@ -82,35 +82,35 @@
   flex-shrink: 0;
   margin: 8px 14px 0;
   padding: 8px 12px;
-  border-radius: var(--radius-sm, 4px);
-  background: rgba(220, 187, 94, 0.10);
-  border: 1px solid rgba(220, 187, 94, 0.35);
-  color: var(--ut-gold, #dcbb5e);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
+  color: var(--ut-gold);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-base);
 }
 
 /* Phone pane toggle. Rendered always, shown only on a phone — a CSS switch, so
    first paint is right without a JS breakpoint read. */
 .paneToggle {
   display: none;
-  border: 1px solid rgba(220, 187, 94, 0.4);
-  border-radius: var(--radius-sm, 4px);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 40%, transparent);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .paneToggle button {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-base);
   background: transparent;
   border: none;
-  color: var(--text-muted, #8f8b83);
+  color: var(--text-muted);
   padding: 0 14px;
-  min-height: var(--tap-min, 44px);
+  min-height: var(--tap-min);
   cursor: pointer;
 }
-.paneToggle button + button { border-left: 1px solid rgba(220, 187, 94, 0.3); }
+.paneToggle button + button { border-left: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent); }
 .paneToggle .paneOn,
-.paneToggle button.paneOn { background: rgba(220, 187, 94, 0.16); color: var(--ut-gold, #dcbb5e); }
+.paneToggle button.paneOn { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold); }
 
 /* Phone: the split board is unusable at 390px, so the overlay goes full-bleed and
    the board's own panes stack. Matches the app's canonical touch boundary. */
@@ -125,6 +125,6 @@
   /* The title bar is the only chrome above a full-bleed board — keep it tight
      and let the identity truncate rather than push the toggle off-screen. */
   .bar { padding: 6px 8px; gap: 8px; }
-  .title { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title { font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .when { display: none; }
 }

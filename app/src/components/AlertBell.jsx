@@ -268,6 +268,7 @@ export default function AlertBell() {
             {items.map(a => (
               <div
                 key={a.id}
+                data-panel-row
                 className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''} ${a.data?.research_url ? styles.itemLinked : ''}`}
                 onClick={() => handleItemClick(a)}
                 // Seam 5: a bare `<div onClick>` was keyboard-inaccessible —

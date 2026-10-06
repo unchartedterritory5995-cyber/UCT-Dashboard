@@ -5,6 +5,7 @@ import RsBadge from '../../components/RsBadge'
 import RatingBadges from './RatingBadges'
 import UIcon from '../../components/ui/UIcon'
 import useFilingWatch from '../../hooks/useFilingWatch'
+import { formatCurrency, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './ResearchPage.module.css'
 
 // S7 filing watch — "Notify me about new SEC filings for {sym}". Placed in
@@ -94,10 +95,10 @@ export default function ResearchHeader({ sym, meta, live, ratings, onSymbolChang
       <div className={styles.hdrPx}>
         {live?.price != null && (
           <div className={styles.hdrPxBig}>
-            ${Number(live.price).toFixed(2)}{' '}
+            {formatCurrency(Number(live.price))}{' '}
             {change != null && (
               <span className={pctClass(change)}>
-                {change >= 0 ? '▲' : '▼'}{Math.abs(change).toFixed(2)}%
+                {change >= 0 ? '▲' : '▼'}{formatPercent(Math.abs(change))}
               </span>
             )}
           </div>

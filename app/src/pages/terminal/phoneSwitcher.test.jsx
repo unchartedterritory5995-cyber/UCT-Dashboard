@@ -180,3 +180,38 @@ describe('phone panel switcher (P14a)', () => {
     expect(after).toBe(before)
   })
 })
+
+describe('phone: closing a panel can be undone after its notice is gone (visual pass 2)', () => {
+  const two = () => JSON.stringify({ v: 1, count: 2, focus: 1, panels: [
+    { code: 'DES', group: 'N', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' },
+  ] })
+
+  it('the phone bar carries Undo while the undo stack is not empty, and it re-opens the panel', async () => {
+    store.prefs = { terminal_layout: two() }
+    renderAt('/terminal')
+    expect(screen.queryByTestId('terminal-phone-undo-close')).toBeNull()
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-close-1')) })
+    // dismiss the close notice: the notice's own Undo is gone, the bar's is not
+    await act(async () => { fireEvent.click(screen.getByLabelText('Dismiss')) })
+    expect(screen.queryByTestId('terminal-notice-undo-close')).toBeNull()
+    const undo = screen.getByTestId('terminal-phone-undo-close')
+    expect(undo).toHaveAccessibleName('Undo close: re-open CN')
+    await act(async () => { fireEvent.click(undo) })
+    expect(screen.getByTestId('terminal-phone-switch-1')).toHaveTextContent('CN')
+    expect(screen.queryByTestId('terminal-phone-undo-close')).toBeNull()
+  })
+
+  it('while a sheet is open the notice shows inside that sheet, not under it — and only once', async () => {
+    store.prefs = { terminal_layout: two() }
+    renderAt('/terminal')
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-close-1')) })
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Closed CN.')
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-recents-button')) })
+    const notices = screen.getAllByTestId('terminal-notice')
+    expect(notices).toHaveLength(1)
+    expect(screen.getByRole('dialog').contains(notices[0])).toBe(true)
+    // its action still works from inside the sheet
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-notice-undo-close')) })
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Re-opened CN')
+  })
+})

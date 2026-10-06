@@ -1,0 +1,308 @@
+"""P2 -- the SERVER half of presentation validation, narrow and by EXISTING primitives.
+
+The browser validator (`app/src/components/chart/engine/defSchema.js`) has
+always refused a paint with nothing to draw, a marker the renderer cannot place
+and a plot style no renderer has. The server stored whatever it was handed, so a
+hand-rolled POST (or any client that skipped `defSchema`) could store an inert
+paint -- "validated but inert", the failure the schema exists to prevent (P1
+intent report, out-of-scope finding 1).
+
+This module mirrors exactly what `defSchema.js` accepts for:
+
+  * ``plots[].style``   -- PLOT_STYLES, with the RESERVED set refused by name
+  * ``plots[].marker``  -- shape / position / size / text, only on a ``markers`` plot
+  * ``plots[].colorMode`` and its colour fields (``colorUp``/``colorDown``,
+    ``colorPalette``, ``colorGradient``, ``colorPacked``), incl. the
+    ``column:<key>`` reference
+  * ``paints[]``         -- kind, colour forms, ``column:<key>`` reference,
+    opacity / offset / showLast / title / line
+
+⛔ IT IS NEVER STRICTER THAN THE BROWSER. A server that refused what the builder
+saves would strand a member at Save; the shared fixture
+`tests/fixtures/ast/p2_presentation_schema.json` holds both lanes to the same
+answer case by case, and both lanes rail their vocabulary against its `vocab`.
+Fields `defSchema` checks that are not listed above (legend, lineStyle, width,
+…) are not checked here -- narrower, never different.
+
+Every error is ``{path, code, message, fingerprint}``. ``fingerprint`` names the
+offending ENTRY (the paint, or the plot's own presentation), so the save door can
+tell an error a stored legacy row already carried (recorded, not enforced -- no
+migration) from one this save introduces (refused).
+"""
+from __future__ import annotations
+
+import json
+import re
+from typing import Any, Mapping
+
+PLOT_STYLES = ("line", "stepline", "histogram", "area", "baseline", "hlines",
+               "markers", "band")
+RESERVED_PLOT_STYLES = ("zones", "bgband", "barcolor", "fill", "cross")
+MARKER_SHAPES = ("circle", "square", "arrowUp", "arrowDown")
+MARKER_POSITIONS = ("aboveBar", "belowBar", "inBar")
+MARKER_SIZE_RANGE = {"min": 0.25, "max": 4}
+MARKER_TEXT_MAX = 24
+PAINT_KINDS = ("bgcolor", "barcolor")
+COLOR_MODES = ("fixed", "sign")
+
+#: The plot fields that are presentation for the fingerprint. A change to any of
+#: them makes the plot's presentation "changed" for the legacy rule.
+_PLOT_PRESENTATION = ("style", "marker", "colorMode", "colorUp", "colorDown",
+                      "colorPalette", "colorGradient", "colorPacked")
+
+_HEX = re.compile(r"^#[0-9a-f]{6}([0-9a-f]{2})?$", re.IGNORECASE)
+
+
+def _is_str(v: Any) -> bool:
+    return isinstance(v, str) and v.strip() != ""
+
+
+def _is_num(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v \
+        and v not in (float("inf"), float("-inf"))
+
+
+def _is_int(v: Any) -> bool:
+    if isinstance(v, bool):
+        return False
+    if isinstance(v, int):
+        return True
+    return isinstance(v, float) and v.is_integer()
+
+
+def _canon(v: Any) -> str:
+    return json.dumps(v, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _plot_fp(plot: Mapping[str, Any]) -> str:
+    return "plot:" + _canon({"key": plot.get("key"),
+                             **{k: plot[k] for k in _PLOT_PRESENTATION if k in plot}})
+
+
+def _err(out: list, path: str, code: str, message: str, fp: str) -> None:
+    out.append({"path": path, "code": code, "message": message, "fingerprint": fp})
+
+
+def _check_marker(plot: Mapping, path: str, fp: str, out: list) -> None:
+    if "marker" not in plot:
+        return
+    m = plot["marker"]
+    if not isinstance(m, Mapping):
+        _err(out, f"{path}.marker", "marker-shape", f"{path}.marker: expected an object", fp)
+        return
+    if plot.get("style") != "markers":
+        _err(out, f"{path}.marker", "marker-style",
+             f"{path}.marker: only a plot with style \"markers\" draws one", fp)
+    if m.get("shape") not in MARKER_SHAPES:
+        _err(out, f"{path}.marker.shape", "marker-shape",
+             f"{path}.marker.shape: expected one of {', '.join(MARKER_SHAPES)}, "
+             f"got {m.get('shape')!r}", fp)
+    if "position" in m and m.get("position") not in MARKER_POSITIONS:
+        _err(out, f"{path}.marker.position", "marker-position",
+             f"{path}.marker.position: expected one of {', '.join(MARKER_POSITIONS)}, "
+             f"got {m.get('position')!r}", fp)
+    if "size" in m:
+        s = m.get("size")
+        if not _is_num(s) or s < MARKER_SIZE_RANGE["min"] or s > MARKER_SIZE_RANGE["max"]:
+            _err(out, f"{path}.marker.size", "marker-size",
+                 f"{path}.marker.size: expected a number between "
+                 f"{MARKER_SIZE_RANGE['min']} and {MARKER_SIZE_RANGE['max']}", fp)
+    if "text" in m:
+        t = m.get("text")
+        if not isinstance(t, str) or len(t) > MARKER_TEXT_MAX:
+            _err(out, f"{path}.marker.text", "marker-text",
+                 f"{path}.marker.text: a string of at most {MARKER_TEXT_MAX} characters", fp)
+
+
+def _check_plot_colour_fields(plot: Mapping, path: str, fp: str, out: list) -> None:
+    mode = plot.get("colorMode")
+    column_mode = isinstance(mode, str) and mode.startswith("column:")
+    if "colorPalette" in plot:
+        pal = plot["colorPalette"]
+        if not isinstance(pal, list) or len(pal) < 2 or not all(_is_str(c) for c in pal):
+            _err(out, f"{path}.colorPalette", "plot-colour-field",
+                 f"{path}.colorPalette: expected two or more colour strings", fp)
+        elif not column_mode:
+            _err(out, f"{path}.colorPalette", "plot-colour-field",
+                 f"{path}.colorPalette: a palette is read through a column", fp)
+    if "colorGradient" in plot:
+        g = plot["colorGradient"]
+        hexes = isinstance(g, Mapping) and isinstance(g.get("from"), str) \
+            and isinstance(g.get("to"), str) and _HEX.match(g["from"]) and _HEX.match(g["to"])
+        if not hexes:
+            _err(out, f"{path}.colorGradient", "plot-colour-field",
+                 f"{path}.colorGradient: expected {{from, to}} hex colours", fp)
+        elif "transparency" in g and not (_is_int(g["transparency"])
+                                          and 0 <= g["transparency"] <= 100):
+            _err(out, f"{path}.colorGradient.transparency", "plot-colour-field",
+                 f"{path}.colorGradient.transparency: expected a whole number 0-100", fp)
+        elif not column_mode:
+            _err(out, f"{path}.colorGradient", "plot-colour-field",
+                 f"{path}.colorGradient: a gradient is read through a column", fp)
+    if "colorPacked" in plot:
+        p = plot["colorPacked"]
+        if not isinstance(p, Mapping):
+            _err(out, f"{path}.colorPacked", "plot-colour-field",
+                 f"{path}.colorPacked: expected an object", fp)
+        elif "transparency" in p and not (_is_int(p["transparency"])
+                                          and 0 <= p["transparency"] <= 100):
+            _err(out, f"{path}.colorPacked.transparency", "plot-colour-field",
+                 f"{path}.colorPacked.transparency: expected a whole number 0-100", fp)
+        elif not column_mode:
+            _err(out, f"{path}.colorPacked", "plot-colour-field",
+                 f"{path}.colorPacked: a computed colour is read through a column", fp)
+    for field in ("colorUp", "colorDown"):
+        if field in plot and not _is_str(plot[field]):
+            _err(out, f"{path}.{field}", "plot-colour-field",
+                 f"{path}.{field}: expected a non-empty colour string", fp)
+
+
+def _check_color_mode(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
+    if "colorMode" not in plot:
+        return
+    mode = plot["colorMode"]
+    p = f"{path}.colorMode"
+    if not isinstance(mode, str):
+        _err(out, p, "color-mode", f"{p}: expected a string", fp)
+        return
+    if mode == "sign":
+        if not (_is_str(plot.get("colorUp")) and _is_str(plot.get("colorDown"))):
+            _err(out, p, "color-mode-colours",
+                 f"{p}: colour mode \"sign\" needs both colorUp and colorDown", fp)
+        return
+    if mode in COLOR_MODES:
+        return
+    if not mode.startswith("column:"):
+        _err(out, p, "color-mode", f"{p}: unknown colour mode {mode!r}", fp)
+        return
+    col = mode[len("column:"):]
+    if col not in columns:
+        _err(out, p, "color-mode-column",
+             f"{p}: {mode!r} references column {col!r}, which no plot or event declares", fp)
+        return
+    if "colorPalette" in plot:
+        if "colorUp" in plot or "colorDown" in plot or "colorGradient" in plot \
+                or "colorPacked" in plot:
+            _err(out, p, "color-mode-colours", f"{p}: declare one colour source, not several", fp)
+        return
+    if "colorPacked" in plot:
+        if "colorUp" in plot or "colorDown" in plot or "colorGradient" in plot:
+            _err(out, p, "color-mode-colours", f"{p}: declare colorPacked alone", fp)
+        return
+    if "colorGradient" in plot:
+        if "colorUp" in plot or "colorDown" in plot:
+            _err(out, p, "color-mode-colours", f"{p}: declare colorGradient OR colorUp/colorDown", fp)
+        return
+    if not (_is_str(plot.get("colorUp")) and _is_str(plot.get("colorDown"))):
+        _err(out, p, "color-mode-colours",
+             f"{p}: colour mode {mode!r} needs both colorUp and colorDown "
+             "(or a colorPalette, a colorGradient or a colorPacked)", fp)
+
+
+def _check_paints(paints: Any, columns: set, out: list) -> None:
+    if paints is None:
+        return
+    if not isinstance(paints, list):
+        _err(out, "paints", "paint-shape", "paints: expected an array",
+             "paints:" + _canon(paints))
+        return
+    for i, p in enumerate(paints):
+        path = f"paints[{i}]"
+        fp = "paint:" + _canon(p)
+        if not isinstance(p, Mapping):
+            _err(out, path, "paint-shape", f"{path}: expected an object", fp)
+            continue
+        if p.get("kind") not in PAINT_KINDS:
+            _err(out, f"{path}.kind", "paint-kind",
+                 f"{path}.kind: expected one of {', '.join(PAINT_KINDS)}, got {p.get('kind')!r}", fp)
+        if "title" in p and not isinstance(p["title"], str):
+            _err(out, f"{path}.title", "paint-field", f"{path}.title: expected a string", fp)
+        if "line" in p and not (_is_int(p["line"]) and p["line"] > 0):
+            _err(out, f"{path}.line", "paint-field", f"{path}.line: expected a positive whole number", fp)
+        if "opacity" in p and not (_is_num(p["opacity"]) and 0 <= p["opacity"] <= 1):
+            _err(out, f"{path}.opacity", "paint-field", f"{path}.opacity: expected a number in [0, 1]", fp)
+        if "color" in p and not _is_str(p["color"]):
+            _err(out, f"{path}.color", "paint-colour", f"{path}.color: expected a colour string", fp)
+        if "offset" in p and not _is_int(p["offset"]):
+            _err(out, f"{path}.offset", "paint-field", f"{path}.offset: expected a whole number", fp)
+        if "showLast" in p and not (_is_int(p["showLast"]) and p["showLast"] >= 0):
+            _err(out, f"{path}.showLast", "paint-field",
+                 f"{path}.showLast: expected a non-negative whole number", fp)
+        if "colorMode" not in p:
+            if not _is_str(p.get("color")):
+                _err(out, path, "paint-colour",
+                     f"{path}: a paint must declare a colour (color, or colorMode \"column:<key>\")", fp)
+            continue
+        mode = p["colorMode"]
+        if not isinstance(mode, str) or not mode.startswith("column:"):
+            _err(out, f"{path}.colorMode", "paint-color-mode",
+                 f"{path}.colorMode: expected \"column:<key>\", got {mode!r}", fp)
+            continue
+        col = mode[len("column:"):]
+        if col not in columns:
+            _err(out, f"{path}.colorMode", "paint-column",
+                 f"{path}.colorMode: {mode!r} references column {col!r}, which no plot declares", fp)
+        grad = p.get("colorGradient")
+        ways = sum(1 for ok in (
+            _is_str(p.get("colorUp")) and _is_str(p.get("colorDown")),
+            isinstance(p.get("colorPalette"), list) and len(p["colorPalette"]) >= 2
+            and all(_is_str(c) for c in p["colorPalette"]),
+            isinstance(grad, Mapping) and _is_str(grad.get("from")) and _is_str(grad.get("to")),
+            isinstance(p.get("colorPacked"), Mapping),
+        ) if ok)
+        if ways != 1:
+            _err(out, path, "paint-ways",
+                 f"{path}: colorMode {mode!r} needs exactly one of colorUp/colorDown, a "
+                 "colorPalette, a colorGradient, or a colorPacked", fp)
+        packed = p.get("colorPacked")
+        if isinstance(packed, Mapping) and "transparency" in packed \
+                and not (_is_int(packed["transparency"]) and 0 <= packed["transparency"] <= 100):
+            _err(out, f"{path}.colorPacked.transparency", "paint-field",
+                 f"{path}.colorPacked.transparency: expected a whole number 0-100", fp)
+
+
+def presentation_errors(definition: Mapping[str, Any]) -> list:
+    """Every presentation error `defSchema` would raise for these fields, as
+    ``[{path, code, message, fingerprint}]`` (empty when the presentation is
+    valid). Pure; never raises on a malformed document."""
+    out: list = []
+    if not isinstance(definition, Mapping):
+        return out
+    plots = definition.get("plots")
+    plots = plots if isinstance(plots, list) else []
+    events = definition.get("events")
+    events = events if isinstance(events, list) else []
+    columns = {p.get("key") for p in plots if isinstance(p, Mapping) and isinstance(p.get("key"), str)}
+    columns |= {e.get("key") for e in events if isinstance(e, Mapping) and isinstance(e.get("key"), str)}
+    for i, plot in enumerate(plots):
+        if not isinstance(plot, Mapping):
+            continue
+        path = f"plots[{i}]"
+        fp = _plot_fp(plot)
+        style = plot.get("style")
+        if style not in PLOT_STYLES:
+            reserved = style in RESERVED_PLOT_STYLES
+            _err(out, f"{path}.style", "plot-style",
+                 f"{path}.style: plot style {style!r} is "
+                 + ("SCHEMA-RESERVED for a later phase" if reserved else "unknown")
+                 + f" -- buildable styles are {', '.join(PLOT_STYLES)}", fp)
+        _check_marker(plot, path, fp, out)
+        _check_plot_colour_fields(plot, path, fp, out)
+        _check_color_mode(plot, path, fp, columns, out)
+    _check_paints(definition.get("paints"), columns, out)
+    return out
+
+
+def new_presentation_errors(definition: Mapping[str, Any],
+                            stored: Any = None) -> tuple:
+    """``(refused, grandfathered)``: the errors this save INTRODUCES, and the ones
+    the stored predecessor already carried on an identical entry (a legacy row's
+    presentation -- recorded, never enforced, no migration)."""
+    errors = presentation_errors(definition)
+    if not errors:
+        return [], []
+    known = {(e["code"], e["fingerprint"]) for e in presentation_errors(stored)} \
+        if isinstance(stored, Mapping) else set()
+    refused = [e for e in errors if (e["code"], e["fingerprint"]) not in known]
+    kept = [e for e in errors if (e["code"], e["fingerprint"]) in known]
+    return refused, kept

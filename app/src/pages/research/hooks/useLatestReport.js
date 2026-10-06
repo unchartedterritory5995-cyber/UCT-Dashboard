@@ -2,6 +2,9 @@ import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { fetchResearchOverviewPart } from './useResearchOverview'
 import { fmtEps, fmtSales } from '../../charts/widgets/earningsRows'
+import {
+  formatNumber, isForeignCurrency, normalizeCurrencyCode, relabelDollarText,
+} from '../../../lib/presentation/presentationPrimitives'
 
 // The Overview tab's "Latest report" card (EPS / Revenue: est, actual, surprise).
 //
@@ -32,14 +35,28 @@ export function latestReportRow(intel) {
     x && (x.eps_actual != null || x.revenue_actual != null))
   if (!q) return null
   const val = (v, fmt) => (v == null ? null : fmt(v))
+  // A non-USD filer (TSM: Taiwan dollars). Revenue is in the company's reporting
+  // currency whichever source supplied it, so it carries the ISO code. EPS does
+  // not share one stated currency across its sources (a Finnhub per-ADR figure
+  // can fill a gap beside a per-share one), so it carries NO symbol rather than a
+  // guessed "$" or a guessed code. USD and unknown render exactly as before.
+  const ccy = intel?.currency ?? null
+  const foreign = isForeignCurrency(ccy)
+  const epsFmt = foreign ? (v) => formatNumber(Number(v), { decimals: 2 }) : fmtEps
+  const salesFmt = foreign ? (v) => relabelDollarText(fmtSales(v), ccy) : fmtSales
   return {
     label: q.label || null,
-    eps_estimate: val(q.eps_estimate, fmtEps),
-    reported_eps: val(q.eps_actual, fmtEps),
-    surprise_pct: fmtSurprise(q.eps_surprise_pct, q.eps_surprise_abs, fmtEps),
-    rev_estimate: val(q.revenue_estimate, fmtSales),
-    rev_actual: val(q.revenue_actual, fmtSales),
-    rev_surprise_pct: fmtSurprise(q.rev_surprise_pct, q.rev_surprise_abs, fmtSales),
+    eps_estimate: val(q.eps_estimate, epsFmt),
+    reported_eps: val(q.eps_actual, epsFmt),
+    surprise_pct: fmtSurprise(q.eps_surprise_pct, q.eps_surprise_abs, epsFmt),
+    rev_estimate: val(q.revenue_estimate, salesFmt),
+    rev_actual: val(q.revenue_actual, salesFmt),
+    rev_surprise_pct: fmtSurprise(q.rev_surprise_pct, q.rev_surprise_abs, salesFmt),
+    ...(foreign ? {
+      currency: normalizeCurrencyCode(ccy),
+      currency_note: `Revenue in ${normalizeCurrencyCode(ccy)}, the company's reporting currency. `
+        + 'EPS carries no currency symbol: its sources do not all state one. Not converted to US dollars.',
+    } : {}),
   }
 }
 

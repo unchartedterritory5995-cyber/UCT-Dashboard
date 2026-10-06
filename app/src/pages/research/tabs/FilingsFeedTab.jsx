@@ -60,7 +60,7 @@ export default function FilingsFeedTab({ sym }) {
   const url = scope === 'ticker'
     ? (s ? `/api/research/filings-feed/${encodeURIComponent(s)}${q}` : null)
     : `/api/research/filings-feed${q}`
-  const { data, error } = useSWR(url, sectionFetcher, {
+  const { data, error, mutate } = useSWR(url, sectionFetcher, {
     revalidateOnFocus: false,
     // live: re-read the cache every minute, every 5s while the server says pending
     refreshInterval: (d) => (d && d.state === 'pending' ? 5000 : 60000),
@@ -70,7 +70,7 @@ export default function FilingsFeedTab({ sym }) {
   let body
   if (error) {
     body = <div className={styles.note} data-testid="feed-unavailable">
-      The filings feed is unavailable right now. That is a gap in what we could read, not a finding about {label}.
+      The filings feed is unavailable right now. That is a gap in what we could read, not a finding about {label}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>
   } else if (!data) {
     body = <div className={styles.note}>Loading filings…</div>

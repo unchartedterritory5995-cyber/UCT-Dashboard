@@ -385,7 +385,29 @@ def _annual(sym: str) -> dict:
 
 
 # ── assembly ────────────────────────────────────────────────────────────────
+def _reporting_currency(sym: str) -> str | None:
+    """The company's reporting currency (TSM -> "TWD"), or None when unread.
+
+    Every revenue figure here is in it whichever leg supplied it (FMP's consensus
+    and statements, Yahoo's statements); EPS is NOT reliably so, because the
+    Finnhub gap-fill leg can carry a per-ADR figure in another currency, so the
+    frontend labels revenue with this and shows EPS without a symbol for a
+    non-USD filer. Never raises; nothing is converted."""
+    try:
+        from api.services.research import reporting_currency
+        state, code = reporting_currency.read(sym, timeout=8)
+        return code if state == "ok" else None
+    except Exception:  # noqa: BLE001 -- unknown, never a guess
+        return None
+
+
 def _build(sym: str) -> dict:
+    # Read alongside the statements rather than after them: one cached FMP call
+    # (24h per symbol), so a cold build waits for the slower of the two.
+    from concurrent.futures import ThreadPoolExecutor
+    _ccy_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="earn-ccy")
+    _ccy_fut = _ccy_pool.submit(_reporting_currency, sym)
+    _ccy_pool.shutdown(wait=False)
     try:
         from api.services.financial_statements import get_statements
         statements = get_statements(sym) or {}
@@ -522,10 +544,17 @@ def _build(sym: str) -> dict:
         _log.warning("earnings reaction failed for %s: %s", sym, e)
         reaction = None
 
+    try:
+        currency = _ccy_fut.result(timeout=10)
+    except Exception:  # noqa: BLE001
+        currency = None
     return {
         "ticker": sym,
         "quarters": quarters,
         "estimates": estimates,
+        # The company's reporting currency (TSM -> "TWD"); None = not known.
+        # Revenue is in it; EPS may not be (see _reporting_currency). Not converted.
+        "currency": currency,
         "annual": annual,
         "summary": summary,
         "reaction": reaction,

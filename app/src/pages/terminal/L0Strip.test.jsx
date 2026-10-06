@@ -97,6 +97,16 @@ describe('L0Strip', () => {
     expect(screen.getByTestId('l0-channel-chip')).toHaveTextContent('B')
   })
 
+  it(`names the chip as the active link GROUP (not "CH") and carries the group's stored colour`, () => {
+    renderStrip({ layout: { panels: [{ channel: 'B' }], focus: 0, count: 1, activeChannel: 'A',
+      channels: [{ id: 'B', name: 'Group B', color: '#60a5fa' }] } })
+    const chip = screen.getByTestId('l0-channel-chip')
+    expect(chip).toHaveTextContent('GROUP')
+    expect(chip).not.toHaveTextContent(/CH/)
+    expect(chip).toHaveAccessibleName('Active link group: Group B')
+    expect(chip.querySelector('[style]').style.getPropertyValue('--dot')).toBe('#60a5fa')
+  })
+
   it("falls back to layout.activeChannel when the focused panel is unlinked", () => {
     render(
       <AuthContext.Provider value={{ user: null }}>

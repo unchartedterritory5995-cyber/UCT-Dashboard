@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { price } from './blackScholes'
 import { mid, summary, curve } from '../research/tabs/optionPayoff'
+import { formatNumber, formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import UIcon from '../../components/ui/UIcon'
 
 // FT-003 probability analysis, FT-016 chain -> chart -> pricer drill, FT-002 multi-leg builder.
 // (api/services/options_analytics/chain_tools.py; payoff math is optionPayoff.js, the one copy)
@@ -13,8 +18,7 @@ import styles from './optionsAnalytics.module.css'
 // ⛔ Vendor numbers and computed numbers sit side by side and are labelled as such.
 
 const enc = encodeURIComponent
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
-const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
+const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${formatNumber(Math.round(Math.abs(v)))}`)
 
 // Today's calendar date IN NEW YORK, as [y, m, d]. Options expire on an exchange calendar, so "days to
 // expiry" counts from the ET date -- NOT the UTC one, which turns over at 8 pm EDT / 7 pm EST and made
@@ -49,7 +53,7 @@ export function ProbabilityPanel({ sym, expiration }) {
         <span className={styles.title}>Probability analysis</span>
         <span className={styles.badge}>computed</span>
         <label>Probability{' '}
-          <input className={styles.input} aria-label="Probability percent" type="number" min="50" max="99.9" step="0.01"
+          <Input className={styles.input} aria-label="Probability percent" type="number" min="50" max="99.9" step="0.01"
             value={pct} onChange={(e) => setPct(e.target.value)} style={{ width: 80 }} />%
         </label>
       </div>
@@ -59,13 +63,13 @@ export function ProbabilityPanel({ sym, expiration }) {
             <ul className={styles.list}>
               {data.ranges.map((r) => (
                 <li key={r.probability} data-testid={`probability-${r.probability}`}>
-                  {(r.probability * 100).toFixed(2)}% range by {data.expiration}: <b>{num(r.low)}</b> to <b>{num(r.high)}</b>
+                  {formatPercent(r.probability * 100, { decimals: 2 })} range by {data.expiration}: <b>{num(r.low)}</b> to <b>{num(r.high)}</b>
                   <span className={styles.muted}> (z {num(r.z)})</span>
                 </li>
               ))}
             </ul>
           ) : <p className={styles.note}>{data.note}</p>}
-          <p className={styles.muted}>ATM IV {data.atm_iv == null ? '—' : `${(data.atm_iv * 100).toFixed(1)}%`} (vendor), {data.days} days. {data.method}</p>
+          <p className={styles.muted}>ATM IV {fracPct(data.atm_iv)} (vendor), {data.days} days. {data.method}</p>
         </>
       )}
     </section>
@@ -118,9 +122,9 @@ export function ContractDrill({ sym, contract, spot, onClose }) {
         </>
       )}
       <div className={styles.head}>
-        <label>Spot <input className={styles.input} aria-label="Pricer spot" value={S} onChange={(e) => setS(e.target.value)} style={{ width: 80 }} /></label>
-        <label>Days <input className={styles.input} aria-label="Pricer days" value={days} onChange={(e) => setDays(e.target.value)} style={{ width: 60 }} /></label>
-        <label>IV % <input className={styles.input} aria-label="Pricer IV" value={ivPct} onChange={(e) => setIvPct(e.target.value)} style={{ width: 60 }} /></label>
+        <label>Spot <Input className={styles.input} aria-label="Pricer spot" value={S} onChange={(e) => setS(e.target.value)} style={{ width: 80 }} /></label>
+        <label>Days <Input className={styles.input} aria-label="Pricer days" value={days} onChange={(e) => setDays(e.target.value)} style={{ width: 60 }} /></label>
+        <label>IV % <Input className={styles.input} aria-label="Pricer IV" value={ivPct} onChange={(e) => setIvPct(e.target.value)} style={{ width: 60 }} /></label>
       </div>
       <table className={styles.table} data-testid="pricer">
         <thead><tr><th /><th>Vendor</th><th>Computed</th></tr></thead>
@@ -145,11 +149,11 @@ export function ContractPicker({ sym, rows, onPick }) {
   if (hidden || !Array.isArray(data?.bars) || !all.length) return null
   return (
     <label className={styles.muted} data-testid="contract-picker">Drill into{' '}
-      <select className={styles.select} aria-label="Drill into contract" value=""
+      <Select className={styles.select} aria-label="Drill into contract" value=""
         onChange={(e) => { const c = all.find((x) => x.contract === e.target.value); if (c) onPick(c) }}>
         <option value="">a contract…</option>
         {all.map((c) => <option key={c.contract} value={c.contract}>{c.type} {num(c.strike)}</option>)}
-      </select>
+      </Select>
     </label>
   )
 }
@@ -255,13 +259,13 @@ export function PositionBuilder({ sym, rows, spot }) {
       <div className={styles.head}>
         <span className={styles.title}>Position builder</span>
         <span className={styles.badge}>computed</span>
-        <select className={styles.select} aria-label="Leg type" value={type} onChange={(e) => setType(e.target.value)}>
+        <Select className={styles.select} aria-label="Leg type" value={type} onChange={(e) => setType(e.target.value)}>
           <option value="call">Call</option><option value="put">Put</option>
-        </select>
-        <select className={styles.select} aria-label="Leg strike" value={k ?? ''} onChange={(e) => setStrike(e.target.value)}>
+        </Select>
+        <Select className={styles.select} aria-label="Leg strike" value={k ?? ''} onChange={(e) => setStrike(e.target.value)}>
           {strikes.map((x) => <option key={x} value={x}>{num(x)}</option>)}
-        </select>
-        <input className={styles.input} aria-label="Leg quantity" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 50 }} />
+        </Select>
+        <Input className={styles.input} aria-label="Leg quantity" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 50 }} />
         <button type="button" className={styles.input} onClick={() => add(1)}>Buy</button>
         <button type="button" className={styles.input} onClick={() => add(-1)}>Sell</button>
         {legs.length > 0 && <button type="button" className={styles.input} onClick={() => setLegs([])}>Clear</button>}
@@ -270,7 +274,7 @@ export function PositionBuilder({ sym, rows, spot }) {
         {priced.map((l, i) => (
           <li key={`${l.type}-${l.strike}-${i}`}>{l.qty > 0 ? 'Buy' : 'Sell'} {Math.abs(l.qty)} {num(l.strike)} {l.type}
             {' @ '}{l.premium == null ? 'no two-sided quote' : num(l.premium)}
-            <button type="button" className={styles.input} aria-label={`Remove leg ${i + 1}`} onClick={() => setLegs(legs.filter((_, j) => j !== i))}>×</button>
+            <button type="button" className={styles.input} aria-label={`Remove leg ${i + 1}`} onClick={() => setLegs(legs.filter((_, j) => j !== i))}><UIcon name="x" size={12} gold={false} aria-hidden="true" /></button>
           </li>
         ))}
       </ul>
@@ -280,7 +284,7 @@ export function PositionBuilder({ sym, rows, spot }) {
           {path && <svg className={styles.chart} viewBox="0 0 520 170" role="img" aria-label="Position profit and loss at expiration"><path className={styles.lineGold} d={path} /></svg>}
           <p className={styles.facts} data-testid="builder-facts">
             {s.cost >= 0 ? `Costs ${money(s.cost)}` : `Collects ${money(-s.cost)}`} · Max loss {money(s.maxLoss)} · Max profit {money(s.maxProfit)}
-            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => b.toFixed(2)).join(' and ')}` : ''}
+            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => num(b)).join(' and ')}` : ''}
           </p>
           <p className={styles.facts} data-testid="builder-greeks">
             Net Δ {num(g.delta, 1)} · Γ {num(g.gamma, 2)} · Θ {num(g.theta, 1)}/day · Vega {num(g.vega, 1)} <span className={styles.muted}>(vendor greeks x quantity x 100; blank when a leg has none)</span>

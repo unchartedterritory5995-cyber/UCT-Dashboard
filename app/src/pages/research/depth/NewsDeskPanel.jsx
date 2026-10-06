@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 
 // Lane R — Research › Depth › News desk, over the company-news store.
 // Three annotations, each riding ONLY with its own server flag (the payload's
@@ -33,6 +34,7 @@ function Versions({ id }) {
 }
 
 export default function NewsDeskPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const key = s ? `/api/research/news-desk/${encodeURIComponent(s)}` : null
   const { data, error, mutate } = useSWR(key, depthFetcher, { revalidateOnFocus: false })
@@ -54,8 +56,8 @@ export default function NewsDeskPanel({ sym }) {
   }
 
   let body
-  if (error) body = <div className={styles.error} data-testid="news-desk-unavailable">The news desk is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
-  else if (!data) body = <div className={styles.note}>Loading news…</div>
+  if (error) body = <div className={styles.error} data-testid="news-desk-unavailable">The news desk is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading news" />
   else if (data.paywalled) body = <div className={styles.note}>The news desk requires a paid plan.</div>
   else {
     const ann = data.annotations || []
@@ -71,7 +73,7 @@ export default function NewsDeskPanel({ sym }) {
         {items.length === 0
           ? <p className={styles.note} data-testid="news-desk-empty">No stories about {s} are in our news store.</p>
           : (
-            <ul className={styles.hits}>
+            <ul className={styles.hits} data-panel-list>
               {items.map(it => (
                 <li key={it.id} className={styles.hit} data-testid="news-desk-row"
                   data-read={ann.includes('read') ? (it.read_at ? 'read' : 'unread') : undefined}>
@@ -117,8 +119,8 @@ export default function NewsDeskPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="news-desk-panel">
-      <h3 className={styles.panelTitle}>News desk</h3>
+    <section className={chrome.panelClass} data-testid="news-desk-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>News desk</h3>}
       {body}
     </section>
   )

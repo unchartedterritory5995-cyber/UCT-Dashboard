@@ -1057,6 +1057,47 @@ def _start_breadth_series_warm_background(delay_seconds: int = 5) -> None:
     threading.Thread(target=_delayed, daemon=True, name="breadth-series-warmer").start()
 
 
+# ⛔ The research warm starts LAST, after every other boot warmer's delay plus the RS
+# recompute it would otherwise overlap. Measured on the 2026-10-06 17:46 UTC boot (lifespan
+# at +8 s): RS rankings computed 17:48:23 -> 17:49:30 (+128 s -> +195 s, ~67 s of CPU), the
+# calendar-enrichment warm ran from +90 s, and the 90 s research warm sat in the middle of
+# both -- the window in which three `TSM EE` opens hung 102 / 47 / 5 s and released together.
+# 210 s = the latest other starter (RS, 120 s) + the ~67 s it computes + margin.
+# tests/test_boot_contention.py derives the other starters' delays from this file's AST.
+RESEARCH_WARM_DELAY_S = 210
+
+
+def _start_research_panel_warm_background(delay_seconds: int = RESEARCH_WARM_DELAY_S) -> None:
+    """Warm the terminal's heaviest research panels (EE, FA, ANR, OWN, RTG) for a short list of
+    liquid names after boot, so the first member to open `TSM EE` after a deploy is not the one
+    who pays the cold vendor reads (measured 2026-10-06: past the panel's 30 s deadline at boot,
+    0.6 s a minute later). See api/services/research_panel_warm.py for what is warmed and why.
+
+    Its OWN thread, not a step in `_start_dashboard_warm_background`'s chain: that chain carries
+    the 60-100 s calendar enrichment and the curated flow scan, and these panels are opened in
+    the first minutes. Delayed past every other boot warmer (`RESEARCH_WARM_DELAY_S`), one
+    symbol at a time, paced, budgeted, yielding the FMP bucket to members, and as BACKGROUND
+    work for single_flight so a member never queues behind it. Default ON;
+    `RESEARCH_PANEL_WARM_ENABLED=0` turns it off."""
+    import threading
+
+    if os.environ.get("RESEARCH_PANEL_WARM_ENABLED", "1").strip() == "0":
+        logging.getLogger(__name__).info("[research-warm] disabled (RESEARCH_PANEL_WARM_ENABLED=0)")
+        return
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        log = logging.getLogger(__name__)
+        try:
+            from api.services.research_panel_warm import warm_research_panels
+            log.info("[research-warm] %s", warm_research_panels())
+        except Exception:
+            log.exception("[research-warm] failed")
+
+    threading.Thread(target=_delayed, daemon=True, name="research-panel-warmer").start()
+
+
 def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
     """Pre-warm the dashboard/landing-facing caches shortly after boot.
 
@@ -3830,6 +3871,7 @@ async def lifespan(app: FastAPI):
         readiness.register("dashboard")
         _start_dashboard_warm_background()
         _start_breadth_series_warm_background()
+        _start_research_panel_warm_background()
         _start_chart_renderer_warm_background()
         # ⛔ The discord-chart hot-warm interval job does NOT register here:
         # `_scheduler` is assigned ~1,300 lines below in this same function, so

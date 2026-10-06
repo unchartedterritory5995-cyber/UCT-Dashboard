@@ -141,7 +141,8 @@ describe('editorialLine', () => {
       beat_history: [{ beat: true }, { beat: true }, { beat: false }, { beat: true }],
     })
     const line = editorialLine(full, true)
-    expect(line).toContain('Largest report of the day ($231B)')
+    // terminal compact ladder (round 2): B carries two decimals on every panel
+    expect(line).toContain('Largest report of the day ($231.00B)')
     expect(line).toContain('options price a ±5.2% swing')
     expect(line).toContain('typically moves ±3.1%')
     expect(line).toContain('beat 3 of last 4')

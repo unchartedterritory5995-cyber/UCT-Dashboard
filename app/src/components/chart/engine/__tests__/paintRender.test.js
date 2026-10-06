@@ -9,8 +9,9 @@
 //     colours change, detached when the instance leaves (or its host changes);
 //   · the candle overrides handed to the host ONLY when they change — a pass that
 //     moves nothing calls nothing, which is the whole "no extra re-render" claim;
-//   · two `barcolor`s that disagree on a bar leave that bar alone (no capture says
-//     which one TradingView shows).
+//   · two `barcolor`s from DIFFERENT instances that disagree on a bar: the LATER
+//     stored instance wins (P2 owner policy; no capture says which one
+//     TradingView shows).
 import { describe, it, expect } from 'vitest'
 import { createBinder, paintRenderColours } from '../binder'
 import { createFakeChart } from './fakeChart'
@@ -270,13 +271,16 @@ describe('the binder draws paints', () => {
     expect(pts.map((x) => x.color)).toEqual(['#33FF00', 'rgba(0, 0, 0, 0)', '#FF0000', 'rgba(0, 0, 0, 0)'])
   })
 
-  it('⛔ two DIFFERENT scripts that disagree on a bar leave THAT bar alone; where they agree it is drawn', () => {
+  it('⭐ P2 — two DIFFERENT scripts that disagree on a bar: the LATER stored instance wins (owner policy); a reorder flips it', () => {
     const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
     const h = harness(new Map([['u_d', def('u_d', [BAR])], ['u_e', def('u_e', [other])]]))
     const res = h.run([inst('u_d'), inst('u_e')])
-    // cond = [1,0,1,0]: bars 0 and 2 agree (red/red), bars 1 and 3 disagree (red/blue)
-    expect([...h.handed[0].keys()]).toEqual([String(BARS[0].t), String(BARS[2].t)])
+    // cond = [1,0,1,0]: bars 0 and 2 agree (red/red), bars 1 and 3 disagree (red/blue) → u_e (later) wins
+    expect([...h.handed[0].values()]).toEqual(['#ff0000', '#0000ff', '#ff0000', '#0000ff'])
     expect(res.paints.conflicts).toBe(2)
+    const h2 = harness(new Map([['u_d', def('u_d', [BAR])], ['u_e', def('u_e', [other])]]))
+    h2.run([inst('u_e'), inst('u_d')])
+    expect([...h2.handed[0].values()]).toEqual(Array(4).fill('#ff0000'))
   })
 
   it('⭐ F1 — `offset` and `show_last` place the colour at RENDER time (paintRenderColours)', () => {
