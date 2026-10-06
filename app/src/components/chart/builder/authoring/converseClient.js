@@ -37,13 +37,25 @@ export function boundedSnippets(snippets) {
 /** The request body for one turn — exported so tests can pin the wire shape. */
 export function converseBody({ message, state, gateCtx = {}, snippets = [] }) {
   const view = compactView(state.working, state, gateCtx)
-  return {
+  const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
   }
+  // ⭐ COST TELEMETRY ONLY — the conversation's opaque identity is its authoring
+  // LINEAGE (`authoringState.mintLineage`: `auth_` + random hex, minted per
+  // conversation, kept across the post-save reopen, fresh for a new one). It holds
+  // no user data, no formula and no message text, and the server never treats it
+  // as authorization or ownership: it only keys the per-conversation usage total
+  // (`definition_conversation.conversation_usage`). Omitted when not well-formed.
+  const id = state && state.lineage
+  if (typeof id === 'string' && CONVERSATION_ID_RE.test(id)) body.conversationId = id
+  return body
 }
+
+/** The server's accepted shape (`definition_conversation._CONVERSATION_ID`). */
+export const CONVERSATION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/
 
 /**
  * One conversational turn. NEVER throws.
