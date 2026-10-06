@@ -230,7 +230,10 @@ function parseCore(raw) {
     // and a single-letter ticker in FIRST position (`W GP`) is untouched.
     if (!secondForced && isDeclaredArg(FIRST, second)) {
       const r = { ok: true, type: 'function', code: FIRST, sym: null, args: [second, ...rest] }
-      return normalizeSym(second) ? { ...r, argNotTicker: second.toUpperCase() } : r
+      // The `$` escape exists only for a code that CAN take a ticker (`GP W` vs `GP $W`). CAL
+      // takes none, so "type $TODAY for the ticker" would send the member somewhere that
+      // cannot work (round 3).
+      return normalizeSym(second) && BY_CODE[FIRST].ticker ? { ...r, argNotTicker: second.toUpperCase() } : r
     }
     const sym = normalizeSym(second)
     if (sym && BY_CODE[FIRST].ticker) {
@@ -246,16 +249,21 @@ function parseCore(raw) {
   if (!second) {
     const sym = normalizeSym(firstTok)
     if (sym) return { ok: true, type: 'function', code: 'DES', sym, args: [] }
-    return { ok: false, error: `Unknown command "${raw}"`, suggestions: suggest(FIRST) }
+    return { ok: false, error: unknownCommand(raw), suggestions: suggest(FIRST) }
   }
 
   // TICKER <not-a-code> — the second token is the unknown part.
   const sym = normalizeSym(firstTok)
   if (sym) {
-    return { ok: false, error: `Unknown function "${second.toUpperCase()}" for ${sym}`,
+    return { ok: false, error: `Unknown function "${second.toUpperCase()}" for ${sym}. HELP lists every function.`,
       sym, suggestions: suggest(second) }
   }
-  return { ok: false, error: `Unknown command "${raw}"`, suggestions: suggest(FIRST) }
+  return { ok: false, error: unknownCommand(raw), suggestions: suggest(FIRST) }
+}
+
+/** Every refusal names the next step (round 3): what a line can start with. */
+function unknownCommand(raw) {
+  return `Unknown command "${raw}". Start with a ticker (NVDA), a function (GP), or HELP.`
 }
 
 /** Canonical text for a parsed command — what history stores, the panel title shows and the

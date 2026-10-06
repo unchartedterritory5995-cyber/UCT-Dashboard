@@ -1059,7 +1059,7 @@ export default function TerminalShell() {
       data-testid="terminal-shell">
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
-        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} />
+        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards} />
         {isPhone && (
           <button type="button" className={styles.barBtn} onClick={() => setSheet('functions')} data-testid="terminal-fn-button">
             Functions

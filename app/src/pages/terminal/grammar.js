@@ -203,7 +203,8 @@ export function describeCommand(cmd) {
   }
   // The SAME argument check Enter runs (args.js applyArgs): a token the code cannot take is
   // said here, before Enter, never only after it.
-  if (fn && cmd.code !== 'HELP' && cmd.args?.length) {
+  // HELP included (round 3): `HELP FOO` is refused at Enter, so it is said here too.
+  if (fn && cmd.args?.length) {
     // (CMP returned above; its comparator is the door's own {arg0}.)
     const variant = cmd.sym && fn.ticker ? fn.ticker : (fn.market || fn.ticker)
     const applied = applyArgs(variant, cmd.args)
