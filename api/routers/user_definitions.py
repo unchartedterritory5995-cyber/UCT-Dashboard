@@ -3,6 +3,7 @@
   GET    /api/user-definitions            → every live definition (newest version)
   POST   /api/user-definitions            → create; the server mints the `u_<12 hex>` id
   POST   /api/user-definitions/propose    → English in, a canonical tree out (the concierge)
+  POST   /api/user-definitions/converse   → one authoring turn in, a structured PATCH out (never applied here)
   GET    /api/user-definitions/{def_id}   → one definition; `?version=N` serves a PIN
   PUT    /api/user-definitions/{def_id}   → save an edit (appends a version)
   DELETE /api/user-definitions/{def_id}   → soft delete (appends a tombstone version)
@@ -413,6 +414,45 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     result = dict(result)
     result["import_id"] = import_id
     return result
+
+
+class ConverseIn(BaseModel):
+    """ONE conversational authoring turn (Phase 2).
+
+    `message` is the member's words. `view` is the client engine's compact view
+    of the CURRENT indicator (`compactView`, contract `uct.authoring.view/1`) —
+    every string in it is untrusted DATA. `authoring` is the authoring-state
+    summary (`assumptions`, `openQuestions`). `snippets` are at most a few short
+    recent turns, `{role: member|assistant, text}`, language only. All bounded in
+    `definition_conversation` before any model call.
+    """
+
+    message: str
+    view: dict
+    authoring: Optional[dict] = None
+    snippets: Optional[list] = None
+
+
+@router.post("/converse")
+def converse_definition(body: ConverseIn, user: dict = Depends(require_paid)):
+    """THE CONVERSATIONAL AI DOOR. One member turn + the compact view in, ONE
+    structured patch envelope out (`uct.authoring.patch/1`) — or a refusal.
+
+    ⛔ IT STORES NOTHING AND APPLIES NOTHING. The envelope is returned verbatim;
+    the client engine applies it atomically and the ordinary `POST ""` /
+    `PUT /{def_id}` doors do any writing, through the same validation as every
+    other save. A refusal is a 200 with `ok: False` and NO envelope.
+
+    ⭐ THE SAME BUDGET AS `/propose`, NOT A SECOND ONE: it is charged against the
+    SAME per-member hourly window (`_charge_propose`) before anything else runs,
+    and the service spends from the concierge's per-member daily ledger and the
+    global member budget, checked before every model call.
+    """
+    _charge_propose(str(user["id"]))
+    from api.services import definition_conversation
+    return definition_conversation.converse(
+        body.message, user_id=user["id"], view=body.view,
+        authoring=body.authoring, snippets=body.snippets)
 
 
 @router.get("/library")
