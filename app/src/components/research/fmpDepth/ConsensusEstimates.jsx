@@ -142,6 +142,11 @@ export default function ConsensusEstimates({ sym }) {
   const bases = [['annual', 'Annual'], ['quarterly', 'Quarterly']].filter(([k]) => (c[k] || []).length)
   const shown = bases.some(([k]) => k === basis) ? basis : bases[0]?.[0]
   const rows = shown ? c[shown] : []
+  // tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). With
+  // nothing usable from either vendor, say that -- not "Neither FMP nor Yahoo holds...".
+  if (data.not_applicable && !fmpOk && !fwd.length && !revs.length) {
+    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note} data-testid="ee-na">Not applicable to funds — {data.reason || `${s} is a fund`}.</p></div>
+  }
 
   return (
     <div className={styles.wrap} data-testid="ee-deep" data-source={fmpOk ? 'fmp' : 'yfinance'}>

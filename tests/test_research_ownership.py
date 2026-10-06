@@ -125,6 +125,7 @@ class TestGetOwnership:
         )
         assert out["institutional"]["pct_held"] == 60.0
         assert ttl == own._CACHE_TTL
+        assert out["legs_failed"] == []          # tq-panels: nothing to flag
 
     def test_yfinance_fetch_failure_shortens_the_ttl_not_12h(self, monkeypatch):
         """THE regression this guards: a yfinance pool timeout used to still
@@ -139,6 +140,8 @@ class TestGetOwnership:
         assert out["institutional"]["pct_held"] is None
         assert ttl == own._FAIL_TTL
         assert ttl < own._CACHE_TTL
+        # tq-panels: the failed leg is NAMED, so the panel can flag it
+        assert out["legs_failed"] == ["institutional holders and short interest (Yahoo Finance)"]
 
     def test_insider_activity_failure_also_shortens_the_ttl(self, monkeypatch):
         def _boom(s):
@@ -149,6 +152,7 @@ class TestGetOwnership:
         assert out["institutional"]["pct_held"] == 60.0   # good leg still served
         assert out["insider"] == []
         assert ttl == own._FAIL_TTL
+        assert out["legs_failed"] == ["insider activity"]
 
     def test_a_ticker_with_genuinely_no_13f_filing_is_not_a_failure(self, monkeypatch):
         """13F absence is normal for most non-mega-caps -- must still get the

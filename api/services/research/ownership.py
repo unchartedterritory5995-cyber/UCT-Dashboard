@@ -401,5 +401,13 @@ def _build_ownership(sym):
         "thirteen_f": thirteen_f,
     }
     complete = yf_ok and insider_ok
+    # tq-panels: name the legs that failed, so the panel can say which part of the
+    # record is missing because a read failed (not because nothing is reported).
+    legs_failed = []
+    if not yf_ok:
+        legs_failed.append("institutional holders and short interest (Yahoo Finance)")
+    if not insider_ok:
+        legs_failed.append("insider activity")
+    out["legs_failed"] = legs_failed
     set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

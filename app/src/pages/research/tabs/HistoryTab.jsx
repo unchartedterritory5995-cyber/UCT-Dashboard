@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import styles from '../ResearchPage.module.css'
-import HighlightThesis from '../../../utils/highlightThesis'
+import HighlightThesis, { isFailedSynthesis, FAILED_SYNTHESIS_NOTE } from '../../../utils/highlightThesis'
 import { withDeadline } from '../../../utils/withDeadline'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
@@ -36,6 +36,19 @@ const SOURCE_LABEL = {
   // The member's OWN journal (owner-scoped server-side); never anyone else's.
   j2_trades: 'Your Journal 2.0 trades (only you see these)',
   j2_positions: 'Your Journal 2.0 open positions (only you see these)',
+}
+
+// tq-panels: a row's text could render as NOTHING -- an empty/whitespace string, or one
+// that is only bold markers ("** **"): HighlightThesis strips the markers and draws a
+// blank. Every lane's server text is non-empty today (catalysts_lane falls back to "On
+// the catalyst list"), but an older catalyst row or a future lane must not draw a blank
+// row: say what the row is. A stored failure sentence is named as one, not shown as text.
+export function rowText(r) {
+  const raw = typeof r?.text === 'string' ? r.text : ''
+  if (isFailedSynthesis(raw)) return FAILED_SYNTHESIS_NOTE
+  if (raw.replace(/\*\*/g, '').trim()) return raw
+  if (r?.lane === 'catalysts') return `On the catalyst list (${r.tag || 'untagged'})`
+  return `${LANE_LABEL[r?.lane] || r?.lane || 'Entry'} entry; no description was recorded`
 }
 
 export async function fetchHistory(url) {
@@ -117,7 +130,7 @@ export default function HistoryTab({ sym }) {
         <ul data-testid="history-rows">
           {rows.map((r, i) => (
             <li key={`${r.lane}-${r.date}-${i}`} data-testid="history-row">
-              <strong>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · <HighlightThesis text={r.text} />
+              <strong>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · <HighlightThesis text={rowText(r)} />
               {r.symbol && r.symbol !== body.ticker && <span className={styles.muted}> (as {r.symbol})</span>}
               <span className={styles.muted}> — {SOURCE_LABEL[r.source] || r.source}, as of {r.as_of}</span>
               {r.lane === 'flow' && r.ref && <> · <a href={r.ref}>Open Options Flow</a></>}

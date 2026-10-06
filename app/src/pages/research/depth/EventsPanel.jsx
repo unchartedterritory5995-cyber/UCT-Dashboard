@@ -18,7 +18,9 @@ export default function EventsPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
-  const reask = usePendingReask(data?.sources?.earnings?.state === 'pending', mutate, s)
+  // tq-panels: any source still being read (not only earnings) re-asks, and is named.
+  const pendingKinds = Object.entries(data?.sources || {}).filter(([, v]) => v?.state === 'pending').map(([k]) => KIND[k] || k)
+  const reask = usePendingReask(pendingKinds.length > 0, mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
@@ -35,8 +37,19 @@ export default function EventsPanel({ sym }) {
             Could not read: {errs.map(([k]) => KIND[k] || k).join(', ')}. Events from those sources are missing, not absent.
           </p>
         )}
+        {pendingKinds.length > 0 && (
+          <p className={styles.note} data-testid="events-pending">
+            Still reading: {pendingKinds.join(', ')}. Events from {pendingKinds.length > 1 ? 'those sources' : 'that source'} appear when the read finishes.
+          </p>
+        )}
         {events.length === 0
-          ? <p className={styles.note} data-testid="events-empty">No events on file in the sources read.</p>
+          ? <p className={styles.note} data-testid="events-empty">
+            {/* tq-panels: "No events on file" while a source is still pending was a claim
+                about sources not yet read. */}
+            {pendingKinds.length > 0
+              ? `No events on file yet — ${pendingKinds.join(', ')} ${pendingKinds.length > 1 ? 'are' : 'is'} still being read.`
+              : 'No events on file in the sources read.'}
+          </p>
           : (
             <div className={styles.scroll}>
               <table className={styles.grid}>

@@ -148,6 +148,14 @@ export default function PeopleTab({ sym }) {
   }
   if (!data) return <div className={styles.note}>Loading people…</div>
   if (data.paywalled) return <div className={styles.note}>People requires a paid plan.</div>
+  // tq-panels: a fund answers `not_applicable: 'fund'` with every section in state
+  // `not_applicable`; the Gap fallback read that as "could not be read right now" -- a
+  // read failure that was not one. One plain sentence, the server's reason, no vendor path.
+  if (data.not_applicable) {
+    const why = data.executives?.reason || data.reason
+      || `${s} is a fund; funds have no officers, proxy pay or Form 4 insiders`
+    return <div className={styles.note} data-testid="people-na">{why}.</div>
+  }
 
   return (
     <section className={styles.section} data-testid="people">

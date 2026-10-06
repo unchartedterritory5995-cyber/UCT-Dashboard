@@ -26,7 +26,10 @@ export default function useModelBookAppearances(rawSym) {
   return useMemo(() => ({
     data: data ? data.body : null,
     isLoading: Boolean(isLoading && !data),
-    error: Boolean(data && !data.ok),
+    // tq-panels: 402 is the paid gate -- a state with its own sentence, not "couldn't load".
+    // (This fetcher keeps {ok, httpStatus}, so sectionFetcher's {paywalled} never applied.)
+    paywalled: Boolean(data && !data.ok && data.httpStatus === 402),
+    error: Boolean(data && !data.ok && data.httpStatus !== 402),
     mutate,
   }), [data, isLoading, mutate])
 }

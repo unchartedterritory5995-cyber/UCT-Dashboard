@@ -19,6 +19,8 @@ export default function OverviewPanel({ sym }) {
       ai={data.ai}
       row={report.row}
       reportState={report.state}
+      reportReason={report.reason}
+      analystMissing={data.analystMissing}
       retryReport={report.retry}
       error={data.error}
       mutate={data.mutate}

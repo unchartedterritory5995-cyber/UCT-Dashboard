@@ -89,11 +89,37 @@ describe('OverviewTab analyst view (DES)', () => {
 
   it('the FMP fallback (no mean) shows the median, labelled median -- not a dash', () => {
     render(<OverviewTab {...base} analyst={{ price_target: { targetLow: 150, targetHigh: 300, targetMean: null, targetMedian: 240 } }} />)
-    expect(screen.getByTestId('target-range').textContent).toBe('150 — 240 (median) — 300')
+    expect(screen.getByTestId('target-range').textContent).toBe('$150.00 — $240.00 (median) — $300.00')
+    // the FMP fallback carries no revision date -- said, not implied current
+    expect(screen.getByTestId('target-asof').textContent).toBe('Price targets source gives no as-of date.')
+  })
+
+  // tq-panels: targets printed without "$" and without the date they were last revised.
+  it('price targets read as dollars, with the as-of date', () => {
+    render(<OverviewTab {...base} analyst={{ price_target: { targetLow: 230, targetMean: 251.4, targetHigh: 280, lastUpdated: '2026-10-01 00:00:00' } }} />)
+    expect(screen.getByTestId('target-range').textContent).toBe('$230.00 — $251.40 — $280.00')
+    expect(screen.getByTestId('target-asof').textContent).toBe('Price targets as of 2026-10-01.')
+  })
+
+  // tq-panels: a 404 on /api/earnings/intel is "no earnings record", not "couldn't load".
+  it('no earnings record says so in the analyst card, with no error banner', () => {
+    render(<OverviewTab {...base} analyst={{}} analystMissing />)
+    expect(screen.getByTestId('analyst-missing').textContent)
+      .toBe('No earnings record for AAPL — the source holds no consensus or price target for it.')
+    expect(screen.queryByTestId('overview-error')).toBeNull()
+    expect(screen.queryByTestId('target-range')).toBeNull()
+  })
+
+  it('a fund says not applicable to funds in both the report and analyst cards', () => {
+    render(<OverviewTab {...base} sym="SPY" reportState="not_applicable" reportReason="SPY is a fund; funds do not report earnings" analystMissing />)
+    expect(screen.getByTestId('latest-report-na').textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds do not report earnings.')
+    expect(screen.queryByTestId('latest-report-empty')).toBeNull()
+    expect(screen.getByTestId('analyst-missing').textContent).toMatch(/^Not applicable to funds/)
   })
 
   it('a mean wins over the median and carries no label', () => {
-    expect(targetMid({ targetMean: 231.5, targetMedian: 240 })).toEqual({ value: 231.5, label: null })
+    expect(targetMid({ targetMean: 231.5, targetMedian: 240 })).toEqual({ value: '$231.50', label: null })
     expect(targetMid({})).toEqual({ value: '—', label: null })
   })
 

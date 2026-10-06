@@ -65,6 +65,24 @@ describe('useResearchOverview -- error / H14', () => {
     expect(result.current.error).toBe(false)
   })
 
+  // tq-panels: a 404 from /api/earnings/intel means the vendor holds no record for the
+  // name -- "no earnings record", not an outage. A 500 there is still an error.
+  it('a 404 on the analyst read is analystMissing, NOT error; a 500 is error', async () => {
+    for (const [status, missing, error] of [[404, true, false], [500, false, true]]) {
+      vi.doMock('../../../hooks/useMobileSWR', () => ({
+        default: (url) => (url?.includes('/api/earnings/intel/')
+          ? { data: { ok: false, httpStatus: status, body: null }, mutate: () => {} }
+          : { data: mockOk({}), mutate: () => {} }),
+      }))
+      vi.doMock('../../../hooks/useLivePrices', () => ({ default: () => ({ prices: {} }) }))
+      const { default: useResearchOverview } = await import('./useResearchOverview')
+      const { result } = renderHook(() => useResearchOverview('AAPL'))
+      expect(result.current.analystMissing).toBe(missing)
+      expect(result.current.error).toBe(error)
+      vi.resetModules()
+    }
+  })
+
   it('returns the SAME object across re-renders with the same data (H14 shape)', async () => {
     // Real SWR's `mutate` is stable per key -- these stand in for that.
     const stableMutate = { meta: () => {}, stats: () => {}, analyst: () => {}, ai: () => {} }

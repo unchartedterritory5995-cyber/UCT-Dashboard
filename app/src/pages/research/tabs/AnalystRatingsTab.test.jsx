@@ -102,7 +102,7 @@ describe('AnalystRatingsTab', () => {
     }))
     const { default: FreshTab } = await import('./AnalystRatingsTab')
     render(<FreshTab sym="ZZZ" />)
-    expect(screen.getByText('Analyst rating data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.getByTestId('analyst-ratings-empty').textContent).toBe('No analyst coverage on file for ZZZ.')
   })
 
   it('never populates a per-action price target (unverified field, owner decision 3)', async () => {
@@ -122,7 +122,7 @@ describe('AnalystRatingsTab', () => {
     const { default: FreshTab } = await import('./AnalystRatingsTab')
     render(<FreshTab sym="AAPL" />)
     expect(screen.getByTestId('analyst-ratings-error')).toHaveTextContent("Couldn't load analyst ratings")
-    expect(screen.queryByText('Analyst rating data is unavailable for this ticker.')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('analyst-ratings-empty')).not.toBeInTheDocument()
   })
 
   it('still renders the genuine empty state when the read succeeded with no coverage', async () => {
@@ -137,8 +137,23 @@ describe('AnalystRatingsTab', () => {
     }))
     const { default: FreshTab } = await import('./AnalystRatingsTab')
     render(<FreshTab sym="ZZZ" />)
-    expect(screen.getByText('Analyst rating data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.getByTestId('analyst-ratings-empty').textContent).toBe('No analyst coverage on file for ZZZ.')
     expect(screen.queryByTestId('analyst-ratings-error')).not.toBeInTheDocument()
+  })
+
+  // tq-panels: a PARTIAL outage (some legs failed) is stamped `outage` by the route and
+  // said in words; the sections that answered still render.
+  it('a partial outage says some data could not be read, and still shows what answered', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({
+      default: () => ({ data: { ...fullData, price_target: null, outage: true }, isLoading: false, error: false, mutate: () => {} }),
+    }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="AAPL" />)
+    expect(screen.getByTestId('analyst-ratings-partial').textContent)
+      .toMatch(/^Some of AAPL's analyst data could not be read right now; what is shown is what answered\./)
+    expect(screen.getByText('Analyst consensus')).toBeInTheDocument()
+    expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
   })
 
   it('Retry calls mutate', async () => {
@@ -149,5 +164,22 @@ describe('AnalystRatingsTab', () => {
     render(<FreshTab sym="AAPL" />)
     screen.getByText('Retry').click()
     expect(mutate).toHaveBeenCalled()
+  })
+})
+
+// tq-panels: the route marks a fund (e910f8ff6); the tab says so, not "no coverage".
+describe('AnalystRatingsTab -- a fund', () => {
+  it('says not applicable to funds with the route reason', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({
+      default: () => ({ data: { sym: 'SPY', entity: null, consensus: null, price_target: null,
+        recent_actions: { items: [], _meta: null }, outage: false, not_applicable: 'fund',
+        reason: 'SPY is a fund; funds carry no sell-side analyst ratings or price targets' }, isLoading: false, error: false, mutate: () => {} }),
+    }))
+    const { default: Fresh } = await import('./AnalystRatingsTab')
+    render(<Fresh sym="SPY" />)
+    expect(screen.getByTestId('analyst-ratings-na').textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds carry no sell-side analyst ratings or price targets.')
+    expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
   })
 })

@@ -246,3 +246,25 @@ describe('EE — ConsensusEstimates', () => {
     expect(await screen.findByTestId('ee-history-pointer')).toBeInTheDocument()
   })
 })
+
+// tq-panels: the route marks a fund (e910f8ff6) -- FA and EE say "not applicable to funds".
+describe('a fund on FA / EE', () => {
+  it('FA: a fund with no FMP history says not applicable, not the yfinance fallback', async () => {
+    routes['/api/research/financial-history/SPY'] = { sym: 'SPY', period: 'quarter', periods: [], series: {},
+      not_applicable: 'fund', reason: 'SPY is a fund; funds report no company income statement, balance sheet or cash flow' }
+    mount(<FinancialsDeep sym="SPY" />)
+    expect((await screen.findByTestId('fa-na')).textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
+    expect(screen.queryByText(/FMP holds no statement history/)).toBeNull()
+  })
+
+  it('EE: a fund with nothing from either vendor says not applicable, not "Neither ... holds"', async () => {
+    routes['/api/research/estimates/SPY?consensus=1'] = { sym: 'SPY', entity: null, forward: [], revisions: [],
+      consensus: { state: 'empty', annual: [], quarterly: [] },
+      not_applicable: 'fund', reason: 'SPY is a fund; analysts publish no earnings or revenue estimates for a fund' }
+    mount(<ConsensusEstimates sym="SPY" />)
+    expect((await screen.findByTestId('ee-na')).textContent)
+      .toBe('Not applicable to funds — SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
+    expect(screen.queryByText(/Neither FMP nor Yahoo/)).toBeNull()
+  })
+})
