@@ -207,6 +207,22 @@ def test_P2_6_the_owner_sequences_are_in_the_fixture():
     assert {"F-T", "T-T", "T-F-T", "T-U-T", "T-U-F-T", "U-T"} <= ids
 
 
+def test_P2X_owner_lock_sequences_are_in_the_shared_fixture():
+    """ASKED (P2X owner lock): ARM -> U stays armed -> T fires+latches -> T latched
+    -> U stays latched (no re-arm, episode not ended) -> F re-arms -> T fires;
+    arming while true fires on the first KNOWN true. CLAIMED: each leg is a named
+    row of the ONE fixture both lanes read (the parametrised cycle test above runs
+    every row through the REAL `_run_one_cycle`; `policyFires` runs the same rows
+    in the browser). DID. Class: EXACT."""
+    by_id = {s["id"]: s["fires"] for s in EPISODES["sequences"]}
+    assert by_id["U-U-T"] == [False, False, True]
+    assert by_id["T-U-U-T"] == [True, False, False, False]
+    assert by_id["T-F-U-T"] == [True, False, False, True]
+    assert by_id["U-T-U-T"] == [False, True, False, False]
+    assert by_id["U-T-U-F-U-T"] == [False, True, False, False, False, True]
+    assert by_id["T-T"][0] is True
+
+
 # ═══ P2-policy 7 — the scalar sibling ═════════════════════════════════════════
 
 def test_P2_7_plot_admissions_keep_the_scalar_refusal_PER_PLOT():
