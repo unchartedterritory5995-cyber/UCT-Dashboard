@@ -54,6 +54,15 @@ def w(tmp_path):
     return {"prod": prod_root, "arch": arch, "store": store, "hist": hist}
 
 
+CUTOVER = "2026-10-07T20:30:00Z"
+
+
+@pytest.fixture(autouse=True)
+def _member_cutover(monkeypatch):
+    """Members became authoritative at CUTOVER (Gate B records BREADTH_EXCH_MEMBER_AUTHORITY_SINCE)."""
+    monkeypatch.setenv("BREADTH_EXCH_MEMBER_AUTHORITY_SINCE", CUTOVER)
+
+
 def _elig(w, tag="pA", owned=("2026-10-06",), today="2026-10-15", state="CURRENT", hold=False, hist=None):
     return ret.eligibility(w["arch"], tag, list(owned), w["hist"] if hist is None else hist, today, state, hold)
 
@@ -166,3 +175,19 @@ def test_archive_is_idempotent_per_vintage_under_a_retry_storm(tmp_path, monkeyp
         lc.archive_vintages(os.path.join(prod_root, "vintages"), ["pX"], arch, code_commit="t")
     assert len([c for c in copies if isinstance(c, str) and c.endswith("pX")]) == 1   # top-level copies
     assert sorted(os.listdir(arch)) == ["pX", "pX.ARCHIVED.json", "pX.SHA256SUMS"]
+
+
+def test_a_DARK_publication_is_not_member_authority(w, monkeypatch):
+    """Before Gate B no session is member-authoritative: no clock runs and evidence cannot verify."""
+    monkeypatch.delenv("BREADTH_EXCH_MEMBER_AUTHORITY_SINCE")
+    e = _elig(w)
+    assert e["member_authority_since"] is None and not e["D_all_owned_authoritative"] and not e["eligible"]
+    assert ret.member_versions("2026-10-06", w["hist"], None) == []
+
+
+def test_a_session_published_dark_becomes_authoritative_AT_the_cutover(w, monkeypatch):
+    monkeypatch.setenv("BREADTH_EXCH_MEMBER_AUTHORITY_SINCE", "2026-10-09T21:00:00Z")   # cutover after v1
+    _evidence(w)
+    assert ret.first_authoritative("2026-10-06", w["hist"], "2026-10-09T21:00:00Z")["published_at"]         == "2026-10-09T21:00:00Z"
+    assert ret.member_versions("2026-10-06", w["hist"], "2026-10-09T21:00:00Z") == [1]   # in force at cutover
+    assert _elig(w, today="2026-10-16")["E_sessions_since_authoritative"] == 4        # clock from the cutover

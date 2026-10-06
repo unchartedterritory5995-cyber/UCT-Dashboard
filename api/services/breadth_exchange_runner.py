@@ -332,8 +332,9 @@ def retention_plan(pv: dict, authority_latest: Optional[str], archive_dir: Optio
         if t in pinned:
             cls, why = "A_PINNED_EXCEPTION", "approved compute substitute for %s" % sorted(
                 d for d, (_o, s) in exc.items() if s == t)
-        elif sess and (authority_latest is None or max(sess) > authority_latest):
-            cls, why = "B_OWNER_NOT_YET_AUTHORITATIVE", "must remain until %s is member-authoritative" % max(sess)
+        elif sess and (authority_latest is None or max(sess) > authority_latest or not ret.member_authority_since()):
+            cls, why = "B_OWNER_NOT_YET_AUTHORITATIVE", "must remain until %s is member-authoritative%s" % (
+                max(sess), "" if ret.member_authority_since() else " (members are dark: no cutover recorded)")
         elif sess:
             age = len([d for d in published if d > max(sess) and (authority_latest is None or d <= authority_latest)])
             cls, why = "C_OWNER_AUTHORITATIVE", "%d authoritative session(s) since its last owned session" % age
