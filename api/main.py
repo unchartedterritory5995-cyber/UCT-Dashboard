@@ -3248,6 +3248,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
+    # Boot-window probe (2026-10-06 EE boot stall): every 5 s for the first 5 min, one
+    # `[boot-probe]` line (anyio tokens, threads, yf pool queue, loop lag, CPU/disk, threads
+    # inside an import); for the life of the process, a `[slow-stack]` line for any tracked
+    # request block stuck past 10/30/90/180/360 s. Kill switch: BOOT_PROBE_ENABLED=0.
+    try:
+        if (os.environ.get("BOOT_PROBE_ENABLED", "1").strip().lower()
+                not in ("0", "false", "no", "off")):
+            import asyncio as _bp_aio
+            from api.services import boot_probe as _boot_probe
+            app.state.boot_probe_task = _bp_aio.get_running_loop().create_task(
+                _boot_probe.run_sampler())
+            print("[startup] boot probe armed (5s ticks, 300s summary window)")
+    except Exception as e:
+        print(f"[startup] boot probe failed to start (non-fatal): {e}")
+
     # ⚡ Carry the warm cache across the deploy — FIRST, before anything slow and
     # long before uvicorn binds, so the pod is already warm the instant it takes
     # traffic instead of ~3.5 min later. Each entry comes back with the life it
