@@ -12,10 +12,11 @@
 // "No SEC filings found for this ticker" — a claim about the company that
 // nobody made. Same {ok, httpStatus, body} shape as useDecisionRecord.js.
 import useSWR from 'swr'
+import { withDeadline } from '../utils/withDeadline'
 
 export async function fetchFilings(url) {
   try {
-    const r = await fetch(url)
+    const r = await withDeadline(fetch(url), url)
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {

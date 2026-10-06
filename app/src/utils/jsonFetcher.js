@@ -1,3 +1,4 @@
+import { withDeadline } from './withDeadline'
 /**
  * 🔴 A NON-OK ANSWER IS NOT DATA, AND FOUR SURFACES TREATED IT AS DATA.
  *
@@ -28,7 +29,7 @@
  * @throws {Error & {status: number}} on any non-ok response
  */
 export default async function jsonFetcher(url, init) {
-  const r = await fetch(url, init)
+  const r = await withDeadline(fetch(url, init), url)
   if (!r.ok) {
     const err = new Error(`${url} answered ${r.status}`)
     err.status = r.status

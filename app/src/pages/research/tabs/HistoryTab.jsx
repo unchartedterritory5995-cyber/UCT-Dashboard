@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis from '../../../utils/highlightThesis'
+import { withDeadline } from '../../../utils/withDeadline'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -39,7 +40,7 @@ const SOURCE_LABEL = {
 
 export async function fetchHistory(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {
