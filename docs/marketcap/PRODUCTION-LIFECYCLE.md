@@ -376,3 +376,63 @@ and 13, and the research in `C:/mcapid/research_closing`). V1 is therefore relea
 10. uplisting semantics for an existing public security;
 11. ticker-history / corporate-action lineage, including renames with separate price series;
 12. foreign cross-listings.
+
+## 15. Production lifecycle / authority gate (2026-10-05)
+
+### 15.1 Master integration
+Merged origin/master `575031c2f` (316 commits) as `97e49d9da`. File overlap: `api/main.py` (router mount) and
+`docs/feature_flags.json` only; master changed none of the pinned methodology files, `bars_auth`, `data_sync`, the
+fundamentals scheduler or the chart's fundamental seam. Methodology drift `{}` after the merge. The one red test on the
+merged tree (`test_auth_surface_reads`: `GET /api/ltr/call-request`) is master's own `f47607ca1`.
+
+### 15.2 Lifecycle components (A current · B small port · C right idea, obsolete implementation · D retire)
+| Component | Class | Note |
+|---|---|---|
+| release_contract (manifest + AUTHORITY pointer, human_rooted) | A | + REVOKED_BUILDS rail (§15.4) |
+| publication (write-once, read-back, CAS pointer, rollback; Local/R2 targets) | A | same private bucket + data_sync client as V5; `marketcap_pit/` is empty in production (read-only listing) |
+| pit_serving + /api/marketcap/pit* (require_bars_access, MCAP_PIT_ENABLED) | A | + a revoked build is never kept as "last verified" |
+| currentness | B | a dead run's `in_progress` heartbeat no longer holds DEGRADED forever |
+| refresh (ledger, run lock, checkpoints, HOLD) | B | + crash resume, unique run ids, parity switches |
+| schedule (worker-only, scheduler.lock, child process) | B | + restart catch-up; docstring corrected (universe = V5 published) |
+| acquire.universe_from_v5 (V5 live.db) | C | V5 runs on fundamentals-v5-runner; replaced by `universe_from_v5_published` (R2 CURRENT -> sha-verified manifest) |
+| acquire.reference_from_massive (serial) | B | 2-6 h serial; bounded workers + deterministic sorted output |
+| marketCapAuthority / Client (chart) | B | now WIRED behind the server switch via marketCapAuthorityStore + useMarketCapAuthority |
+| none | D | nothing retired |
+
+### 15.3 Production facts measured read-only (2026-10-05 after the close)
+- Universe: V5 CURRENT `v5-20261005T152000Z` (manifest `43d8d527…`): 7,082 CIKs / 9,248 tickers, a strict subset of
+  M3's frozen 7,088; the 6 missing issuers are retained by the identity ledger (durable universe 7,088 / 9,260 tickers).
+- SEC bulk Last-Modified is still 2026-10-03 04:27Z / 04:35Z (no weekend publication); byte-identical to M3's inputs.
+- Prices: worker `/data/bars.db` daily export, 7,064 tickers / 25,467,144 bars, latest session 2026-10-05.
+  ⛔ M3's frozen prices.db (exported 2026-09-30) differs from today's bars.db on 1,061,475 closes (3,552 tickers):
+  ~2,586 tickers on 1-3 September days (partial bars since repaired: e.g. AA 2026-09-21 close 44.56 vs final 44.64,
+  ~1,186 tickers' 09-29 bar was partial), and ~900 tickers re-based histories (constant ratios such as CTSO x20,
+  PII x0.5; drifting ratios such as HPQ / JCI spin-off style adjustment). The next refresh re-derives from current
+  prices by design (full export, full rebuild); attribution in §15.7.
+  ⇒ RULE: the price export must run after the session's daily bars are final (post-close repair), never intraday.
+- Worker container `/tmp` is replaced on every deploy (three worker deploys between 22:09 and 22:52 ET). Long jobs must
+  live on the volume root with ledger checkpoints (they do: MCAP_PIT_ROOT) and resume (§15.5).
+- Massive reference pull: ~0.7-2.5 tickers/s at 4 workers on a loaded worker host (load avg 22-40) => 1-3.5 h.
+
+### 15.4 Rejected-M3 rail
+`release_contract.REVOKED_BUILDS` names `MCAP_V1-20261005T205248Z` / db `fae1dbb5…`. Enforced in `validate_manifest`,
+`validate_pointer`, `publish_build` (by id AND by the bytes of the DB being published) and the reader (pointer, PIN,
+cache). Selection never uses newest / mtime / lexical order / directory scans: only the pointer (tests:
+test_revoked_build_rail.py, failure-matrix case 24).
+
+### 15.5 Restart / crash behaviour (found by the failure matrix + the deploys above)
+- An interrupted run (RUNNING in the ledger while the lock is free = dead) younger than MCAP_PIT_RESUME_HOURS (20) is
+  RESUMED under its own run id from its checkpoints; older ones are closed CRASHED.
+- At worker start the scheduler adds ONE catch-up run (120 s later) for an interrupted run, or for a cron fire under 6 h
+  old with no run after it (APScheduler's memory job store forgets fires missed while the worker was down).
+- A heartbeat that has not moved for 6.5 h (or has no time) no longer excuses lateness: STALE, not DEGRADED.
+- Two runs in the same second no longer share a run id.
+
+### 15.6 Chart / formula path
+binder.js -> `fundamentalColumnWithAuthority`; StockChart -> `useMarketCapAuthority` -> `marketCapAuthorityStore`.
+ONE server switch (MCAP_PIT_ENABLED on web): `/api/marketcap/pit-status` 404 / 401 / 403 => the unchanged legacy
+composer; 200 => the authority ONLY (loading, unknown ticker, intraday = not computable, never close x shares); 503 =>
+not computable, retried after 5 min. A response from another build drops every series of the old build. Market Cap is
+`formula_eligible: false` in the catalogue, so the supported sourced path is an indicator (e.g. Moving Average) whose
+Source is the Market Cap instance -- proven in the browser. P/S, P/B, FCF yield keep composing close x V5 shares
+(out of scope).
