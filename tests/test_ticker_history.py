@@ -503,3 +503,45 @@ class TestWireMentionsNeedANameForWordTickers:
         from api.services import buzz_universe
         monkeypatch.setattr(buzz_universe, "ambiguous", lambda: frozenset())
         assert th._wire_mentions("NVDA", "<p>Watching $NVDA and NVDA; SNVDA is not NVDAX.</p>") == 2
+
+
+# ── live sweep 2026-10-05: HIS took 15.7 s for NVDA ───────────────────────────────
+
+def test_the_lanes_run_side_by_side(monkeypatch):
+    import time as _t
+    spans = {}
+
+    def slow(name):
+        def _f(*a):
+            t0 = _t.monotonic()
+            _t.sleep(0.3)
+            spans[name] = (t0, _t.monotonic())
+            return []
+        return _f
+
+    monkeypatch.setattr(th, "_LANE_FNS", {n: slow(n) for n in th.LANES})
+    monkeypatch.setattr(th, "_COVERAGE_FNS", {n: (lambda *a: (None, None)) for n in th.LANES})
+    monkeypatch.setattr(th, "_entity_eras", lambda s: ({"status": "unresolved"}, [(s, None, None)]))
+    t0 = _t.monotonic()
+    out = th.history("ZZHS", days=30)
+    took = _t.monotonic() - t0
+    assert set(out["lanes"]) == set(spans)
+    assert max(s for s, _ in spans.values()) < min(e for _, e in spans.values()), "lanes did not overlap"
+    assert took < 0.3 * len(spans) * 0.6
+    assert list(out["lanes"]) == [n for n in th.LANES if n in out["lanes"]]   # order kept
+
+
+def test_a_failed_flow_read_is_not_waited_out_twice(monkeypatch):
+    calls = []
+
+    def _req(path, params):
+        calls.append(params["source"])
+        raise TimeoutError("tape slow")
+
+    th._FLOW_MEMO.clear()
+    monkeypatch.setattr(th, "_flow_request", _req)
+    for _ in range(3):
+        with pytest.raises(TimeoutError):
+            th._flow_counts("ZZFL", "stocks")
+    assert calls == ["stocks"]
+    th._FLOW_MEMO.clear()
