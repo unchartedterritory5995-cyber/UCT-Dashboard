@@ -65,6 +65,8 @@ function storedDoc() {
     { kind: 'barcolor', title: 'Pine bars', colorMode: 'column:cond', colorPalette: ['rgba(0, 0, 0, 0)', '#ffeb3b'] },
     { kind: 'bgcolor', color: '#123456', opacity: 0.1 },
   ]
+  // a CUSTOM pane height (the builder only ever writes the 0.15 default)
+  doc.placement = { target: 'pane', pane: { height: 0.32 } }
   const v = validateDefinition(doc)
   if (!v.ok) throw new Error(`fixture document is invalid: ${v.errors.join('; ')}`)
   return doc
@@ -120,8 +122,8 @@ describe('⭐ P2 item 10/11 — presentation survives a maths edit', () => {
     expect(byKey(doc, 'sig').marker).toEqual(byKey(prior, 'sig').marker)
     // every paint the builder did not write, in stored order
     expect(JSON.stringify(doc.paints)).toBe(JSON.stringify(prior.paints))
-    // placement unchanged
-    expect(doc.placement).toEqual(prior.placement)
+    // placement unchanged — including the custom pane height the sheet has no control for
+    expect(doc.placement).toEqual({ target: 'pane', pane: { height: 0.32 } })
     // and the saved document is still a valid one
     expect(validateDefinition(doc).ok).toBe(true)
   })

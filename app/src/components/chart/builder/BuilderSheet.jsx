@@ -466,7 +466,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
   // and a paint is a v2-body field, so its presence leaves the schema-1 path.
   const paintList = Array.isArray(paints) && paints.length ? paints.map((p) => ({ ...p })) : null
 
-  if (plots === null && placement === null && levels === null && paintList === null) {
+  // ⭐ P2 — an OBJECT PROGRAM is a v2-body field too: `legacyDefinition` has no
+  // slot for it, so a single plain row carrying one used to be saved WITHOUT it.
+  const hasObjects = !!(objects && Array.isArray(objects.ops) && objects.ops.length)
+  if (plots === null && placement === null && levels === null && paintList === null && !hasObjects) {
     return legacyDefinition({
       defId, version, rev, source, ast, mode, readback,
       declared: declaredMember, trimmed, short, paramManifest,
