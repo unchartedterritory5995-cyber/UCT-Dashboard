@@ -171,6 +171,20 @@ describe('shell audit round 3 (2026-10-05): the echo before Enter', () => {
     expect(e.text).toMatch(/HELP/)
   })
 
+  it('a garbage ticker and a bad @ target each say what a good one looks like', () => {
+    for (const line of ['123 DES', '<b> DES']) {
+      const e = echoFor(line)
+      expect(e.tone, line).toBe('error')
+      expect(e.text, line).toMatch(/is not a ticker\. A ticker is letters, like NVDA or BRK\.B\./)
+    }
+    for (const line of ['@9 NVDA', '@ NVDA', '@ZZ NVDA GP']) {
+      const e = echoFor(line)
+      expect(e.tone, line).toBe('error')
+      expect(e.text, line).toMatch(/is not a panel or a group\. Aim with @1 … @4/)
+    }
+    expect(echoFor('@2 NVDA').tone).toBe('ok')
+  })
+
   it('B:<name> for a board the member does not have says so before Enter', () => {
     render(<CommandLine onSubmit={() => {}} boards={[{ id: 'b1', slug: 'mine', name: 'Mine' }]} />)
     typeText('B:nope')

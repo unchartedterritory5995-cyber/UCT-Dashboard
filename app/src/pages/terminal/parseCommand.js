@@ -105,6 +105,10 @@ export default function parseCommand(input, opts = {}) {
     }
     return { ...inner, channel: ch[1].toUpperCase() }
   }
+  // `@9 NVDA`, `@ NVDA`: an @ that names no panel or group says how to aim (round 3).
+  if (/^@/.test(tokens[0])) {
+    return { ok: false, error: `${tokens[0]} is not a panel or a group. Aim with @1 … @4 (a panel) or @A, @B … (a group), e.g. @2 NVDA GP.`, suggestions: [] }
+  }
 
   // Member aliases: define, delete, list, expand.
   if (FIRST === 'ALIAS') {
@@ -218,7 +222,7 @@ function parseCore(raw) {
   // TICKER FUNC [args]  — the canonical order; a code in second place makes the first a ticker.
   if (second && isCode(second)) {
     const sym = normalizeSym(firstTok)
-    if (!sym) return { ok: false, error: `"${firstTok}" is not a ticker`, suggestions: [] }
+    if (!sym) return { ok: false, error: `"${firstTok}" is not a ticker. A ticker is letters, like NVDA or BRK.B.`, suggestions: [] }
     return { ok: true, type: 'function', code: second.toUpperCase(), sym, args: rest }
   }
   if (second && !forced && Object.prototype.hasOwnProperty.call(ABSENT, second.toUpperCase())) {
