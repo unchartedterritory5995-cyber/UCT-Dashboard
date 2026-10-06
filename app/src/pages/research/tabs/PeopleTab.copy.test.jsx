@@ -31,6 +31,21 @@ describe('PeopleTab member copy', () => {
     expect(document.body.textContent).not.toMatch(/\/stable\/|returned no rows/)
   })
 
+  // tq-panels: the route's real fund answer (`not_applicable: 'fund'`, every section in
+  // state `not_applicable`) rendered three "could not be read right now" gaps.
+  it('a fund answer is one plain sentence -- not a read failure, no vendor path', async () => {
+    const na = { state: 'not_applicable', rows: null, as_of: '2026-10-05',
+      reason: 'SPY is a fund; funds have no executives, proxy pay or Form 4 insiders' }
+    body = { ticker: 'SPY', not_applicable: 'fund',
+      executives: { ...na, source: 'FMP /stable/key-executives' },
+      compensation: { ...na, source: 'FMP /stable/governance-executive-compensation', year: null },
+      insider_roles: { ...na, source: 'SEC EDGAR Form 4' } }
+    wrap(<PeopleTab sym="spy" />)
+    expect((await screen.findByTestId('people-na')).textContent)
+      .toBe('SPY is a fund; funds have no executives, proxy pay or Form 4 insiders.')
+    expect(document.body.textContent).not.toMatch(/could not be read|\/stable\/|unavailable/)
+  })
+
   it('a failed section read is a gap, not a finding', async () => {
     body = { ...FUND, executives: { state: 'unavailable', source: 'FMP /stable/key-executives', rows: null, reason: 'FMP refused this endpoint recently (cooldown)' } }
     wrap(<PeopleTab sym="nvda" />)

@@ -42,6 +42,11 @@ export default function FinancialsDeep({ sym }) {
     return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note}>Financial statement history requires a paid plan.</p></div>
   }
   const hasFmp = (data?.periods || []).length > 0
+  // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
+  // say that instead of a generic "unavailable" that reads like a gap.
+  if (!hasFmp && data?.not_applicable) {
+    return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note} data-testid="fa-na">Not applicable to funds — {data.reason || `${s} is a fund`}.</p></div>
+  }
   if (!hasFmp) {
     return (
       <div className={styles.wrap} data-testid="fa-deep" data-source="yfinance">

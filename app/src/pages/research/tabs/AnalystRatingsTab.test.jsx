@@ -166,3 +166,20 @@ describe('AnalystRatingsTab', () => {
     expect(mutate).toHaveBeenCalled()
   })
 })
+
+// tq-panels: the route marks a fund (e910f8ff6); the tab says so, not "no coverage".
+describe('AnalystRatingsTab -- a fund', () => {
+  it('says not applicable to funds with the route reason', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({
+      default: () => ({ data: { sym: 'SPY', entity: null, consensus: null, price_target: null,
+        recent_actions: { items: [], _meta: null }, outage: false, not_applicable: 'fund',
+        reason: 'SPY is a fund; funds carry no sell-side analyst ratings or price targets' }, isLoading: false, error: false, mutate: () => {} }),
+    }))
+    const { default: Fresh } = await import('./AnalystRatingsTab')
+    render(<Fresh sym="SPY" />)
+    expect(screen.getByTestId('analyst-ratings-na').textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds carry no sell-side analyst ratings or price targets.')
+    expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
+  })
+})

@@ -98,3 +98,19 @@ describe('FinancialsTab -- failed read vs genuine empty state', () => {
     expect(mutate).toHaveBeenCalled()
   })
 })
+
+// tq-panels: the route marks a fund (e910f8ff6); the tab says so, not "unavailable".
+describe('FinancialsTab -- a fund', () => {
+  it('says not applicable to funds with the route reason', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useFinancials', () => ({
+      default: () => ({ data: { sym: 'SPY', annual: [], quarterly: [], balance: {}, metrics: {}, not_applicable: 'fund',
+        reason: 'SPY is a fund; funds report no company income statement, balance sheet or cash flow' }, isLoading: false }),
+    }))
+    const { default: Fresh } = await import('./FinancialsTab')
+    render(<Fresh sym="SPY" />)
+    expect(screen.getByTestId('financials-na').textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
+    expect(screen.queryByText('Statement history is unavailable for this ticker.')).toBeNull()
+  })
+})

@@ -175,6 +175,11 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const bal = fin.balance || {}
   const met = fin.metrics || {}
   const hasGrids = (fin.quarterly?.length || fin.annual?.length)
+  // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
+  // say that instead of a generic "unavailable" that reads like a gap.
+  if (!hasGrids && fin.not_applicable) {
+    return <div className={styles.fnote} data-testid="financials-na">Not applicable to funds — {fin.reason || `${sym} is a fund`}.</div>
+  }
 
   return (
     <div className={styles.finWrap}>
