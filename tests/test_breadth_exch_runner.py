@@ -249,4 +249,4 @@ def test_retention_is_classified_never_deleted(rig, monkeypatch):
     assert "rmtree" not in inspect.getsource(exr) and "os.remove" not in inspect.getsource(exr)
     real = exr.retention_plan({"published": {"2026-09-25": "p202609292209"}, "ready": []}, "2026-10-02",
                               archive_dir=rig["arch"])
-    assert real["policy"].startswith("PROPOSED, NOT ENFORCED")
+    assert real["policy"].startswith("exch-retention-v1 APPROVED") and real["retirement_enabled"] is False

@@ -246,7 +246,10 @@ def _cycle(run, store) -> dict:
             authority = {"error": "%s: %s" % (type(e).__name__, e)}
     st.update(currentness(published, pv, after, ack, owners_unarchived, validated, authority))
     try:
-        st["retention"] = retention_plan(pv, (authority or {}).get("latest_session"))
+        from api.services import breadth_exchange_retention as _ret
+        st["retention"] = retention_plan(pv, (authority or {}).get("latest_session"),
+                                         history=_ret.authority_history(store), runner_state=st.get("state", ""),
+                                         hold=os.path.exists(os.path.join(RUNNER_ROOT, "HOLD")))
     except Exception as e:  # noqa: BLE001
         st["retention"] = {"error": "%s: %s" % (type(e).__name__, e)}
     _write_json(status_path(), st)
@@ -305,9 +308,17 @@ def currentness(published, pv, store, ack, owners_unarchived, validated, authori
 PROPOSED_HOT_SESSIONS = 5
 
 
-def retention_plan(pv: dict, authority_latest: Optional[str], archive_dir: Optional[str] = None) -> dict:
-    """Every archived vintage → class + bytes + what the PROPOSED policy would allow (dry-run)."""
+def retention_plan(pv: dict, authority_latest: Optional[str], archive_dir: Optional[str] = None,
+                   history: Optional[list] = None, runner_state: str = "", hold: bool = False,
+                   today: Optional[str] = None) -> dict:
+    """Every archived vintage → class + bytes + the APPROVED V1 policy's A–I eligibility (report only:
+    nothing here deletes; `breadth_exchange_retention.retire` is disabled in this deployment)."""
+    from api.services import breadth_exchange_retention as ret
     archive_dir = archive_dir or prod.EXCH_ARCHIVE_DIR
+    if today is None:
+        from zoneinfo import ZoneInfo
+        import datetime as _dt
+        today = _dt.datetime.now(_dt.timezone.utc).astimezone(ZoneInfo("America/New_York")).date().isoformat()
     exc = _declared_exceptions()
     pinned = {sub for (_own, sub) in exc.values()}
     owned: dict = {}
@@ -334,9 +345,14 @@ def retention_plan(pv: dict, authority_latest: Optional[str], archive_dir: Optio
         eligible = (cls == "E_SUPERSEDED_NON_OWNER") or (
             cls == "C_OWNER_AUTHORITATIVE" and int(why.split()[0]) >= PROPOSED_HOT_SESSIONS)
         out[t] = {"class": cls, "why": why, "owned_sessions": sess, "bytes": nbytes,
-                  "proposed_policy_would_tombstone": eligible}
+                  "proposed_policy_would_tombstone": eligible,
+                  "v1_eligibility": ret.eligibility(archive_dir, t, sess, history or [], today, runner_state, hold)}
         tot[cls] = tot.get(cls, 0) + nbytes
-    return {"policy": "PROPOSED, NOT ENFORCED (no deletion code path)", "hot_sessions": PROPOSED_HOT_SESSIONS,
+    return {"policy": "exch-retention-v1 APPROVED — classification/eligibility only; retirement DISABLED "
+                      "(BREADTH_EXCH_RETENTION_RETIRE_ENABLED unset)",
+            "retirement_enabled": os.environ.get("BREADTH_EXCH_RETENTION_RETIRE_ENABLED") == "1",
+            "eligible_now": sorted(t for t, v in out.items() if v["v1_eligibility"]["eligible"]),
+            "hot_sessions": PROPOSED_HOT_SESSIONS,
             "vintages": out, "bytes_by_class": tot, "archive_bytes": sum(tot.values()),
             "reclaimable_under_proposal": sum(v["bytes"] for v in out.values() if v["proposed_policy_would_tombstone"])}
 

@@ -77,25 +77,29 @@ Status: `RUNNER_STATUS.json` / runner `/exchange` — state (`CURRENT`, `CURRENT
 authority, archive guard (level, blocked, disk), retention classes. Producer `/` gains `archive_guard`;
 `/api/health` reports its level (stays 200).
 
-## 5. Retention (classified, NOT enforced)
+## 5. Retention — APPROVED V1 policy (owner, 2026-10-05)
 
-| class | meaning | required? |
-|---|---|---|
-| A pinned exception | `p202609302026` — the approved substitute for 2026-09-25 / 09-28 (true owner irrecoverable) | keep (its SUMS hash is pinned in the exception file) |
-| B owner, not yet authoritative | computes a pending session | keep, never deletable |
-| C owner, authoritative | its sessions are in a published pointer | bytes needed only for exact re-computation; identity survives in hashes |
-| D recent non-owner | READY at the producer, owns nothing | not needed once the producer prunes it |
-| E superseded non-owner | owns nothing, producer pruned it | not needed |
+FULL OWNER-VINTAGE BYTES → member-authoritative → FIVE COMPLETED TRADING SESSIONS → VERIFIED COMPACT EVIDENCE →
+eligible for retirement. `p202609302026` is a PERMANENT full-byte pin (approved substitute for the
+irrecoverable p202609292209).
 
-Findings: (1) exact re-computation of a session needs the FULL owner vintage (the worker re-verifies every
-grouped file in the vintage manifest; inputs are full-history tables); (2) only until the session is
-authoritative plus an incident window; (3) after that the hashes in the store, ack and pointer preserve
-identity (as US V2 itself keeps only 3 vintages); (4) rollback needs only prior pointers + objects, never
-vintages; (5) one vintage can own several sessions (`p202609292209` owned two); (6) `p202609302026` is pinned;
-(7) proposal: keep C hot for 5 authoritative sessions, then reduce to an evidence tombstone (SUMS, ack,
-INPUT_MANIFEST, grouped_vintage_manifest, pit_reference); (8–10) see §6.
+`breadth_exchange_retention.eligibility` requires ALL of: A archived; B fully verified (re-hashed); C valid
+ARCHIVED ack; D every owned session member-authoritative (first non-rollback pointer containing it); E ≥ 5
+completed trading sessions since the last owned session became authoritative; F compact evidence record
+(`<archive>/evidence/<tag>.EVIDENCE.v1.json`, 0444, never rewritten: producer lineage, owner-session
+publications, input/manifest identity, embedded archive SUMS + ack, verification, code/pin identity,
+computed sessions, authority versions); G the record reads back and verifies independently; H not pinned;
+I no HOLD / rollback / non-CURRENT runner state. `retire()` re-proves every clause (B by full re-hash) and
+deletes ONLY `<archive>/<tag>/`; SUMS, ack and evidence remain.
 
-## 6. Disk
+⛔ Retirement is DISABLED (`BREADTH_EXCH_RETENTION_RETIRE_ENABLED` unset) and the runner never calls it: the
+initial deployment classifies and reports eligibility only; the first production retirement follows the
+accepted real-cycle proof. Archive is idempotent per vintage (a re-run verifies/reuses, never re-copies).
+
+Classes reported: A pinned exception · B owner not yet authoritative · C owner authoritative ·
+D recent non-owner · E superseded non-owner.
+
+## 6. Disk — thresholds APPROVED
 
 Measured 2026-10-05: vintage 1.99 GB; consecutive vintages share only ~1/3 of bytes; gzip ≈ 2.7×; /data
 92 GB, 38 GB free. One vintage per trading day; a retry storm can build 6/day.
@@ -107,24 +111,38 @@ Measured 2026-10-05: vintage 1.99 GB; consecutive vintages share only ~1/3 of by
 Thresholds (`breadth_vintage_archive.disk_level`): WARNING — any prune-blocked vintage, or free < 20 GiB;
 CRITICAL — any verification/integrity failure, ≥ 3 blocked, oldest blocked ≥ 72 h, or free < 10 GiB.
 
-## 7. Production deployment + cutover (each step needs its approval; none performed)
+## 7. Production deployment + cutover (each gate needs its approval)
 
-1. **Merge `breadth/exchange-v1` → master** (normal merge, no force). Deploys web/worker/runner. Effective:
-   the prune guard (runner). Everything else dark.
-2. **Runner env** `BREADTH_EXCH_RUNNER_ENABLED=1`, `BREADTH_EXCH_ARCHIVER_ENABLED=1` → acks for the four
-   archived vintages are backfilled on the first cycle (before the next build_vintage can prune).
-   Verify runner `/`: `archive_guard.level` OK, `ack_state` all `acked`.
-3. **Runner env** `BREADTH_EXCH_COMPUTE_ENABLED=1` → the accepted store
-   (`/data/_audit/exch_v1/live_v1/candidate`) appends each session US V2 publishes.
-4. **Runner env** `BREADTH_EXCH_PUBLISH_ENABLED=1` → first pointer to R2 `breadth_exch/v1/` (frozen objects
-   uploaded once). Members unaffected.
-5. **Web env** `BREADTH_EXCH_SYNC_ENABLED=1` → verified replica installed; check
-   `/api/breadth-monitor/authority` (PUSH_SECRET) `exchange.available=true`, `latest_session`.
-6. **MEMBER AUTHORITY SWITCH** — web env `BREADTH_AUTHORITY_EXCH=v1` and
-   `BREADTH_LIBRARY_UNIVERSES=us,nyse,nasdaq`. Verify `/api/breadth-symbols` lists `NYSE:*`/`NASDAQ:*`,
-   `/api/market-indicators` lists `NYSE:MCO` etc., `/api/bars/NYSE:MCO?tf=D` returns the authority values.
+Services: **web** (and worker) auto-deploy from `master` on `api/**`. **breadth-v2-runner is PINNED**: source
+branch `breadth/v2-durable-runner`, watch pattern `__breadth_v2_runner_pinned_never_matches__/**`, so no push
+deploys it. Its deploys are explicit, at a chosen commit, through Railway's GraphQL
+`serviceInstanceDeployV2(serviceId, environmentId, commitSha)` — the mechanism of every runner deployment
+(current: `c05b7bea` @ `ea45ca298`, 2026-09-29) and the pinned-service pattern of
+`docs/economic-data/DEPLOYMENT.md`.
 
-Rollback: members — unset `BREADTH_AUTHORITY_EXCH` (or drop nyse,nasdaq from the library flag): exchange
-series unpublished at the next process start; data — on the runner
-`python -c "from api.services import breadth_exchange_publish as ep, breadth_exchange_authority as ea; print(ep.rollback(ea.object_store(), N))"`;
-web replicas follow within `BREADTH_EXCH_SYNC_SECS`. Runner — `touch <runner root>/HOLD`.
+GATE A — code + producer guard + runner (members dark)
+1. Merge `breadth/exchange-v1` → `master` (normal merge, no force) after the master deploy gate's steps pass
+   locally; push. Web/worker deploy dark (no exchange flag is set there).
+2. Runner variables (with `--skip-deploys`): `BREADTH_EXCH_RUNNER_ENABLED=1`,
+   `BREADTH_EXCH_ARCHIVER_ENABLED=1`, `BREADTH_EXCH_COMPUTE_ENABLED=1`, `BREADTH_EXCH_PUBLISH_ENABLED=1`
+   (compute + publish are dark: the store is the accepted candidate; the pointer goes to R2
+   `breadth_exch/v1/`, which no member path reads while the web flags are off).
+3. Deploy the merged master commit to breadth-v2-runner with `serviceInstanceDeployV2`. From that moment the
+   prune guard is active. Verify runner `/api/health`, `/` (`archive_guard`), `/exchange` (acks backfilled,
+   first dark publication).
+4. Optional dark replica on web: `BREADTH_EXCH_SYNC_ENABLED=1` (proven member-neutral while
+   `BREADTH_AUTHORITY_EXCH` is unset: `test_an_installed_replica_is_DARK_while_the_member_flag_is_off`).
+
+GATE B — MEMBER AUTHORITY SWITCH (separate owner approval)
+5. web: `BREADTH_EXCH_SYNC_ENABLED=1` (if not already), verify `/api/breadth-monitor/authority`
+   (PUSH_SECRET) `exchange.available=true` and `latest_session`.
+6. web: `BREADTH_AUTHORITY_EXCH=v1` and `BREADTH_LIBRARY_UNIVERSES=us,nyse,nasdaq`. Verify
+   `/api/breadth-symbols` (`NYSE:*`/`NASDAQ:*`), `/api/market-indicators` (`NYSE:MCO`…),
+   `/api/bars/NYSE:MCO?tf=D`.
+
+Rollback: members — unset `BREADTH_AUTHORITY_EXCH` (or drop nyse,nasdaq from the library flag) on web;
+data — on the runner
+`python -c "from api.services import breadth_exchange_publish as ep, breadth_exchange_authority as ea; print(ep.rollback(ea.object_store(), N))"`
+(holds until `publish(..., re_forward=True)`); web replicas follow within `BREADTH_EXCH_SYNC_SECS`.
+Runner — `touch /data/_audit/exch_v1/live_v1/HOLD`, or unset `BREADTH_EXCH_RUNNER_ENABLED`. Producer guard —
+never removed; it fails safe (disk grows + alarm).

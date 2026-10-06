@@ -363,3 +363,27 @@ def test_library_availability_and_floor_come_from_the_authority(world, monkeypat
     assert rows and rows[0]["floor"] == "2026-09-08" and rows[0]["symbol"] == "NYSE:ADV"
     monkeypatch.setenv("BREADTH_AUTHORITY_EXCH", "off")
     assert bs._exchange_availability("nyse") is None and bs.display_floor("nyse") is None
+
+
+def test_an_installed_replica_is_DARK_while_the_member_flag_is_off(world, monkeypatch):
+    """BREADTH_EXCH_SYNC_ENABLED only installs a verified replica. With BREADTH_AUTHORITY_EXCH unset, every
+    member surface is byte-identical to before: no token, nothing served, nothing published, rows dormant."""
+    from api.services import breadth_authority as ba
+    from api.services import breadth_daily_ohlc as bdo
+    from api.services import breadth_symbols as bs
+    from api.services import breadth_universes as bu
+    from api.services.market_indicators import registry as reg
+    world["append"](LIVE[0])
+    world["publish"]()
+    monkeypatch.delenv("BREADTH_AUTHORITY_EXCH", raising=False)
+    monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "us")                  # production's current value
+    tok_before = ba.token()
+    assert world["sync"]()["result"] == "installed"                         # the replica IS installed
+    assert ba.token() == tok_before and ea.token() == ""                    # cache keys / ETags unchanged
+    assert ea.universe_history("advancing", "nyse") is None                 # readers take their old path
+    assert bdo.history.__module__ and ea.derived("NYSE:MCO") is None
+    assert bu.published_universe_ids() == ["uct", "us"]
+    assert bs.resolve("NYSE:A50") is None and reg.resolve("NYMO") is None
+    assert reg.get("NYSE:MCO").status == reg.ST_DORMANT
+    monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "us,nyse,nasdaq")       # even a premature flag publishes nothing
+    assert bu.published_universe_ids() == ["uct", "us"]
