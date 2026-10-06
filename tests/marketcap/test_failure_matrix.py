@@ -111,7 +111,9 @@ def _uni(tmp_path):
 
 
 def test_03_price_input_unavailable(root, monkeypatch, tmp_path, reader):  # noqa: F811
+    (tmp_path / "ref.jsonl").write_text(json.dumps(["AAPL", {}, [], []]) + chr(10))
     r = _real_sources(root, monkeypatch, tmp_path, universe={"kind": "file", "path": _uni(tmp_path)},
+                      reference={"kind": "file", "path": str(tmp_path / "ref.jsonl")},
                       prices={"kind": "file", "path": str(tmp_path / "missing_prices.db")})
     with pytest.raises(OSError):
         r.sources()

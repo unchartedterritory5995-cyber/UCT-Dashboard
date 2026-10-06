@@ -41,7 +41,7 @@ import time
 import traceback
 from datetime import datetime, timezone
 
-from . import acquire as Q, identity_ledger as IL, methodology as M, publication as P, release_contract as C
+from . import acquire as Q, identity_ledger as IL, methodology as M, price_authority as PA, publication as P, release_contract as C
 
 PY = sys.executable
 LEDGER_DDL = """
@@ -353,11 +353,68 @@ class Refresh:
             u = {k: v for k, v in u.items() if k in keep}
             open(uni, "wb").write(gzip.compress(json.dumps(u, sort_keys=True).encode(), mtime=0))
             res["universe"]["bounded_to"] = len(u)
-        res["prices"] = self._source_file("prices", "prices.db") or \
-            {"source": "bars_db", **Q.prices_from_bars(S["prices"]["db"], uni, os.path.join(self.data, "prices.db"))}
+        # the reference first: its split history is the price authority's basis evidence
         res["reference"] = self._source_file("reference", "ref.jsonl") or \
             {"source": "massive", **Q.reference_from_massive(uni, os.path.join(self.data, "ref.jsonl"))}
+        if (S.get("prices") or {}).get("kind") == "price_authority":
+            res["prices"] = self._price_authority(S["prices"], uni)
+        else:
+            res["prices"] = self._source_file("prices", "prices.db") or \
+                {"source": "bars_db", **Q.prices_from_bars(S["prices"]["db"], uni, os.path.join(self.data, "prices.db"))}
         return res
+
+    # ── the Market Cap PRICE AUTHORITY (price_authority.py) ──────────────────────────────────────────────────────
+    def price_parent(self, sp: dict) -> str:
+        """The price version an ordinary refresh appends to = the one the CURRENT Market Cap authority was built from
+        (so a Market Cap rollback rolls the price lineage back with it); before any authority exists, the sealed root."""
+        store = PA.Store(sp.get("store") or self.root)
+        t = self.cfg.target()
+        cur = P.read_pointer(t)
+        if cur is None:
+            return sp["root_version"]
+        m = P.read_manifest(t, cur["build_id"], cur["manifest_sha256"])
+        pv = ((m.get("inputs") or {}).get("price_authority") or {}).get("version")
+        if pv:
+            return pv
+        # an authority built before the price authority existed (accepted M3): its prices.db must BE the root
+        root = store.manifest(sp["root_version"])
+        if ((m.get("inputs") or {}).get("files") or {}).get("prices.db", {}).get("sha256") == root["files"]["base.db"]:
+            return sp["root_version"]
+        raise RuntimeError("the current authority names no price version and its prices.db is not the sealed root: "
+                           "price lineage is ambiguous")
+
+    def _price_authority(self, sp: dict, uni: str) -> dict:
+        store = PA.Store(sp.get("store") or self.root)
+        out = os.path.join(self.data, "prices.db")
+        if sp.get("pin_version"):                 # PARITY / CORRECTION-IMPACT runs: an exact, existing version
+            mat = PA.materialize(store, sp["pin_version"], out)
+            return {"source": "price_authority", "pinned": True, **mat, "sha256": mat["file_sha256"]}
+        parent = self.price_parent(sp)
+        pm = store.manifest(parent)
+        due = PA.completed_sessions(pm["last_session"])
+        official = {}
+        if due:
+            o = sp.get("official") or {"kind": "massive"}
+            if o.get("kind") == "file":
+                official = {int(k): v for k, v in json.load(open(o["path"])).items()}
+            else:
+                op = os.path.join(self.data, "official_daily.json")
+                Q.official_daily(due, op)
+                official = {int(k): v for k, v in json.load(open(op)).items()}
+        splits = {}
+        for line in open(os.path.join(self.data, "ref.jsonl"), encoding="utf-8"):
+            t, _d, sp_, _ev = json.loads(line)
+            if sp_:
+                splits[t] = sp_
+        try:
+            child = PA.append(store, parent, sp["source"], official=official, splits=splits, sessions=due,
+                              tickers=set(Q.tickers_of(uni)), provenance={"run_id": self.run_id, "source": sp["source"]})
+        except PA.PriceHold as e:
+            raise PriceHoldStop(str(e)) from e
+        mat = PA.materialize(store, child["version_id"], out)
+        return {"source": "price_authority", "parent": parent, "appended": child.get("appended"),
+                "no_new_session": bool(child.get("no_new_session")), "reused": bool(child.get("reused")),
+                **mat, "sha256": mat["file_sha256"]}
 
     def sec(self):
         s = self.cfg.sources.get("sec_bulk", {})
@@ -380,7 +437,8 @@ class Refresh:
         self._write_status(hb)
 
     def _last_summary(self):
-        r = self.ledger.last(("ADVANCED", "PUBLISHED_NOT_ADVANCED", "GATES_FAILED", "FAILED", "WAITING_UPSTREAM", "HOLD"))
+        r = self.ledger.last(("ADVANCED", "PUBLISHED_NOT_ADVANCED", "GATES_FAILED", "FAILED", "WAITING_UPSTREAM", "HOLD",
+                              "PRICE_HOLD"))
         if not r:
             return None
         return {k: r.get(k) for k in ("run_id", "state", "stage", "started_at", "finished_at", "build_id", "error")}
@@ -417,7 +475,12 @@ class Refresh:
             drift = M.drift()
             if drift:
                 raise RuntimeError(f"methodology drift {drift}: this code cannot produce a V1 release")
-            src = self.stage("sources", self.sources)
+            try:
+                src = self.stage("sources", self.sources)
+            except PriceHoldStop as e:            # the price authority cannot append the due session: nothing is built
+                L.finish_run(self.run_id, "PRICE_HOLD", error=str(e)[:1500], result=result)
+                self._final()
+                return {"state": "PRICE_HOLD", "error": str(e)[:500], **result}
             sec = {k: v for k, v in self.stage("sec_bulk", self.sec).items() if k in Q.SEC_BULK}
             result["sources"] = src
             prev = self.prev_success_data()
@@ -608,6 +671,12 @@ class Refresh:
         last = B.execute("SELECT MAX(d) FROM cap_daily").fetchone()[0]
         B.close()
         files = sealed["inputs"]
+        pa = (src or {}).get("prices") or {}
+        price_block = ({k: pa.get(k) for k in ("price_version", "kind", "parent", "content_sha256", "rows", "symbols",
+                                                "first_session", "last_session", "chain", "file_sha256", "pinned")}
+                       if pa.get("source") == "price_authority" else None)
+        if price_block and price_block["file_sha256"] != files.get("prices.db", {}).get("sha256"):
+            raise RuntimeError("the sealed prices.db is not the materialized price version")
         snap = P.A.sha("\n".join(f"{k}={v['sha256']}" for k, v in sorted(files.items())).encode())
         stages = {r[0]: (r[1], r[2]) for r in self.ledger.db.execute(
             "SELECT stage, started_at, finished_at FROM stage WHERE run_id=?", (self.run_id,))}
@@ -615,7 +684,7 @@ class Refresh:
         return {"format": C.MANIFEST_FORMAT, "dataset": "MCAP_V1", "build_id": build["build_id"], "methodology": M.identity(),
                 "code": {"commit": man.get("code_commit"), "tree": git("rev-parse", "HEAD^{tree}") or None,
                          "dirty": bool(git("status", "--porcelain", "--", "api/services/marketcap"))},
-                "inputs": {"snapshot_id": snap, "files": files,
+                "inputs": {"snapshot_id": snap, "files": files, "price_authority": {**price_block, "version": price_block["price_version"]} if price_block else None,
                            "provenance": {"sources": src, "sec_bulk": {k: {x: v.get(x) for x in ("last_modified", "sha256", "bytes")}
                                                                       for k, v in sec.items()},
                                           "prosp_evidence_from": Q.PROSP_EVIDENCE_FROM, "run_id": self.run_id}},
@@ -693,7 +762,7 @@ def main(argv=None) -> int:
         return 0
     res = Refresh(a.root, a.run_id).execute()
     print(json.dumps(res, indent=1, default=str)[:20000])
-    return 0 if res["state"] in ("ADVANCED", "PUBLISHED_NOT_ADVANCED", "WAITING_UPSTREAM", "HOLD") else 2
+    return 0 if res["state"] in ("ADVANCED", "PUBLISHED_NOT_ADVANCED", "WAITING_UPSTREAM", "HOLD", "PRICE_HOLD") else 2
 
 
 if __name__ == "__main__":

@@ -12,6 +12,8 @@ STATES
   CURRENT                 both clocks at the expected session.
   DEGRADED_UPSTREAM_LATE  one session behind, inside the grace window (MCAP_PIT_GRACE_HOURS, 6 h after due) or the
                           refresh heartbeat reports it is running / waiting for an upstream input.
+  PRICE_HOLD              behind, and the refresh for the expected session HELD at the price authority (the due
+                          session is absent / not final upstream): the accepted authority is served, nothing invented.
   BUILD_FAILED            behind, and the refresh run for the expected session FAILED or failed its gates
                           (the previous authority is still served).
   STALE                   behind beyond the grace window, or more than one session behind, or the filing clock lags.
@@ -110,7 +112,13 @@ def evaluate(manifest: dict, *, heartbeat: dict | None = None, now: datetime | N
         # the refresh attempt FOR the expected session (any run finishing after that session closed) failed
         failed_for_expected = last.get("state") in ("FAILED", "GATES_FAILED") and last.get("finished_at") and \
             _parse_dt(last["finished_at"]) >= _close(exp)
-        if failed_for_expected:
+        price_hold = last.get("state") == "PRICE_HOLD" and last.get("finished_at") and             _parse_dt(last["finished_at"]) >= _close(exp)
+        if price_hold:
+            # the Market Cap PRICE AUTHORITY could not append the due session (absent / not final / untrustworthy
+            # upstream): the accepted authority keeps being served; nothing was manufactured
+            state = "PRICE_HOLD"
+            reasons.append(f"price authority held: {str(last.get('error'))[:200]}")
+        elif failed_for_expected:
             state = "BUILD_FAILED"
             reasons.append(f"refresh {last.get('run_id')} FAILED at {last.get('stage')}: {str(last.get('error'))[:160]}")
         elif lag <= 1 and filing_ok is not False and (overdue_h <= GRACE_HOURS or _live(hb, now)
@@ -122,6 +130,7 @@ def evaluate(manifest: dict, *, heartbeat: dict | None = None, now: datetime | N
             "lag_sessions": lag, "filing_knowledge_cutoff": k["filing_knowledge_cutoff"],
             "latest_harvest_at": k.get("latest_harvest_at"), "build_finished_at": manifest["build"].get("finished_at"),
             "authority_build_id": manifest["build_id"], "reasons": reasons,
+            "price_version": ((manifest.get("inputs") or {}).get("price_authority") or {}).get("version"),
             "contract": {"due_et": DUE_ET, "grace_hours": GRACE_HOURS}}
 
 

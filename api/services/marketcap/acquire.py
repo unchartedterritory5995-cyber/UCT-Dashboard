@@ -206,6 +206,32 @@ def reference_from_massive(universe_path: str, out: str, *, key: str | None = No
     return {"tickers_pulled": n, "already": len(done), "tickers": len(rows)}
 
 
+def official_daily(sessions: list[int], out: str, *, key: str | None = None, base: str = "https://api.polygon.io") -> dict:
+    """The OFFICIAL daily aggregate per session (Massive grouped daily, split-adjusted like bars.db): the finality
+    evidence for a price-authority append. {session: {ticker: close}}, tickers in bars.db spelling (BRK.B -> BRK-B).
+    A session the provider does not (yet) answer is simply absent -- the append HOLDS there."""
+    key = key or os.environ.get("MASSIVE_API_KEY") or os.environ.get("POLYGON_API_KEY")
+    if not key:
+        raise AcquisitionError("Massive API key NOT CONFIGURED")
+    res = {}
+    for d in sessions:
+        iso = f"{str(d)[:4]}-{str(d)[4:6]}-{str(d)[6:]}"
+        url = f"{base}/v2/aggs/grouped/locale/us/market/stocks/{iso}?adjusted=true&include_otc=false&apiKey={key}"
+        body = None
+        for i in range(4):
+            try:
+                with urllib.request.urlopen(url, timeout=60) as r:
+                    body = json.loads(r.read())
+                break
+            except Exception:  # noqa: BLE001
+                time.sleep(2 * (i + 1))
+        rows = (body or {}).get("results") or []
+        if rows:
+            res[str(d)] = {str(x["T"]).replace(".", "-"): x.get("c") for x in rows if x.get("T") and x.get("c") is not None}
+    json.dump(res, open(out, "w"))
+    return {"sessions": sorted(res), "tickers": {k: len(v) for k, v in res.items()}}
+
+
 # ── SEC public sources ──────────────────────────────────────────────────────────────────────────────────────────────
 def sec_head(url: str) -> dict:
     from api.services.fundamentals_pit import sec_client as SEC
