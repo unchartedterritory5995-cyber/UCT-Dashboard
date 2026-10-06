@@ -118,7 +118,7 @@ export default function NewsTab({ sym }) {
           <div className={styles.ct}>Company news</div>
           <ul className={styles.newsList} data-testid="news-list">
             {items.map((it, i) => (
-              <li key={`${it.id}-${i}`} className={styles.newsItem}>
+              <li key={`${it.id}-${i}`} className={styles.newsItem} data-panel-row>
                 {it.image && (
                   <img className={styles.newsThumb} src={it.image} alt="" onError={hideBrokenImage} />
                 )}

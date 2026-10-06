@@ -137,7 +137,7 @@ export default function CallReplayPanel({ sym }) {
             </div>
           </>
         )}
-        <ol className={`${styles.hits} ${styles.turns}`}>
+        <ol className={`${styles.hits} ${styles.turns}`} data-panel-list>
           {turns.map((t, i) => (
             <li key={`${t.start_s}-${i}`} data-testid="replay-turn"
                 data-active={i === activeTurn ? 'true' : undefined}

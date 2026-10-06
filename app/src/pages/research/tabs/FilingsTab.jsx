@@ -24,7 +24,7 @@ export default function FilingsTab({ sym }) {
         {!!filings.length && (
           <div className={styles.rclist}>
             {filings.map((f, i) => (
-              <div key={`${f.form}-${f.filed}-${i}`} className={styles.filingRow}>
+              <div key={`${f.form}-${f.filed}-${i}`} className={styles.filingRow} data-panel-row>
                 <span className={styles.filingForm}>{f.form || '—'}</span>
                 <span className={styles.rcdate}>{f.filed || ''}</span>
                 {f.period && <span className={styles.muted}>for {f.period}</span>}

@@ -81,7 +81,7 @@ export default function CatalystsTab({ sym }) {
           <div className={styles.ct}>Catalyst history</div>
           <ul className={styles.newsList} data-testid="catalyst-history-list">
             {entries.map((e, i) => (
-              <li key={`${e.market_date}-${i}`} className={styles.newsItem}>
+              <li key={`${e.market_date}-${i}`} className={styles.newsItem} data-panel-row>
                 <div className={styles.rowBody}>
                   <div className={styles.rowHead}>
                     <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>

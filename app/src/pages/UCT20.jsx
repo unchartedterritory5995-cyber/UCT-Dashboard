@@ -171,6 +171,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           below, which owns `aria-expanded` and the Enter/Space toggle instead. */}
       <div
         className={styles.row}
+        data-panel-row
         onClick={onToggle}
       >
         <span className={styles.rank}>{rank}</span>
