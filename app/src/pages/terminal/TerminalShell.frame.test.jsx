@@ -132,6 +132,41 @@ describe('density changes panel spacing, not only inherited text', () => {
     expect(/\.card\s*\{[^}]*padding:\s*calc\(var\(--panel-inset\)/.test(card)).toBe(true)
   })
 
+  it.each(['compact', 'dense'])('%s reaches the non-table lists that opt in with data-panel-row / -list / -tile(s)', (d) => {
+    const ruleFor = (attr) => {
+      const sel = `.shell[data-density='${d}'] [${attr}]`
+      const at = desktop.indexOf(sel)
+      expect(at, `${d}: no ${attr} rule`).toBeGreaterThan(-1)
+      return desktop.slice(desktop.indexOf('{', at), desktop.indexOf('}', at))
+    }
+    expect(ruleFor('data-panel-row')).toMatch(/min-height:\s*var\(--panel-row-h\)/)
+    expect(ruleFor('data-panel-row')).toMatch(/padding-block:\s*calc\(var\(--panel-gap\)/)
+    expect(ruleFor('data-panel-list')).toMatch(/gap:\s*calc\(var\(--panel-gap\)/)
+    expect(ruleFor('data-panel-tiles')).toMatch(/gap:\s*var\(--panel-gap\)/)
+    expect(ruleFor('data-panel-tile')).toMatch(/padding:\s*var\(--panel-inset\)/)
+  })
+
+  it('the list panels carry the density markers on the element that is the row / list / tile', () => {
+    const read = (f) => fs.readFileSync(path.join(process.cwd(), 'src', f), 'utf8')
+    const OPTED_IN = {
+      'pages/UCT20.jsx': [/className=\{styles\.row\}\s+data-panel-row/],
+      'pages/research/tabs/NewsTab.jsx': [/className=\{styles\.newsItem\} data-panel-row/],
+      'pages/research/tabs/CatalystsTab.jsx': [/className=\{styles\.newsItem\} data-panel-row/],
+      'components/research-kit/RatingChangeList.jsx': [/data-testid="rk-rc-row" data-panel-row/],
+      'pages/research/tabs/RatingsTab.jsx': [/styles\.checkRow\} data-panel-row/, /styles\.ratingGrid\} data-panel-tiles/, /styles\.ratingCard\} data-panel-tile/],
+      'pages/research/tabs/FilingsTab.jsx': [/styles\.filingRow\} data-panel-row/],
+      'components/AlertBell.jsx': [/key=\{a\.id\}\s+data-panel-row/],
+      'pages/terminal/panels/HelpPanel.jsx': [/data-panel-row className=\{`\$\{styles\.helpRow\}/],
+      'pages/research/depth/FilingSearchPanel.jsx': [/styles\.hits\} data-panel-list/],
+      'pages/research/depth/NewsDeskPanel.jsx': [/styles\.hits\} data-panel-list/],
+      'pages/research/depth/CallReplayPanel.jsx': [/styles\.turns\}`\} data-panel-list/],
+    }
+    for (const [f, pats] of Object.entries(OPTED_IN)) {
+      const src = read(f)
+      for (const p of pats) expect(src, `${f} lost ${p}`).toMatch(p)
+    }
+  })
+
   it('the comfortable values are declared once, in tokens.css, so pages outside the terminal resolve them', () => {
     const tokens = fs.readFileSync(path.join(process.cwd(), 'src/styles/tokens.css'), 'utf8')
     for (const v of ['--panel-inset', '--panel-gap', '--panel-fs', '--panel-row-h']) expect(tokens).toMatch(new RegExp(`${v}:`))

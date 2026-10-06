@@ -862,6 +862,37 @@
     height: var(--panel-row-h);
     padding-block: calc(var(--panel-gap) / 4);
   }
+
+  /* …and so do the lists that are not <table>s. A component opts a list in with three
+     attributes instead of restating density per stylesheet: `data-panel-row` on one row /
+     tile / item (UCT 20 rows, research news + catalyst items, rating-change rows, the
+     Ratings checkup, SEC filing rows, HELP rows, alert-inbox items), `data-panel-list` on a
+     list whose own `gap` spaces its items (filing-search hits, call-replay turns, news-desk
+     rows), and `data-panel-tiles` / `data-panel-tile` on a card grid (the Ratings
+     sub-scores). Scoped to the shell, not .panelBody, so the L0 strip's alert inbox follows
+     too. Comfortable is each component's own look; desktop only, like the table rule, so
+     the touch tier's 44px floors are never undercut. A row should already carry at least
+     the compact padding, or this would grow it. */
+  .shell[data-density='compact'] [data-panel-row],
+  .shell[data-density='dense'] [data-panel-row] {
+    min-height: var(--panel-row-h);
+    padding-block: calc(var(--panel-gap) / 2);
+  }
+
+  .shell[data-density='compact'] [data-panel-list],
+  .shell[data-density='dense'] [data-panel-list] {
+    gap: calc(var(--panel-gap) / 2);
+  }
+
+  .shell[data-density='compact'] [data-panel-tiles],
+  .shell[data-density='dense'] [data-panel-tiles] {
+    gap: var(--panel-gap);
+  }
+
+  .shell[data-density='compact'] [data-panel-tile],
+  .shell[data-density='dense'] [data-panel-tile] {
+    padding: var(--panel-inset);
+  }
 }
 
 /* ── TOUCH TIER (phone + tablet): the 44px floor on every control, and the grid stacks ── */

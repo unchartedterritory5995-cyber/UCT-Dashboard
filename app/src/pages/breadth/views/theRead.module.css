@@ -22,7 +22,7 @@
   align-self: stretch;
   padding: 3px 13px 0 0;
   border-right: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent);
-  font: 800 9px 'Instrument Sans', sans-serif;
+  font: 800 var(--text-xs) var(--font-sans);
   letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -60,7 +60,7 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
   gap: 5px 30px;
   justify-content: start;
-  font: 450 11.5px 'Instrument Sans', sans-serif;
+  font: 450 11.5px var(--font-sans);
   line-height: 1.6;
   color: var(--text-muted);
   min-width: 0;
@@ -87,6 +87,6 @@
 
 .refusal {
   grid-column: 2;
-  font: 500 11.5px 'Instrument Sans', sans-serif;
+  font: 500 11.5px var(--font-sans);
   color: var(--text-muted);
 }

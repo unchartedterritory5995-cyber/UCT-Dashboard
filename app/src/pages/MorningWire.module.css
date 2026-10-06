@@ -592,7 +592,7 @@
 .rundownWrap :global(.rd-order-bought) { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
 .rundownWrap :global(.rd-order-prem) { text-align: right; font-weight: 700; font-size: var(--text-lg); color: var(--text-heading); }
 .rundownWrap :global(.rd-flowboard-er) {
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--accent);
   border: 1px solid color-mix(in srgb, var(--ut-gold) 50%, transparent);
@@ -876,7 +876,7 @@
 
 .rundownWrap :global(.rd-pick-flabel) {
   font-family: var(--font-mono) !important;
-  font-size: 8px !important;
+  font-size: var(--text-xs) !important;
   font-weight: 700 !important;
   letter-spacing: 0.12em !important;
   color: var(--accent) !important;
@@ -1145,7 +1145,7 @@
 
 .analystTabCount {
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 600;
   padding: 1px 5px;
   border-radius: var(--radius-lg);
@@ -1171,7 +1171,7 @@
   align-items: center;
   padding: 8px 0 5px 2px;
   border-bottom: 1px solid var(--border);
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -1232,7 +1232,7 @@
 }
 
 .aeBadge {
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -1578,7 +1578,7 @@
    the row. */
 .rundownWrap :global(.rd-order-streak) {
   margin-left: 4px;
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 700;
   border: 1px solid currentColor;
   border-radius: 3px;

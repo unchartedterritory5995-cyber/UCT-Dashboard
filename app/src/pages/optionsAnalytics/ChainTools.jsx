@@ -8,6 +8,7 @@ import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import UIcon from '../../components/ui/UIcon'
 
 // FT-003 probability analysis, FT-016 chain -> chart -> pricer drill, FT-002 multi-leg builder.
 // (api/services/options_analytics/chain_tools.py; payoff math is optionPayoff.js, the one copy)
@@ -273,7 +274,7 @@ export function PositionBuilder({ sym, rows, spot }) {
         {priced.map((l, i) => (
           <li key={`${l.type}-${l.strike}-${i}`}>{l.qty > 0 ? 'Buy' : 'Sell'} {Math.abs(l.qty)} {num(l.strike)} {l.type}
             {' @ '}{l.premium == null ? 'no two-sided quote' : num(l.premium)}
-            <button type="button" className={styles.input} aria-label={`Remove leg ${i + 1}`} onClick={() => setLegs(legs.filter((_, j) => j !== i))}>×</button>
+            <button type="button" className={styles.input} aria-label={`Remove leg ${i + 1}`} onClick={() => setLegs(legs.filter((_, j) => j !== i))}><UIcon name="x" size={12} gold={false} aria-hidden="true" /></button>
           </li>
         ))}
       </ul>

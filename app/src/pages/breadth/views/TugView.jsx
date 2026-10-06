@@ -100,7 +100,7 @@ function CentreLabel({ label, sub, gold }) {
         {label}
       </div>
       {sub != null && (
-        <div style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+        <div style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                       fontVariantNumeric: 'tabular-nums', marginTop: 1 }}>
           {sub}
         </div>
@@ -136,7 +136,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
       <div data-testid="tug-scale" aria-hidden="true"
            style={{ display: 'grid', gridTemplateColumns: TEMPLATE, gap: 8,
                     flex: '0 0 auto', marginBottom: 6,
-                    font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                    font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px' }}>
         <div />
         <div style={{ position: 'relative', height: 10 }}>
@@ -219,7 +219,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
         <div data-testid="tug-posture"
              style={{ flex: '0 0 auto', marginTop: 10, display: 'flex',
                       alignItems: 'center', gap: 10 }}>
-          <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+          <div style={{ font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                         letterSpacing: '.6px', flex: '0 0 auto' }}>NET POSTURE</div>
           <div style={{ position: 'relative', height: 14, flex: '1 1 auto', minWidth: 0 }}>
             <div style={trackBase} />

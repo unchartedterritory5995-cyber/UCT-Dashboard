@@ -108,7 +108,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="analogues-summary"
-           style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)',
+           style={{ font: '800 15px var(--font-sans)', color: 'var(--text-bright)',
                     marginBottom: 4, flex: '0 0 auto' }}>
         {withReturn.length
           ? `${higher} of ${withReturn.length} higher ${horizonLabel(horizon)} later`
@@ -153,7 +153,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
                 <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-bright)' }}>
                   <SeekDate date={a.date} styleKey="analogues" onSeek={onSeek} canSeek={canSeek} />
                 </span>
-                <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                <span style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                   {Number(a.similarity).toFixed(1)}% match
                 </span>
               </div>
@@ -161,7 +161,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
                             flex: '0 0 auto', color: tone }}>
                 {fwd == null ? 'Not yet' : `${fwd >= 0 ? '+' : ''}${Number(fwd).toFixed(1)}%`}
               </div>
-              <div style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+              <div style={{ font: '500 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                             flex: '0 0 auto' }}>
                 {fwd == null ? `less than ${horizonLabel(horizon)} of history after it`
                              : `SPY, ${horizonLabel(horizon)} later`}

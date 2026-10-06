@@ -5,6 +5,7 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import Select from '../../../components/ui/Select'
+import Slider from '../../../components/ui/Slider'
 
 // D-5 (Lane R) — tape + transcript replay of the latest earnings call.
 // DARK behind CALL_REPLAY_ENABLED (api/services/call_replay.py).
@@ -125,9 +126,9 @@ export default function CallReplayPanel({ sym }) {
                       aria-label="Replay speed">
                 {SPEEDS.map(v => <option key={v} value={v}>{v}x</option>)}
               </Select>
-              <input type="range" min={win.from} max={win.to} step={60} value={Math.round(cur)}
-                     onChange={e => { setPlaying(false); setCursor(Number(e.target.value)) }}
-                     aria-label="Replay position" className={styles.slider} />
+              <Slider min={win.from} max={win.to} step={60} value={Math.round(cur)}
+                      onChange={e => { setPlaying(false); setCursor(Number(e.target.value)) }}
+                      aria-label="Replay position" className={styles.slider} />
               <span className={styles.muted} data-testid="replay-clock">
                 {fmtEt(cur)} ET
                 {Number.isFinite(now) ? ` · ${formatNumber(now, { decimals: 2 })}` : ''}
@@ -136,7 +137,7 @@ export default function CallReplayPanel({ sym }) {
             </div>
           </>
         )}
-        <ol className={`${styles.hits} ${styles.turns}`}>
+        <ol className={`${styles.hits} ${styles.turns}`} data-panel-list>
           {turns.map((t, i) => (
             <li key={`${t.start_s}-${i}`} data-testid="replay-turn"
                 data-active={i === activeTurn ? 'true' : undefined}

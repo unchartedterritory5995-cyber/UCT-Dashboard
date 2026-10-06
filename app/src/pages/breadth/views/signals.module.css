@@ -24,14 +24,14 @@
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  font: 600 11px 'Instrument Sans', sans-serif;
+  font: 600 11px var(--font-sans);
 }
 
 .chipClickable { cursor: pointer; }
 .chipClickable:hover .chipLabel { text-decoration: underline; }
 
 .kicker {
-  font: 800 9px 'Instrument Sans', sans-serif;
+  font: 800 var(--text-xs) var(--font-sans);
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
@@ -51,7 +51,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font: 600 12px 'Instrument Sans', sans-serif;
+  font: 600 12px var(--font-sans);
   letter-spacing: 0.3px;
   color: var(--ut-gold);
   padding: 2px 8px;

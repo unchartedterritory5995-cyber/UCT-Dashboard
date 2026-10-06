@@ -98,7 +98,7 @@ export default function DivergenceView({
                   padding: '10px 18px 16px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <span data-testid="divergence-verdict"
-              style={{ font: '800 15px \'Instrument Sans\', sans-serif',
+              style={{ font: '800 15px var(--font-sans)',
                        color: verdictColor }}>
           {verdict}
         </span>

@@ -78,7 +78,7 @@ export default function ScoreAttributionView({
                   display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10,
                     flexWrap: 'wrap', flex: '0 0 auto' }}>
-        <span style={{ font: '800 26px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)' }}>
+        <span style={{ font: '800 26px var(--font-sans)', color: 'var(--text-bright)' }}>
           {data.total == null ? '—' : data.total}
         </span>
         {totalDelta != null && (

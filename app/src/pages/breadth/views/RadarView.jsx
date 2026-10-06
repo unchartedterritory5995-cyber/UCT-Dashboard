@@ -57,7 +57,8 @@ const FALLBACK = { w: 900, h: 420 }
 // are the sizes that reach the screen at EVERY panel size.
 const LABEL_FS = 11
 const VALUE_FS = 11.5
-const SCALE_FS = 9
+// The ring's scale numbers take the type ramp's smallest step (--text-xs) through a CSS
+// `font-size`, which wins over the attribute and means the same px here as everywhere else.
 // Below this ring radius the numbered ticks would be stacked closer than their
 // own line height, so the rings stay and their numbers go — the basis line above
 // already names the ticks. A caption that cannot be read is worse than none.
@@ -211,8 +212,7 @@ export default function RadarView({
           })}
           {showScale && NORM_TICKS.filter(t => t > 0).map(t => (
             <text key={`sc-${t}`} data-radar-scale={t} x={CX - 6} y={CY - R * t / 100 + 3}
-                  textAnchor="end" fill="var(--text-muted)" fontSize={SCALE_FS} fontWeight="700"
-                  fontFamily="Instrument Sans, sans-serif">{t}</text>
+                  textAnchor="end" fill="var(--text-muted)" fontWeight="700" style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)' }}>{t}</text>
           ))}
           {/* ⛔ A DASHED OUTLINE, NEVER A SECOND FILL. Two filled polygons on one
               radar read as an area chart of nothing; the prior shape is a
@@ -239,8 +239,8 @@ export default function RadarView({
             return (
               <text key={m.key} data-radar-axis={m.key} x={x} y={(ly - LINE_GAP / 2).toFixed(1)}
                     textAnchor={anchor} dominantBaseline="middle"
-                    fontSize={LABEL_FS} fontWeight="700" fontFamily="Instrument Sans, sans-serif"
-                    style={{ cursor: clickable ? 'pointer' : 'default' }}
+                    fontSize={LABEL_FS} fontWeight="700"
+                    style={{ fontFamily: 'var(--font-sans)', cursor: clickable ? 'pointer' : 'default' }}
                     onClick={clickable ? () => onDrill(m) : undefined}>
                 <tspan x={x} fill={isSignal ? 'var(--ut-gold)' : isNotable ? colors.tier.a : 'var(--text-muted)'}>
                   {isSignal ? '★ ' : ''}{m.label}
@@ -257,7 +257,7 @@ export default function RadarView({
       </div>
       {capped && (
         <div data-testid="radar-cap"
-             style={{ font: '600 9px Instrument Sans, sans-serif', color: 'var(--text-muted)',
+             style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                       marginTop: 2, flex: '0 0 auto' }}>
           showing {shown.length} of {metrics.length} — narrow the set in Customize
         </div>

@@ -160,7 +160,7 @@ export default function HeatRibbonView({
           <div key={m.key} style={{ display: 'flex', alignItems: 'stretch', gap: LABEL_GAP,
                                     ...fillsRow(minH, maxH) }}>
             <div style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px`, textAlign: 'right',
-                          font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
+                          font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.4px',
                           textTransform: 'uppercase', color: 'var(--text-muted)',
                           display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

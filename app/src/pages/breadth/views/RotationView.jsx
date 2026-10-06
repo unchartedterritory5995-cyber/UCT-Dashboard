@@ -177,7 +177,7 @@ export default function RotationView({
                              textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 {p.label}
               </span>
-              <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+              <span style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.sub}
               </span>
@@ -214,7 +214,7 @@ export default function RotationView({
               {vals.length > 0 && (
                 <div data-testid={`rotation-range-${p.key}`}
                      style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                              font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                              font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                               textAlign: 'right', flex: `0 0 ${AXIS_W}px`, width: AXIS_W,
                               fontVariantNumeric: 'tabular-nums' }}>
                   <span>{fmt(hi)}</span>
@@ -299,7 +299,7 @@ export default function RotationView({
                   own tooltip either way. */}
               {clipped > 0 && (
                 <span data-testid={`rotation-clip-${p.key}`}
-                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                      style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                                whiteSpace: 'nowrap' }}>
                   {clipped} session{clipped === 1 ? '' : 's'} outside the drawn range
                   {' · full span '}{fmt(min)}–{fmt(max)}
@@ -307,7 +307,7 @@ export default function RotationView({
               )}
               {usable && (
                 <span data-testid={`rotation-reference-${p.key}`}
-                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                      style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                                whiteSpace: 'nowrap' }}>
                   measured from {fmt(prior)} on {win[measured].date}
                 </span>

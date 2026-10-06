@@ -17,7 +17,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  font: 700 10px 'Instrument Sans', sans-serif;
+  font: 700 10px var(--font-sans);
   letter-spacing: 0.4px;
   text-transform: uppercase;
   cursor: pointer;
@@ -30,13 +30,13 @@
 }
 
 .note {
-  font: 600 10px 'Instrument Sans', sans-serif;
+  font: 600 10px var(--font-sans);
   color: var(--text-muted);
 }
 
 /* The refused `?date=` — legible, muted, and carrying the reason. */
 .refusal {
-  font: 600 10px 'Instrument Sans', sans-serif;
+  font: 600 10px var(--font-sans);
   color: var(--text-muted);
   border-bottom: 1px dotted color-mix(in srgb, var(--text-muted) 50%, transparent);
 }

@@ -78,7 +78,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           <ol className={styles.helpRule} data-testid="terminal-help-ranking">
             {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
           </ol>
-          <button type="button" className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
+          <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
             disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
             <span>Reset my ranking</span>
             <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
@@ -118,7 +118,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                 const enabled = flag && flagsKnown ? flagOn(auth, flag) : null
                 return (
                   <li key={f.code}>
-                    <button type="button" className={`${styles.helpRow} ${styles.helpFnRow}`} onClick={() => onRun?.(f.code)}>
+                    <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpFnRow}`} onClick={() => onRun?.(f.code)}>
                       <span className={styles.rowNum} aria-hidden="true">{n}</span>
                       <span className={styles.code}>{f.code}</span>
                       <span>{f.label}</span>

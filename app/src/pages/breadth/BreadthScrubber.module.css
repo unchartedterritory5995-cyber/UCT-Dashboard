@@ -13,22 +13,20 @@
   border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
   background: var(--bg);
   color: var(--text-muted);
-  font: 700 11px 'Instrument Sans', sans-serif;
+  font: 700 11px var(--font-sans);
   cursor: pointer;
 }
 .btn:hover:not(:disabled) { border-color: var(--ut-gold); color: var(--text-bright); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* The slider itself (track, thumb, focus ring, touch floor) is ui/Slider; this only lays it out. */
 .range {
   flex: 1;
   min-width: 140px;
-  accent-color: var(--ut-gold);
-  cursor: pointer;
 }
-.range:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .ends {
-  font: 600 9px 'Instrument Sans', sans-serif;
+  font: 600 var(--text-xs) var(--font-sans);
   color: var(--text-muted);
   letter-spacing: 0.4px;
   white-space: nowrap;
@@ -38,7 +36,7 @@
    also the only thing on it, now that the session date is stated once, in the
    header cluster, where the arrows that move it live. */
 .position {
-  font: 700 11px 'Instrument Sans', sans-serif;
+  font: 700 11px var(--font-sans);
   color: var(--text-muted);
   letter-spacing: 0.2px;
   white-space: nowrap;
@@ -53,13 +51,13 @@
   border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
   background: var(--bg);
   color: var(--text-muted);
-  font: 600 10px 'Instrument Sans', sans-serif;
+  font: 600 10px var(--font-sans);
   padding: 0 4px;
 }
 .speed:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .note {
-  font: 600 10px 'Instrument Sans', sans-serif;
+  font: 600 10px var(--font-sans);
   color: var(--text-muted);
   flex-basis: 100%;
 }

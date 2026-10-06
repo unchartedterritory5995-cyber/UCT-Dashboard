@@ -73,7 +73,7 @@ export default function NewsDeskPanel({ sym }) {
         {items.length === 0
           ? <p className={styles.note} data-testid="news-desk-empty">No stories about {s} are in our news store.</p>
           : (
-            <ul className={styles.hits}>
+            <ul className={styles.hits} data-panel-list>
               {items.map(it => (
                 <li key={it.id} className={styles.hit} data-testid="news-desk-row"
                   data-read={ann.includes('read') ? (it.read_at ? 'read' : 'unread') : undefined}>

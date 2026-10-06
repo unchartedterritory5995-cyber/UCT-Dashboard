@@ -149,7 +149,7 @@ export default function PercentileLadderView({
       <div data-testid="ladder-legend"
            style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4,
                     flex: '0 0 auto',
-                    font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
+                    font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.6px',
                     textTransform: 'uppercase', color: 'var(--text-muted)' }}>
         <div style={{ width: 104, flex: '0 0 104px' }} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-between' }}>
@@ -170,7 +170,7 @@ export default function PercentileLadderView({
         <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10,
                                   ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
           <div style={{ width: 104, flex: '0 0 104px', textAlign: 'right',
-                        font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
+                        font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.4px',
                         textTransform: 'uppercase', color: 'var(--text-muted)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         cursor: m.drillKey ? 'pointer' : 'default' }}
@@ -257,7 +257,7 @@ export default function PercentileLadderView({
                 </rect>
               </svg>
               <div style={{ width: 78, flex: '0 0 78px', display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)' }}>
+                <span style={{ font: '800 15px var(--font-sans)', color: 'var(--text-bright)' }}>
                   {m.getFmt(currentRow)}
                 </span>
                 <span data-testid={`ladder-pctile-${m.key}`}

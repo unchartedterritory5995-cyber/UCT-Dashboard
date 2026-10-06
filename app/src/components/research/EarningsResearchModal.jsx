@@ -449,7 +449,7 @@ export default function EarningsResearchModal({
         aria-label={`${sym} earnings report`}
         tabIndex={-1}
       >
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Close">×</button>
+        <button type="button" className={styles.close} onClick={onClose} aria-label="Close"><UIcon name="x" size={16} gold={false} aria-hidden="true" /></button>
         {body}
       </div>
     </div>

@@ -103,9 +103,9 @@ export default function RatingsTab({ sym }) {
           </div>
         </div>
 
-        <div className={styles.ratingGrid}>
+        <div className={styles.ratingGrid} data-panel-tiles>
           {NUM_COMPONENTS.map(([k, label]) => (
-            <div key={k} className={styles.ratingCard}>
+            <div key={k} className={styles.ratingCard} data-panel-tile>
               <div className={styles.ratingLbl}>{label}</div>
               <div className={`${styles.ratingVal} ${ink(scoreTier(comp[k]))}`}>{comp[k] ?? ABSENT}</div>
               <div className={styles.meter}>
@@ -114,7 +114,7 @@ export default function RatingsTab({ sym }) {
             </div>
           ))}
           {LETTER_COMPONENTS.map(([k, label]) => (
-            <div key={k} className={styles.ratingCard}>
+            <div key={k} className={styles.ratingCard} data-panel-tile>
               <div className={styles.ratingLbl}>{label}</div>
               <div className={`${styles.ratingVal} ${ink(letterTier(comp[k]))}`}>{comp[k] ?? ABSENT}</div>
             </div>
@@ -126,7 +126,7 @@ export default function RatingsTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Stock Checkup</div>
           {checkup.map((c, i) => (
-            <div key={`${c.label}-${i}`} className={styles.checkRow}>
+            <div key={`${c.label}-${i}`} className={styles.checkRow} data-panel-row>
               <span className={`${styles.checkIcon} ${ink(checkTier(c.status))}`}>
                 {c.status === 'pass' ? <UIcon name="check" size={13} gold={false} />
                   : c.status === 'fail' ? <UIcon name="x" size={13} gold={false} /> : ABSENT}

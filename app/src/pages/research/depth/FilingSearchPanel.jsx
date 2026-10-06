@@ -77,7 +77,7 @@ export default function FilingSearchPanel({ sym }) {
           </p>
         )}
         {(data.notes || []).map((n, i) => <p key={i} className={styles.muted}>{n}</p>)}
-        <ol className={styles.hits}>
+        <ol className={styles.hits} data-panel-list>
           {(data.hits || []).map((h) => (
             <li key={`${h.accession}-${h.section}-${h.para_no}`} className={styles.hit} data-testid="filing-search-hit">
               <Snippet text={h.snippet} marks={data.snippet_marks} />

@@ -75,7 +75,7 @@ export default function EventLedgerView({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10,
                     flex: '0 0 auto' }}>
         <span data-testid="events-headline"
-              style={{ font: '800 15px \'Instrument Sans\', sans-serif',
+              style={{ font: '800 15px var(--font-sans)',
                        color: firedCount ? accent : 'var(--text-muted)' }}>
           {firedCount ? `${firedCount} event${firedCount > 1 ? 's' : ''} today` : 'No named event today'}
         </span>
@@ -135,12 +135,12 @@ export default function EventLedgerView({
                           display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
                         flex: '0 0 auto' }}>
-            <span style={{ font: '800 9px \'Instrument Sans\', sans-serif', letterSpacing: '1px',
+            <span style={{ font: '800 var(--text-xs) var(--font-sans)', letterSpacing: '1px',
                            textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {optionLabel('events', 'families', family)}
             </span>
             <span style={{ flex: 1, height: 1, background: 'color-mix(in srgb, var(--text-heading) 6%, transparent)' }} />
-            <span style={{ font: '700 9px \'Instrument Sans\', sans-serif',
+            <span style={{ font: '700 var(--text-xs) var(--font-sans)',
                            color: firedHere ? accent : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {firedHere ? `${firedHere} today` : `${list.length}`}
             </span>
@@ -190,14 +190,14 @@ export default function EventLedgerView({
               {/* The basis gets a column of its own rather than a tail on the
                   note, because it is the claim's provenance and the note is only
                   its wording — and a column cannot be ellipsised away. */}
-              <span style={{ font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
+              <span style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.6px',
                              color: 'var(--text-muted)', textAlign: 'center',
                              border: '1px solid color-mix(in srgb, var(--text-heading) 7%, transparent)', borderRadius: 3,
                              padding: '2px 0' }}>
                 {BASIS_CHIP[e.basis]}
               </span>
               <span className={styles.note}
-                    style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                    style={{ font: '500 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.note}
