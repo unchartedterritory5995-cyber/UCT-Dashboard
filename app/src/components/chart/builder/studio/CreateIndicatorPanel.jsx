@@ -118,15 +118,31 @@ const keepKeysInPanel = (e) => e.stopPropagation()
  * @param {Function|null} [props.onOpenBuilder] `(mode)` — the existing builder's doors
  * @param {Function|null} [props.onOpenLibrary] Chart Settings → Indicators → Add to Chart
  * @param {Function} [props.converse]       injectable client (tests / harness)
+ * @param {Element|null} [props.dockHost]   the pane's RIGHT WORKSPACE DOCK: render inside it,
+ *                                         full height, instead of floating over the chart
+ * @param {Function|null} [props.onDocked] `(bool)` — tells the pane to make (or give back) room
  */
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
+  dockHost = null, onDocked = null,
 }) {
   const conv = useIndicatorConversation({ sym, tf, converse })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const [message, setMessage] = useState('')
-  const rect = useDockRect(anchorRef, true)
+  // Floating geometry is measured only when there is no dock to live in.
+  const rect = useDockRect(anchorRef, !dockHost)
+  // ⭐ THE ROOM IS MADE IN THE SAME PAINT THE DOCK APPEARS IN. A layout effect, so
+  // the pane's reflow (padding-right) commits before the browser paints: the dock
+  // never overlaps the chart, not even for a frame, and the chart never paints at
+  // its old width beside it. Closing (unmount) hands the width straight back.
+  const onDockedRef = useRef(onDocked)
+  useLayoutEffect(() => { onDockedRef.current = onDocked })
+  useLayoutEffect(() => {
+    if (!dockHost) return undefined
+    onDockedRef.current?.(true)
+    return () => onDockedRef.current?.(false)
+  }, [dockHost])
   const logEndRef = useRef(null)
   const inputRef = useRef(null)
   // The latest stored blob and preview channel, read inside effects/handlers.
@@ -235,9 +251,9 @@ export default function CreateIndicatorPanel({
 
   const panel = (
     <aside
-      className={styles.panel}
+      className={dockHost ? `${styles.panel} ${styles.panelDocked}` : styles.panel}
       ref={panelRef}
-      style={{ top: rect.top, left: rect.left, height: rect.height }}
+      style={dockHost ? undefined : { top: rect.top, left: rect.left, height: rect.height }}
       onKeyDown={keepKeysInPanel}
       onKeyUp={keepKeysInPanel}
       onKeyPress={keepKeysInPanel}
@@ -396,5 +412,6 @@ export default function CreateIndicatorPanel({
     </aside>
   )
 
-  return typeof document !== 'undefined' ? createPortal(panel, document.body) : panel
+  if (typeof document === 'undefined') return panel
+  return createPortal(panel, dockHost || document.body)
 }

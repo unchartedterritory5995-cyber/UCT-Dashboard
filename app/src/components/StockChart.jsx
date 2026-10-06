@@ -2418,6 +2418,12 @@ export default function StockChart({
   onComparisonsReady = null, // optional (syms) => void — fired each time the comparison overlays (cs.comparisonSymbols) are drawn for the current set, once their bars have arrived (an unknown symbol counts as done). The Discord render page gates its readiness on it: measured 2026-08-25, a `?compare=` render captured before the overlay bars landed showed the % scale and no lines.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   hotkeysActive = true,     // boolean | () => boolean — gates this instance's document-level keydown shortcuts at dispatch time (read via latest-ref: neither form re-subscribes, the callback form never re-renders). Multi-chart surfaces pass a callback reading the container's active-cell ref so one keypress doesn't retime every mounted chart. Absent/true = today's always-active behavior.
+  // ⭐ P2 Track B — Create Indicator's RIGHT WORKSPACE DOCK (owner review 2026-10-06).
+  // `studioDockHost` is the element ChartPane reserves beside the whole chart
+  // section; `onStudioDockChange(bool)` tells ChartPane to make room. Absent ⇒ the
+  // panel floats over the chart as before (surfaces with no pane seam).
+  studioDockHost = null,
+  onStudioDockChange = null,
   onOpenSettings = null,    // optional () => void — when set, the "Chart settings" context-menu item opens THIS instead of the old toolbar panel (charts workspace uses the new centered modal)
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
@@ -17389,17 +17395,32 @@ export default function StockChart({
     const vpCfg = cs.indicators?.volumeProfile
     const series = candleSeriesRef.current
 
-    // Resize canvas to match container
+    // Resize canvas to match container — and KEEP matching it. ⚠️ It used to be
+    // sized only when the profile config or the bars changed, so any container
+    // resize (a widget drag, the Create Indicator dock reflowing the pane) left a
+    // canvas at the old width with its right-anchored bins drawn off-chart.
     const container = containerRef.current
-    if (container) {
+    const fit = () => {
+      if (!container) return
       canvas.width  = container.offsetWidth
       canvas.height = container.offsetHeight
     }
+    fit()
 
     const redraw = () => drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg)
     redraw()
     const unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
+    let ro = null
+    if (container && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        if (canvas.width === container.offsetWidth && canvas.height === container.offsetHeight) return
+        fit()
+        redraw()
+      })
+      ro.observe(container)
+    }
     return () => {
+      try { ro?.disconnect() } catch { /* noop */ }
       try { unsub() } catch {}
       const ctx = canvas.getContext('2d')
       ctx?.clearRect(0, 0, canvas.width, canvas.height)
@@ -20063,6 +20084,8 @@ export default function StockChart({
                PRIMARY toolbar only: it is the one handed this chart's symbol. */
             onStudioPreview={setStudioPreview}
             anchorRef={containerRef}
+            studioDockHost={studioDockHost}
+            onStudioDockChange={onStudioDockChange}
             onOpenLibrary={onOpenSettings ? () => onOpenSettings('add') : null}
             /* Charts workspace has the new settings modal (onOpenSettings) — drop
                the legacy V1 toolbar gear + its inline panel there. Other surfaces
