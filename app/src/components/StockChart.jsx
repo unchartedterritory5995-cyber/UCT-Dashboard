@@ -821,6 +821,7 @@ import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
+import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
@@ -6589,6 +6590,9 @@ export default function StockChart({
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
   const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, csView)
+  // ⭐ Market Cap's canonical PIT authority -- null (legacy path) unless the server
+  // authority is ON; a chart with no Market Cap source makes no request.
+  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, csView)
   // ⭐ THE FIFTH SOURCE FAMILY'S DATA — economic series (`econ:<SYMBOL>`), for an
   // overlay on ANY chart and for the primary economic series alike. Same seam, same
   // stable-identity discipline; a chart with no `econ:` source makes no request.
@@ -12720,6 +12724,7 @@ export default function StockChart({
         onFrameStale: (frame, s) => { try { refreshCalcFrameRef.current(frame, s) } catch { /* */ } },
         // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
         fundamentals: fundamentalSources,
+        marketCapAuthority: marketCapAuthoritySources,
         // ⭐ Economic series, already resolved (see `useEconomicSources`): release-
         // date placement, strict intraday, per-frequency max age, period-monotone.
         economics: economicSources,
@@ -13809,7 +13814,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

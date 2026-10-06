@@ -136,15 +136,18 @@ def prices_from_bars(bars_db: str, universe_path: str, out: str, pause: float = 
 
 
 def reference_from_massive(universe_path: str, out: str, *, key: str | None = None, pause: float = 0.25,
-                           base: str = "https://api.polygon.io") -> dict:
+                           base: str = "https://api.polygon.io", workers: int = 4) -> dict:
     """Massive reference per universe ticker: details, full split history, ticker-change events (resumable).
-    Identical endpoints and fields to the accepted candidate's pull. Share counts here are NEVER used as evidence."""
+    Identical endpoints and fields to the accepted candidate's pull. Share counts here are NEVER used as evidence.
+    `workers` tickers are pulled at once (each still pauses `pause` after its requests: one ticker at a time took
+    2-6 h for ~9,300 tickers). Lines are appended as tickers finish (resumable) and the file is rewritten sorted by
+    ticker at the end, so the same answers always make the same bytes (input provenance hashes it)."""
     key = key or os.environ.get("MASSIVE_API_KEY") or os.environ.get("POLYGON_API_KEY")
     if not key:
         raise AcquisitionError("Massive API key NOT CONFIGURED")
     errors = []
 
-    def get(path):
+    def get(path, errs):
         url = base + path + ("&" if "?" in path else "?") + "apiKey=" + key
         for i in range(4):
             try:
@@ -156,31 +159,51 @@ def reference_from_massive(universe_path: str, out: str, *, key: str | None = No
                 time.sleep(2 * (i + 1))
             except Exception:  # noqa: BLE001
                 time.sleep(2 * (i + 1))
-        errors.append(path.split("?")[0])
+        errs.append(path.split("?")[0])
         return {"status": "ERROR"}
 
     done = set()
     if os.path.exists(out):
         done = {json.loads(line)[0] for line in open(out)}
+    lock = threading.Lock()
     n = 0
-    with open(out, "a") as f:
-        for t in tickers_of(universe_path):
-            if t in done:
-                continue
-            d = (get(f"/v3/reference/tickers/{t}").get("results") or {})
-            s = get(f"/v3/reference/splits?ticker={t}&limit=1000").get("results") or []
-            ev = {}
-            if d.get("composite_figi"):
-                ev = (get(f"/vX/reference/tickers/{d['composite_figi']}/events").get("results") or {})
-            f.write(json.dumps([t, {k: d.get(k) for k in REF_FIELDS},
-                                [[x.get("execution_date"), x.get("split_from"), x.get("split_to")] for x in s],
-                                ev.get("events") or []]) + "\n")
-            f.flush()
-            n += 1
+
+    def one(t):
+        errs = []
+        d = (get(f"/v3/reference/tickers/{t}", errs).get("results") or {})
+        s = get(f"/v3/reference/splits?ticker={t}&limit=1000", errs).get("results") or []
+        ev = {}
+        if d.get("composite_figi"):
+            ev = (get(f"/vX/reference/tickers/{d['composite_figi']}/events", errs).get("results") or {})
+        if errs:                                            # never recorded: a resume pulls this ticker again
+            errors.extend(errs)
             time.sleep(pause)
+            return None
+        line = json.dumps([t, {k: d.get(k) for k in REF_FIELDS},
+                           [[x.get("execution_date"), x.get("split_from"), x.get("split_to")] for x in s],
+                           ev.get("events") or []]) + "\n"
+        time.sleep(pause)
+        return line
+
+    todo = [t for t in tickers_of(universe_path) if t not in done]
+    with open(out, "a") as f, ThreadPoolExecutor(max(1, workers)) as ex:
+        for line in ex.map(one, todo):
+            if line is None:
+                continue
+            with lock:
+                f.write(line)
+                f.flush()
+                n += 1
     if errors:
         raise AcquisitionError(f"{len(errors)} Massive reference requests failed (e.g. {errors[0]})")
-    return {"tickers_pulled": n, "already": len(done)}
+    rows = {}
+    for line in open(out):
+        rows[json.loads(line)[0]] = line                    # one line per ticker (a resumed duplicate: the later one)
+    tmp = out + ".sorted"
+    with open(tmp, "w") as f:
+        f.writelines(rows[t] for t in sorted(rows))
+    os.replace(tmp, out)
+    return {"tickers_pulled": n, "already": len(done), "tickers": len(rows)}
 
 
 # ── SEC public sources ──────────────────────────────────────────────────────────────────────────────────────────────

@@ -85,7 +85,7 @@ import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
-import { fundamentalColumn } from './fundamentalSource'
+import { fundamentalColumnWithAuthority } from './marketCapAuthority'
 import { economicColumn, economicPlotStyle, observationAtFor } from './economicSource'
 import { economicMeta } from './economicSeries'
 import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundamentalFormat'
@@ -1490,8 +1490,12 @@ export function createBinder({ chart, LWC }) {
           // chart's OWN close, or the pinned symbol's close through the SAME
           // exact-t projection a `sym:` source uses. Not-yet-loaded is `null`:
           // not computable, never a guess.
-          series = fundamentalColumn(parsed, {
+          // Market Cap: while the server authority is ON (`ctx.marketCapAuthority`
+          // non-null) it is the ONLY source -- `marketCapAuthority.js`; null keeps
+          // this exact legacy path.
+          series = fundamentalColumnWithAuthority(parsed, {
             bars, tf: ctx.tf, sym: ctx.sym, fundamentals: ctx.fundamentals || null,
+            marketCapAuthority: ctx.marketCapAuthority || null,
             closeOf: (sym) => {
               if (sym === String(ctx.sym || '').toUpperCase()) return barFieldSeries(bars, 'close')
               const e = secondary ? secondary.get(sym) : null

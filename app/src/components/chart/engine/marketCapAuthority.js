@@ -2,9 +2,9 @@
 //
 // ─── DARK: the chart as a THIN CONSUMER of the canonical Market Cap authority ──
 //
-// ⛔ NOT WIRED. Nothing imports this module in production. A separately
-// authorized migration would switch the binder's `fundamentalColumn` call to
-// `fundamentalColumnWithAuthority` and feed it `/api/marketcap/pit/{ticker}`.
+// WIRED (dark): binder.js calls `fundamentalColumnWithAuthority`; the map is
+// non-null only while the server authority is ON (marketCapAuthorityStore.js),
+// so with MCAP_PIT_ENABLED unset every chart takes the unchanged legacy path.
 //
 // The server authority (api/services/marketcap/serve.py) returns the DAILY
 // COMPANY equity capitalization -- identity-bounded (no ticker-reuse history),
@@ -78,9 +78,12 @@ export function fundamentalColumnWithAuthority(parsed, ctx) {
   const isMcap = parsed && parsed.kind === 'fundamental' && String(parsed.metric) === 'market_cap'
   const auth = ctx && ctx.marketCapAuthority
   if (isMcap && auth && typeof auth.get === 'function') {
+    // ⛔ AUTHORITY ON = AUTHORITY ONLY. A series still loading, a ticker the
+    // authority does not carry, or an intraday frame is NOT COMPUTABLE (null) --
+    // never a close x shares stand-in, which would flash a second methodology.
     const sym = (parsed.symbol || ctx.sym || '').toUpperCase()
     const pts = auth.get(sym)
-    if (pts) return authorityColumn(pts, ctx.bars, ctx.tf)
+    return Array.isArray(pts) ? authorityColumn(pts, ctx.bars, ctx.tf) : null
   }
   return fundamentalColumn(parsed, ctx)
 }
