@@ -114,6 +114,25 @@ describe('VolStatsPanel (FT-020)', () => {
     await waitFor(() => expect(screen.getByTestId('vol-vrp').textContent).toContain('+13.0 vol pts'))
   })
 
+  it('a partial result names what was not computed -- never "HV10 —" as if it were data', async () => {
+    vi.stubGlobal('fetch', vi.fn((u) => {
+      if (u.includes('/realized')) {
+        return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve(
+          { label: 'computed', method: 'HV.', available: true, hv: { hv10: null, hv20: 0.25, hv30: null } }) })
+      }
+      if (u.includes('/interpolated-iv')) return new Promise(() => {})   // still in flight
+      return Promise.resolve({ status: 404, ok: false, json: () => Promise.resolve({ detail: 'Not Found' }) })
+    }))
+    wrap(<VolStatsPanel sym="TST" />)
+    expect((await screen.findByTestId('vol-realized')).textContent).toBe(
+      'Realized (close to close): HV10 not computed · HV20 25.0% · HV30 not computed (not enough daily closes on file for those windows)')
+    expect(screen.getByTestId('vol-iv30').textContent).toBe(
+      '30-day constant-maturity IV: still loading… (from vendor ATM IV by expiration)')
+    await waitFor(() => expect(screen.getByTestId('vol-vrp').textContent).toBe(
+      'Variance risk premium (IV30 − HV30): not switched on'))
+    expect(screen.getByTestId('vol-stats').textContent).not.toContain('—')
+  })
+
   it('a body that is not a vol answer renders nothing', async () => {
     stub({ '/realized': [200, { calls: [] }], '/interpolated-iv': [200, { calls: [] }], '/vrp': [200, { calls: [] }] })
     const { container } = wrap(<VolStatsPanel sym="TST" />)
