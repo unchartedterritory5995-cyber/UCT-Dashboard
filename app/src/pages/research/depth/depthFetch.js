@@ -5,6 +5,7 @@
 //   400 -> { badRequest: <the server's sentence> }  (a query the language cannot express)
 
 import { useEffect, useRef } from 'react'
+import { withDeadline } from '../../../components/research/sections/sectionFetch'
 
 // Live sweep 2026-10-05: BRKE, ERX and EVTS answer `pending` on a cold read (their data is
 // fetched behind the request) and the server's sentence told the member to "reopen in a
@@ -32,7 +33,13 @@ export class DepthFetchError extends Error {
   }
 }
 
-export async function depthFetcher(url) {
+// Same deadline as sectionFetcher: a request that never answers ends as a failure, not an
+// endless loading line.
+export function depthFetcher(url) {
+  return withDeadline(depthFetchOnce(url), url)
+}
+
+async function depthFetchOnce(url) {
   let res
   try {
     res = await fetch(url)
