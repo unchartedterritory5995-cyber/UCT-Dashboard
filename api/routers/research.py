@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from api.middleware.auth_middleware import require_admin, get_current_user
+from api.services import boot_probe
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
 from api.services.research.analyst_ratings import get_analyst_ratings
@@ -272,10 +273,14 @@ _SLOW_EE_SECONDS = 5.0
 
 
 def _timed(legs: dict, name: str, fn, *args):
-    """Run `fn(*args)` and record its wall time in `legs[name]`, raise or return."""
+    """Run `fn(*args)` and record its wall time in `legs[name]`, raise or return.
+    The leg thread is TRACKED (`boot_probe.track`), so a leg still running at 10 s / 30 s /
+    90 s gets its stack dumped as a `[slow-stack] ee-<name> ...` line -- the frame it is
+    parked in is the answer the `[ee-slow]` line alone could not give (2026-10-06)."""
     t0 = time.monotonic()
     try:
-        return fn(*args)
+        with boot_probe.track(f"ee-{name} {(args[0] if args else '')}"):
+            return fn(*args)
     finally:
         legs[name] = time.monotonic() - t0
 
@@ -287,6 +292,13 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     FMP multi-year consensus beside them, read CONCURRENTLY with the yfinance leg
     so a cold load costs the slower of the two, not their sum. Without the
     parameter the response is exactly what it always was."""
+    # Route-entry line, first 10 min after boot only, BEFORE any import or lock: proves
+    # whether the handler started at all when a boot-window open stalls.
+    t_start = time.monotonic()
+    if boot_probe.in_entry_window():
+        _logger.info("[ee-enter] %s consensus=%s boot+%.0fs threads=%d",
+                     (sym or "").upper(), consensus, boot_probe.boot_age(),
+                     threading.active_count())
     if not consensus:
         try:
             return _fund_marked(get_estimates(sym), sym, _EE_FUND_WHY)
@@ -295,11 +307,12 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
             return _fund_marked({"sym": (sym or "").upper(), "entity": None, "forward": [],
                                  "revisions": []}, sym, _EE_FUND_WHY)
 
+    t_imp = time.monotonic()
     from api.services.research.estimates_consensus import get_consensus
+    t_imp = time.monotonic() - t_imp
     # Slow-open trace (2026-10-06 boot contention): three opens of TSM EE hung 102 / 47 / 5 s
     # and released within 7 ms of each other, and no log line said what they waited on. A
     # slow answer now names its legs and whether the estimates key was already in flight.
-    t_start = time.monotonic()
     est_key = f"research_est::{(sym or '').upper().strip()}"
     try:
         from api.services import single_flight as _sf
@@ -326,9 +339,10 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
                                 "annual": [], "quarterly": []}
     total = time.monotonic() - t_start
     if total >= _SLOW_EE_SECONDS:
-        _logger.warning("[ee-slow] %s %.1fs: yf %.1fs, fmp %.1fs, estimates key in flight at entry=%s",
+        _logger.warning("[ee-slow] %s %.1fs: yf %.1fs, fmp %.1fs, estimates key in flight at entry=%s,"
+                        " import %.2fs, boot+%.0fs",
                         (sym or "").upper(), total, legs.get("yf", -1.0), legs.get("fmp", -1.0),
-                        in_flight_at_entry)
+                        in_flight_at_entry, t_imp, boot_probe.boot_age())
     # Which vendor stands behind each block, for the on-screen source line.
     out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
                       "consensus": "FMP"}
