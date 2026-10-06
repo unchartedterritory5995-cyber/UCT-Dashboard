@@ -403,10 +403,16 @@ def test_exactly_TWO_router_modules_declare_an_api_screener_path():
     # The control: the walk CAN see route paths, so an empty answer is a broken
     # probe rather than a repo with no screener routes.
     assert declarers, "the AST census found no /api/screener/ route at all — broken"
-    assert set(declarers) == {"screener.py", "screener_backtest.py"}, (
-        "a THIRD module declares an /api/screener/ route. That is a new paid "
-        "surface, and neither this file nor tests/test_scan_screener_auth.py is "
-        f"looking at it: {sorted(declarers)}")
+    # Each module here is held by a paywall rail that sweeps its routes:
+    #   screener.py          -> tests/test_scan_screener_auth.py
+    #   screener_backtest.py -> this file
+    #   screen_promote.py, screener_nl.py -> tests/test_screener_side_routers_auth.py
+    #     (added 2026-10-05 when this census found them ungoverned)
+    assert set(declarers) == {"screener.py", "screener_backtest.py",
+                              "screen_promote.py", "screener_nl.py"}, (
+        "a NEW module declares an /api/screener/ route. That is a new paid "
+        "surface, and no paywall rail is looking at it: add it to one before "
+        f"adding it here: {sorted(declarers)}")
 
 
 def test_the_router_is_mounted_in_main_with_no_hoisted_gate():

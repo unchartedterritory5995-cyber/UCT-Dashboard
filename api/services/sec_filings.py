@@ -130,7 +130,13 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
     most recent filings newest-first."""
     cik = _ticker_to_cik(ticker)
     if not cik:
-        return {"error": f"ticker {ticker!r} not found in SEC CIK map"}
+        # R7: "not found" is only a claim about the company when the SEC map
+        # actually loaded. If it did not (an SEC outage), say so: the map
+        # fetch failing is a fact about SEC, not about this ticker.
+        if not _cik_map():                       # cached; empty only when the fetch failed
+            return {"error": "SEC ticker map unavailable", "error_kind": "unavailable"}
+        return {"error": f"ticker {ticker!r} not found in SEC CIK map",
+                "error_kind": "not_found"}
 
     cache_key = f"sec::filings::{cik}"
     cached = _CACHE.get(cache_key)
@@ -145,7 +151,7 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
             data = r.json()
         except Exception as e:
             _log.warning("SEC submissions fetch failed for %s: %s", cik, e)
-            return {"error": f"SEC fetch failed: {e}"}
+            return {"error": f"SEC fetch failed: {e}", "error_kind": "unavailable"}
         _CACHE.set(cache_key, data, _FILINGS_TTL)
         cached = data
 

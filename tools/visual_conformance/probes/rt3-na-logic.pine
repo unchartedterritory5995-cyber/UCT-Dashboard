@@ -1,0 +1,32 @@
+//@version=5
+indicator("UCTPROBE_RT3_NA_LOGIC", overlay = false)
+
+// RT3 (2026-10-02): what do `or`, `not` and `and` answer when an OPERAND is na,
+// in v4 and v5 (where a bool can be na and a number is cast to bool)? RT3 reads
+// an na `?:` / `if` TEST as false from v4 (two committed captures), but whether
+// a v4/v5 `or` / `not` carries an na operand through, or reads it as false,
+// is unwitnessed - so the member door's runtime fallback still declines such a
+// script by name (`runtime:na-test`; cc-yata, RDDT 1D, is the corpus case).
+// v6 needs no capture: its bools are never na.
+//
+// Capture on NYSE:RDDT 1D, full history, market closed (Q-NL-a); then the same
+// file with line 1 changed to //@version=4 and `indicator(` to `study(`,
+// `ta.sma(` to `sma(` (Q-NL-b).
+
+plot(bar_index, "B00_bar_index_CONTROL")
+
+warm = ta.sma(close, 20)                // na on bars 0..18
+bool w = warm > 0 ? true : na           // an na BOOL on bars 0..18, true after
+bool b = na                             // an na bool literal, every bar
+// a bool operand that is na
+plot((w or true) ? 1 : 2, "B01_naBool_or_true")
+plot((not w) ? 1 : 2, "B02_not_naBool")
+plot((w and true) ? 1 : 2, "B03_naBool_and_true_CONTROL")
+plot(na(w or false) ? 1 : 2, "B04_na_of_naBool_or_false")
+plot(na(not w) ? 1 : 2, "B05_na_of_not_naBool")
+plot((b or true) ? 1 : 2, "B06_naLiteral_or_true")
+plot((not b) ? 1 : 2, "B07_not_naLiteral")
+// a NUMBER operand that is na (cast to bool)
+plot((warm or false) ? 1 : 2, "B08_naFloat_or_false")
+plot((warm or true) ? 1 : 2, "B09_naFloat_or_true")
+plot((not warm) ? 1 : 2, "B10_not_naFloat")

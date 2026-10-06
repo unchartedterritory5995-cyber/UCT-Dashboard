@@ -78,4 +78,15 @@ describe('AnalystRevisions', () => {
     mount()
     expect(await screen.findByText(/Couldn.t load the analyst revision history/)).toBeTruthy()
   })
+
+  it('EPS growth is already a percent from the backend -- never multiplied by 100', async () => {
+    serve(200, { ...BASE, status: 'revised', observations: 2,
+      window: { first: '2026-09-29', last: '2026-09-30' },
+      revisions: [{ from_date: '2026-09-29', to_date: '2026-09-30', changes: {
+        eps_next_y_growth: { from: 12.5, to: 15.25 } } }] })
+    mount()
+    const list = await screen.findByTestId('revisions-list')
+    expect(list).toHaveTextContent('EPS growth, next year 12.5% → 15.3%')
+    expect(list).not.toHaveTextContent('1250.0%')
+  })
 })

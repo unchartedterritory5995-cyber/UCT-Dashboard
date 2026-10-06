@@ -233,6 +233,9 @@ const CASES = [
   // the tree a document saved before C49 carries: still 1D and 60 minutes only
   ['own (C36 tree) · weekdays · D', 'own (C36 tree)', 'weekdays', { tf: 'D' }],
   ['own (C36 tree) · rth 15m · 15', 'own (C36 tree)', 'rth15', { tf: '15' }],
+  // ⭐ H5 — a series FROM THE LISTING (ruling R-W): no bar before it to be unknown,
+  // so nothing is withheld for one (`vendorHarness.h5ListingAnchor` grades it)
+  ...['change(W)', 'change(M)'].map((k) => [`${k} · weekdays · D · from the listing`, k, 'weekdays', { tf: 'D', historyFromListing: true }]),
 ]
 
 function evaluate(ast, bars, opts) {
@@ -299,6 +302,17 @@ describe('C36 · the fixture is not vacuous', () => {
   const codes = (name) => byName.get(name).codes
   const nulls = (name) => col(name).filter((v) => v === null).length
   const dateAt = (set, i) => PARITY.bars[set][i].t
+
+  it('⭐ H5 — from the listing nothing is withheld for "the bar before the series"; off it, that bar is', () => {
+    for (const k of ['change(W)', 'change(M)']) {
+      expect(nulls(`${k} · weekdays · D`), k).toBeGreaterThan(0)
+      expect(nulls(`${k} · weekdays · D · from the listing`), k).toBe(0)
+      // the rest of the column is the same answer: only the withheld head moved
+      const off = col(`${k} · weekdays · D`)
+      const on = col(`${k} · weekdays · D · from the listing`)
+      off.forEach((v, i) => { if (v !== null) expect(on[i], `${k} bar ${i}`).toBe(v) })
+    }
+  })
 
   it('⭐ C49 — on session bars the four periods are SERVED on every bar, the first partial period included: the calendar\'s open', () => {
     expect(['W', 'M', 'Q', 'Y'].map((k) => nulls(`${k} · weekdays · D`))).toEqual([0, 0, 0, 0])

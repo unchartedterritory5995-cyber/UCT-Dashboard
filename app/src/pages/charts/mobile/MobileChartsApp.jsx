@@ -70,6 +70,7 @@ export default function MobileChartsApp({
   layoutsSavedFlash = false, isAdmin = false,
   onApplyLayout, onApplyUctDefault, onSaveLayout, onSaveLayoutAs, onDeleteLayout,
   onLayoutRestored,   // COV-06: ChartsWorkspace's handleDockRestored (version history / undelete)
+  onEnterMultiChart,  // P14b: ChartsWorkspace's `() => mc.enterGrid()` — row hidden when absent
 }) {
   const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
 
@@ -572,6 +573,7 @@ export default function MobileChartsApp({
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
         onDrawOnChart={drawOnChart}
+        onEnterMultiChart={onEnterMultiChart}
         className={sheetTheme}
       />
       <MobileBoardsSheet

@@ -1,0 +1,115 @@
+{
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/memberDoorCensus.measure.test.js (VENDOR_BATCH_CENSUS_RUNTIME=1), extract",
+ "tree": "pine/rf-runtime-readiness @ 666ea1c854 (pre-RF code; RF changes no routing)",
+ "files": 266,
+ "attached": {
+  "off": 55,
+  "on": 80,
+  "runtime": 86
+ },
+ "runtimeOnly": [
+  {
+   "slug": "adx-and-di-for-v4",
+   "file": "corpus/committed/adx-and-di-for-v4__932.pine",
+   "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+   "plots": 3,
+   "withheld": [],
+   "drawsObjects": false,
+   "lane": "runtime"
+  },
+  {
+   "slug": "delta-rsi-oscillator-strategy",
+   "file": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+   "sha256": "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c",
+   "plots": 4,
+   "withheld": [],
+   "drawsObjects": false,
+   "lane": "runtime"
+  },
+  {
+   "slug": "fibonacci-dolphintradebot",
+   "file": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine",
+   "sha256": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": false,
+   "lane": "runtime"
+  },
+  {
+   "slug": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": true,
+   "lane": "runtime"
+  },
+  {
+   "slug": "trend-targets-algoalpha",
+   "file": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
+   "sha256": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
+   "plots": 4,
+   "withheld": [
+    "Baseline"
+   ],
+   "drawsObjects": true,
+   "lane": "runtime"
+  },
+  {
+   "slug": "wyckoff-accumulation-distribution",
+   "file": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine",
+   "sha256": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
+   "plots": 5,
+   "withheld": [
+    "The Selling Climax",
+    "the Secondary Test",
+    "The Buying Climax"
+   ],
+   "drawsObjects": false,
+   "lane": "runtime"
+  }
+ ],
+ "runtimeDeclinedCodes": {
+  "runtime:library": 33,
+  "runtime:statement": 12,
+  "pine:builtin": 11,
+  "runtime:call-undeclared-builtin-state": 10,
+  "pine:request": 9,
+  "pine:function": 9,
+  "runtime:history-dynamic-offset": 9,
+  "pine:statement": 7,
+  "runtime:history-expression": 6,
+  "pine:input-kind": 6,
+  "runtime:withheld-all": 4,
+  "runtime:object-op": 4,
+  "pine:strategy-call": 4,
+  "runtime:request": 3,
+  "runtime:varip": 3,
+  "runtime:block-value": 3,
+  "runtime:presentation": 3,
+  "runtime:function": 3,
+  "lower-tf:store-unmeasured": 3,
+  "runtime:array": 3,
+  "lower-tf:lookahead": 2,
+  "runtime:call-windowed-state": 2,
+  "runtime:loop": 2,
+  "pine:window": 2,
+  "pine:collection": 2,
+  "pine:arity": 1,
+  "runtime:expression-statement": 1,
+  "runtime:na-test": 1,
+  "runtime:directive": 1,
+  "runtime:call-conversion-state": 1,
+  "pine:colour-value": 1,
+  "pine:text-value": 1,
+  "pine:role-order": 1,
+  "runtime:request-with-state": 1,
+  "runtime:call-text-state": 1,
+  "runtime:input-state": 1,
+  "runtime:fill-gradient": 1,
+  "runtime:no-output": 1,
+  "runtime:function-global-state": 1,
+  "pine:block": 1,
+  "runtime:nothing-drawn": 1
+ }
+}

@@ -25,3 +25,5 @@
 .up { color: var(--gain); }
 .down { color: var(--loss); }
 .help { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; padding-left: 16px; }
+/* The panel a ?panel= deep link (e.g. the /terminal EVTS "Full page") landed on. */
+.focused { outline: 1px solid var(--ut-gold, var(--accent, var(--border))); outline-offset: 6px; border-radius: 4px; scroll-margin-top: 12px; }

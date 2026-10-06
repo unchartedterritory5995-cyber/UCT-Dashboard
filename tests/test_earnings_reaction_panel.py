@@ -62,6 +62,20 @@ class TestRows:
         assert row["drift_pct"] is None and row["drift_state"] == "pending"
         assert row["reaction_pct"] is not None
 
+    def test_R22_a_report_on_the_LAST_session_waits_for_the_next_one(self):
+        # An after-close report on the newest bar: that bar is the PRE-print
+        # session. It must not be shown as the reaction until the next session
+        # has traded.
+        bars, days = _bars()
+        (row,) = p.quarter_rows([_q("Q3", days[30])], bars)
+        assert row["session"] is None and row["reaction_pct"] is None and row["gap_pct"] is None
+        assert row["reaction_state"] == "awaiting_next_session"
+
+    def test_R22_once_the_next_session_trades_the_reaction_is_measured(self):
+        bars, days = _bars()
+        (row,) = p.quarter_rows([_q("Q1", days[9])], bars)
+        assert row["reaction_state"] == "measured" and row["session"] == days[10]
+
     def test_a_quarter_outside_the_bars_keeps_its_slot(self):
         bars, days = _bars()
         rows = p.quarter_rows([_q("Q2", days[10]), _q("Q1", "2019-01-02")], bars)

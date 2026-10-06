@@ -515,6 +515,34 @@
   },
   {
    "method": "GET",
+   "path": "/live-trading-room",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Public marketing landing page for the live trading room: static HTML from app/public/live-trading-room/, no member data, must be crawlable."
+  },
+  {
+   "method": "HEAD",
+   "path": "/live-trading-room",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Public marketing landing page for the live trading room: static HTML from app/public/live-trading-room/, no member data, must be crawlable."
+  },
+  {
+   "method": "GET",
+   "path": "/live-trading-room/",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "301 to the canonical /live-trading-room (no body, no data)."
+  },
+  {
+   "method": "HEAD",
+   "path": "/live-trading-room/",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "301 to the canonical /live-trading-room (no body, no data)."
+  },
+  {
+   "method": "GET",
    "path": "/manifest.json",
    "kind": "public",
    "requires_dist": true,

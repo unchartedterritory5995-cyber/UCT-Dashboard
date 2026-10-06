@@ -19,6 +19,42 @@
 // ⭐ THE CONVENTION IS READ OFF THE CODE (`docs/frontend_feature_flags.json`):
 // default OFF means `=== '1'`, read INSIDE a function so a test can flip it, and
 // a build with no `import.meta.env` fails CLOSED.
+//
+// ⭐⭐ GT (2026-10-02, owner ruling D1) — AND A PER-MEMBER PERMISSION. The build
+// flag above is ONE bundle for every member, so turning it on used to turn the
+// runtime pane on for everybody at once. The owner ruled admins first, then
+// everyone: the pane now needs BOTH the build flag AND the server's answer for
+// THIS member, `pine_runtime_pane_enabled` on the auth payload
+// (`api/routers/auth.py::_access_payload`, driven by `PINE_RUNTIME_STAGE`
+// = off / admins / all, read per request, default off). The client never
+// re-derives it from a role; it is told yes or no.
+//
+// ⛔ LATCHED PER TAB, like `notebookFlags.js`: the FIRST payload carrying the key
+// decides this tab for its life, and a later poll that disagrees is counted, not
+// applied. A runtime pane must not start or stop drawing under a member while a
+// worker run is in flight; the flip reaches a new tab, a reload, and every other
+// member on their next authenticated request. ⛔ NOTHING LATCHED = NOT PERMITTED:
+// a tab that has not heard from the server (or a backend too old to send the key)
+// never draws through the runtime lane.
+
+// ⭐ The latch itself lives in `src/lib/runtimePanePermission.js` (it is fed by
+// AuthContext on the entry chunk, which may not reach this directory).
+export {
+  latchRuntimePanePermission, runtimePanePermitted, runtimePanePermissionDebug,
+  __resetRuntimePanePermission, __permitRuntimePaneForTests,
+} from '../../../lib/runtimePanePermission'
+import { runtimePanePermitted } from '../../../lib/runtimePanePermission'
+
+/** Is the build flag on? (`VITE_PINE_RUNTIME_PANE_ENABLED === '1'`).
+ *  @param {object} [env] injectable for tests; defaults to `import.meta.env`. */
+export function runtimePaneBuilt(env) {
+  try {
+    const source = env === undefined ? import.meta.env : env
+    return !!source && source.VITE_PINE_RUNTIME_PANE_ENABLED === '1'
+  } catch {
+    return false
+  }
+}
 
 /** May a member pane draw a script through the per-bar runtime lane?
  *
@@ -26,13 +62,10 @@
  *  `nativeRegistry.validateUserDefinitions` (the install door that must refuse a
  *  runtime document on a build that may not draw one) both ask this function.
  *
+ *  ⭐ GT: BOTH the build flag AND the latched per-member permission.
+ *
  *  @param {object} [env] injectable for tests; defaults to `import.meta.env`,
  *  bound LATE so a module-level stub is seen. */
 export function runtimePaneEnabled(env) {
-  try {
-    const source = env === undefined ? import.meta.env : env
-    return !!source && source.VITE_PINE_RUNTIME_PANE_ENABLED === '1'
-  } catch {
-    return false
-  }
+  return runtimePaneBuilt(env) && runtimePanePermitted()
 }

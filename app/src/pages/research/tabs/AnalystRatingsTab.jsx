@@ -88,12 +88,25 @@ function toRatingChangeRows(actions) {
 }
 
 export default function AnalystRatingsTab({ sym }) {
-  const { data, isLoading } = useAnalystRatings(sym)
+  const { data, isLoading, error, mutate } = useAnalystRatings(sym)
   const session = useMarketOpen()
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading analyst ratings…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not a genuinely empty analyst record.
+  // Render the error distinctly so a backend hiccup never reads as "no
+  // analyst data exists".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="analyst-ratings-error">
+        Couldn't load analyst ratings for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const e = data || {}

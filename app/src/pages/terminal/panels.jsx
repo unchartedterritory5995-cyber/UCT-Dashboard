@@ -13,7 +13,7 @@
 // The importers are exported so `functions.rail.test.js` can IMPORT every one and assert
 // a default-exported component — the "resolves to a real component" rail is import-based,
 // not a list typed beside this one.
-import { lazy } from 'react'
+import lazy from '../../utils/lazyWithRetry'
 import { SURFACE_IMPORTERS_BY_ID, URL_WRITING_SURFACE_IDS, surfacePanel } from './surfacePanels'
 
 /** A named export served as a lazy() default (VolPanels exports several panels). */
@@ -26,8 +26,10 @@ export const PANEL_IMPORTERS = {
   News: () => import('../research/tabs/NewsTab'),
   Catalysts: () => import('../research/tabs/CatalystsTab'),
   Technical: () => import('../research/tabs/TechnicalTab'),
-  Financials: () => import('../research/tabs/FinancialsTab'),
-  Estimates: () => import('../research/tabs/EstimatesTab'),
+  // FA / EE on FMP (gap audit 3 + 4): the depth views, which fall back to the
+  // yfinance tabs — labelled — only where FMP holds nothing.
+  Financials: () => import('../../components/research/fmpDepth/FinancialsDeep'),
+  Estimates: () => import('../../components/research/fmpDepth/ConsensusEstimates'),
   EstimateHistory: () => import('../research/tabs/EstimateHistoryTab'),
   AnalystRatings: () => import('../research/tabs/AnalystRatingsTab'),
   Ratings: () => import('../research/tabs/RatingsTab'),

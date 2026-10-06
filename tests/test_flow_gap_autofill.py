@@ -61,7 +61,7 @@ def db(tmp_path, monkeypatch):
     monkeypatch.setattr(gf, "BACKUP_DIR", str(tmp_path / "backups"))
     monkeypatch.setattr(gf, "_post_discord", lambda msg: True)
     bumps = []
-    monkeypatch.setattr(gf, "_bump_version", lambda: bumps.append(1) or len(bumps))
+    monkeypatch.setattr(gf, "_bump_version", lambda mdy=None: bumps.append(1) or len(bumps))  # takes the healed date since #269
     monkeypatch.setattr(gf, "_current_version", lambda: 1000 + len(bumps))
     gf._init_schema()
     return {"path": path, "bumps": bumps}

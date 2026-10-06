@@ -473,6 +473,18 @@ export default function ComingSoon() {
           <span className={styles.proofArrow} aria-hidden="true">→</span>
         </a>
 
+        {/* The live trading room is open now, on its own server-rendered page.
+            A plain <a>, not a router <Link>: the SPA has no route for it, so a
+            client-side navigation would land on the catch-all instead. */}
+        <a
+          className={`${styles.proof} ${styles.roomLink}`}
+          href="/live-trading-room"
+          onClick={() => track('coming_soon_room_click')}
+        >
+          Looking for the live trading room? Uncharted Territory
+          <span className={styles.proofArrow} aria-hidden="true">→</span>
+        </a>
+
         {!left && (
           <p className={styles.opening} role="status">{passedLabel(target, now)}</p>
         )}

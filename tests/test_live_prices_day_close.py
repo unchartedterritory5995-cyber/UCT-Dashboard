@@ -101,10 +101,30 @@ def test_change_pct_genuine_flat_stays_zero():
 
 def test_change_pct_always_regular_session_from_closes():
     # Even with a real nonzero todaysChangePerc (1.0), the REGULAR-session move
-    # (day close vs prev close) wins — todaysChangePerc is last-trade-based (incl.
-    # after-hours) so it mis-states the day %. day_c=10.0, prev_c=9.5 → 5.2632%.
-    out = lp._fetch_snapshots(_FakeClient(10.0), ["AAPL"], "regular")
+    # wins — todaysChangePerc is last-trade-based (incl. after-hours) so it
+    # mis-states the day %. Outside RTH `price` is day.c, so the change is
+    # day_c=10.0 vs prev_c=9.5 → 5.2632%.
+    out = lp._fetch_snapshots(_FakeClient(10.0), ["AAPL"], "post_market")
+    assert out["AAPL"]["price"] == 10.0
     assert out["AAPL"]["change_pct"] == round((10.0 - 9.5) / 9.5 * 100, 4)
+
+
+def test_L4_in_RTH_the_change_is_derived_from_the_price_the_row_returns():
+    # Measured 2026-10-05: NVDA price 239.81 (last trade), prev_close 233.95,
+    # but change_pct 2.5198 / change 5.895 came from day.c 239.845. The row must
+    # agree with itself: (price - prev_close) / prev_close.
+    class _Nvda(_PriceClient):
+        def _get(self, url, timeout=None):
+            return {"tickers": [{
+                "ticker": "NVDA",
+                "day": {"o": 234, "h": 240, "l": 233, "c": 239.845, "v": 1},
+                "prevDay": {"c": 233.95}, "lastTrade": {"p": 239.81},
+                "todaysChangePerc": 2.5, "todaysChange": 5.86}]}
+    row = lp._fetch_snapshots(_Nvda(0, 0), ["NVDA"], "regular")["NVDA"]
+    assert row["price"] == 239.81 and row["prev_close"] == 233.95
+    assert row["change"] == round(239.81 - 233.95, 4)
+    assert row["change_pct"] == round((239.81 - 233.95) / 233.95 * 100, 4)
+    assert abs(row["change_pct"] - 2.5048) < 0.001
 
 
 class _PriceClient:

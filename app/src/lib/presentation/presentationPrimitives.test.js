@@ -117,10 +117,14 @@ describe('S10 primitives are byte-identical to the helpers they replace', () => 
     }
   })
 
-  it('formatCurrency reproduces presentationFormat.formatPrice on every input', () => {
+  it('formatCurrency reproduces presentationFormat.formatPrice on every input -- except the ONE deliberate move: the minus goes before the "$"', () => {
+    // "$-2.90" read as a typo to members; "-$2.90" is the only intended change.
+    const signMoved = (s) => (String(s).startsWith('$-') ? `-$${String(s).slice(2)}` : String(s))
     for (const v of NUMERIC_INPUTS) {
-      expect(formatCurrency(v), `formatCurrency(${String(v)})`).toBe(OLD_formatPrice(v))
+      expect(formatCurrency(v), `formatCurrency(${String(v)})`).toBe(signMoved(OLD_formatPrice(v)))
     }
+    expect(formatCurrency(-2.9)).toBe('-$2.90')
+    expect(OLD_formatPrice(-2.9)).toBe('$-2.90') // the oracle still differs, so the move is real
   })
 
   it('formatTimeEt({seconds:true}) reproduces presentationFormat.formatEtTime', () => {
@@ -256,9 +260,12 @@ describe('formatCompact (TERM-066) — volume, market cap, revenue, share count'
     expect(formatCompact(0)).toBe('0')
   })
 
-  it('the prefix goes OUTSIDE the sign, as the grammars it replaced always did', () => {
-    expect(formatCompact(-1.5e9, { prefix: '$' })).toBe('$-1.5B')
+  it('a currency prefix goes INSIDE the minus: "-$2.9B", never "$-2.9B"', () => {
+    expect(formatCompact(-2.9e9, { prefix: '$' })).toBe('-$2.9B')
+    expect(formatCompact(-1.5e9, { prefix: '$' })).toBe('-$1.5B')
+    expect(formatCompact(-512, { prefix: '$' })).toBe('-$512')
     expect(formatCompact(512, { prefix: '$' })).toBe('$512')
+    expect(formatCompact(-1.5e9)).toBe('-1.5B')              // no prefix: unchanged
   })
 
   it('per-tier decimals, and "round" is Math.round — NOT toFixed(0)', () => {

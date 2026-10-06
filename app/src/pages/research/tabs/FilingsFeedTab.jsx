@@ -14,6 +14,23 @@ import styles from './ResearchCov.module.css'
 const FORMS = ['All', '8-K', '10-Q', '10-K', '4', 'SCHEDULE 13D', 'SCHEDULE 13G', 'S-1']
 const when = (r) => (r.accepted ? String(r.accepted).replace('T', ' ').slice(0, 16) : r.filed || 'unavailable')
 
+// An empty answer, said in words. A missing `reason` is never printed (it once
+// read "Unavailable: undefined."), and a read that succeeded but holds none of
+// the filtered form says so about the WINDOW we fetched, never about the
+// company: the feed and the submissions list are both a recent slice.
+export function emptyText(data, form, label) {
+  const src = data.source ? ` (${data.source})` : ''
+  const why = data.reason ? `: ${data.reason}` : ''
+  if (data.state === 'pending') return `Pending${why}.${src}`
+  if ((data.state === 'ok' || data.state === 'stale') && Array.isArray(data.rows)) {
+    const what = form && form !== 'All' ? `${form === '4' ? 'Form 4' : form} filing` : 'filing in the forms this feed covers'
+    const stale = data.state === 'stale' && data.reason ? ` Note: ${data.reason}.` : ''
+    return `None: no ${what} for ${label} among the most recent filings we fetched.${stale}${src}`
+  }
+  if (data.state === 'none_in_scope') return `None${why}.${src}`
+  return `Unavailable${why}.${src}`
+}
+
 function Row({ r, showCompany }) {
   return (
     <tr data-testid={`filing-${r.accession}`}>
@@ -59,9 +76,7 @@ export default function FilingsFeedTab({ sym }) {
   } else if (data.paywalled) {
     body = <div className={styles.note}>The filings feed requires a paid plan.</div>
   } else if (!data.rows || data.rows.length === 0) {
-    body = <div className={styles.gap} data-testid="feed-gap">
-      {data.state === 'pending' ? 'Pending' : data.state === 'none_in_scope' ? 'None' : 'Unavailable'}: {data.reason}. ({data.source})
-    </div>
+    body = <div className={styles.gap} data-testid="feed-gap">{emptyText(data, form, label)}</div>
   } else {
     body = (
       <>

@@ -49,8 +49,14 @@ SOURCE_SUBMISSIONS = "SEC EDGAR submissions"
 
 FEED_FORMS = ("8-K", "10-Q", "10-K", "4", "SCHEDULE 13D", "SCHEDULE 13G", "S-1")
 FEED_COUNT = 100
-MARKET_KEEP = 600
-TICKER_ROWS = 60
+# R8: every cap is PER FORM. A single cap across forms let a heavy Form 4
+# filer's insider paperwork fill all 60 ticker rows (and Form 4 / 8-K volume
+# fill the market's 600) before the form filter ran, so "10-K" answered "none"
+# for a company that had filed one.
+MARKET_KEEP = 600                 # total ceiling, never reached by one form alone
+MARKET_KEEP_PER_FORM = 100        # = FEED_COUNT: one poll's worth per form
+TICKER_ROWS = 60                  # per form
+_SUBMISSIONS_SCAN = 1000          # EDGAR's `recent` block holds up to 1000
 POLL_MINUTES = int(os.environ.get("FILINGS_FEED_POLL_MINUTES", "5"))
 
 _MARKET_KEY = "filings_feed::market"
@@ -193,11 +199,16 @@ def _row(*, form, company, cik, accession, filed, accepted, items, source, filed
 
 
 def parse_submissions(sub: dict, *, cik: int, ticker: str, limit: int = TICKER_ROWS) -> list[dict]:
+    """In-scope rows, newest first, at most `limit` PER BASE FORM (R8)."""
     rec = ((sub or {}).get("filings") or {}).get("recent") or {}
     forms = rec.get("form") or []
     out = []
-    for i, form in enumerate(forms):
+    per_form: dict[str, int] = {}
+    for i, form in enumerate(forms[:_SUBMISSIONS_SCAN]):
         if not in_scope(form):
+            continue
+        bf = base_form(form)
+        if per_form.get(bf, 0) >= limit:
             continue
         acc = (rec.get("accessionNumber") or [None] * len(forms))[i]
         if not acc:
@@ -208,7 +219,23 @@ def parse_submissions(sub: dict, *, cik: int, ticker: str, limit: int = TICKER_R
                         accepted=(rec.get("acceptanceDateTime") or [None] * len(forms))[i],
                         items=[c.strip() for c in items_raw.split(",") if c.strip()],
                         source=SOURCE_SUBMISSIONS, ticker=ticker))
-        if len(out) >= limit:
+        per_form[bf] = per_form.get(bf, 0) + 1
+        if len(per_form) == len(FEED_FORMS) and all(n >= limit for n in per_form.values()):
+            break
+    return out
+
+
+def _cap_per_form(rows: list[dict], per_form: int, total: int) -> list[dict]:
+    """Newest-first rows, at most `per_form` of each base form and `total` overall."""
+    seen: dict[str, int] = {}
+    out = []
+    for r in rows:
+        bf = base_form(r["form"])
+        if seen.get(bf, 0) >= per_form:
+            continue
+        seen[bf] = seen.get(bf, 0) + 1
+        out.append(r)
+        if len(out) >= total:
             break
     return out
 
@@ -280,7 +307,8 @@ def poll_market(*, forms=FEED_FORMS) -> dict:
             rows[r["accession"]] = r
         status[form] = {"state": "ok", "at": time.time(), "n": len(got)}
     merged = sorted(rows.values(), key=lambda r: (r.get("accepted") or "", r["accession"]), reverse=True)
-    snap = {"rows": merged[:MARKET_KEEP], "forms": status, "polled_at": time.time(),
+    snap = {"rows": _cap_per_form(merged, MARKET_KEEP_PER_FORM, MARKET_KEEP),
+            "forms": status, "polled_at": time.time(),
             "poll_minutes": POLL_MINUTES}
     cache.set(_MARKET_KEY, snap, _MARKET_TTL)
     return {"rows": len(snap["rows"]), "forms": {f: s["state"] for f, s in status.items()}}
@@ -304,6 +332,15 @@ def market_feed(*, form: Optional[str] = None, now: Optional[float] = None) -> d
         out["reason"] = f"the last successful poll was {int(age // 60)} minutes ago"
     if failed:
         out["partial"] = f"these forms could not be read on the last poll: {', '.join(failed)}"
+    if not rows:
+        # R8: an empty market read used to be `ok` with no rows and no reason.
+        scope = base_form(form) if form else "in-scope"
+        if form and base_form(form) in failed:
+            out["reason"] = f"the last poll could not read the {scope} feed"
+        elif state == "ok":
+            out["state"] = "none_in_scope"
+            out["reason"] = (f"EDGAR's latest-filings feed held no {scope} filing on the last poll "
+                             f"(the newest {MARKET_KEEP_PER_FORM} per form are kept)")
     return out
 
 
@@ -391,5 +428,6 @@ def ticker_feed(sym: str, *, form: Optional[str] = None) -> dict:
     if not rows:
         out["state"] = "none_in_scope"
         out["reason"] = ("SEC's recent-filings list for this company holds no "
-                         + (form or "8-K, 10-Q, 10-K, Form 4, 13D/G or S-1") + " filing")
+                         + (form or "8-K, 10-Q, 10-K, Form 4, 13D/G or S-1") + " filing"
+                         + f" (up to {TICKER_ROWS} of each form are kept)")
     return out

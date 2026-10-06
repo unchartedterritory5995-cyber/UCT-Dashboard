@@ -19,7 +19,9 @@ export function useWire(dateStr) {
   return useMobileSWR(
     dateStr ? `/api/calendar/wire?date=${dateStr}` : '/api/calendar/wire',
     fetcher,
-    { refreshInterval: 10000, revalidateOnFocus: false },
+    // marketHoursOnly: 10x slower only when the market is fully shut (overnight,
+    // weekends); pre-market and after-hours keep the 10s cadence.
+    { refreshInterval: 10000, revalidateOnFocus: false, marketHoursOnly: true },
   )
 }
 

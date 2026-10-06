@@ -55,6 +55,62 @@ export function runtimeKillList() {
   return _entries
 }
 
+// ─── ⭐⭐ GT (2026-10-02, owner ruling D6) — THE STARTER ALLOWLIST ──────────
+//
+// While the runtime pane is on for a member, the lane draws ONLY a script whose
+// source sha256 is on the SERVER's allowlist (`api/data/pine_runtime_allowlist.json`
+// ∪ `PINE_RUNTIME_ALLOWLIST`, served by the same read as the kill list). Today it
+// holds only adx-and-di-for-v4, the one script graded MATCH on a TradingView
+// capture. Any other script declines by name (`runtime:not-yet-graded`) and the
+// member reads the HOST lane's sentence, as for every runtime decline.
+//
+// ⛔ THE INVERSE POLARITY OF THE KILL LIST, AND IT FAILS THE OTHER WAY: nothing
+// latched (the read has not landed, or failed) means NOTHING IS GRADED, so the
+// preview declines until the server's list arrives — never "everything".
+// ⛔ Only hashes: grading is a property of the script, never of a definition id.
+
+const ALLOW_ANY = Symbol('allow-any (tests only)')
+let _allow = Object.freeze([])
+
+/** Normalise the server's allowlist: lowercase, trimmed, sha256 or a >=12-hex prefix. */
+export function normaliseAllowList(list) {
+  const raw = Array.isArray(list) ? list : (typeof list === 'string' ? list.split(/[\s,]+/) : [])
+  const out = []
+  for (const e of raw) {
+    const v = String(e == null ? '' : e).trim().toLowerCase()
+    if (HASH_RE.test(v)) out.push(v)
+  }
+  return Object.freeze([...new Set(out)])
+}
+
+/** Latch the server's allowlist (`GET /api/user-definitions/runtime-kill` → `allow`). */
+export function setRuntimeAllowList(list) {
+  _allow = normaliseAllowList(list)
+}
+
+/** The allowlist currently latched (tests, diagnostics). */
+export function runtimeAllowList() {
+  return _allow === ALLOW_ANY ? ['*'] : _allow
+}
+
+/** Rails only (`src/test-setup.js`): the suites that exercise the runtime LANE
+ *  run with every script graded, so they keep measuring the lane, not this list.
+ *  The list itself is railed with it reset (`runtimeSwitchOn.test.js`). */
+export function __allowEveryRuntimeScriptForTests() { _allow = ALLOW_ANY }
+/** Rails only. */
+export function __resetRuntimeAllowList() { _allow = Object.freeze([]) }
+
+/** Why this script is NOT drawn by the runtime lane (not yet graded), or null.
+ *  @param {{source?: string, hash?: string}} arg */
+export function runtimeNotGradedOf({ source, hash } = {}) {
+  if (_allow === ALLOW_ANY) return null
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  if (h && _allow.some((e) => h.startsWith(e))) return null
+  return `this script (sha256 ${h ? h.slice(0, 12) : '?'}…) has not yet been graded against `
+    + 'TradingView, so it is not drawn bar by bar'
+}
+
 /** The script's identity: the sha256 of its Pine source, UTF-8, as written. */
 export function runtimeSourceHash(source) {
   return sha256Hex(String(source == null ? '' : source))

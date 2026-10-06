@@ -1,6 +1,7 @@
 import useSWR from 'swr'
-import { depthFetcher } from './depthFetch'
+import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import HighlightThesis from '../../../utils/highlightThesis'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -13,8 +14,9 @@ const KIND = { earnings: 'Earnings', uct_catalyst: 'UCT catalyst', filing: 'Fili
 
 export default function EventsPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  usePendingReask(data?.sources?.earnings?.state === 'pending', mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
@@ -45,7 +47,7 @@ export default function EventsPanel({ sym }) {
                         {e.stage ? `${e.stage} ${e.print_label}` : '—'}
                       </td>
                       <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>
-                        <strong>{KIND[e.kind] || e.kind}</strong> {e.title}{e.detail ? ` — ${e.detail}` : ''}
+                        <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
                       <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{e.source}</td>

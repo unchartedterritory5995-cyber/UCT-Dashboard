@@ -165,10 +165,23 @@ plot(x)
     // it is RC-G's defect — telling a member their script never defined a name
     // it plainly defines. The cause is Pine's COMMA STATEMENT SEPARATOR, which
     // `pine.js::blockStatements` splits only for a line with NO block beneath it.
-    const r = refusalOf(`${head}int d = na , d := switch\n    close > 102 => 1\n    => 2\nplot(close)\n`)
+    //
+    // ⭐⭐ H2 (step 69): `blockStatements` NOW SPLITS THAT LINE — every segment a
+    // binding or a bare-name `:=`, the block opened by the LAST one — so the
+    // binding reaches this scope and the switch lowers (below). The comma
+    // sentence is still owed to a comma line the reader does NOT split: here the
+    // opener sits in the FIRST segment, so the arms have no honest owner.
+    const r = refusalOf(`${head}d := switch , e = 1\n    close > 102 => 1\n    => 2\nplot(close)\n`)
     expect(r.guard).toBe('runtime:statement')
     expect(r.message).toMatch(/,/)
     expect(r.message).not.toMatch(/nothing in this script binds/)
+  })
+
+  it('⭐⭐ H2 — the split comma line lowers as the two statements Pine runs', () => {
+    // the same values as writing `int d = na` and `d := switch …` on two lines
+    const out = run(`${head}int d = na , d := switch\n    close > 102 => 1\n    => 2\nplot(d)\n`)
+    expect(out).toEqual(run(`${head}int d = na\nd := switch\n    close > 102 => 1\n    => 2\nplot(d)\n`))
+    expect(out).toEqual(BARS.map((b) => (b.c > 102 ? 1 : 2)))
   })
 
   it('⛔ CONTROL — a comma INSIDE a call is not a statement separator', () => {

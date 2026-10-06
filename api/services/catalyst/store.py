@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import json
+import re
 import logging
 import os
 import sqlite3
@@ -207,7 +208,8 @@ def _init_db() -> None:
                           ("is_new", "INTEGER"),
                           ("refreshed_at", "INTEGER"),
                           ("pre_move", "INTEGER"),
-                          ("rating_change", "TEXT")):  # display-only analyst action JSON
+                          ("rating_change", "TEXT"),   # display-only analyst action JSON
+                          ("thesis_status", "TEXT")):  # L5: synthesize.THESIS_STATUSES
             try:
                 c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -344,18 +346,20 @@ def upsert_catalyst(row: dict) -> None:
         # looked" timestamp the tile shows, so a quiet morning where the 9:10 /
         # 9:20 runs reuse the 6 AM thesis no longer reads as "3h ago · stale".
         row = {"grade": None, "catalyst_type": None, "is_new": None,
-               "pre_move": None, "rating_change": None,
+               "pre_move": None, "rating_change": None, "thesis_status": None,
                "refreshed_at": int(time.time()), **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
                 thesis_sources, signals_hash, catalyst_at, raw_signals,
-                grade, catalyst_type, is_new, refreshed_at, pre_move, rating_change)
+                grade, catalyst_type, is_new, refreshed_at, pre_move, rating_change,
+                thesis_status)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
                        :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
-                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move, :rating_change)
+                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move, :rating_change,
+                       :thesis_status)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -377,7 +381,8 @@ def upsert_catalyst(row: dict) -> None:
                  is_new         = excluded.is_new,
                  refreshed_at   = excluded.refreshed_at,
                  pre_move       = excluded.pre_move,
-                 rating_change  = excluded.rating_change""",
+                 rating_change  = excluded.rating_change,
+                 thesis_status  = excluded.thesis_status""",
             row,
         )
         c.commit()
@@ -761,6 +766,22 @@ def get_for_date(market_date: str, ranked_only: bool = True) -> list[dict]:
         return [_deserialize_row(dict(r)) for r in c.execute(sql, (market_date,)).fetchall()]
 
 
+# Rows written before L5 (2026-10-05) carry the engine's own failure sentence AS the
+# thesis. Every reader goes through _deserialize_row, so they are normalised here, once:
+# thesis_text None plus the thesis_status L5 writes. CATH, DPTH, EVTS and the research
+# tabs then say "no write-up" instead of showing the sentence as a catalyst, and the
+# skip-if-stable path (which reads the prior row) re-synthesises instead of reusing it.
+_LEGACY_FAILURE = re.compile(
+    r"^\s*Synthesis (temporarily unavailable|returned malformed output|paused)\b", re.I)
+_LEGACY_STATUS = {"temporarily unavailable": "failed",
+                  "returned malformed output": "malformed", "paused": "paused"}
+
+
+def is_failed_writeup(text) -> bool:
+    """True for a pre-L5 row whose thesis is the engine's own failure sentence. For readers
+    that select thesis_text directly instead of going through _deserialize_row."""
+    return bool(_LEGACY_FAILURE.match(text or ""))
+
 def _deserialize_row(row: dict) -> dict:
     """Parse JSON-text columns (rating_change) back into objects for API consumers.
     Best-effort: a malformed value becomes None rather than breaking the row."""
@@ -770,6 +791,11 @@ def _deserialize_row(row: dict) -> dict:
             row["rating_change"] = json.loads(rc)
         except Exception:
             row["rating_change"] = None
+    m = _LEGACY_FAILURE.match(row.get("thesis_text") or "")
+    if m:
+        row["thesis_text"] = None
+        if not row.get("thesis_status"):
+            row["thesis_status"] = _LEGACY_STATUS[m.group(1).lower()]
     return row
 
 

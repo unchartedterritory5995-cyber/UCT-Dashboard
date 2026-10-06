@@ -24,6 +24,7 @@ export default function MobileMoreSheet({
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
   onDrawOnChart,           // expands the collapsed drawing toolbar (row hidden when absent)
+  onEnterMultiChart,       // P14b — enters Multi-Chart grid mode (row hidden when absent)
   className = '',
 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
@@ -77,6 +78,19 @@ export default function MobileMoreSheet({
               {activeLayoutName ? <span className={styles.rowSub}>{activeLayoutName}</span> : null}
               <UIcon name="chevronRight" size={14} gold={false} />
             </span>
+          </button>
+        )}
+
+        {/* P14b — the phone's door into Multi-Chart grid mode. Sits beside
+            Layouts/Drawing boards: a mode switch, not a settings toggle. Calls
+            the SAME `mc.enterGrid()` action the desktop "Open Layout ▾ → ▦ Multi
+            Chart ▸" menu uses; the grid itself (and its own Exit button) is
+            ChartsWorkspace's `gridMode` branch, unaffected by this sheet. */}
+        {onEnterMultiChart && (
+          <button type="button" className={styles.row} aria-label="Multi Chart" onClick={() => { haptics.tap(); onClose(); onEnterMultiChart() }}>
+            <span className={styles.rowIcon}><UIcon name="columns" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>▦ Multi Chart</span>
+            <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
           </button>
         )}
 

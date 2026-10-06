@@ -113,4 +113,41 @@ describe('AnalystRatingsTab', () => {
     // RatingChangeList renders a blank pt cell rather than any fabricated value.
     expect(screen.queryByText(/^\$0/)).not.toBeInTheDocument()
   })
+
+  // TERM-088 -- a failed read must render as an error, never as the genuine
+  // "analyst rating data is unavailable" empty state.
+  it('renders the error state on a failed read, not "Analyst rating data is unavailable"', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({ default: () => ({ data: null, isLoading: false, error: true, mutate: () => {} }) }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="AAPL" />)
+    expect(screen.getByTestId('analyst-ratings-error')).toHaveTextContent("Couldn't load analyst ratings")
+    expect(screen.queryByText('Analyst rating data is unavailable for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no coverage', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({
+      default: () => ({
+        data: { sym: 'ZZZ', entity: { status: 'resolved', entityId: 'e_1' }, consensus: null, price_target: null, recent_actions: { items: [], _meta: null } },
+        isLoading: false,
+        error: false,
+        mutate: () => {},
+      }),
+    }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="ZZZ" />)
+    expect(screen.getByText('Analyst rating data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('analyst-ratings-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    vi.resetModules()
+    const mutate = vi.fn()
+    vi.doMock('../hooks/useAnalystRatings', () => ({ default: () => ({ data: null, isLoading: false, error: true, mutate }) }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="AAPL" />)
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
 })

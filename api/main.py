@@ -43,7 +43,7 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
 from fastapi import FastAPI, Request, Depends
 from api.middleware.auth_middleware import get_current_user, require_admin
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import sentry_sdk
@@ -184,6 +184,7 @@ from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.routers import etf as etf_router
 from api.routers import waitlist as waitlist_router  # pre-launch COMING SOON capture
+from api.routers import ltr_call_request as ltr_call_request_router  # /live-trading-room call requests
 # landing_analytics existed but was never mounted, so the landing page's track()
 # calls and the /admin/landing-analytics page had no backend at all.
 from api.routers import landing_analytics as landing_analytics_router
@@ -1107,6 +1108,15 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.services.breadth_live import warm
             log.info("[dashboard-warm] breadth-live %s", warm())
 
+        def _screener_meta():
+            # L9 (terminal live audit, 2026-10-05): `/api/screener/meta` measured
+            # 8.3 s on first open. The cost is `distribution.distributions()` --
+            # p5..p95 over every range column of the snapshot -- which is cached
+            # per snapshot vintage, so the first member after each deploy paid it.
+            # Local SQLite only; no outbound call.
+            from api.services.screener import distribution
+            distribution.distributions()
+
         def _calendar():
             from api.routers.calendar import get_calendar
             get_calendar()
@@ -1184,6 +1194,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("news", _news)
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
+            _warm("screener-meta", _screener_meta)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
             # NOT `_enrichment` — and `_enrichment` is the 60-100s step in this
@@ -1702,6 +1713,10 @@ def register_screener_jobs(scheduler):
                 print(f"[scheduler] screener snapshot build: "
                       f"built={stats.get('built')} skipped={stats.get('skipped')} "
                       f"errors={stats.get('errors')}")
+                # L9: a rebuilt snapshot is a new vintage, so the screener panel's
+                # bands go cold with it. Compute them here, not on the first open.
+                from api.services.screener import distribution
+                distribution.distributions()
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
@@ -6725,6 +6740,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] exposure_gate_watch job registration error: {e}")
 
+        # -- Market tide RTH refresh (L2, terminal backend fixes 2026-10-05) --
+        # Rebuilds the tide every 2 min in the regular session so a member never opens one
+        # built at the last viewer's visit. Gated on the tide's own switch; the function owns
+        # the 09:30/16:15 and holiday boundaries (the cron over-covers on purpose).
+        try:
+            from api.services.options_analytics import flags as _oa_flags
+            if _oa_flags.is_on("OPTIONS_MARKET_TIDE_ENABLED"):
+                from api.services.options_analytics import market_tide as _tide
+                _scheduler.add_job(_tide.warm_rth,
+                    trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*/2", timezone=_ET),
+                    id="market_tide_rth_warm", max_instances=1, coalesce=True, replace_existing=True)
+                print("[startup] market-tide RTH warm: on (2-min cadence)")
+        except Exception as e:
+            print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
+
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow
@@ -9062,6 +9092,7 @@ def _wire_enabled() -> bool:
 app.include_router(insider_router.router)
 app.include_router(auth_router.router)
 app.include_router(waitlist_router.router)
+app.include_router(ltr_call_request_router.router)
 app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
 app.include_router(avatar_router.router, dependencies=_OPEN_READS)
@@ -11447,6 +11478,21 @@ class _ImmutableStaticFiles(StaticFiles):
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 
+
+# StaticFiles types a file by `mimetypes.guess_type`, and an unknown extension
+# falls back to `text/plain`. Production runs Python 3.12, whose built-in table
+# has NO `.webp` (added in 3.13), and the nix container ships no
+# /etc/mime.types -- so every /live-trading-room/*.webp went out as
+# `text/plain; charset=utf-8`. Register it explicitly so the answer does not
+# depend on the interpreter version or the image's OS files.
+# (tests/test_live_trading_room_page.py serves the mount under a 3.12-shaped table.)
+def register_static_mime_types() -> None:
+    import mimetypes
+    mimetypes.add_type("image/webp", ".webp")
+
+
+register_static_mime_types()
+
 # ── Wave 8 seam S8-4: public-note pages -- noindex, and no Referer out of them ──
 # A share link (`/share/n/<token>`) and a published page (`/p/...`) are client routes, so
 # the SPA catch-all below answers them with index.html like every other page. That
@@ -11480,6 +11526,57 @@ def spa_index_response(full_path: str):
     if is_public_note_path(full_path):
         headers.update(PUBLIC_NOTE_HEADERS)
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
+
+
+# ── Public landing page: /live-trading-room ─────────────────────────────────
+# A REAL static HTML page (app/public/live-trading-room/index.html, copied into
+# dist/ by `vite build`), not a client route: the SPA shell gives a crawler only
+# the shell's own title/meta, so this page is served before the catch-all with
+# its own <title>, description, canonical, Open Graph tags and JSON-LD. No JS,
+# no member data. Its images live beside it and are served by the
+# /live-trading-room/ static mount below. The canonical URL has NO trailing
+# slash; the slash form 301s to it. Defined OUTSIDE the DIST guard so the rail
+# (tests/test_live_trading_room_page.py) can serve it from a temp DIST.
+LIVE_TRADING_ROOM_PATH = "/live-trading-room"
+LIVE_TRADING_ROOM_DIR = "live-trading-room"
+
+
+def live_trading_room_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "index.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+# The room's own terms page (app/public/live-trading-room/terms.html), served the
+# same way as the room page: static, server-readable, no trailing slash (the slash
+# form 301s to it). It must be registered BEFORE the /live-trading-room static
+# mount below, which would otherwise look for a file called `terms` and 404.
+LIVE_TRADING_ROOM_TERMS_PATH = LIVE_TRADING_ROOM_PATH + "/terms"
+
+
+def live_trading_room_terms_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "terms.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+# The room's own privacy page (app/public/live-trading-room/privacy.html), served
+# exactly like the terms page above and for the same reason registered BEFORE the
+# /live-trading-room static mount (which would otherwise look for a file called
+# `privacy` and 404). The slash form 301s to the no-slash URL.
+LIVE_TRADING_ROOM_PRIVACY_PATH = LIVE_TRADING_ROOM_PATH + "/privacy"
+
+
+def live_trading_room_privacy_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "privacy.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 if os.path.exists(DIST):
@@ -11614,6 +11711,37 @@ if os.path.exists(DIST):
     @app.get("/sitemap.xml", include_in_schema=False)
     def _serve_sitemap():
         return FileResponse(os.path.join(DIST, "sitemap.xml"), media_type="application/xml")
+
+    # Public landing page (see live_trading_room_response above). Registered
+    # BEFORE the SPA catch-all, GET and HEAD like it, so crawlers and link
+    # checkers get the real page rather than the app shell.
+    @app.api_route(LIVE_TRADING_ROOM_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room():
+        return live_trading_room_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_PATH, status_code=301)
+
+    @app.api_route(LIVE_TRADING_ROOM_TERMS_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room_terms():
+        return live_trading_room_terms_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_TERMS_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_terms_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_TERMS_PATH, status_code=301)
+
+    @app.api_route(LIVE_TRADING_ROOM_PRIVACY_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room_privacy():
+        return live_trading_room_privacy_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_PRIVACY_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_privacy_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_PRIVACY_PATH, status_code=301)
+
+    _LTR_DIR = os.path.join(DIST, LIVE_TRADING_ROOM_DIR)
+    if os.path.isdir(_LTR_DIR):
+        app.mount(LIVE_TRADING_ROOM_PATH, StaticFiles(directory=_LTR_DIR), name="live-trading-room")
 
     @app.get("/pip-embed", include_in_schema=False)
     def _serve_pip_embed(v: str = "", t: int = 0):

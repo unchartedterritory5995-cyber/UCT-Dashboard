@@ -82,9 +82,15 @@ function resultLine(row) {
 function fmtLivePrice(live) {
   if (!live || live.price == null) return null
   const price = `$${live.price.toFixed(2)}`
-  if (live.change_pct == null) return price
-  const arrow = live.change_pct >= 0 ? '▲' : '▼'
-  return `${price} ${arrow}${Math.abs(live.change_pct).toFixed(1)}%`
+  // The % beside the price is worked out FROM that price when the previous close is known.
+  // The quote's own change_pct comes from a different reading (the minute bar's close, not
+  // the last trade), so the two disagreed on screen: $239.59 against a $233.95 close is
+  // +2.4%, and the banner said +2.5%. The server figure is the fallback.
+  const prev = Number(live.prev_close)
+  const pct = Number.isFinite(prev) && prev > 0 ? (live.price / prev - 1) * 100 : live.change_pct
+  if (pct == null || !Number.isFinite(pct)) return price
+  const arrow = pct >= 0 ? '▲' : '▼'
+  return `${price} ${arrow}${Math.abs(pct).toFixed(1)}%`
 }
 
 /** A grade input's weight as a percent, or an em dash when the weight itself

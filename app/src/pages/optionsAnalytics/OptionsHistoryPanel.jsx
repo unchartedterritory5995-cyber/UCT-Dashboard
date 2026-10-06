@@ -1,4 +1,5 @@
 import useDarkSection from './useDarkSection'
+import OffNotice from './OffNotice'
 import styles from './optionsAnalytics.module.css'
 
 // FT-009 straddle history, FT-007 daily implied vs actual move, FT-010 IV crush — read ONLY from
@@ -119,8 +120,18 @@ function IvCrush({ sym }) {
   )
 }
 
-export default function OptionsHistoryPanel({ sym }) {
+// The three routes this panel reads (OffNotice asks the same keys; SWR shares the request).
+export const optionsHistoryUrls = (s) => ['straddle', 'daily-move', 'iv-crush']
+  .map((k) => `/api/research/options-history/${enc(s)}/${k}`)
+
+// `offNotice`: set by the terminal's OHIS, which opens this panel on its own.
+export default function OptionsHistoryPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
   if (!s) return null
-  return <div data-testid="options-history"><Straddle sym={s} /><DailyMove sym={s} /><IvCrush sym={s} /></div>
+  return (
+    <div data-testid="options-history">
+      {offNotice && <OffNotice urls={optionsHistoryUrls(s)} feature="Options history" />}
+      <Straddle sym={s} /><DailyMove sym={s} /><IvCrush sym={s} />
+    </div>
+  )
 }

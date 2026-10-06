@@ -39,7 +39,7 @@ export const FUNCTIONS = [
     // contract (`?week=` / `?d=`, Calendar.jsx), never a second date state.
     market: { panel: 'Calendar', args: [{ kind: 'calendarDay', param: true }] } },
   { code: 'MYST', label: 'My stocks hub (earnings, news, calls, filings)', group: 'Calendar',
-    market: { door: '/calendar/mystocks' } },
+    market: { door: '/calendar/mystocks', leavesTerminal: true } },
   { code: 'ERN', label: 'Earnings detail (calendar modal)', group: 'Calendar',
     // The calendar's own earnings modal, opened through its own deep-link contract
     // (`?earnings=SYM`) — the C1–C11 rows of the coexistence parity matrix.
@@ -81,7 +81,7 @@ export const FUNCTIONS = [
     ticker: { panel: 'Calls', section: 'calls' } },
   { code: 'MB', label: 'Model Book', group: 'Security',
     ticker: { panel: 'ModelBook', section: 'modelbook' },
-    market: { door: '/model-book', why: 'a curated year-by-year library with its own two-pane admin editor; the security variant embeds the per-ticker tab' } },
+    market: { door: '/model-book', leavesTerminal: true, why: 'a curated year-by-year library with its own two-pane admin editor; the security variant embeds the per-ticker tab' } },
   { code: 'DR', label: 'Decision record', group: 'Security',
     ticker: { panel: 'DecisionRecord', section: 'decision-record', flag: 'decisionRecordEnabled' } },
   { code: 'HIS', label: 'Ticker history', group: 'Security',
@@ -97,13 +97,17 @@ export const FUNCTIONS = [
   { code: 'RSCH', label: 'My research (notes on this ticker)', group: 'Security',
     ticker: { panel: 'MyResearch', section: 'research' } },
   { code: 'CMP', label: 'Compare two securities', group: 'Security',
-    // `NVDA CMP AMD` — the research compare page, the comparator is the first arg.
-    ticker: { door: '/research/{sym}/compare/{arg0}', needsArg: 'a comparator, e.g. NVDA CMP AMD' } },
+    // `NVDA CMP AMD` — the research compare page, the comparator is the first arg. Unlike
+    // every other Security code this leaves the multi-panel Terminal entirely (`leavesTerminal`
+    // — describeCommand reads it to say so in the interpreted-parse echo).
+    ticker: { door: '/research/{sym}/compare/{arg0}', needsArg: 'a comparator, e.g. NVDA CMP AMD',
+      why: 'the compare page is a side-by-side two-security layout with its own URL shape; a panel cannot hold two securities', leavesTerminal: true } },
   { code: 'RES', label: 'Full research page', group: 'Security',
-    ticker: { door: '/research/{sym}' } },
+    ticker: { door: '/research/{sym}',
+      why: 'the full research page is the same tabs already embedded here, plus the ones this build does not panel-ize yet; RES is the escape hatch to all of it at once', leavesTerminal: true } },
   { code: 'ASK', label: 'Ask AI', group: 'Security',
     ticker: { panel: 'AskAi', section: 'ai' },
-    market: { door: '/ai-search', why: 'the AI search page owns a streaming conversation and its own history rail' } },
+    market: { door: '/ai-search', leavesTerminal: true, why: 'the AI search page owns a streaming conversation and its own history rail' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
@@ -127,34 +131,44 @@ export const FUNCTIONS = [
   { code: 'OVS', label: 'Volatility surface', group: 'Options',
     ticker: { panel: 'OptionsChain', props: { volSurface: true }, section: 'options',
               flag: 'optionsVolSurfaceEnabled' } },
+  // `offNotice`: these six open a dark surface ON ITS OWN, and every route behind them answers 404
+  // until its own switch is set. Embedded under the chain or on Options Flow, a 404 renders nothing;
+  // as a whole panel that was a titled box with an empty body. With the prop, a panel whose every
+  // section answered 404 says "<feature> isn't switched on yet" (optionsAnalytics/OffNotice.jsx).
+  // O12: IVH and STRS now gate on their OWN switch, carried on the auth payload
+  // (`iv_history_enabled`, `options_strategy_screens_enabled`), so the shell refuses them while
+  // dark instead of opening an empty panel; the off notice stays as the second line of defence.
   { code: 'IVH', label: 'IV history (implied vs realized)', group: 'Options',
-    ticker: { panel: 'IvHistory', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'IvHistory', props: { offNotice: true }, section: 'options', flag: 'ivHistoryEnabled' } },
   { code: 'VOL', label: 'Volatility stats', group: 'Options',
-    ticker: { panel: 'VolStats', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'VolStats', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'POS', label: 'Options positioning (levels, max pain)', group: 'Options',
-    ticker: { panel: 'Positioning', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'Positioning', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'OHIS', label: 'Options history (straddles, moves)', group: 'Options',
-    ticker: { panel: 'OptionsHistory', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'OptionsHistory', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'OBT', label: 'Options backtest', group: 'Options',
     ticker: { panel: 'Backtest', section: 'options', flag: 'optionsBacktestEnabled' } },
   { code: 'OSCR', label: 'Options screener', group: 'Options',
-    market: { panel: 'OptionsScreener', full: '/screener', flag: 'optionsScreenerEnabled' } },
+    // `?tab=options` is Screener.jsx's own deep-link param (read once at mount as the
+    // initial tab) — without it "Full page" always landed on the Stocks tab.
+    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled' } },
   { code: 'FLOW', label: 'Options flow', group: 'Options',
     ticker: { panel: 'Flow', section: 'flow', flag: 'researchFlowTabEnabled' },
-    market: { door: '/options-flow', why: 'partner-owned page; its view routing lives in App.jsx\'s OptionsFlowRoute, which no panel can import' } },
+    market: { door: '/options-flow', leavesTerminal: true, why: 'partner-owned page; its view routing lives in App.jsx\'s OptionsFlowRoute, which no panel can import' } },
   { code: 'GEX', label: 'Gamma exposure', group: 'Options',
     // GEX lives INSIDE the Options Flow page (its `gex` data mode), so it is a door — one
     // that opens that page ON its GEX view for the ticker (App.jsx OptionsFlowRoute).
-    ticker: { door: '/options-flow?view=gex&ticker={sym}', why: 'GEX is a data mode inside the partner-owned Options Flow page' },
-    market: { door: '/options-flow?view=gex', why: 'GEX is a data mode inside the partner-owned Options Flow page' } },
+    ticker: { door: '/options-flow?view=gex&ticker={sym}', leavesTerminal: true, why: 'GEX is a data mode inside the partner-owned Options Flow page' },
+    market: { door: '/options-flow?view=gex', leavesTerminal: true, why: 'GEX is a data mode inside the partner-owned Options Flow page' } },
   { code: 'TIDE', label: 'Market Tide (net premium)', group: 'Options',
-    market: { panel: 'MarketTide', full: '/options-flow' } },
+    market: { panel: 'MarketTide', props: { offNotice: true }, full: '/options-flow' } },
   { code: 'STRS', label: 'Options strategy screens', group: 'Options',
-    market: { panel: 'StrategyScreens', full: '/options-flow' } },
+    market: { panel: 'StrategyScreens', props: { offNotice: true }, full: '/options-flow',
+              flag: 'optionsStrategyScreensEnabled' } },
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
-    market: { door: '/live-massive', why: 'a socket-fed tape page that owns a live stream connection per mount' } },
+    market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 
-  { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool' } },
+  { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool', leavesTerminal: true } },
   { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options', market: { surface: '/flow-scoreboard' } },
 
   // ── the market ──
@@ -163,24 +177,24 @@ export const FUNCTIONS = [
   { code: 'SCR', label: 'Stock screener', group: 'Market', market: { surface: '/screener' } },
   { code: 'U20', label: 'UCT 20', group: 'Market', market: { surface: '/uct-20' } },
   { code: 'DASH', label: 'Dashboard', group: 'Market',
-    market: { door: '/dashboard', why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
+    market: { door: '/dashboard', leavesTerminal: true, why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
   { code: 'CHRT', label: 'Charts workspace', group: 'Market',
-    market: { door: '/charts', why: 'the /charts board is the panel host itself (the panel set refuses it as board-host)' } },
-  { code: 'PMKT', label: 'Post-market', group: 'Market', market: { door: '/post-market' } },
+    market: { door: '/charts', leavesTerminal: true, why: 'the /charts board is the panel host itself (the panel set refuses it as board-host)' } },
+  { code: 'PMKT', label: 'Post-market', group: 'Market', market: { door: '/post-market', leavesTerminal: true } },
   { code: 'CATH', label: 'Catalysts history', group: 'Market', market: { surface: '/catalysts/history' } },
-  { code: 'SETL', label: 'Setup library', group: 'Market', market: { door: '/setup-library' } },
+  { code: 'SETL', label: 'Setup library', group: 'Market', market: { door: '/setup-library', leavesTerminal: true } },
   { code: 'FORM', label: 'Formula reference', group: 'Market',
-    market: { door: '/formulas/reference', why: 'App.jsx loads it with a bare lazy() and no lazyPage importer to share' } },
+    market: { door: '/formulas/reference', leavesTerminal: true, why: 'App.jsx loads it with a bare lazy() and no lazyPage importer to share' } },
   { code: 'DESK', label: 'The Desk', group: 'Market',
-    market: { door: '/desk', why: 'a video-and-article page with its own section router (?section=)' } },
+    market: { door: '/desk', leavesTerminal: true, why: 'a video-and-article page with its own section router (?section=)' } },
   { code: 'JRNL', label: 'Journal', group: 'Market',
-    market: { door: '/journal', why: 'a nested-route shell (JournalShellSelector + Outlet); its children need the router' } },
-  { code: 'NB', label: 'Notebook', group: 'Market', market: { door: '/journal/notebook' } },
+    market: { door: '/journal', leavesTerminal: true, why: 'a nested-route shell (JournalShellSelector + Outlet); its children need the router' } },
+  { code: 'NB', label: 'Notebook', group: 'Market', market: { door: '/journal/notebook', leavesTerminal: true } },
   { code: 'RISK', label: 'Portfolio risk', group: 'Market', market: { surface: '/portfolio-heat' } },
   { code: 'COMM', label: 'Community', group: 'Market',
-    market: { door: '/community', why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
+    market: { door: '/community', leavesTerminal: true, why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
   { code: 'EXP', label: 'Exports (your data, preferences backup)', group: 'Market',
-    market: { door: '/settings?section=legal' } },
+    market: { door: '/settings?section=legal', leavesTerminal: true } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
@@ -234,11 +248,24 @@ export function fillDoor(door, { sym = null, args = [] } = {}) {
   return missing ? null : out
 }
 
-/** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. */
-export function researchHref(sym, section) {
+/** The Research › Depth panel a variant opens, DERIVED from its own flag (never typed a second
+ *  time): `section: 'depth'` + `flag: 'researchDepth.<key>'` → `<key>`, the same key DepthTab
+ *  anchors that panel by. The whole-tab code (`researchDepth.*`) and every non-depth section
+ *  name no panel. */
+export function depthPanelOf(variant) {
+  if (variant?.section !== 'depth') return null
+  const [head, tail] = String(variant.flag || '').split('.')
+  return head === DEPTH && tail && tail !== '*' ? tail : null
+}
+
+/** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. A Depth
+ *  panel also carries `&panel=<key>` so the page lands on that panel, not the tab's top. */
+export function researchHref(sym, section, panel = null) {
   if (!sym) return null
   const s = encodeURIComponent(String(sym).toUpperCase())
-  return section ? `/research/${s}?section=${encodeURIComponent(section)}` : `/research/${s}`
+  if (!section) return `/research/${s}`
+  const p = panel ? `&panel=${encodeURIComponent(panel)}` : ''
+  return `/research/${s}?section=${encodeURIComponent(section)}${p}`
 }
 
 /** Prefix + edit-distance suggestions over the registry (and ABSENT, so a near-miss on an

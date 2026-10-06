@@ -224,7 +224,7 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
   // real one-argument-anchor-form scripts fully translate — the SAME shape
   // as `timenow`'s own shipped result (0/4 direct, real demand anyway).
   // What moved: for 2 of the 4, `time` is no longer why the script refuses.
-  it('⭐⭐ the real corpus: zero full unlocks, but `time` is no longer why HALF of the 4 scripts refuse', () => {
+  it('⭐⭐ the real corpus: `time` is no longer why HALF of the 4 scripts refuse (and since H2 one of them translates whole)', () => {
     // `fibonacci-retracement-mtflog` (defaults "1D"): clearing `time`
     // reveals EVERY one of its plot lines shares one pre-existing, unrelated
     // shape this table cannot parse at all --
@@ -246,10 +246,13 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     // never `dayopentime`, and `request.security` is never even reached.
     const paZigzag = fs.readFileSync(
       path.join(CORPUS, 'pa-zigzag-fibonacci-fan__2001.pine'), 'utf8')
+    // ⭐⭐ H2 (step 69): that blocker was the COMMA LINE
+    // `int _dir = na , _dir := …`, which `blockStatements` now splits into the
+    // two statements Pine runs — so the script translates whole, `time` read as
+    // the anchor this slice built (graded host vs runtime lane on RDDT,
+    // `vendorHarness.h2CommaStatements`).
     const rPaZigzag = translatePine(paZigzag, { strict: true })
-    expect(rPaZigzag.ok).toBe(false)
-    expect(rPaZigzag.refusal.guard).toBe('pine:reassign')
-    expect(rPaZigzag.refusal.message).not.toMatch(/time\(|dayopentime/i)
+    expect(rPaZigzag.ok, rPaZigzag.refusal && rPaZigzag.refusal.message).toBe(true)
 
     // `zigzag-ma-pattern-recognition` (defaults "15", an intraday code out
     // of THIS slice's scope) STILL refuses on `time` itself -- unaffected,

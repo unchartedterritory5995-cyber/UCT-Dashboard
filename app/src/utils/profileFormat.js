@@ -59,7 +59,7 @@ export function fmtEps(v) {
   return n == null ? '—' : n.toFixed(2)
 }
 
-// $1.23B — the sign stays INSIDE the dollar sign ("$-1.50B"), as it always has.
+// $1.23B — a negative reads "-$1.50B" (the minus before the dollar sign).
 export function fmtRevenue(v) {
   const n = Number(v)
   if (!Number.isFinite(n) || n === 0) return '—'

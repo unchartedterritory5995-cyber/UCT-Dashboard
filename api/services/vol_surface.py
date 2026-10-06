@@ -34,7 +34,9 @@ from api.services.cache import TTLCache
 
 MIN_STRIKES = 5          # fewer valid strikes than this on a side and it is not a line
 MAX_EXPIRATIONS = 8      # sampled expirations per surface (the selected one is added on top)
-STRIKES_AROUND_SPOT = 10  # the SAME n the chain tab asks for, so the selected chain is a cache hit
+STRIKES_AROUND_SPOT = 10  # strikes nearest spot per side (the chain cache is keyed without n, S3)
+WING_DELTA = 0.05         # O2: also keep every strike with vendor |delta| >= this ...
+WING_BAND = 0.25          # ... inside ±25% of spot, so the 25- and 10-delta wings are on hand
 WORKERS = 4
 DEADLINE_S = 25.0
 
@@ -210,8 +212,6 @@ def build_surface(sym: str, chains: list[dict], selected: str | None, listed_cou
 
 def get_surface(sym: str, selected: str = "") -> dict:
     """Fetch (bounded) and build. {"error": ...} when the provider fails outright."""
-    from api.services import polygon_options as po
-
     s = (sym or "").upper().strip()
     if not s:
         return {"error": "ticker required"}
@@ -219,6 +219,23 @@ def get_surface(sym: str, selected: str = "") -> dict:
     hit = _CACHE.get(key)
     if hit is not None:
         return dict(hit)
+
+    from api.services import single_flight
+
+    def _lead() -> dict:
+        again = _CACHE.get(key)
+        if again is not None:
+            return dict(again)
+        return _build_and_cache(s, selected, key)
+
+    try:  # S3: concurrent cold readers of one surface share one fan-out
+        return dict(single_flight.run(key, _lead, wait=DEADLINE_S + 30))
+    except single_flight.SingleFlightTimeout:
+        return {"error": "surface still being built", "ticker": s}
+
+
+def _build_and_cache(s: str, selected: str, key: str) -> dict:
+    from api.services import polygon_options as po
 
     fetched = fetch_chains(s, selected)
     if "error" in fetched:
@@ -251,7 +268,8 @@ def fetch_chains(s: str, selected: str = "") -> dict:
     chains, missing = [], []
     pool = ThreadPoolExecutor(max_workers=WORKERS)
     try:
-        futs = {pool.submit(po.get_chain, s, x, STRIKES_AROUND_SPOT): x for x in want}
+        futs = {pool.submit(po.get_chain, s, x, STRIKES_AROUND_SPOT,
+                            min_abs_delta=WING_DELTA, band_pct=WING_BAND): x for x in want}
         done, not_done = wait(futs, timeout=DEADLINE_S)
         for f in not_done:
             f.cancel()

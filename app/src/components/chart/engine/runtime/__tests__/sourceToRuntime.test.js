@@ -197,7 +197,9 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
     // by the same name, so the guard is still reachable.
-    ['a function with a default parameter', `${head}f(x = 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
+    // ⚰️ L2 (2026-10-02): `f(x = 3)` — a LITERAL default — now reads
+    // (`paramDefaultsOf`); a default that is an expression still refuses here.
+    ['a function with a default parameter', `${head}f(x = close * 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
     // ⚰️ WAS `[a, b] = ta.macd(close, 12, 26, 9)`. A UDF tuple and a
     // destructuring both LOWER now (runtime/__tests__/tuples.test.js), so that
     // line reaches the columnar lane and refuses `pine:arity` — its own,
@@ -271,10 +273,10 @@ plot(a)
     // direction: `cum` was ADMITTED to the closed table, so "undeclared" became
     // false about it. Read together with the paragraph above, the two mistakes
     // are one mistake: a specimen chosen for what it happened to be that day,
-    // asserted as if it were a claim about the CATEGORY. `ta.vwma` is the
+    // asserted as if it were a claim about the CATEGORY. `ta.cog` is the
     // undeclared name today, verified by driving it — and it will need the same
-    // treatment the day it lands.
-    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
+    // treatment the day it lands (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
+    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
     ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
     // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
     // identity — Pine's documented casts); `bool(x)` is the conversion still refused.

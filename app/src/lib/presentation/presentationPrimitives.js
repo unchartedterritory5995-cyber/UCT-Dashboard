@@ -137,7 +137,16 @@ export function formatPercent(value, { decimals = 2, signed = false, absent = AB
  */
 export function formatCurrency(value, { decimals = 2, absent = ABSENT } = {}) {
   if (!Number.isFinite(value)) return absent
-  return `$${Number(value).toFixed(decimals)}`
+  return signOutside('$', Number(value).toFixed(decimals))
+}
+
+/** A currency prefix goes INSIDE the minus: "-$2.90B", never "$-2.90B".
+ *  `body` is the already-rounded number text, so a value that rounds to zero
+ *  keeps whatever sign `toFixed` gave it. */
+function signOutside(prefix, body) {
+  const s = String(body)
+  if (!prefix || !s.startsWith('-')) return `${prefix}${s}`
+  return `-${prefix}${s.slice(1)}`
 }
 
 // --------------------------------------------------------------------------
@@ -172,9 +181,10 @@ export const COMPACT_TIERS = Object.freeze([
  *     `Math.round`, which is NOT `toFixed(0)`: they part ways on a negative
  *     half (-2.5 → -2 one way, "-3" the other). The COT grammar has always
  *     rounded with `Math.round`.
- *   • `prefix` — written OUTSIDE the sign ("$-1.50B"), as `fmtRevenue` always
- *     did. A grammar that wants "-$1.50B" is a different rule and is recorded
- *     as a disagreement, not silently unified.
+ *   • `prefix` — written INSIDE the sign ("-$1.50B"). It used to sit outside
+ *     ("$-1.50B", `fmtRevenue`'s old grammar), which a member reads as a
+ *     typo; every prefix passed here is a currency symbol, so it follows the
+ *     minus.
  *   • below the smallest tier: a `Math.round` integer, `prefix` in front.
  *
  * ⛔ Total, like every primitive here: a non-number or non-finite value
@@ -194,10 +204,10 @@ export function formatCompact(value, { tiers = COMPACT_TIERS, prefix = '', absen
     if (magnitude >= at) {
       const scaled = n / at
       const body = decimals === 'round' ? Math.round(scaled) : scaled.toFixed(decimals)
-      return `${prefix}${body}${suffix}`
+      return `${signOutside(prefix, body)}${suffix}`
     }
   }
-  return `${prefix}${Math.round(n)}`
+  return signOutside(prefix, Math.round(n))
 }
 
 // --------------------------------------------------------------------------

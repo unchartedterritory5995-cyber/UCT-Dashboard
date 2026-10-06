@@ -451,7 +451,12 @@ def test_a_clock_leaf_is_LIVE_and_NON_REPAINTING_and_both_branches_can_be_DELETE
         assert ast_freshness.freshness_for(tree, {"table": stripped})["mode"] == "unknown", (
             f"{name} read live off a table that does not declare it")
 
-        assert ast_lint.lint_repaint(tree)["mode"] == "non-repainting", name
+        # RT4: the nine right-edge leaves declare a `forward` (`_clock_right_edge`)
+        # and are badged by it; every other leaf is non-repainting
+        spec = ast_table.TABLE[ast_table.CLOCK_SECTION][name]
+        expected = ("non-repainting" if "forward" not in spec
+                    else ast_lint.mode_from_reach(spec["forward"]))
+        assert ast_lint.lint_repaint(tree)["mode"] == expected, name
         assert ast_lint.lint_repaint(tree, {"table": stripped})["mode"] == "repaints", (
             f"{name} was bounded by a table that does not declare it")
 
@@ -477,6 +482,10 @@ def test_a_clock_leafs_REACH_is_the_manifests_own_lookback_not_a_hardcoded_zero(
 
     for name, spec in sorted(ast_table.TABLE[ast_table.CLOCK_SECTION].items()):
         reach = ast_lint.ast_reach(_leaf(name))
+        if "forward" in spec:  # RT4: a right-edge leaf -- its declared forward, named
+            assert reach["forward"] == spec["forward"], name
+            assert len(reach["reasons"]) == 1 and f"`{name}`" in reach["reasons"][0], name
+            continue
         assert reach["back"] == spec["lookback"], (
             f"{name}: linter says back={reach['back']}, the manifest declares "
             f"lookback={spec['lookback']}")

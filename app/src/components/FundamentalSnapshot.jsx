@@ -6,6 +6,7 @@
 import useFundamentalSnapshot from '../hooks/useFundamentalSnapshot'
 import UIcon from './ui/UIcon'
 import CoverageNote from './research-kit/CoverageNote'
+import { etCalendarDaysBetween } from '../lib/marketClock/etTime'
 import styles from './FundamentalSnapshot.module.css'
 
 function scoreColor(v) {
@@ -49,17 +50,17 @@ const LETTER_COMPONENTS = [
 ]
 
 const _MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-function earnLabel(iso) {
+// The day count is between ET calendar dates: "today" from UTC said "in 1d"
+// for an earnings date that IS today, every evening after 8 PM ET.
+export function earnLabel(iso, now = Date.now()) {
   // iso = 'YYYY-MM-DD' → "Jul 31 · in 12d" / "today" / "Jul 31"
   const parts = String(iso).split('-')
   if (parts.length !== 3) return null
   const [y, mo, da] = parts.map(Number)
   if (!y || !mo || !da) return null
   const md = `${_MONTHS[mo - 1]} ${da}`
-  const target = Date.UTC(y, mo - 1, da)
-  const now = new Date()
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  const days = Math.round((target - today) / 86400000)
+  const days = etCalendarDaysBetween(now, String(iso))
+  if (!Number.isFinite(days)) return md
   if (days === 0) return `${md} · today`
   if (days > 0 && days <= 45) return `${md} · in ${days}d`
   return md

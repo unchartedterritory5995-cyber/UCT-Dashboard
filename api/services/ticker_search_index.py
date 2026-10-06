@@ -113,6 +113,76 @@ def _priority(row: dict) -> int:
     return tp * 100 + len(row.get("sym", ""))
 
 
+# ── Liquidity tie-break (terminal live audit L6, 2026-10-05) ────────────────────
+# Measured on production: "NV" answered NVA NVC NVD NVG NVO NVR and NVDA came 16th;
+# "TS", "AA", "MS", "AM" lost TSLA, AAPL, MSFT, AMZN the same way, because inside
+# one match rank the only tie-break was type, then symbol LENGTH, then A-Z. Every
+# search box in the app (palette, chart symbol search, terminal) read that order.
+#
+# ⭐ The signal is one we already hold: 20-session average dollar volume from the
+# local bars.db (`bars_sqlite.avg_dollar_volume_bulk`, the same metric the prewarmer
+# ranks by). It is computed OFF the request path, when the index (re)builds, and kept
+# in memory. Until it exists — or if bars.db is unreadable — ranking is exactly the
+# old one, so this can never be the reason a search fails.
+#
+# ⛔ It only reorders rows INSIDE a match rank: an exact symbol still beats a busier
+# prefix match, and a symbol match still beats a name match.
+_LIQ: dict[str, float] = {}
+_LIQ_AT = 0.0
+
+
+def _liquidity_enabled() -> bool:
+    return os.environ.get("TICKER_SEARCH_RANK_BY_DOLLAR_VOLUME", "1") == "1"
+
+
+def refresh_liquidity() -> int:
+    """Recompute the dollar-volume map from bars.db. Returns how many symbols it covers;
+    0 (and the previous map kept) on any failure."""
+    global _LIQ, _LIQ_AT
+    if not _liquidity_enabled():
+        return 0
+    try:
+        from api.services import bars_sqlite as _bsq
+        from datetime import datetime as _dt, timedelta as _td
+        from zoneinfo import ZoneInfo as _ZI
+        now = _dt.now(_ZI("America/New_York"))
+        before = int((now + _td(days=1)).strftime("%Y%m%d"))
+        floor = int((now - _td(days=90)).strftime("%Y%m%d"))
+        dv = _bsq.avg_dollar_volume_bulk(20, before, floor) or {}
+    except Exception as e:  # noqa: BLE001 -- a ranking aid never breaks search
+        logger.warning("[ticker_search_index] liquidity refresh failed: %s", e)
+        return 0
+    if dv:
+        with _LOCK:
+            _LIQ = {str(k).upper(): float(v) for k, v in dv.items()}
+            _LIQ_AT = time.time()
+    logger.info("[ticker_search_index] liquidity map: %d symbols", len(dv))
+    return len(dv)
+
+
+#: How long to wait before asking bars.db again. On the web pod bars.db arrives from
+#: the R2 snapshot pull AFTER this thread starts (USE_REMOTE_BARS=1), so the first read
+#: at boot finds nothing; an empty answer is retried soon, a good one refreshed rarely.
+_LIQ_RETRY_EMPTY_S = 300
+_LIQ_REFRESH_S = 6 * 3600
+
+
+def _liquidity_loop(sleep=time.sleep) -> None:
+    while True:
+        try:
+            n = refresh_liquidity()
+        except Exception:  # noqa: BLE001 -- refresh_liquidity already never raises
+            n = 0
+        sleep(_LIQ_REFRESH_S if n else _LIQ_RETRY_EMPTY_S)
+
+
+def _sort_key(rank: int, row: dict, liq: dict) -> tuple:
+    t = row.get("type")
+    tp = 0 if t in ("stock", "etf") else (1 if t == "index" else 2)
+    sym = row.get("sym", "")
+    return (rank, tp, -float(liq.get(sym, 0.0)), len(sym), sym)
+
+
 # ── Build ────────────────────────────────────────────────────────────────────
 def _collect_rows() -> list[dict]:
     """Pull the reference universe from Massive + merge our own extras. Returns a
@@ -301,6 +371,9 @@ def start_background_build() -> None:
                 logger.exception("[ticker_search_index] periodic rebuild failed")
 
     threading.Thread(target=_loop, name="ticker-search-index", daemon=True).start()
+    # L6 fix: the dollar-volume ranking keeps its OWN loop, so a boot-time read of a
+    # not-yet-downloaded bars.db is retried in minutes instead of a day later.
+    threading.Thread(target=_liquidity_loop, name="ticker-search-liquidity", daemon=True).start()
 
 
 def ready() -> bool:
@@ -321,7 +394,7 @@ def contains(sym: str) -> bool:
 
 def status() -> dict:
     return {"rows": len(_INDEX), "built_at": _BUILT_AT, "building": _BUILDING,
-            "snapshot": _SNAP_PATH}
+            "snapshot": _SNAP_PATH, "liquidity_symbols": len(_LIQ), "liquidity_at": _LIQ_AT}
 
 
 # ── Search ───────────────────────────────────────────────────────────────────
@@ -345,7 +418,8 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
     qa = _share_class_alias(qu)
     with _LOCK:
         idx = _INDEX
-    scored: list[tuple[int, int, dict]] = []
+        liq = _LIQ
+    scored: list[tuple[tuple, dict]] = []
     for r in idx:
         if types and r["type"] not in types:
             continue
@@ -365,10 +439,10 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
                 elif ql in nlc:
                     rank = 4
         if rank is not None:
-            scored.append((rank, _priority(r), r))
-    scored.sort(key=lambda t: (t[0], t[1], t[2]["sym"]))
+            scored.append((_sort_key(rank, r, liq), r))
+    scored.sort(key=lambda t: t[0])
     out = []
-    for _rank, _pri, r in scored[:limit]:
+    for _key, r in scored[:limit]:
         out.append({"ticker": r["sym"], "name": r["name"] or None,
                     "type": r["type"], "exchange": r["exch"] or None,
                     "entity_id": r.get("entity_id")})

@@ -417,8 +417,12 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
     days = dte_map.get(dte_filter, 180)
 
     from datetime import datetime, timedelta
-    from_date = datetime.now().strftime("%Y-%m-%d")
-    to_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+    from zoneinfo import ZoneInfo
+    # O10: the expiry window is anchored on the ET trading date, the clock positioning uses --
+    # Railway's process clock is UTC, which after 20:00 ET dropped today's expiries early.
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    from_date = now_et.strftime("%Y-%m-%d")
+    to_date = (now_et + timedelta(days=days)).strftime("%Y-%m-%d")
 
     fetch = _fetch_chain_massive if src == "massive" else _fetch_chain_schwab
     data, err = await fetch(ticker, from_date, to_date)
@@ -585,8 +589,10 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         call_wall = max(_wall_band, key=lambda x: x["callGex"]) if _wall_band else None
         put_wall = min(_wall_band, key=lambda x: x["putGex"]) if _wall_band else None
 
-    # Zero gamma (same multi-fallback approach as before)
+    # Zero gamma (same multi-fallback approach as before). O5: every branch NAMES itself in
+    # `zeroGammaMethod`, so a fallback level is never presented as a true gamma flip.
     zero_gamma = None
+    zero_gamma_method = None
     cumulative = 0.0
     prev_strike = None
     prev_cum = 0.0
@@ -598,6 +604,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
                 zero_gamma = prev_strike + t * (s["strike"] - prev_strike)
             else:
                 zero_gamma = s["strike"]
+            zero_gamma_method = "cumulative_flip"
             break
         prev_strike = s["strike"]
         prev_cum = cumulative
@@ -614,6 +621,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
                     zero_gamma = prev_strike - t * (prev_strike - s["strike"])
                 else:
                     zero_gamma = s["strike"]
+                zero_gamma_method = "cumulative_flip_from_top"
                 break
             prev_strike = s["strike"]
             prev_cum = cumulative
@@ -623,6 +631,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         for s in reversed(below_spot):
             if s["gex"] < 0:
                 zero_gamma = s["strike"]
+                zero_gamma_method = "first_negative_strike_below_spot"
                 break
 
     if zero_gamma is None and spot > 0 and call_wall:
@@ -631,10 +640,12 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         for s in reversed(below_spot):
             if s["gex"] < threshold:
                 zero_gamma = s["strike"]
+                zero_gamma_method = "below_1pct_of_call_wall"
                 break
 
     if zero_gamma is None and put_wall:
         zero_gamma = put_wall["strike"]
+        zero_gamma_method = "put_wall_fallback"
 
     total_chain_contracts = contracts_with_dp + contracts_without_dp
     coverage_pct = (
@@ -660,6 +671,10 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         "callGex": total_call_gex,
         "putGex": total_put_gex,
         "zeroGamma": zero_gamma,
+        # O5: how zeroGamma was found. Only "cumulative_flip" / "cumulative_flip_from_top" are
+        # a real sign change of cumulative gamma; the others are stand-in levels.
+        "zeroGammaMethod": zero_gamma_method,
+        "zeroGammaIsFlip": zero_gamma_method in ("cumulative_flip", "cumulative_flip_from_top"),
         "netDelta": round(net_delta),
         "callWall": cw_dict,
         "putWall": pw_dict,

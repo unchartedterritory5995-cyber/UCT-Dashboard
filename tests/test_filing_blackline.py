@@ -231,6 +231,18 @@ class TestFetch:
         monkeypatch.setattr(fb, "_resolve_cik", lambda s: AAPL_CIK)
         assert fb.fetch_blackline("AAPL")["state"] == "partial"
 
+    def test_R9_both_filings_found_but_no_section_located_is_sections_unlocated(self, monkeypatch):
+        # Both documents are read; neither carries a recognisable Item heading.
+        # That is NOT "no filer" / "fewer than two filings" -- its own state,
+        # still citing the two filings that were read.
+        blank = b"<html><body><p>No item headings here.</p></body></html>"
+        monkeypatch.setattr(fb, "_sec_get", _fake_sec([], older=blank, newer=blank))
+        monkeypatch.setattr(fb, "_resolve_cik", lambda s: AAPL_CIK)
+        snap = fb.fetch_blackline("AAPL")
+        assert snap["state"] == "sections_unlocated"
+        assert snap["newer"]["accession"] == NEWER_ACC and snap["older"]["accession"] == OLDER_ACC
+        assert all(s["state"] == "not_found" for s in snap["sections"])
+
     def test_one_10k_is_not_found(self, monkeypatch):
         import json
         sub = json.loads(SUBMISSIONS)

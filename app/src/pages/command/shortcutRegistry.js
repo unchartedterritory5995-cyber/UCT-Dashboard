@@ -190,6 +190,13 @@ export const SHORTCUTS = Object.freeze([
     why: `Alt+${n} focuses terminal panel ${n} (physical key, so Mac Option+${n} works too). `
       + 'Fires from the command line, which is where a terminal user\'s focus lives.',
   })),
+  ...[['Prev', 'BracketLeft', 'previous'], ['Next', 'BracketRight', 'next']].map(([name, code, word]) => decl({
+    id: `terminal.panel${name}`,
+    chord: { code, alt: true, ctrl: false, meta: false, shift: false },
+    target: 'window', capture: false, inEditable: true, repeat: false,
+    why: `Alt+${code === 'BracketLeft' ? '[' : ']'} focuses the ${word} terminal panel, wrapping `
+      + 'around (physical key). The companion to Alt+1..4 for boards a member steps through.',
+  })),
 
   // ── push-to-talk (hooks/usePushToTalkHotkey.js, mounted by GlobalVoiceLayer) ──
   decl({

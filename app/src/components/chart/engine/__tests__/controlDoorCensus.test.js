@@ -774,6 +774,16 @@ describe('the control-door census — how many doors, and whether an eighth exis
        + 'outright — the third lock deliberately does not trust the first two. '
        + 'Dev-server only (`scan-harness.html`; `vite build` takes index.html as its '
        + 'single input), which `scanHarnessAbsent.test.js` rails.'],
+      ['app/src/testing/addToChart/addToChartHarness.jsx',
+       '⭐ THE UNIFIED ADD TO CHART LIVE HARNESS — the FIFTH dev-only probe, ledgered '
+       + 'in the change that adds it. It uses door eight ONCE, to seed its own '
+       + '`opts.settings` with an own-pane RSI (`addInstance`), so pane order, pane '
+       + 'readouts and the legend have something real to stay unchanged while the '
+       + 'Earnings Strip and Company Info are added, collapsed and removed around them. '
+       + '⛔ IT WRITES NOTHING: same three locks as the scan harness (opts in page '
+       + 'state, a spread `WORKSPACE_FALLBACK`, a `fetch` that refuses non-GET '
+       + 'preference/layout writes). Dev-server only (`add-to-chart-harness.html`), '
+       + 'railed by `addToChartHarnessAbsent.test.js`.'],
       ['app/src/components/chart/discoveryCatalog.js',
        '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
        + 'rather than a ninth door. A catalogue result becomes a chart series by '

@@ -73,7 +73,16 @@ def test_expirations_walk_past_the_first_page(monkeypatch):
     dates = [f"2026-10-{d:02d}" for d in range(1, 29)]           # 28 expirations
     calls = []
 
+    class _Morning(po.datetime):                                  # before the 16:00 ET close
+        @classmethod
+        def now(cls, tz=None):
+            return po.datetime(2026, 9, 30, 10, 0, tzinfo=tz)
+
+    monkeypatch.setattr(po, "datetime", _Morning)
+
     def fake_get(url, params=None):
+        if "/v3/snapshot/options/" in url:                         # O1's spot hint: none here
+            return {"results": []}
         calls.append(dict(params))
         after = params.get("expiration_date.gt")
         todo = [d for d in dates if not after or d > after]

@@ -26,7 +26,9 @@ CONTRACT_HISTORY_DAYS = 120
 MAX_LEGS = 8
 _OCC = re.compile(r"^O:([A-Z][A-Z0-9.]{0,9})(\d{6})([CP])(\d{8})$")
 
-PROBABILITY_METHOD = ("Range = spot x exp(+/- z x IV x sqrt(days/365)), where z is the standard-normal "
+PROBABILITY_METHOD = ("Range = spot x exp(+/- z x IV x sqrt(sessions/252)), where sessions counts the NYSE "
+                      "trading sessions from today to the expiration (the one convention every options "
+                      "panel uses), z is the standard-normal "
                       "quantile for the chosen two-sided probability and IV is the mean of the call and "
                       "put implied volatility at the strike closest to spot for that expiration. A "
                       "lognormal, no-drift, no-dividend model centred on today's spot: what the option "
@@ -54,9 +56,11 @@ def _atm(chain: dict) -> Optional[tuple]:
     return k, sum(ivs) / len(ivs)
 
 
-def range_at(spot: float, iv: float, days: float, p: float) -> dict:
+def range_at(spot: float, iv: float, sessions: float, p: float) -> dict:
+    """`sessions` = NYSE trading sessions to the expiration (move_convention, O11)."""
+    from api.services.options_analytics import move_convention as mc
     z = NormalDist().inv_cdf((1 + p) / 2)
-    w = z * iv * math.sqrt(max(days, 0) / 365)
+    w = z * mc.sigma(iv, sessions)
     return {"probability": p, "z": round(z, 4), "low": round(spot * math.exp(-w), 2),
             "high": round(spot * math.exp(w), 2)}
 
@@ -78,12 +82,25 @@ def probability(sym: str, expiration: str = "", p: float = DEFAULT_PROBABILITY, 
     if days < 0:
         return {**base, "atm_iv": atm[1], "ranges": [], "note": "This expiration has passed."}
     probs = [p] + [q for q in STANDARD_PROBABILITIES if abs(q - p) > 1e-9]
+    from api.services.options_analytics import move_convention as mc
+    sessions = mc.sessions_between(today, _dt.date.fromisoformat(exp))
     return {**base, "atm_strike": atm[0], "atm_iv": round(atm[1], 4), "days": days,
-            "ranges": [range_at(float(c["spot"]), atm[1], days, q) for q in probs],
+            "sessions": sessions,
+            "ranges": [range_at(float(c["spot"]), atm[1], sessions, q) for q in probs],
             "note": "Same-day expiration: the range is today's spot." if days == 0 else None}
 
 
 # ── FT-016 contract drill ──────────────────────────────────────────────────────
+
+def root_matches(root: str, sym: str) -> bool:
+    """O9: does an OCC root name this underlying? OCC writes class shares without the separator
+    (BRK.B / BRK-B -> BRKB) and an adjusted contract appends one digit (BRKB1), so both sides are
+    compared with '.' and '-' stripped, and one trailing digit on the root is allowed."""
+    def norm(x: str) -> str:
+        return (x or "").upper().replace(".", "").replace("-", "").strip()
+    r, s = norm(root), norm(sym)
+    return bool(s) and (r == s or (len(r) == len(s) + 1 and r.startswith(s) and r[-1].isdigit()))
+
 
 def parse_occ(occ: str) -> Optional[dict]:
     m = _OCC.match((occ or "").strip().upper())
@@ -104,7 +121,7 @@ _bars: Callable[[str, str, str], list] = _default_bars
 
 def contract_history(sym: str, occ: str, *, today: Optional[_dt.date] = None) -> dict:
     parsed = parse_occ(occ)
-    if parsed is None or parsed["underlying"] != sym:
+    if parsed is None or not root_matches(parsed["underlying"], sym):
         raise ValueError(f"{occ!r} is not an option contract on {sym}")
     today = today or _dt.datetime.now(_ET).date()
     bars = _bars(occ.upper(), (today - _dt.timedelta(days=CONTRACT_HISTORY_DAYS)).isoformat(),

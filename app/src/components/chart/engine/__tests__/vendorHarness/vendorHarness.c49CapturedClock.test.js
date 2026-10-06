@@ -293,11 +293,15 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
     // each is served, and equal: the row MATCHes on every bar, Sandy's included (above)
   })
 
-  it('the new-period events: equal on every bar but bar 0 (it reads the anchor of a bar before the series) — the Sandy week\'s four included', () => {
-    expect(T.withheld(EVENT_ROW.W)).toEqual(['1993-01-29'])
-    expect(T.withheld(EVENT_ROW.M)).toEqual(['1993-01-29'])
-    expect(T.withheld(EVENT_ROW['3M'])).toEqual(['1993-01-29'])
-    for (const code of ['W', 'M', '3M']) expect(T.byTitle.get(EVENT_ROW[code]).stats.valueMismatches, code).toBe(0)
+  // ⭐ H5 (step 84) re-pin: this read "equal on every bar but bar 0 (it reads the
+  // anchor of a bar before the series)", bar 0 withheld. This series STARTS AT THE
+  // LISTING (1993-01-29), so there is no bar before it: bar 0 reads Pine's `na`,
+  // which is what TradingView answers too — served and equal on every bar.
+  it('the new-period events: equal on EVERY bar, bar 0 included (from the listing there is no bar before the series) — the Sandy week\'s four included', () => {
+    for (const code of ['W', 'M', '3M']) {
+      expect(T.withheld(EVENT_ROW[code]), code).toEqual([])
+      expect(T.byTitle.get(EVENT_ROW[code]).stats, code).toMatchObject({ valueMismatches: 0, naMismatches: 0 })
+    }
   })
 
   it('time_close("M"): all 8,476 bars — May 1993 and May 1999 close on Memorial Day, a day with no bar', () => {
@@ -369,10 +373,12 @@ describe('C49 · 3 — AMEX:SPY 1W and 1M: a period request is keyed on the bar\
       expect(noteCodes(T.ours)).toEqual([])
       expect(noteCodes(Q.ours)).toEqual([])
     })
-    it(`${tf}: the new-period events fire where TradingView's do; bar 0 alone is withheld`, () => {
+    // ⭐ H5 (step 84) re-pin: "bar 0 alone is withheld" — from the listing it is not.
+    it(`${tf}: the new-period events fire where TradingView's do, on every bar from the listing`, () => {
+      expect(CAP[kt].history.startsAtBar0).toBe(true)
       for (const code of ['W', 'M', '3M']) {
-        expect(T.byTitle.get(EVENT_ROW[code]).stats, code).toMatchObject({ matching: n - 1, valueMismatches: 0, naMismatches: 1 })
-        expect(T.withheld(EVENT_ROW[code]), code).toEqual([ny(CAP[kt].bars.rows[0][0]).ymd])
+        expect(T.byTitle.get(EVENT_ROW[code]).stats, code).toMatchObject({ matching: n, valueMismatches: 0, naMismatches: 0 })
+        expect(T.withheld(EVENT_ROW[code]), code).toEqual([])
       }
     })
   }

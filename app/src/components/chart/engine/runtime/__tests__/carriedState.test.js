@@ -108,8 +108,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     // in the property name) would empty or fill the loop below and every case in
     // this describe would pass by never running / never excluding.
     expect(MIRRORED.length, 'nothing left to differentiate').toBeGreaterThan(0)
+    // ⭐ RT7 — two runtime-only members now: `barssincePine` and `fixnanPine`
+    // (`rt7Fixnan.test.js` holds the second to a hand replay).
     expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
-      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(1)
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(2)
   })
 
   for (const fn of MIRRORED) {
@@ -389,9 +391,10 @@ describe('⭐ length, resources and what is NOT admitted', () => {
       .toBe('runtime:call-windowed-state')
     // ⚰️ THE UNDECLARED SPECIMEN WAS `ta.cum` AND STOPPED BEING UNDECLARED.
     // `cum` is a table entry now, so this line was asserting the opposite of the
-    // truth while still reading as a general claim about the family. `ta.vwma` is
-    // genuinely absent from the table — checked by driving it, not by assuming.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
+    // truth while still reading as a general claim about the family. `ta.cog` is
+    // genuinely absent from the table — checked by driving it, not by assuming
+    // (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
 

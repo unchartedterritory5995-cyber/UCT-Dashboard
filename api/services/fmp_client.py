@@ -340,6 +340,18 @@ def get_news_press_releases(ticker: str, *, limit: Optional[int] = None, timeout
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
 
 
+def get_historical_price_eod_light(ticker: str, from_date: str, to_date: str, *,
+                                   timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Daily EOD rows (`[{date, price, volume}, ...]`) in a DATE WINDOW. Used ONLY as
+    the optional third check on a symbol's first-trade date (`ticker_ipo`), so the
+    window is always a few weeks wide. `data_class="prices"` has no licensing-register
+    row and stamps "U" by design: it is a corroboration read, never displayed."""
+    return _fetch("/stable/historical-price-eod/light",
+                   {"symbol": ticker.upper(), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_historical_price_eod_light", data_class="prices",
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout)
+
+
 def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/earnings", {"symbol": ticker.upper(), "limit": limit},
                    source_activity="fmp_client.get_earnings", data_class="earnings",

@@ -1355,8 +1355,54 @@ export const LIBRARY_TABS = Object.freeze([
  */
 export const ECONOMIC_TAB = Object.freeze({ key: 'economic', label: 'Economic' })
 const _LIBRARY_TABS_ECON = Object.freeze([...LIBRARY_TABS, ECONOMIC_TAB])
-export function libraryTabsFor({ economic = false } = {}) {
+
+/**
+ * ⭐ RESEARCH — THE HOST'S TAB, ALSO NOT IN `LIBRARY_TABS` (Unified Add to Chart,
+ * 2026-10-05). Its rows are chart-attached research SURFACES (the Earnings
+ * Strip, Company Info) that a HOST renders — a /charts ChartWidget passes them as
+ * `chartFeatures`. ⛔ They are not series, never reach chart settings and never
+ * reach `createFromResult`; see `featureResults`. A surface whose host renders
+ * no such features (mobile, the grid, popups) passes nothing and gets the very
+ * same tab arrays it always did, BY IDENTITY.
+ */
+export const RESEARCH_TAB = Object.freeze({ key: 'research', label: 'Research' })
+const _LIBRARY_TABS_RESEARCH = Object.freeze([...LIBRARY_TABS, RESEARCH_TAB])
+const _LIBRARY_TABS_ECON_RESEARCH = Object.freeze([...LIBRARY_TABS, ECONOMIC_TAB, RESEARCH_TAB])
+export function libraryTabsFor({ economic = false, research = false } = {}) {
+  if (research) return economic ? _LIBRARY_TABS_ECON_RESEARCH : _LIBRARY_TABS_RESEARCH
   return economic ? _LIBRARY_TABS_ECON : LIBRARY_TABS
+}
+
+export const RESEARCH_CATEGORY = 'Research'
+
+/**
+ * A host's feature descriptors (`pages/charts/widgets/chartFeatures.js`) → the
+ * discovery rows that offer them.
+ *
+ * ⛔⛔ NO `create` DESCRIPTOR, ON PURPOSE. A feature is added by the HOST's own
+ * writer (`chartFeatures.add`), never by `createFromResult` — which writes chart
+ * settings — so `addRow` routes `kind: 'feature'` before it ever consults
+ * `resultByKey`. The row carries `enabled` so the list can say `Active`, and
+ * `singleton` so it never offers a second one.
+ */
+export function featureResults(features) {
+  const list = Array.isArray(features) ? features : []
+  return list.filter((f) => f && f.id && f.name).map((f) => Object.freeze({
+    key: `feature:${f.id}`,
+    id: f.id,
+    kind: 'feature',
+    featureId: f.id,
+    name: f.name,
+    shortName: '',
+    category: RESEARCH_CATEGORY,
+    description: f.description || '',
+    tags: Object.freeze([...(f.tags || [])]),
+    place: f.place || '',
+    glyph: f.glyph || null,
+    enabled: !!f.enabled,
+    singleton: true,
+    capability: CAPABILITY.CHARTABLE,
+  }))
 }
 
 /**
@@ -1503,6 +1549,7 @@ export function tabOf(res) {
   if (res.kind === 'positioning') return 'positioning'
   if (res.kind === 'fundamental') return 'fundamentals'
   if (res.kind === 'economic') return 'economic'
+  if (res.kind === 'feature') return 'research'
   // ⭐ EVERY SECURITY — stock, ETF or index — IS A SYMBOL (owner, 2026-09-30). The
   // server's classification still rides on the row as its `category`, which is what
   // the list's headings and chips print; it no longer picks a tab.
@@ -1611,6 +1658,7 @@ export function glyphFamilyOf(res) {
   if (tab === 'positioning') return res.kind === 'breadth' ? 'breadth' : 'momentum'
   if (tab === 'fundamentals') return 'fundamental'
   if (tab === 'economic') return 'economic'
+  if (tab === 'research') return 'research'
   if (tab === 'formulas') return 'formula'
   if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
   const cat = String(res.category || '').toLowerCase()
@@ -1622,6 +1670,9 @@ export function glyphFamilyOf(res) {
 
 /** The `UIcon` name for one result. */
 export function glyphNameOf(res) {
+  // A host feature wears the glyph its surface already wears in the app (the
+  // Company panel's `columns`, the earnings strip's `scale`).
+  if (res && res.kind === 'feature' && res.glyph) return res.glyph
   return GLYPH_FAMILIES[glyphFamilyOf(res)] || GLYPH_FAMILIES.series
 }
 

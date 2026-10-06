@@ -124,16 +124,20 @@ def test_sampling_is_bounded_and_spread():
 def _patch_provider(monkeypatch, listed, chain_for=None):
     from api.services import polygon_options as po
     calls = []
+    wings = []
     lock = threading.Lock()
 
-    def fake_chain(sym, expiration="", strikes_around_spot=6):
+    def fake_chain(sym, expiration="", strikes_around_spot=6, *, min_abs_delta=None,
+                   band_pct=0.25):
         with lock:
             calls.append((expiration, strikes_around_spot))
+            wings.append((min_abs_delta, band_pct))
         return chain_for(expiration) if chain_for else _chain(expiration)
 
     monkeypatch.setattr(po, "list_expirations", lambda s: {"ticker": s, "expirations": listed})
     monkeypatch.setattr(po, "get_chain", fake_chain)
     monkeypatch.setattr(vs, "_CACHE", vs.TTLCache())
+    _patch_provider.wings = wings
     return calls
 
 
@@ -144,6 +148,9 @@ def test_fanout_is_bounded_uses_the_chain_tabs_n_and_is_cached(monkeypatch):
     assert len(calls) <= vs.MAX_EXPIRATIONS + 1
     assert ("2026-11-14", 10) in calls                     # the selected chain, same n as the tab
     assert all(n == 10 for _, n in calls)
+    # O2: every chain asks for the delta wings, so 25/10-delta are reachable on $1-strike names
+    assert _patch_provider.wings and all(w == (vs.WING_DELTA, vs.WING_BAND)
+                                         for w in _patch_provider.wings)
     assert out["smile"]["expiration"] == "2026-11-14"
     assert out["expirations_listed"] == len(listed) and out["cache_seconds"] == 60
     before = len(calls)

@@ -32,6 +32,7 @@ import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
 import ScreenerReviewOverlay from './ScreenerReviewOverlay'
 import FlaggedActions from './FlaggedActions'
 import SaveScanButton from './SaveScanButton'
+import SaveForkDialog from './SaveForkDialog'
 import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import SaveToNotebookButton from '../../journal-2-0/components/SaveToNotebookButton'
@@ -145,6 +146,11 @@ export default function ScannerShell({ embedded = false }) {
   // Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079)
   const [methodologyOpen, setMethodologyOpen] = useState(false)
   const [exportState, setExportState] = useState({})
+  // AC-11 / UC-4: the save-time fork dialog -- a second entry point onto
+  // saving, beside SaveScanButton's quick "name it and go" door. This one
+  // asks WHAT the save becomes (frozen list / re-runnable screen / standing
+  // alert) before doing anything.
+  const [saveForkOpen, setSaveForkOpen] = useState(false)
 
   // ⛔⛔ THE SERVER'S OWN ANSWER OUTRANKS A FABRICATED ONE. `s.visibleColumns` is
   // null until `meta` lands (`viewColumnsFor` builds its map from `meta.views`),
@@ -388,6 +394,12 @@ export default function ScannerShell({ embedded = false }) {
             <SaveScanButton spec={s.baseSpec}
               hasFilters={Object.keys(s.filters).length > 0} />
             <PromoteButton spec={s.baseSpec} disabled={!result || !total} />
+            {/* AC-11 / UC-4: asks what this screen should BECOME -- a frozen
+                list, a re-runnable screen, or a standing alert -- rather than
+                SaveScanButton's always-a-definition quick save. */}
+            <button type="button" className={styles.toolBtn} onClick={() => setSaveForkOpen(true)}>
+              <UIcon name="save" size={13} /> Save…
+            </button>
             <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
               label="Screener results" ariaLabel="Save these results to Notebook"
               disabled={!result || total == null} />
@@ -504,6 +516,10 @@ export default function ScannerShell({ embedded = false }) {
           one chart at a time, keyboard-driven, without leaving the screener. */}
       <ScreenerReviewOverlay symbols={displayRows.map(r => r.ticker)}
         open={reviewOpen} onClose={() => setReviewOpen(false)} />
+      {/* AC-11 / UC-4: the save-time fork — mounted only while open, same
+          `open &&`-belt-and-braces idiom as the Sheets above. */}
+      <SaveForkDialog open={saveForkOpen} onClose={() => setSaveForkOpen(false)}
+        spec={s.baseSpec} />
     </div>
   )
 }

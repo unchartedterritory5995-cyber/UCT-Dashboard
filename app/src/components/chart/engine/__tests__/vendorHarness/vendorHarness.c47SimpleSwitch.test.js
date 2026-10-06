@@ -352,15 +352,19 @@ describe('C47 — measured: the KNN vote against INSTRUCTIONS_PER_BAR', () => {
     return src
   }
 
-  it('⛔ as written the vote COMPILES and the run STOPS, by name: `array.min` over an `na` element (unmeasured)', () => {
+  // ⚰️ RT7 — this stopped by name (`array.min over an na element`, unmeasured). It is
+  // MEASURED now (`vw-array-na-spy-1d-2026-10-02`: a reduction skips its na elements,
+  // `indexof(na)` is -1, v6 `get(-1)` is the last element; `rt7ArrayNa.test.js`), so the
+  // vote as written runs through its warm-up bars and reads TradingView's `80%`.
+  it('⭐ RT7: as written the vote RUNS (na skipped, as measured) and reads TradingView\'s `80%` on the last bar', () => {
     const cap = load()
     const rows = toProductBars(cap)
     const built = build(knnScript(cap.source.text), rows)
     expect(built.ok, JSON.stringify(built.refusal && { g: built.refusal.guard, l: built.refusal.line, m: built.refusal.message })).toBe(true)
-    let err = null
-    try { exec(built, rows) } catch (e) { err = e }
-    expect(err && err.name).toBe('CollectionError')
-    expect(String(err.message)).toContain('array.min over an na element')
+    const res = exec(built, rows, new Budget(DEFAULT_LIMITS))
+    const last = rows.length - 1
+    expect(cap.objects.records.tableCells.map((c) => c.t)).toContain('80%')
+    expect(res.outputs[1][last]).toBe(80)
   }, 120000)
 
   it('the vote with its three features\' `na` filled: TradingView\'s `80%`, at the product\'s own limits', () => {

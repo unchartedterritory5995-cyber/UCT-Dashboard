@@ -16,11 +16,22 @@ const enc = encodeURIComponent
 const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
 
+// Today's calendar date IN NEW YORK, as [y, m, d]. Options expire on an exchange calendar, so "days to
+// expiry" counts from the ET date -- NOT the UTC one, which turns over at 8 pm EDT / 7 pm EST and made
+// every evening's DTE one day short. Intl carries the DST rules, so this is right on both sides of a
+// switch.
+const ET_PARTS = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric' })
+export function etDateParts(now = new Date()) {
+  const p = Object.fromEntries(ET_PARTS.formatToParts(now).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]))
+  return [p.year, p.month, p.day]
+}
+
 export function daysTo(expiration, now = new Date()) {
   if (!expiration) return null
   const [y, m, d] = expiration.split('-').map(Number)
   const exp = Date.UTC(y, m - 1, d)
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const [ty, tm, td] = etDateParts(now)
+  const today = Date.UTC(ty, tm - 1, td)
   return Math.round((exp - today) / 86_400_000)
 }
 

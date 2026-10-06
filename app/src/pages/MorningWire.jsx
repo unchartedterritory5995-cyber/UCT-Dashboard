@@ -144,6 +144,16 @@ function OnTheTape() {
   )
 }
 
+// Live sweep 2026-10-05: the engine can ship a section it never filled as its own
+// placeholder, `<p class="rd-loading">Market intelligence loading...</p>`. The rundown is a
+// FINISHED static fragment -- nothing on this page ever fills it in -- so the placeholder
+// read as a section loading forever. It is said plainly instead.
+export const WIRE_SECTION_MISSING = "This section was not produced in this morning's wire."
+export function settleLoadingPlaceholders(html) {
+  return String(html || '').replace(/<p class="rd-loading"[^>]*>[\s\S]*?<\/p>/g,
+    `<p class="rd-loading rd-missing" data-testid="wire-section-missing">${WIRE_SECTION_MISSING}</p>`)
+}
+
 export default function MorningWire() {
   const { mutate } = useSWRConfig()
   // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
@@ -160,7 +170,7 @@ export default function MorningWire() {
   // innerHTML on every re-render — which WIPES the injected feedback controls
   // below without re-running their effect (its deps are the html/date STRINGS,
   // which a 5-min SWR revalidation leaves unchanged).
-  const rundownHtml = useMemo(() => ({ __html: rundown?.html || '' }), [rundown?.html])
+  const rundownHtml = useMemo(() => ({ __html: settleLoadingPlaceholders(rundown?.html || '') }), [rundown?.html])
 
   // Follow-along: highlight + scroll to the briefing block being read aloud.
   const rundownRef = useRef(null)

@@ -474,3 +474,74 @@ def test_the_route_keys_the_journal_lane_on_the_caller(monkeypatch, stores):
     assert sorted(r["date"] for r in body["timeline"] if r["lane"] == "journal") == [D1, D2]
     body_b = _client({**PAID, "id": b}).get("/api/research/history/NVDA?days=30").json()
     assert sorted(r["date"] for r in body_b["timeline"] if r["lane"] == "journal") == [D2, D2]
+
+
+# ── R20: bare-word false matches on short / dictionary tickers ─────────────────
+
+class TestWireMentionsNeedANameForWordTickers:
+    def test_short_tickers_are_not_matched_as_bare_words(self):
+        html = "<p>AI capex is on fire; it is now a theme. A big day.</p>"
+        for sym in ("AI", "IT", "ON", "A"):
+            assert th._wire_mentions(sym, html) == 0, sym
+
+    def test_a_cashtag_still_counts_for_a_short_ticker(self):
+        assert th._wire_mentions("AI", "<p>Watching $AI into the print; AI broadly hot.</p>") == 1
+
+    def test_the_wires_own_ticker_markup_counts(self):
+        html = ('<div class="rd-pick"><span class="rd-pick-sym">ON</span></div>'
+                '<p>Turn it on.</p><td class="rd-watch-sym x">$IT</td>')
+        assert th._wire_mentions("ON", html) == 1
+        assert th._wire_mentions("IT", html) == 1
+
+    def test_a_dictionary_word_ticker_needs_a_name(self, monkeypatch):
+        from api.services import buzz_universe
+        monkeypatch.setattr(buzz_universe, "ambiguous", lambda: frozenset({"NOW"}))
+        assert th._wire_mentions("NOW", "<p>Buy NOW before the open.</p>") == 0
+        assert th._wire_mentions("NOW", "<p>$NOW beat.</p>") == 1
+
+    def test_an_unambiguous_ticker_keeps_the_whole_word_match(self, monkeypatch):
+        from api.services import buzz_universe
+        monkeypatch.setattr(buzz_universe, "ambiguous", lambda: frozenset())
+        assert th._wire_mentions("NVDA", "<p>Watching $NVDA and NVDA; SNVDA is not NVDAX.</p>") == 2
+
+
+# ── live sweep 2026-10-05: HIS took 15.7 s for NVDA ───────────────────────────────
+
+def test_the_lanes_run_side_by_side(monkeypatch):
+    import time as _t
+    spans = {}
+
+    def slow(name):
+        def _f(*a):
+            t0 = _t.monotonic()
+            _t.sleep(0.3)
+            spans[name] = (t0, _t.monotonic())
+            return []
+        return _f
+
+    monkeypatch.setattr(th, "_LANE_FNS", {n: slow(n) for n in th.LANES})
+    monkeypatch.setattr(th, "_COVERAGE_FNS", {n: (lambda *a: (None, None)) for n in th.LANES})
+    monkeypatch.setattr(th, "_entity_eras", lambda s: ({"status": "unresolved"}, [(s, None, None)]))
+    t0 = _t.monotonic()
+    out = th.history("ZZHS", days=30)
+    took = _t.monotonic() - t0
+    assert set(out["lanes"]) == set(spans)
+    assert max(s for s, _ in spans.values()) < min(e for _, e in spans.values()), "lanes did not overlap"
+    assert took < 0.3 * len(spans) * 0.6
+    assert list(out["lanes"]) == [n for n in th.LANES if n in out["lanes"]]   # order kept
+
+
+def test_a_failed_flow_read_is_not_waited_out_twice(monkeypatch):
+    calls = []
+
+    def _req(path, params):
+        calls.append(params["source"])
+        raise TimeoutError("tape slow")
+
+    th._FLOW_MEMO.clear()
+    monkeypatch.setattr(th, "_flow_request", _req)
+    for _ in range(3):
+        with pytest.raises(TimeoutError):
+            th._flow_counts("ZZFL", "stocks")
+    assert calls == ["stocks"]
+    th._FLOW_MEMO.clear()

@@ -32,6 +32,7 @@ import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
 import PushNotificationsRow from '../components/settings/PushNotificationsRow'
 import AlertRoutingPanel from '../components/settings/AlertRoutingPanel'
+import StandingAlertsPanel from '../components/settings/StandingAlertsPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -2192,6 +2193,7 @@ export default function Settings() {
             </div>
             <PushNotificationsRow />
             <AlertRoutingPanel />
+            <StandingAlertsPanel />
           </div>
         </TileCard>
   )

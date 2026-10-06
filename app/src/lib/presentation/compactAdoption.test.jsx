@@ -143,7 +143,13 @@ describe('the batch is byte-identical to the frozen oracles on every input', () 
   })
 
   it('profileFormat.fmtVol', () => { expect(diff(fmtVol, ORACLE_fmtVol)).toEqual([]) })
-  it('profileFormat.fmtRevenue', () => { expect(diff(fmtRevenue, ORACLE_fmtRevenue)).toEqual([]) })
+  // fmtRevenue's ONE deliberate move: the minus now goes before the "$"
+  // ("-$1.50B", not "$-1.50B" -- presentationPrimitives.formatCompact).
+  it('profileFormat.fmtRevenue (minus before the "$")', () => {
+    const signMoved = (v) => { const s = ORACLE_fmtRevenue(v); return typeof s === 'string' ? (s.startsWith('$-') ? `-$${s.slice(2)}` : s) : s }
+    expect(diff(fmtRevenue, signMoved)).toEqual([])
+    expect(fmtRevenue(-1_500_000_000)).toBe('-$1.50B')
+  })
   it('profileFormat.fmtShares', () => { expect(diff(fmtShares, ORACLE_fmtShares)).toEqual([]) })
   it('cotFormat.fmtCompact', () => { expect(diff(fmtCompact, ORACLE_fmtCompact)).toEqual([]) })
   it('cotFormat.fmtSignedCompact', () => {

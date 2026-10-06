@@ -654,7 +654,9 @@ export function inputsFromFolded(folded, source) {
  */
 function annotate(translation, windowBound, displacementBound = new Set()) {
   return (translation.outputs || []).map((o) => {
-    if (!o.formula) return { ...o, memberInputs: [], skippedInputs: [] }
+    // ⛔ H4 — a REFUSED row's handoffs too (`_offsetWritten`, `_authorHidden`):
+    // the runtime document reads them, and the bare spread dropped both.
+    if (!o.formula) return carryHandoffs(o, { ...o, memberInputs: [], skippedInputs: [] })
     // ⭐ BOTH pass-1 verdicts are carried in, for the same reason: the later pass
     // never declared these names, so it cannot report where they went.
     const folded = (o.inputsFolded || []).map((e) => {
@@ -679,7 +681,9 @@ function carryHandoffs(from, to) {
   // `x[N]`, handed to readers that must tell the two apart (the vendor harness).
   // `_colourInputs` (2026-09-28): the inputs only the row's COLOUR read — see
   // `colourOnlyInputs` below.
-  for (const k of ['_displaceFrom', '_displaceParams', '_treeShift', '_colourInputs']) {
+  // `_offsetWritten` / `_authorHidden` (H4): a REFUSED row's offset and
+  // `display.none`, read by the runtime document (`memberPaneDefinition`).
+  for (const k of ['_displaceFrom', '_displaceParams', '_treeShift', '_colourInputs', '_offsetWritten', '_authorHidden']) {
     if (Object.prototype.hasOwnProperty.call(from, k)) {
       Object.defineProperty(to, k, { value: from[k], enumerable: false })
     }

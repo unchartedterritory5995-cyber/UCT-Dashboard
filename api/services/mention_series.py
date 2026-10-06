@@ -24,6 +24,7 @@ Request path: one local SQLite read. DARK behind MENTION_SERIES_ENABLED.
 from __future__ import annotations
 
 import os
+import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -44,6 +45,41 @@ def is_enabled() -> bool:
 
 def _et_day(ts: int) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(_ET).date().isoformat()
+
+
+# S9 (terminal backend fixes, 2026-10-05): the room's per-day totals are the same for
+# every ticker, and a finished ET day's total only moves when a backfill adds history.
+# Reading them meant walking EVERY mention in the window in Python on each request
+# (tens of thousands of rows for 90 days), so the finished days are kept for
+# _ROOM_TTL_S and only today's count is read live. A backfill shows up within the TTL.
+_ROOM_TTL_S = 600
+_ROOM_CACHE: dict[tuple, tuple[float, dict]] = {}
+_ROOM_CACHE_MAX = 64
+
+
+def _count_by_et_day(c, lo_ts: int, hi_ts: int) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for r in c.execute("SELECT ts FROM mentions WHERE ts >= ? AND ts < ?", (lo_ts, hi_ts)):
+        d = _et_day(r["ts"])
+        out[d] = out.get(d, 0) + 1
+    return out
+
+
+def _room_by_day(c, db: str, start_day: date, end_day: date, start_ts: int, end_ts: int) -> dict[str, int]:
+    today_ts = int(datetime(end_day.year, end_day.month, end_day.day, tzinfo=_ET).timestamp())
+    key = (db, start_day.isoformat(), end_day.isoformat())
+    hit = _ROOM_CACHE.get(key)
+    now_m = time.monotonic()
+    if hit and hit[0] > now_m:
+        closed = hit[1]
+    else:
+        closed = _count_by_et_day(c, start_ts, today_ts)
+        if len(_ROOM_CACHE) >= _ROOM_CACHE_MAX:
+            _ROOM_CACHE.clear()
+        _ROOM_CACHE[key] = (now_m + _ROOM_TTL_S, closed)
+    room = dict(closed)
+    room.update(_count_by_et_day(c, today_ts, end_ts))
+    return room
 
 
 def series(sym: str, days: int = DEFAULT_DAYS, now: Optional[datetime] = None) -> dict:
@@ -72,10 +108,7 @@ def series(sym: str, days: int = DEFAULT_DAYS, now: Optional[datetime] = None) -
         slot = mine.setdefault(d, [0, set()])
         slot[0] += 1
         slot[1].add(r["author_id"])
-    room: dict[str, int] = {}
-    for r in c.execute("SELECT ts FROM mentions WHERE ts >= ? AND ts < ?", (start_ts, end_ts)):
-        d = _et_day(r["ts"])
-        room[d] = room.get(d, 0) + 1
+    room = _room_by_day(c, buzz_store.db_path(), start_day, end_day, start_ts, end_ts)
 
     points, d = [], start_day
     while d <= end_day:

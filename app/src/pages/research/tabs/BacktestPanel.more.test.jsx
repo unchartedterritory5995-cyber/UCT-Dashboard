@@ -38,8 +38,32 @@ describe('BacktestPanel with FT-011 switched on', () => {
     expect(opts.length).toBe(FX.catalog.strategies.length)
   })
 
-  it('an earnings run sends the anchor, no entry days, no exit rule, and shows the AMC/BMO rule', async () => {
+  it('by default the earnings anchor is offered ENABLED (report timing is on file since O4)', async () => {
     wrap(<BacktestPanel sym="SPY" />)
+    const anchor = await screen.findByLabelText('Entry anchor')
+    const opt = [...anchor.querySelectorAll('option')].find((o) => o.value === 'earnings')
+    expect(opt.disabled).toBe(false)
+    expect(screen.queryByTestId('backtest-earnings-off')).toBeNull()
+  })
+
+  it('with timing off, the earnings anchor is offered DISABLED with the reason, and an earnings pick cannot be sent', async () => {
+    wrap(<BacktestPanel sym="SPY" earningsAnchor={false} />)
+    const anchor = await screen.findByLabelText('Entry anchor')
+    const opt = [...anchor.querySelectorAll('option')].find((o) => o.value === 'earnings')
+    expect(opt.disabled).toBe(true)
+    expect(opt.textContent).toContain('not available yet')
+    expect(screen.getByTestId('backtest-earnings-off').textContent).toMatch(/before the open or after the close/)
+    // even a forced pick (a stale DOM, a keyboard path) runs the monthly study, never a zero-trade earnings run
+    fireEvent.change(anchor, { target: { value: 'earnings' } })
+    expect(screen.getByLabelText('Entry days before expiry')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    await waitFor(() => expect(postBody).not.toBeNull())
+    expect(postBody.anchor).toBeUndefined()
+    expect(postBody.dte).toBe(30)
+  })
+
+  it('an earnings run sends the anchor, no entry days, no exit rule, and shows the AMC/BMO rule', async () => {
+    wrap(<BacktestPanel sym="SPY" earningsAnchor />)
     fireEvent.change(await screen.findByLabelText('Backtest strategy'), { target: { value: 'long_straddle' } })
     fireEvent.change(screen.getByLabelText('Entry anchor'), { target: { value: 'earnings' } })
     expect(screen.queryByLabelText('Entry days before expiry')).toBeNull()
@@ -66,5 +90,40 @@ describe('BacktestPanel with FT-011 switched on', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(screen.queryByLabelText('Entry anchor')).toBeNull()
     expect(screen.getByLabelText('Backtest strategy').querySelectorAll('option').length).toBe(4)
+  })
+
+  it('the in-progress status line reads the earnings wording when earnings=true, monthly wording when false', async () => {
+    // keep the job queued forever so the in-progress line is observable
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url)
+      const json = (status, body) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
+      if (u.endsWith('/backtest-catalog')) return json(200, FX.catalog)
+      if (u.endsWith('/backtest') && init?.method === 'POST') return json(202, { job: 'j1', state: 'queued' })
+      if (u.includes('/backtest/j1')) return json(200, { job: 'j1', state: 'queued' })
+      return json(404, {})
+    })
+    wrap(<BacktestPanel sym="SPY" />)
+
+    // monthly (default anchor)
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    const monthly = await screen.findByTestId('backtest-running')
+    expect(monthly.textContent).toContain('over the past year of monthly expirations')
+    expect(monthly.textContent).not.toContain('earnings prints')
+
+    cleanup()
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url)
+      const json = (status, body) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
+      if (u.endsWith('/backtest-catalog')) return json(200, FX.catalog)
+      if (u.endsWith('/backtest') && init?.method === 'POST') return json(202, { job: 'j1', state: 'queued' })
+      if (u.includes('/backtest/j1')) return json(200, { job: 'j1', state: 'queued' })
+      return json(404, {})
+    })
+    wrap(<BacktestPanel sym="SPY" earningsAnchor />)
+    fireEvent.change(await screen.findByLabelText('Entry anchor'), { target: { value: 'earnings' } })
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    const earnings = await screen.findByTestId('backtest-running')
+    expect(earnings.textContent).toContain('over past earnings prints')
+    expect(earnings.textContent).not.toContain('monthly expirations')
   })
 })

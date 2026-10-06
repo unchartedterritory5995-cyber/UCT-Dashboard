@@ -379,6 +379,68 @@ def compare_row(row: Mapping[str, Any]) -> List[dict]:
     return findings
 
 
+# ─── GT: direction B, TOLD TO ITS OWNER ──────────────────────────────────────
+#
+# ⭐⭐ RT4 follow-up (owner ruling 2026-10-02). The shared clock table now
+# declares the right edge of the nine last-bar clock leaves (`3a77b89423`), so
+# a definition saved BEFORE that fix which reads one of them carries a stored
+# `non-repainting` the engine no longer measures. This pass already finds it
+# (direction B, `STORED_LOOSER`) and, by design, NEVER flips it. What was missing
+# is the member being TOLD: `member_notice` turns the same finding into a
+# sentence the store serves beside the row (`repaint_notice`), and the Builder
+# shows it when its owner opens the definition.
+#
+# ⛔ IT WRITES NOTHING. The stored label stays the stored label; the notice is a
+# derived field of the SERVED row, like `scan_refusal`. ⛔ It is general over
+# direction B, not hard-coded to the nine leaves: whatever made the stored label
+# looser than today's measurement, the owner is told the same true thing.
+
+_NOTICE_CACHE: Dict[tuple, Optional[dict]] = {}
+_NOTICE_CACHE_MAX = 4096
+
+
+def member_notice(row: Mapping[str, Any]) -> Optional[dict]:
+    """The member-visible notice for a stored row whose label is LOOSER than
+    today's measurement, or ``None``.
+
+    ``{"plots": [{plot_key, stored, current}], "sentence": str}``.
+
+    ⭐ MEMOISED PER (user, def, version): a stored version never changes (the
+    store appends), and today's measurement only changes with the code, which
+    is a new process. So the lint runs once per row per boot, not per list read.
+    ⛔ NEVER RAISES: a row the linter cannot read gets no notice (the relint
+    pass reports it as `uncomparable`; the list must not fail over it)."""
+    key = (str(row.get("user_id")), row.get("def_id"), row.get("version"),
+           row.get("ast_hash"), json.dumps(row.get("repaint"), sort_keys=True, default=str))
+    if key in _NOTICE_CACHE:
+        return _NOTICE_CACHE[key]
+    notice: Optional[dict] = None
+    try:
+        from api.services import runtime_definitions
+        if not runtime_definitions.is_runtime(row.get("definition") or {}):
+            looser = [f for f in compare_row(row) if f.get("verdict") == STORED_LOOSER]
+            if looser:
+                plots = [{"plot_key": f["plot_key"], "stored": f["stored"],
+                          "current": f["current"]} for f in looser]
+                parts = "; ".join(
+                    f"`{p['plot_key']}` was saved as {p['stored']} and measures "
+                    f"{p['current']} today" for p in plots)
+                notice = {
+                    "plots": plots,
+                    "sentence": (
+                        "This indicator was saved under an older repaint rule: "
+                        f"{parts}. Its saved label is kept as it was, so nothing "
+                        "you armed under it has changed; saving a change to the "
+                        "formula records today's label."),
+                }
+    except Exception:                                              # noqa: BLE001
+        notice = None
+    if len(_NOTICE_CACHE) >= _NOTICE_CACHE_MAX:
+        _NOTICE_CACHE.clear()
+    _NOTICE_CACHE[key] = notice
+    return notice
+
+
 # ─── armed, or merely saved ──────────────────────────────────────────────────
 
 def armed_index() -> Dict[str, List[int]]:

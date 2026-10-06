@@ -31,10 +31,11 @@
 // ⭐ The `str.*` table is imported rather than restated: this file VALIDATES a
 // program's text ops against it at build time, and a second copy of the name
 // list here is exactly the drift the header warns about one paragraph up.
-import { TEXT_FNS } from './text.js'
+import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { ARRAY_FNS } from './collections.js'
 import { COLOUR_FNS } from './colours.js'
 import { isDrawingHandle } from './handles.js'
+import { OBJECT_OPS, ANY_METHODS } from './objectStore.js'
 
 export const OP = Object.freeze({
   // ── operands ──
@@ -94,12 +95,15 @@ export const OP = Object.freeze({
   // like SuperTrend's `trend := trend[1]` is not an approximation, it is a
   // different indicator that still draws a line.
   READ_HIST_SLOT: 54,
-  // ── RESERVED (2F-2, declared with its reason) ──
+  // ── 2F-2 RESERVED IT; RT3 IMPLEMENTS IT, ON THE CONDITION IT WAS RESERVED WITH ──
   // A history offset that is only known while the bar is running — `x[i + 1]`
-  // inside a loop. It cannot be admitted until the ring depth it may reach is
+  // inside a loop. It could not be admitted until the ring depth it may reach is
   // statically bounded, because an offset past the ring would answer `na` where
-  // Pine answers a number: a silent wrong value, which is the one outcome this
-  // runtime refuses to trade for coverage. The front end refuses it BY NAME.
+  // Pine answers a number: a silent wrong value. ⭐ RT3: the front end now proves
+  // that bound (a loop counter whose bounds fold, constant arithmetic over it —
+  // `pineRuntimeFrontend.js::offsetRange`) and sizes the ring to it; anything it
+  // cannot bound still refuses by name. a: history slot (frame-relative); pops
+  // the offset, then the LIVE value (`x[0]` is `x`).
   READ_HIST_SLOT_DYN: 55,
   // ⭐⭐ THE TWO THAT ARE ADMISSIBLE TODAY, and the reason is the one written
   // above: the constraint on 55 is about a RING. A COLUMN and a price SERIES
@@ -250,6 +254,10 @@ export const OP = Object.freeze({
   // Checked against `WHILE_ITERATIONS` (`limits.js`) — see `ir.js::whileStmt`.
   // Appended, never inserted: these numbers are a wire format.
   WHILE_BOUND: 95,
+  // ⭐⭐ RT5 — A DRAWING OPERATION THE RUN EXECUTES (`objectStore.js`). `a`
+  // indexes `program.objectOps` (`{fn, present}`), `b` is how many arguments are
+  // on the stack — the PRESENT ones, in parameter order. Appended, never inserted.
+  OBJECT: 96,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -259,12 +267,12 @@ export const OP = Object.freeze({
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
   OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
-  // ⛔ THE TWO DYNAMIC READS ARE IMPLEMENTED; `READ_HIST_SLOT_DYN` IS NOT, AND
-  // THAT ASYMMETRY IS THE POINT. A column and a series are materialised, so any
-  // offset is answerable; a slot's past is a ring whose depth is fixed before
-  // bar 0, and an offset that may reach past it would answer `na` where Pine
-  // answers a number.
-  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN,
+  // ⛔ A column and a series are materialised, so any offset is answerable; a
+  // slot's past is a ring whose depth is fixed before bar 0, so its dynamic read
+  // (`READ_HIST_SLOT_DYN`, RT3) is emitted only under a bound the front end
+  // proved, and the VM refuses BY NAME an offset deeper than the ring rather
+  // than answer `na` for it.
+  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN, OP.READ_HIST_SLOT_DYN,
   OP.READ_CLOCK,
   OP.SESSION,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
@@ -279,6 +287,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.CARRIED2,
   OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST,
   OP.WHILE_BOUND,
+  OP.OBJECT,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
@@ -322,7 +331,7 @@ export function makeProgram({
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
   carried2 = [],
   textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
-  iterOutputs = [], recordTypes = [], fieldNames = [],
+  iterOutputs = [], recordTypes = [], fieldNames = [], objectOps = [], objectCaps = {},
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -441,6 +450,28 @@ export function makeProgram({
       }
       return Object.freeze({ type, fields: Object.freeze(fields.slice()) })
     })),
+    // ⭐⭐ RT5 — each `{fn, present, returns}`: the store's op name, which of
+    // its parameters the call passed, and what it leaves on the stack. Validated
+    // against the store's own table at build, so an unknown name is a compiler
+    // error and never a run-time one on some bar.
+    objectOps: Object.freeze((objectOps || []).map((o, i) => {
+      if (!o || typeof o.fn !== 'string' || !o.fn) {
+        throw new ProgramError(`objectOp ${i}: a drawing op carries a name`)
+      }
+      const spec = OBJECT_OPS[o.fn] || (o.fn.startsWith('any.') && ANY_METHODS[o.fn.slice(4)] ? {} : null)
+      if (!spec) throw new ProgramError(`objectOp ${i}: no drawing operation \`${o.fn}\``)
+      if (!Array.isArray(o.present) || !o.present.every((x) => typeof x === 'boolean')) {
+        throw new ProgramError(`objectOp ${i}: \`${o.fn}\` carries which arguments it passed`)
+      }
+      if (spec.params && o.present.length !== spec.params.length) {
+        throw new ProgramError(`objectOp ${i}: \`${o.fn}\` takes ${spec.params.length} parameters, `
+          + `the call describes ${o.present.length}`)
+      }
+      return Object.freeze({ fn: o.fn, present: Object.freeze(o.present.slice()), returns: o.returns })
+    })),
+    // ⭐ RT5 — the script's declared `max_*_count`s, read once by the front end
+    // (comments and strings stripped, `pine.js::strippedForScan`).
+    objectCaps: Object.freeze({ ...(objectCaps || {}) }),
     // ⭐ The interned field names both `FIELD_GET` and `FIELD_SET` index.
     fieldNames: Object.freeze((fieldNames || []).map((n, i) => {
       if (typeof n !== 'string' || !n) {
@@ -591,6 +622,17 @@ export function validateProgram(p) {
           `pc ${pc}: \`${p.textOps[a]}\` takes ${want} argument(s), the call passes ${got}`)
       }
     }
+    if (op === OP.OBJECT) {
+      if (a < 0 || a >= p.objectOps.length) {
+        throw new ProgramError(`pc ${pc}: OBJECT ${a} outside ${p.objectOps.length} drawing ops`)
+      }
+      const want = p.objectOps[a].present.filter(Boolean).length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(`pc ${pc}: \`${p.objectOps[a].fn}\` passes ${want} argument(s), `
+          + `the call pushes ${got}`)
+      }
+    }
     if (op === OP.ARRAY) {
       if (a < 0 || a >= p.arrayOps.length) {
         throw new ProgramError(`pc ${pc}: ARRAY ${a} outside ${p.arrayOps.length} array ops`)
@@ -655,6 +697,12 @@ export function validateProgram(p) {
           `pc ${pc}: READ_HIST_SLOT reads \`${mainEntry.name}\`[${b2}] but its ring was `
           + `planned for depth ${mainEntry.depth} — the static demand analysis and the `
           + 'lowering disagree about how far back this program looks')
+      }
+    }
+    if (op === OP.READ_HIST_SLOT_DYN) {
+      const maxHist = Math.max(p.history.length, 1)
+      if (a < 0 || a >= maxHist) {
+        throw new ProgramError(`pc ${pc}: READ_HIST_SLOT_DYN ${a} outside ${maxHist} history slots`)
       }
     }
     if (op === OP.CALL) {

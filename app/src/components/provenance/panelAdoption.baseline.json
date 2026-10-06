@@ -17,6 +17,7 @@
   "adopters": [
     "app/src/components/calendar/CallRecapSection.jsx",
     "app/src/components/chart/builder/EvidenceTab.jsx",
+    "app/src/components/research/fmpDepth/SourceLine.jsx",
     "app/src/components/screener/ScanResults.jsx",
     "app/src/components/tiles/CatalystTable.jsx",
     "app/src/pages/Breadth.jsx",
@@ -36,7 +37,8 @@
     "app/src/pages/research/tabs/NewsTab.jsx",
     "app/src/pages/research/tabs/OwnershipTab.jsx",
     "app/src/pages/screener/options/OptionsScreener.jsx",
-    "app/src/pages/screener/shell/ScannerShell.jsx"
+    "app/src/pages/screener/shell/ScannerShell.jsx",
+    "app/src/pages/terminal/TerminalShell.jsx"
   ],
   "coverage_line_exempt": {
     "app/src/components/screener/MethodologyPanel.jsx": "not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count",

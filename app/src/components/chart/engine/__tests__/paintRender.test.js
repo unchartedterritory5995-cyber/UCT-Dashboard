@@ -12,7 +12,7 @@
 //   · two `barcolor`s that disagree on a bar leave that bar alone (no capture says
 //     which one TradingView shows).
 import { describe, it, expect } from 'vitest'
-import { createBinder } from '../binder'
+import { createBinder, paintRenderColours } from '../binder'
 import { createFakeChart } from './fakeChart'
 import { backgroundRuns, isClearColour, isNaColour, createBackgroundPrimitive } from '../paintPrimitive'
 import { applyBarColour, applyBarColours, wrapSeriesForBarColours, reapplyBarColours, changedBarKeys } from '../barColours'
@@ -226,13 +226,69 @@ describe('the binder draws paints', () => {
     expect(h.calls('attachPrimitive')).toEqual([])
   })
 
-  it('⛔ two barcolors that disagree on a bar leave THAT bar alone; where they agree it is drawn', () => {
+  it('⭐ F1 — an `na` bar of the later barcolor leaves the earlier one standing (CAP round 4 P1/P2)', () => {
+    // P1 red on every bar, P2 blue where cond = [1,0,1,0] picks palette entry 1:
+    // TradingView paints the later call where it has a colour and the earlier one
+    // where it is `na`.
+    const later = { kind: 'barcolor', colorMode: 'column:cond', colorPalette: ['rgba(0, 0, 0, 0)', '#0000ff'] }
+    const h = harness(new Map([['u_d', def('u_d', [BAR, later])]]))
+    const res = h.run([inst('u_d')])
+    expect([...h.handed[0].entries()]).toEqual([
+      [String(BARS[0].t), '#0000ff'], [String(BARS[1].t), '#ff0000'],
+      [String(BARS[2].t), '#0000ff'], [String(BARS[3].t), '#ff0000'],
+    ])
+    expect(res.paints.conflicts).toBe(0)
+  })
+
+  it('⭐ RT6 — within ONE script the LATER barcolor wins (CAP round 4 P1/P2 screenshot)', () => {
     const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
     const h = harness(new Map([['u_d', def('u_d', [BAR, other])]]))
     const res = h.run([inst('u_d')])
+    // cond = [1,0,1,0]: the later paint's colour on every bar — red, blue, red, blue
+    expect([...h.handed[0].values()]).toEqual(['#ff0000', '#0000ff', '#ff0000', '#0000ff'])
+    expect(res.paints.conflicts).toBe(0)
+  })
+
+  it('⭐⭐ RT6 — a plot coloured by a packed column draws each bar run colour, and an `na` colour draws NOTHING (not the series colour)', () => {
+    const plots = [
+      { key: 'value', label: 'V', style: 'line', color: '#c9a84c', legend: { decimals: 2 }, colorMode: 'column:pc', colorPacked: {} },
+      { key: 'pc', label: '', style: 'line', hidden: true },
+    ]
+    const cols = { value: [1, 2, 3, 4], pc: [0x0000ff00 + 0x33, NaN, 0x000000ff, NaN] }
+    const fake2 = harness(new Map([['u_k', def('u_k', [], { plots })]]))
+    fake2.run([inst('u_k')], BARS, {
+      registry: {
+        getDefinition: (id) => (id === 'u_k' ? def('u_k', [], { plots }) : null),
+        computeFor: () => cols,
+        hasAnyFinite: (col) => Array.isArray(col) && col.some(Number.isFinite),
+        columnKeys: (d) => (d.plots || []).map((p) => p.key),
+      },
+    })
+    const sets = fake2.calls('setData').map((c) => c.args[0]).filter((d) => Array.isArray(d) && d.length === 4 && d[0].value === 1)
+    expect(sets.length).toBeGreaterThan(0)
+    const pts = sets[sets.length - 1]
+    expect(pts.map((x) => x.color)).toEqual(['#33FF00', 'rgba(0, 0, 0, 0)', '#FF0000', 'rgba(0, 0, 0, 0)'])
+  })
+
+  it('⛔ two DIFFERENT scripts that disagree on a bar leave THAT bar alone; where they agree it is drawn', () => {
+    const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
+    const h = harness(new Map([['u_d', def('u_d', [BAR])], ['u_e', def('u_e', [other])]]))
+    const res = h.run([inst('u_d'), inst('u_e')])
     // cond = [1,0,1,0]: bars 0 and 2 agree (red/red), bars 1 and 3 disagree (red/blue)
     expect([...h.handed[0].keys()]).toEqual([String(BARS[0].t), String(BARS[2].t)])
     expect(res.paints.conflicts).toBe(2)
+  })
+
+  it('⭐ F1 — `offset` and `show_last` place the colour at RENDER time (paintRenderColours)', () => {
+    const c = ['a', 'b', 'c', 'd']
+    expect(paintRenderColours({}, c, 4)).toBe(c)
+    expect(paintRenderColours({ offset: 1 }, c, 4)).toEqual([null, 'a', 'b', 'c'])
+    expect(paintRenderColours({ offset: -2 }, c, 4)).toEqual(['c', 'd', null, null])
+    expect(paintRenderColours({ showLast: 2 }, c, 4)).toEqual([null, null, 'c', 'd'])
+    expect(paintRenderColours({ showLast: 0 }, c, 4)).toEqual([null, null, null, null])
+    const h = harness(new Map([['u_o', def('u_o', [{ ...BAR, offset: 1, showLast: 2 }])]]))
+    h.run([inst('u_o')])
+    expect([...h.handed[0].keys()]).toEqual([String(BARS[2].t), String(BARS[3].t)])
   })
 
   it('a hidden instance (and the declutter toggle) draws no paint', () => {

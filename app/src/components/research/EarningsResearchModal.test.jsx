@@ -441,6 +441,12 @@ describe('price slot — wired via the shared useLivePrices pool', () => {
     expect(screen.getByText('$182.40 ▲1.8%')).toBeTruthy()
   })
 
+  it('works the % out from the price shown when the previous close is known (live audit: $239.59 vs $233.95 said 2.5%)', () => {
+    mockLivePrices.mockReturnValue({ prices: { NVDA: { price: 239.59, change_pct: 2.52, prev_close: 233.95 } } })
+    renderModal()
+    expect(screen.getByText('$239.59 ▲2.4%')).toBeTruthy()
+  })
+
   it('renders no crash and no price text when the pool has none', () => {
     renderModal()
     expect(screen.getByRole('dialog')).toBeTruthy()

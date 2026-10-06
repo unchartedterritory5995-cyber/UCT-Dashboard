@@ -18,9 +18,11 @@
 // draws every plot at once (`nativeRegistry.validateAstLane`'s worst tree).
 //
 // ⛔ ONE AUTHORITY PER READ. A clock leaf's reach is the HOST LINTER's answer for
-// that leaf (`astReach` over the shared `closedTable.json`), joined with the
-// right-edge finding (`clockEdge`, see the JSON); nothing here restates a window
-// the shared table declares.
+// that leaf (`astReach` over the shared `closedTable.json`) and nothing else;
+// nothing here restates a window the shared table declares. ⭐ RT4: the nine
+// right-edge leaves RT2 found declare their `forward` in that table now
+// (`_clock_right_edge`), so RT2's second table and its join are gone — its rails
+// (`runtimeRepaintEdge.test.js`) now hold the SHARED declaration to the measurement.
 //
 // ⛔ CODE, NEVER PROSE, AND IDENTICAL IN TWO LANGUAGES. The reads are taken off a
 // token stream (comments and strings dropped) by the small lexer below, which is
@@ -179,12 +181,11 @@ function hostClockReach(key, table) {
   return HOST_CLOCK_MEMO.get(key)
 }
 
-/** The reach of one clock leaf on a runtime document: the host's, joined with
- *  the right-edge finding. Exported for the rails; `table` is a rail's copy of
+/** The reach of one clock leaf on a runtime document: the host linter's, and
+ *  only the host linter's. Exported for the rails; `table` is a rail's copy of
  *  the shared manifest. */
 export function clockLeafReach(key, table) {
-  const edge = own(RULES.clockEdge, key) ? RULES.clockEdge[key] : 0
-  return joinReach(hostClockReach(key, table), edge)
+  return hostClockReach(key, table)
 }
 
 /**

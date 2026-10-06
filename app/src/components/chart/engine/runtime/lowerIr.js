@@ -15,6 +15,7 @@
 import { OP, SERIES_NAMES, CLOCK_FIELDS, makeProgram } from './program.js'
 import { STMT, EXPR, SLOT } from './ir.js'
 import { isVoid } from './collections.js'
+import { naConditionIsFalse } from '../ast/interpret.js'
 
 export class LoweringGap extends Error {
   constructor(kind, detail) {
@@ -52,6 +53,13 @@ const NA_TESTS = new WeakMap()
 
 /** ⭐⭐ RT1 — THE COUNT OF `?:` WHOSE TEST CAN BE `na`.
  *
+ *  ⭐⭐ RT3 — NOW: THE COUNT OF CONDITIONS WHOSE `na` READING THIS ENGINE HAS NOT
+ *  SETTLED FOR THIS SCRIPT'S VERSION. From v4 a `?:` test that is `na` reads as
+ *  false (`interpret.js::pineBool`, `naConditionIsFalse` — the two captures
+ *  below are the v4 evidence), so such a `?:` is no longer counted; what is
+ *  counted is a `?:` below v4, and a v4/v5 `or` / `not` over an operand that
+ *  can be `na` (see the BINARY and UNARY arms). The RT1 text follows.
+ *
  *  `SELECT` answers `na` when its test is `na` (`interpret.js::TERNARY`, shared
  *  with the columnar lane). Two committed vendor captures show TradingView taking
  *  the OTHER branch there instead: `qqe-signals` RDDT 1D (`cross(…) ? 1 : … :
@@ -64,9 +72,23 @@ export function naTestsOf(program) {
   return NA_TESTS.get(program) || 0
 }
 
-export function lowerIrProgram(ir) {
+/**
+ * @param {object} ir
+ * @param {{historyFromListing?: boolean}} [opts] ⭐⭐ RT3 — `historyFromListing`:
+ *   this program runs from the symbol's FIRST bar, so a `NaN` it holds is Pine's
+ *   `na` and an `na` condition is read as Pine reads it (`naConditionIsFalse`).
+ *   Off the listing a `NaN` can also mean "not computable from this window" (the
+ *   `{0,1,NaN}` domain `interpret.js` states), and the shared rules stand — the
+ *   same split the host lane makes (`interpret.js::pineBoolAt`, listing pass only).
+ */
+export function lowerIrProgram(ir, opts = {}) {
   /** ⭐ C18 — v6 `and`/`or` short-circuit (see the BINARY arm). */
   const lazyLogic = Number(ir && ir.version) >= 6
+  /** ⭐⭐ RT3 — does this run read an `na` CONDITION as false? Only from the
+   *  listing (`opts.historyFromListing`), and only in a version that has the
+   *  rule. The rule and its evidence live in ONE place (`interpret.js::pineBool`,
+   *  `naConditionIsFalse`); this lowering only asks it. */
+  const naFalse = !!(opts && opts.historyFromListing === true) && naConditionIsFalse(ir && ir.version)
   let naTests = 0
   const code = []
   const consts = []
@@ -76,6 +98,7 @@ export function lowerIrProgram(ir) {
   const arrayOps = []
   const recordTypes = []
   const fieldNames = []
+  const objectOps = []
 
   const constIndex = (v) => {
     // ⛔ `indexOf` CANNOT FIND NaN (`NaN !== NaN`), so an `na` would push a new
@@ -115,6 +138,17 @@ export function lowerIrProgram(ir) {
     arrayOps.push({ fn, typeArg: typeArg || null })
     return arrayOps.length - 1
   }
+  // ⭐ RT5 — KEYED BY NAME **AND** WHICH PARAMETERS WERE PASSED: two call sites
+  // of `line.new` that pass different arguments are two different stack shapes.
+  const objectIndex = (fn, present, returns) => {
+    const key = `${fn}|${present.map((x) => (x ? 1 : 0)).join('')}|${returns}`
+    for (let i = 0; i < objectOps.length; i += 1) {
+      const o = objectOps[i]
+      if (`${o.fn}|${o.present.map((x) => (x ? 1 : 0)).join('')}|${o.returns}` === key) return i
+    }
+    objectOps.push({ fn, present: present.slice(), returns })
+    return objectOps.length - 1
+  }
   // ⛔⛔ KEYED BY THE TYPE NAME **AND** ITS FIELD LIST, for the reason
   // `arrayIndex` is keyed by name and type argument. Interning on the NAME
   // alone is the bug that shape exists to prevent one level up: two Pine
@@ -143,6 +177,14 @@ export function lowerIrProgram(ir) {
   const loops = []
   const emit = (op, a = 0, b = 0) => { code.push(op, a, b) }
   const here = () => code.length / 3
+  /** ⭐⭐ RT3 — a value read AS A CONDITION, in Pine's terms: `x != 0`, which is
+   *  `interpret.js::pineBool` by construction (`cmp` answers 0 for `NaN`; a rail
+   *  pins the two equal on `NaN`, 0, ±1, fractions and ±Infinity). A test this
+   *  lane can show is 0/1 already (`isBoolIr`) is left as it is. */
+  const asCondition = (x) => {
+    expr(x)
+    if (!isBoolIr(x)) { emit(OP.CONST, constIndex(0)); emit(OP.NE) }
+  }
   const patch = (at, slot, value) => { code[at * 3 + slot] = value }
 
   /** ⭐ SLOT ADDRESSES COME FROM THE IR, NOT FROM A SECOND WALK. `ir.js` gave
@@ -202,6 +244,15 @@ export function lowerIrProgram(ir) {
       case EXPR.ARRAY: {
         for (const a of e.args) expr(a)
         emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
+        return
+      }
+      // ⭐⭐ RT5 — the PASSED arguments, in parameter order, then one instruction
+      // naming the op and which parameters they are. A void op leaves nothing.
+      case EXPR.OBJECT_OP: {
+        const present = e.args.map((a) => a !== null)
+        let n = 0
+        for (const a of e.args) if (a !== null) { expr(a); n += 1 }
+        emit(OP.OBJECT, objectIndex(e.fn, present, e.returns), n)
         return
       }
       // ⭐ THE SAME SHAPE AS `TEXT`/`ARRAY`: the field values are pushed in
@@ -279,6 +330,15 @@ export function lowerIrProgram(ir) {
         throw new LoweringGap('history over an expression',
           'only a column and a variable have committed history in this runtime yet')
       }
+      case EXPR.HIST_SLOT_DYN: {
+        // ⭐⭐ RT3 — THE LIVE VALUE FIRST, THEN THE OFFSET. `x[0]` is `x` at this
+        // point in the program (never the ring, which holds PAST bars), so the
+        // opcode needs the live value beside the ring; it pops both.
+        expr(e.of)
+        expr(e.back)
+        emit(OP.READ_HIST_SLOT_DYN, e.slot)
+        return
+      }
       case EXPR.HIST_DYN: {
         // ⭐ THE OFFSET IS PUSHED FIRST, so the opcode pops exactly one value.
         // `of` is a COLUMN or a SERIES by construction — `ir.js` refuses a READ
@@ -337,10 +397,7 @@ export function lowerIrProgram(ir) {
         // ⛔ v4/v5 (`lazyLogic` false) are untouched: Pine evaluates both operands
         // there, and the eager `logical` below stands.
         if ((e.op === '&&' || e.op === '||') && lazyLogic) {
-          const asBool = (x) => {
-            expr(x)
-            if (!isBoolIr(x)) { emit(OP.CONST, constIndex(0)); emit(OP.NE) }
-          }
+          const asBool = asCondition
           expr(e.left)
           const toFalsy = here()
           emit(OP.JUMP_IF_FALSE, 0)
@@ -354,12 +411,46 @@ export function lowerIrProgram(ir) {
           patch(toEnd, 1, here())
           return
         }
+        // ⭐⭐ RT3 — v4/v5 `and` / `or` keep the eager shared `logical` (an `na`
+        // operand answers `na`), and only what that cannot settle is COUNTED:
+        //   - `and` is SETTLED wherever it is tested: an `na` operand read as
+        //     false gives false, and an `na` result is read as false by every
+        //     condition (`asCondition`, `JUMP_IF_FALSE`) — the same answer. Where
+        //     its `na` result reaches a `not` or an `or`, THAT is counted below.
+        //   - `or` is NOT: `na or true` is true if Pine reads the `na` operand as
+        //     false and `na` (so false) if a v4/v5 `bool` carries `na` through.
+        //     No capture this engine holds tells the two apart (each committed
+        //     v4/v5 one grades the same with operand coercion on and off — RT3's
+        //     mutation log), so an `or` over an operand this lane cannot show is
+        //     0/1 is COUNTED (`naTestsOf`) and the member door declines it by
+        //     name. v6 never reaches here (`lazyLogic`): its `bool` is never `na`.
+        // ⭐⭐ F2 (2026-10-02) — NOW WITNESSED, AND SETTLED: Q-NL (`rt3-na-logic` v5
+        // and `-v4`, RDDT 1D from the listing) shows TradingView reading an `na`
+        // operand of `and` / `or` / `not` AS FALSE in v4 and v5, the answer never
+        // `na` (`na(w or false)` is false, `na(not w)` is false). So from the
+        // listing each operand is read AS A CONDITION (`asCondition`, `pineBool`)
+        // — the same rule the host lane writes (`pine.js::naOperandReadAsFalse`) —
+        // and nothing is counted. Off the listing the shared `logical` stands.
+        if ((e.op === '||' || e.op === '&&') && naFalse) {
+          asCondition(e.left); asCondition(e.right); emit(op)
+          return
+        }
         expr(e.left); expr(e.right); emit(op)
         return
       }
       case EXPR.UNARY: {
         const op = UN_OP[e.op]
         if (op === undefined) throw new LoweringGap('unary operator', `\`${e.op}\``)
+        // ⭐⭐ RT3 — v6 `not` reads its operand AS A CONDITION (`pineBool`): a v6
+        // `bool` cannot be `na`, so a `NaN` this lane holds there stands for
+        // false and `not` of it is true, where the shared `!` answers `NaN`.
+        // In v4/v5 a `bool` can be `na` and whether `not` carries it through is
+        // unwitnessed, so a `not` over an operand this lane cannot show is 0/1
+        // is COUNTED (`naTestsOf`), exactly like `or` above, and keeps the
+        // shared `!`. Below v4 nothing is claimed.
+        // ⭐⭐ F2 — and in v4 / v5 too, now witnessed (Q-NL: `(not w) ? 1 : 2` is 1
+        // where `w` is an `na` bool, and `na(not w)` is false). See the BINARY arm.
+        if (e.op === '!' && naFalse) { asCondition(e.of); emit(op); return }
         expr(e.of); emit(op)
         return
       }
@@ -388,6 +479,18 @@ export function lowerIrProgram(ir) {
           patch(toEnd, 1, here())
           return
         }
+        // ⭐⭐ RT3 — A TEST THAT CAN BE `na` READS AS FALSE, where this script's
+        // version has that rule (`interpret.js::naConditionIsFalse`): the test is
+        // read AS A CONDITION (`asCondition`, `pineBool`), so `SELECT` never sees
+        // a `NaN` test and takes the else arm, as TradingView does. ⛔ BOTH ARMS
+        // STILL EVALUATE, exactly as before — only the `na` test changes answer;
+        // the jump form above is for a test this lane can PROVE is 0/1.
+        if (naFalse) {
+          asCondition(e.test); expr(e.then); expr(e.else); emit(OP.SELECT)
+          return
+        }
+        // Below v4: no rule is claimed — counted, and the member door's fallback
+        // declines the script by name (`runtime:na-test`).
         naTests += 1
         expr(e.test); expr(e.then); expr(e.else); emit(OP.SELECT)
         return
@@ -630,6 +733,13 @@ export function lowerIrProgram(ir) {
             expr(s.value)
             break
           }
+          // ⭐ RT5 — a VOID drawing op (`line.delete(l)`, `t.cell(…)`) leaves
+          // nothing; one that returns (`line.new(…)` on a line of its own) is a
+          // call-for-effect and carries its drop count below.
+          if (s.value && s.value.kind === EXPR.OBJECT_OP && s.value.returns === 'void') {
+            expr(s.value)
+            break
+          }
           // ⭐⭐ A CALL-FOR-EFFECT — `zigzag(len, dev)` ON A LINE OF ITS OWN.
           // Pine evaluates the call and throws the result away; §16 says every
           // function has a result, so there is always something to throw away.
@@ -757,6 +867,8 @@ export function lowerIrProgram(ir) {
     objectTreeOutputs: ir.objectTreeOutputs || [],
     iterOutputs: ir.iterOutputs || [],
     arrayOps,
+    objectOps,
+    objectCaps: ir.objectCaps || {},
     recordTypes,
     fieldNames,
     requests,
@@ -765,7 +877,7 @@ export function lowerIrProgram(ir) {
     carried2: (ir.carried2 || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0,
-      carriedBase: c.carriedBase || 0, windowBase: c.windowBase || 0, at: c.at || null,
+      carriedBase: c.carriedBase || 0, carried2Base: c.carried2Base || 0, windowBase: c.windowBase || 0, at: c.at || null,
     })),
     // ⭐ CARRIED THROUGH, NOT RE-DERIVED. The front end's static demand analysis
     // decided which values bear history and how deep; this only copies it, so the

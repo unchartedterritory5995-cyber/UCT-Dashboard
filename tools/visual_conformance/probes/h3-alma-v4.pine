@@ -1,0 +1,39 @@
+//@version=4
+study("UCTPROBE_H3_ALMA_V4", overlay = false)
+
+// H3 (2026-10-02) -- does BARE `alma` exist in Pine v4, and what does it compute?
+//
+// `r11-alma.pine` asked the bare spelling under //@version=6 and TradingView
+// refused it ("Could not find {kind} '{fullName}'"). That settled v6 only. The
+// corpus sites that refuse at `pine:function` today -- highlow-channel-swing,
+// relative-volume -- are //@version=4 scripts, where the v4 reference manual
+// lists `alma(series, length, offset, sigma)`. So the question is re-asked in
+// the version those scripts are written in.
+//
+// THE READING: A01 compiles or it does not. If it does, A03/A04 compare it with
+// the reference implementation TradingView publishes for `ta.alma`, written out
+// by hand below (offset * (length - 1), sigma = length / sigma, weights over
+// series[length - 1 - i]); a zero difference on every bar is the formula.
+// A05/A06 are neighbours, so "matches" cannot be one lucky parameter pair.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+pine_alma(src, len, off, sig) =>
+    m = off * (len - 1)
+    s = len / sig
+    norm = 0.0
+    sum = 0.0
+    for i = 0 to len - 1
+        weight = exp(-1 * pow(i - m, 2) / (2 * pow(s, 2)))
+        norm := norm + weight
+        sum := sum + src[len - i - 1] * weight
+    sum / norm
+
+plot(alma(close, 9, 0.85, 6), "A01_alma_close_9_085_6_RAW")
+plot(pine_alma(close, 9, 0.85, 6), "A02_reference_close_9_085_6_RAW")
+plot(alma(close, 9, 0.85, 6) - pine_alma(close, 9, 0.85, 6), "A03_alma_MINUS_reference_MUST_BE_0")
+plot(alma(high, 20, 0.85, 6) - pine_alma(high, 20, 0.85, 6), "A04_high_20_MINUS_reference_MUST_BE_0")
+plot(alma(low, 14, 0.5, 2) - pine_alma(low, 14, 0.5, 2), "A05_low_14_05_2_MINUS_reference_MUST_BE_0")
+plot(alma(close, 9, 1.0, 6) - pine_alma(close, 9, 1.0, 6), "A06_offset_1_MINUS_reference_MUST_BE_0")
+// the first bars: when is A01 first non-na (length - 1 = 8 expected)
+plot(na(alma(close, 9, 0.85, 6)) ? 1 : 0, "A07_alma_is_na")

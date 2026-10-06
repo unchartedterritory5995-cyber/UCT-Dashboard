@@ -293,11 +293,14 @@ describe('C48 — ONE execution: our object lane on the probe\'s own source', ()
     expect(diag.dropReasons['create:label']).toBe(1)
   })
 
-  it('⛔ the rows asked only in a block stay refused inside a helper — and the table says which', () => {
+  // ⭐ F1 re-pin — `vw-once-ta-helper-{rddt,spy}-1d-2026-10-02` (CAP round 4) asks the
+  // five block-only rows inside a helper called once (T01–T05) and they answer as in
+  // the block, and adds `ta.wma` (T06 / B06): every row is a helper row now.
+  it('⭐ every one-run row is witnessed inside a helper too (F1) — and the table says which', () => {
     expect(Object.entries(ONE_EXECUTION_TA).filter(([, s]) => !s.helper).map(([n]) => n).sort())
-      .toEqual(['ta.atr', 'ta.change', 'ta.cum', 'ta.rsi', 'ta.stdev'])
+      .toEqual([])
     expect(Object.keys(ONE_EXECUTION_TA).sort()).toEqual(['ta.atr', 'ta.change', 'ta.cum', 'ta.ema', 'ta.highest',
-      'ta.lowest', 'ta.rsi', 'ta.sma', 'ta.stdev'])
+      'ta.lowest', 'ta.rsi', 'ta.sma', 'ta.stdev', 'ta.wma'])
     expect(CHART_SERIES_WITNESSED.has('time_close') && CHART_SERIES_WITNESSED.has('hlcc4')).toBe(true)
     const cap = capture(RDDT)
     const { labels, diag } = run(cap, [
@@ -308,9 +311,9 @@ describe('C48 — ONE execution: our object lane on the probe\'s own source', ()
       '    g()',
       '    label.new(bar_index, low, "block|" + str.tostring(ta.atr(14)))',
     ].join('\n'))
-    expect(labels.map((l) => l.text)).toEqual(['block|NaN'])
-    expect(diag.refusedCalls).toHaveLength(1)
-    expect(diag.refusedCalls[0]).toMatch(/witnessed in a block that runs once, not inside a function called once/)
+    // ⭐ F1 — the drawing helper's `ta.atr(14)` now reads its one run (`na`), as T03 does
+    expect(labels.map((l) => l.text).sort()).toEqual(['NaN', 'block|NaN'])
+    expect(diag.refusedCalls || []).toHaveLength(0)
   })
 })
 

@@ -859,11 +859,15 @@ def fetch_blackline(sym: str, form: str = FORM) -> dict:
 
     sections = blackline_sections(docs["older"], docs["newer"], form)
     readable = [s for s in sections if s["state"] in ("ok", "reference_only", "omitted")]
+    # R9: both filings were FOUND and read; only the sections could not be
+    # located in them. That is its own state -- `not_found` is reserved for "no
+    # filer / fewer than two filings", a different fact a reader must not be
+    # handed in its place.
     return {
         "sym": sym,
         "cik": cik,
         "form": form,
-        "state": "ok" if len(readable) == len(sections) else ("partial" if readable else "not_found"),
+        "state": "ok" if len(readable) == len(sections) else ("partial" if readable else "sections_unlocated"),
         "newer": _cite(cik, newer),
         "older": _cite(cik, older),
         "sections": sections,

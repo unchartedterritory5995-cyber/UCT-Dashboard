@@ -8,8 +8,8 @@ trusts the client's (``runtime_definitions.validate`` / ``repaint_stamp``).
 
 The vocabulary and the reach -> class step are the HOST linter's
 (``ast_lint.mode_from_reach``); a clock leaf's reach is the host linter's answer
-for that leaf (``ast_lint.ast_reach``), joined with the right-edge finding the
-JSON carries. ``tests/test_runtime_repaint.py`` holds this module to the answer
+for that leaf (``ast_lint.ast_reach``) over the shared manifest and nothing else
+(RT4: the right-edge leaves declare their ``forward`` there, ``_clock_right_edge``). ``tests/test_runtime_repaint.py`` holds this module to the answer
 the JS module committed for every corpus script.
 """
 from __future__ import annotations
@@ -198,7 +198,7 @@ _HOST_CLOCK: Dict[str, Any] = {}
 
 
 def clock_leaf_reach(key: str, table: Optional[Dict[str, Any]] = None) -> Any:
-    """The host linter's reach for one clock leaf, joined with the right edge.
+    """The host linter's reach for one clock leaf, and only the host linter's.
     ``table`` is a rail's copy of the shared manifest (never memoised)."""
     if table is not None:
         host = ast_lint.ast_reach({"type": "series", "name": key}, {"table": table})["forward"]
@@ -206,8 +206,7 @@ def clock_leaf_reach(key: str, table: Optional[Dict[str, Any]] = None) -> Any:
         if key not in _HOST_CLOCK:
             _HOST_CLOCK[key] = ast_lint.ast_reach({"type": "series", "name": key})["forward"]
         host = _HOST_CLOCK[key]
-    edge = _entries(RULES["clockEdge"]).get(key, 0)
-    return _join(host, edge)
+    return host
 
 
 def runtime_repaint_of(source: Any) -> Dict[str, Any]:

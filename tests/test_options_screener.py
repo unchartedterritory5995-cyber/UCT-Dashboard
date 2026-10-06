@@ -533,3 +533,18 @@ def test_the_monitor_job_is_gated_and_queued_after_the_log():
     names = [n for n, *_ in m.SCHEDULE]
     assert names.index("options-screen") > names.index("options-log")
     assert m.JOB_GATES["options-screen"] is m._options_screen_enabled
+
+
+def test_the_ivh_and_strs_switches_ride_the_auth_payload_only_when_on(monkeypatch):
+    """O12: the terminal gates IVH / STRS on these keys. Off => absent (payload unchanged)."""
+    from api.routers import auth
+    for f in ("IV_HISTORY_ENABLED", "OPTIONS_STRATEGY_SCREENS_ENABLED"):
+        monkeypatch.delenv(f, raising=False)
+    assert auth._options_panel_flags() == {}
+    monkeypatch.setenv("IV_HISTORY_ENABLED", "1")
+    assert auth._options_panel_flags() == {"iv_history_enabled": True}
+    monkeypatch.setenv("OPTIONS_STRATEGY_SCREENS_ENABLED", "true")
+    assert auth._options_panel_flags() == {"iv_history_enabled": True,
+                                           "options_strategy_screens_enabled": True}
+    payload = auth._access_payload({"id": "u1", "role": "member"}, "pro")
+    assert payload["iv_history_enabled"] is True and payload["options_strategy_screens_enabled"] is True

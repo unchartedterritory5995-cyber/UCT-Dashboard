@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart from '../../../components/StockChart'
 import useTechnical from '../hooks/useTechnical'
+import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
 import styles from '../ResearchPage.module.css'
 
 // Chart/Technical Intelligence Convergence (owner authorization, Phase B).
@@ -23,12 +24,13 @@ function setupLabel(setup) {
   return (setup || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function daysAgo(dateStr) {
+// Whole ET calendar days since `asof_date` (a market date). It used to round
+// the millisecond gap from UTC midnight, which said "1 day ago" for a verdict
+// dated today from mid-afternoon ET onward.
+export function daysAgo(dateStr, now = Date.now()) {
   if (!dateStr) return null
-  const then = new Date(`${dateStr}T00:00:00Z`).getTime()
-  if (Number.isNaN(then)) return null
-  const days = Math.round((Date.now() - then) / 86400000)
-  return days
+  const days = etCalendarDaysBetween(String(dateStr).slice(0, 10), now)
+  return Number.isFinite(days) ? days : null
 }
 
 function VerdictCard({ v, selected, onSelect }) {
@@ -63,7 +65,7 @@ function VerdictCard({ v, selected, onSelect }) {
 }
 
 export default function TechnicalTab({ sym }) {
-  const { data, isLoading } = useTechnical(sym, 'D')
+  const { data, isLoading, error, mutate } = useTechnical(sym, 'D')
   const [searchParams] = useSearchParams()
   const scannerHint = (searchParams.get('setup') || '').trim()
 
@@ -138,7 +140,20 @@ export default function TechnicalTab({ sym }) {
         </div>
       )}
 
-      {!isLoading && !verdicts.length && (
+      {/* TERM-088 -- a failed read is not "nothing confirmed". This branch
+          must be checked BEFORE the empty-state below, or an outage renders
+          as "none confirmed" -- collapsing the confirmed/rejected signal
+          this tab exists to preserve into a false "nothing confirmed"
+          bucket. */}
+      {!isLoading && error && (
+        <div className={styles.fnote} data-testid="technical-error">
+          Couldn't load technical setups for {sym}.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+        </div>
+      )}
+
+      {!isLoading && !error && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
           {evaluated > 0 ? (
             <>
@@ -173,7 +188,7 @@ export default function TechnicalTab({ sym }) {
 
           <section className={styles.card} data-testid="technical-chart">
             <div className={styles.ct}>View on Chart</div>
-            <div style={{ height: 420 }}>
+            <div style={{ height: 'min(420px, 60vh)' }}>
               <StockChart
                 sym={sym}
                 tf="D"
