@@ -437,6 +437,45 @@
         ],
         "note": "Weekdays 9:40/13:40/17:40/21:40 ET, registered inside the wire block of api/main.py; coverage_monitor.enabled() defaults ON (WIRE_COVERAGE_MONITOR_ENABLED). No flag state is asserted here."
       }
+    },
+    {
+      "guard": "api/services/breadth_v2_producer.py::_alarm::breadth_v2_prune_guard::<computed>",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a US V2 producer vintage that may NOT be pruned (its Exchange Breadth archive acknowledgement is not re-proven) reaches the operator as a page (`critical`: ack malformed/mismatched, archive corrupt, producer copy differs - evidence integrity) or as a `warning` (ACK_MISSING: the archiver has not caught up; disk grows, nothing is lost).",
+      "predicate": {
+        "file": "api/services/breadth_v2_producer.py",
+        "scope": "_prune_vintages",
+        "pinned": "_alarm(\"critical\" if integrity else \"warning\",",
+        "mutation": "_alarm(\"warning\" if integrity else \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_breadth_prune_guard.py::test_an_archive_integrity_failure_pages_critical",
+        "tests/test_term018_breadth_prune_guard.py::test_a_corrupt_archive_pages_critical_and_names_the_vintage",
+        "tests/test_term018_breadth_prune_guard.py::test_an_archive_that_has_not_caught_up_only_warns"
+      ],
+      "proof": {
+        "commit": "6966e3c881",
+        "quote": "critical demoted to warning (2 red: integrity_failure_pages_critical, corrupt_archive_pages_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/services/breadth_v2_producer.py",
+            "call": "_prune_vintages"
+          },
+          {
+            "file": "api/services/breadth_v2_producer.py",
+            "call": "build_vintage"
+          },
+          {
+            "file": "api/breadth_v2_producer_main.py",
+            "call": "prod.tick"
+          }
+        ],
+        "note": "Every vintage build (a normal tick or a retry) ends in _prune_vintages; tick() runs in the producer loop of api/breadth_v2_producer_main.py, which railway.json boots when BREADTH_V2_PRODUCER_ENABLED=1 (the breadth-v2-runner service)."
+      }
     }
   ],
   "declared_unobserved": [
