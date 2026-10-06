@@ -1,5 +1,5 @@
 import useSWR from 'swr'
-import { depthFetcher } from './depthFetch'
+import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
@@ -34,8 +34,9 @@ function Implied({ im, next }) {
 
 export default function EarningsReactionPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>

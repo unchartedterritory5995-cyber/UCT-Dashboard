@@ -177,7 +177,7 @@ def implied_snapshot(sym: str, next_date: Optional[str]) -> dict:
             if _executor is None:
                 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="earn-implied")
             _executor.submit(_read_implied, sym, next_date)
-    return {"state": "pending", "reason": "the option chain is being read; reopen in a minute"}
+    return {"state": "pending", "reason": "the option chain is being read; this panel fills in by itself"}
 
 
 # ── the panel (REQUEST PATH) ────────────────────────────────────────────────
@@ -207,7 +207,7 @@ def panel(sym: str) -> dict:
         "reacting_session": "of the report day and the next session, the one that opens furthest from its prior close"}}
     payload = _cached_earnings(sym)
     if payload is None:
-        return {**base, "state": "pending", "reason": "the earnings history is being read; reopen in a minute"}
+        return {**base, "state": "pending", "reason": "the earnings history is being read; this panel fills in by itself"}
     quarters = payload.get("quarters") or []
     reported = [q for q in quarters if q and q.get("reported") and q.get("report_date")][:QUARTERS]
     if not reported:

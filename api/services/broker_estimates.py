@@ -247,7 +247,7 @@ def view(sym: str, today: Optional[str] = None) -> dict:
         queued = _schedule(sym)
         if hit is None:
             return {**base, "state": "pending", "queued": queued,
-                    "reason": "the consensus is being read; reopen in a minute"}
+                    "reason": "the consensus is being read; this panel fills in by itself"}
     read_at = hit[0]
     if payload is None:
         return {**base, "state": "unavailable", "read_at": read_at,

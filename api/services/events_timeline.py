@@ -88,7 +88,7 @@ def _earnings_events(sym: str) -> tuple[list[dict], list[dict], Optional[str]]:
     from api.services import earnings_reaction_panel as erp
     payload = erp._cached_earnings(sym)
     if payload is None:
-        return [], [], "the earnings history is being read; reopen in a minute to see events staged against the prints"
+        return [], [], "the earnings history is being read; events are staged against the prints when it lands, and this panel fills in by itself"
     events, prints = [], []
     reported = [q for q in (payload.get("quarters") or []) if q and q.get("reported") and _iso(q.get("report_date"))]
     for q in reported[:MAX_PRINTS - 1]:
