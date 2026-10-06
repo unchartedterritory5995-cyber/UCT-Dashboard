@@ -3,6 +3,8 @@ import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
 // opening gap, the reacting session's close-to-close move and the 5-session
@@ -12,8 +14,9 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 // ⛔ A drift whose sessions have not traded yet reads "pending", never 0.
 // ⛔ Every summary shows its n; the implied move names its expiry, strike and marks.
 
-const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`)
-const eps = (v) => (Number.isFinite(Number(v)) ? `$${Number(v).toFixed(2)}` : '—')
+const pct = (v) => signedPct(v, 2)
+const eps = (v) => formatCurrency(v == null || v === '' ? NaN : Number(v))
+const n2 = (v) => formatNumber(Number(v), { decimals: 2 })
 const tone = (v) => (v == null ? '' : v > 0 ? styles.up : v < 0 ? styles.down : '')
 const COLS = [['run_in_pct', 'Run-in (5d)'], ['gap_pct', 'Gap'], ['reaction_pct', 'Reaction'], ['drift_pct', 'Drift (5d)']]
 const SUMS = [['run_in', 'Run-in'], ['gap', 'Gap'], ['reaction', 'Reaction'], ['drift', 'Drift']]
@@ -28,8 +31,8 @@ function Implied({ im, next }) {
   const read = im.read_at ? new Date(im.read_at * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
   return (
     <p className={styles.lede} data-testid="implied-move">
-      Implied move{next ? ` into ${next}` : ''}: ±{Number(im.pct).toFixed(1)}% (${Number(im.dollar).toFixed(2)}), the{' '}
-      {im.expiry} {im.strike} straddle (call {Number(im.call_mark).toFixed(2)} + put {Number(im.put_mark).toFixed(2)}),
+      Implied move{next ? ` into ${next}` : ''}: ±{formatPercent(Number(im.pct), { decimals: 1 })} ({formatCurrency(Number(im.dollar))}), the{' '}
+      {im.expiry} {im.strike} straddle (call {n2(im.call_mark)} + put {n2(im.put_mark)}),
       read {read}.
     </p>
   )
@@ -42,7 +45,7 @@ export default function EarningsReactionPanel({ sym }) {
   const reask = usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
 
   let body
-  if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note}>Loading the earnings reaction…</div>
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason)}</div>
@@ -76,7 +79,7 @@ export default function EarningsReactionPanel({ sym }) {
         <p className={styles.lede} data-testid="earnings-reaction-summary">
           {SUMS.map(([k, l]) => {
             const st = sum[k] || {}
-            return `${l}: avg ${pct(st.avg)}, avg size ${st.avg_abs == null ? '—' : st.avg_abs.toFixed(2) + '%'}, up ${st.pct_up ?? '—'}% (n=${st.n ?? 0})`
+            return `${l}: avg ${pct(st.avg)}, avg size ${formatPercent(st.avg_abs == null ? NaN : st.avg_abs, { decimals: 2 })}, up ${st.pct_up ?? '—'}% (n=${st.n ?? 0})`
           }).join(' · ')}
         </p>
         {data.realized_vol && (

@@ -43,7 +43,7 @@ export default function FilingSearchPanel({ sym }) {
   const key = submitted
     ? `/api/research/filing-search?${new URLSearchParams({ q: submitted.q, sym: s, ...(submitted.section ? { section: submitted.section } : {}), ...(submitted.form ? { form: submitted.form } : {}) })}`
     : null
-  const { data, error } = useSWR(key, depthFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(key, depthFetcher, { revalidateOnFocus: false })
 
   const onSubmit = (e) => {
     e.preventDefault()
@@ -53,7 +53,7 @@ export default function FilingSearchPanel({ sym }) {
 
   let body = null
   if (!submitted) body = null
-  else if (error) body = <div className={styles.error} data-testid="filing-search-unavailable">Filing search is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  else if (error) body = <div className={styles.error} data-testid="filing-search-unavailable">Filing search is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note}>Searching…</div>
   else if (data.paywalled) body = <div className={styles.note}>Filing search requires a paid plan.</div>
   else if (data.badRequest) body = <div className={styles.error} data-testid="filing-search-bad-query">{data.badRequest}</div>

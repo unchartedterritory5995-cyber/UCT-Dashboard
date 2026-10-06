@@ -1,5 +1,9 @@
 import useEstimates from '../hooks/useEstimates'
 import { RevisionColumns, SeriesChart } from '../../../components/research-kit'
+import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
+import { formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
+import { themeInk } from '../themeInk'
 import styles from '../ResearchPage.module.css'
 
 // 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
@@ -17,8 +21,7 @@ function fmtBig(v) {
   if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
   return `$${v.toFixed(0)}`
 }
-function fmtEps(v) { return v == null ? '—' : v.toFixed(2) }
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
+const fmtEps = (v) => formatNumber(v, { decimals: 2 })
 
 function trendDir(cur, ago) {
   if (cur == null || ago == null) return ''
@@ -31,7 +34,7 @@ export default function EstimatesTab({ sym }) {
   const { data, isLoading, error, mutate } = useEstimates(sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading estimates…</div></div></div>
+    return <div className={styles.fnote}>Loading estimates…</div>
   }
 
   // TERM-088 -- a failed read is not an empty estimate set. Render the error
@@ -54,7 +57,7 @@ export default function EstimatesTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
@@ -74,7 +77,7 @@ export default function EstimatesTab({ sym }) {
                     <td>{fmtEps(r.eps_avg)}</td>
                     <td className={styles.muted}>{fmtEps(r.eps_low)}–{fmtEps(r.eps_high)}</td>
                     <td>{r.num_analysts ?? '—'}</td>
-                    <td className={r.eps_growth > 0 ? styles.up : r.eps_growth < 0 ? styles.down : ''}>{fmtPct(r.eps_growth)}</td>
+                    <td className={r.eps_growth > 0 ? styles.up : r.eps_growth < 0 ? styles.down : ''}>{signedPct(r.eps_growth)}</td>
                     <td>{fmtBig(r.rev_avg)}</td>
                   </tr>
                 ))}
@@ -106,12 +109,12 @@ export default function EstimatesTab({ sym }) {
                   periods={rows.map(f => f.period)}
                   mode="band"
                   label={label}
-                  valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+                  valueFormatter={(v) => formatCurrency(v)}
                   ariaLabel={`Forward EPS consensus low, average and high — ${label}`}
                   series={[
-                    { name: 'Low', color: 'var(--text-muted)', values: rows.map(f => f.eps_low) },
-                    { name: 'Consensus', color: 'var(--ut-gold, #c9a84c)', values: rows.map(f => f.eps_avg) },
-                    { name: 'High', color: 'var(--text-muted)', values: rows.map(f => f.eps_high) },
+                    { name: 'Low', color: themeInk('--text-muted', CHART_INK.muted), values: rows.map(f => f.eps_low) },
+                    { name: 'Consensus', color: themeInk('--ut-gold', CHART_INK.gold), values: rows.map(f => f.eps_avg) },
+                    { name: 'High', color: themeInk('--text-muted', CHART_INK.muted), values: rows.map(f => f.eps_high) },
                   ]}
                 />
               )

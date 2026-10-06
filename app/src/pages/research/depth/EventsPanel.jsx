@@ -23,7 +23,7 @@ export default function EventsPanel({ sym }) {
   const reask = usePendingReask(pendingKinds.length > 0, mutate, s)
 
   let body
-  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note}>Loading events…</div>
   else if (data.paywalled) body = <div className={styles.note}>Events require a paid plan.</div>
   else {
@@ -61,11 +61,11 @@ export default function EventsPanel({ sym }) {
                       <td title={e.print_date ? `${e.print_label} (${e.print_state}) on ${e.print_date}` : undefined}>
                         {e.stage ? `${e.stage} ${e.print_label}` : '—'}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>
+                      <td className={styles.text}>
                         <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{memberText(e.source)}</td>
+                      <td className={styles.text}>{memberText(e.source)}</td>
                     </tr>
                   ))}
                 </tbody>

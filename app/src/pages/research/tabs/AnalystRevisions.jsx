@@ -36,7 +36,7 @@ export default function AnalystRevisions({ sym }) {
 
   return (
     <section className={styles.card} data-testid="analyst-revisions">
-      <div className={styles.muted} style={{ marginBottom: 6 }}>Analyst revisions</div>
+      <div className={styles.ct}>Analyst revisions</div>
       {status === 'no_history' && (
         <div data-testid="revisions-status">
           Not enough history yet — {observations} nightly snapshot{observations === 1 ? '' : 's'} retained

@@ -8,6 +8,8 @@ import { epochSecondsToIso } from '../../../components/provenance/presentationFo
 import { computeSessionStale } from '../../../components/provenance/sessionStale'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
+import { formatCurrency } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
 import styles from '../ResearchPage.module.css'
 import AnalystRevisions from './AnalystRevisions'
 
@@ -26,7 +28,7 @@ function TrustStrip({ meta, sessionContext }) {
   const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
   const sessionStale = computeSessionStale(asOfIso)
   return (
-    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+    <div className={styles.trustStrip}>
       <Provenance
         value="FMP"
         availability={availability}
@@ -48,8 +50,7 @@ function TrustStrip({ meta, sessionContext }) {
   )
 }
 
-function fmtUsd(v) { return v == null ? '—' : `$${v.toFixed(0)}` }
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
+const fmtUsd = (v) => formatCurrency(v, { decimals: 0 })
 
 // Sell-side consensus buckets, strong-buy → strong-sell — identical palette
 // to EstimatesTab.jsx's (same concept, same card, just relocated here).
@@ -93,7 +94,7 @@ export default function AnalystRatingsTab({ sym }) {
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading analyst ratings…</div></div></div>
+    return <div className={styles.fnote}>Loading analyst ratings…</div>
   }
 
   // TERM-088 -- a failed read is not a genuinely empty analyst record.
@@ -130,7 +131,7 @@ export default function AnalystRatingsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
@@ -138,11 +139,11 @@ export default function AnalystRatingsTab({ sym }) {
       {con && (
         <section className={styles.card}>
           <div className={styles.ct}>Analyst consensus</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-            <span className={consensusClass(con.label)} style={{ fontSize: 18, fontWeight: 700 }}>{con.label || '—'}</span>
+          <div className={styles.statRow}>
+            <span className={`${styles.statBig} ${consensusClass(con.label)}`} data-testid="consensus-label">{con.label || '—'}</span>
             {Number.isFinite(con.total) && <span className={styles.muted}>{con.total} {con.total === 1 ? 'analyst' : 'analysts'}</span>}
           </div>
-          <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', margin: '10px 0' }}>
+          <div className={styles.segBar}>
             {SEG.map(s => {
               const v = con[s.key] || 0
               const w = con.total ? (v / con.total) * 100 : 0
@@ -151,7 +152,7 @@ export default function AnalystRatingsTab({ sym }) {
           </div>
           <div>
             {SEG.map(s => (
-              <span key={s.key} className={styles.muted} style={{ marginRight: 16 }}>
+              <span key={s.key} className={`${styles.muted} ${styles.segKey}`}>
                 <b style={{ color: s.color }}>{con[s.key] || 0}</b> {s.label}
               </span>
             ))}
@@ -163,10 +164,10 @@ export default function AnalystRatingsTab({ sym }) {
       {pt && (
         <section className={styles.card}>
           <div className={styles.ct}>Price target</div>
-          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <div className={styles.statRow}>
             <div>
               <div className={styles.muted}>Consensus</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtUsd(ptMid)}</div>
+              <div className={styles.statBig}>{fmtUsd(ptMid)}</div>
             </div>
             <div>
               <div className={styles.muted}>Range</div>
@@ -175,7 +176,7 @@ export default function AnalystRatingsTab({ sym }) {
             {upside != null && (
               <div>
                 <div className={styles.muted}>vs current price</div>
-                <div className={upside >= 0 ? styles.up : styles.down}>{fmtPct(upside)}</div>
+                <div className={upside >= 0 ? styles.up : styles.down}>{signedPct(upside)}</div>
               </div>
             )}
             {ptr && (

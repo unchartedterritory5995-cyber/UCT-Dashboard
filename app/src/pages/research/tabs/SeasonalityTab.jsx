@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { signedPct } from '../researchFormat'
 import styles from './SeasonalityTab.module.css'
 
 // COV-01 (roadmap RM-L11) — how this stock has done by calendar month and by weekday,
@@ -11,7 +12,7 @@ import styles from './SeasonalityTab.module.css'
 // ⛔ The covered window is stated ("since 2011"), never implied to be longer.
 // ⛔ A failed request says so; it is never an empty table presented as "no pattern".
 
-const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`)
+const pct = (v) => signedPct(v, 2)
 const tone = (v) => (v == null ? '' : v > 0 ? styles.up : v < 0 ? styles.down : '')
 
 function Table({ caption, rows, nLabel, thinNote }) {

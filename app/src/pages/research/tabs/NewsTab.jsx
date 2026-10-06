@@ -23,7 +23,7 @@ function TrustStrip({ meta, sessionContext }) {
   const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
   const sessionStale = computeSessionStale(asOfIso)
   return (
-    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+    <div className={styles.trustStrip}>
       <Provenance
         value="FMP"
         availability={availability}
@@ -85,7 +85,7 @@ export default function NewsTab({ sym }) {
   const session = useMarketOpen()
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading news…</div></div></div>
+    return <div className={styles.fnote}>Loading news…</div>
   }
 
   // TERM-088 -- a failed read is not a genuinely empty news feed. Render the
@@ -107,7 +107,7 @@ export default function NewsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}

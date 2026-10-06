@@ -8,6 +8,10 @@ import { computeSessionStale } from '../../../components/provenance/sessionStale
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { usePendingReask } from '../depth/depthFetch'
+import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
+import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { pctUpTo } from '../researchFormat'
+import { themeInk } from '../themeInk'
 import styles from '../ResearchPage.module.css'
 
 /** S8/S11 vertical slice (2026-09-03 A6/A7 pass): Float/shares-outstanding
@@ -23,7 +27,7 @@ function TrustStrip({ meta, sessionContext }) {
   const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
   const sessionStale = computeSessionStale(asOfIso)
   return (
-    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+    <div className={styles.trustStrip}>
       <Provenance
         value="FMP"
         availability={availability}
@@ -66,8 +70,8 @@ function fmtMoney(v) {
   if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
   return `$${v.toFixed(0)}`
 }
-function fmtPct(v) { return v == null || !Number.isFinite(Number(v)) ? '—' : `${+Number(v).toFixed(2)}%` }
-function fmtNum(v) { return v == null ? '—' : Math.round(v).toLocaleString() }
+const fmtPct = (v) => pctUpTo(v, 2)
+const fmtNum = (v) => formatNumber(v == null ? null : Math.round(v))
 function fmtChgPp(v) {  // ownership-percent change, in percentage points
   if (v == null) return null
   return `${v > 0 ? '+' : ''}${v.toFixed(2)}pp`
@@ -109,19 +113,19 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
     <section className={styles.card} data-testid="edgar-insider">
       <div className={styles.ct}>Insider activity (recent)</div>
       {!readable && (
-        <div className={styles.muted} style={{ fontSize: 12 }}>
+        <div className={styles.fnote}>
           {src.state === 'pending' && reaskExhausted
             ? `SEC EDGAR Form 4 filings for ${sym} are still being read.`
             : edgarStateLine(src, sym)}
           {onRetry && !autoReading && (
-            <button type="button" className={styles.explainNewConvoBtn} style={{ marginLeft: 8 }} onClick={() => onRetry()}>
+            <button type="button" className={`${styles.basisBtn} ${styles.inlineRetry}`} onClick={() => onRetry()}>
               Check again
             </button>
           )}
         </div>
       )}
       {readable && rows.length === 0 && (
-        <div className={styles.muted} style={{ fontSize: 12 }}>
+        <div className={styles.fnote}>
           {`No open-market insider buys or sells were filed on Form 4 in the last ${windowDays} days.`}
         </div>
       )}
@@ -142,21 +146,21 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
         </div>
       )}
       {readable && unread.length > 0 && (
-        <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }} data-testid="edgar-unread">
+        <div className={styles.srcNote} data-testid="edgar-unread">
           {`${unread.length} of ${src.filings_listed} filings could not be read: ${unread.map(u => u.accession).join(', ')}`}
         </div>
       )}
       {readable && src.truncated_at_cap && (
-        <div className={styles.muted} style={{ fontSize: 11, marginTop: 4 }}>
+        <div className={styles.srcNoteTight}>
           {`Only the newest ${src.filings_read + unread.length} of ${src.filings_listed} filings were read.`}
         </div>
       )}
       {readable && src.index_short && (
-        <div className={styles.muted} style={{ fontSize: 11, marginTop: 4 }}>
+        <div className={styles.srcNoteTight}>
           Older filings in this window are outside the SEC index read here.
         </div>
       )}
-      <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>
+      <div className={styles.srcNote}>
         {`Source: SEC EDGAR Form 4 · open-market buys and sells filed in the last ${windowDays} days`}
       </div>
     </section>
@@ -170,7 +174,7 @@ export default function OwnershipTab({ sym }) {
   const { exhausted: reaskExhausted, retry: reaskRetry } = usePendingReask(edgarPending, mutate, sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading ownership…</div></div></div>
+    return <div className={styles.fnote}>Loading ownership…</div>
   }
 
   // TERM-088 -- a failed read is not a genuinely empty ownership record.
@@ -212,7 +216,7 @@ export default function OwnershipTab({ sym }) {
         </div>
       )}
       {o.entity && o.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
@@ -226,11 +230,11 @@ export default function OwnershipTab({ sym }) {
               periods={inst.holders.slice(0, 10).map(h => h.holder)}
               mode="rank"
               label="Largest institutional holders (% of shares out)"
-              valueFormatter={(v) => (v == null ? '—' : `${Number(v).toFixed(2)}%`)}
+              valueFormatter={(v) => formatPercent(v == null ? NaN : Number(v), { decimals: 2 })}
               ariaLabel="Institutional holders ranked by percent of shares outstanding"
               series={[{
                 name: '% out',
-                color: 'var(--ut-gold, #c9a84c)',
+                color: themeInk('--ut-gold', CHART_INK.gold),
                 values: inst.holders.slice(0, 10).map(h => h.pct_out),
               }]}
             />
@@ -256,17 +260,17 @@ export default function OwnershipTab({ sym }) {
           )}
           {/* Non-D1: no fmp_client adapter carries this today — an honest
               source label, never a fabricated freshness badge. */}
-          <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>Source: Yahoo Finance</div>
+          <div className={styles.srcNote}>Source: Yahoo Finance</div>
         </section>
 
         <section className={styles.card}>
           <div className={styles.ct}>Short interest</div>
           <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(reported(sh.short_pct_float))}</b></div>
-          <div className={styles.kv}><span>Days to cover</span><b>{reported(sh.days_to_cover) == null ? '—' : reported(sh.days_to_cover).toFixed(1)}</b></div>
+          <div className={styles.kv}><span>Days to cover</span><b>{formatNumber(reported(sh.days_to_cover) ?? NaN, { decimals: 1 })}</b></div>
           <div className={styles.kv}><span>Shares short</span><b>{fmtShares(reported(sh.shares_short))}</b></div>
-          <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>Source: Yahoo Finance</div>
+          <div className={styles.srcNote}>Source: Yahoo Finance</div>
 
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+          <div className={styles.cardDivider}>
             <div className={styles.kv}><span>Float</span><b>{fmtShares(reported(sc.float_shares))}</b></div>
             <div className={styles.kv}><span>Shares outstanding</span><b>{fmtShares(sc.shares_outstanding)}</b></div>
             <TrustStrip meta={sc._meta} sessionContext={sessionContext} />
@@ -277,7 +281,7 @@ export default function OwnershipTab({ sym }) {
       {tf && (
         <section className={styles.card}>
           <div className={styles.ct}>Form 13F · institutional activity <span className={styles.muted}>· {tf.quarter}</span></div>
-          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 10 }}>
+          <div className={`${styles.statRow} ${styles.statRowGap}`}>
             {/* NOT the same measure as the "% of shares outstanding" figure in
                 the card above, and the two disagree hard: on 2026-08-06 AAPL
                 read 65.95% there against 6.38% here, and ATROB 71.85% against
@@ -288,22 +292,22 @@ export default function OwnershipTab({ sym }) {
                 below states the scope; do not shorten it back. */}
             <div>
               <div className={styles.muted}>Held by 13F filers</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>
-                {tfs.ownership_pct != null ? `${tfs.ownership_pct.toFixed(1)}%` : '—'}
-                {fmtChgPp(tfs.ownership_change) && <span className={chgClass(tfs.ownership_change)} style={{ fontSize: 12, marginLeft: 6 }}>{fmtChgPp(tfs.ownership_change)}</span>}
+              <div className={styles.statBig}>
+                {formatPercent(tfs.ownership_pct, { decimals: 1 })}
+                {fmtChgPp(tfs.ownership_change) && <span className={`${chgClass(tfs.ownership_change)} ${styles.statChg}`}>{fmtChgPp(tfs.ownership_change)}</span>}
               </div>
             </div>
             <div>
               <div className={styles.muted}>Investors holding</div>
-              <div>{fmtNum(tfs.investors_holding)} {fmtChgInt(tfs.investors_change) && <span className={chgClass(tfs.investors_change)} style={{ fontSize: 12 }}>{fmtChgInt(tfs.investors_change)}</span>}</div>
+              <div>{fmtNum(tfs.investors_holding)} {fmtChgInt(tfs.investors_change) && <span className={`${chgClass(tfs.investors_change)} ${styles.statChg}`}>{fmtChgInt(tfs.investors_change)}</span>}</div>
             </div>
             <div>
               <div className={styles.muted}>Total invested</div>
-              <div>{fmtMoney(tfs.total_invested)} {fmtChgInt(tfs.total_invested_change) && <span className={chgClass(tfs.total_invested_change)} style={{ fontSize: 12 }}>{fmtMoney(tfs.total_invested_change)}</span>}</div>
+              <div>{fmtMoney(tfs.total_invested)} {fmtChgInt(tfs.total_invested_change) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{fmtMoney(tfs.total_invested_change)}</span>}</div>
             </div>
           </div>
           {/* Position flow this quarter */}
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div className={styles.flowCounts}>
             <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.new_positions)}</b> new</span>
             <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.increased_positions)}</b> increased</span>
             <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.reduced_positions)}</b> reduced</span>
@@ -319,12 +323,12 @@ export default function OwnershipTab({ sym }) {
                     <tr key={`${h.name}-${i}`}>
                       <td className={`${styles.fperiod} ${styles.holderName}`}>
                         {h.name}
-                        {h.is_new && <span className={styles.up} style={{ fontSize: 9, marginLeft: 5 }} data-holder-badge="new">NEW</span>}
-                        {h.is_sold_out && <span className={styles.down} style={{ fontSize: 9, marginLeft: 5 }} data-holder-badge="sold">SOLD</span>}
+                        {h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
+                        {h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
                       </td>
                       <td>{fmtShares(h.shares)}</td>
                       <td className={chgClass(h.change_shares)}>{h.change_shares != null ? fmtShares(h.change_shares) : '—'}</td>
-                      <td>{h.ownership != null ? `${h.ownership.toFixed(1)}%` : '—'}</td>
+                      <td>{formatPercent(h.ownership, { decimals: 1 })}</td>
                       <td>{fmtMoney(h.market_value)}</td>
                     </tr>
                   ))}
@@ -335,7 +339,7 @@ export default function OwnershipTab({ sym }) {
           <TrustStrip meta={tf._meta} sessionContext={sessionContext} />
           {/* 13F filings lag ~45 days by nature — the freshness badge above
               reflects D1's provenance, this states the structural lag itself. */}
-          <div className={styles.muted} style={{ fontSize: 11, marginTop: 4 }}>13F filings lag roughly 45 days after quarter-end.</div>
+          <div className={styles.srcNoteTight}>13F filings lag roughly 45 days after quarter-end.</div>
         </section>
       )}
 

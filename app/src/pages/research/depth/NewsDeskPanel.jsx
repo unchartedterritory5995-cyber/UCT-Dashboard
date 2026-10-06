@@ -54,7 +54,7 @@ export default function NewsDeskPanel({ sym }) {
   }
 
   let body
-  if (error) body = <div className={styles.error} data-testid="news-desk-unavailable">The news desk is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  if (error) body = <div className={styles.error} data-testid="news-desk-unavailable">The news desk is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note}>Loading news…</div>
   else if (data.paywalled) body = <div className={styles.note}>The news desk requires a paid plan.</div>
   else {

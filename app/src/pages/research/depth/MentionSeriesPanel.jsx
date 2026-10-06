@@ -16,11 +16,11 @@ const LABEL = { before_store: 'before the store', room_silent: 'room silent' }
 
 export default function MentionSeriesPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/mention-series/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/mention-series/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
 
   let body
-  if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note}>Loading room attention…</div>
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason)}</div>

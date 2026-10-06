@@ -19,7 +19,7 @@ export default function CallsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {recapData?.entity && recapData.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}

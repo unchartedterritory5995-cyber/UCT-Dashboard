@@ -99,9 +99,7 @@ export default function DecisionRecordTab({ sym }) {
 
   if (isLoading) {
     return (
-      <div className={styles.soon} data-testid="decision-record-loading">
-        <div className={styles.soonInner}><div className={styles.soonSub}>Loading the decision record…</div></div>
-      </div>
+      <div className={styles.fnote} data-testid="decision-record-loading">Loading the decision record…</div>
     )
   }
 
@@ -171,8 +169,8 @@ export default function DecisionRecordTab({ sym }) {
         <ul className={styles.newsList} data-testid="decision-record-list">
           {rows.map((r, i) => (
             <li key={`${r.issue_id}-${i}`} className={styles.newsItem} data-testid="decision-record-row">
-              <div style={{ width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div className={styles.rowBody}>
+                <div className={styles.rowHead}>
                   <span className={r.outcome === 'passed' ? styles.up : styles.gold}>
                     <Provenance
                       value={stageText(r)}
@@ -184,7 +182,7 @@ export default function DecisionRecordTab({ sym }) {
                   <span className={styles.muted}>Issue {r.issue_id}</span>
                   {r.is_exploration ? <span className={styles.muted}>exploration pick</span> : null}
                 </div>
-                {dropReasonText(r.drop_reason) ? <p className={styles.fnote} style={{ padding: '4px 0 0' }} data-testid="decision-record-reason">{dropReasonText(r.drop_reason)}</p> : null}
+                {dropReasonText(r.drop_reason) ? <p className={styles.rowNote} data-testid="decision-record-reason">{dropReasonText(r.drop_reason)}</p> : null}
               </div>
             </li>
           ))}
