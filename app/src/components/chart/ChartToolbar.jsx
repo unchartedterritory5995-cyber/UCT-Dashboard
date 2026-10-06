@@ -1081,6 +1081,10 @@ function ChartToolbar({
   // chart container the panel docks against; `onOpenLibrary` its Library door.
   onStudioPreview = null,
   anchorRef = null,
+  // The pane's right-side dock for Create Indicator, and its open/close report
+  // (StockChart's `studioDockHost` / `onStudioDockChange`). Null ⇒ floating panel.
+  studioDockHost = null,
+  onStudioDockChange = null,
   onOpenLibrary = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
@@ -1718,8 +1722,9 @@ function ChartToolbar({
         )}
 
         {/* ⭐ P2 Track B — CREATE INDICATOR (UCT Intelligence). Lazy for the same
-            bundle reason as the builder; docked beside the chart, not modal, so
-            the member watches the preview take shape. Its Formula / Import /
+            bundle reason as the builder; a RIGHT WORKSPACE DOCK where the pane
+            hands one over (`studioDockHost`), floating beside the chart where it
+            does not — never modal, so the member watches the preview take shape. Its Formula / Import /
             Screenshot doors hand off to the ONE builder above. */}
         {canManageIndicators && createOpen && typeof onStudioPreview === 'function' && (
           <Suspense fallback={null}>
@@ -1730,6 +1735,8 @@ function ChartToolbar({
               sym={currentSym}
               tf={tf}
               anchorRef={anchorRef || favBoundsRef}
+              dockHost={studioDockHost}
+              onDocked={onStudioDockChange}
               onPreview={onStudioPreview}
               onOpenBuilder={(mode) => { setCreateOpen(false); openBuilder(mode) }}
               onOpenLibrary={onOpenLibrary ? () => { setCreateOpen(false); onOpenLibrary() } : null}
