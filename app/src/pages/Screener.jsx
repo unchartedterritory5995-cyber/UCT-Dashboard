@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import ScannerShell from './screener/shell/ScannerShell'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import styles from './Screener.module.css'
 import { AuthContext } from '../context/AuthContext'
 import OptionsScreener from './screener/options/OptionsScreener'
@@ -77,6 +78,8 @@ function ScannerShellErrorFallback({ onRetry }) {
 // The embedded (Charts widget) mode never shows the strip.
 export default function Screener({ embedded = false }) {
   const [shellKey, setShellKey] = useState(0)
+  // The terminal's SCR panel header already names the screener; its page title steps aside.
+  const inPanel = useInTerminalPanel()
   const optionsOn = useContext(AuthContext)?.optionsScreenerEnabled === true && !embedded
   // UCT Terminal's OSCR "Full page" link deep-links here with `?tab=options` (functions.js)
   // so the member lands on the tab they asked for rather than always Stocks. Read once, at
@@ -91,7 +94,7 @@ export default function Screener({ embedded = false }) {
   return (
     <div className={containerCls}>
       <div className={styles.headerFull}>
-        {!embedded && (
+        {!embedded && !inPanel && (
           <h1 className={styles.heading}>
             <UIcon name="screener" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />
             Screener

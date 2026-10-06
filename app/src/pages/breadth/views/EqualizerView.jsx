@@ -41,7 +41,7 @@ export default function EqualizerView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px 10px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="equalizer-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`Column height = ${normBasis(rows.length)} · the cap marks the reading`}
       </div>
@@ -57,7 +57,7 @@ export default function EqualizerView({
                   style={{ position: 'absolute', right: 6, bottom: `${t}%`,
                            transform: 'translateY(50%)',
                            font: '700 8px \'Instrument Sans\', sans-serif',
-                           color: t === 50 ? '#64748b' : '#475569',
+                           color: t === 50 ? 'var(--text-muted)' : 'var(--text-muted)',
                            fontVariantNumeric: 'tabular-nums' }}>{t}</span>
           ))}
         </div>
@@ -117,7 +117,7 @@ export default function EqualizerView({
                     </div>
                     <div style={{ flex: `0 0 ${NAME_H}px`, height: NAME_H, paddingTop: 6,
                                   font: '700 8px \'Instrument Sans\', sans-serif',
-                                  color: isSignal ? '#c9a84c' : '#94a3b8', textAlign: 'center',
+                                  color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)', textAlign: 'center',
                                   textTransform: 'uppercase', letterSpacing: '.3px',
                                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {isSignal ? <><UIcon name="star-fill" size={7} style={{ verticalAlign: '-1px', marginRight: 2 }} /></> : ''}{m.label}

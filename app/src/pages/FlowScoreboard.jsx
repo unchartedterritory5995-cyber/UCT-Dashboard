@@ -10,7 +10,9 @@
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import styles from './FlowScoreboard.module.css'
+import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 
 // jsonFetcher THROWS on a non-2xx, a network error and a 30 s deadline. The old fetcher
@@ -39,16 +41,16 @@ export function contractLine(p) {
   return `$${fmtStrike(p.strike)}${cp} ${p.exp || ''}`.trim()
 }
 
+// Shared formatter; this page keeps its own sign rule ("+" only above zero, so a
+// flat 0.0% reads unsigned) and accepts numeric strings from the API.
+const toNum = (v) => (v == null ? NaN : Number(v))
 function fmtPct(v, { signed = true, dp = 1 } = {}) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  const n = Number(v)
-  const sign = signed && n > 0 ? '+' : ''
-  return `${sign}${n.toFixed(dp)}%`
+  const n = toNum(v)
+  return formatPercent(n, { decimals: dp, signed: signed && n > 0 })
 }
 
 function fmtPrice(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  return `$${Number(v).toFixed(2)}`
+  return formatCurrency(toNum(v))
 }
 
 const gainCls = (v) => (v > 0 ? styles.gain : v < 0 ? styles.loss : styles.flat)
@@ -83,12 +85,17 @@ export default function FlowScoreboard({ embedded = false }) {
   })
 
   const overall = data?.overall
+  // In a terminal panel the panel header names FREC; the public-page hero copy steps aside.
+  const inPanel = useInTerminalPanel()
+  const pageCls = embedded ? `${styles.page} ${styles.embedded}`
+    : inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page
   const hasData = (data?.picks_tracked ?? 0) > 0
 
   return (
-    <div className={embedded ? `${styles.page} ${styles.embedded}` : styles.page}>
+    <div className={pageCls}>
       {/* ── Hero band ──────────────────────────────────────────────────── */}
       <div className={styles.hero}>
+        {!inPanel && <>
         <div className={styles.heroEyebrow}>
           <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />
           Flow Scoreboard · verified track record
@@ -99,6 +106,7 @@ export default function FlowScoreboard({ embedded = false }) {
           until expiration — winners, losers, all of it. No cherry-picking, no deleted
           calls. This is the tape.
         </p>
+        </>}
 
         {error && !data ? (
           <div className={styles.empty} data-testid="scoreboard-error">

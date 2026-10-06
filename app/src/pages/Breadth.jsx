@@ -43,7 +43,8 @@ export {
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 }
 import UIcon from '../components/ui/UIcon'
-import PageHeader from '../components/PageHeader'
+import SurfaceHeader from './SurfaceHeader'
+import { useInTerminalPanel } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
 
 // The SAME chart the /charts workspace renders — identity row, session
@@ -562,6 +563,9 @@ function BreadthTabs({ active, onChange, isAdmin }) {
 }
 
 export default function Breadth() {
+  // In a UCT Terminal panel the shell insets the body; the page drops its own padding.
+  const inPanel = useInTerminalPanel()
+  const pageCls = inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
@@ -941,10 +945,10 @@ export default function Breadth() {
 
   if (activeTab === 'overview') {
     return (
-      <div className={styles.page}>
-        <PageHeader icon="breadth" title="Breadth">
+      <div className={pageCls}>
+        <SurfaceHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </PageHeader>
+        </SurfaceHeader>
         <div className={styles.overviewBody}>
           <DailyOverview rows={rows} live={liveBreadth} cols={COLS}
                          phaseClassFn={phaseClass} onDrill={openDrill} />
@@ -961,10 +965,10 @@ export default function Breadth() {
 
   if (activeTab === 'cot') {
     return (
-      <div className={`${styles.page} ${styles.pageCot}`}>
-        <PageHeader icon="breadth" title="Breadth" className={styles.cotTabHeader}>
+      <div className={`${pageCls} ${styles.pageCot}`}>
+        <SurfaceHeader icon="breadth" title="Breadth" className={styles.cotTabHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </PageHeader>
+        </SurfaceHeader>
         <CotData />
       </div>
     )
@@ -972,10 +976,10 @@ export default function Breadth() {
 
   if (activeTab === 'charts') {
     return (
-      <div className={styles.page}>
-        <PageHeader icon="breadth" title="Breadth">
+      <div className={pageCls}>
+        <SurfaceHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </PageHeader>
+        </SurfaceHeader>
         <BreadthCharts />
       </div>
     )
@@ -983,18 +987,18 @@ export default function Breadth() {
 
   if (activeTab === 'analogues' && isAdmin) {
     return (
-      <div className={styles.page}>
-        <PageHeader icon="breadth" title="Breadth">
+      <div className={pageCls}>
+        <SurfaceHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </PageHeader>
+        </SurfaceHeader>
         <BreadthAnalogues />
       </div>
     )
   }
 
   return (
-    <div className={styles.page}>
-      <PageHeader
+    <div className={pageCls}>
+      <SurfaceHeader
         icon="breadth"
         title="Breadth"
         right={activeTab !== 'heatmap' ? (
@@ -1117,7 +1121,7 @@ export default function Breadth() {
             <UIcon name="refresh" size={13} />
           </button>
         )}
-      </PageHeader>
+      </SurfaceHeader>
 
       {error && (
         <div className={styles.errorBanner} role="alert">

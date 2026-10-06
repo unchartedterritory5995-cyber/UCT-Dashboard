@@ -104,7 +104,7 @@ export default function RadarView({
   if (!currentRow || (metrics?.length ?? 0) < 3) {
     return (
       <div data-testid="radar-refusal"
-           style={{ padding: 24, color: '#94a3b8', font: '600 12px Instrument Sans, sans-serif' }}>
+           style={{ padding: 24, color: 'var(--text-muted)', font: '600 12px Instrument Sans, sans-serif' }}>
         Radar needs at least 3 visible metrics — enable more in Customize.
       </div>
     )
@@ -169,7 +169,7 @@ export default function RadarView({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
                   padding: '12px 18px' }}>
       <div data-testid="radar-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 4, flex: '0 0 auto' }}>
         {`Spoke length = ${normBasis(rows.length)} · rings at ${NORM_TICKS.filter(t => t > 0).join(' · ')}`}
         {ghostMoved ? ' · the dashed shape is three sessions back' : ''}
@@ -256,7 +256,7 @@ export default function RadarView({
       </div>
       {capped && (
         <div data-testid="radar-cap"
-             style={{ font: '600 9px Instrument Sans, sans-serif', color: '#64748b',
+             style={{ font: '600 9px Instrument Sans, sans-serif', color: 'var(--text-muted)',
                       marginTop: 2, flex: '0 0 auto' }}>
           showing {shown.length} of {metrics.length} — narrow the set in Customize
         </div>

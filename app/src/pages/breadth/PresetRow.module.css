@@ -19,7 +19,7 @@
 
 .label {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -33,7 +33,7 @@
   background: var(--bg-elevated);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--text-base);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   white-space: nowrap;
@@ -85,7 +85,7 @@
 .groupHeading {
   padding: 8px 10px 4px;
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -111,8 +111,8 @@
 
 .item:hover { background: var(--bg-hover); }
 
-.itemLabel { display: block; font-size: 12px; color: var(--text-bright); }
-.itemHint  { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.itemLabel { display: block; font-size: var(--text-base); color: var(--text-bright); }
+.itemHint  { display: block; font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
 .itemActive .itemLabel { color: var(--ut-gold); font-weight: 600; }
 
 /* Canonical TOUCH breakpoint. Seven pills plus the trigger run about 880px, so

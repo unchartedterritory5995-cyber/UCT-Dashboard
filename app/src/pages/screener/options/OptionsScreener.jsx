@@ -3,7 +3,9 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { OffLine } from '../../optionsAnalytics/OffNotice'
+import { useInTerminalPanel } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
+import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
 
 // COV-02 (screen the OPTION, not the stock) + COV-03 (market-wide unusual option volume and
 // IV percentile), read ONLY from our own options log (api/services/research/options_screener.py).
@@ -29,7 +31,8 @@ const FIELDS = [
   ['iv_min', 'IV % min', 'number'], ['iv_max', 'IV % max', 'number'],
 ]
 
-const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
+// A fraction rendered as a percent through the shared formatter (em dash when absent).
+const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
 const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const int = (v) => (v == null ? '—' : Math.round(Number(v)).toLocaleString('en-US'))
 
@@ -205,8 +208,10 @@ function Iv() {
 
 export default function OptionsScreener() {
   const [view, setView] = useState('screen')
+  // In a UCT Terminal panel the shell already insets the body; drop the page padding.
+  const inset = !!useInTerminalPanel()?.inset
   return (
-    <section className={styles.wrap} data-testid="options-screener">
+    <section className={inset ? `${styles.wrap} ${styles.wrapInPanel}` : styles.wrap} data-testid="options-screener">
       <div className={styles.tabs} role="tablist" aria-label="Option screener views">
         {VIEWS.map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={k === view}

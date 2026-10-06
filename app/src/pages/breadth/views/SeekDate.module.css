@@ -3,19 +3,19 @@
 .seek {
   background: none;
   border: none;
-  border-bottom: 1px dashed rgba(201, 168, 76, 0.6);
+  border-bottom: 1px dashed color-mix(in srgb, var(--ut-gold) 60%, transparent);
   padding: 0;
   margin: 0;
   font: inherit;
-  color: #c9a84c;
+  color: var(--ut-gold);
   cursor: pointer;
 }
 .seek:hover:not(:disabled) {
-  color: #e8d8a0;
-  border-bottom-color: #e8d8a0;
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
 }
 .seek:disabled {
   color: inherit;
-  border-bottom: 1px dotted #475569;
+  border-bottom: 1px dotted var(--border-accent);
   cursor: not-allowed;
 }

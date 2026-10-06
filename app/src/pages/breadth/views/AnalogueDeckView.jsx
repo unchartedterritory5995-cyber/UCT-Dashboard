@@ -79,13 +79,13 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
   )
 
   if (isLoading) {
-    return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#64748b' }}>Finding analogues…</div>
+    return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>Finding analogues…</div>
   }
   const analogues = data?.analogues ?? []
   if (error || !analogues.length) {
     return (
       <div data-testid="analogues-refusal"
-           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
         {error ? `Could not load analogues — ${error.message ?? 'network error'}`
                : 'No historical session resembles today closely enough to report.'}
       </div>
@@ -120,7 +120,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
         )}
       </div>
       <div data-testid="analogues-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     marginBottom: 10, flex: '0 0 auto' }}>
         Matched against {data.reference_date} · similarity over 16 weighted breadth metrics
         {withReturn.length > 1
@@ -146,13 +146,13 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
           return (
             <div key={a.date} data-testid={`analogues-card-${a.date}`}
                  style={{ background: '#0e131a', borderRadius: 8, padding: 10,
-                          border: '1px solid rgba(255,255,255,0.05)', minHeight: 0,
+                          border: '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)', minHeight: 0,
                           display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flex: '0 0 auto' }}>
-                <span style={{ font: '700 12px \'Instrument Sans\', sans-serif', color: '#e2e8f0' }}>
+                <span style={{ font: '700 12px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)' }}>
                   <SeekDate date={a.date} styleKey="analogues" onSeek={onSeek} canSeek={canSeek} />
                 </span>
-                <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
+                <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                   {Number(a.similarity).toFixed(1)}% match
                 </span>
               </div>
@@ -160,7 +160,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
                             flex: '0 0 auto', color: tone }}>
                 {fwd == null ? 'Not yet' : `${fwd >= 0 ? '+' : ''}${Number(fwd).toFixed(1)}%`}
               </div>
-              <div style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: '#475569',
+              <div style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                             flex: '0 0 auto' }}>
                 {fwd == null ? `less than ${horizonLabel(horizon)} of history after it`
                              : `SPY, ${horizonLabel(horizon)} later`}
@@ -175,7 +175,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
                 <div data-testid={`analogues-plot-${a.date}`} aria-hidden="true"
                      style={{ flex: '1 1 auto', minHeight: 0, marginTop: 6, position: 'relative' }}>
                   <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1,
-                                background: 'rgba(148,163,184,0.22)' }} />
+                                background: 'color-mix(in srgb, var(--text-muted) 22%, transparent)' }} />
                   <div style={{ position: 'absolute', left: '18%', right: '18%',
                                 [fwd >= 0 ? 'bottom' : 'top']: '50%',
                                 height: `${Math.min(50, Math.abs(fwd) / span * 50)}%`,

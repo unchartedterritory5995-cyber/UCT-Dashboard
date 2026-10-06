@@ -44,11 +44,11 @@ export default function DivergenceView({
   const asc = rows.slice(rowIdx).reverse()  // oldest → newest for plotting
   if (asc.length < MIN_SESSIONS) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
         <div data-testid="divergence-refusal">
           Needs {MIN_SESSIONS} sessions to z-score both series — has {asc.length}.
         </div>
-        <div data-testid="divergence-refusal-hint" style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
+        <div data-testid="divergence-refusal-hint" style={{ marginTop: 6, color: 'var(--text-muted)', fontSize: 11 }}>
           {WIDEN_WINDOW_HINT}
         </div>
       </div>
@@ -100,8 +100,8 @@ export default function DivergenceView({
                        color: verdictColor }}>
           {verdict}
         </span>
-        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
-          <span style={{ color: '#e2e8f0' }}>■</span> {PRICE_LABEL[priceKey] ?? priceKey}
+        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+          <span style={{ color: 'var(--text-bright)' }}>■</span> {PRICE_LABEL[priceKey] ?? priceKey}
           {'   '}
           <span style={{ color: colors.bull }}>■</span> {PART_LABEL[partKey] ?? partKey}
         </span>
@@ -152,7 +152,7 @@ export default function DivergenceView({
       </svg>
 
       <div data-testid="divergence-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
         {asc.length} sessions · since {asc[0].date} · shaded where the gap held ≥{minGap} sessions
       </div>
       <HoverReadout tipRef={tipRef} styleKey="divergence" />

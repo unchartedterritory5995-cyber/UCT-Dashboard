@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { OffLine } from './OffNotice'
 import styles from './optionsAnalytics.module.css'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 
 // FT-006 IV rank in the chain header, FT-019 option monitor strip, FT-020 volatility stats.
 // (api/services/options_analytics/vol.py)
@@ -12,7 +13,8 @@ import styles from './optionsAnalytics.module.css'
 // ⛔ HV is computed from completed sessions; volume and earnings are the vendor's / our file's.
 
 const enc = encodeURIComponent
-const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
+// A fraction rendered as a percent through the shared formatter (em dash when absent).
+const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
 
 // A hover title cannot be read on a touch screen, so a note that explains how a
 // number is measured is ALSO a tap-to-open line. The title stays for desktop.

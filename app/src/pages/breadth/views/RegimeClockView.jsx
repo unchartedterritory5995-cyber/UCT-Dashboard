@@ -61,7 +61,7 @@ const momTickLabel = (v) => {
 const GUTTER_L = 34
 const GUTTER_B = 26
 const tickText = { position: 'absolute', font: '600 8px \'Instrument Sans\', sans-serif',
-                   color: '#64748b', whiteSpace: 'nowrap' }
+                   color: 'var(--text-muted)', whiteSpace: 'nowrap' }
 
 // The trail dot under the pointer, found once per event instead of one handler
 // per dot. Each hit target names the session it stands for.
@@ -92,11 +92,11 @@ export default function RegimeClockView({
 
   if (win.length < need || levelAt(0) == null || levelAt(roc) == null) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
         <div data-testid="clock-refusal">
           Needs {need} sessions of {levelLabel(levelKey)} to measure momentum — has {win.length}.
         </div>
-        <div data-testid="clock-refusal-hint" style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
+        <div data-testid="clock-refusal-hint" style={{ marginTop: 6, color: 'var(--text-muted)', fontSize: 11 }}>
           {WIDEN_WINDOW_HINT}
         </div>
       </div>
@@ -132,11 +132,11 @@ export default function RegimeClockView({
               style={{ font: '800 20px \'Instrument Sans\', sans-serif', color: colors.bull }}>
           {regime}
         </span>
-        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
           {QUADRANT_NOTE[regime]}
         </span>
-        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
-          level <strong style={{ color: '#e2e8f0' }}>{today.level.toFixed(1)}</strong>
+        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+          level <strong style={{ color: 'var(--text-bright)' }}>{today.level.toFixed(1)}</strong>
           {'  ·  '}{roc}d momentum{' '}
           <strong data-testid="clock-momentum" style={{ color: today.mom >= 0 ? colors.bull : colors.bear }}>
             {today.mom >= 0 ? '+' : ''}{today.mom.toFixed(1)}
@@ -246,7 +246,7 @@ export default function RegimeClockView({
               </span>
             ))}
             <span style={{ ...tickText, left: '50%', top: '100%', fontSize: 7,
-                           letterSpacing: '.7px', color: '#475569',
+                           letterSpacing: '.7px', color: 'var(--text-muted)',
                            transform: 'translate(-50%, 14px)' }}>
               PARTICIPATION LEVEL %
             </span>
@@ -255,7 +255,7 @@ export default function RegimeClockView({
                     style={{ position: 'absolute', [q.x]: 4, [q.y]: 4,
                              font: '800 8px \'Instrument Sans\', sans-serif',
                              letterSpacing: '.7px', textTransform: 'uppercase',
-                             color: q.name === regime ? '#94a3b8' : '#3d4a5c' }}>
+                             color: q.name === regime ? 'var(--text-muted)' : '#3d4a5c' }}>
                 {q.name}
               </span>
             ))}
@@ -268,7 +268,7 @@ export default function RegimeClockView({
           compare two screenshots of this lens and read a change in the SHAPE as
           a change in the market. */}
       <div data-testid="clock-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
         {pts.length} sessions plotted · since {pts[pts.length - 1].date}
         {' · x-axis level 0–100 · y-axis '}{roc}d momentum ±{maxMom.toFixed(0)}
       </div>

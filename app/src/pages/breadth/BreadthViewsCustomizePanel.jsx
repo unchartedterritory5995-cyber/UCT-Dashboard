@@ -187,7 +187,7 @@ export default function BreadthViewsCustomizePanel({
       )}
 
       {optionsSchema.length > 0 && (
-        <div className={styles.body} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className={styles.body} style={{ borderBottom: '1px solid color-mix(in srgb, var(--text-heading) 6%, transparent)' }}>
           <div className={styles.section}>
             <div className={styles.sectionHeader}>View options</div>
             {optionsSchema.map(opt => (

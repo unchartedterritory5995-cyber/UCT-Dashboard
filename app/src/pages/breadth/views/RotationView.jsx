@@ -112,7 +112,7 @@ export default function RotationView({
          style={{ height: '100%', minHeight: 0, overflow: 'auto',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="rotation-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', flex: '0 0 auto' }}>
         {win.length} session{win.length === 1 ? '' : 's'} · since {win[win.length - 1].date}
         {measured < lookback
@@ -160,7 +160,7 @@ export default function RotationView({
         return (
           <div key={p.key} data-testid={`rotation-panel-${p.key}`} className={styles.panel}
                style={{ background: '#0e131a', borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,0.05)',
+                        border: '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)',
                         // Longhands, never the `flex` shorthand: jsdom's CSSOM
                         // drops the shorthand silently, so the rail that pins
                         // this would pass on a panel declaring nothing at all.
@@ -173,10 +173,10 @@ export default function RotationView({
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flex: '0 0 auto',
                           minWidth: 0 }}>
               <span style={{ font: '700 10px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
-                             textTransform: 'uppercase', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                             textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 {p.label}
               </span>
-              <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
+              <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.sub}
               </span>
@@ -213,7 +213,7 @@ export default function RotationView({
               {vals.length > 0 && (
                 <div data-testid={`rotation-range-${p.key}`}
                      style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                              font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                              font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                               textAlign: 'right', flex: `0 0 ${AXIS_W}px`, width: AXIS_W,
                               fontVariantNumeric: 'tabular-nums' }}>
                   <span>{fmt(hi)}</span>
@@ -287,7 +287,7 @@ export default function RotationView({
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flex: '0 0 auto',
                           flexWrap: 'wrap', minWidth: 0 }}>
               <span data-testid={`rotation-verdict-${p.key}`}
-                    style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#94a3b8',
+                    style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                              flex: '1 1 auto', minWidth: 0, lineHeight: 1.35 }}>
                 {verdict}
               </span>
@@ -298,7 +298,7 @@ export default function RotationView({
                   own tooltip either way. */}
               {clipped > 0 && (
                 <span data-testid={`rotation-clip-${p.key}`}
-                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#64748b',
+                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                                whiteSpace: 'nowrap' }}>
                   {clipped} session{clipped === 1 ? '' : 's'} outside the drawn range
                   {' · full span '}{fmt(min)}–{fmt(max)}
@@ -306,7 +306,7 @@ export default function RotationView({
               )}
               {usable && (
                 <span data-testid={`rotation-reference-${p.key}`}
-                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                                whiteSpace: 'nowrap' }}>
                   measured from {fmt(prior)} on {win[measured].date}
                 </span>

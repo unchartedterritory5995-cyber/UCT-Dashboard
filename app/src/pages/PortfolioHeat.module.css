@@ -1,35 +1,40 @@
-.page { padding: 20px 24px; }
-.heading { font-family: var(--font-sans); font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px; }
-.subheading { font-family: var(--font-sans); font-size: 15px; font-weight: 700; color: var(--text-bright); margin: 28px 0 12px; }
-.loading { color: var(--text); font-weight: 500; font-size: 13px; padding: 20px 0; }
-.notice { color: var(--text-muted); font-size: 12px; padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 16px; }
-.empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0 !important; }
+.page { padding: var(--space-lg) var(--space-xl); }
+/* In a terminal panel the shell already insets the body (--panel-inset). */
+.pageInPanel { padding: 0; }
+/* The page title follows the app's .t-page-title scale (no private 22px/800 uppercase). */
+.heading { font-family: var(--font-heading); font-size: var(--text-3xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: var(--ls-tight); color: var(--text-heading); margin: 0 0 var(--space-lg); }
+.subheading { font-family: var(--font-sans); font-size: var(--text-xl); font-weight: 700; color: var(--text-bright); margin: var(--space-xl) 0 var(--space-md); }
+/* One state look: a muted line, a Retry where a retry can help. */
+.loading { color: var(--text-muted); font-size: var(--text-md); padding: var(--space-lg) 0; }
+.notice { color: var(--text-muted); font-size: var(--text-base); padding: var(--space-sm) var(--space-md); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: var(--space-lg); }
+.empty { color: var(--text-muted); font-size: var(--text-md); text-align: center; padding: var(--space-lg) 0 !important; }
 
-.capsSection { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
-.capRow { margin-bottom: 14px; }
-.capLabel { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.capValue { color: var(--ut-green-bright); }
-.capValueOver { color: var(--ut-red-bright); }
+.capsSection { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-lg); margin-bottom: var(--space-lg); }
+.capRow { margin-bottom: var(--space-md); }
+.capLabel { display: flex; justify-content: space-between; font-size: var(--text-base); font-weight: 600; color: var(--text); margin-bottom: var(--space-sm); }
+.capValue { color: var(--gain); font-variant-numeric: tabular-nums; }
+.capValueOver { color: var(--loss); font-variant-numeric: tabular-nums; }
 .capOf { color: var(--text-muted); font-weight: 500; }
-.capTrack { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
-.capFill { height: 100%; background: var(--ut-green); }
-.capFillOver { height: 100%; background: var(--ut-red); }
+.capTrack { height: 6px; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.capFill { height: 100%; background: var(--gain); }
+.capFillOver { height: 100%; background: var(--loss); }
 
-.statRow { display: flex; gap: 24px; flex-wrap: wrap; }
+.statRow { display: flex; gap: var(--space-xl); flex-wrap: wrap; }
 .stat { min-width: 120px; }
-.statLabel { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.statValue { font-size: 18px; font-weight: 700; color: var(--text-bright); font-family: var(--font-mono); }
-.statSub { font-size: 11px; color: var(--text-muted); }
+.statLabel { font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--ls-label); }
+.statValue { font-size: var(--text-2xl); font-weight: 700; color: var(--text-bright); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.statSub { font-size: var(--text-sm); color: var(--text-muted); }
 
-.flagsSection { margin-bottom: 16px; }
-.flag { font-size: 12px; color: var(--ut-red-bright); background: var(--ut-red-dim); border: 1px solid var(--ut-red); border-radius: var(--radius-md); padding: 8px 12px; margin-bottom: 8px; }
+.flagsSection { margin-bottom: var(--space-lg); }
+.flag { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-base); color: var(--loss); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
+.flagIcon { flex: none; }
 
 .tableWrap { overflow-x: auto; }
-.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th { text-align: left; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-.table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-md); font-variant-numeric: tabular-nums; }
+.table th { text-align: left; font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--ls-label); padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); }
+.table td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); color: var(--text); }
 .sym { font-weight: 700; color: var(--text-bright); font-family: var(--font-mono); }
-.placeholderBadge { font-size: 11px; color: var(--ut-red-bright); background: var(--ut-red-dim); border: 1px solid var(--ut-red); border-radius: var(--radius-md); padding: 2px 8px; }
+.placeholderBadge { font-size: var(--text-sm); color: var(--loss); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: 2px var(--space-sm); }
 
-.sectorList { display: flex; flex-direction: column; gap: 6px; }
-.sectorRow { display: flex; justify-content: space-between; font-size: 13px; color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 12px; }
+.sectorList { display: flex; flex-direction: column; gap: var(--space-sm); }
+.sectorRow { display: flex; justify-content: space-between; font-size: var(--text-md); color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); font-variant-numeric: tabular-nums; }

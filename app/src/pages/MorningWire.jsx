@@ -18,9 +18,11 @@ import { timeAgo } from '../utils/timeAgo'
 import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
+import { feedbackIconSvg } from './morningWireFeedbackIcons'
 import styles from './MorningWire.module.css'
 import jsonFetcher from '../utils/jsonFetcher'
 
@@ -135,7 +137,8 @@ export function OnTheTape() {
                     target="_blank"
                     rel="noreferrer"
                     title="open on X"
-                  >↗</a>
+                    aria-label="open on X"
+                  ><UIcon name="link" size={12} gold={false} /></a>
                   <div
                     className={styles.tweetText}
                     style={t.is_retweet ? { fontSize: '90%', opacity: 0.75 } : undefined}
@@ -161,6 +164,8 @@ export function settleLoadingPlaceholders(html) {
 }
 
 export default function MorningWire() {
+  // In a UCT Terminal panel the panel header names WIRE; the masthead title steps aside.
+  const inPanel = useInTerminalPanel()
   const { mutate } = useSWRConfig()
   // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
   const { user } = useAuth()
@@ -211,9 +216,9 @@ export default function MorningWire() {
 
     const ctrlHtml = (seg) =>
       '<span class="rd-fb">' +
-      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">👍</button>` +
-      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">👎</button>` +
-      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">✎</button>` +
+      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">${feedbackIconSvg('thumbsUp')}</button>` +
+      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">${feedbackIconSvg('thumbsDown')}</button>` +
+      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">${feedbackIconSvg('edit')}</button>` +
       '</span>'
 
     // Controls on each segment label.
@@ -316,7 +321,7 @@ export default function MorningWire() {
         try {
           await post({ segment_key: seg, note })
           hydrated[seg] = { ...(hydrated[seg] || {}), note }
-          if (status) status.textContent = 'Saved ✓'
+          if (status) status.textContent = 'Saved'
           paint()
           setTimeout(() => panel?.remove(), 700)
         } catch { if (status) status.textContent = 'Save failed — try again' }
@@ -363,9 +368,11 @@ export default function MorningWire() {
         </div>
         <div className={styles.mastCenter}>
           <div className={styles.pageHeader}>
-            <div className={styles.titleRow}>
-              <span className={styles.wireName}>The Morning Wire</span>
-            </div>
+            {!inPanel && (
+              <div className={styles.titleRow}>
+                <span className={styles.wireName}>The Morning Wire</span>
+              </div>
+            )}
             {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
           </div>
           <QuoteOfTheDay />
@@ -437,10 +444,7 @@ export default function MorningWire() {
       <WireArchive />
 
       {/* ── Legal disclaimer ─────────────────────────────────────── */}
-      <p style={{
-        margin: '18px 4px 4px', fontSize: 11, lineHeight: 1.5,
-        color: 'var(--color-text-muted, #8a8a8a)', textAlign: 'center',
-      }}>
+      <p className={styles.disclaimer}>
         For educational and informational purposes only — not investment advice or a
         recommendation to buy or sell any security. Levels, picks, and commentary reflect the
         firm&apos;s method, not personalized advice. Trading involves substantial risk of loss;

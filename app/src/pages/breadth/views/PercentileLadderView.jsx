@@ -87,7 +87,7 @@ export default function PercentileLadderView({
   if (!metrics.length) {
     return (
       <div data-testid="ladder-refusal"
-           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
         {ALL_METRICS_HIDDEN}
       </div>
     )
@@ -139,7 +139,7 @@ export default function PercentileLadderView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="ladder-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 6, flex: '0 0 auto' }}>{basis}</div>
 
       {/* One legend for ten identical rows, rather than a caption on each: the
@@ -149,7 +149,7 @@ export default function PercentileLadderView({
            style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4,
                     flex: '0 0 auto',
                     font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
-                    textTransform: 'uppercase', color: '#475569' }}>
+                    textTransform: 'uppercase', color: 'var(--text-muted)' }}>
         <div style={{ width: 104, flex: '0 0 104px' }} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-between' }}>
           <span>low</span>
@@ -170,7 +170,7 @@ export default function PercentileLadderView({
                                   ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
           <div style={{ width: 104, flex: '0 0 104px', textAlign: 'right',
                         font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
-                        textTransform: 'uppercase', color: '#94a3b8',
+                        textTransform: 'uppercase', color: 'var(--text-muted)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         cursor: m.drillKey ? 'pointer' : 'default' }}
                {...drillProps(m, onDrill)}>
@@ -260,14 +260,14 @@ export default function PercentileLadderView({
                   {m.getFmt(currentRow)}
                 </span>
                 <span data-testid={`ladder-pctile-${m.key}`}
-                      style={{ font: '700 10px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+                      style={{ font: '700 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
                   {pct}
                 </span>
               </div>
             </>
           ) : (
             <div data-testid={`ladder-refusal-${m.key}`}
-                 style={{ flex: 1, font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b' }}>
+                 style={{ flex: 1, font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
               Needs {MIN_READINGS} readings to rank — has {have}
             </div>
           )}

@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   SPEEDS, DEFAULT_SPEED, REDUCED_MOTION_NOTE, usePrefersReducedMotion,
 } from './scrubberPlayback'
+import UIcon from '../../components/ui/UIcon'
 import styles from './BreadthScrubber.module.css'
 
 export default function BreadthScrubber({
@@ -85,7 +86,7 @@ export default function BreadthScrubber({
               title={blockedReason ?? (playing ? 'Pause' : 'Play forward one session at a time')}
               aria-label={playing ? 'Pause playback' : 'Play forward through the window'}
               onClick={() => onPlayingChange?.(!playing)}>
-        {playing ? '❚❚' : '▶'}
+        <UIcon name={playing ? 'pause' : 'play'} size={14} gold={false} />
       </button>
 
       {/* Words, not the end dates: the window's span is already stated by every

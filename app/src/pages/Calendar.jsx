@@ -963,7 +963,7 @@ export default function Calendar() {
         <ErrorBoundary
           key={openSeq}
           fallback={
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', padding: '12px' }}>
+            <div className={styles.boundaryNote}>
               Unable to load — click a ticker to retry.
             </div>
           }

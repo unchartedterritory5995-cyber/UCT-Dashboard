@@ -4,6 +4,7 @@ import useDarkSection from './useDarkSection'
 import { findStrategies, VIEWS } from './chainModels'
 import { daysTo } from './ChainTools'
 import styles from './optionsAnalytics.module.css'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 
 // lane/o-options-remainders — the chain-side surfaces under Research > Options:
 //   FT-012 EdgePanel        theoretical value vs the quote mid    (OPTIONS_EDGE_RANKING_ENABLED)
@@ -17,7 +18,8 @@ import styles from './optionsAnalytics.module.css'
 
 const enc = encodeURIComponent
 const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
-const pct = (p) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`)
+// A fraction rendered as a percent through the shared formatter (em dash when absent).
+const pct = (p) => formatPercent(p == null ? NaN : Number(p) * 100, { decimals: 1 })
 const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
 // A candidate's identity: its expiration, view, structure and every leg (type, side, strike). The
 // "Saved" tag is keyed on THIS, never on a row index -- re-sorting, or a chain refresh that reorders

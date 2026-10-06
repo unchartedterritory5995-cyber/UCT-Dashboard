@@ -12,30 +12,30 @@
 /* ◀ / ▶ one-day steppers */
 .step {
   background: transparent;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 3px 5px;
-  font-size: 9px;
+  font-size: var(--text-xs);
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
 }
-.step:hover { color: var(--ut-gold, #dcbb5e); border-color: var(--border-accent, #383b41); }
+.step:hover { color: var(--ut-gold); border-color: var(--border-accent); }
 .step:disabled { opacity: 0.35; cursor: default; }
-.step:disabled:hover { color: var(--text-muted, #6b7280); border-color: transparent; }
+.step:disabled:hover { color: var(--text-muted); border-color: transparent; }
 
 /* The date field — reads the current top row; type + Enter to jump */
 .field {
   width: 96px;
   background: transparent;
-  color: var(--text, #e5e7eb);
-  border: 1px solid var(--border-accent, #383b41);
+  color: var(--text);
+  border: 1px solid var(--border-accent);
   border-radius: 3px;
   padding: 3px 6px;
   margin: 0 2px;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.4px;
   text-align: center;
@@ -43,9 +43,9 @@
   outline: none;
   transition: border-color 0.12s ease;
 }
-.field::placeholder { color: var(--text-muted, #6b7280); font-weight: 500; letter-spacing: 0.2px; }
-.field:hover { border-color: var(--text-muted, #6b7280); }
-.field:focus { border-color: var(--ut-gold, #dcbb5e); color: var(--text-bright, #f3f4f6); }
+.field::placeholder { color: var(--text-muted); font-weight: 500; letter-spacing: 0.2px; }
+.field:hover { border-color: var(--text-muted); }
+.field:focus { border-color: var(--ut-gold); color: var(--text-bright); }
 
 /* ▾ dropdown trigger */
 .caret {
@@ -53,25 +53,25 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 4px 5px;
   cursor: pointer;
   flex-shrink: 0;
 }
-.caret:hover, .caret[aria-expanded='true'] { color: var(--ut-gold, #dcbb5e); border-color: var(--border-accent, #383b41); }
+.caret:hover, .caret[aria-expanded='true'] { color: var(--ut-gold); border-color: var(--border-accent); }
 
 /* ── Dropdown popover (portaled to body, positioned by anchor) ── */
 .pop {
   position: fixed;
   z-index: 9200;
-  background: var(--menu-bg, #0c0c0e);
-  border: 1px solid var(--menu-border, #26262a);
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
   border-radius: 10px;
-  box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
+  box-shadow: 0 12px 32px var(--menu-shadow);
   font-family: var(--font-sans);
-  color: var(--menu-text, #e6e6e8);
+  color: var(--menu-text);
   overflow: hidden;
   animation: bdnavIn 110ms ease-out;
 }
@@ -85,44 +85,44 @@
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 6px;
 }
-.calTitle { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: var(--menu-text, #e6e6e8); }
+.calTitle { font-size: var(--text-base); font-weight: 700; letter-spacing: 0.02em; color: var(--menu-text); }
 .calNav {
   background: transparent; border: none; cursor: pointer;
-  color: var(--menu-text-faint, #6c6c70); font-size: 16px; line-height: 1; padding: 2px 8px; border-radius: var(--radius-md, 6px);
+  color: var(--menu-text-faint); font-size: var(--text-xl); line-height: 1; padding: 2px 8px; border-radius: var(--radius-md);
 }
-.calNav:hover { color: var(--menu-accent, #dcbb5e); background: var(--menu-hover, #16161a); }
+.calNav:hover { color: var(--menu-accent); background: var(--menu-hover); }
 .calDow {
   display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
   margin-bottom: 2px;
 }
 .calDow span {
-  text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
-  color: var(--menu-text-faint, #6c6c70); padding: 2px 0;
+  text-align: center; font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.04em;
+  color: var(--menu-text-faint); padding: 2px 0;
 }
 .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
 .calEmpty { height: 24px; }
 .calDay {
   height: 24px;
-  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md, 6px);
-  color: var(--menu-text, #d4d4d6); font-size: 11px; font-variant-numeric: tabular-nums;
+  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+  color: var(--menu-text); font-size: var(--text-sm); font-variant-numeric: tabular-nums;
   cursor: pointer; padding: 0;
 }
-.calDay:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
-.calDay:disabled { color: var(--menu-text-faint, #4a4a50); cursor: default; opacity: 0.4; }
-.calDay:disabled:hover { background: transparent; border-color: transparent; color: var(--menu-text-faint, #4a4a50); }
+.calDay:hover { background: var(--menu-hover); border-color: var(--menu-border); color: var(--menu-accent); }
+.calDay:disabled { color: var(--menu-text-faint); cursor: default; opacity: 0.4; }
+.calDay:disabled:hover { background: transparent; border-color: transparent; color: var(--menu-text-faint); }
 /* The currently-framed date — gold TEXT only (no fill/outline). */
-.calDaySel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+.calDaySel { color: var(--menu-accent); font-weight: 700; }
 
 /* Year list column */
 .years {
   width: 74px;
-  border-left: 1px solid var(--menu-divider, #1c1c1f);
+  border-left: 1px solid var(--menu-divider);
   display: flex; flex-direction: column;
   padding: 8px;
 }
 .yearsLabel {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--menu-text, #e6e6e8); padding: 0 0 4px;
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--menu-text); padding: 0 0 4px;
   text-align: center;
 }
 /* Hide the year-list scrollbar so the centered year buttons use the full column
@@ -132,15 +132,15 @@
   scrollbar-width: none;
 }
 .yearsScroll::-webkit-scrollbar { width: 0; height: 0; }
-.yearsHint { font-size: 10px; color: var(--menu-text-faint, #6c6c70); padding: 4px 2px; text-align: center; }
+.yearsHint { font-size: var(--text-xs); color: var(--menu-text-faint); padding: 4px 2px; text-align: center; }
 .yearBtn {
-  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md, 6px);
-  color: var(--menu-text, #d4d4d6); font-size: 12px; font-variant-numeric: tabular-nums;
+  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+  color: var(--menu-text); font-size: var(--text-base); font-variant-numeric: tabular-nums;
   text-align: center; padding: 4px 8px; cursor: pointer;
 }
-.yearBtn:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
+.yearBtn:hover { background: var(--menu-hover); border-color: var(--menu-border); color: var(--menu-accent); }
 /* The year of the currently-framed date — gold TEXT only (no fill/outline). */
-.yearBtnSel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+.yearBtnSel { color: var(--menu-accent); font-weight: 700; }
 
 /* TOUCH TIER (<=1024px) -- nav/toolbar ---------------------------------------
    The date scrubber: step-a-day arrows measured 20x17, the field 96x22 and the caret 21x16 at 820px.

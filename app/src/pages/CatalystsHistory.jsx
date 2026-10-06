@@ -12,6 +12,9 @@ import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../utils/h
 import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
+import Input from '../components/ui/Input'
+import { useInTerminalPanel } from '../components/terminal'
+import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -35,15 +38,13 @@ function ymdNDaysAgo(n) {
   return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`
 }
 
+// Shared formatter; "+" only above zero (a flat 0.00% reads unsigned), em dash when absent.
 function fmtPct(v) {
-  if (v == null) return '—'
-  const sign = v > 0 ? '+' : ''
-  return `${sign}${v.toFixed(2)}%`
+  return formatPercent(v, { decimals: 2, signed: v > 0 })
 }
 
 function fmtPrice(v) {
-  if (v == null) return '—'
-  return `$${v.toFixed(2)}`
+  return formatCurrency(v)
 }
 
 // Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
@@ -71,6 +72,7 @@ function parseSources(raw) {
 }
 
 export default function CatalystsHistory() {
+  const inPanel = useInTerminalPanel()
   const [date, setDate] = useState(ymdNDaysAgo(0))
   const { data, error, isLoading, mutate } = useSWR(
     date ? `/api/catalysts/by-date/${date}` : null,
@@ -88,19 +90,20 @@ export default function CatalystsHistory() {
   ]
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
+    <div className={inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page}>
+      {/* The terminal panel header already names CATH; its title + blurb step aside there. */}
+      {!inPanel && <div className={styles.header}>
         <h1 className={styles.title}><UIcon name="book" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Catalyst History</h1>
         <p className={styles.subtitle}>
           Browse the engine's top-ranked single-stock catalysts from any past trading day.
           What was moving — and why — on a date you remember.
         </p>
-      </div>
+      </div>}
 
       <div className={styles.controlsRow}>
         <label className={styles.dateLabel}>
           <span>Pick a date:</span>
-          <input
+          <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -177,7 +180,7 @@ export default function CatalystsHistory() {
                       <td className={styles.colTag}><TagChip tag={r.tag} /></td>
                       <td className={styles.colThesis}>
                         {hasNoWriteup(r)
-                          ? <span style={{ color: 'var(--text-muted)' }} data-testid="cath-no-writeup">{FAILED_SYNTHESIS_NOTE}</span>
+                          ? <span className={styles.noWriteup} data-testid="cath-no-writeup">{FAILED_SYNTHESIS_NOTE}</span>
                           : <HighlightThesis text={r.thesis_text} />}
                         {sources.length > 0 && (
                           <span className={styles.sourceCount} title={`${sources.length} cited sources`}>

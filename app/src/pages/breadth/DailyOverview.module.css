@@ -23,7 +23,7 @@
 }
 
 .dateLine {
-  font-size: 12px;
+  font-size: var(--text-base);
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -41,13 +41,13 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 1.2px;
   color: var(--text-bright);
   font-variant-numeric: tabular-nums;
 }
-.stateBadge[data-kind='live'] { color: var(--accent, #dcbb5e); }
+.stateBadge[data-kind='live'] { color: var(--accent); }
 .stateBadge[data-kind='provisional'],
 .stateBadge[data-kind='final'] { color: var(--text-muted); }
 
@@ -55,19 +55,19 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #dcbb5e);
-  box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.55);
+  background: var(--ut-gold);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 55%, transparent);
   animation: dailyBeat 2.4s ease-out infinite;
   flex: none;
 }
 @keyframes dailyBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ut-gold) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 0%, transparent); }
 }
 
 .phaseChip {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   padding: 3px 10px;
   border-radius: 999px;
@@ -75,9 +75,9 @@
   color: var(--text);
   text-transform: capitalize;
 }
-.phaseGreen { color: #2faf68; border-color: rgba(47, 175, 104, 0.45); }
-.phaseAmber { color: var(--accent, #dcbb5e); border-color: rgba(220, 187, 94, 0.45); }
-.phaseRed   { color: #df4646; border-color: rgba(223, 70, 70, 0.45); }
+.phaseGreen { color: var(--gain); border-color: color-mix(in srgb, var(--gain) 45%, transparent); }
+.phaseAmber { color: var(--accent); border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent); }
+.phaseRed   { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 45%, transparent); }
 
 .scores {
   display: flex;
@@ -89,7 +89,7 @@
   gap: 7px;
 }
 .scoreLabel {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 1.2px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -97,20 +97,20 @@
 .scoreValue {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 22px;
+  font-size: var(--text-3xl);
   font-weight: 700;
   color: var(--text-bright);
 }
 
 .delta {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 1.6px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -138,7 +138,7 @@
   flex-wrap: wrap;
 }
 .chip {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   padding: 3px 10px;
   border-radius: 999px;
@@ -149,8 +149,8 @@
 }
 .chip:hover { color: var(--text-bright); }
 .chipActive {
-  color: var(--accent, #dcbb5e);
-  border-color: rgba(220, 187, 94, 0.55);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent);
 }
 
 .heroReadout {
@@ -170,7 +170,7 @@
   color: var(--text-bright);
 }
 .sinceOpen {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
@@ -190,12 +190,12 @@
 }
 
 .hourLine {
-  stroke: rgba(255, 255, 255, 0.05);
+  stroke: color-mix(in srgb, var(--text-heading) 5%, transparent);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 .openLine {
-  stroke: rgba(255, 255, 255, 0.25);
+  stroke: color-mix(in srgb, var(--text-heading) 25%, transparent);
   stroke-width: 1;
   stroke-dasharray: 5 5;
   vector-effect: non-scaling-stroke;
@@ -226,11 +226,11 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   transform: translate(-50%, -50%);
 }
 .tipLive {
-  box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.55);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 55%, transparent);
   animation: dailyBeat 2.4s ease-out infinite;
 }
 
@@ -238,7 +238,7 @@
 .hiLabel,
 .loLabel {
   position: absolute;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   white-space: nowrap;
@@ -260,7 +260,7 @@
 .hourRow span {
   position: absolute;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
@@ -282,12 +282,12 @@
 .tileDrill { cursor: pointer; }
 .tileDrill:hover,
 .tileDrill:focus-visible {
-  border-color: rgba(220, 187, 94, 0.5);
+  border-color: color-mix(in srgb, var(--ut-gold) 50%, transparent);
   outline: none;
 }
 
 .tileLabel {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -296,7 +296,7 @@
 .tileValue {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 20px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text-bright);
   line-height: 1.1;
@@ -311,7 +311,7 @@
 }
 
 .empty {
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text);
   padding: 24px 0;
 }
@@ -319,9 +319,9 @@
 /* Tone — kept last, and compounded with .wrap so these outrank the base
    colors above at 0-1-1 vs 0-1-0. Bare [data-tone] selectors lost that fight
    silently: every value rendered white on day one. */
-.wrap [data-tone='gain'] { color: #2faf68; }
-.wrap [data-tone='loss'] { color: #df4646; }
-.wrap [data-tone='gold'] { color: var(--accent, #dcbb5e); }
+.wrap [data-tone='gain'] { color: var(--gain); }
+.wrap [data-tone='loss'] { color: var(--loss); }
+.wrap [data-tone='gold'] { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .pulse, .tipLive { animation: none; }
@@ -333,6 +333,6 @@
   .canvas { height: 150px; }
   .heroValue { font-size: 34px; }
   .scores { gap: 14px; }
-  .scoreValue { font-size: 18px; }
+  .scoreValue { font-size: var(--text-2xl); }
   .tapeGrid { grid-template-columns: repeat(2, 1fr); }
 }
