@@ -668,6 +668,12 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
        'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
        'instance naming the draft would be dropped exactly as before'],
+      ['app/src/components/chart/builder/conversationSave.js',
+       '⭐ NEW AT P2 (slice ui) — the conversational authoring save (ConverseBox). The SAME ' +
+       'order as BuilderSheet.save(): validate → saveUserDefinition → installUserDefinitions ' +
+       '→ addInstance ON A CREATE ONLY, addressing the STORE\'s id (never the draft\'s). It ' +
+       'then hands the minted instanceId to the info-value and alert doors, so the one ' +
+       'instance it adds is the one every stored request names'],
       ['app/src/components/chart/builder/editor/PreviewPane.jsx',
        '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
        'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +

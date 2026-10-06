@@ -117,6 +117,7 @@ import PreviewPane from './editor/PreviewPane'
 import MemberPane from './memberPane/MemberPane'
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
+import ConverseBox from './ConverseBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
@@ -211,7 +212,7 @@ const LEVELS_GUIDE = Object.freeze({
 
 /** The default placement — its own pane, at the height every authored formula
  *  has shipped with. Named so the v2 branch and the schema-1 one cannot drift. */
-const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
+export const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
 
 /** Plot 1's label when nothing else names it — `'Value'`, the schema-1
  *  spelling `legacyDefinition` has always written. ⛔ FIX ROUND 1, MINOR 7:
@@ -223,7 +224,7 @@ const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
  *  an unreachable divergence is still two authorities over one fact — named
  *  once, here, so it cannot reopen the day something else calls
  *  `buildDefinition` directly with no name, or a hand-rolled POST does. */
-const DEFAULT_PLOT1_LABEL = (short) => short || 'Value'
+export const DEFAULT_PLOT1_LABEL = (short) => short || 'Value'
 
 /**
  * The styles this form offers, and the words it offers them in.
@@ -309,7 +310,9 @@ function newPlotRow(key) {
  *  BYTE-IDENTICAL schema-1 path. Checking a subset of the fields (the brief
  *  checked key and style) silently discards whichever ones it forgot — a
  *  recoloured or hidden plot 1 would have written a document that ignored both. */
-function isUntouchedRow(row) {
+// ⭐ P2 — exported for `authoring/model.js` (the conversational path takes the SAME plain test).
+// eslint-disable-next-line react-refresh/only-export-components
+export function isUntouchedRow(row) {
   return !!row
     && row.key === 'value'
     && row.style === 'line'
@@ -2178,6 +2181,16 @@ export default function BuilderSheet({
               match every symbol on the board. A box that always asked for an
               indicator would be a box whose scan stage can never fire, and no
               component test on either side could see it. */}
+          {/* ⭐⭐ P2 — CONVERSATIONAL AUTHORING. A self-contained box: it holds
+              its own working definition (the deterministic engine applies the
+              server's patch), shows the readback from the definition, and saves
+              through the same doors as `save()` (`conversationSave.js`). It does
+              not touch this sheet's formula box or save state. Indicator modes
+              only; the Conditions tab keeps the one-shot box below. */}
+          {buildMode !== 'picker' && (
+            <ConverseBox settings={settings} onChange={onChange} sym={sym} tf={tf}
+              editing={editing} disabled={saving} />
+          )}
           <ConciergeBox
             bars={bars}
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
