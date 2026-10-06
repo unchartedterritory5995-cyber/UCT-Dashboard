@@ -3,7 +3,7 @@ import useSWR from 'swr'
 import { useState } from 'react'
 import { depthFetcher } from '../depth/depthFetch'
 import styles from './Notices.module.css'
-import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 // Research notices under the header (lane R). A container only: each notice is its
 // own surface behind its own server flag (researchNoticeFlags.js); a notice whose
@@ -114,7 +114,7 @@ function fmtVal(key, v) {
       tiers: [{ at: 1e12, suffix: 'T', decimals: 2 }, { at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 0 }],
     })
   }
-  return Number(v).toFixed(2)
+  return formatNumber(Number(v), { decimals: 2 })
 }
 
 const VERDICT = { agree: 'agree', disagree: 'DISAGREE', cannot_compare: 'cannot compare' }

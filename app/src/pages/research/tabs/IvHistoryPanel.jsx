@@ -1,5 +1,6 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { fractionPct } from '../researchFormat'
 import styles from './OptionsChainTab.module.css'
 import OffNotice from '../../optionsAnalytics/OffNotice'
 import { memberText } from '../../../lib/presentation/memberCopy'
@@ -15,7 +16,7 @@ import { memberText } from '../../../lib/presentation/memberCopy'
 // ⛔ Polling: none. The log grows once a trading day; bare useSWR with no refreshInterval.
 
 const KNOWN = new Set(['ok', 'not_in_log', 'no_log'])
-const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
+const pct = (v, d = 1) => fractionPct(v, d)
 const num = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d))
 
 function Spark({ points }) {

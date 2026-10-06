@@ -30,6 +30,10 @@
 .caveat { color: var(--warn); font-size: var(--text-sm); margin-bottom: var(--space-sm); }
 .footnote { color: var(--text-muted); font-size: var(--text-sm); margin-top: var(--space-sm); }
 
+/* analyst-leg provenance lines under the table */
+.provLeg { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; margin-top: var(--space-xs); }
+.provSide { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
 .tbl { width: 100%; border-collapse: collapse; font-size: var(--text-base); font-variant-numeric: tabular-nums; }
 .tbl th, .tbl td { text-align: right; padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--border); }
 .tbl th:first-child, .tbl td:first-child { text-align: left; }

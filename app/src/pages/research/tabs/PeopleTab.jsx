@@ -143,7 +143,7 @@ export default function PeopleTab({ sym }) {
 
   if (error) {
     return <div className={styles.note} data-testid="people-unavailable">
-      People data is unavailable right now. That is a gap in what we could read, not a finding about {s}.
+      People data is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>
   }
   if (!data) return <div className={styles.note}>Loading people…</div>

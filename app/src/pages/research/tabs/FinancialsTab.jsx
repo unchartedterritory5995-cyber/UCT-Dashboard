@@ -148,7 +148,7 @@ function TrendPair({ quarterly, annual }) {
           // Canvas inks resolved from the app tokens (themeInk), never hexes, so the
           // three margins follow the member's theme: gold, info blue, gain green.
           { name: 'Gross', color: themeInk('--ut-gold', CHART_INK.gold), values: list.map(r => r.gross_margin) },
-          { name: 'Operating', color: themeInk('--info', '#5ea8f7'), values: list.map(r => r.operating_margin) },
+          { name: 'Operating', color: themeInk('--info', CHART_INK.text), values: list.map(r => r.operating_margin) },
           { name: 'Net', color: themeInk('--gain', CHART_INK.gain), values: list.map(r => r.net_margin) },
         ]}
       />

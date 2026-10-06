@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { signedPct } from '../researchFormat'
+import rp from '../ResearchPage.module.css'
 import styles from './SeasonalityTab.module.css'
 
 // COV-01 (roadmap RM-L11) — how this stock has done by calendar month and by weekday,
@@ -72,7 +73,7 @@ export default function SeasonalityTab({ sym }) {
   }
   if (error || data?.pending) {
     return <div className={styles.note} data-testid="seasonality-unavailable">
-      Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.
+      Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>
     </div>
   }
   if (!data) return <div className={styles.note}>Loading seasonality…</div>

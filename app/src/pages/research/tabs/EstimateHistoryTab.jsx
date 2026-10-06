@@ -1,7 +1,8 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { signedPct } from '../researchFormat'
 import styles from './ResearchCov.module.css'
-import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { ABSENT, formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
@@ -14,12 +15,14 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 //    "collecting", never a flat line that reads as "no revisions".
 // ⛔ Days whose read failed are listed as gaps, not skipped.
 
-const eps = (v) => (v == null ? 'unavailable' : v.toFixed(2))
-const rev = (v) => (v == null ? 'unavailable'
+// A missing figure in a numeric cell is the shared em dash (ABSENT); the revision
+// line below still says "unavailable" in words.
+const eps = (v) => formatNumber(v, { decimals: 2 })
+const rev = (v) => (v == null ? ABSENT
   : formatCompact(Number(v), { tiers: [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }] }))
 const chg = (c) => {
   if (!c || c.pct == null) return { text: 'unavailable', cls: '' }
-  return { text: `${c.pct > 0 ? '+' : ''}${c.pct.toFixed(2)}%`, cls: c.pct > 0 ? styles.up : c.pct < 0 ? styles.down : '' }
+  return { text: signedPct(c.pct, 2), cls: c.pct > 0 ? styles.up : c.pct < 0 ? styles.down : '' }
 }
 
 function Period({ p }) {
@@ -45,9 +48,9 @@ function Period({ p }) {
               <tr key={pt.snap_date}>
                 <td>{pt.snap_date}</td>
                 <td className={styles.num}>{eps(pt.eps_avg)} ({eps(pt.eps_low)}–{eps(pt.eps_high)})</td>
-                <td className={styles.num}>{pt.n_eps ?? 'unavailable'}</td>
+                <td className={styles.num}>{pt.n_eps ?? ABSENT}</td>
                 <td className={styles.num}>{rev(pt.rev_avg)}</td>
-                <td className={styles.num}>{pt.n_rev ?? 'unavailable'}</td>
+                <td className={styles.num}>{pt.n_rev ?? ABSENT}</td>
               </tr>
             ))}
           </tbody>
@@ -59,12 +62,12 @@ function Period({ p }) {
 
 export default function EstimateHistoryTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/estimate-history/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/estimate-history/${encodeURIComponent(s)}` : null,
     sectionFetcher, { revalidateOnFocus: false })
 
   if (error) {
     return <div className={styles.note} data-testid="esthist-unavailable">
-      Estimate history is unavailable right now. That is a gap in what we could read, not a finding about {s}.
+      Estimate history is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>
   }
   if (!data) return <div className={styles.note}>Loading estimate history…</div>

@@ -239,6 +239,10 @@
 .cardLink { display: inline-block; margin-top: var(--space-sm); }
 .chartLoading { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 
+/* leadership / confidence badges */
+.badgeRow { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-sm); }
+.badgeLine { margin-top: var(--space-xs); }
+
 /* technical tab: confirmed-setup cards are buttons wearing the research card */
 .verdictList { display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-md); }
 .verdictCard { text-align: left; width: 100%; cursor: pointer; font: inherit; color: var(--text); }
