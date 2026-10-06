@@ -294,8 +294,9 @@ def _exchange_row(universe: str, kind: str) -> "Series":
                   observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
                   source_owner="UCT", licensing="Own data.", reproduces_reference=False,
                   history_start=EXCHANGE_START[universe],
-                  blocked_on="Exchange Breadth V1: published only while `breadth_exchange_authority` serves "
-                             "a verified authority (BREADTH_AUTHORITY_EXCH=v1).")
+                  blocked_on="Exchange Breadth V1 cutover: awaiting owner authorization of the member-authority "
+                             "switch; published only while `breadth_exchange_authority` serves a verified "
+                             "authority (BREADTH_AUTHORITY_EXCH=v1).")
     if kind == "MCO":
         return Series(**common, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
                       metric_name="McClellan Oscillator", metric_short="McClellan",

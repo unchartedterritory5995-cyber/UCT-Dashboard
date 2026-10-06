@@ -86,25 +86,40 @@ def test_deterministic():
 
 
 def test_the_production_derivation_path_equals_the_locked_derivation(monkeypatch):
-    """producers._build_uncached (what a member chart would read) == derive_exchange_series."""
+    """ONE AUTHORITY. The member path (producers._build_uncached) serves the exchange authority's AD/MCO/MCS
+    VERBATIM and never recomputes from the store; and the authority's own continuity rule
+    (live_core.derive_step, which `verify_set` folds over frozen + live) IS the locked derivation."""
+    import importlib.util
+    import os as _os
     from api.services import breadth_daily_ohlc as store
+    from api.services import breadth_exchange_authority as ea
     from api.services.market_indicators import producers as p
     d, a, b = _series(300, holes=(150,))
-    data = {"advancing": a, "declining": b, "adv_decline": [None if x is None else x - y for x, y in zip(a, b)]}
-
-    def hist(metric, limit=None, universe=None):
-        assert universe in ("nyse", "nasdaq")
-        return {dt: {"c": v} for dt, v in zip(d, data[metric]) if v is not None}
-    monkeypatch.setattr(store, "history", hist)
     want = dx.derive(d, a, b)
+    # (1) the authority's fold == the locked derivation, session by session
+    spec = importlib.util.spec_from_file_location(
+        "lc_for_derived_test", _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                             "tools", "breadth_exch", "live_core.py"))
+    lc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lc)
+    st = {"ad": None, "ema_fast": None, "ema_slow": None, "valid_obs": 0, "mcs": None}
+    folded = {"AD": [], "MCO": [], "MCS": []}
+    for x, y in zip(a, b):
+        st, out = lc.derive_step(st, x, y)
+        for k in folded:
+            folded[k].append(out[k])
+    assert folded["AD"] == want["AD"] and folded["MCO"] == want["MCO"]
+    assert all(v is None and w is None or abs(v - w) < 1e-9 for v, w in zip(folded["MCS"], want["MCS"]))
+    # (2) the member path reads the authority verbatim, never the store
+    monkeypatch.setattr(store, "history", lambda *k, **kw: (_ for _ in ()).throw(AssertionError("recomputed")))
+    served = {f"{X}:{k}": {x: v for x, v in zip(d, want[k]) if v is not None}
+              for X in ("NYSE", "NASDAQ") for k in ("AD", "MCO", "MCS")}
+    monkeypatch.setattr(ea, "derived", lambda sid: served.get(sid))
     for X in ("NYSE", "NASDAQ"):
-        mco = p._build_uncached(f"{X}:MCO")
-        mcs = p._build_uncached(f"{X}:MCS")
-        ad = p._build_uncached(f"{X}:AD")
-        got_mco = dict(zip(mco.dates, mco.values))
-        assert [got_mco.get(x) for x in d if x != d[150]] == [v for x, v in zip(d, want["MCO"]) if x != d[150]]
-        assert mcs.epoch == want["epoch"] and mcs.base == 0.0
-        got_mcs = dict(zip(mcs.dates, mcs.values))
-        assert all(abs(got_mcs[x] - v) < 1e-9 for x, v in zip(d, want["MCS"]) if v is not None and x in got_mcs)
-        got_ad = dict(zip(ad.dates, ad.values))
-        assert [got_ad[x] for x in d if x in got_ad] == [v for x, v in zip(d, want["AD"]) if x in got_ad]
+        for k in ("AD", "MCO", "MCS"):
+            ds = p._build_uncached(f"{X}:{k}")
+            assert dict(zip(ds.dates, ds.values)) == served[f"{X}:{k}"]
+        assert p._build_uncached(f"{X}:MCS").base == 0.0
+    # (3) authority not serving → nothing (fail closed), never a recomputation
+    monkeypatch.setattr(ea, "derived", lambda sid: None)
+    assert p._build_uncached("NYSE:MCO") is None and p._build_uncached("NASDAQ:AD") is None
