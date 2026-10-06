@@ -178,3 +178,31 @@ describe('OptionsChainTab column key', () => {
     expect(key.textContent).toMatch(/ATM IV.*strike nearest spot/)
   })
 })
+
+describe('OptionsChainTab -- the states that used to say nothing (quality pass 2026-10-05)', () => {
+  it('an empty chain says so in a sentence instead of a header over no rows', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/expirations')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ expirations: ['2026-10-23'] }) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...CHAIN, calls: [], puts: [] }) })
+    })
+    renderTab()
+    expect((await screen.findByTestId('chain-empty')).textContent)
+      .toBe('No option contracts came back for SPY at the 2026-10-23 expiration.')
+    expect(screen.queryByTestId('atm-row')).toBeNull()
+  })
+
+  it('a failed expirations read is said, not silently ignored', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/expirations')) {
+        return Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(CHAIN) })
+    })
+    renderTab()
+    expect((await screen.findByTestId('chain-expirations-unavailable')).textContent)
+      .toBe("The list of expirations couldn't be loaded, so only 2026-10-23 can be picked right now.")
+    expect(screen.getByTestId('atm-row')).toBeTruthy()
+  })
+})

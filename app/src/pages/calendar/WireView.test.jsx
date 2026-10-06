@@ -114,10 +114,22 @@ describe('WireView', () => {
     expect(screen.getByText(/no reporters/i)).toBeInTheDocument()
   })
 
-  it('does not crash before the first fetch resolves', () => {
+  it('before the first read answers it says it is loading, never "no reporters"', () => {
     globalThis.__wire = { data: undefined }
     renderWire()
-    expect(screen.getByText(/no reporters|waiting/i)).toBeInTheDocument()
+    expect(screen.getByText('Loading the Wire…')).toBeInTheDocument()
+    expect(screen.queryByText(/no reporters/i)).not.toBeInTheDocument()
+  })
+
+  it('a failed read says so with a Retry, never "no reporters"', () => {
+    const mutate = vi.fn()
+    globalThis.__wire = { data: undefined, error: new Error('wire 502'), mutate }
+    renderWire()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "The Wire couldn't be read right now. That is a gap in what we could read, not a quiet session.")
+    expect(screen.queryByText(/no reporters/i)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalled()
   })
 })
 

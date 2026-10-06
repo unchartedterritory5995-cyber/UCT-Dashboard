@@ -298,6 +298,12 @@ describe('FT-056 sector tide / FT-057 click-through', () => {
     expect(count.textContent).toContain('09:30 ET: 20 prints')
     expect(count.textContent).toContain('The 1 largest of 20')
     expect(screen.getByTestId('tide-minute-prints').textContent).toContain('NVDA')
+    // quality pass 2026-10-05: plain words, never the tape's raw enums
+    const row = screen.getByTestId('tide-minute-prints').querySelector('tbody tr').textContent
+    expect(row).toContain('Call 200 2026-10-16')
+    expect(row).toContain('At ask')
+    expect(row).toContain('Sweep')
+    expect(row).not.toMatch(/ASK|SWEEP/)
   })
 
   it('minuteAt maps the chart x onto the minute list, clamped', () => {
@@ -322,6 +328,20 @@ describe('FT-073 more screens / FT-075 Sizzle', () => {
     expect(screen.getByTestId('more-not-built').textContent).toContain('no multi-leg flag')
     expect(screen.queryByTestId('strategy-screens')).toBeNull()
     expect(screen.queryByTestId('sizzle')).toBeNull()
+  })
+
+  it('block trades print the side and contract type in words, not tape codes (quality pass 2026-10-05)', async () => {
+    const BLOCKS = { strategy: 'block_trades', description: 'Prints the tape types BLOCK.', session: '2026-10-02', data_basis: "today's flow tape", fill: null, candidates_read: 1, candidate_cap: 1, matches: 1,
+      rows: [{ symbol: 'NVDA', type: 'put', strike: 180, expiration: '2026-10-16', side: 'BB', premium: 250000, contracts: 500, time: '10:01:02' }] }
+    route([[/more-strategies/, MORE_CAT], [/more\/call_butterflies/, FLY], [/more\/block_trades/, BLOCKS]])
+    mount(<StrategyScreensPanel />)
+    await screen.findByTestId('more-rows')
+    fireEvent.change(screen.getByLabelText('More strategies'), { target: { value: 'block_trades' } })
+    await waitFor(() => expect(screen.getByTestId('more-rows').textContent).toContain('NVDA'))
+    const row = screen.getByTestId('more-rows').querySelector('tbody tr').textContent
+    expect(row).toContain('Put 180.00 2026-10-16')
+    expect(row).toContain('Below bid')
+    expect(row).not.toMatch(/\bBB\b|\bput\b/)
   })
 
   it('Sizzle states the sessions it holds (n) and the first date a ratio can exist', async () => {

@@ -53,6 +53,10 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
   const ordered = useMemo(() => FUNCTION_GROUPS.flatMap((g) => rows.filter((f) => f.group === g)), [rows])
   useEffect(() => { onRows?.(ordered.map((f) => f.code)) }, [onRows, ordered])
   const keys = HELP_SHORTCUT_IDS.map((id) => SHORTCUTS.find((d) => d.id === id)).filter(Boolean)
+  // Quality pass 2026-10-05: until the sign-in payload has ARRIVED every flag reads false, so
+  // every gated code flashed "not enabled" for a moment on open. While it is still loading (or
+  // the first read failed transiently) HELP shows no marker at all, never a guess.
+  const flagsKnown = !(auth?.loading || auth?.authTransient)
   let n = 0
   return (
     <div className={styles.help} data-testid="terminal-help">
@@ -111,7 +115,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                 // has one is gated by the EXACT same helper + auth source `resolvePanel` uses
                 // (functions.js::flagOn over AuthContext), so HELP never disagrees with the
                 // real gate a member hits when they run the code.
-                const enabled = flag ? flagOn(auth, flag) : null
+                const enabled = flag && flagsKnown ? flagOn(auth, flag) : null
                 return (
                   <li key={f.code}>
                     <button type="button" className={`${styles.helpRow} ${styles.helpFnRow}`} onClick={() => onRun?.(f.code)}>

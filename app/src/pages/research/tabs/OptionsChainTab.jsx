@@ -151,7 +151,22 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
             IV rank: needs IV history
           </span>} />
       </div>
+      {/* Quality pass 2026-10-05: a failed expirations read was silently ignored -- the
+          picker quietly held the one expiration the chain came back with. */}
+      {exps.error && (
+        <p className={styles.note} data-testid="chain-expirations-unavailable">
+          The list of expirations couldn&apos;t be loaded, so only {d.expiration || 'this expiration'} can be picked right now.
+        </p>
+      )}
       <OptionMonitorStrip sym={s} />
+      {/* An empty chain was a header row over nothing. Say it in words. */}
+      {shown.length === 0 ? (
+        <p className={styles.note} data-testid="chain-empty">
+          {d.expiration
+            ? `No option contracts came back for ${s} at the ${d.expiration} expiration.`
+            : `No listed option expirations came back for ${s}.`}
+        </p>
+      ) : (
       <div className={styles.scroll}>
         <table className={styles.grid}>
           <thead>
@@ -176,6 +191,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
           </tbody>
         </table>
       </div>
+      )}
       {/* The column definitions used to live only in header tooltips, which a finger cannot
           hover. The same text, tappable. */}
       <details className={styles.colKey} data-testid="chain-column-key">

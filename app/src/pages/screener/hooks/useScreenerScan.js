@@ -28,7 +28,11 @@ export default function useScreenerScan(spec, { debounce = 300 } = {}) {
         if (!r.ok) {
           let detail = `scan ${r.status}`
           try { detail = (await r.json())?.detail || detail } catch { /* keep status text */ }
-          throw new Error(detail)
+          // `status` is what the shell words the failure from; `detail` stays on the error for
+          // logs only (it is server text, not member copy -- shell/scanErrorText.js).
+          const err = new Error(typeof detail === 'string' ? detail : `scan ${r.status}`)
+          err.status = r.status
+          throw err
         }
         const json = await r.json()
         if (mySeq !== seq.current) return
@@ -44,3 +48,4 @@ export default function useScreenerScan(spec, { debounce = 300 } = {}) {
 
   return { result, isLoading, error }
 }
+

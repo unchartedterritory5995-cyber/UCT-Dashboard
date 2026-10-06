@@ -112,14 +112,16 @@ function renderTweetText(text) {
   )
 }
 
-function OnTheTape() {
-  const { data: tweets } = useTweetFeed({ hours: 12, limit: 50 })
+export function OnTheTape() {
+  const { data: tweets, error: tweetsError } = useTweetFeed({ hours: 12, limit: 50 })
 
   return (
     <div className={styles.tapeBlock}>
       <div className={styles.tapeLabel}><UIcon name="wire" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />ON THE TAPE</div>
       <div className={styles.tapeBody}>
-        {tweets == null
+        {tweets == null && tweetsError
+          ? <span className={styles.noData} role="status">The tape couldn&apos;t be read right now. That is not the same as no tweets.</span>
+          : tweets == null
           ? <SkeletonTileContent lines={5} />
           : tweets.length === 0
             ? <span className={styles.noData}>No tweets on the tape yet</span>

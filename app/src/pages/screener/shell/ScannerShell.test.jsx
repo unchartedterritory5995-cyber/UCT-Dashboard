@@ -8,7 +8,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // renders that don't change meta), so a mock that returns a fresh literal
 // every call would defeat the memo the same way ScannerPro.test.jsx's own
 // comment warns about for useScreenerScan's `result`.
-const { META, SAVED, scanMock, exportMock } = vi.hoisted(() => ({
+const { META, SAVED, scanMock, exportMock, metaMock } = vi.hoisted(() => ({
   META: {
     categories: [{ key: 'descriptive', label: 'Descriptive' }],
     filters: [{ key: 'price', label: 'Price', category: 'descriptive',
@@ -21,6 +21,7 @@ const { META, SAVED, scanMock, exportMock } = vi.hoisted(() => ({
   SAVED: { saved: [], starters: [], create: vi.fn(), update: vi.fn(), remove: vi.fn() },
   scanMock: vi.fn(),
   exportMock: vi.fn(),
+  metaMock: vi.fn(),
 }))
 
 // ⚠️ THE TOOLBAR NOW CARRIES A REVIEW-CHARTS ACTION, AND IT NAVIGATES, so this
@@ -30,7 +31,7 @@ const { META, SAVED, scanMock, exportMock } = vi.hoisted(() => ({
 // `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
 vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 
-vi.mock('../hooks/useScreenerMeta', () => ({ default: () => ({ meta: META, isLoading: false }) }))
+vi.mock('../hooks/useScreenerMeta', () => ({ default: metaMock }))
 vi.mock('../hooks/useScreenerScan', () => ({ default: scanMock }))
 vi.mock('../hooks/useSavedScreens', () => ({ default: () => SAVED }))
 vi.mock('../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
@@ -52,6 +53,8 @@ beforeEach(() => {
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
   scanMock.mockReset()
   exportMock.mockReset()
+  metaMock.mockReset()
+  metaMock.mockReturnValue({ meta: META, isLoading: false, error: undefined, retry: vi.fn() })
 })
 
 const LOADING = { result: null, isLoading: true, error: null }
@@ -60,6 +63,11 @@ const READY = { result: { total: 2, rows: [{ ticker: 'AAA', price: 10, chg_pct_1
   { ticker: 'BBB', price: 20, chg_pct_1d: -1 }], page: 1, snapshot_date: '2026-08-21' },
   isLoading: false, error: null }
 const FAILED = { result: null, isLoading: false, error: new Error('scan failed') }
+const failedWith = (status, detail) => {
+  const e = new Error(detail)
+  e.status = status
+  return { result: null, isLoading: false, error: e }
+}
 
 describe('ScannerShell', () => {
   it('shows the skeleton on first load, before any result has landed', () => {
@@ -87,12 +95,39 @@ describe('ScannerShell', () => {
   it('error renders the scanError banner with Retry, which bumps _retry on the NEXT scan call', () => {
     scanMock.mockReturnValue(FAILED)
     render(<ScannerShell />)
-    expect(screen.getByRole('alert')).toHaveTextContent(/scan failed — scan failed/i)
+    expect(screen.getByRole('alert')).toHaveTextContent("The screener couldn't run this scan right now.")
     const callsBefore = scanMock.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
     expect(scanMock.mock.calls.length).toBeGreaterThan(callsBefore)
     const lastSpec = scanMock.mock.calls.at(-1)[0]
     expect(lastSpec._retry).toBe(1)
+  })
+
+  it('a scan failure is worded from its status; the server detail never reaches the member', () => {
+    const raw = "unknown filter 'xyz' in spec (ValueError)"
+    for (const [status, words] of [
+      [400, "This scan couldn't run as set. One of the filters can't be applied. Remove the last chip you added, or Reset."],
+      [429, 'Too many scans at once. Wait a few seconds, then Retry.'],
+      [503, "The screener couldn't run this scan right now."],
+    ]) {
+      scanMock.mockReturnValue(failedWith(status, raw))
+      const { unmount } = render(<ScannerShell />)
+      expect(screen.getByRole('alert')).toHaveTextContent(words)
+      expect(screen.queryByText(/unknown filter|ValueError/)).not.toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('a failed filter-registry read says so with a Retry instead of a silent empty rail', () => {
+    scanMock.mockReturnValue(EMPTY)
+    const retry = vi.fn()
+    metaMock.mockReturnValue({ meta: undefined, isLoading: false, error: new Error('screener meta 500'), retry })
+    render(<ScannerShell />)
+    const alert = screen.getByTestId('screener-meta-failed')
+    expect(alert).toHaveTextContent(
+      "The screener's filter list couldn't be loaded, so filters, views and lists are unavailable right now.")
+    fireEvent.click(alert.querySelector('button'))
+    expect(retry).toHaveBeenCalled()
   })
 
   it('the live-sort chip only appears once sort.key is live-overlaid (price/chg_pct_1d)', () => {
