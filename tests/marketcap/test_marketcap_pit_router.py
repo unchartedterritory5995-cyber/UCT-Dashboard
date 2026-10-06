@@ -222,3 +222,64 @@ def test_router_is_isolated_from_build_machinery():
     mods = {n.module for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom) and n.module}
     assert not any(m and ("build" in m or "serve" == m.split(".")[-1] or "sqlite" in m) for m in mods)
     assert "sqlite3" not in src
+
+
+# ── PREVIEW (owner decision 2026-10-06): admin-only verification of the real reader; consumers stay OFF ──────────
+@pytest.fixture
+def preview(world, monkeypatch):
+    monkeypatch.setenv("MCAP_PIT_ENABLED", "0")
+    monkeypatch.setenv("MCAP_PIT_PREVIEW", "1")
+    return world
+
+
+H = {"X-MCAP-Preview": "1"}
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_preview_serves_an_admin_through_the_real_reader(preview, path):
+    r = as_(preview["c"], "tok-admin").get(path, headers=H)
+    assert r.status_code == 200 and r.headers["X-MCAP-Mode"] == "PREVIEW"
+    assert (r.headers.get("X-MCAP-Build") or r.json()["authority"]["build_id"]) == B1
+    assert r.headers["Cache-Control"] == "private, no-cache" and "X-MCAP-Preview" in r.headers.get("Vary", "")
+
+
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize("who", [None, "tok-free", "tok-comped", "tok-pro"])
+def test_preview_is_the_dark_404_for_everyone_else(preview, path, who):
+    c = preview["c"]
+    c.cookies.clear()
+    if who:
+        as_(c, who)
+    assert c.get(path, headers=H).status_code == 404            # entitled members included
+    assert c.get(path).status_code == 404
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_preview_keeps_consumers_off_even_for_an_admin(preview, path):
+    # the chart / member clients never send the preview header: their pit-status is 404 -> the legacy path
+    assert as_(preview["c"], "tok-admin").get(path).status_code == 404
+
+
+def test_preview_refuses_the_service_bearer(preview, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    preview["c"].cookies.clear()
+    assert preview["c"].get("/api/marketcap/pit-status", headers={**H, "Authorization": "Bearer s3cret"}).status_code == 404
+
+
+def test_on_is_unchanged_and_preview_never_narrows_or_widens_it(world, monkeypatch):
+    monkeypatch.setenv("MCAP_PIT_PREVIEW", "1")                  # ON wins
+    assert MR.mode() == "ON"
+    assert as_(world["c"], "tok-pro").get("/api/marketcap/pit-status").status_code == 200
+    assert as_(world["c"], "tok-free").get("/api/marketcap/pit-status").status_code == 403
+    assert "X-MCAP-Mode" not in as_(world["c"], "tok-pro").get("/api/marketcap/pit-status").headers
+
+
+def test_no_member_client_sends_the_preview_header():
+    root = os.path.join(os.path.dirname(__file__), "..", "..", "app", "src")
+    hits = []
+    for base, _d, files in os.walk(root):
+        for f in files:
+            if f.endswith((".js", ".jsx", ".ts", ".tsx")) and ".test." not in f:
+                if "X-MCAP-Preview" in open(os.path.join(base, f), encoding="utf-8", errors="ignore").read():
+                    hits.append(f)
+    assert hits == []
