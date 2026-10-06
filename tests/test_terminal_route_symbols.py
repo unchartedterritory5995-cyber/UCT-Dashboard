@@ -338,3 +338,35 @@ def test_people_for_an_unknown_type_still_reads_the_vendors(monkeypatch):
     monkeypatch.setattr(research_people, "_insider_roles", lambda s, f=None: dict(empty))
     out = research_people.people("BRK-B")
     assert asked == ["BRK-B"] and "not_applicable" not in out
+
+
+# ── options chain / history: junk never reaches a vendor ──────────────────────
+
+def test_the_option_chain_refuses_junk_with_a_422_not_an_outage(monkeypatch):
+    from api.routers import options_chain as route
+    from api.services import polygon_options
+    monkeypatch.setattr(route, "is_enabled", lambda: True)
+    asked = []
+    monkeypatch.setattr(polygon_options, "list_expirations", lambda s: asked.append(s) or {"expirations": []})
+    monkeypatch.setattr(polygon_options, "get_chain", lambda s, **k: asked.append(s) or {"rows": []})
+    c = _app(route.router)
+    for s in JUNK:
+        for path in ("expirations", "chain"):
+            r = c.get(f"/api/research/options/{s}/{path}")
+            assert r.status_code == 422, (s, path, r.status_code, r.text)
+            assert "not a ticker symbol" in r.json()["detail"]
+    assert asked == []
+    assert c.get("/api/research/options/nvda/expirations").status_code == 200
+    assert asked == ["NVDA"]
+
+
+def test_history_refuses_junk_before_any_lane(monkeypatch):
+    from api.routers import ticker_history as route
+    monkeypatch.setattr(route.ticker_history, "is_enabled", lambda: True)
+    asked = []
+    monkeypatch.setattr(route.ticker_history, "history", lambda s, **k: asked.append(s) or {"ticker": s})
+    c = _app(route.router)
+    for s in JUNK:
+        assert c.get(f"/api/research/history/{s}").status_code == 400, s
+    assert asked == []
+    assert c.get("/api/research/history/NVDA").status_code == 200 and asked == ["NVDA"]
