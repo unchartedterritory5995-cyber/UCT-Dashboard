@@ -5,6 +5,7 @@
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel, PanelSkeleton, PanelState } from '../components/terminal'
 import { formatPercent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
@@ -39,6 +40,11 @@ function CapBar({ label, valuePct, capPct }) {
 
 export default function PortfolioHeat() {
   const { data, error, mutate } = useMobileSWR('/api/portfolio/heat', fetcher, { refreshInterval: 60000 })
+  // Inside a UCT Terminal panel the panel header names the function and the shell insets the
+  // body, so the page's own title and padding step aside and the shared panel states are used.
+  const inPanel = useInTerminalPanel()
+  const pageCls = inPanel?.inset ? styles.pageInPanel : styles.page
+  const heading = inPanel ? null : <h1 className={styles.heading}>Portfolio Risk</h1>
 
   // ⭐ THE REFUSAL IS SAID OUT LOUD, same reasoning as Traders.jsx: without
   // this branch a 402 leaves `data` undefined forever and the page reads
@@ -46,10 +52,21 @@ export default function PortfolioHeat() {
   const refused = error?.status === 402 || error?.status === 403
   const failed = error && !refused
 
+  if (error && inPanel) {
+    return (
+      <div className={pageCls}>
+        {refused
+          ? <PanelState kind="locked" role="status" title="Portfolio risk is part of a paid plan." />
+          : <PanelState kind="error" role="status" title="Portfolio risk could not be read right now."
+              action={<button type="button" onClick={() => mutate()}>Retry</button>} />}
+      </div>
+    )
+  }
+
   if (error) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.heading}>Portfolio Risk</h1>
+      <div className={pageCls}>
+        {heading}
         <p className={styles.loading} role="status">
           {/* "Retrying…" was a promise SWR does not keep: it stops polling a key holding an
               error. A real Retry instead (quality pass 2026-10-05). */}
@@ -61,10 +78,12 @@ export default function PortfolioHeat() {
     )
   }
 
+  if (!data && inPanel) return <div className={pageCls}><PanelSkeleton label="Loading portfolio risk" /></div>
+
   if (!data) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.heading}>Portfolio Risk</h1>
+      <div className={pageCls}>
+        {heading}
         <p className={styles.loading}>Loading portfolio risk…</p>
       </div>
     )
@@ -72,8 +91,8 @@ export default function PortfolioHeat() {
 
   if (data.ok === false) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.heading}>Portfolio Risk</h1>
+      <div className={pageCls}>
+        {heading}
         <p className={styles.loading} role="status">
           {data.reason ? `Portfolio risk could not be computed: ${data.reason}.` : 'Portfolio risk could not be computed right now.'}
         </p>
@@ -88,8 +107,8 @@ export default function PortfolioHeat() {
   } = data
 
   return (
-    <div className={styles.page}>
-      <h1 className={styles.heading}>Portfolio Risk</h1>
+    <div className={pageCls}>
+      {heading}
 
       {account_size_is_default && (
         <p className={styles.notice} role="status">

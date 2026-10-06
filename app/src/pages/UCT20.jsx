@@ -1,7 +1,8 @@
 // app/src/pages/UCT20.jsx
 import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
-import PageHeader from '../components/PageHeader'
+import SurfaceHeader from './SurfaceHeader'
+import { useInTerminalPanel } from '../components/terminal'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
@@ -359,6 +360,7 @@ function MethodologySheet({ open, onClose }) {
 }
 
 export default function UCT20() {
+  const inPanel = useInTerminalPanel()
   const { mutate } = useSWRConfig()
   const { data: rows, error: rowsError, mutate: retryRows } = useSWR('/api/leadership', leadershipFetcher, { refreshInterval: 3600000 })
   const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
@@ -504,8 +506,8 @@ export default function UCT20() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-    <div className={styles.page}>
-      <PageHeader icon="star" title="UCT 20">
+    <div className={inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page}>
+      <SurfaceHeader icon="star" title="UCT 20">
         <ReadAloudButton
           trackId="uct20-all-picks"
           label="UCT 20 picks"
@@ -529,7 +531,7 @@ export default function UCT20() {
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           How it&rsquo;s built
         </button>
-      </PageHeader>
+      </SurfaceHeader>
       <MethodologySheet open={showMethodology} onClose={() => setShowMethodology(false)} />
       {leadershipStatus === 'held' && stocks.length > 0 && (
         <div className={styles.staleBanner}>

@@ -1,4 +1,6 @@
 .page { padding: var(--space-lg) var(--space-xl); }
+/* In a terminal panel the shell already insets the body (--panel-inset). */
+.pageInPanel { padding: 0; }
 /* The page title follows the app's .t-page-title scale (no private 22px/800 uppercase). */
 .heading { font-family: var(--font-heading); font-size: var(--text-3xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: var(--ls-tight); color: var(--text-heading); margin: 0 0 var(--space-lg); }
 .subheading { font-family: var(--font-sans); font-size: var(--text-xl); font-weight: 700; color: var(--text-bright); margin: var(--space-xl) 0 var(--space-md); }

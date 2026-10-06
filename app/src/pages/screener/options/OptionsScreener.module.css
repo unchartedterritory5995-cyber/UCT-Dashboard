@@ -1,5 +1,6 @@
 /* COV-02/03 — the Screener's Options view. */
 .wrap { padding: 12px 20px; overflow: auto; min-height: 0; flex: 1; }
+.wrap.wrapInPanel { padding: 0; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .tab, .tabOn, .chip, .chipOn {
   min-height: var(--tap-min); padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;

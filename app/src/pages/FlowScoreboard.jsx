@@ -10,6 +10,7 @@
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import styles from './FlowScoreboard.module.css'
 import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -84,12 +85,17 @@ export default function FlowScoreboard({ embedded = false }) {
   })
 
   const overall = data?.overall
+  // In a terminal panel the panel header names FREC; the public-page hero copy steps aside.
+  const inPanel = useInTerminalPanel()
+  const pageCls = embedded ? `${styles.page} ${styles.embedded}`
+    : inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page
   const hasData = (data?.picks_tracked ?? 0) > 0
 
   return (
-    <div className={embedded ? `${styles.page} ${styles.embedded}` : styles.page}>
+    <div className={pageCls}>
       {/* ── Hero band ──────────────────────────────────────────────────── */}
       <div className={styles.hero}>
+        {!inPanel && <>
         <div className={styles.heroEyebrow}>
           <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />
           Flow Scoreboard · verified track record
@@ -100,6 +106,7 @@ export default function FlowScoreboard({ embedded = false }) {
           until expiration — winners, losers, all of it. No cherry-picking, no deleted
           calls. This is the tape.
         </p>
+        </>}
 
         {error && !data ? (
           <div className={styles.empty} data-testid="scoreboard-error">

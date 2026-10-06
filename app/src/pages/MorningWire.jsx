@@ -18,6 +18,7 @@ import { timeAgo } from '../utils/timeAgo'
 import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
@@ -163,6 +164,8 @@ export function settleLoadingPlaceholders(html) {
 }
 
 export default function MorningWire() {
+  // In a UCT Terminal panel the panel header names WIRE; the masthead title steps aside.
+  const inPanel = useInTerminalPanel()
   const { mutate } = useSWRConfig()
   // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
   const { user } = useAuth()
@@ -365,9 +368,11 @@ export default function MorningWire() {
         </div>
         <div className={styles.mastCenter}>
           <div className={styles.pageHeader}>
-            <div className={styles.titleRow}>
-              <span className={styles.wireName}>The Morning Wire</span>
-            </div>
+            {!inPanel && (
+              <div className={styles.titleRow}>
+                <span className={styles.wireName}>The Morning Wire</span>
+              </div>
+            )}
             {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
           </div>
           <QuoteOfTheDay />

@@ -1,6 +1,8 @@
 /* Breadth Monitor — spreadsheet-style table */
 
 .page { padding: 20px 24px; --page-pad-top: 20px; --page-pad-x: 24px; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+/* Inside a UCT Terminal panel the shell insets the body (--panel-inset). */
+.page.pageInPanel { padding: 0; --page-pad-top: 0px; --page-pad-x: 0px; --page-pad-top-m: 0px; --page-pad-x-m: 0px; }
 
 .header {
   display: flex;

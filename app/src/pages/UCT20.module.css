@@ -303,3 +303,7 @@
     min-height: var(--tap-min);
   }
 }
+
+/* Inside a UCT Terminal panel the shell insets the body (--panel-inset); the page's own
+   padding and centring step aside. */
+.page.pageInPanel { padding: 0; max-width: none; margin: 0; --page-pad-top: 0px; --page-pad-x: 0px; }
