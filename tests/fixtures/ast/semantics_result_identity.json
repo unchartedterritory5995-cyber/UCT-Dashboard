@@ -1,0 +1,271 @@
+{
+ "_": "Owner decision A (2026-10-06): the RESULT identity both lanes key shared results by. Python: user_definitions.result_identity; JS: definitionSemantics.resultIdentity. Generated from the Python rule; both lanes assert every case.",
+ "cases": [
+  {
+   "name": "legacy, unstamped",
+   "definition": {
+    "meta": {
+     "name": "x"
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+  },
+  {
+   "name": "semantics 2, stamped by the store",
+   "definition": {
+    "meta": {
+     "name": "x",
+     "semantics": 2
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691~s2"
+  },
+  {
+   "name": "explicit semantics 1",
+   "definition": {
+    "meta": {
+     "name": "x",
+     "semantics": 1
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+  },
+  {
+   "name": "forged: Pine origin carrying 2",
+   "definition": {
+    "meta": {
+     "name": "x",
+     "semantics": 2,
+     "recurrenceOrigin": "pine"
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+  },
+  {
+   "name": "forged: string '2'",
+   "definition": {
+    "meta": {
+     "name": "x",
+     "semantics": "2"
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+  },
+  {
+   "name": "forged: boolean true",
+   "definition": {
+    "meta": {
+     "name": "x",
+     "semantics": true
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+  },
+  {
+   "name": "forged: semantics 3",
+   "definition": {
+    "meta": {
+     "name": "x",
+     "semantics": 3
+    },
+    "compute": {
+     "kind": "ast",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "fn": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+    }
+   },
+   "expect": "sha256:f86c5bdba37c47aa844d6296bf3171198b8f2b3b0a7cea4fd3befdf0a81e8691"
+  }
+ ]
+}

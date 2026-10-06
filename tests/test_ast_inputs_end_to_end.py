@@ -44,6 +44,7 @@ from api.services import ast_lint as al                            # noqa: E402
 from api.services import indicator_alert_evaluator as ev           # noqa: E402
 from api.services import indicator_alert_service as ias            # noqa: E402
 from api.services import user_definitions as ud                    # noqa: E402
+from tests._p0_legacy_rows import save_legacy
 
 
 USER_A = "user-inputs-e2e"
@@ -257,7 +258,12 @@ def test_an_UNDECLARED_name_is_still_repaints_and_still_refused(defs_db, real_ba
     the refusal names `repaint` — the gate that read the verdict — not some door
     further down.
     """
-    row = ud.save(USER_A, DEF_ID, defn(tree=AST_UNDECLARED_NAME))
+    # ⭐ P0/0P — the SAVE door now refuses it first (a NEW save of this tree is
+    # never stored); the alert door below is defence in depth for a row stored
+    # before that gate, so the row is planted as one.
+    with pytest.raises(ud.SaveRefused):
+        ud.save(USER_A, DEF_ID, defn(tree=AST_UNDECLARED_NAME))
+    row = save_legacy(USER_A, DEF_ID, defn(tree=AST_UNDECLARED_NAME))
     assert row["repaint"] == {"value": "repaints"}
 
     with pytest.raises(aus.AdmissionRefused) as caught:
@@ -284,7 +290,12 @@ def test_a_declared_input_may_NOT_decide_a_WINDOW(defs_db, real_bars):
     budget refusal and is not caught, so it would leave the arm path as an
     unhandled exception rather than a named gate.
     """
-    row = ud.save(USER_A, DEF_ID, defn(tree=AST_SMA_OF_INPUT_WINDOW))
+    # ⭐ P0/0P — refused at the SAVE door first (`resolve:window`, the guard the
+    # browser's registration also names); planted as a pre-gate row below.
+    with pytest.raises(ud.SaveRefused) as at_save:
+        ud.save(USER_A, DEF_ID, defn(tree=AST_SMA_OF_INPUT_WINDOW))
+    assert at_save.value.gate == "tree" and at_save.value.guard == "resolve:window"
+    row = save_legacy(USER_A, DEF_ID, defn(tree=AST_SMA_OF_INPUT_WINDOW))
     assert row["repaint"] == {"value": "repaints"}, (
         "a knob in the window position was bounded — the linter read a "
         "per-instance value as a window")
@@ -321,7 +332,11 @@ def test_the_OLD_spelling_declares_nothing_so_there_is_ONE_vocabulary(defs_db):
     legacy = defn(tree=AST_CLOSE_TIMES_INPUT,
                   inputs=[{"name": "lineWidth", "type": "int", "default": 2}])
     assert al.declared_inputs(legacy) == {}
-    assert ud.save(USER_A, DEF_ID, legacy)["repaint"] == {"value": "repaints"}
+    # ⭐ P0/0P — a new save of it is refused at the save door; the stored
+    # verdict of a pre-gate row is what this vocabulary rail reads.
+    with pytest.raises(ud.SaveRefused):
+        ud.save(USER_A, DEF_ID, legacy)
+    assert save_legacy(USER_A, DEF_ID, legacy)["repaint"] == {"value": "repaints"}
 
 
 def test_an_input_that_SHADOWS_a_table_series_never_changes_what_close_means(defs_db):

@@ -53,7 +53,8 @@ SMA = {"type": "call", "name": "sma",
        "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 20}]}
 
 #: A call the closed table does not hold. The linter is FAIL-CLOSED, so this is
-#: `repaints` — and `assert_canonical` still accepts it, so the store will keep it.
+#: `repaints` — and `assert_canonical` still accepts its SHAPE. Since P0/0P the
+#: save door refuses it as new maths; rows like it predate that gate.
 UNREADABLE = {"type": "call", "name": "notafunctioninthetable",
               "args": [{"type": "series", "name": "close"}]}
 
@@ -123,6 +124,12 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr(ias, "_DB_PATH", str(alert_db))
     ias.init_schema()
     aus.forget()
+    # ⭐ P0/0P — EVERY ROW THIS FILE WRITES IS A PRE-GATE ROW. The relint pass
+    # exists for rows stored under an older linter/table; the save door now
+    # refuses new maths that does not admit (`_admit_new_maths`), so this file
+    # plants its rows with that one gate off (`tests/_p0_legacy_rows.py`) — the
+    # hash, rev and stamped columns are still the real `save()`'s.
+    monkeypatch.setattr(svc, "_admit_new_maths", lambda *a, **k: None)
     return tmp_path
 
 

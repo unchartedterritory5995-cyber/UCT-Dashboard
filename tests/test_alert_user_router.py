@@ -37,6 +37,7 @@ from api.services import alert_user_series as aus
 from api.services import indicator_alert_evaluator as ev
 from api.services import indicator_alert_service as ias
 from api.services import user_definitions as ud
+from tests._p0_legacy_rows import save_legacy
 
 
 USER_A = "router-user-a"
@@ -132,7 +133,10 @@ def save(user_id: str, definition: dict, *, repaint: dict | None = None) -> dict
     `_gate_repaint` reads what `save` stored, so writing that value is how a test
     drives the repaint door rather than the linter.
     """
-    row = ud.save(user_id, definition["id"], definition)
+    # ⭐ P0/0P — planted AS A PRE-GATE ROW: this file drives the DOWNSTREAM
+    # door, which is defence in depth for rows the save door would now refuse
+    # (see `tests/_p0_legacy_rows.py`; the save door is `test_p0_truth_save.py`).
+    row = save_legacy(user_id, definition["id"], definition)
     if repaint is not None:
         with sqlite3.connect(str(ud._DB_PATH)) as c:
             c.execute("UPDATE user_definitions SET repaint=? "
