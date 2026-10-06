@@ -279,3 +279,123 @@ def test_divergence_monitor_reports_and_changes_nothing(st):
     r = PA.divergence(st["s"], st["root"], src)
     assert r["lost"]["rows"] == 1 and r["gained"]["rows"] == 1 and r["changed"]["rebased_constant_factor"] == 0
     assert r["changed"]["tickers"] == 1 and st["s"].manifest(st["root"]) == before
+
+
+# ── refresh-level price-authority cases (15-17, 20) through the REAL Refresh._price_authority / price_parent ─────────
+def _refresh_root(st, tmp, official, target):
+    import gzip
+    from api.services.marketcap import refresh as RF
+    r = tmp / "rroot"
+    r.mkdir(exist_ok=True)
+    src, rows = up(st)
+    (r / "refresh.json").write_text(json.dumps({
+        "target": f"local:{target}", "policy": {"auto_advance": False},
+        "sources": {"prices": {"kind": "price_authority", "store": str(st["s"].root[:-len("/prices")]),
+                               "root_version": st["root"], "source": src,
+                               "official": {"kind": "file", "path": str(official)}}}}))
+    uni = tmp / "sec_t.json.gz"
+    uni.write_bytes(gzip.compress(json.dumps({"1": ["", list(TICKERS)]}).encode()))
+    return RF, str(r), src, rows, str(uni)
+
+
+def _run(RF, root, uni, monkeypatch, run_id):
+    from api.services.marketcap import price_authority as PA_
+    monkeypatch.setattr(PA_, "completed_sessions", lambda after, now=None: [d for d in NEW if d > after])
+    r = RF.Refresh(root, run_id)
+    os.makedirs(r.data, exist_ok=True)
+    open(os.path.join(r.data, "ref.jsonl"), "w").write(json.dumps(["SPL", {}, [], []]) + chr(10))
+    return r._price_authority(r.cfg.sources["prices"], uni)
+
+
+def test_15_16_17_a_sealed_but_unused_price_version_is_reused_exactly_on_retry(st, monkeypatch):
+    tmp = st["tmp"]
+    off = tmp / "official.json"
+    off.write_text(json.dumps({str(k): v for k, v in official_from(upstream_rows()).items()}))
+    RF, root, src, rows, uni = _refresh_root(st, tmp, off, tmp / "bucket")
+    a = _run(RF, root, uni, monkeypatch, "run-a")            # sealed; then (16) the Market Cap build fails
+    assert a["parent"] == st["root"] and a["last_session"] == 20261002 and not a["reused"]
+    b = _run(RF, root, uni, monkeypatch, "run-b")            # (17) the retry: same inputs -> the SAME version, reused
+    assert b["price_version"] == a["price_version"] and b["reused"] and b["content_sha256"] == a["content_sha256"]
+    versions = [v for v in os.listdir(st["s"].vdir) if v.startswith("PRICE-APPEND")]
+    assert versions == [a["price_version"]]                  # no duplicate; nothing became authority by existing
+
+
+def test_20_market_cap_rollback_carries_the_price_lineage(st, monkeypatch):
+    from api.services.marketcap import publication as P
+    from .lifecycle_fixtures import make_build, make_prices, manifest_fields, passing_validation
+    tmp = st["tmp"]
+    off = tmp / "official.json"
+    off.write_text(json.dumps({str(k): v for k, v in official_from(upstream_rows()).items()}))
+    bucket = tmp / "bucket"
+    RF, root, src, rows, uni = _refresh_root(st, tmp, off, bucket)
+    child = _run(RF, root, uni, monkeypatch, "run-a")["price_version"]
+    t = P.LocalTarget(str(bucket))
+    pdb = make_prices(str(tmp / "px.db"))
+    sha = {}
+    for bid, pv in (("MCAP_V1-20261002T050000Z", st["root"]), ("MCAP_V1-20261003T050000Z", child)):
+        db = make_build(str(tmp / f"{bid}.db"), bid, last_day=20261001)
+        mf = manifest_fields(bid, P.file_sha(db)[0])
+        mf["inputs"]["price_authority"] = {"version": pv}
+        sha[bid] = P.publish_build(t, build_db=db, prices_db=pdb, manifest_fields=mf, validation=passing_validation())["manifest_sha256"]
+    r = RF.Refresh(root, "run-x")
+    sp = r.cfg.sources["prices"]
+    assert r.price_parent(sp) == st["root"]                   # no authority yet: the sealed root
+    P.advance(t, "MCAP_V1-20261002T050000Z", sha["MCAP_V1-20261002T050000Z"], expect_current=None, by="o", reason="c",
+              acceptance="HUMAN_CUTOVER")
+    P.advance(t, "MCAP_V1-20261003T050000Z", sha["MCAP_V1-20261003T050000Z"], expect_current="MCAP_V1-20261002T050000Z",
+              by="o", reason="n", acceptance="HUMAN_CUTOVER")
+    assert r.price_parent(sp) == child                       # appends continue from the authority's own price version
+    P.rollback(t, "MCAP_V1-20261002T050000Z", sha["MCAP_V1-20261002T050000Z"], expect_current="MCAP_V1-20261003T050000Z",
+               by="o", reason="rollback")
+    assert r.price_parent(sp) == st["root"]                   # rollback = the price lineage of the restored artifact
+
+
+def test_an_authority_without_a_price_version_must_be_built_on_the_root(st, monkeypatch):
+    from api.services.marketcap import publication as P
+    from .lifecycle_fixtures import make_build, make_prices, manifest_fields, passing_validation
+    tmp = st["tmp"]
+    off = tmp / "official.json"
+    off.write_text("{}")
+    bucket = tmp / "bucket"
+    RF, root, *_ = _refresh_root(st, tmp, off, bucket)
+    t = P.LocalTarget(str(bucket))
+    bid = "MCAP_V1-20261002T050000Z"
+    db = make_build(str(tmp / "b.db"), bid, last_day=20261001)
+    mf = manifest_fields(bid, P.file_sha(db)[0])
+    mf["inputs"]["files"] = {"prices.db": {"sha256": "e" * 64, "bytes": 1}}     # NOT the sealed root
+    s = P.publish_build(t, build_db=db, prices_db=make_prices(str(tmp / "px.db")), manifest_fields=mf,
+                        validation=passing_validation())["manifest_sha256"]
+    P.advance(t, bid, s, expect_current=None, by="o", reason="c", acceptance="HUMAN_CUTOVER")
+    r = RF.Refresh(root, "run-y")
+    with pytest.raises(RuntimeError, match="ambiguous"):
+        r.price_parent(r.cfg.sources["prices"])
+
+
+def test_a_production_refresh_can_never_bypass_the_price_authority(tmp_path):
+    from api.services.marketcap import refresh as RF
+    r = tmp_path / "prod"
+    r.mkdir()
+    (r / "refresh.json").write_text(json.dumps({"target": "r2", "sources": {
+        "universe": {"kind": "file", "path": str(tmp_path / "u.json.gz")},
+        "prices": {"kind": "bars_db", "db": "/data/bars.db"}}}))
+    import gzip
+    (tmp_path / "u.json.gz").write_bytes(gzip.compress(b'{"1": ["", ["AAA"]]}'))
+    with pytest.raises(RuntimeError, match="only through the price authority"):
+        RF.Refresh(str(r), "run-p").sources()
+
+
+def test_counterfactual_mutable_bars_history_is_never_an_ordinary_append(st):
+    """The regression the production-lifecycle gate found: today's mutable bars history (rows lost, gained, re-based,
+    repaired) substituted for the sealed authority. The ordinary path appends ONLY new sessions and the accepted history
+    is unchanged; the full substitution exists only as a HISTORICAL_CORRECTION candidate that nothing can use."""
+    mutated = dict(drop=("AAA", 20260924), add=[("BBB", 20250102, 9.0)], change=("DDD", 20260923, 41.7))
+    src, rows = up(st, **mutated)
+    m = PA.append(st["s"], st["root"], src, official=official_from(rows), splits={}, sessions=NEW)
+    PA.materialize(st["s"], m["version_id"], str(st["tmp"] / "mat.db"))
+    assert PA.content_sha(str(st["tmp"] / "mat.db"), upto=20260929)[0] == st["s"].manifest(st["root"])["content_sha256"]
+    whole = mkdb(st["tmp"] / "whole.db", upstream_rows(extra_days=[], **mutated))
+    c = PA.propose_correction(st["s"], st["root"], whole, reason="counterfactual", provenance={})
+    assert c["diff_summary"]["lost"]["rows"] == 1 and c["diff_summary"]["gained"]["rows"] == 1
+    assert c["diff_summary"]["changed"]["rows"] == 1
+    with pytest.raises(PA.PriceAuthorityError, match="UNAPPROVED"):
+        PA.materialize(st["s"], c["version_id"], str(st["tmp"] / "x.db"))

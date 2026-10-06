@@ -353,6 +353,10 @@ class Refresh:
             u = {k: v for k, v in u.items() if k in keep}
             open(uni, "wb").write(gzip.compress(json.dumps(u, sort_keys=True).encode(), mtime=0))
             res["universe"]["bounded_to"] = len(u)
+        # ⛔ a refresh that publishes to the PRODUCTION bucket reads prices ONLY through the sealed price authority:
+        # a raw file / a live bars.db export would let a mutable upstream history become Market Cap's history
+        if str(self.cfg.raw.get("target", "")).startswith("r2") and (S.get("prices") or {}).get("kind") != "price_authority":
+            raise RuntimeError("production refreshes read prices only through the price authority (sources.prices.kind)")
         # the reference first: its split history is the price authority's basis evidence
         res["reference"] = self._source_file("reference", "ref.jsonl") or \
             {"source": "massive", **Q.reference_from_massive(uni, os.path.join(self.data, "ref.jsonl"))}
