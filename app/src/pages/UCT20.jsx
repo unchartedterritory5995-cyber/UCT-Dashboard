@@ -14,6 +14,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
+import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -26,14 +27,11 @@ function num(v) {
   return Number.isFinite(n) ? n : null
 }
 
-function fmtPct(v, digits = 1) {
-  if (v == null) return null
-  return `${v >= 0 ? '+' : ''}${v.toFixed(digits)}%`
-}
-function fmtPrice(v) {
-  if (v == null) return null
-  return `$${v.toFixed(2)}`
-}
+// Signed percent / price through the shared presentation formatter (same rounding,
+// "+" on >= 0 as before); null keeps meaning "absent" so callers pick their own glyph.
+const fmtPct = (v, digits = 1) => formatPercent(v, { decimals: digits, signed: true, absent: null })
+const fmtPrice = (v) => formatCurrency(v, { absent: null })
+const fmtRating = (v) => formatNumber(v, { decimals: 1, absent: null })
 
 // Earnings proximity — engine ships days_to_earnings only for a CONFIRMED
 // upcoming report (past/unknown dates arrive as null).
@@ -193,7 +191,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
         </span>
         <span className={`${styles.cDays} ${styles.days}`}>{daysHeld != null ? `${daysHeld}d` : <span className={styles.dim}>—</span>}</span>
         <span className={`${styles.since} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>{fmtPct(displayReturn) ?? <span className={styles.dim}>—</span>}</span>
-        <span className={styles.rating}>{rating != null ? rating.toFixed(1) : '—'}</span>
+        <span className={styles.rating}>{fmtRating(rating) ?? '—'}</span>
         {/* The row's own expand/collapse control — a REAL <button>, a sibling of
             the ticker chip above, never a wrapper around it. `stopPropagation`
             keeps this from also firing the row's onClick (which would toggle
@@ -206,7 +204,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           aria-label={`${expanded ? 'Collapse' : 'Expand'} ${sym} details`}
           onClick={e => { e.stopPropagation(); onToggle() }}
         >
-          {expanded ? '▾' : '▸'}
+          <UIcon name={expanded ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
         </button>
       </div>
 
@@ -253,13 +251,13 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
             <TradePlan entry={item.entry} stop={item.stop} target1={item.target_1} target2={item.target_2} />
             <div className={styles.statGrid}>
               <Stat label="RS" value={rsRank != null ? Math.round(rsRank) : null} />
-              <Stat label="Rating" value={rating != null ? rating.toFixed(1) : null} />
+              <Stat label="Rating" value={fmtRating(rating)} />
               <Stat label="1M" value={fmtPct(num(item.ret_1m))} tone={(num(item.ret_1m) ?? 0) >= 0 ? 'gain' : 'loss'} />
               <Stat label="3M" value={fmtPct(num(item.ret_3m))} tone={(num(item.ret_3m) ?? 0) >= 0 ? 'gain' : 'loss'} />
-              <Stat label="From High" value={num(item.pct_hi) != null ? `${num(item.pct_hi).toFixed(0)}%` : null} />
-              <Stat label="Inst Own" value={num(item.inst_own) != null ? `${num(item.inst_own).toFixed(0)}%` : null} />
-              <Stat label="Inst Δ" value={num(item.inst_trans) != null ? `${num(item.inst_trans) >= 0 ? '+' : ''}${num(item.inst_trans).toFixed(1)}%` : null} tone={(num(item.inst_trans) ?? 0) >= 0 ? 'gain' : 'loss'} />
-              <Stat label="Short Float" value={num(item.short_flt) != null ? `${num(item.short_flt).toFixed(1)}%` : null} />
+              <Stat label="From High" value={formatPercent(num(item.pct_hi), { decimals: 0, absent: null })} />
+              <Stat label="Inst Own" value={formatPercent(num(item.inst_own), { decimals: 0, absent: null })} />
+              <Stat label="Inst Δ" value={fmtPct(num(item.inst_trans))} tone={(num(item.inst_trans) ?? 0) >= 0 ? 'gain' : 'loss'} />
+              <Stat label="Short Float" value={formatPercent(num(item.short_flt), { decimals: 1, absent: null })} />
               <Stat label="Earnings" value={earnings?.detail || null} tone={earnings?.soon ? 'loss' : undefined} />
             </div>
           </aside>
@@ -525,7 +523,7 @@ export default function UCT20() {
           Read all picks
         </ReadAloudButton>
         <button className={styles.methodBtn} onClick={copyTickers} disabled={!stocks.length}>
-          {copied ? 'Copied ✓' : 'Copy tickers'}
+          {copied ? 'Copied' : 'Copy tickers'}
         </button>
         <button className={styles.methodBtn} onClick={() => setShowMethodology(true)}>
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />

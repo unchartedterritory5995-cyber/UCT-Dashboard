@@ -11,6 +11,7 @@ import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import styles from './FlowScoreboard.module.css'
+import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 
 // jsonFetcher THROWS on a non-2xx, a network error and a 30 s deadline. The old fetcher
@@ -39,16 +40,16 @@ export function contractLine(p) {
   return `$${fmtStrike(p.strike)}${cp} ${p.exp || ''}`.trim()
 }
 
+// Shared formatter; this page keeps its own sign rule ("+" only above zero, so a
+// flat 0.0% reads unsigned) and accepts numeric strings from the API.
+const toNum = (v) => (v == null ? NaN : Number(v))
 function fmtPct(v, { signed = true, dp = 1 } = {}) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  const n = Number(v)
-  const sign = signed && n > 0 ? '+' : ''
-  return `${sign}${n.toFixed(dp)}%`
+  const n = toNum(v)
+  return formatPercent(n, { decimals: dp, signed: signed && n > 0 })
 }
 
 function fmtPrice(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  return `$${Number(v).toFixed(2)}`
+  return formatCurrency(toNum(v))
 }
 
 const gainCls = (v) => (v > 0 ? styles.gain : v < 0 ? styles.loss : styles.flat)
