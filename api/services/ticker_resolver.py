@@ -225,6 +225,52 @@ def canonical(symbol: str) -> str:
     return (symbol or "").strip().upper().replace(".", "-")
 
 
+#: A route's `{sym}` once canonical: a root of 1-10 letters/digits and at most one
+#: class suffix (BRK-B, BF-A, HEI-A, UHAL-B). Digits are allowed in the root because
+#: the bar store's own pseudo-tickers (UCTA50) and a few listings carry them.
+_ROUTE_SYMBOL_RE = re.compile(r"^[A-Z0-9]{1,10}(?:-[A-Z0-9]{1,3})?$")
+
+
+def route_symbol(raw) -> Optional[str]:
+    """A route parameter in the one spelling, or None when it is not a ticker.
+
+    ⛔ THE DUAL-CLASS RULE LIVES HERE FOR ROUTES. `brk.b`, `BRK.B` and `BRK-B` all
+    answer `BRK-B` -- the form the bar store, FMP and yfinance hold. A route that
+    passed the dot form straight to a vendor got an empty answer for every
+    dual-class name (2026-10-05: FA, OWN and PPL blank for BRK.B, full for BRK-B).
+    Junk (`<script>`, `A/B`, 20 characters, empty) answers None so the caller can
+    refuse it with a sentence instead of asking a vendor about it."""
+    s = canonical(raw if isinstance(raw, str) else "")
+    return s if _ROUTE_SYMBOL_RE.match(s) else None
+
+
+def require_route_symbol(raw) -> str:
+    """`route_symbol`, refusing anything that is not a ticker with a 400 and a sentence."""
+    s = route_symbol(raw)
+    if s is None:
+        from fastapi import HTTPException
+        shown = (raw or "").strip()[:24] if isinstance(raw, str) else ""
+        raise HTTPException(status_code=400,
+                            detail=f"'{shown}' is not a ticker symbol" if shown
+                            else "A ticker symbol is required")
+    return s
+
+
+# FastAPI path dependencies, one per parameter NAME a route uses (FastAPI binds a
+# dependency's argument to the path parameter of the same name):
+# `sym: str = Depends(sym_path)` hands the handler the canonical spelling.
+def sym_path(sym: str) -> str:
+    return require_route_symbol(sym)
+
+
+def ticker_path(ticker: str) -> str:
+    return require_route_symbol(ticker)
+
+
+def comparator_path(comparator: str) -> str:
+    return require_route_symbol(comparator)
+
+
 def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
     """Tickers named in `text`, in mention order, canonical spelling.
 

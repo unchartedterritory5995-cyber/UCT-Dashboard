@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from typing import Any, Callable, Optional, Sequence
@@ -128,6 +129,9 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
         _served_total += 1
 
     call_params = dict(params)
+    for k in ("symbol", "symbols"):
+        if isinstance(call_params.get(k), str):
+            call_params[k] = _fmp_symbol_param(call_params[k])
     call_params["apikey"] = api_key
     try:
         resp = _session.get(f"{_BASE_URL}{path}", params=call_params, timeout=timeout or _DEFAULT_TIMEOUT)
@@ -152,6 +156,24 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
         return resp.json()
     except ValueError as exc:
         raise _ERR.transient(f"FMP {path} returned non-JSON body") from exc
+
+
+_CLASS_DOT_RE = re.compile(r"^[A-Z]{1,5}\.[A-Z]$")
+
+
+def _fmp_symbol_param(value: str) -> str:
+    """FMP spells a class share with a HYPHEN (BRK-B); asked for BRK.B it answers
+    with nothing at all, which every caller then renders as "FMP holds no rows for
+    this symbol" (2026-10-05: FA, OWN and PPL blank for BRK.B). The mapping is
+    `ticker_resolver.canonical`, applied ONLY to the class-share shape (a short root,
+    a dot, one letter) so an exchange-suffixed symbol such as RY.TO is untouched.
+    A comma list (`symbols=`) is mapped item by item."""
+    from api.services.ticker_resolver import canonical
+    parts = []
+    for p in value.split(","):
+        q = p.strip().upper()
+        parts.append(canonical(q) if _CLASS_DOT_RE.match(q) else p)
+    return ",".join(parts)
 
 
 class _CachedForbidden:

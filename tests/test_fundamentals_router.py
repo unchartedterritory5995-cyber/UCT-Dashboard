@@ -159,12 +159,14 @@ class TestFundamentalsEndpoint:
         assert data["week52_high"] == 200.0
         assert data["week52_low"] == 125.0
 
-    def test_empty_ticker_returns_empty(self, client):
-        """Empty or whitespace-only ticker returns empty dict safely."""
+    def test_empty_ticker_is_refused_with_a_sentence(self, client):
+        """Empty or whitespace-only ticker is a 400 that says so (the shared route
+        rule, `ticker_resolver.route_symbol`), never an empty 200 that reads as
+        "this company has no fundamentals"."""
         with patch("api.routers.fundamentals.cache.get", return_value=None):
             r = client.get("/api/fundamentals/%20")
-        assert r.status_code == 200
-        assert r.json() == {}
+        assert r.status_code == 400
+        assert "ticker symbol" in r.json()["detail"]
 
     def test_market_cap_falls_back_to_finnhub_when_yfinance_omits_it(self, client):
         """Real gap observed live 2026-08-05: yfinance's `.info` sometimes lacks
