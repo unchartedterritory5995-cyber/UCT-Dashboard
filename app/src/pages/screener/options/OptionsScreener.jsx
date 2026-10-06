@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import CoverageLine from '../../../components/provenance/CoverageLine'
+import { OffLine } from '../../optionsAnalytics/OffNotice'
 import styles from './OptionsScreener.module.css'
 
 // COV-02 (screen the OPTION, not the stock) + COV-03 (market-wide unusual option volume and
@@ -39,6 +40,13 @@ export function screenUrl(preset, filters) {
   if (filters.type === 'any') q.delete('type')
   const s = q.toString()
   return `/api/options-screener/screen${s ? `?${s}` : ''}`
+}
+
+// Quality pass 2026-10-05: a 404 here is the route's switch being off
+// (OPTIONS_SCREENER_ENABLED), not a failure -- it used to read "unavailable right now".
+function ReadFailed({ error, what }) {
+  if (error?.status === 404) return <OffLine feature={`The ${what}`} />
+  return <Unavailable what={what} />
 }
 
 function Unavailable({ what }) {
@@ -82,7 +90,7 @@ function Screen() {
         <span className={styles.muted}>{preset ? 'Filters refine the preset.' : ''}</span>
       </form>
       {error?.status === 422 && <p className={styles.note} data-testid="opts-bad">A filter value could not be read.</p>}
-      {error && error.status !== 422 && <Unavailable what="option screener" />}
+      {error && error.status !== 422 && <ReadFailed error={error} what="option screener" />}
       {data?.paywalled && <p className={styles.note}>The option screener requires a paid plan.</p>}
       {!error && !data && <p className={styles.note}>Loading the screen…</p>}
       {data && data.status === 'no_screen' && <p className={styles.note} data-testid="opts-no-screen">{data.note}</p>}
@@ -121,8 +129,8 @@ function Screen() {
 
 function Volume() {
   const { data, error } = useSWR('/api/options-screener/unusual-volume', sectionFetcher, { revalidateOnFocus: false })
-  if (error) return <Unavailable what="unusual-volume ranking" />
-  if (!data) return <p className={styles.note}>Loading…</p>
+  if (error) return <ReadFailed error={error} what="unusual-volume ranking" />
+  if (!data) return <p className={styles.note}>Loading the unusual-volume ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
   if (data.status !== 'ok') return <p className={styles.note} data-testid="opts-vol-none">{data.note}</p>
   const rows = data.ranked.length ? data.ranked : data.not_ranked
@@ -162,8 +170,8 @@ function Volume() {
 
 function Iv() {
   const { data, error } = useSWR('/api/options-screener/iv-percentile', sectionFetcher, { revalidateOnFocus: false })
-  if (error) return <Unavailable what="IV percentile ranking" />
-  if (!data) return <p className={styles.note}>Loading…</p>
+  if (error) return <ReadFailed error={error} what="IV percentile ranking" />
+  if (!data) return <p className={styles.note}>Loading the IV percentile ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
   if (data.status !== 'ok') return <p className={styles.note} data-testid="opts-iv-none">{data.note}</p>
   return (
