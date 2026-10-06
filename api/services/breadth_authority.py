@@ -369,13 +369,21 @@ def token() -> str:
     """Cache-key component: changes when either authority or any authoritative input changes.
     Byte-identical to its pre-US form while `BREADTH_AUTHORITY_US` is unset/v1."""
     uct_v2, us_v2 = in_force(), us_mode() == "v2"
+    # ⭐ Exchange Breadth V1 (nyse/nasdaq) rides the same token: '' while BREADTH_AUTHORITY_EXCH is off
+    # (every key byte-identical to before), else its installed pointer — so every breadth cache and ETag
+    # follows an exchange publish, cutover or rollback exactly as it follows a V1↔V2 switch.
+    try:
+        from api.services import breadth_exchange_authority as _ea
+        exch = _ea.token()
+    except Exception:
+        exch = ":exch-error" if (os.environ.get("BREADTH_AUTHORITY_EXCH") or "").strip().lower() == "v1" else ""
     if not uct_v2 and not us_v2:
-        return "v1"
+        return "v1" + exch
     f = _FROZEN.get("stat")
     live = _load_live()
     base = "%s:%s:%s" % (FROZEN_SHA256[:12] if f else "nofrozen", len(live["sessions"]),
                          max(live["sessions"]) if live["sessions"] else "-")
-    return ("v2:" if uct_v2 else "v1:") + base + (":us-v2" if us_v2 else "")
+    return ("v2:" if uct_v2 else "v1:") + base + (":us-v2" if us_v2 else "") + exch
 
 
 def session_authority(date: str, collector_tail: tuple = ()) -> str:

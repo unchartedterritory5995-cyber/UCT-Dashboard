@@ -1,0 +1,371 @@
+[
+ {
+  "ticker": "WMT",
+  "effective": "2025-12-09",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Walmart/Nasdaq press release 2025-11-20"
+ },
+ {
+  "ticker": "LIN",
+  "effective": "2023-11-07",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Linde 8-K 2023 (sec.gov)"
+ },
+ {
+  "ticker": "PEP",
+  "effective": "2017-12-20",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "tape flip day (Phase 0)"
+ },
+ {
+  "ticker": "ORCL",
+  "effective": "2013-07-15",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "tape flip day (Phase 0)"
+ },
+ {
+  "ticker": "AZN",
+  "effective": "2026-02-02",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "BMNR",
+  "effective": "2026-04-09",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "Phase 0: dated flip (CTA venues; tape cannot separate)"
+ },
+ {
+  "ticker": "CAE",
+  "effective": "2026-07-23",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "CMPO",
+  "effective": "2025-09-23",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "CNL",
+  "effective": "2026-08-11",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "CULP",
+  "effective": "2026-03-06",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "DCOM",
+  "effective": "2026-04-07",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "DRH",
+  "effective": "2025-12-01",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "ETSY",
+  "effective": "2025-10-13",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "FITB",
+  "effective": "2026-06-12",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "FSLY",
+  "effective": "2025-12-09",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "GBLI",
+  "effective": "2025-11-04",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "KHC",
+  "effective": "2026-09-14",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "LEU",
+  "effective": "2025-12-04",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "Phase 0: dated flip (CTA venues; tape cannot separate)"
+ },
+ {
+  "ticker": "NVA",
+  "effective": "2026-06-17",
+  "before": "NASDAQ",
+  "after": "OTHER",
+  "source": "Nova Minerals NYSE American listing approval (nasdaq.com 2026-06-12): trading on NYSE American from 2026-06-17; Phase 0 probe had 07-02 (wrong)"
+ },
+ {
+  "ticker": "PNFP",
+  "effective": "2026-01-02",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "PTN",
+  "effective": "2026-05-29",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "QBTS",
+  "effective": "2026-07-27",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "QS",
+  "effective": "2025-12-23",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "SEG",
+  "effective": "2025-06-30",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "Phase 0: dated flip (CTA venues; tape cannot separate)"
+ },
+ {
+  "ticker": "SENS",
+  "effective": "2025-11-17",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "TCBX",
+  "effective": "2025-10-06",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "TFIN",
+  "effective": "2025-08-19",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "TRIN",
+  "effective": "2026-07-27",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "TRT",
+  "effective": "2026-09-16",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "UAMY",
+  "effective": "2026-03-11",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "Phase 0: dated flip (CTA venues; tape cannot separate)"
+ },
+ {
+  "ticker": "VHC",
+  "effective": "2025-09-23",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "VIRT",
+  "effective": "2025-06-17",
+  "before": "NASDAQ",
+  "after": "NYSE",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "VNCE",
+  "effective": "2025-10-21",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "Phase 0: tape flip == dated flip"
+ },
+ {
+  "ticker": "MLP",
+  "identity": "MLP|active",
+  "effective": "2008-04-02",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2008-04-01, 25 2008-04-01"
+ },
+ {
+  "ticker": "BMI",
+  "identity": "BMI|active",
+  "effective": "2008-06-17",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2008-06-16, 8-A12B 2008-06-16"
+ },
+ {
+  "ticker": "TDS",
+  "identity": "TDS|active",
+  "effective": "2008-09-15",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2008-09-12, 25 2008-09-15"
+ },
+ {
+  "ticker": "BIO",
+  "identity": "BIO|active",
+  "effective": "2008-10-24",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 25 2008-10-22, 8-A12B 2008-10-22"
+ },
+ {
+  "ticker": "LXU",
+  "identity": "LXU|active",
+  "effective": "2008-10-28",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 25 2008-10-24, 8-A12B 2008-10-24"
+ },
+ {
+  "ticker": "DFR",
+  "identity": "DFR|2013-03-25",
+  "effective": "2008-11-20",
+  "before": "NYSE",
+  "after": "OTHER",
+  "source": "SEC EDGAR 8-A12B 2008-11-19"
+ },
+ {
+  "ticker": "EGO",
+  "identity": "EGO|active",
+  "effective": "2009-10-22",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2009-10-20, 25 2009-10-30"
+ },
+ {
+  "ticker": "OPK",
+  "identity": "OPK|active",
+  "effective": "2011-09-16",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2011-09-14, 25 2011-09-26"
+ },
+ {
+  "ticker": "XPO",
+  "identity": "XPO|active",
+  "effective": "2012-06-14",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2012-06-12, 25 2012-06-18"
+ },
+ {
+  "ticker": "SKY",
+  "identity": "SKY|active",
+  "effective": "2013-09-05",
+  "before": "NYSE",
+  "after": "OTHER",
+  "source": "SEC EDGAR 8-A12B 2013-08-30, 25 2013-09-09"
+ },
+ {
+  "ticker": "AGX",
+  "identity": "AGX|active",
+  "effective": "2013-10-02",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2013-09-30, 25 2013-10-10"
+ },
+ {
+  "ticker": "ORC",
+  "identity": "ORC|active",
+  "effective": "2014-10-08",
+  "before": "OTHER",
+  "after": "NYSE",
+  "source": "SEC EDGAR 8-A12B 2014-10-06, 25 2014-10-14"
+ },
+ {
+  "ticker": "CAR",
+  "effective": "2010-12-31",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "SEC EDGAR Form 25 + 8-A12B 2010-12-30; dated list lagged the tape (Phase 1)"
+ },
+ {
+  "ticker": "WIN",
+  "effective": "2009-12-10",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "SEC EDGAR Form 25 + 8-A12B 2009-12-08; dated list lagged the tape (Phase 1)"
+ },
+ {
+  "ticker": "DWA",
+  "effective": "2009-02-26",
+  "before": "NYSE",
+  "after": "NASDAQ",
+  "source": "SEC EDGAR Form 25 + 8-A12B 2009-02-25; dated list lagged the tape (Phase 1)"
+ },
+ {
+  "ticker": "SGC",
+  "effective": "2008-03-24",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "SEC EDGAR Form 25 + 8-A12B 2008-03-20; dated list lagged the tape (Phase 1)"
+ },
+ {
+  "ticker": "CNET",
+  "effective": "2010-09-14",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "SEC EDGAR Form 25 + 8-A12B 2010-09-13; dated list lagged the tape (Phase 1)"
+ },
+ {
+  "ticker": "FLL",
+  "effective": "2013-02-13",
+  "before": "OTHER",
+  "after": "NASDAQ",
+  "source": "SEC EDGAR Form 25 + 8-A12B 2013-02-12; dated list lagged the tape (Phase 1)"
+ }
+]

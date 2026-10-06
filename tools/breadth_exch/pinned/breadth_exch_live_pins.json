@@ -1,0 +1,52 @@
+{
+ "canonical_uct_start": "2026-03-23",
+ "dividend_basis_version": "div-basis-v6",
+ "exchange_live_pin_set": {
+  "base": "tools/breadth_v2/pinned/breadth_v2c2_pins.json",
+  "base_sha256_lf": "776dfabedd1cf0270bdb8b76cbc8802ed67d68bbd9610cb4e8a441b4b163378e",
+  "name": "exchange-v1-live",
+  "overrides": {
+   "modules_md5_lf.breadth_live.py": {
+    "exchange": "2e40b4ee1e53835f7555e4a55c0284b3",
+    "v2c2": "5eacf10923ddd2ad875ce33c53ae3bcc",
+    "why": "emit `unchanged` (+ `_directional` diagnostic) from the same masks as advancing/declining; add it to the tolerance, tier and drill tables"
+   },
+   "modules_md5_lf.breadth_metrics.py": {
+    "exchange": "c6af68fe9ca7dc75dcd64f4afea2bad0",
+    "v2c2": "aa7e15fcf1592e2ddda8ee3ad299a614",
+    "why": "one registry row: (\"unchanged\", \"UNC\", \"Unchanged Issues\", ...)"
+   },
+   "registries.metrics": {
+    "exchange": "0f90397dbbdd92cb7c1b5862b20295219de868631e25abf5f8cc72de7d82541a",
+    "v2c2": "5047cb9b77d81d2593cf579376ce5629721a5ddbba2f9410f905fdfcda3577d0",
+    "why": "the metrics registry digest covers the added `unchanged` row and nothing else"
+   }
+  },
+  "rule": "identical to the accepted V2c2 pins except EXACTLY these three values (the declared `unchanged` patch, Exchange Breadth V1); evaluation of every existing metric is unchanged (full-history US control 164,907/164,907 exact). Preflight runs the unmodified V2c2 checks against this file; any other drift still refuses."
+ },
+ "guard_version": "adj-guard-v4",
+ "identity_rule": "uct-backtest-identity-v3",
+ "methodology": "rth-1m-composites-v2c2-div",
+ "modules_md5_lf": {
+  "breadth_adjusted_guard.py": "2983adbafb690944d7fe52e8fb529e15",
+  "breadth_calendar.py": "06d3af7ee17897b19786f950998bb129",
+  "breadth_combined_pass.py": "297c482246f7bc1243e2e416749bf07b",
+  "breadth_corrected_pass.py": "5772d1d5555e3365b1c1cb9e1f20cf3d",
+  "breadth_dividend_basis.py": "838a27ab838ded6b8831995edaf6314f",
+  "breadth_grouped_history.py": "ed490e7e5ef7f57d25612f5dfe696d95",
+  "breadth_identity.py": "a1664b29d19da6268dba6fcb83d45307",
+  "breadth_live.py": "2e40b4ee1e53835f7555e4a55c0284b3",
+  "breadth_metrics.py": "c6af68fe9ca7dc75dcd64f4afea2bad0",
+  "breadth_pit_frame.py": "4dd61c950f1ee2a00ad31e84998ed027",
+  "breadth_session.py": "1ed6fb554dac4377e987d3b7645706cc",
+  "breadth_ticker.py": "1dfc7c7283750b726e6ee000c7967aab",
+  "breadth_universes.py": "a769cbb24f11bb98c71dcf46db47750f",
+  "breadth_wick_recon.py": "7e07826cc9030fd9fd828cdd6ae7148b"
+ },
+ "pinned_after": "bounded proof passed at a04b6683e (methodology modules byte-identical since); launcher resume/run-identity only",
+ "pinned_at_commit": "0a6700a3b",
+ "registries": {
+  "metrics": "0f90397dbbdd92cb7c1b5862b20295219de868631e25abf5f8cc72de7d82541a",
+  "universes": "205704a9a2ea882f6ce17a6afc6115bde443de398c3d71b37d639a145a8681f3"
+ }
+}

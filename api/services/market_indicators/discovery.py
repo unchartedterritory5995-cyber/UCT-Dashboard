@@ -231,7 +231,7 @@ def _indicator_haystack(s: reg.Series) -> str:
 def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> dict:
     """Every discoverable canonical series, plus the families they fall into."""
     rows: list[dict] = []
-    src = reg._ROWS if include_dormant else reg.published_rows()
+    src = reg.all_rows() if include_dormant else reg.published_rows()
     # ⛔⛔ A PRODUCT REPLACES ITS COMPONENTS IN THE LIST, NEVER JOINS THEM. Searching
     # "AAII" must return ONE row — that is the entire product decision — and the way to
     # guarantee it is to drop components here rather than to hope no surface lists them.
