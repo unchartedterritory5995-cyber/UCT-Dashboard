@@ -327,6 +327,9 @@ jobs:
       # ~2-3 min (wheels). Gating: a requirements gap is exactly what must stop promotion.
       - name: The production dependency set imports and boots the server
         run: |
+          # production mounts a writable volume at /data and the app creates files there
+          # at import; the runner has none (PermissionError) — provide one, as prod does
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
           python -m venv /tmp/prodvenv
           /tmp/prodvenv/bin/python -m pip install --quiet --upgrade pip
           /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
