@@ -181,3 +181,18 @@ def test_exemplar_requires_admin(client):
     _login(client, role="member")
     assert client.post("/api/patterns/exemplar",
                        json={"setup": "vcp", "image": "x"}).status_code == 403
+
+
+def test_sym_route_names_each_setup_from_the_metadata_table(client, monkeypatch, tmp_path):
+    """Quality pass 2026-10-05: the TECH tab title-cased the raw id ("Macd Bullish Cross").
+    The route now carries the engine's own name; an id with no entry carries None."""
+    s = _seed_store(tmp_path, monkeypatch)
+    for setup, h in (("macd_bullish_cross", "m"), ("no_such_setup_id", "n")):
+        s.put_verdict({"ticker": "AMD", "tf": "D", "setup": setup, "asof_date": _fresh_asof(),
+                       "confirmed": 1, "vision_confidence": 80, "rationale": "r",
+                       "signals_hash": h, "judged_at": 1})
+    _login(client)
+    from api.routers.patterns import _PATTERN_METADATA
+    names = {v["setup"]: v["setup_name"] for v in client.get("/api/patterns/AMD").json()["verdicts"]}
+    assert names["macd_bullish_cross"] == _PATTERN_METADATA["macd_bullish_cross"]["name"]
+    assert names["no_such_setup_id"] is None
