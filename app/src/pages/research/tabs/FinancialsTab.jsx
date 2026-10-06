@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import useFinancials from '../hooks/useFinancials'
 import { MetricTrendChart, SeriesChart } from '../../../components/research-kit'
+import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
+import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
+import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 function fmtBig(v) {
@@ -11,8 +16,7 @@ function fmtBig(v) {
   if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
   return `$${v.toFixed(0)}`
 }
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
-function fmtMargin(v) { return v == null ? '—' : `${v.toFixed(1)}%` }
+const fmtMargin = (v) => formatPercent(v, { decimals: 1 })
 function fmtVal(v, suffix = '') { return v == null ? '—' : `${v}${suffix}` }
 
 // yfinance states debt/equity as a PERCENT (150 = 1.5x) -- see
@@ -49,9 +53,9 @@ function GrowthGrid({ title, rows }) {
               <tr key={r.period}>
                 <td className={styles.fperiod}>{r.period}</td>
                 <td>{fmtBig(r.revenue)}</td>
-                <td className={heat(r.revenue_yoy)}>{fmtPct(r.revenue_yoy)}</td>
-                <td>{r.eps != null ? r.eps.toFixed(2) : '—'}</td>
-                <td className={heat(r.eps_yoy)}>{fmtPct(r.eps_yoy)}</td>
+                <td className={heat(r.revenue_yoy)}>{signedPct(r.revenue_yoy)}</td>
+                <td>{formatNumber(r.eps, { decimals: 2 })}</td>
+                <td className={heat(r.eps_yoy)}>{signedPct(r.eps_yoy)}</td>
                 <td>{fmtMargin(r.gross_margin)}</td>
                 <td>{fmtMargin(r.operating_margin)}</td>
                 <td>{fmtMargin(r.net_margin)}</td>
@@ -128,7 +132,7 @@ function TrendPair({ quarterly, annual }) {
           periods={periods}
           values={list.map(r => r.eps)}
           label="EPS"
-          valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+          valueFormatter={(v) => formatCurrency(v)}
           ariaLabel="Earnings per share by period"
         />
       </div>
@@ -139,12 +143,14 @@ function TrendPair({ quarterly, annual }) {
         periods={periods}
         mode="line"
         label="Margins"
-        valueFormatter={(v) => (v == null ? '—' : `${v.toFixed(1)}%`)}
+        valueFormatter={fmtMargin}
         ariaLabel="Gross, operating and net margin by period"
         series={[
-          { name: 'Gross', color: 'var(--ut-gold, #c9a84c)', values: list.map(r => r.gross_margin) },
-          { name: 'Operating', color: '#5aa9e6', values: list.map(r => r.operating_margin) },
-          { name: 'Net', color: '#7ed957', values: list.map(r => r.net_margin) },
+          // Canvas inks resolved from the app tokens (themeInk), never hexes, so the
+          // three margins follow the member's theme: gold, info blue, gain green.
+          { name: 'Gross', color: themeInk('--ut-gold', CHART_INK.gold), values: list.map(r => r.gross_margin) },
+          { name: 'Operating', color: themeInk('--info', CHART_INK.text), values: list.map(r => r.operating_margin) },
+          { name: 'Net', color: themeInk('--gain', CHART_INK.gain), values: list.map(r => r.net_margin) },
         ]}
       />
     </section>
@@ -155,7 +161,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const { data, isLoading, error, mutate } = useFinancials(sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading financials…</div></div></div>
+    return <ResearchLoading label="Loading financials" />
   }
 
   // TERM-088 -- a failed read is not an empty statement history. Render the
@@ -194,7 +200,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           badge to a number D1 didn't actually produce would be exactly the
           fabricated-provenance failure S8 exists to prevent. */}
       {fin.entity && fin.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}

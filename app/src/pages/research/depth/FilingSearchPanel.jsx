@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-058 / FT-059 / FT-060 — boolean, proximity, synonym and section-scoped
@@ -34,6 +35,7 @@ function Snippet({ text, marks }) {
 }
 
 export default function FilingSearchPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const [draft, setDraft] = useState('')
   const [section, setSection] = useState('')
@@ -43,7 +45,7 @@ export default function FilingSearchPanel({ sym }) {
   const key = submitted
     ? `/api/research/filing-search?${new URLSearchParams({ q: submitted.q, sym: s, ...(submitted.section ? { section: submitted.section } : {}), ...(submitted.form ? { form: submitted.form } : {}) })}`
     : null
-  const { data, error } = useSWR(key, depthFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(key, depthFetcher, { revalidateOnFocus: false })
 
   const onSubmit = (e) => {
     e.preventDefault()
@@ -53,7 +55,7 @@ export default function FilingSearchPanel({ sym }) {
 
   let body = null
   if (!submitted) body = null
-  else if (error) body = <div className={styles.error} data-testid="filing-search-unavailable">Filing search is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  else if (error) body = <div className={styles.error} data-testid="filing-search-unavailable">Filing search is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note}>Searching…</div>
   else if (data.paywalled) body = <div className={styles.note}>Filing search requires a paid plan.</div>
   else if (data.badRequest) body = <div className={styles.error} data-testid="filing-search-bad-query">{data.badRequest}</div>
@@ -90,8 +92,8 @@ export default function FilingSearchPanel({ sym }) {
   }
 
   return (
-    <section className={styles.panel} data-testid="filing-search">
-      <h3 className={styles.panelTitle}>Filing search</h3>
+    <section className={chrome.panelClass} data-testid="filing-search">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Filing search</h3>}
       <form className={styles.form} onSubmit={onSubmit} role="search">
         <input className={styles.input} aria-label="Search this company's filings" value={draft}
           placeholder='e.g. tariff NEAR/8 margin, "supply chain" -china, section:risk'

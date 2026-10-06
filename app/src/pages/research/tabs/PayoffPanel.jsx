@@ -3,6 +3,7 @@ import { STRATEGIES, buildLegs, summary, curve } from './optionPayoff'
 import useDarkSection from '../../optionsAnalytics/useDarkSection'
 import { todayPnl, popAtExpiry, priceSlices } from '../../optionsAnalytics/chainModels'
 import { daysTo } from '../../optionsAnalytics/ChainTools'
+import { fractionPct } from '../researchFormat'
 import styles from './OptionsChainTab.module.css'
 
 // BRK-01 increment 2: the profit-and-loss picture at expiration, under the chain.
@@ -25,7 +26,7 @@ const W = 520
 const H = 180
 const PAD = 28
 
-const pct = (p) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`)
+const pct = (p) => fractionPct(p, 1)
 
 export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atmIv = null }) {
   const model = useDarkSection(sym ? `/api/research/options/${encodeURIComponent(sym)}/payoff-model` : null)

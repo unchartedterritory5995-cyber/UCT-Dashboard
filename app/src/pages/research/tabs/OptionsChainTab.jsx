@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import rp from '../ResearchPage.module.css'
 import styles from './OptionsChainTab.module.css'
 import PayoffPanel from './PayoffPanel'
 import VolSurfacePanel from './VolSurfacePanel'
@@ -96,7 +97,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
 
   if (chain.error) {
     return <div className={styles.note} data-testid="chain-unavailable">
-      The option chain is unavailable right now. That does not mean no options trade on {s}.
+      The option chain is unavailable right now. That does not mean no options trade on {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => exps.mutate()}>Retry</button>
     </div>
   }
   if (!chain.data) return <div className={styles.note}>Loading the option chain…</div>

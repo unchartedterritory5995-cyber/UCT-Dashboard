@@ -45,7 +45,7 @@ export default function LeadershipBadge({ sym }) {
         )}
       </div>
       {data.first_seen && (
-        <div className={styles.muted} style={{ marginTop: 4 }}>First seen {data.first_seen}</div>
+        <div className={`${styles.muted} ${styles.badgeLine}`}>First seen {data.first_seen}</div>
       )}
     </section>
   )

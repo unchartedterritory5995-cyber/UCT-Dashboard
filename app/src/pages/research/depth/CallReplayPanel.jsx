@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
+import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 
 // D-5 (Lane R) — tape + transcript replay of the latest earnings call.
 // DARK behind CALL_REPLAY_ENABLED (api/services/call_replay.py).
@@ -17,9 +19,7 @@ const TICK_MS = 250
 const W = 600
 const H = 140
 
-const fmtEt = (sec) => new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
-}).format(new Date(sec * 1000))
+const fmtEt = (sec) => formatTimeEt(sec * 1000)
 
 const fmtOffset = (s) => {
   const m = Math.floor(s / 60)
@@ -52,15 +52,16 @@ function Tape({ bars, cursor, from, to }) {
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img"
          aria-label="Price during the call, one-minute closes" data-testid="replay-tape">
       <polyline points={pts.join(' ')} fill="none" stroke="var(--text-muted)" strokeOpacity="0.35" strokeWidth="1.5" />
-      {played.length > 1 && <polyline points={played.join(' ')} fill="none" stroke="var(--accent, var(--gain))" strokeWidth="2" />}
+      {played.length > 1 && <polyline className={styles.tape} points={played.join(' ')} fill="none" strokeWidth="2" />}
       <line x1={x(cursor)} x2={x(cursor)} y1="0" y2={H} stroke="var(--text)" strokeOpacity="0.6" strokeDasharray="3 3" />
     </svg>
   )
 }
 
 export default function CallReplayPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/call-replay/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/call-replay/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
   const aligned = data?.state === 'aligned'
   const win = data?.window
@@ -94,8 +95,8 @@ export default function CallReplayPanel({ sym }) {
   const chg = Number.isFinite(base) && Number.isFinite(now) && base ? ((now - base) / base) * 100 : null
 
   let body
-  if (error) body = <div className={styles.error} data-testid="replay-unavailable">Call replay is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
-  else if (!data) body = <div className={styles.note}>Loading the call…</div>
+  if (error) body = <div className={styles.error} data-testid="replay-unavailable">Call replay is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the call" />
   else if (data.paywalled) body = <div className={styles.note}>Call replay requires a paid plan.</div>
   else if (data.state === 'no_timed_transcript') body = <p className={styles.note} data-testid="replay-none">{data.reason}</p>
   else {
@@ -113,7 +114,7 @@ export default function CallReplayPanel({ sym }) {
             </p>
             {data.tape_state === 'ok' && bars.length > 0
               ? <Tape bars={bars} cursor={cur} from={win.from} to={win.to} />
-              : <p className={styles.error} data-testid="replay-tape-empty">The tape for this call window could not be read or held no bars, so only the transcript plays.</p>}
+              : <p className={styles.note} data-testid="replay-tape-empty">The tape for this call window could not be read or held no bars, so only the transcript plays.</p>}
             <div className={styles.form}>
               <button type="button" className={styles.button} onClick={() => {
                 if (cur >= win.to) setCursor(win.from)
@@ -125,24 +126,24 @@ export default function CallReplayPanel({ sym }) {
               </select>
               <input type="range" min={win.from} max={win.to} step={60} value={Math.round(cur)}
                      onChange={e => { setPlaying(false); setCursor(Number(e.target.value)) }}
-                     aria-label="Replay position" style={{ flex: '1 1 160px' }} />
+                     aria-label="Replay position" className={styles.slider} />
               <span className={styles.muted} data-testid="replay-clock">
                 {fmtEt(cur)} ET
-                {Number.isFinite(now) ? ` · ${now.toFixed(2)}` : ''}
-                {chg != null ? ` (${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% vs the call start)` : ''}
+                {Number.isFinite(now) ? ` · ${formatNumber(now, { decimals: 2 })}` : ''}
+                {chg != null ? ` (${formatPercent(chg, { decimals: 2, signed: true })} vs the call start)` : ''}
               </span>
             </div>
           </>
         )}
-        <ol className={styles.hits} style={{ maxHeight: 320, overflowY: 'auto' }}>
+        <ol className={`${styles.hits} ${styles.turns}`}>
           {turns.map((t, i) => (
-            <li key={`${t.start_s}-${i}`} className={styles.hit} data-testid="replay-turn"
+            <li key={`${t.start_s}-${i}`} data-testid="replay-turn"
                 data-active={i === activeTurn ? 'true' : undefined}
-                style={i === activeTurn ? { borderLeft: '3px solid var(--accent, var(--gain))', paddingLeft: 6 } : undefined}>
+                className={`${styles.hit} ${i === activeTurn ? styles.turnActive : ''}`}>
               {aligned
-                ? <button type="button" className={styles.button} style={{ minHeight: 0, padding: '0 6px', marginRight: 6 }}
+                ? <button type="button" className={`${styles.button} ${styles.turnTime}`}
                           onClick={() => { setPlaying(false); setCursor(t.at) }}>{fmtEt(t.at)}</button>
-                : <span className={styles.muted} style={{ marginRight: 6 }}>{fmtOffset(t.start_s)} into the recording</span>}
+                : <span className={`${styles.muted} ${styles.turnTime}`}>{fmtOffset(t.start_s)} into the recording</span>}
               <strong>{t.speaker}</strong>{t.title ? ` (${t.title})` : ''}: {t.text.length > 400 ? `${t.text.slice(0, 400)}…` : t.text}
             </li>
           ))}
@@ -151,8 +152,8 @@ export default function CallReplayPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="call-replay-panel">
-      <h3 className={styles.panelTitle}>Call replay: tape and transcript</h3>
+    <section className={chrome.panelClass} data-testid="call-replay-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Call replay: tape and transcript</h3>}
       {body}
     </section>
   )

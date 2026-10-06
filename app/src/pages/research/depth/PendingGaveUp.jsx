@@ -7,7 +7,7 @@ export default function PendingGaveUp({ exhausted, onRetry, what = 'This' }) {
   return (
     <p className={styles.note} data-testid="pending-gave-up">
       {what} is still being built after several minutes, so automatic checking has stopped.{' '}
-      <button type="button" onClick={onRetry}>Check again</button>
+      <button type="button" className={styles.retry} onClick={onRetry}>Check again</button>
     </p>
   )
 }

@@ -7,8 +7,9 @@
 //    sentence (its `reason`), never a line through two or three points.
 // ⛔ Every plotted point carries its quote time into the tooltip.
 import { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from '../../../components/research-kit/charts/echartsCore'
+import { fractionPct } from '../researchFormat'
 
-export const pct = (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(1)}%`)
+export const pct = (v) => fractionPct(v, 1)
 
 /** "2026-10-01T15:30:00+00:00" → "15:30:00 UTC" (date kept when it is not the served day). */
 export function quoteClock(t, servedDay) {

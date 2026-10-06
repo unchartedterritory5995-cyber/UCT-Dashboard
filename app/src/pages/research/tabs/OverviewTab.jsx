@@ -3,6 +3,7 @@ import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import DeskCoverage from '../DeskCoverage'
 import LeadershipBadge from '../LeadershipBadge'
 import ConfidenceBadge from '../ConfidenceBadge'
+import { ABSENT, formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../ResearchPage.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -34,7 +35,7 @@ export function targetMid(pt) {
 export function money(v) {
   if (v == null || v === '') return '—'
   const n = Number(v)
-  return Number.isFinite(n) ? `$${n.toFixed(2)}` : '—'
+  return formatCurrency(n, { absent: ABSENT })
 }
 
 // tq-panels: when the targets were last revised. Finnhub carries `lastUpdated`;
@@ -111,7 +112,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
               label; `stored={null}` with no `onStore` = the user's own chart
               settings, everywhere. */}
           {sym && (
-            <Suspense fallback={<div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading chart…</div>}>
+            <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
               <ChartPane
                 sym={sym}
                 tf="D"

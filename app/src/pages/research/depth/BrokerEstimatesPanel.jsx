@@ -1,8 +1,9 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
-import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
@@ -13,21 +14,22 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 //    why; the named firms are labelled as rating actions, never as the people
 //    behind the EPS mean.
 
-const n2 = (v) => (v == null ? '—' : Number(v).toFixed(2))
+const n2 = (v) => formatNumber(v == null ? NaN : Number(v), { decimals: 2 })
 const big = (v) => {
   if (v == null) return '—'
   return formatCompact(Number(v), { tiers: [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }] })
 }
 
 export default function BrokerEstimatesPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
   const reask = usePendingReask(data?.state === 'pending', mutate, s)
 
   let body
-  if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
-  else if (!data) body = <div className={styles.note}>Loading estimates…</div>
+  if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading estimates" />
   else if (data.paywalled) body = <div className={styles.note}>Estimates require a paid plan.</div>
   else {
     const firms = data.firms || {}
@@ -76,8 +78,8 @@ export default function BrokerEstimatesPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="broker-panel">
-      <h3 className={styles.panelTitle}>Estimates by contributor</h3>
+    <section className={chrome.panelClass} data-testid="broker-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Estimates by contributor</h3>}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The estimate read" />
       {body}
     </section>

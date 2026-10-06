@@ -101,7 +101,7 @@ function AskAiTurnResult({ data }) {
       {isAnswer && (
         <div data-testid="ask-ai-answer">
           {data.entity && data.entity.status !== 'resolved' && (
-            <div className={styles.muted} style={{ fontSize: 11, marginBottom: 6 }} data-testid="entity-unresolved-note">
+            <div className={`${styles.entityNote} ${styles.entityNoteGap}`} data-testid="entity-unresolved-note">
               This symbol is not yet linked to a company record, so some sources below may not match it.
             </div>
           )}
