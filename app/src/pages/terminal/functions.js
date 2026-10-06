@@ -2,7 +2,7 @@
 //
 // A code has up to two VARIANTS, chosen by whether the command carried a security:
 //   ticker: { panel | door, props?, flag?, section?, args? }   `NVDA FA`  — the focused panel
-//   market: { panel | surface | door, flag?, full?, args? }    `CAL`      — no security needed
+//   market: { panel | surface | door, props?, flag?, full?, args? } `CAL`      — no security needed
 // Exactly ONE kind per variant:
 //   `panel`   names an entry in `panels.jsx` (an EXISTING component, embedded, never forked).
 //   `surface` is a whole PAGE embedded in the panel. It must be a path the TERM-037 panel set
@@ -169,12 +169,18 @@ export const FUNCTIONS = [
     market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 
   { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool', leavesTerminal: true } },
-  { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options', market: { surface: '/flow-scoreboard' } },
+  // `embedded` is the page's OWN prop (it already honours it inside the Options Flow page): the
+  // panel header names the function, so the page drops its outer page chrome.
+  { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options',
+    market: { surface: '/flow-scoreboard', props: { embedded: true } } },
 
   // ── the market ──
   { code: 'WIRE', label: 'Morning Wire', group: 'Market', market: { surface: '/morning-wire' } },
   { code: 'BRD', label: 'Market breadth', group: 'Market', market: { surface: '/breadth' } },
-  { code: 'SCR', label: 'Stock screener', group: 'Market', market: { surface: '/screener' } },
+  // `embedded` is the page's OWN prop (the /charts Screener widget passes it): no full-page <h1>
+  // under a panel header that already says "SCR Stock screener".
+  { code: 'SCR', label: 'Stock screener', group: 'Market',
+    market: { surface: '/screener', props: { embedded: true } } },
   { code: 'U20', label: 'UCT 20', group: 'Market', market: { surface: '/uct-20' } },
   { code: 'DASH', label: 'Dashboard', group: 'Market',
     market: { door: '/dashboard', leavesTerminal: true, why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },

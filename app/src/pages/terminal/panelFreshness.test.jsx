@@ -7,7 +7,7 @@
 //   * MovePanel renders the badge instead of a raw, un-badged `as_of` string once its data lands.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { usePanelFreshness } from './panelFreshness'
+import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // `Panel` resolves a real function code through the real registry (`functions.js`) and renders
 // whatever `panelComponent(name)` returns — stub that resolver the same way

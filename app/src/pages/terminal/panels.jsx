@@ -89,3 +89,9 @@ export function panelComponent(name) {
  *  screener page writes `?s=`). At most ONE panel may show one of these, or two copies would
  *  both answer the same deep link. Surface ids are derived, never typed. */
 export const URL_OWNING_PANELS = new Set(['Calendar', ...URL_WRITING_SURFACE_IDS])
+
+/** Panels the shell leaves FLUSH against the frame instead of insetting by `--panel-inset`:
+ *  the price chart (it is the whole panel) and the calendar (a full-height layout with its own
+ *  header band). Every other panel, embedded tab or whole page, gets the one shared inset, and
+ *  learns that through `useInTerminalPanel().inset` (components/terminal/terminalPanel.js). */
+export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])

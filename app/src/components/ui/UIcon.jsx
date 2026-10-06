@@ -463,6 +463,15 @@ const ICONS = {
       <path d="M5 15.5V5a1 1 0 0 1 1-1h9.5" />
     </>
   ),
+  // Added 2026-10-06 for the UCT Terminal's "pop this panel out into its own window" action,
+  // which was a text arrow. `expand` means "make bigger here"; this means "open elsewhere".
+  popOut: (
+    <>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-8.5 8.5" />
+      <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+    </>
+  ),
   // Added 2026-08-29 for Options Flow's screenshot/preview controls, which had
   // been reaching for a camera emoji because the registry had no glyph. Adding
   // one here is the sanctioned move — the alternative is a one-off emoji, and
