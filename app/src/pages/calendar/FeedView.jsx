@@ -154,7 +154,7 @@ function MacroOnlyDay({ ds, day }) {
         <span className={styles.macroOnlyMeta}>
           no earnings · {count} macro {count === 1 ? 'event' : 'events'}
         </span>
-        <span className={styles.macroOnlyChev} aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <span className={styles.macroOnlyChev} aria-hidden="true"><UIcon name={open ? 'chevronDown' : 'chevronRight'} size={12} gold={false} /></span>
       </button>
       {open && <MacroBand econ={day.econ} fed={day.fed} />}
     </div>
@@ -221,7 +221,7 @@ function CompactCluster({ entries, onSelect }) {
     <div className={styles.compactWrap}>
       <button className={styles.compactToggle} onClick={() => setOpen(o => !o)}
               aria-expanded={open}>
-        Also reporting ({entries.length}) <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+        Also reporting ({entries.length}) <span className={styles.chevInline} aria-hidden="true"><UIcon name={open ? 'chevronDown' : 'chevronRight'} size={12} gold={false} /></span>
       </button>
       {open && (
         <div className={styles.compactList}>

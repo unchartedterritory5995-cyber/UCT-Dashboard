@@ -766,7 +766,7 @@ export default function CalendarHeader({
           <span className={styles.wkBtnWrap} ref={pickerRef}>
             <button className={styles.wkBtn} onClick={() => setPickerOpen(o => !o)}
                     aria-label="Pick a week">
-              {weekLabel || 'Pick a week'} <span aria-hidden="true">▾</span>
+              {weekLabel || 'Pick a week'} <span className={styles.chevInline} aria-hidden="true"><UIcon name="chevronDown" size={12} gold={false} /></span>
             </button>
             {pickerOpen && (
               <WeekPicker
