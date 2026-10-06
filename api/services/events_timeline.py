@@ -116,6 +116,18 @@ def _earnings_events(sym: str) -> tuple[list[dict], list[dict], Optional[str]]:
     return events, prints, why
 
 
+def _clip(text: str, limit: int) -> str:
+    """Live sweep 2026-10-05: a hard slice cut mid-word ("broad social chatter ab...").
+    Trim at the last word boundary inside `limit`, drop trailing punctuation, end in an ellipsis."""
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    if " " in cut:
+        cut = cut[:cut.rfind(" ")]
+    return cut.rstrip(" ,;:.-") + "…"
+
+
 def _catalyst_events(sym: str) -> list[dict]:
     from api.services.catalyst import store
     out = []
@@ -127,7 +139,7 @@ def _catalyst_events(sym: str) -> list[dict]:
         out.append({"date": d, "kind": "uct_catalyst",
                     "title": f"UCT catalyst engine: {r.get('tag') or 'flagged'}"
                              + (f" (rank {r['rank']})" if r.get("rank") else ""),
-                    "detail": (thesis[:220] + "...") if len(thesis) > 220 else (thesis or None),
+                    "detail": _clip(thesis, 220) or None,
                     "source": "UCT catalyst engine (catalysts.db)"})
     return out
 
