@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user
+from api.services import alert_trigger_policy
 from api.services import alert_user_series
 from api.services import indicator_alert_service as ias
 from api.services import indicator_alert_evaluator
@@ -54,8 +55,18 @@ def _refusal_to_400(exc: alert_user_series.AdmissionRefused) -> HTTPException:
 class AlertCreate(BaseModel):
     sym: str
     indicator: str
-    condition: str
+    # ⚠️ OPTIONAL SINCE P1 ONLY BECAUSE `trigger_policy` MAY STAND IN FOR IT.
+    # One of the two is required; `alert_trigger_policy.admit_request` refuses a
+    # body carrying neither (400, not the old 422 — the same refusal family).
+    condition: Optional[str] = None
     threshold: Optional[float] = None
+    # ⭐ P1 SIGNAL — WHEN A YES/NO OUTPUT ALERTS: `is_true` / `becomes_true` /
+    # `becomes_false`. Compiled server-side onto `condition` + `threshold`
+    # (`above` / `cross_above` / `cross_below` @ 0.5), so the stored row is the
+    # shape every alert already has — no column, no new evaluator branch. Only
+    # for a member's own formula output that is a CONDITION; a numeric SERIES is
+    # refused (`signal:numeric-output`), never silently thresholded.
+    trigger_policy: Optional[str] = None
     tf: str
     params: Optional[dict[str, Any]] = None
     # ⭐ SPEC §8: WHICH INSTANCE. Optional, and an absent one is not an error —
@@ -295,8 +306,15 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
     # and it refuses ONLY what is dead under `"forming"` AND under `"closed"`, so
     # flipping `ALERT_EVAL_MODE` cannot retroactively make it wrong and it does
     # not pre-judge Task 8. `ichimoku.chikou` fires today and is NOT refused.
-    refusal = ias.refusal_for(body.indicator, body.condition, body.tf,
-                              body.threshold)
+    # ⭐ P1 SIGNAL — THE TRIGGER POLICY, COMPILED (or a dead yes/no threshold
+    # refused) BEFORE the shape gates below, so they judge the rule that will be
+    # stored. It admits nothing: `ias.create` -> `arm_for_alert` still decides.
+    try:
+        condition, threshold = alert_trigger_policy.admit_request(
+            user["id"], raw, body.condition, body.threshold, body.trigger_policy)
+    except alert_trigger_policy.PolicyRefused as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    refusal = ias.refusal_for(body.indicator, condition, body.tf, threshold)
     if refusal:
         raise HTTPException(status_code=400, detail=refusal)
     try:
@@ -304,13 +322,21 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
             user_id=user["id"],
             sym=body.sym.upper(),
             indicator=body.indicator,
-            condition=body.condition,
-            threshold=body.threshold,
+            condition=condition,
+            threshold=threshold,
             tf=body.tf,
             params_json=body.params,
             instance_id=body.instance_id,
             scope=body.scope,
+            # ⭐ P1 — THE PER-MEMBER COUNT CAP, ENFORCED INSIDE THE INSERT'S OWN
+            # `BEGIN IMMEDIATE` TRANSACTION (see `ias.create`). Passed by THIS
+            # door, the member's; operator tools that call `create` directly
+            # (the soak matrix, cutover self-test) keep their behaviour.
+            max_alerts=ias.MAX_ALERTS_PER_USER,
         )
+    except ias.AlertCountExceeded as exc:
+        # The member's answer, with the store's own sentence — never a 500.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except alert_user_series.AdmissionRefused as exc:
         # ⛔ THE ADMISSION CHAIN, REACHED — and its refusal is the USER'S answer,
         # not a 500. `ias.create` raises BEFORE the INSERT, so a refusal here

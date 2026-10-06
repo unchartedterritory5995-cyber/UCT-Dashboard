@@ -1,0 +1,296 @@
+{
+  "clean": {
+    "pine": "//@version=5\nindicator(\"t\")\nplot(ta.sma(close, 5))\n",
+    "definition": {
+      "schemaVersion": 1,
+      "id": "u_member-pane",
+      "version": 1,
+      "compute": {
+        "kind": "ast",
+        "fn": "sha256:56d09295278c7d4d22c4e9f60ee1b50592487c8935774066e2480a8ff4682037",
+        "rev": 1,
+        "ast": {
+          "type": "call",
+          "name": "sma",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 5
+            }
+          ]
+        },
+        "source": "sma(close, 5)"
+      },
+      "meta": {
+        "name": "t",
+        "shortName": "t",
+        "category": "Custom",
+        "description": "the 5-bar average of close",
+        "tags": [
+          "custom"
+        ],
+        "tier": "premium",
+        "repaint": "non-repainting",
+        "freshness": "live",
+        "disclosures": [],
+        "requirementTags": [],
+        "recurrenceOrigin": "pine",
+        "naConditionFalse": true
+      },
+      "placement": {
+        "target": "pane",
+        "pane": {
+          "height": 0.25
+        }
+      },
+      "inputs": [
+        {
+          "key": "color",
+          "type": "color",
+          "label": "Color",
+          "default": "#2962FF"
+        },
+        {
+          "key": "lineWidth",
+          "type": "int",
+          "label": "Line width",
+          "default": 1,
+          "min": 1,
+          "max": 4,
+          "step": 1
+        }
+      ],
+      "plots": [
+        {
+          "key": "value",
+          "label": "t",
+          "style": "line",
+          "color": "$color",
+          "width": "$lineWidth",
+          "role": "primary",
+          "legend": {
+            "decimals": 2
+          }
+        }
+      ]
+    }
+  },
+  "preview": {
+    "pine": "//@version=5\nindicator(\"t\")\nplot(request.security(syminfo.tickerid, \"W\", close, lookahead=barmerge.lookahead_on))\n",
+    "definition": {
+      "schemaVersion": 1,
+      "id": "u_member-pane",
+      "version": 1,
+      "compute": {
+        "kind": "ast",
+        "fn": "sha256:62bc2da6e3b3ec050e9284b3cbdc92d1632b28ab3f54924f817e2ebb4dd3256f",
+        "rev": 1,
+        "ast": {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            {
+              "type": "op",
+              "name": "!=",
+              "args": [
+                {
+                  "type": "num",
+                  "value": 86400
+                },
+                {
+                  "type": "series",
+                  "name": "periodseconds"
+                }
+              ]
+            },
+            {
+              "type": "op",
+              "name": "/",
+              "args": [
+                {
+                  "type": "num",
+                  "value": 0
+                },
+                {
+                  "type": "num",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "type": "tf_live",
+              "value": "W",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                }
+              ]
+            }
+          ]
+        },
+        "source": "86400 != periodseconds ? 0 / 0 : tf_live(close, 'W')"
+      },
+      "meta": {
+        "name": "t",
+        "shortName": "t",
+        "category": "Custom",
+        "description": "(0 divided by 0) when (1 when 86400 does not equal the length of one bar of the chart's timeframe, in seconds -- 60 times the minutes on an intraday chart, 86400 on daily, 604800 on weekly and 2628003 on monthly, the same value on every bar; blank when no timeframe was given. This engine's answer for Pine's timeframe.in_seconds() on the chart's own timeframe, and the grid the session clock time(timeframe.period, session) is read on and 0 otherwise) is not zero, (close so far this week) when it is zero, and nothing while it is unknown",
+        "tags": [
+          "custom"
+        ],
+        "tier": "premium",
+        "repaint": "preview-repaints",
+        "freshness": "live",
+        "disclosures": [],
+        "requirementTags": [],
+        "recurrenceOrigin": "pine",
+        "naConditionFalse": true
+      },
+      "placement": {
+        "target": "pane",
+        "pane": {
+          "height": 0.25
+        }
+      },
+      "inputs": [
+        {
+          "key": "color",
+          "type": "color",
+          "label": "Color",
+          "default": "#2962FF"
+        },
+        {
+          "key": "lineWidth",
+          "type": "int",
+          "label": "Line width",
+          "default": 1,
+          "min": 1,
+          "max": 4,
+          "step": 1
+        }
+      ],
+      "plots": [
+        {
+          "key": "value",
+          "label": "t",
+          "style": "line",
+          "color": "$color",
+          "width": "$lineWidth",
+          "role": "primary",
+          "legend": {
+            "decimals": 2
+          }
+        }
+      ]
+    }
+  },
+  "repaints": {
+    "pine": "//@version=5\nindicator(\"t\")\nplot(bar_index == last_bar_index ? close : na)\n",
+    "definition": {
+      "schemaVersion": 1,
+      "id": "u_member-pane",
+      "version": 1,
+      "compute": {
+        "kind": "ast",
+        "fn": "sha256:39d79dd2c25f76e3868e4da019e0ea83cb829e6633c77b80038d7ac6f2698e4e",
+        "rev": 1,
+        "ast": {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            {
+              "type": "op",
+              "name": "==",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "barindex"
+                },
+                {
+                  "type": "series",
+                  "name": "lastbarindex"
+                }
+              ]
+            },
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "op",
+              "name": "/",
+              "args": [
+                {
+                  "type": "num",
+                  "value": 0
+                },
+                {
+                  "type": "num",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        },
+        "source": "barindex == lastbarindex ? close : 0 / 0"
+      },
+      "meta": {
+        "name": "t",
+        "shortName": "t",
+        "category": "Custom",
+        "description": "close when (1 when the bar's position in the series, 0 on the oldest bar equals the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar and 0 otherwise) is not zero, (0 divided by 0) when it is zero, and nothing while it is unknown",
+        "tags": [
+          "custom"
+        ],
+        "tier": "premium",
+        "repaint": "repaints",
+        "freshness": "live",
+        "disclosures": [],
+        "requirementTags": [],
+        "recurrenceOrigin": "pine",
+        "naConditionFalse": true
+      },
+      "placement": {
+        "target": "pane",
+        "pane": {
+          "height": 0.25
+        }
+      },
+      "inputs": [
+        {
+          "key": "color",
+          "type": "color",
+          "label": "Color",
+          "default": "#2962FF"
+        },
+        {
+          "key": "lineWidth",
+          "type": "int",
+          "label": "Line width",
+          "default": 1,
+          "min": 1,
+          "max": 4,
+          "step": 1
+        }
+      ],
+      "plots": [
+        {
+          "key": "value",
+          "label": "t",
+          "style": "line",
+          "color": "$color",
+          "width": "$lineWidth",
+          "role": "primary",
+          "legend": {
+            "decimals": 2
+          }
+        }
+      ]
+    }
+  }
+}

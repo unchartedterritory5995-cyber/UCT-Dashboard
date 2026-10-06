@@ -111,8 +111,12 @@ TABLE_NAME = "definition_evaluations"
 
 _SECONDS_PER_DAY = 86_400.0
 
-#: `astHash`'s wire shape, mirrored from `user_definitions.ast_hash`.
-_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+#: A RESULT IDENTITY's wire shape — `user_definitions.RESULT_IDENTITY_RE`, read,
+#: never re-typed: a tree hash, `~s2`-suffixed for a definition-semantics-2
+#: document (owner decision A, 2026-10-06). A semantics-2 record therefore lives
+#: under its own key and can never be read as, merge with, or overwrite the
+#: semantics-1 record of the same tree; existing rows keep their bare hash.
+_HASH_RE = _defs.RESULT_IDENTITY_RE
 
 #: ⛔ ONE TIMEFRAME VOCABULARY, NOT TWO. Read off the ledger rather than
 #: re-declared, because the failure this guards is a second spelling of one

@@ -620,8 +620,12 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
       const bad = placeholderGap(phrase, args.length)
       if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
     }
+    // ⭐ P0 0M — the argument ROLES ride with the rule so `spellWindow` can apply
+    // the SAME zero-floor `interpret.js::windowLiteral` applies (by role name).
+    const argRoles = spec && Array.isArray(spec.argRoles) ? spec.argRoles.slice() : []
     functions[name] = Object.freeze({
-      phrase, args: Object.freeze(args), gap, yields: declaredYields(spec),
+      phrase, args: Object.freeze(args), argRoles: Object.freeze(argRoles), gap,
+      yields: declaredYields(spec),
     })
   }
 
@@ -728,9 +732,19 @@ function spellNumber(value, path) {
  *  requires. A tree whose window is a computed column is a tree the engine
  *  refuses to run, and a read-back that described it as though it were fine would
  *  be telling the user about maths that will never draw. */
-function spellWindow(node, fnName, index, path, trace) {
+/** ⭐⭐ P0 0M (2026-10-05) — THE FLOOR IS THE EVALUATOR'S, BY ROLE NAME.
+ *  `interpret.js::windowLiteral` admits 0 for the roles `occurrence` and
+ *  `percentage` (`ZERO_IS_IN_DOMAIN`), so `valuewhenOccurrence(c, s, 0)` — Pine's
+ *  own default spelling, "the most recent" — COMPUTED on the pane while this
+ *  read-back refused it (`sentence:window … got 0`) and the builder showed the
+ *  output as failing. Occurrence 1 passed. One floor, two authorities, disagreeing:
+ *  the read-back now follows the evaluator's rule, never widens past it. */
+const ZERO_IS_IN_DOMAIN = new Set(['occurrence', 'percentage'])
+
+function spellWindow(node, fnName, index, path, trace, role = null) {
+  const floor = ZERO_IS_IN_DOMAIN.has(role) ? 0 : 1
   if (!node || typeof node !== 'object' || node.type !== 'num'
-      || typeof node.value !== 'number' || !Number.isInteger(node.value) || node.value < 1) {
+      || typeof node.value !== 'number' || !Number.isInteger(node.value) || node.value < floor) {
     refuse('sentence:window',
       `at ${path}: ${fnName} argument ${index} — got `
       + `${JSON.stringify(node && node.type === 'num' ? node.value : node) ?? String(node)}`)
@@ -921,7 +935,7 @@ function renderCall(node, rules, inputs, depth, path, trace) {
   for (let i = 0; i < node.args.length; i++) {
     const childPath = `${path}.args[${i}]`
     parts.push(rule.args[i] === 'int'
-      ? spellWindow(node.args[i], name, i, childPath, trace)
+      ? spellWindow(node.args[i], name, i, childPath, trace, (rule.argRoles || [])[i] || null)
       : renderArg(node.args[i], rules, inputs, depth, childPath, trace))
   }
   return fill(rule.phrase, parts, `function ${name}`, path)
