@@ -507,3 +507,48 @@ dark refresh pinned to it (`sources.prices.pin_version`). The scheduler has no c
 ### 16.5 Divergence monitor
 Report-only: every refresh compares the accepted lineage with the upstream source over the recent 60 sessions
 (`runs/<id>/price_divergence.json`, summary in the run's sources result); Saturday runs compare the full history.
+
+### 16.6 Proof (2026-10-06, dark/local; production read-only)
+- M3 reproduced through the sealed root (`C:/mcaprepro`, run-20261006-m3repro): all 15 result tables + every evidence
+  table logically identical to accepted M3b; gates PASS (19/19). Only differences: evidence-DB file bytes and a gzip
+  mtime in pred_universe (fixed: byte-deterministic).
+- Next-session append (`PRICE-APPEND-20261002-2dedc7c156aa`, parent = root): sessions 2026-09-30, 10-01, 10-02;
+  20,196 rows / 6,862 symbols; 0 historical rows changed / removed / inserted (structural + content-hash verified);
+  8 basis events (KUST, BGM, MYPS, RETO, DHY, SHFS, ZCMD, ZCSH); finality OFFICIAL 19,187 / NO_TRADE_CARRY 1,029 /
+  OFFICIAL_SPLIT_BASIS 18; 60 rows held NOT_FINAL (permanent gaps unless a reviewed correction).
+- Incremental vs full (owner definition: identical price version / universe / identity / SEC evidence / reference /
+  code): the lifecycle build vs an independent full derivation over the same inputs with prices re-materialized
+  (byte-identical) -> ALL 16 tables EXACT over the whole universe (7,088 issuers).
+- Stronger test (evidence RE-HARVESTED from scratch, 53 issuers): values / gaps / states exact; provenance differs --
+  81 observation tags (an older cover parser's "[entity]" suffix, ignored by `state._chan`) and the JCI 1999 split
+  evidence (applied 1999-09-30 from accumulated evidence vs 1999-08-23 re-derived): evidence accumulation is
+  path-dependent (harvests skip issuers already done).
+- Mutable-bars counterfactual: `PRICE-CORRECTION-be4fd50f9aa9a01a` (today's full bars.db) = CANDIDATE with the exact
+  diff (lost 39,987 rows / 37 tickers; gained 2,001,577 / 688; changed 1,061,464 / 3,552), unusable and unapprovable
+  (its Market Cap run failed B,C,G,K,R).
+- Real rollback / forward on the drill bucket: exact manifest + DB sha each way, price lineage follows the authority.
+
+### 16.7 ⛔ Open review items (the next-session build is GATES_FAILED B, R -- correctly, not a price issue)
+1. IDENTITY: V5's universe moved CBAT 1117171->2086841, GORO 1160791->1515964, DTSS 1631282->2110423,
+   UROY 1711570->2143673, CLBK 1723596->2115119 (successor / redomicile reorganizations). M2's locked rule withholds
+   each predecessor's whole history (WITHHELD_REASSIGNED: 5,019 / 4,006 / 2,011 / 1,256 / 1,976 days); NTRB, GFAI, COLA
+   become MULTI_CLASS_UNRESOLVED after mapping changes; DRK 33 days UNEXPLAINED. Owner decision (identity methodology).
+2. GATE B: FXHO, NVA, ITOC newly >= 10x current vs production (new evidence after Monday's SEC files).
+3. REFERENCE is also a mutable historical input: Massive changed ECL's 2003-06-09 split 1:3 -> 1:2 (correct; M3's
+   pre-2003 ECL was 1.5x high). A reference/split-ledger contract like the price authority is the next decision.
+4. Evidence path-dependence (16.6): accumulated vs re-harvested split evidence can differ.
+5. Held keys are permanent gaps (60 here) unless corrected; and the HISTORICAL_CORRECTION path has no automated
+   dark-refresh driver yet (a refresh pinned with `sources.prices.pin_version` is the impact run).
+6. Bars owner: recent holes AREC, ASTC, AVEX, BRUN, CHPT, DFNS, EQ, FJET, FNMA, PLNH, SHMD, SKHY, SKYQ; extreme
+   rewrites (PRE up to x5.3M, AMC x1.8M); 2,586 tickers' repaired partial bars.
+
+### 16.8 Storage and schedule
+Root 693 MB once; an APPEND delta ~218 KB/session (655 KB for 3) -> ~55 MB/year; versions are immutable base + deltas.
+Materialization cache: 2 x ~700 MB (pruned). Runs: ~3.4 GB data + ~2.9 GB SEC bulk each -> retention keeps the last 2
+successful runs + the authority's run (without it a daily refresh fills the 77 GB free volume in < 2 weeks).
+Measured: SEC companyfacts 04:23Z, submissions 04:31Z (2026-10-06); official grouped daily for D available by D+1
+03:53Z at the latest; reference pull 1-3.5 h; build + harvests 30-75 min. A session is appendable only once due
+(MCAP_PIT_DUE_ET, 06:00 ET), so the current 01:15 ET cron can never append the session that just closed.
+Recommendation: cron 06:15 ET Tue-Sat (after the 06:00 ET due time and SEC's ~00:30 ET bulk), CURRENT by ~09:00-10:00
+ET; or set MCAP_PIT_DUE_ET=02:00 with the cron at 02:15 ET (finality is now proven by the official aggregate, not by
+the clock) for CURRENT by ~05:00-07:00 ET.
