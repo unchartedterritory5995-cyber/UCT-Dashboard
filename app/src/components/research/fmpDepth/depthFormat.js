@@ -5,8 +5,10 @@
 // lib/presentation/presentationPrimitives; nothing here formats by hand.
 import {
   TERMINAL_COMPACT_TIERS,
+  currencyPrefix,
+  formatCompact,
   formatCompactTerminal,
-  formatCurrency,
+  formatCurrencyIn,
   formatNumber,
   formatPercent,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -17,8 +19,10 @@ import {
  *  here and on the FA/EE tabs. */
 export const MONEY_TIERS = TERMINAL_COMPACT_TIERS
 
-export const fmtMoney = (v) => formatCompactTerminal(v, { money: true })
-export const fmtEps = (v) => formatCurrency(v)
+// `ccy` is the payload's reporting currency ("TWD" for TSM). USD or unknown
+// renders "$" exactly as before; anything else is labelled with its own code.
+export const fmtMoney = (v, ccy) => formatCompact(v, { tiers: MONEY_TIERS, prefix: currencyPrefix(ccy) })
+export const fmtEps = (v, ccy) => formatCurrencyIn(v, ccy)
 export const fmtShares = (v) => formatCompactTerminal(v)
 export const fmtPct = (v) => formatPercent(v, { decimals: 1 })
 export const fmtGrowth = (v) => formatPercent(v, { decimals: 1, signed: true })
@@ -120,7 +124,7 @@ export function buildTable(payload, statementKey) {
   for (const [key, label, fmt, kind = null, basis = null] of spec.rows) {
     const values = block[key] || []
     if (!values.some((v) => Number.isFinite(v))) continue
-    rows.push({ key, label, kind, basis, cells: order.map((i) => fmt(values[i])) })
+    rows.push({ key, label, kind, basis, cells: order.map((i) => fmt(values[i], payload?.currency)) })
   }
   return { columns: order.map((i) => periods[i]), rows }
 }

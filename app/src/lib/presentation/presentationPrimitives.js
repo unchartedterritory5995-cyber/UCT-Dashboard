@@ -447,3 +447,61 @@ export function formatFreshnessAsOf({ tier = null, asOf = null, seconds = false 
   const t = formatTimeEt(asOf, { seconds, zoneSuffix: 'ET' })
   return t ? `as of ${t}` : null
 }
+
+// --------------------------------------------------------------------------
+// 6. REPORTING CURRENCY — figures that are not US dollars
+// --------------------------------------------------------------------------
+//
+// A US-listed ADR trades in dollars, but its statements and the analyst
+// consensus on them are in the company's own currency: TSMC's FY2026 consensus
+// EPS is 535.87 TAIWAN dollars, and printing it "$535.87" told a member TSM earns
+// fifty times what it does (seen live 2026-10-06). The server states the
+// currency (`currency: "TWD"`); these helpers put it on screen.
+//
+// ⛔ NOTHING HERE CONVERTS. A converted per-share figure would also need the
+// ADR ratio (one TSM ADR = 5 ordinary shares), so the honest render is the
+// figure in its own currency, labelled with the ISO code — never "$".
+//
+// ⭐ USD AND UNKNOWN RENDER EXACTLY AS BEFORE: `formatCurrencyIn(v, 'USD')` and
+// `formatCurrencyIn(v, null)` are `formatCurrency(v)`, byte for byte, so a US
+// name (and a payload that predates the field) moves nothing.
+
+/** 'twd ' -> 'TWD'; anything that is not a three-letter code -> null. */
+export function normalizeCurrencyCode(code) {
+  if (typeof code !== 'string') return null
+  const c = code.trim().toUpperCase()
+  return /^[A-Z]{3}$/.test(c) ? c : null
+}
+
+/** True only when the figures are KNOWN not to be US dollars. */
+export function isForeignCurrency(code) {
+  const c = normalizeCurrencyCode(code)
+  return c !== null && c !== 'USD'
+}
+
+/** The prefix for an amount in `code`: '$' for USD or unknown, 'TWD ' otherwise. */
+export function currencyPrefix(code) {
+  return isForeignCurrency(code) ? `${normalizeCurrencyCode(code)} ` : '$'
+}
+
+/** `formatCurrency` in the figure's own currency: "TWD 535.87", "-TWD 2.90". */
+export function formatCurrencyIn(value, code, { decimals = 2, absent = ABSENT } = {}) {
+  if (!isForeignCurrency(code)) return formatCurrency(value, { decimals, absent })
+  if (!Number.isFinite(value)) return absent
+  return signOutside(currencyPrefix(code), Number(value).toFixed(decimals))
+}
+
+/** Relabel text a dollar formatter already produced ("$1.59B", "-$450M") for
+ *  figures in `code`. For callers whose formatter is not theirs to change. */
+export function relabelDollarText(text, code) {
+  if (!isForeignCurrency(code) || typeof text !== 'string') return text
+  return text.replace('$', currencyPrefix(code))
+}
+
+/** The one sentence a non-dollar table carries, or null for USD / unknown. */
+export function reportingCurrencyNote(code) {
+  if (!isForeignCurrency(code)) return null
+  const c = normalizeCurrencyCode(code)
+  return `Figures in ${c}, the company's reporting currency. Not converted to US dollars; `
+    + 'per-share figures are on the company\'s own share basis, which for an ADR may differ from one US-listed share.'
+}

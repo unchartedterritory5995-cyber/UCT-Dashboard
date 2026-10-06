@@ -34,6 +34,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 from api.services import fmp_client
+from api.services.research import reporting_currency
 
 _logger = logging.getLogger(__name__)
 
@@ -214,16 +215,18 @@ def get_consensus(sym: str, *, today: Optional[date] = None) -> dict:
     sym = (sym or "").upper().strip()
     if not sym:
         return {"sym": "", "state": "empty", "annual": [], "quarterly": [], "source": SOURCE}
-    ck = f"research_consensus::v2::{sym}"
+    # v3: the payload carries `currency` (the company's reporting currency).
+    ck = f"research_consensus::v3::{sym}"
     hit = _cache().get(ck)
     if hit is not None:
         return hit
 
     legs: dict[str, tuple] = {}
     try:
-        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ee-consensus") as ex:
+        with ThreadPoolExecutor(max_workers=4, thread_name_prefix="ee-consensus") as ex:
             futs = {k: ex.submit(_read, sym, p, lim) for k, (p, lim) in _REQUESTS.items()}
             f_rep = ex.submit(read_last_report, sym, _TIMEOUT_S)
+            f_ccy = ex.submit(reporting_currency.read, sym, _TIMEOUT_S)
             for k, f in futs.items():
                 try:
                     legs[k] = f.result()
@@ -233,10 +236,15 @@ def get_consensus(sym: str, *, today: Optional[date] = None) -> dict:
                 rep_state, last_report = f_rep.result()
             except Exception:  # noqa: BLE001
                 rep_state, last_report = "error", None
+            try:
+                ccy_state, currency = f_ccy.result()
+            except Exception:  # noqa: BLE001
+                ccy_state, currency = "error", None
     except Exception as exc:  # noqa: BLE001
         _logger.warning("[ee_consensus] fan-out failed for %s: %s", sym, exc)
         legs = {k: ("error", str(exc)[:200]) for k in _REQUESTS}
         rep_state, last_report = "error", None
+        ccy_state, currency = "error", None
 
     annual = (shape_rows(legs["annual"][1], "annual", today=today, last_report=last_report)
               if legs["annual"][0] == "ok" else [])
@@ -246,7 +254,10 @@ def get_consensus(sym: str, *, today: Optional[date] = None) -> dict:
     if annual or quarterly:
         # Without the report date the grace window alone decided what is
         # forward, which can keep a just-reported period: hold it briefly.
-        state, ttl = "ok", (_TTL_ERROR if errors or rep_state != "ok" else _TTL_OK)
+        # An unread currency is held briefly too: "$" on TWD figures must not
+        # stick for six hours because one income-statement read timed out.
+        state, ttl = "ok", (_TTL_ERROR if errors or rep_state != "ok" or ccy_state != "ok"
+                            else _TTL_OK)
     elif errors:
         state, ttl = "error", _TTL_ERROR
     else:
@@ -254,6 +265,11 @@ def get_consensus(sym: str, *, today: Optional[date] = None) -> dict:
     out = {"sym": sym, "state": state, "annual": annual, "quarterly": quarterly,
            "source": SOURCE, "fetched_at": int(time.time()),
            "last_report": last_report,
+           # FMP's estimate rows carry no currency; they are on the statements'
+           # basis, so this is the statements' `reportedCurrency` (TSM -> "TWD").
+           # None = not known. Nothing is converted. See reporting_currency.py.
+           "currency": currency,
+           "currency_source": reporting_currency.SOURCE,
            "forward_rule": ("reported_through" if rep_state == "ok" and last_report
                             else "grace_window")}
     if errors:

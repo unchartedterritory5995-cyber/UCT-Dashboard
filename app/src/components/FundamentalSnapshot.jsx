@@ -6,6 +6,7 @@
 import useFundamentalSnapshot from '../hooks/useFundamentalSnapshot'
 import UIcon from './ui/UIcon'
 import CoverageNote from './research-kit/CoverageNote'
+import { isForeignCurrency } from '../lib/presentation/presentationPrimitives'
 import { etCalendarDaysBetween } from '../lib/marketClock/etTime'
 import styles from './FundamentalSnapshot.module.css'
 
@@ -92,6 +93,17 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
   const m = d.metrics || {}
   const comp = d.components || {}
   const checkup = d.checkup || []
+  // An ADR reports in its own currency (TSM: TWD) while it trades in dollars. The
+  // server withholds the ratios that would divide one by the other; say so, so the
+  // dash is not read as "no data".
+  const rc = d.reporting_currency
+  const withheld = ['ps', 'pb'].filter((k) => k in (d.currency_withheld || {}))
+    .map((k) => (k === 'ps' ? 'P/S' : 'P/B'))
+  const currencyNote = isForeignCurrency(rc)
+    ? (withheld.length
+      ? `${withheld.join(' and ')} not shown: the price is in US dollars, the statements in ${rc}, and no conversion is applied. Free CF is in ${rc}.`
+      : `Statement figures are in ${rc}, the company's reporting currency.`)
+    : null
   const hasAny = d.composite != null || Object.values(m).some(v => v != null)
 
   if (!hasAny) {
@@ -176,6 +188,7 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
           <Cell label="PEG" value={ratio(m.peg)} />
           <Cell label="P/S" value={ratio(m.ps)} />
           <Cell label="P/B" value={ratio(m.pb)} />
+          {currencyNote && <div className={styles.sub} data-testid="snapshot-currency">{currencyNote}</div>}
         </div>
 
         <div className={styles.group}>
