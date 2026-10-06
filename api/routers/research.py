@@ -302,6 +302,10 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     # Which vendor stands behind each block, for the on-screen source line.
     out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
                       "consensus": "FMP"}
+    # The company's reporting currency (TSM -> "TWD"), read once by the FMP leg and
+    # lifted here so the Yahoo fallback tables can say their revenue is not dollars
+    # either. None = not known.
+    out["reporting_currency"] = (out.get("consensus") or {}).get("currency")
     # `consensus.state` is untouched: the EE panel maps it through a fixed table and an
     # unknown value would read as "FMP did not answer". The marker sits at the top level.
     return _fund_marked(out, sym, _EE_FUND_WHY)
