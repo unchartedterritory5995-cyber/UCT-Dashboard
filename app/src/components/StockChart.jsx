@@ -145,6 +145,10 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
+// ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
+// installed output, read from the binder's own latest value (`infoValueResolve`).
+import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf, severInfoValuesForInstanceSwap } from './chart/engine/infoValues'
+import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoValueResolve'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
 // BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
 // than stored and how it relates to the definition's own `meta.repaint`.
@@ -5083,6 +5087,19 @@ export default function StockChart({
     writeInstance(removeInstance(cs, instanceId, engineRegistry))
   }, [cs, writeInstance])
 
+  // ⭐ P1 — VALUE: add / remove this output's latest value in the header. ONE
+  // writer (`infoValues.js`), through the same `writeInstance` identity guard, so
+  // a hosted surface's `onSettingsPersist` seam carries it like any other edit.
+  const _infoDefOf = useCallback((id) => engineRegistry.getDefinition(id), [])
+  const handleChipInfoValue = useCallback((instanceId, plotKey, on) => {
+    writeInstance(on
+      ? removeInfoValue(cs, { instanceId, plotKey, severed: false })
+      : addInfoValue(cs, { instanceId, plotKey, format: 'auto' }, _infoDefOf, infoValueOutputExists))
+  }, [cs, writeInstance, _infoDefOf])
+  const handleInfoValueRemove = useCallback((ref) => {
+    writeInstance(removeInfoValue(cs, ref))
+  }, [cs, writeInstance])
+
   // ⭐ chart-UX-walls TASK 6 — DUPLICATE. The first caller `addInstance` has ever
   // had, and the reason `handleChipRemove` above can finally be told apart from
   // `setIndicatorEnabled(defId, false)`: until a user could produce two instances
@@ -6090,8 +6107,13 @@ export default function StockChart({
       if (!encoded) return
       const decoded = urlToChartState(encoded)
       if (!decoded) return
+      // ⭐ P1 — the recipient's header is kept but the SENDER's instance list
+      // replaces theirs: an info value whose id now names a different instance
+      // (deterministic ids collide, e.g. `inst:rsi:1`) is severed, never read.
+      const _csIv = Array.isArray(decoded.indicatorInstances)
+        ? severInfoValuesForInstanceSwap(cs, decoded.indicatorInstances) : cs
       const next = {
-        ...cs,
+        ..._csIv,
         ...(decoded.chartType ? { chartType: decoded.chartType } : {}),
         ...(typeof decoded.heikinAshi === 'boolean' ? { heikinAshi: decoded.heikinAshi } : {}),
         ...(typeof decoded.logScale === 'boolean' ? { logScale: decoded.logScale } : {}),
@@ -18221,7 +18243,11 @@ export default function StockChart({
           // click went away. One click, the canonical writer, and the popover
           // closes with the thing it was about.
           onRemove: (id) => { close(); handleChipRemove(id) },
+          onInfoValue: (id, pk, on) => { close(); handleChipInfoValue(id, pk, on) },
         }, {
+          infoValueOn: hasInfoValue(cs, c.instanceId, c.plotKey),
+          infoValueRefusal: infoValueAddRefusal(cs, { instanceId: c.instanceId, plotKey: c.plotKey },
+            _infoDefOf, infoValueOutputExists) || undefined,
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
@@ -19148,6 +19174,39 @@ export default function StockChart({
                 )}
               </div>
               )}
+
+              {/* ══ A2. THE HEADER'S INFO VALUES (P1) ══════════════════════
+                  ⭐ The latest value of each referenced output, read from the
+                  binder (`infoValueResolve.resolveInfoValues`) — never computed
+                  here. A refused output prints `n/a` with the gate's reason, an
+                  unknown newest bar prints `—`, and a broken reference (deleted
+                  instance / removed plot) stays visible as `unavailable` until the
+                  member removes it with its ×. Nothing renders when none stored. */}
+              {infoValuesOf(cs).length > 0 && (() => {
+                const _eng = engineRef.current
+                const _rows = resolveInfoValues(cs, {
+                  registry: engineRegistry,
+                  bindings: _eng && _eng.binder ? _eng.binder.bindings() : [],
+                  columnErrorsOf: _eng && _eng.binder && typeof _eng.binder.columnErrorsOf === 'function'
+                    ? _eng.binder.columnErrorsOf : undefined,
+                  gateCtx: { tf: resolvedTf, secondary: secondarySources, exchangeOf: otherSymbolExchangeOf, symbol: symbolMeta },
+                })
+                return (
+                  <div className={styles.barInfo} data-testid="info-values">
+                    {_rows.map((r) => (
+                      <span key={`${r.instanceId}::${r.plotKey}::${r.severed ? 'x' : 'v'}`}
+                        className={styles.barField} style={legBase}
+                        data-state={r.state} data-guard={r.guard || undefined} title={r.reason || undefined}>
+                        <span className={styles.barKey}>{r.label}</span>
+                        <span className={styles.barVal}>{r.text}</span>
+                        <button type="button" aria-label={`Remove ${r.label} from header`}
+                          style={{ background: 'none', border: 0, padding: '0 2px', cursor: 'pointer', color: 'inherit', opacity: 0.6 }}
+                          onClick={() => handleInfoValueRemove({ instanceId: r.instanceId, plotKey: r.plotKey, severed: r.severed })}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {/* ══ B. THE STUDY STACK ══════════════════════════════════════
                   ⭐ ONE ROW PER PLOT DRAWN IN THIS PANE: `label · value · ›`.
