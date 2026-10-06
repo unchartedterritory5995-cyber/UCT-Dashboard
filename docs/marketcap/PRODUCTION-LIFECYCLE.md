@@ -614,3 +614,63 @@ nothing added / removed elsewhere; all gates PASS -- approvable, NOT approved (h
   (`refresh.split_reinterpretations`: status / date / ratio / source / accession of APPLIED rows; status of held rows;
   new historical APPLIED rows). Such a change is a reviewed correction, never a silent refresh. M3.1 from M3's inputs
   vs the accepted M3 build: 0 reinterpretations.
+
+
+## 18. Final mutable-input closure (owner decisions 2026-10-06)
+
+Three mutable inputs could still rewrite accepted history through an ordinary refresh; HISTORY did not fail on a
+disappearing accepted value. All four are closed. The rule throughout: ACCEPTED evidence keeps its ACCEPTED reading;
+new evidence speaks from its own PIT boundary forward; anything else is an explicit, human-approved correction whose
+exact impact rows are sealed with the approval.
+
+### 18.1 ADR ratios (adr.py, harvest_text.py, build.py) + the SOGP correction
+- Parser: "N hundred" number words (two .. nine hundred), the parenthetical numeral captured; word and numeral must
+  agree, else the document is CONFLICT (fails closed). New: the 12(b) registration table of the cover
+  (`parse_cover_ratio`), read from a 4 MB head only when the 150 KB head found nothing -- an inline-XBRL 20-F's hidden
+  header can fill the 150 KB (SOGP 2023..2026), and a whole-document read sees superseded narrated ratios.
+- Boundary: the M3 reading is kept EXACTLY (`parse_ratio(legacy=True)`, identical regex text; equal on all 63,342 12(b)
+  titles of M3's covers) for every accession of the sealed SEC root, at harvest and at build. The current reading
+  applies to accessions new to the root, and to accepted ones only when an approved correction lists them
+  (`correction_evidence.reread_accessions`).
+- SOGP `REF-CORRECTION-7e2bc6d9d9367464` (APPROVED 2026-10-06T16:37:30Z under the gate's owner decision 1): the ADS
+  ratio change 1:20 -> 1:200 dated 2023-09-20 (F-6 POS 0000950127-23-000050 filed 2023-09-20 06:15 ET; 6-K
+  0001104659-23-097402 announced it 2023-09-01; 20-F 0001410578-24-001728 and 0001493152-26-019716 state it) instead of
+  Massive's 2005-06-30, and the 12(b) titles of 0001410578-24-001728 / -25-000976 / 0001493152-26-019716 re-read (200).
+  Impact (C:/mcapimpact/sogp2): SOGP only, 713 sessions 2020-04-21 .. 2026-09-29, every value x 0.1000000 (2026-09-29
+  $494.6M -> $49.5M), 0 removed, 0 added, all gates PASS. Impact rows sha 37364241679987444e03ad7f51e4370085db61731a9a49ffa2b26f2580747886.
+- Population census (13,461 ADR-form documents of 1,232 filers, re-fetched read-only and re-read by the current
+  harvester): A parser defect now resolves 1,037 / 234; B ADR with no ratio statement 2,409 / 242; C conflicting 34 / 11
+  (+154 / 42 already accepted CONFLICT); D no document 84 / 28; E not an ADR 7,185 / 854; accepted OK unchanged
+  2,558 / 319 (0 values changed). Dark class-A impact (all A re-read, never applied): SOGP the only move (>= 10x);
+  NOAH (1,646) and RDHL (2,301) accepted days would be withheld; 17 issuers would gain valued days (TM 3,262 ...). None
+  applied: each would be its own reviewed correction.
+
+### 18.2 Current-state reference evidence (reference_authority.py, build.py)
+Massive's `share_class_shares_outstanding` / `weighted_shares_outstanding` describe the security AT THE PULL. A value
+first carried by a later reference version speaks only from that version's boundary session (pull public before
+16:00 ET -> that day's close, else the next; a version without `pulled_at` -> the day after its date) FORWARD.
+`current_history(store, vid)` derives the history from the sealed lineage (`ref_current_history.json` beside
+ref.jsonl; absent for the ROOT = accepted M3). In the build, a multi-class suspicion that differs across the boundary
+opens a regime on the boundary session. Census (next6 inputs, 15 issuers whose accepted days went MULTI_CLASS:
+MODD MYSZ SGMT VIVK ENLV SDOT UPXI EPOW SPWR TVGN WLDS AKAN FLD MI QETA): 10,403 accepted days, next6 kept 305, the rule
+keeps 10,403 (0 missing, 0 changed); the only remaining multi-class holds are M3's own (SGMT 631 -> 635 with new
+sessions, TVGN 50, FLD 27). Pinned: TVGN 6,511,540 -> 15,736,540 from REF-APPEND-20261006 cannot touch 2024-04 .. 2026-09.
+
+### 18.3 SEC filing metadata (sec_authority.py)
+ROOT `SEC-ROOT-aee3813128fc48b9` = M3's own inputs.db / pred_inputs.db / acceptance.db (6,909,117 + 18,035 filing rows,
+366,333 acceptance rows). Root cause of ALP / SDEV (and ATHE / PPBT / SLXN): an UPSTREAM SEC change, not our parser.
+EDGAR's record for 0001171843-26-000276 says ACCEPTANCE-DATETIME 20260115090341 (Eastern) = 14:03:41Z = M3's value; the
+2026-10-06 bulk and data.sec.gov now serve 19:03:41Z (true UTC + the Eastern offset, uniformly: 006194 20:37:06Z ->
+00:37:06Z, 006419 23:13:39Z -> 03:13:39Z). Read through the CONSERVATIVE rule that moved the evidence one session late.
+APPLY: accepted (cik, accn) keep their sealed rows (differences recorded as SEC_METADATA_DIVERGENCE); new accessions are
+appended with their EDGAR record's acceptance (cached in <root>/sec/edgar_headers), else CONSERVATIVE (late, never
+early). Every build manifest carries `inputs.sec_authority` (version, lineage, sha); the build reads the post-root
+accessions (the ADR parser boundary). No correction candidate: the accepted values ARE the EDGAR records.
+
+### 18.4 HISTORY (history.py)
+Candidate vs the current authority, per (cik, session) up to the authority's latest valued session:
+VALUE_REMOVED (any -> FAIL), VALUE_MOVED (>= 2x -> FAIL), SPLIT_INTERPRETATION_CHANGED (FAIL), VALUE_ADDED,
+GAP_REASON_CHANGED, EVIDENCE_CITATION_CHANGED (listed). The ONLY authorization: the sealed impact rows of an approved
+correction attached to the candidate (a reference correction in its lineage the authority lacks; an
+IDENTITY_HISTORICAL_CORRECTION named by id in review.history_corrections). A correction's own impact run fails if
+anything outside its issuers changes. Reason codes authorize nothing.
