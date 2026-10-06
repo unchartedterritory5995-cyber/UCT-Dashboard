@@ -185,7 +185,17 @@ def test_the_composed_schema_is_the_contract_with_the_concierge_node_defs(conv):
     Draft202012Validator.check_schema(composed)
     advertised = dc.tool_schema()["input_schema"]["$defs"]
     for k, v in advertised.items():
-        assert composed["$defs"][k] == v
+        if k != "series":
+            assert composed["$defs"][k] == v, k
+    # series: the concierge's, minus every nightly scalar (decision E, this door only)
+    full = dict(advertised["series"])
+    mine = dict(composed["$defs"]["series"])
+    full_enum = full["properties"]["name"].pop("enum")
+    mine_enum = mine["properties"]["name"].pop("enum")
+    assert mine == full
+    from api.services import ast_table
+    scalars = set(ast_table.TABLE[ast_table.SCALARS_SECTION])
+    assert set(mine_enum) == set(full_enum) - scalars
     assert set(advertised) == {"node", "num", "series", "op", "call", "offset"}
     assert conv.MAX_OPS == raw["x-uct-limits"]["maxOps"] == raw["properties"]["ops"]["maxItems"] == 12
     # the tool copy carries no annotations, and the same validation keywords
@@ -261,14 +271,49 @@ def test_4_default_RSI_is_applied_with_its_assumptions_DISCLOSED(conv, model):
     assert r["envelope"] == e
     assert r["envelope"]["assumptions"] == assumptions
     # the conventions the model was told are UCT's (pinned to their files below),
-    # and the firm's "overbought" -- which reads the NIGHTLY rsi14 -- reached the
-    # model as DATA flagged current-only, never as a formula to paste.
+    # and the firm's "overbought" -- whose vocabulary form reads the NIGHTLY rsi14 --
+    # reached the model in its CHART form only; the nightly name appears nowhere.
     sent = client.calls[0]
     assert "RSI length: 14" in sent["system"]
     assert "70 / 30" in sent["system"]
     notes = _block(sent["messages"][0]["content"], "uct_language_notes")
     concept = notes["firm_concepts"][0]
-    assert concept["word"] == "overbought" and concept["current_only"] == ["rsi14"]
+    assert concept["word"] == "overbought"
+    assert concept["chart_formula"] == "(rsi(close, 14) >= 70)"
+    assert "rsi14" not in sent["messages"][0]["content"]
+    assert "rsi14" not in sent["system"]
+
+
+def test_DECISION_E_the_converse_tool_advertises_NO_nightly_scalar(conv):
+    """ASKED: what may the conversational model name as a series? CLAIMED: only what a
+    chart can draw as history -- no nightly scalar in the tool's series enum or the
+    prompt vocabulary (owner decision E, this door only). DID: zero scalars offered;
+    /propose's tool still offers them, untouched (UNSUPPORTED, not advertised)."""
+    from api.services import ast_table
+    from api.services import definition_concierge as dc
+    scalars = set(ast_table.TABLE[ast_table.SCALARS_SECTION])
+    assert scalars, "non-vacuity: the table declares scalars"
+    tool = conv.anthropic_tool()
+    enum = set(tool["input_schema"]["$defs"]["series"]["properties"]["name"]["enum"])
+    assert not (enum & scalars)
+    assert {"close", "volume", "high"} <= enum
+    prompt = conv.system_prompt()
+    assert not [s for s in scalars if re.search(rf"^\s+{re.escape(s)}\b", prompt, re.M)]
+    # the concierge door keeps the full table
+    propose_enum = set(dc.tool_schema()["input_schema"]["$defs"]["series"]["properties"]["name"]["enum"])
+    assert scalars <= propose_enum
+    assert "rsi14" in dc.vocabulary_text()
+
+
+def test_DECISION_E_a_scalar_emitted_anyway_is_still_refused_BY_NAME_post_call(conv, model):
+    """ASKED: the model emits a nightly scalar it was not offered (in a nested tree).
+    CLAIMED: defence in depth -- refused by name before the schema, terminal. DID: 1 call,
+    unsupported:scalar naming market_cap, no envelope (UNSUPPORTED)."""
+    tree = op("&&", RSI_GT_70, op(">", {"type": "series", "name": "market_cap"}, num(1e9)))
+    client = model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": tree}]))])
+    r = conv.converse("only big caps", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    assert r["ok"] is False and r["gate"] == "unsupported:scalar"
+    assert "market_cap" in r["reason"] and "envelope" not in r and len(client.calls) == 1
 
 
 def test_the_UCT_conventions_in_the_prompt_are_the_ones_the_files_declare(conv):

@@ -113,10 +113,26 @@ def patch_schema() -> Dict[str, Any]:
 MAX_OPS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOps"])
 
 
+def chart_table() -> Dict[str, Any]:
+    """The closed table WITHOUT its ``scalars`` section, for THIS door only.
+
+    ⭐ OWNER DECISION E, applied to the conversational door (coordinator ruling
+    2026-10-06): do not advertise what this path cannot produce end to end. A
+    nightly scalar is ONE current value per symbol and every chart lane refuses
+    it (P1 ``chart:scalar-current-only``), so ``emit_patch`` neither lists one in
+    its vocabulary nor accepts one in its ``series`` enum. ``/propose`` and the
+    screener keep the full table. The post-call ``unsupported:scalar`` refusal
+    stays as defence in depth (``_refuse_scalars``).
+    """
+    from api.services import ast_table
+    return {k: v for k, v in ast_table.TABLE.items() if k != ast_table.SCALARS_SECTION}
+
+
 def composed_schema() -> Dict[str, Any]:
     """THE schema the model's answer is validated against: the contract with the
     ``$defs.node`` placeholder replaced by the concierge's ADVERTISED node defs
-    (num, series, op, call, offset -- P0G: sym/tf/textop are not advertised).
+    (num, series, op, call, offset -- P0G: sym/tf/textop are not advertised),
+    derived over ``chart_table()`` so the ``series`` enum carries no scalar.
 
     ⛔ ONE TREE LANGUAGE. The defs are ``definition_concierge.tool_schema()``'s,
     deep-copied, never re-typed; a def name colliding with a contract def other
@@ -126,7 +142,7 @@ def composed_schema() -> Dict[str, Any]:
     placeholder = schema["$defs"]["node"]
     if placeholder.get("x-uct-node-schema") != NODE_PLACEHOLDER:
         raise RuntimeError("patchSchema.json $defs.node is not the concierge placeholder")
-    advertised = copy.deepcopy(dc.tool_schema()["input_schema"]["$defs"])
+    advertised = copy.deepcopy(dc.tool_schema(chart_table())["input_schema"]["$defs"])
     for key in advertised:
         if key != "node" and key in schema["$defs"]:
             raise RuntimeError(f"$defs collision on {key!r} between the patch contract "
@@ -292,8 +308,8 @@ CONVERSE_SYSTEM_PROMPT = (
     "condition is a 0/1 column; never read a later bar.\n\n"
     "DO NOT FABRICATE CAPABILITIES\n"
     "  * The chart's own symbol and timeframe only: no other symbol, no higher or lower "
-    "timeframe. A `scalars` entry is ONE nightly value per symbol, the same on every "
-    "bar: it is not history and must never appear in a tree.\n"
+    "timeframe. Nightly snapshot values (one number per symbol, the same on every "
+    "bar) are not history and are not offered here.\n"
     "  * If the request needs something not offered here, emit no ops and say so "
     "plainly in `note`. Never substitute something different.\n\n"
     "MISSING INFORMATION\n"
@@ -312,7 +328,7 @@ CONVERSE_SYSTEM_PROMPT = (
 
 def system_prompt() -> str:
     """The whole system prompt. ⛔ A CONSTANT: no argument, no request data."""
-    return CONVERSE_SYSTEM_PROMPT + dc.vocabulary_text()
+    return CONVERSE_SYSTEM_PROMPT + dc.vocabulary_text(chart_table())
 
 
 def _escape_json(value: Any) -> str:
@@ -355,12 +371,42 @@ def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
 # the language stage -- the concierge's plan(), re-framed as DATA
 # --------------------------------------------------------------------------- #
 
+#: Per-bar twins of nightly scalars, for the CHART form of a firm concept only
+#: (this door's notes; the shared vocabulary is untouched). ``rsi14`` is the
+#: nightly 14-period RSI of the daily close; per bar it is ``rsi(close, 14)``.
+CHART_TWINS: Mapping[str, Mapping[str, Any]] = {
+    "rsi14": {"type": "call", "name": "rsi",
+              "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 14}]},
+}
+
+
+def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
+    """The concept tree with every scalar leaf replaced by its per-bar twin, or
+    None when some scalar has no twin."""
+    if not isinstance(tree, Mapping):
+        return None
+    if tree.get("type") == "series" and tree.get("name") in CHART_TWINS:
+        return copy.deepcopy(dict(CHART_TWINS[tree["name"]]))
+    out = copy.deepcopy(dict(tree))
+    if isinstance(tree.get("args"), list):
+        args = [_chart_form(a) for a in tree["args"]]
+        if any(a is None for a in args):
+            return None
+        out["args"] = args
+    if ast_interpret.unresolved_scalars(out, None):
+        return None
+    return out
+
+
 def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
     """What the deterministic pre-pass resolved, as data for the user turn.
 
-    ⛔ A FIRM CONCEPT THAT READS A NIGHTLY SCALAR IS NOT HANDED OVER AS A FORMULA
-    TO USE: on a chart it is current-only. It is reported as such, and the
-    threshold it implies may only be an ASSUMABLE choice the model discloses.
+    ⛔ A FIRM CONCEPT THAT READS A NIGHTLY SCALAR IS NEVER HANDED OVER IN ITS
+    NIGHTLY FORM (that would steer the model to a tree every chart lane refuses).
+    Where each scalar it reads has a per-bar twin (``CHART_TWINS``), the model is
+    given the CHART form -- "overbought" = ``rsi(close, 14) >= 70`` -- to use and
+    disclose its numbers as assumptions. Where one does not, it is told there is
+    no chart form. The shared vocabulary file is untouched.
     """
     from api.services import ast_freshness, concept_vocabulary
 
@@ -369,15 +415,20 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
         got = concept_vocabulary.resolve(c["word"])
         if not got.get("ok"):
             continue
-        scalars = sorted(ast_freshness.scalars_in(got.get("ast")))
-        if scalars:
-            concepts.append({
-                "word": got["word"], "firm_formula": got.get("source"),
-                "current_only": scalars,
-                "rule": ("the firm's formula reads a nightly current-only value; do not "
-                         "put it in a tree. Its threshold may be used as a disclosed "
-                         "assumption with per-bar vocabulary."),
-            })
+        if ast_freshness.scalars_in(got.get("ast")):
+            chart = _chart_form(got.get("ast"))
+            if chart is not None:
+                concepts.append({
+                    "word": got["word"], "chart_formula": dc.formula_for(chart),
+                    "rule": ("the firm's meaning of this word on a chart: use this "
+                             "formula and disclose its numbers in `assumptions`"),
+                })
+            else:
+                concepts.append({
+                    "word": got["word"],
+                    "rule": ("the firm defines this word only on nightly snapshot values, "
+                             "which have no chart form here: emit no ops and say so in `note`"),
+                })
         else:
             concepts.append({"word": got["word"], "firm_formula": got.get("source"),
                              "rule": "use this formula exactly; do not reinterpret the word"})
@@ -497,6 +548,18 @@ def _refuse_unsupported_nodes(trees: List[Tuple[str, Any]]) -> None:
                                f"{where}: {why.format(value=node.get('value'))}")
 
 
+def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
+    """BY NAME, before the schema (whose ``series`` enum no longer offers them):
+    defence in depth for a model that emits a nightly scalar anyway."""
+    from api.services import ast_table
+    scalars = set(ast_table.TABLE.get(ast_table.SCALARS_SECTION) or {})
+    for where, tree in trees:
+        named = sorted({n.get("name") for n in _walk(tree)
+                        if n.get("type") == "series" and n.get("name") in scalars})
+        if named:
+            raise _Refused("unsupported:scalar", f"{where} reads {', '.join(named)}")
+
+
 def _schema_errors(envelope: Any) -> List[str]:
     errors = sorted(_validator().iter_errors(envelope), key=lambda e: list(e.absolute_path))
     out = []
@@ -536,6 +599,7 @@ def check_envelope(envelope: Any, revision: int) -> Dict[str, Any]:
     if not isinstance(envelope, Mapping):
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
+    _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
         raise _Refused("envelope:schema", "; ".join(errors))
