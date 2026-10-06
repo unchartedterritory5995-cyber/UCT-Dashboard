@@ -77,11 +77,16 @@ describe('P1 intent — 5: VALUE intent on a SERIES stays a SERIES', () => {
     expect(id).toBe('u_x:2')
     const ref = infoValueRefFor({ instanceId: id, plotKey: 'value' })
     expect(Object.keys(ref).sort()).toEqual(['format', 'instanceId', 'plotKey'])
-    // ⚠️ on this branch the info slice is not integrated: the door says so (no false claim)
-    const req = requestInfoValue(after, ref)
-    expect(req.added).toBe(false)
-    expect(req.settings).toBe(after)
-    expect(req.reason).toMatch(/not available/)
+    // ⭐ integrated: the info slice's own add stores ONLY the reference
+    const defOf = (defId) => (defId === 'u_x' ? { id: 'u_x', plots: [{ key: 'value' }] } : null)
+    const req = requestInfoValue(after, ref, defOf)
+    expect(req.added).toBe(true)
+    expect(req.settings.header.infoValues).toEqual([{ instanceId: 'u_x:2', plotKey: 'value', format: 'auto' }])
+    // an output the definition does not declare is refused, by identity, with a reason
+    const bad = requestInfoValue(after, infoValueRefFor({ instanceId: id, plotKey: 'nope' }), defOf)
+    expect(bad.added).toBe(false)
+    expect(bad.settings).toBe(after)
+    expect(bad.reason).toMatch(/could not be shown as a value/)
   })
 })
 

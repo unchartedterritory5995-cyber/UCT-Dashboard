@@ -257,11 +257,9 @@ describe('P1 core — 14/15/16: typing and gating never touch definition semanti
   })
 })
 
-describe('P1 core — items owned by later slices', () => {
-  it.todo('5 [info value] VALUE intent on a SERIES stays SERIES; an Info Value reads the latest valid value of {instanceId, plotKey}; a broken reference is unavailable, never reconnected by name')
-  it.todo('12 [presentation] UNKNOWN drives NO condition paint / marker (never the "down" colour), per channel')
-  it.todo('13 [presentation] paint priority across instances is deterministic (Inspector order); markers stay additive')
-  it.todo('17 [signal+alerts] triggerPolicy is-true / becomes-true / becomes-false honours the P0 transition contract (F→T fires; U→T, U→U→T, F→U→T do not; U→F→T fires on F→T)')
-  it.todo('18 [signal+alerts] arming requires the shared gate to approve the selected signal output for the alert lane (and the server admission agrees)')
-  it.todo('19 [signal+alerts] alert cap + BEGIN IMMEDIATE concurrency audited; never a non-atomic cap')
-})
+// Items owned by the later slices now live in their own truth files (integrated):
+//   5, 12, 13 (intent + presentation) → p1.intent.truth.test.js
+//   17, 18, 19-info (info value)      → p1.info.truth.test.js
+//   10/12/19-alert, trigger policy    → p1.signal.truth.test.js + tests/test_p1_truth_signal.py
+//   cap + BEGIN IMMEDIATE concurrency  → tests/test_p1_truth_signal.py
+//   19 (all consumers together)       → p1.integration.truth.test.js

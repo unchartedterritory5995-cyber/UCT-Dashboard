@@ -148,7 +148,7 @@ describe('⭐ item 6 — SIGNAL intent cannot lie about a number', () => {
 })
 
 describe('⭐ item 5 — VALUE intent on a SERIES stays a SERIES', () => {
-  it('ASKED VALUE on sma(close,20) · CLAIMED its latest value · DID keep it SERIES, add it to the chart and SAY the header value is not wired here', async () => {
+  it('ASKED VALUE on sma(close,20) · CLAIMED its latest value · DID keep it SERIES, add it to the chart and reference its output in the header', async () => {
     const onChange = vi.fn()
     mount({ onChange })
     await nameIt('MA20')
@@ -162,9 +162,12 @@ describe('⭐ item 5 — VALUE intent on a SERIES stays a SERIES', () => {
     await flush()
     expect(onChange).toHaveBeenCalledTimes(1)
     const cs = onChange.mock.calls[0][0]
-    expect(cs.indicatorInstances.some((i) => i.defId === 'u_aaaaaaaaaaaa')).toBe(true)
-    // the info-value slice is not on this branch: the sheet says so instead of claiming it
-    expect(screen.getByTestId('value-note').textContent).toMatch(/^Added to the chart\. .*not available/)
+    const inst = cs.indicatorInstances.find((i) => i.defId === 'u_aaaaaaaaaaaa')
+    expect(inst).toBeTruthy()
+    // ⭐ integrated: the header holds a REFERENCE to that instance's output — no formula
+    expect(cs.header.infoValues).toEqual([{ instanceId: inst.instanceId, plotKey: 'value', format: 'auto' }])
+    expect(JSON.stringify(cs.header.infoValues)).not.toMatch(/ast|source|sma/)
+    expect(screen.getByTestId('value-note').textContent).toMatch(/latest value is shown in the chart header/)
     // and nothing was converted
     const doc = sentDefinition()
     expect(doc.paints).toBeUndefined()
