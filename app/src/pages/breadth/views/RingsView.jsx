@@ -81,7 +81,7 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
            style={{ flex: '1 1 auto', minHeight: 0, width: '100%',
                     cursor: clickable ? 'pointer' : 'default' }}
            {...drillProps(metric, onDrill)}>
-        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#1b2534" strokeWidth="9" />
+        <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border)" strokeWidth="9" />
         {/* ⭐ THE TICKS ARE THE POINT. Without them the arc is a shape; with
             them it is a gauge, and `62/100` below the value says which gauge. */}
         {NORM_TICKS.map(t => {
@@ -90,7 +90,7 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
           return (
             <line key={t} x1={CX + inner * Math.cos(ang)} y1={CY + inner * Math.sin(ang)}
                   x2={CX + outer * Math.cos(ang)} y2={CY + outer * Math.sin(ang)}
-                  stroke={t === 50 ? '#64748b' : '#334155'}
+                  stroke={t === 50 ? 'var(--text-muted)' : 'var(--border-accent)'}
                   strokeWidth={t === 50 ? 1.1 : 0.7} />
           )
         })}
@@ -101,12 +101,12 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
                 transform={`rotate(-90 ${CX} ${CY})`}
                 style={{ filter: colors.dim ? 'none' : `drop-shadow(0 0 ${colors.glow ? 7 : 3}px ${color}66)`,
                          transition: 'stroke-dashoffset .4s ease' }} />
-        <text x={CX} y={norm == null ? CY + 4 : CY - 1} textAnchor="middle" fill="#e8eef6"
+        <text x={CX} y={norm == null ? CY + 4 : CY - 1} textAnchor="middle" fill="var(--text-bright)"
               fontFamily="Instrument Sans, sans-serif" fontWeight="800"
               fontSize={valueFont(value)}>{value}</text>
         {norm != null && (
           <text data-testid={`rings-rank-${metric.key}`}
-                x={CX} y={CY + 12} textAnchor="middle" fill="#64748b"
+                x={CX} y={CY + 12} textAnchor="middle" fill="var(--text-muted)"
                 fontFamily="Instrument Sans, sans-serif" fontWeight="700" fontSize="8">
             {`${Math.round(norm)}/100`}
           </text>
@@ -133,7 +133,7 @@ export default function RingsView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="rings-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`Arc = ${normBasis(rows.length)} · the number is today’s reading`}
       </div>

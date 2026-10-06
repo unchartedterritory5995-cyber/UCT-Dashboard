@@ -50,7 +50,7 @@ export default function MetersView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="meters-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`Marker = ${normBasis(rows.length)}`}
         {hasPrev ? ' · the faint mark is where it sat three sessions back' : ''}
@@ -134,7 +134,7 @@ export default function MetersView({
                                 transition: 'left .4s ease' }} />
                 )}
               </div>
-              <span style={{ font: '800 14px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)',
+              <span style={{ fontWeight: 800, fontSize: 'var(--text-lg)', fontFamily: 'var(--font-sans)', color: 'var(--text-bright)',
                              fontVariantNumeric: 'tabular-nums', overflow: 'hidden',
                              whiteSpace: 'nowrap' }}>
                 {m.getFmt(currentRow)}

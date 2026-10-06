@@ -17,6 +17,7 @@ import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
 import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
+import { useThemeInk, SEMANTIC_INK } from '../lib/theme'
 
 const fetcher = url => fetch(url).then(r => r.json())
 // The leadership read THROWS on failure (jsonFetcher: non-2xx, network, 30 s deadline). With
@@ -140,20 +141,24 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
   const hasStructured = !!(item.company_desc || item.catalyst_text || item.price_action)
   const legacyThesis  = item.thesis ?? ''
 
+  // Canvas (lightweight-charts) inks: the app's gain / loss tokens, resolved for
+  // the member's theme and re-resolved on a switch.
+  const ink = useThemeInk({ gain: SEMANTIC_INK.gain, loss: SEMANTIC_INK.loss })
+
   const chartMarkers = useMemo(() => {
     const m = []
     if (posData?.entry_date) {
-      m.push({ time: posData.entry_date, position: 'belowBar', color: '#3cb868', shape: 'arrowUp', text: 'BUY' })
+      m.push({ time: posData.entry_date, position: 'belowBar', color: ink.gain, shape: 'arrowUp', text: 'BUY' })
     }
     return m
-  }, [posData])
+  }, [posData, ink])
 
   const chartPriceLines = useMemo(() => {
     const lines = []
-    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: '#3cb868', lineStyle: 2, title: `Entry $${posData.entry_price.toFixed(2)}` })
-    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: '#e74c3c', lineStyle: 2, title: `Stop $${posData.stop_price.toFixed(2)}` })
+    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry $${posData.entry_price.toFixed(2)}` })
+    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop $${posData.stop_price.toFixed(2)}` })
     return lines
-  }, [posData])
+  }, [posData, ink])
 
   return (
     <div className={`${styles.card} ${expanded ? styles.cardOpen : ''}`}>

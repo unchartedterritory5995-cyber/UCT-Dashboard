@@ -101,7 +101,7 @@ export default function HeatRibbonView({
   if (!metrics.length) {
     return (
       <div data-testid="ribbon-refusal"
-           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
+           style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
         {ALL_METRICS_HIDDEN}
       </div>
     )
@@ -131,7 +131,7 @@ export default function HeatRibbonView({
          style={{ height: '100%', minHeight: 0, padding: '12px 18px', position: 'relative',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="ribbon-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {basis}
       </div>
@@ -208,7 +208,7 @@ export default function HeatRibbonView({
              style={{ position: 'absolute', top: 0, bottom: 0, width: 1, pointerEvents: 'none',
                       left: `calc(${STRIP_LEFT}px + (100% - ${STRIP_LEFT}px) * ${(head + 0.5) / win.length})`,
                       background: 'color-mix(in srgb, var(--text-heading) 92%, transparent)',
-                      boxShadow: '0 0 0 1px rgba(2,6,12,0.65)' }} />
+                      boxShadow: '0 0 0 1px color-mix(in srgb, var(--bg) 65%, transparent)' }} />
       </div>
       </div>
       <HoverReadout tipRef={tipRef} styleKey="ribbon" />

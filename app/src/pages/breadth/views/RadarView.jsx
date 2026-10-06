@@ -106,7 +106,7 @@ export default function RadarView({
   if (!currentRow || (metrics?.length ?? 0) < 3) {
     return (
       <div data-testid="radar-refusal"
-           style={{ padding: 24, color: 'var(--text-muted)', font: '600 12px Instrument Sans, sans-serif' }}>
+           style={{ padding: 24, color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)' }}>
         Radar needs at least 3 visible metrics — enable more in Customize.
       </div>
     )
@@ -170,7 +170,7 @@ export default function RadarView({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
                   padding: '12px 18px' }}>
       <div data-testid="radar-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 4, flex: '0 0 auto' }}>
         {`Spoke length = ${normBasis(rows.length)} · rings at ${NORM_TICKS.filter(t => t > 0).join(' · ')}`}
         {ghostMoved ? ' · the dashed shape is three sessions back' : ''}
@@ -188,7 +188,7 @@ export default function RadarView({
           {/* Scale rings — every tick the other boards mark. */}
           {NORM_TICKS.filter(t => t > 0).map(t => (
             <polygon key={`ring-${t}`} fill="none"
-                     stroke={t === 100 ? '#243247' : '#1b2534'} strokeWidth={t === 100 ? 1.2 : 1}
+                     stroke={t === 100 ? 'var(--border-accent)' : 'var(--border)'} strokeWidth={t === 100 ? 1.2 : 1}
                      vectorEffect="non-scaling-stroke"
                      points={asPoints(shown.map((_, i) => pt(i, R * t / 100)))} />
           ))}
@@ -198,20 +198,20 @@ export default function RadarView({
             return (
               <g key={`spoke-${i}`}>
                 <line x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)}
-                      stroke="#1b2534" vectorEffect="non-scaling-stroke" />
+                      stroke="var(--border)" vectorEffect="non-scaling-stroke" />
                 {/* ⭐ THE SPOKE CONTINUES TO ITS OWN CAPTION. The caption ellipse
                     is wider than the ring on purpose — that is what spends a
                     2.2:1 panel's width — and without this the span between a
                     vertex and the name of the thing it measures is a gap the
                     reader has to bridge by eye. */}
                 <line x1={x.toFixed(1)} y1={y.toFixed(1)} x2={lx.toFixed(1)} y2={ly.toFixed(1)}
-                      stroke="#141b26" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+                      stroke="var(--border)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
               </g>
             )
           })}
           {showScale && NORM_TICKS.filter(t => t > 0).map(t => (
             <text key={`sc-${t}`} data-radar-scale={t} x={CX - 6} y={CY - R * t / 100 + 3}
-                  textAnchor="end" fill="#4b5a70" fontSize={SCALE_FS} fontWeight="700"
+                  textAnchor="end" fill="var(--text-muted)" fontSize={SCALE_FS} fontWeight="700"
                   fontFamily="Instrument Sans, sans-serif">{t}</text>
           ))}
           {/* ⛔ A DASHED OUTLINE, NEVER A SECOND FILL. Two filled polygons on one
@@ -242,12 +242,12 @@ export default function RadarView({
                     fontSize={LABEL_FS} fontWeight="700" fontFamily="Instrument Sans, sans-serif"
                     style={{ cursor: clickable ? 'pointer' : 'default' }}
                     onClick={clickable ? () => onDrill(m) : undefined}>
-                <tspan x={x} fill={isSignal ? '#c9a84c' : isNotable ? colors.tier.a : '#94a3b8'}>
+                <tspan x={x} fill={isSignal ? 'var(--ut-gold)' : isNotable ? colors.tier.a : 'var(--text-muted)'}>
                   {isSignal ? '★ ' : ''}{m.label}
                 </tspan>
                 {/* ⭐ THE NUMBER, BESIDE THE NAME. A vertex on a numbered ring is
                     readable; a vertex plus its reading needs no ring at all. */}
-                <tspan x={x} dy={LINE_GAP} fill="#cbd5e1" fontSize={VALUE_FS} fontWeight="800">
+                <tspan x={x} dy={LINE_GAP} fill="var(--text-bright)" fontSize={VALUE_FS} fontWeight="800">
                   {m.getFmt(currentRow)}
                 </tspan>
               </text>
