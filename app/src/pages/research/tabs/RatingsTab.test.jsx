@@ -42,7 +42,7 @@ describe('RatingsTab', () => {
   it('shows an entity-unresolved note when Entity Master has not linked the symbol', () => {
     data.entity = { status: 'ambiguous', entityId: null }
     render(<RatingsTab sym="AAPL" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('ambiguous')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
     data.entity = { status: 'resolved', entityId: 'em_aapl' }
   })
 })

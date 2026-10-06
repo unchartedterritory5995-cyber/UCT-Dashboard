@@ -65,7 +65,7 @@ export default function RatingsTab({ sym }) {
     <div className={styles.finWrap}>
       {r.entity && r.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({r.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 

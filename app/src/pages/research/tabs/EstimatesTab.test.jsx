@@ -49,7 +49,7 @@ describe('EstimatesTab -- entity + empty state', () => {
     }))
     const { default: FreshEstimatesTab } = await import('./EstimatesTab')
     render(<FreshEstimatesTab sym="ZZZ" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
   })
 
   it('shows the empty-state note when forward and revisions are both empty', async () => {

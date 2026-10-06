@@ -337,7 +337,7 @@ export default function EarningsResearchModal({
           data-testid="entity-unresolved-note"
           style={{ fontSize: 11, color: 'var(--text-muted)', padding: '0 16px' }}
         >
-          Symbol not yet linked to a canonical identity ({row.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       {/* ONE sub-head band, not two. The session line and the chart action used

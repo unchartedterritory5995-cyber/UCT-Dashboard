@@ -99,7 +99,7 @@ function AskAiTurnResult({ data }) {
         <div data-testid="ask-ai-answer">
           {data.entity && data.entity.status !== 'resolved' && (
             <div className={styles.muted} style={{ fontSize: 11, marginBottom: 6 }} data-testid="entity-unresolved-note">
-              Symbol not yet linked to a canonical identity ({data.entity.status}).
+              This symbol is not yet linked to a company record, so some sources below may not match it.
             </div>
           )}
 

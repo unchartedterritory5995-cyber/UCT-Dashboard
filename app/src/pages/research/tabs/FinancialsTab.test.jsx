@@ -54,7 +54,7 @@ describe('FinancialsTab -- S3 continuation (owner authorization, 2026-09-03)', (
     }))
     const { default: FreshFinancialsTab } = await import('./FinancialsTab')
     render(<FreshFinancialsTab sym="ZZZ" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
   })
 
   it('never renders Provenance/FreshnessBadge on this tab -- no D1-sourced value exists here yet', async () => {
