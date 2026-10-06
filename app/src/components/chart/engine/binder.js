@@ -65,6 +65,7 @@ import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
+import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
@@ -300,7 +301,7 @@ export function displacedColumn(column, d) {
  *  string the host lane's palette uses for its `na` leaf. */
 const PACKED_NA_POINT = 'rgba(0, 0, 0, 0)'
 
-function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
+function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
     const time = adjustTime(bars[i].t)
@@ -315,7 +316,7 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
     // ⚰️ THIS SAID A NON-FINITE CONDITION GETS NO COLOUR AT ALL, and drew the
     // series colour there. Owner ruling 2 (2026-09-28) replaced it with Pine's
     // rule — an `na` condition takes the ELSE branch — see `pointColour`.
-    const colour = pointColour(colColors, condColumn, i)
+    const colour = pointColour(colColors, condColumn, i, unknownNone)
     if (colour) { out[i] = { time, value: v, color: colour }; continue }
     // ⭐⭐ RT6 — a run's `na` colour draws NOTHING at that point (TradingView
     // hides a plot point whose colour is `na`) — the transparent entry a
@@ -338,7 +339,7 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
  * never a guess). ⛔ What they must never differ on is WHICH bars have a colour
  * and WHICH colour it is; that is this function, and there is one of it.
  */
-function pointColour(colColors, condColumn, i) {
+function pointColour(colColors, condColumn, i, unknownNone = false) {
   if (!colColors || !condColumn) return null
   const c = condColumn[i]
   // ⭐⭐ A PALETTE: the column is the entry's index. ⛔ An index outside the
@@ -369,8 +370,31 @@ function pointColour(colColors, condColumn, i) {
   // coloDN` over a `var` state this engine holds as NaN for its 250-bar seed
   // window, and on those bars TradingView drew coloDN (`#ec5610`) where we drew
   // the pane's gold — 195 of 577 bars (RDDT 1D, 2026-09-28).
-  if (!Number.isFinite(c)) return colColors.down
+  //
+  // ⭐⭐ P1 — …EXCEPT IN A DOCUMENT WHOSE UNKNOWN IS UNKNOWN (`meta.semantics: 2`,
+  // a native formula saved since P0G). There an unknown condition is NOT false —
+  // the evaluator refused to launder it to 0 — and painting the else colour
+  // would be the presentation layer laundering it after all ("the bar was
+  // false"). So `unknownNone` makes an unknown condition NO condition colour:
+  // a plot falls back to its series colour, a fill / bgcolor / barcolor draws
+  // nothing (`unknownColourRule`). ⛔ Pine translations and legacy documents are
+  // semantics 1 and keep owner ruling 2 byte for byte (vendor-measured).
+  if (!Number.isFinite(c)) return unknownNone ? null : colColors.down
   return c !== 0 ? colColors.up : colColors.down
+}
+
+/**
+ * ⭐⭐ P1 — WHAT AN UNKNOWN CONDITION PAINTS, decided ONCE per definition.
+ *
+ * `true` ⇒ an unknown (NaN) condition draws NO condition-driven colour on any
+ * channel (a semantics-2 native document): a line point keeps the plot's own
+ * colour, a marker keeps the plot's own colour, a fill / bgcolor / barcolor
+ * draws nothing. `false` ⇒ Pine's `na`-takes-else rule (owner ruling 2) for
+ * every Pine translation and every legacy (semantics 1) document, unchanged.
+ * Exported so the truth matrix grades the rule the chart draws with.
+ */
+export function unknownColourRule(def) {
+  return semanticsOf(def) === SEMANTICS_UNKNOWN_PROPAGATES
 }
 
 /**
@@ -410,20 +434,20 @@ export function paintRenderColours(paint, colours, n) {
   return out
 }
 
-export function paintColoursFor(paint, instanceId, columns, n) {
+export function paintColoursFor(paint, instanceId, columns, n, { unknownNone = false } = {}) {
   if (!paint) return null
-  if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n)
+  if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n, unknownNone)
   const c = staticPaintColour(paint)
   return c ? new Array(n).fill(c) : null
 }
 
-function fillColours(fillSpec, instanceId, columns, n) {
+function fillColours(fillSpec, instanceId, columns, n, unknownNone = false) {
   const cc = columnColorsForPlot(fillSpec)
   if (!cc) return null
   const cond = columns.get(bindingKey(instanceId, cc.key))
   if (!cond) return null
   const out = new Array(n)
-  for (let i = 0; i < n; i += 1) out[i] = pointColour(cc, cond, i)
+  for (let i = 0; i < n; i += 1) out[i] = pointColour(cc, cond, i, unknownNone)
   return out
 }
 
@@ -734,6 +758,10 @@ export function createBinder({ chart, LWC }) {
    *  signature, and the capability they were handed to, so a release clears them. */
   let barColourSig = null
   let barColourSink = null
+  /** ⭐ P1 — a monotonic attach counter: a layer's `seq` is when it was last
+   *  attached to its host, so the stacking on screen can be compared with the
+   *  priority order (`syncPaints`). */
+  let paintSeq = 0
 
   const clearPaints = () => {
     for (const [, L] of paintLayers) attempt(() => L.host.detachPrimitive(L.handle.primitive))
@@ -768,6 +796,8 @@ export function createBinder({ chart, LWC }) {
     let times = null
     const timesOf = () => (times || (times = bars.map((bar) => adjustTime(bar.t))))
     const alive = new Set()
+    /** The bgcolor layer keys in priority order (lowest first). */
+    const paintOrder = []
     const overrides = new Map()
     const conflicts = new Set()
     const hide = ctx.indicatorsHidden === true
@@ -794,7 +824,7 @@ export function createBinder({ chart, LWC }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
-        const computed = paintColoursFor(p, inst.instanceId, columns, n)
+        const computed = paintColoursFor(p, inst.instanceId, columns, n, { unknownNone: unknownColourRule(def) })
         if (!computed) return
         const colours = paintRenderColours(p, computed, n)
         if (p.kind === 'bgcolor') {
@@ -809,9 +839,11 @@ export function createBinder({ chart, LWC }) {
           if (!L) {
             const handle = createBackgroundPrimitive({})
             attempt(() => host.attachPrimitive(handle.primitive))
-            L = { host, handle, sig: null }
+            paintSeq += 1
+            L = { host, handle, sig: null, seq: paintSeq }
             paintLayers.set(key, L)
           }
+          paintOrder.push(key)
           const sig = colours.join('|') + '#' + n + ':' + (n ? bars[n - 1].t : '')
           if (L.sig !== sig) {
             L.sig = sig
@@ -838,6 +870,33 @@ export function createBinder({ chart, LWC }) {
       if (alive.has(key)) continue
       attempt(() => L.host.detachPrimitive(L.handle.primitive))
       paintLayers.delete(key)
+    }
+    // ⭐⭐ P1 — BACKGROUND PRIORITY IS THE INSTANCE ORDER, NOT THE ATTACH HISTORY.
+    // A series draws its primitives in attach order (later on top), and layers are
+    // created lazily — so before this, which of two scripts' backgrounds sat on
+    // top depended on which happened to be shown first (a hide/show or a reorder
+    // left the stale stacking). Now every host's layers are stacked in
+    // `paintOrder` — instances in their stored order (`cs.indicatorInstances`,
+    // the binder's bind order), each instance's paints in source order — so the
+    // LATER instance / LATER paint is always on top. Re-attached only when the
+    // stacking differs, so a steady chart costs nothing.
+    const byHost = new Map()
+    for (const key of paintOrder) {
+      const L = paintLayers.get(key)
+      if (!L) continue
+      if (!byHost.has(L.host)) byHost.set(L.host, [])
+      byHost.get(L.host).push(key)
+    }
+    for (const [host, keys] of byHost) {
+      const stacked = keys.map((k) => paintLayers.get(k))
+      const inOrder = stacked.every((L, i) => i === 0 || stacked[i - 1].seq < L.seq)
+      if (inOrder) continue
+      for (const L of stacked) attempt(() => host.detachPrimitive(L.handle.primitive))
+      for (const L of stacked) {
+        attempt(() => host.attachPrimitive(L.handle.primitive))
+        paintSeq += 1
+        L.seq = paintSeq
+      }
     }
     if (typeof ctx.setBarColours === 'function') {
       barColourSink = ctx.setBarColours
@@ -1840,15 +1899,18 @@ export function createBinder({ chart, LWC }) {
       const palette = cc && cc.palette ? cc.palette.join('|')
         : (cc && cc.gradient ? `gradient:${cc.gradient.sig}`
           : (cc && cc.packed ? cc.packed.sig : null))
+      // ⭐ P1 — what an unknown condition paints is the DOCUMENT's rule.
+      const unknownNone = unknownColourRule(b.def)
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would
       // serve the previous pass's colours — the memo would be answering a
       // question nobody asked.
       if (m && m.column === column && m.bars === bars && m.adjustTime === adjustTime
-          && m.up === up && m.down === down && m.palette === palette && m.cond === cond) return m.points
-      const points = toPoints(column, bars, adjustTime, sc, cc, cond)
-      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, points })
+          && m.up === up && m.down === down && m.palette === palette && m.cond === cond
+          && m.unknownNone === unknownNone) return m.points
+      const points = toPoints(column, bars, adjustTime, sc, cc, cond, unknownNone)
+      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, unknownNone, points })
       return points
     }
 
@@ -2122,7 +2184,7 @@ export function createBinder({ chart, LWC }) {
             color: colour.color, opacity: colour.opacity,
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
-            colors: displacedColumn(fillColours(fillSpec, b.instanceId, columns, bars.length), ownShift),
+            colors: displacedColumn(fillColours(fillSpec, b.instanceId, columns, bars.length, unknownColourRule(b.def)), ownShift),
           })
         }
       }
@@ -2182,7 +2244,7 @@ export function createBinder({ chart, LWC }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(fillColours(hp.fill, b.instanceId, columns, bars.length), drawShiftOf(hp)),
+            colors: displacedColumn(fillColours(hp.fill, b.instanceId, columns, bars.length, unknownColourRule(b.def)), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
@@ -2232,6 +2294,7 @@ export function createBinder({ chart, LWC }) {
             condColumn: cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null,
             colorUp: cc ? cc.up : null,
             colorDown: cc ? cc.down : null,
+            unknownNone: unknownColourRule(b.def),
           })))
         }
       }
