@@ -168,7 +168,7 @@ Runs happen in a child process. A HOLD file parks runs without a deploy. The run
 (with timings, CPU and peak memory) and the final state are kept in `ROOT/ledger.db`. Restarting a run with the same
 id resumes at its first incomplete stage.
 
-**Schedule.** Tue–Sat 01:15 ET (`MCAP_PIT_REFRESH_CRON_ET`), after SEC's bulk files and after the last session's
+**Schedule.** Tue–Sat 06:15 ET (`MCAP_PIT_REFRESH_CRON_ET`; owner approval 2026-10-06 -- after the D+1 06:00 ET due boundary, which is unchanged), after SEC's bulk files and after the last session's
 close.
 
 **Codified acquisition.** The candidate's inputs had been assembled by hand. These steps are now code:
@@ -548,7 +548,7 @@ Materialization cache: 2 x ~700 MB (pruned). Runs: ~3.4 GB data + ~2.9 GB SEC bu
 successful runs + the authority's run (without it a daily refresh fills the 77 GB free volume in < 2 weeks).
 Measured: SEC companyfacts 04:23Z, submissions 04:31Z (2026-10-06); official grouped daily for D available by D+1
 03:53Z at the latest; reference pull 1-3.5 h; build + harvests 30-75 min. A session is appendable only once due
-(MCAP_PIT_DUE_ET, 06:00 ET), so the current 01:15 ET cron can never append the session that just closed.
+(MCAP_PIT_DUE_ET, 06:00 ET), so the former 01:15 ET cron could never append the session that just closed (now 06:15 ET; `test_schedule_due.py`).
 Recommendation: cron 06:15 ET Tue-Sat (after the 06:00 ET due time and SEC's ~00:30 ET bulk), CURRENT by ~09:00-10:00
 ET; or set MCAP_PIT_DUE_ET=02:00 with the cron at 02:15 ET (finality is now proven by the official aggregate, not by
 the clock) for CURRENT by ~05:00-07:00 ET.

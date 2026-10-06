@@ -410,16 +410,17 @@ def test_scheduler_catch_up_after_a_restart(tmp_path, monkeypatch):
     from api.services.marketcap import schedule as SCH
     et = ZoneInfo("America/New_York")
     L = RF.Ledger(str(tmp_path))
-    wed_0300 = datetime(2026, 10, 7, 3, 0, tzinfo=et)                      # fire was Wed 01:15 ET
-    assert SCH.last_fire(wed_0300) == datetime(2026, 10, 7, 1, 15, tzinfo=et)
-    assert SCH.last_fire(datetime(2026, 10, 5, 12, 0, tzinfo=et)) == datetime(2026, 10, 3, 1, 15, tzinfo=et)  # Mon -> Sat
+    monkeypatch.delenv("MCAP_PIT_REFRESH_CRON_ET", raising=False)
+    wed_0300 = datetime(2026, 10, 7, 8, 0, tzinfo=et)                      # fire was Wed 06:15 ET (the default)
+    assert SCH.last_fire(wed_0300) == datetime(2026, 10, 7, 6, 15, tzinfo=et)
+    assert SCH.last_fire(datetime(2026, 10, 5, 12, 0, tzinfo=et)) == datetime(2026, 10, 3, 6, 15, tzinfo=et)  # Mon -> Sat
     assert SCH.catch_up_reason(str(tmp_path), wed_0300).startswith("missed fire")
-    assert SCH.catch_up_reason(str(tmp_path), datetime(2026, 10, 7, 9, 0, tzinfo=et)) is None   # past the window
+    assert SCH.catch_up_reason(str(tmp_path), datetime(2026, 10, 7, 13, 0, tzinfo=et)) is None   # past the window
     with L.db:
-        L.db.execute("INSERT INTO run(run_id, state, started_at) VALUES ('run-x', 'PUBLISHED_NOT_ADVANCED', '2026-10-07T05:16:00Z')")
+        L.db.execute("INSERT INTO run(run_id, state, started_at) VALUES ('run-x', 'PUBLISHED_NOT_ADVANCED', '2026-10-07T10:16:00Z')")
     assert SCH.catch_up_reason(str(tmp_path), wed_0300) is None                                 # it ran
     with L.db:
-        L.db.execute("INSERT INTO run(run_id, state, started_at) VALUES ('run-y', 'RUNNING', '2026-10-07T05:20:00Z')")
+        L.db.execute("INSERT INTO run(run_id, state, started_at) VALUES ('run-y', 'RUNNING', '2026-10-07T10:20:00Z')")
     assert SCH.catch_up_reason(str(tmp_path), wed_0300) == "interrupted run"
     assert SCH.catch_up_reason(str(tmp_path / "unprovisioned"), wed_0300) is None
 

@@ -6,7 +6,7 @@ V5's PUBLISHED manifest in that bucket, source kind `v5_published` -- V5's own p
 so its live.db is not on this volume). Nothing here runs on the web pod, a laptop or a shell.
 
 Registers NOTHING unless MCAP_PIT_REFRESH=1 AND the refresh root (MCAP_PIT_ROOT, default /data/marketcap_v1) holds a
-refresh.json. One job: a full refresh at MCAP_PIT_REFRESH_CRON_ET (default 01:15 ET, Tue-Sat -- after SEC's nightly bulk
+refresh.json. One job: a full refresh at MCAP_PIT_REFRESH_CRON_ET (default 06:15 ET, Tue-Sat -- after the D+1 06:00 ET due boundary and SEC's nightly bulk
 files, ~00:30 ET measured 2026-10-03, and after the last session's close). The run executes in a CHILD PROCESS
 (`python -m api.services.marketcap.refresh run`) so its memory is returned to the OS and a crash cannot take the worker.
 
@@ -56,8 +56,17 @@ CATCHUP_DELAY_S = 120
 
 
 def _cron():
-    hh, mm = os.environ.get("MCAP_PIT_REFRESH_CRON_ET", "01:15").split(":")
+    # 06:15 ET (owner approval 2026-10-06): a session D is not DUE until D+1 06:00 ET (currentness.DUE_ET, the
+    # finality boundary, unchanged); a run before that can only append D-1 -- the old 01:15 always trailed a session
+    hh, mm = os.environ.get("MCAP_PIT_REFRESH_CRON_ET", "06:15").split(":")
     return int(hh), int(mm)
+
+
+def cron_after_due() -> bool:
+    """The configured run time is at or after the due boundary (a run then always sees the just-closed session due)."""
+    from .currentness import DUE_ET
+    dh, dm = (int(x) for x in DUE_ET.split(":"))
+    return _cron() >= (dh, dm)
 
 
 def last_fire(now_et):
@@ -98,6 +107,9 @@ def catch_up_reason(root_dir: str, now_et=None) -> str | None:
 
 def register(scheduler) -> list[str]:
     from apscheduler.triggers.cron import CronTrigger
+    if not cron_after_due():
+        print(f"[marketcap_v1] MCAP_PIT_REFRESH_CRON_ET {_cron()} is before the due boundary -- NOT registering", flush=True)
+        return []
     hh, mm = _cron()
     scheduler.add_job(_job, trigger=CronTrigger(day_of_week="tue-sat", hour=hh, minute=mm, timezone="America/New_York"),
                       id=JOB_ID, max_instances=1, coalesce=True, replace_existing=True, misfire_grace_time=4 * 3600)
