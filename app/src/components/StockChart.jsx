@@ -137,6 +137,8 @@ import {
 import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
+// ⭐ P2 Track B — Create Indicator's ephemeral live-chart preview (a READ VIEW).
+import { withPreviewInstance, stripPreview } from './chart/builder/studio/chartPreview'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -5018,6 +5020,11 @@ export default function StockChart({
     // to computeSMA/computeEMA's read guard. Reverts a bad length to the prior valid
     // one (or 20). Same-reference on the common path, so no needless churn.
     let newSettings = sanitizeOverlayPeriods(incoming, cs)
+    // ⛔⛔ THE CREATE INDICATOR PREVIEW NEVER REACHES STORAGE. It lives only in
+    // `csView` (below), so no writer that spreads `{...cs}` can carry it — this is
+    // the defence in depth for one that reads the view by mistake, or a pane-size
+    // drag on the preview's own pane. Identity when there is nothing to strip.
+    newSettings = stripPreview(newSettings)
     // ⛔⛔ AN ECONOMIC PRIMARY'S DERIVED VIEW NEVER REACHES STORAGE. Its companion
     // instance (`econp:`) is stripped, and the scalar chart-type clamp is undone
     // when the write carried it through unchanged — so a member who edits a
@@ -5174,6 +5181,11 @@ export default function StockChart({
       // any other way. Returns `false` on a read-only chart, like its neighbour.
       openFormulaBuilder: () => {
         try { return toolbarRef.current?.openFormulaBuilder?.() ?? false } catch { return false }
+      },
+      // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator", the
+      // same CALL-not-mount route; the studio is mounted inside the toolbar.
+      openCreateIndicator: () => {
+        try { return toolbarRef.current?.openCreateIndicator?.() ?? false } catch { return false }
       },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
@@ -6479,10 +6491,18 @@ export default function StockChart({
   // symbol. `cs` itself is returned (by identity) when there is no COT indicator.
   const _cotFollow = useMemo(() => cotFollowOf(sym, _miRegistry.cotSymbols),
     [sym, _miRegistry.cotSymbols])
+  // ⭐⭐ P2 TRACK B — …AND CREATE INDICATOR'S WORKING DEFINITION IS LAID OVER IT.
+  // One instance of the installed preview definition (`chartPreview.js`), set by
+  // the studio panel through the primary toolbar. Same rule as the COT view: the
+  // renderer, the legend and the pane layout read it; every write keeps using
+  // `cs`, and `handleUpdateChartSettings` strips it besides. Local state, so it
+  // dies with this chart and can never outlive the conversation that owns it.
+  const [studioPreview, setStudioPreview] = useState(null)
   const csView = useMemo(() => {
     const list = resolveCotFollow(cs.indicatorInstances, _cotFollow)
-    return list === cs.indicatorInstances ? cs : { ...cs, indicatorInstances: list }
-  }, [cs, _cotFollow])
+    const view = list === cs.indicatorInstances ? cs : { ...cs, indicatorInstances: list }
+    return withPreviewInstance(view, studioPreview)
+  }, [cs, _cotFollow, studioPreview])
   const _storedInstances = useCallback(() => csView.indicatorInstances, [csView])
   // ⭐ WHICH PANE A CHIP BELONGS TO, IN PANE-KEY UNITS. Pane keys are host
   // instance ids, so a chip's pane is: its own instance when it hosts one, or the
@@ -10566,6 +10586,14 @@ export default function StockChart({
         mkN: mergedMarkers?.length ?? 0,
         plN: allPriceLines?.length ?? 0,
         cmpN: comparisonData?.length ?? 0,
+        // ⭐ P2 Track B — WHAT `cs` CANNOT SEE. Create Indicator's preview lives in
+        // `csView` and the registry, never in `cs`, so a conversational patch
+        // ("make it 50") left this signature byte-identical, the plan read 'noop'
+        // and `_applyData` skipped the recomputed column — the chart kept drawing
+        // EMA 20 (measured in the browser). The registry generation moves on every
+        // definition install; the preview id on open/close.
+        defsGen: userDefsGeneration,
+        preview: studioPreview ? studioPreview.instanceId : null,
       })
     } catch {
       // A non-serializable setting must never break the chart — fail safe to a
@@ -20025,6 +20053,12 @@ export default function StockChart({
             chartSettings={cs}
             volumePaneFixed={volumePaneFixed}
             onUpdateSettings={handleUpdateChartSettings}
+            /* ⭐ P2 Track B — Create Indicator's preview channel (see `csView`) and
+               its Library door (Chart Settings → Indicators → Add to Chart). The
+               PRIMARY toolbar only: it is the one handed this chart's symbol. */
+            onStudioPreview={setStudioPreview}
+            anchorRef={containerRef}
+            onOpenLibrary={onOpenSettings ? () => onOpenSettings('add') : null}
             /* Charts workspace has the new settings modal (onOpenSettings) — drop
                the legacy V1 toolbar gear + its inline panel there. Other surfaces
                (no modal) keep it as their only settings entry point. */
