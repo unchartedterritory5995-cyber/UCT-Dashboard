@@ -311,3 +311,30 @@ def test_seasonality_reads_the_bar_store_in_the_hyphen_form(seasonality):
     for s in DUAL:
         c.get(f"/api/research/seasonality/{s}")
     assert asked == ["BRK-B"] * 3
+
+
+# ── people: a fund is not a vendor failure ────────────────────────────────────
+
+def test_people_for_a_fund_says_so_and_asks_no_vendor(monkeypatch):
+    from api.services import research_people, ticker_search_index
+    monkeypatch.setattr(ticker_search_index, "instrument_type", lambda s: "etf")
+    asked = []
+    monkeypatch.setattr(research_people, "_fmp_part", lambda s: asked.append(s) or {})
+    out = research_people.people("SPY", snapshot_fn=lambda s: asked.append(s) or {})
+    assert asked == []
+    assert out["not_applicable"] == "fund"
+    for part in ("executives", "compensation", "insider_roles"):
+        assert out[part]["state"] == "not_applicable" and out[part]["rows"] is None
+        assert "is a fund" in out[part]["reason"] and out[part]["source"]
+
+
+def test_people_for_an_unknown_type_still_reads_the_vendors(monkeypatch):
+    from api.services import research_people, ticker_search_index
+    monkeypatch.setattr(ticker_search_index, "instrument_type", lambda s: None)
+    asked = []
+    empty = {"state": "not_found", "rows": None, "source": "x", "reason": "r"}
+    monkeypatch.setattr(research_people, "_fmp_part",
+                        lambda s: asked.append(s) or {"executives": dict(empty), "compensation": dict(empty)})
+    monkeypatch.setattr(research_people, "_insider_roles", lambda s, f=None: dict(empty))
+    out = research_people.people("BRK-B")
+    assert asked == ["BRK-B"] and "not_applicable" not in out

@@ -220,6 +220,18 @@ def _insider_roles(sym: str, snapshot_fn: Optional[Callable[[str], dict]] = None
 
 def people(sym: str, *, snapshot_fn: Optional[Callable[[str], dict]] = None) -> dict:
     sym = (sym or "").upper().strip()
+    # A FUND HAS NO OFFICERS, NO PROXY PAY AND NO FORM 4 INSIDERS. Asked anyway, FMP
+    # answers "no rows" and the tab read "Unavailable: FMP returned no rows for this
+    # symbol" -- a vendor failure that was not one. The search index classifies the
+    # symbol in memory; an unknown type is NOT a fund and reads the vendors as before.
+    from api.services import ticker_search_index
+    if ticker_search_index.instrument_type(sym) == "etf":
+        why = f"{sym} is a fund; funds have no executives, proxy pay or Form 4 insiders"
+        na = {"state": "not_applicable", "rows": None, "reason": why, "as_of": _today()}
+        return {"ticker": sym, "not_applicable": "fund",
+                "executives": {**na, "source": SRC_EXECS},
+                "compensation": {**na, "source": SRC_COMP, "year": None},
+                "insider_roles": {**na, "source": SRC_EDGAR}}
     fmp_part = _fmp_part(sym)
     execs = dict(fmp_part["executives"])
     comp = fmp_part["compensation"]
