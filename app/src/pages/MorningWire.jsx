@@ -17,12 +17,11 @@ import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
 import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
-import UIcon from '../components/ui/UIcon'
+import UIcon, { uiconSvgString } from '../components/ui/UIcon'
 import { useInTerminalPanel } from '../components/terminal'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
-import { feedbackIconSvg } from './morningWireFeedbackIcons'
 import styles from './MorningWire.module.css'
 import jsonFetcher from '../utils/jsonFetcher'
 import { formatPercent } from '../lib/presentation/presentationPrimitives'
@@ -215,11 +214,14 @@ export default function MorningWire() {
     const date = rundown.date
     const hydrated = {}  // seg -> { verdict, note }
 
+    // The rundown is injected HTML, so the controls carry UIcon's glyphs as static
+    // markup generated from the same registry (currentColor, themed by .rd-fb CSS).
+    const fbIcon = (name) => uiconSvgString(name, { size: 14 })
     const ctrlHtml = (seg) =>
       '<span class="rd-fb">' +
-      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">${feedbackIconSvg('thumbsUp')}</button>` +
-      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">${feedbackIconSvg('thumbsDown')}</button>` +
-      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">${feedbackIconSvg('edit')}</button>` +
+      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">${fbIcon('thumbsUp')}</button>` +
+      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">${fbIcon('thumbsDown')}</button>` +
+      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">${fbIcon('edit')}</button>` +
       '</span>'
 
     // Controls on each segment label.
