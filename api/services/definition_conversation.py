@@ -48,6 +48,7 @@ import copy
 import functools
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
@@ -621,6 +622,23 @@ def check_envelope(envelope: Any, revision: int) -> Dict[str, Any]:
 # the model call
 # --------------------------------------------------------------------------- #
 
+#: UCT's OWN product nouns -- places in the app a member points at ("show it in my
+#: Info Row"), not trading concepts. The concierge's planner refuses any run of two
+#: Title-Case words as an unknown named indicator (the McGinley rule); for THIS door
+#: these phrases are lowercased first so they reach the model as ordinary words.
+#: A closed list: a phrase is added only when it names a real UCT surface.
+PRODUCT_NOUNS: Tuple[str, ...] = (
+    "Info Row", "Info Rows", "Info Value", "Info Values", "Info Bar",
+    "Chart Header", "Chart Settings", "Chart Legend",
+)
+_PRODUCT_NOUN_RE = re.compile(
+    r"\b(" + "|".join(re.escape(p) for p in PRODUCT_NOUNS) + r")\b", re.I)
+
+
+def _product_nouns_plain(message: str) -> str:
+    return _PRODUCT_NOUN_RE.sub(lambda m: m.group(0).lower(), str(message))
+
+
 def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
     """ONE Anthropic call. ⛔ ``system`` and ``tools`` are constants."""
     from api.services.engine import _get_anthropic_client
@@ -686,7 +704,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         return _refusal(refused.gate, refused.detail)
     revision = view["revision"]
 
-    understanding = dc.plan(message, dc.INDICATOR_KIND)
+    understanding = dc.plan(_product_nouns_plain(message), dc.INDICATOR_KIND)
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
     if not understanding["understood"]:

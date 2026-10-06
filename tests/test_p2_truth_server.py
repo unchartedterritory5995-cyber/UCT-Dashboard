@@ -718,3 +718,21 @@ def test_36_SCENARIO_eight_turns_through_the_endpoint_each_envelope_validates(co
     # every call carried the same constant system prompt and tool
     assert len({c["system"] for c in client.calls}) == 1
     assert all(c["tools"] == [conv.anthropic_tool()] for c in client.calls)
+
+
+def test_P2_integration_UCT_product_nouns_are_not_refused_as_unknown_indicators(conv, model):
+    """ASKED (browser acceptance, turn 7): "Show me the RSI value in my Info Row." ·
+    BEFORE: the planner's Title-Case rule refused "Info Row" as an unknown named
+    indicator and the turn died with no model call · NOW: UCT's own surface nouns
+    reach the model as plain words; an unknown Title-Case indicator name is STILL
+    refused by name (the McGinley rule is untouched)."""
+    e = env(1, [{"op": "request_info_value", "output": "value", "format": "auto"}])
+    client = model([emits(e)])
+    r = conv.converse("Show me the RSI value in my Info Row.", user_id="u1",
+                      view=view(1, [out("value", RSI_GT_70)]))
+    assert r["ok"] is True and r["turn"] == "patch"
+    assert "info row" in _block(client.calls[0]["messages"][0]["content"], "uct_member_request")
+    model([])
+    r = conv.converse("Use the McGinley Dynamic instead", user_id="u1",
+                      view=view(1, [out("value", RSI_GT_70)]))
+    assert r["ok"] is False
