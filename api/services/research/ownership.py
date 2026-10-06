@@ -320,6 +320,23 @@ def _fetch_yf(sym):
 
 
 def get_ownership(sym):
+    """S6 (terminal backend fixes, 2026-10-05): a cold symbol is composed ONCE however
+    many members open it at the same moment. The cache answers first; on a miss the
+    first caller builds and the rest wait for its result (`single_flight`), so N cold
+    opens cost one vendor walk instead of N on the shared threadpool. A follower that
+    waits past the single-flight bound raises, and the route answers that as a failed
+    read rather than an empty record."""
+    s = (sym or "").upper().strip()
+    if not s:
+        return {}
+    cached = cache.get(f"research_own::{s}")
+    if cached is not None:
+        return cached
+    from api.services import single_flight
+    return single_flight.run(f"research_own::{s}", lambda: _build_ownership(s))
+
+
+def _build_ownership(sym):
     sym = (sym or "").upper().strip()
     if not sym:
         return {}

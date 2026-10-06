@@ -43,9 +43,8 @@ def call_replay_route(sym: str,
                       year: Optional[int] = Query(default=None, ge=2000, le=2100),
                       quarter: Optional[int] = Query(default=None, ge=1, le=4),
                       _user: dict = Depends(require_paid)):
-    s = (sym or "").upper().strip()
-    if not _SYM_RE.match(s):
-        raise HTTPException(status_code=400, detail="Not a ticker")
+    from api.services.ticker_resolver import require_route_symbol
+    s = require_route_symbol(sym)
     if (year is None) != (quarter is None):
         raise HTTPException(status_code=400, detail="Give both year and quarter, or neither")
     from api.services import call_replay as svc

@@ -1,5 +1,5 @@
 import useSWR from 'swr'
-import { depthFetcher } from './depthFetch'
+import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
@@ -19,8 +19,9 @@ const big = (v) => {
 
 export default function BrokerEstimatesPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  usePendingReask(data?.state === 'pending', mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>

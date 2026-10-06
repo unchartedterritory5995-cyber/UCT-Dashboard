@@ -110,4 +110,6 @@ server. Times are wall-clock from the browser.
 | L9 calendar | No change | `my-sets` is four local reads (watchlists, flagged, open positions, cached wire data); its 14 s was queueing behind the boot burst (L13), not compute. `next-report` is one FMP/Finnhub call per symbol, cached 6 h and fired on selection only. |
 | L9 research | Research lane | `research/history`, seasonality, RTG are on `fix/terminal-backend-research`. |
 | L13 | Not built | The shared reads are already warmed on boot; the per-member ones cannot be. A single boot endpoint would change every panel's data hook, so it is a design decision, not a speed fix. |
-| S6, S8, S10 | Held | Not assigned to either agent, but S6 and S8 touch the research lane's files and S10 the options lane's, so they wait until those branches are merged. |
+| S6 | Fixed `dcdf7cd77` | Financials, estimates, ownership and ratings build a cold symbol once (single-flight on the cache key); ratings' three reads run side by side. |
+| S8 | Fixed `95e5d34fd` | The earnings window behind MOVE and the watchlist card is memoized per ET day: 10 min, 1 min when a day failed. |
+| S10 | Fixed `0b1d2ee10` | The row cache already had a cap but cleared wholesale; it and the uncapped prints cache are now LRUs (4,096 and 512). |

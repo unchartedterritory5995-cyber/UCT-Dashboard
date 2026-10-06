@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './SeasonalityTab.module.css'
@@ -36,12 +37,39 @@ function Table({ caption, rows, nLabel, thinNote }) {
   )
 }
 
+// L8 + live sweep 2026-10-05: a COLD read answers 503 with Retry-After while the full daily
+// history is still being read (the server refuses to compute from a partial read). That is a
+// wait, not a failure: the panel says so and asks again on its own, at most PENDING_TRIES times.
+export const PENDING_TRIES = 8
+
+export async function seasonalityFetcher(url) {
+  const res = await fetch(url).catch(() => null)
+  const retryAfter = res?.status === 503 ? res.headers?.get?.('Retry-After') : null
+  if (retryAfter) {
+    const secs = Number(retryAfter) || 15
+    return { pending: true, retryAfterMs: Math.min(Math.max(secs, 2), 60) * 1000 }
+  }
+  return sectionFetcher(url)
+}
+
 export default function SeasonalityTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/seasonality/${encodeURIComponent(s)}` : null,
-    sectionFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(s ? `/api/research/seasonality/${encodeURIComponent(s)}` : null,
+    seasonalityFetcher, { revalidateOnFocus: false })
+  const tries = useRef(0)
+  useEffect(() => { tries.current = 0 }, [s])
+  useEffect(() => {
+    if (!data?.pending || tries.current >= PENDING_TRIES) return undefined
+    const t = setTimeout(() => { tries.current += 1; mutate() }, data.retryAfterMs)
+    return () => clearTimeout(t)
+  }, [data, mutate])
 
-  if (error) {
+  if (data?.pending && tries.current < PENDING_TRIES) {
+    return <div className={styles.note} data-testid="seasonality-pending">
+      Reading the full daily history for {s}… this panel fills in by itself.
+    </div>
+  }
+  if (error || data?.pending) {
     return <div className={styles.note} data-testid="seasonality-unavailable">
       Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.
     </div>

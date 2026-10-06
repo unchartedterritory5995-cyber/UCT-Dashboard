@@ -6750,6 +6750,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] exposure_gate_watch job registration error: {e}")
 
+        # -- Market tide RTH refresh (L2, terminal backend fixes 2026-10-05) --
+        # Rebuilds the tide every 2 min in the regular session so a member never opens one
+        # built at the last viewer's visit. Gated on the tide's own switch; the function owns
+        # the 09:30/16:15 and holiday boundaries (the cron over-covers on purpose).
+        try:
+            from api.services.options_analytics import flags as _oa_flags
+            if _oa_flags.is_on("OPTIONS_MARKET_TIDE_ENABLED"):
+                from api.services.options_analytics import market_tide as _tide
+                _scheduler.add_job(_tide.warm_rth,
+                    trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*/2", timezone=_ET),
+                    id="market_tide_rth_warm", max_instances=1, coalesce=True, replace_existing=True)
+                print("[startup] market-tide RTH warm: on (2-min cadence)")
+        except Exception as e:
+            print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
+
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow

@@ -559,7 +559,8 @@ export default function TerminalShell() {
       setNotice({ kind: 'error', text: `${cmd.code} is not enabled for your account yet.` })
       return null
     }
-    setFunctionRecents(pushFunctionRecent(cmd.code))
+    // Recents record a function that RAN (round 3): every refusal below returns before `ran()`.
+    const ran = () => setFunctionRecents(pushFunctionRecent(cmd.code))
     if (cmd.code === 'CMP' && cmd.compareMode === 'sector' && variant.door) {
       // FIX 2: `NVDA CMP SECTOR FOO` carries `cmd.args = ['SECTOR', 'FOO']` — this branch
       // only ever reads `sym` (the comparator is resolved server-side), so `FOO` was silently
@@ -571,6 +572,7 @@ export default function TerminalShell() {
         setNotice({ kind: 'error', text: argsEcho(cmd.code, { applied: [], ignored: leftover, takes: [] }) })
         return null
       }
+      ran()
       // V18: vs sector — the server resolves the security's sector ETF, then the SAME door.
       setNotice({ kind: 'info', text: `Finding ${sym}'s sector ETF…` })
       jsonFetcher(`/api/terminal/compare-target?sym=${encodeURIComponent(sym)}&mode=sector`)
@@ -609,6 +611,7 @@ export default function TerminalShell() {
           actions: [{ label: `Open ${cmd.code} without ${cmd.sym}`, id: 'go', to }] })
         return null
       }
+      ran()
       go(to)
       return null
     }
@@ -617,6 +620,7 @@ export default function TerminalShell() {
       setNotice({ kind: 'error', text: `${cmd.code} has no panel on this release.` })
       return null
     }
+    ran()
     // V6a: every token after the code is APPLIED or said to be NOT applied, never dropped.
     const applied = applyArgs(variant, cmd.args)
     const echo = argsEcho(cmd.code, applied)
@@ -653,7 +657,8 @@ export default function TerminalShell() {
     save(next)
     const said = [
       ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
-      redirectedFrom && `${name} is already open elsewhere on this board; @${redirectedFrom} was redirected there instead of opening a second copy.`,
+      // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
+      redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
       echo,
     ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
@@ -665,7 +670,15 @@ export default function TerminalShell() {
     return [scope === 'ticker' ? sym : null, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
   }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, save, countCommand, loadAliases])
 
-  const runTyped = useCallback((text) => { userRunRef.current = true; return run(text) }, [run])
+  // Round 3: the ref holds the panel text the typed command PUT on screen (null when it opened
+  // nothing). It used to be a bare `true` that a refused command left set, so the member's next
+  // panel click or count change became a Back-button entry.
+  const runTyped = useCallback((text) => {
+    userRunRef.current = null
+    const out = run(text)
+    userRunRef.current = out || null
+    return out
+  }, [run])
 
   // ── V6d: EVERY COMMAND IS A URL ──────────────────────────────────────────────
   // `?cmd=` reflects the focused panel. An arriving `?cmd=` (a link, a palette pick, back/
@@ -720,6 +733,7 @@ export default function TerminalShell() {
       navigate({ pathname: location.pathname, search: q ? `?${q}` : '', hash: location.hash }, { replace })
     }
     if (focusedOwnsUrl || !focusedText) {
+      userRunRef.current = null
       // Audit #1: a URL-owning panel (the calendar) never carries ANOTHER panel's `?cmd=` —
       // left there, a reload replayed that command INTO the calendar. Drop it, in place.
       // (Not in the commit an arriving command ran in: its own navigation is still landing.)
@@ -730,7 +744,7 @@ export default function TerminalShell() {
       return
     }
     const key = `${focusedText}\u0000${wantSlot ?? ''}`
-    if (urlKey === key) { urlCmdRef.current = urlKey; return }
+    if (urlKey === key) { urlCmdRef.current = urlKey; userRunRef.current = null; return }
     const now = Date.now()
     writesRef.current = writesRef.current.filter((t) => now - t < URL_WRITE_WINDOW_MS)
     if (writesRef.current.length >= URL_WRITE_BUDGET) {
@@ -750,8 +764,8 @@ export default function TerminalShell() {
     }
     writesRef.current.push(now)
     urlCmdRef.current = key
-    const push = userRunRef.current
-    userRunRef.current = false
+    const push = userRunRef.current != null && userRunRef.current === focusedText
+    userRunRef.current = null
     writeUrl((p) => {
       p.set('cmd', focusedText)
       if (wantSlot) p.set('p', String(wantSlot)); else p.delete('p')
@@ -873,8 +887,16 @@ export default function TerminalShell() {
     setNotice({ kind: 'info', text: `Closed ${layout.panels[i].code}.`, actions: [{ label: 'Undo', id: 'undo-close' }] })
   }
   const onUndoClose = () => {
-    const res = undoClose(layoutRef.current)
-    if (res.ok) { save(res.layout); setNotice(null) }
+    const cur = layoutRef.current
+    const res = undoClose(cur)
+    if (!res.ok) return
+    save(res.layout)
+    // Round 3: on a full board the re-opened panel pushes the last one OFF the board (it stays
+    // in the layout, unseen). That used to happen in silence — say where each one went.
+    const back = res.layout.panels[res.layout.focus]
+    const parked = cur.count >= MAX_VISIBLE ? cur.panels[cur.count - 1] : null
+    setNotice({ kind: 'info', text: `Re-opened ${back.code} in panel ${res.layout.focus + 1}.${parked
+      ? ` ${parked.code} moved off the board to make room; close a panel to bring it back.` : ''}` })
   }
   const onDuplicate = (i) => {
     const res = duplicatePanel(layout, i)
@@ -920,16 +942,23 @@ export default function TerminalShell() {
   const setFocus = (i) => { if (i !== layout.focus) save({ ...layout, focus: i }) }
 
   // ── the library ──
+  /** Save the board on screen. Returns what was said, so the Boards sheet (which covers the
+   *  notice line) can show it too (round 3). */
   const onSaveBoard = (name) => {
     const res = saveBoard(library, name, layout, syms)
+    let said
     if (!res.ok) {
-      setNotice({ kind: 'error', text: res.reason === 'full' ? 'You have the most saved boards allowed. Delete one first.' : 'Name the board first.' })
-      return
-    }
-    if (saveLibrary(res.library)) {
+      said = { kind: 'error', text: res.reason === 'full' ? 'You have the most saved boards allowed. Delete one first.' : 'Name the board first.' }
+    } else if (!saveLibrary(res.library)) {
+      // Round 3: an unreadable library is never written over — and that used to be silent.
+      said = { kind: 'error', text: 'Your saved boards could not be read, so this board was not saved. Open Boards, then Version history, to restore them.' }
+    } else {
+      const replaced = library.boards.some((b) => b.id === res.board.id)
       setCurrentBoard(res.board.name)
-      setNotice({ kind: 'info', text: `Saved as ${res.board.name} — open it any time with B:${res.board.slug}.` })
+      said = { kind: 'info', text: `${replaced ? `Replaced your board ${res.board.name} with this one` : `Saved as ${res.board.name}`} — open it any time with B:${res.board.slug}.` }
     }
+    setNotice(said)
+    return said
   }
   /** Undo the calendar that `/terminal/calendar` put over a panel (audit #4): the panel comes
    *  back where it was, off the closed list, and the shell leaves the calendar route. */
@@ -970,7 +999,11 @@ export default function TerminalShell() {
   // V4: Alt+1..4 focuses that panel — from the command line too (declared inEditable) —
   // and Alt+[ / Alt+] step to the previous / next panel, wrapping around.
   const setFocusRef = useRef(null)
-  setFocusRef.current = (i) => { if (i < count) setFocus(i) }
+  setFocusRef.current = (i) => {
+    if (i < count) { setFocus(i); return }
+    // Round 3: Alt+3 on a two-panel board used to do nothing at all.
+    setNotice({ kind: 'info', text: `Panel ${i + 1} is not on screen: this board shows ${count}. Choose ${i + 1} panels to add it.` })
+  }
   const stepFocusRef = useRef(null)
   stepFocusRef.current = (d) => { if (count > 1) setFocus((focus + d + count) % count) }
   useEffect(() => registerShortcuts({
@@ -1059,7 +1092,7 @@ export default function TerminalShell() {
       data-testid="terminal-shell">
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
-        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} />
+        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards} />
         {isPhone && (
           <button type="button" className={styles.barBtn} onClick={() => setSheet('functions')} data-testid="terminal-fn-button">
             Functions
@@ -1119,7 +1152,7 @@ export default function TerminalShell() {
                 aria-selected={i === focus}
                 onClick={() => setFocus(i)}
                 data-testid={`terminal-phone-switch-${i}`}
-              >{p.code}</button>
+              >{panelCommandText(p, syms) || p.code}</button>
             ))}
           </div>
           <div className={styles.counts} role="group" aria-label="Panels">
@@ -1184,7 +1217,7 @@ export default function TerminalShell() {
                     type="button"
                     className={`${styles.railItem} ${focusedCode === f.code ? styles.railItemOn : ''}`}
                     onClick={() => { runTyped(f.code); if (!isPhone) inputRef.current?.focus() }}
-                    title={f.label}
+                    title={(f.market ? f.market.leavesTerminal : f.ticker?.leavesTerminal) ? `${f.label} (opens a page outside the terminal)` : f.label}
                     data-testid={`terminal-rail-${f.code}`}
                   >
                     <span className={styles.code}>{f.code}</span>
@@ -1267,6 +1300,7 @@ export default function TerminalShell() {
         <RecentsMenu
           layout={layout}
           library={library}
+          libraryWritable={libraryWritable}
           functionRecents={functionRecents}
           onRun={(textOrSym, channelId) => {
             if (channelId) { retargetChannel(textOrSym, channelId); return }

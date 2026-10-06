@@ -348,6 +348,40 @@ def _refresh(scope: str) -> None:
         _REFRESHING.discard(scope)
 
 
+def warm_rth(now: Optional[_dt.datetime] = None) -> dict:
+    """L2 (terminal backend fixes, 2026-10-05): rebuild every scope on a fixed cadence in the
+    regular session, so the tide a member opens is never older than the cadence -- it used to be
+    rebuilt only when somebody looked, and served stale (12+ min measured) to whoever looked
+    first after a gap. Runs on the scheduler's thread, never a request's. A scope already being
+    refreshed by a request is left to that refresh.
+
+    Also the instrument for the larger lag: when the tape feeding a scope runs more than
+    TAPE_BEHIND_S behind the clock, a WARNING names the scope and the tape's last minute, so the
+    tape-side delay (flow_router's stale-while-revalidate) shows in the log with timestamps.
+    Returns {scope: "built" | "skipped" | "error: ..."} for the job's own log line."""
+    now_et = (now or _now()).astimezone(_ET)
+    out = {}
+    if today_session(now_et) is None or (now_et.hour, now_et.minute) >= (16, 15):
+        return {s: "closed" for s in SCOPES}
+    for scope in SCOPES:
+        if scope in _REFRESHING:
+            out[scope] = "skipped"
+            continue
+        _REFRESHING.add(scope)
+        _refresh(scope)
+        if scope in _ERRORS:
+            out[scope] = "error: " + _ERRORS[scope]["error"]
+            continue
+        out[scope] = "built"
+        payload = (_CACHE.get(scope) or (0, {}))[1]
+        if payload.get("tape_behind"):
+            import logging
+            logging.getLogger(__name__).warning(
+                "[market-tide] %s tape behind: data_through=%s at %s ET",
+                scope, payload.get("data_through"), now_et.strftime("%H:%M"))
+    return out
+
+
 def get(scope: str = "all") -> dict:
     """The cached tide for `scope`. Fresh: served. Stale: served with its age while ONE
     background thread rebuilds. Absent: built now (callers share one build)."""

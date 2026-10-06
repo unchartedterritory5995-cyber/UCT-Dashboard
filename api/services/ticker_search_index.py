@@ -141,22 +141,88 @@ def refresh_liquidity() -> int:
     global _LIQ, _LIQ_AT
     if not _liquidity_enabled():
         return 0
+    from datetime import datetime as _dt, timedelta as _td
+    from zoneinfo import ZoneInfo as _ZI
+    now = _dt.now(_ZI("America/New_York"))
     try:
         from api.services import bars_sqlite as _bsq
-        from datetime import datetime as _dt, timedelta as _td
-        from zoneinfo import ZoneInfo as _ZI
-        now = _dt.now(_ZI("America/New_York"))
         before = int((now + _td(days=1)).strftime("%Y%m%d"))
         floor = int((now - _td(days=90)).strftime("%Y%m%d"))
         dv = _bsq.avg_dollar_volume_bulk(20, before, floor) or {}
     except Exception as e:  # noqa: BLE001 -- a ranking aid never breaks search
         logger.warning("[ticker_search_index] liquidity refresh failed: %s", e)
-        return 0
+        dv = {}
+    # Live check 2026-10-05: bars.db holds the app's own universe, so the large foreign
+    # listings a member types (NVO, TSM, NVS) had no dollar volume and sorted behind NVA /
+    # TSI. The whole-market grouped daily bars fill ONLY the symbols bars.db lacks, from the
+    # last few settled sessions (settled days are cached to disk by massive, so this is one
+    # read per new session). bars.db stays the authority wherever it has a number.
+    try:
+        extra = _grouped_dollar_volume(now.date()) if _grouped_enabled() else {}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[ticker_search_index] grouped dollar volume failed: %s", e)
+        extra = {}
+    for k, v in extra.items():
+        dv.setdefault(k, v)
     if dv:
         with _LOCK:
             _LIQ = {str(k).upper(): float(v) for k, v in dv.items()}
             _LIQ_AT = time.time()
+    logger.info("[ticker_search_index] liquidity map: %d symbols", len(dv))
     return len(dv)
+
+
+#: How long to wait before asking bars.db again. On the web pod bars.db arrives from
+#: the R2 snapshot pull AFTER this thread starts (USE_REMOTE_BARS=1), so the first read
+#: at boot finds nothing; an empty answer is retried soon, a good one refreshed rarely.
+_LIQ_RETRY_EMPTY_S = 300
+_LIQ_REFRESH_S = 6 * 3600
+
+
+def _liquidity_loop(sleep=time.sleep) -> None:
+    while True:
+        try:
+            n = refresh_liquidity()
+        except Exception:  # noqa: BLE001 -- refresh_liquidity already never raises
+            n = 0
+        sleep(_LIQ_REFRESH_S if n else _LIQ_RETRY_EMPTY_S)
+
+
+_GROUPED_SESSIONS = 5
+
+
+def _grouped_enabled() -> bool:
+    return os.environ.get("TICKER_SEARCH_GROUPED_DOLLAR_VOLUME", "1") == "1"
+
+
+def _grouped_dollar_volume(today, sessions: int = _GROUPED_SESSIONS, fetch=None) -> dict:
+    """{TICKER: average close*volume} over the last `sessions` settled sessions before
+    `today`, from the whole-market grouped daily bars. Non-trading days answer {} and are
+    skipped; at most sessions*2+4 calendar days are asked."""
+    from datetime import timedelta as _td
+    if fetch is None:
+        from api.services import massive
+        fetch = massive.get_grouped_daily_ohlcv
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    got, d = 0, today
+    for _ in range(sessions * 2 + 4):
+        d = d - _td(days=1)
+        if d.weekday() >= 5:
+            continue
+        rows = fetch(d.isoformat()) or {}
+        if not rows:
+            continue
+        got += 1
+        for sym, r in rows.items():
+            c, v = (r or {}).get("c"), (r or {}).get("v")
+            if c and v and c > 0 and v > 0:
+                k = str(sym).upper()
+                sums[k] = sums.get(k, 0.0) + float(c) * float(v)
+                counts[k] = counts.get(k, 0) + 1
+        if got >= sessions:
+            break
+    return {k: sums[k] / counts[k] for k in sums}
 
 
 def _sort_key(rank: int, row: dict, liq: dict) -> tuple:
@@ -346,16 +412,17 @@ def start_background_build() -> None:
                 build_index()
             except Exception:
                 logger.exception("[ticker_search_index] initial build failed")
-        refresh_liquidity()
         while True:
             time.sleep(_REFRESH_TTL)
             try:
                 build_index()
             except Exception:
                 logger.exception("[ticker_search_index] periodic rebuild failed")
-            refresh_liquidity()
 
     threading.Thread(target=_loop, name="ticker-search-index", daemon=True).start()
+    # L6 fix: the dollar-volume ranking keeps its OWN loop, so a boot-time read of a
+    # not-yet-downloaded bars.db is retried in minutes instead of a day later.
+    threading.Thread(target=_liquidity_loop, name="ticker-search-liquidity", daemon=True).start()
 
 
 def ready() -> bool:
@@ -374,9 +441,21 @@ def contains(sym: str) -> bool:
         return sym.strip().upper() in _BY_SYM
 
 
+def instrument_type(sym: str) -> str | None:
+    """The built index's own classification of `sym` ("stock", "etf", "index", ...)
+    or None when the symbol is not in it or the index is not loaded yet. An in-memory
+    lookup, so a route can tell a fund apart from a company WITHOUT a vendor call.
+    ⚠️ None is "unknown", never "stock": callers must treat it as such."""
+    if not sym:
+        return None
+    with _LOCK:
+        row = _BY_SYM.get(sym.strip().upper())
+    return (row or {}).get("type") or None
+
+
 def status() -> dict:
     return {"rows": len(_INDEX), "built_at": _BUILT_AT, "building": _BUILDING,
-            "snapshot": _SNAP_PATH}
+            "snapshot": _SNAP_PATH, "liquidity_symbols": len(_LIQ), "liquidity_at": _LIQ_AT}
 
 
 # ── Search ───────────────────────────────────────────────────────────────────

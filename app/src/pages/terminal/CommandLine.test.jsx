@@ -146,6 +146,121 @@ describe('the rendered command line', () => {
   })
 })
 
+describe('shell audit round 3 (2026-10-05): the echo before Enter', () => {
+  it('a market-wide code never tells the member to type $TODAY "for the ticker" — it takes no ticker', () => {
+    for (const line of ['CAL TODAY', 'CAL NEXT', 'CAL PREV']) {
+      const e = echoFor(line)
+      expect(e.text, line).not.toMatch(/for the ticker/)
+      expect(e.text, line).not.toMatch(/\$TODAY|\$NEXT|\$PREV/)
+    }
+    // …while a code that DOES take a ticker still names the escape.
+    expect(echoFor('GP W').text).toMatch(/type \$W for the ticker/)
+  })
+
+  it('HELP with a word that is not a function says so before Enter, as Enter does', () => {
+    const e = echoFor('HELP FOO')
+    expect(e.tone).toBe('warn')
+    expect(e.text).toMatch(/Not applied: "FOO"/)
+    expect(echoFor('HELP GP').tone).toBe('ok')
+  })
+
+  it('an unknown function names the next step even when no close spelling exists', () => {
+    const e = echoFor('NVDA QQQQQQ')
+    expect(e.tone).toBe('error')
+    expect(e.text).toMatch(/Unknown function "QQQQQQ" for NVDA/)
+    expect(e.text).toMatch(/HELP/)
+  })
+
+  it('a garbage ticker and a bad @ target each say what a good one looks like', () => {
+    for (const line of ['123 DES', '<b> DES']) {
+      const e = echoFor(line)
+      expect(e.tone, line).toBe('error')
+      expect(e.text, line).toMatch(/is not a ticker\. A ticker is letters, like NVDA or BRK\.B\./)
+    }
+    for (const line of ['@9 NVDA', '@ NVDA', '@ZZ NVDA GP']) {
+      const e = echoFor(line)
+      expect(e.tone, line).toBe('error')
+      expect(e.text, line).toMatch(/is not a panel or a group\. Aim with @1 … @4/)
+    }
+    expect(echoFor('@2 NVDA').tone).toBe('ok')
+  })
+
+  it('B:<name> for a board the member does not have says so before Enter', () => {
+    render(<CommandLine onSubmit={() => {}} boards={[{ id: 'b1', slug: 'mine', name: 'Mine' }]} />)
+    typeText('B:nope')
+    expect(screen.getByTestId('terminal-echo')).toHaveTextContent('No board at B:nope. Open Boards to see yours.')
+    expect(screen.getByTestId('terminal-echo').dataset.tone).toBe('error')
+    typeText('B:mine')
+    expect(screen.getByTestId('terminal-echo')).toHaveTextContent('Open your board Mine (B:mine)')
+  })
+
+  it('a ticker the search does not know at all is named before Enter (no silent DES)', async () => {
+    tickerSearch(() => [])
+    render(<CommandLine onSubmit={() => {}} />)
+    typeText('ZZZZQ DES')
+    await wait(320)
+    const echo = screen.getByTestId('terminal-echo')
+    expect(echo).toHaveTextContent('ZZZZQ is not a ticker we know')
+    expect(echo).toHaveTextContent(/check the spelling/i)
+    expect(echo.dataset.tone).toBe('warn')
+  })
+
+  it('a known ticker gets no warning (the exact symbol is in the answer)', async () => {
+    tickerSearch((q) => (q === 'MSFT' ? [{ ticker: 'MSFT', name: 'Microsoft' }] : []))
+    render(<CommandLine onSubmit={() => {}} />)
+    typeText('MSFT DES')
+    await wait(320)
+    expect(screen.getByTestId('terminal-echo')).not.toHaveTextContent('not a ticker we know')
+  })
+
+  it('race: pausing on the ticker then typing on does not lose the "did you mean" (shared request aborted)', async () => {
+    // A fetch that honours its AbortSignal, like the browser's.
+    global.fetch = vi.fn((url, init) => new Promise((resolve, reject) => {
+      const q = new URL(String(url), 'http://x').searchParams.get('q').toUpperCase()
+      const t = setTimeout(() => resolve({ ok: true, status: 200,
+        json: async () => ({ results: q.startsWith('NVDQ') ? [{ ticker: 'NVDA', name: 'NVIDIA' }] : [] }) }), 400)
+      init?.signal?.addEventListener('abort', () => { clearTimeout(t); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })) })
+    }))
+    render(<CommandLine onSubmit={() => {}} />)
+    typeText('NVDQ')
+    await wait(300)          // completion asked at 150 ms; the echo joined that request at 250 ms
+    typeText('NVDQ GP')      // …and the completion's request is cancelled here
+    await wait(900)
+    expect(screen.getByTestId('terminal-echo')).toHaveTextContent('did you mean NVDA?')
+  })
+
+  it('a slower, earlier ticker answer never replaces the list for what is typed now', async () => {
+    global.fetch = vi.fn((url) => new Promise((resolve) => {
+      const q = new URL(String(url), 'http://x').searchParams.get('q').toUpperCase()
+      const rows = q === 'AM' ? [{ ticker: 'AMAT' }, { ticker: 'AMD' }] : [{ ticker: 'AMZN' }]
+      setTimeout(() => resolve({ ok: true, status: 200, json: async () => ({ results: rows }) }), q === 'AM' ? 400 : 20)
+    }))
+    render(<CommandLine onSubmit={() => {}} />)
+    act(() => { input().focus() })
+    typeText('AM')
+    await wait(200)          // the slow "AM" request is in flight…
+    typeText('AMZ')
+    await wait(700)          // …the fast "AMZ" one lands, then the slow one would
+    const rows = [...screen.getByTestId('terminal-suggestions').querySelectorAll('li')].map((li) => li.textContent)
+    expect(rows.some((r) => r.startsWith('AMZN'))).toBe(true)
+    expect(rows.some((r) => r.startsWith('AMAT'))).toBe(false)
+  })
+
+  it('Enter on a highlighted suggestion fills it in; Enter again runs the line', async () => {
+    const ran = []
+    render(<CommandLine onSubmit={(v) => ran.push(v)} />)
+    act(() => { input().focus() })
+    typeText('NVDA G')
+    key('ArrowDown')
+    key('Enter')
+    expect(ran).toEqual([])
+    expect(input().value).toMatch(/^NVDA G\S* $/)
+    key('Enter')
+    expect(ran).toHaveLength(1)
+    expect(input().value).toBe('')
+  })
+})
+
 describe('live audit: the ticker list leads with the names members trade', () => {
   // The search's own order for "NV" (measured on production 2026-10-05): NVDA was 16th.
   const NV = ['NVA', 'NVC', 'NVD', 'NVG', 'NVO', 'NVR', 'NVS', 'NVT', 'NVX', 'NVAX', 'NVBT', 'NVBU',

@@ -15,6 +15,7 @@ from api.services.research.analyst_ratings import get_analyst_ratings
 from api.services.research.news import get_company_news
 from api.services.research.ownership import get_ownership
 from api.services import edgar_ownership
+from api.services.ticker_resolver import comparator_path, sym_path
 from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
@@ -26,7 +27,7 @@ router = APIRouter()
 
 
 @router.get("/api/about/{sym}")
-def company_about_endpoint(sym: str, _user: dict = Depends(get_current_user)):
+def company_about_endpoint(sym: str = Depends(sym_path), _user: dict = Depends(get_current_user)):
     """Company 'About' tab: FMP profile facts + peers + a cached AI trader brief.
 
     Powers the ticker-popup About tab. Logged-in gate (it can trigger one Haiku
@@ -38,7 +39,7 @@ def company_about_endpoint(sym: str, _user: dict = Depends(get_current_user)):
 
 
 @router.get("/api/research/news/{sym}")
-def research_news(sym: str, limit: int = 20):
+def research_news(sym: str = Depends(sym_path), limit: int = 20):
     """Company news + press releases, newest first, merged into one feed.
 
     Two FMP endpoints because they carry different things — wire coverage and
@@ -104,7 +105,7 @@ def research_news(sym: str, limit: int = 20):
 
 
 @router.get("/api/research/company-news/{sym}")
-def research_company_news(sym: str):
+def research_company_news(sym: str = Depends(sym_path)):
     """The canonical, S3/D1/S8-wired News tab on /research/:sym (A8 Slice 1,
     2026-09-04, owner-authorized narrow slice). Deliberately a NEW route,
     not a rewrite of `/api/research/news/{sym}` above -- that route stays
@@ -120,7 +121,7 @@ def research_company_news(sym: str):
 
 
 @router.post("/api/research/explain/{sym}")
-def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get_current_user)):
+def research_explain(sym: str = Depends(sym_path), body: dict = Body(...), _user: dict = Depends(get_current_user)):
     """AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2
     + Slice 3 (I1, owner-authorized, 2026-09-04) -- the "Ask AI" tab's
     endpoint. Auth-required: unlike the plain GET research routes, this one
@@ -151,7 +152,7 @@ def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get
 
 
 @router.get("/api/research/quote/{sym}")
-def research_quote(sym: str):
+def research_quote(sym: str = Depends(sym_path)):
     """The session line — price, change, OHLC, volume, 52-week range.
 
     Its own route rather than a widening of /api/fundamentals: that endpoint is
@@ -213,7 +214,7 @@ def research_quote(sym: str):
 
 
 @router.get("/api/research/financial-history/{sym}")
-def research_financial_history(sym: str, period: str = "quarter"):
+def research_financial_history(sym: str = Depends(sym_path), period: str = "quarter"):
     """Deep statement series for the fundamentals panels (24q / 12y).
 
     Separate from /financials, which returns a 5-row grid from yfinance — five
@@ -229,7 +230,7 @@ def research_financial_history(sym: str, period: str = "quarter"):
 
 
 @router.get("/api/research/financials/{sym}")
-def research_financials(sym: str):
+def research_financials(sym: str = Depends(sym_path)):
     try:
         return get_financials(sym)
     except Exception as exc:
@@ -238,7 +239,7 @@ def research_financials(sym: str):
 
 
 @router.get("/api/research/estimates/{sym}")
-def research_estimates(sym: str, consensus: int = 0):
+def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     """yfinance forward estimates + revisions. `?consensus=1` (the terminal's EE
     panel, and the research tab when RESEARCH_FMP_DEPTH_ENABLED is on) adds the
     FMP multi-year consensus beside them, read CONCURRENTLY with the yfinance leg
@@ -283,7 +284,7 @@ def _read_failed(what: str, sym: str, exc: Exception):
 
 
 @router.get("/api/research/analyst-ratings/{sym}")
-def research_analyst_ratings(sym: str):
+def research_analyst_ratings(sym: str = Depends(sym_path)):
     try:
         return get_analyst_ratings(sym)
     except Exception as exc:
@@ -291,7 +292,7 @@ def research_analyst_ratings(sym: str):
 
 
 @router.get("/api/research/ownership/{sym}")
-def research_ownership(sym: str):
+def research_ownership(sym: str = Depends(sym_path)):
     try:
         result = get_ownership(sym)
         # TERM-045, DARK: armed, the insider section is read from SEC EDGAR
@@ -306,7 +307,7 @@ def research_ownership(sym: str):
 
 
 @router.get("/api/research/ratings/{sym}")
-def research_ratings(sym: str):
+def research_ratings(sym: str = Depends(sym_path)):
     try:
         return get_ratings(sym)
     except Exception as exc:
@@ -314,7 +315,7 @@ def research_ratings(sym: str):
 
 
 @router.get("/api/research/compare/{sym}/{comparator}")
-def research_compare(sym: str, comparator: str):
+def research_compare(sym: str = Depends(sym_path), comparator: str = Depends(comparator_path)):
     """Cross-Security Comparison V1 (owner authorization) -- deterministic
     side-by-side, no AI. See api/services/research/comparison.py for scope."""
     try:
@@ -325,7 +326,7 @@ def research_compare(sym: str, comparator: str):
 
 
 @router.post("/api/research/compare/{sym}/{comparator}/explain")
-def research_compare_explain(sym: str, comparator: str, body: dict = Body(...),
+def research_compare_explain(sym: str = Depends(sym_path), comparator: str = Depends(comparator_path), body: dict = Body(...),
                              _user: dict = Depends(get_current_user)):
     """Shared Multi-Security Grounding Architecture V1 (owner authorization,
     Phase B) -- the comparison page's "Ask AI" panel. Auth-required, same as
@@ -409,7 +410,7 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
 
 
 @router.get("/api/research/snapshot/{sym}")
-def research_snapshot(sym: str):
+def research_snapshot(sym: str = Depends(sym_path)):
     """Consolidated ratings + key fundamentals for the glanceable snapshot card."""
     try:
         return get_snapshot(sym)

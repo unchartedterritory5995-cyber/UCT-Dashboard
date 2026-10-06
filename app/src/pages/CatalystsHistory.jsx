@@ -8,7 +8,7 @@
 // Phase 1 — historical data is already accumulating.
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
-import HighlightThesis from '../utils/highlightThesis'
+import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../utils/highlightThesis'
 import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
@@ -165,7 +165,9 @@ export default function CatalystsHistory() {
                       </td>
                       <td className={styles.colTag}><TagChip tag={r.tag} /></td>
                       <td className={styles.colThesis}>
-                        <HighlightThesis text={r.thesis_text} />
+                        {hasNoWriteup(r)
+                          ? <span style={{ color: 'var(--text-muted)' }} data-testid="cath-no-writeup">{FAILED_SYNTHESIS_NOTE}</span>
+                          : <HighlightThesis text={r.thesis_text} />}
                         {sources.length > 0 && (
                           <span className={styles.sourceCount} title={`${sources.length} cited sources`}>
                             · {sources.length} src

@@ -22,12 +22,12 @@ import useDarkSection from '../../optionsAnalytics/useDarkSection'
 
 const POLL_MS = 2000
 
-// ⛔ THE EARNINGS ANCHOR IS OFFERED BUT DISABLED. Every earnings run answers ZERO trades today, because
-// the backend never has a report time: api/services/engine.py:370 writes `"reportTime": ""` (FMP does
-// not expose before-open / after-close), and options_backtest.py:700 (`timing_of`) maps an empty time to
-// None, which :773-775 exclude as "the report time ... is not on file" -- every quarter, every ticker.
-// Flip this (or replace it with a catalog field) only once the backend supplies AMC/BMO timing.
-export const EARNINGS_TIMING_ON_FILE = false
+// THE EARNINGS ANCHOR IS ON (live sweep 2026-10-05). It was offered disabled because FMP carries no
+// before-open / after-close time, so every earnings run excluded every quarter. O4 (options lane,
+// 2026-10-05) fills `reportTime` in iv_history._default_prints -- the reader
+// options_backtest._default_prints uses -- from the earnings calendar's per-symbol `hour`. A quarter
+// the calendar does not time is still excluded server-side with its reason, never guessed.
+export const EARNINGS_TIMING_ON_FILE = true
 export const EARNINGS_ANCHOR_OFF_NOTE = 'Earnings prints are not available yet: our earnings file does not record whether a company reported before the open or after the close, so no print can be placed and every run would return zero trades.'
 
 async function startRun(sym, body) {

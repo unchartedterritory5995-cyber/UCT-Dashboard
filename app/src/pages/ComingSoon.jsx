@@ -481,7 +481,7 @@ export default function ComingSoon() {
           href="/live-trading-room"
           onClick={() => track('coming_soon_room_click')}
         >
-          Looking for the live trading room? See the room
+          Looking for the live trading room? Uncharted Territory
           <span className={styles.proofArrow} aria-hidden="true">→</span>
         </a>
 

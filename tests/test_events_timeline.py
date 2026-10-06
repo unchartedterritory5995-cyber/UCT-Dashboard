@@ -178,3 +178,12 @@ class TestRoute:
         assert "events_timeline_enabled" not in auth._research_depth_flags()
         monkeypatch.setenv("EVENTS_TIMELINE_ENABLED", "1")
         assert auth._research_depth_flags()["events_timeline_enabled"] is True
+
+
+def test_a_long_write_up_is_clipped_at_a_word_with_an_ellipsis():
+    from api.services import events_timeline as ev
+    text = "TSMC gained on 2-nanometer progress, with broad social chatter about rising monthly sales " * 4
+    out = ev._clip(text, 220)
+    assert len(out) <= 221 and out.endswith("…")
+    assert out[:-1].split()[-1] in {w.strip(",;:.-") for w in text.split()}, "cut mid-word"
+    assert ev._clip("short", 220) == "short" and ev._clip("", 220) == ""

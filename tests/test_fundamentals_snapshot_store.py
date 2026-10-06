@@ -72,7 +72,7 @@ def test_earnings_table_fresh_disk_hit_skips_build(monkeypatch, tmp_path):
     now = 1_760_000_000.0
     first = et.get_earnings_table("ZZDISK", now=now)          # cold → build + persist
     assert calls == ["ZZDISK"]
-    et.cache.invalidate("earnings_table::ZZDISK")             # simulate redeploy (memory gone)
+    et.cache.invalidate(et._cache_key("ZZDISK"))             # simulate redeploy (memory gone)
     second = et.get_earnings_table("ZZDISK", now=now + 60)    # within ttl → disk, no rebuild
     assert second == first
     assert calls == ["ZZDISK"]                                # build ran exactly once
@@ -85,7 +85,7 @@ def test_earnings_table_stale_serves_old_and_schedules_refresh(monkeypatch, tmp_
     now = 1_760_000_000.0
     first = et.get_earnings_table("ZZSTALE", now=now)
     assert calls == ["ZZSTALE"]
-    et.cache.invalidate("earnings_table::ZZSTALE")
+    et.cache.invalidate(et._cache_key("ZZSTALE"))
     scheduled = []
     monkeypatch.setattr(et, "_schedule_refresh", lambda t: scheduled.append(t))
     # Past the 6h slow TTL but under the 3-day stale ceiling → instant stale serve.
@@ -101,7 +101,7 @@ def test_earnings_table_too_old_rebuilds_synchronously(monkeypatch, tmp_path):
     _stub_build(monkeypatch, et, calls)
     now = 1_760_000_000.0
     et.get_earnings_table("ZZOLD", now=now)
-    et.cache.invalidate("earnings_table::ZZOLD")
+    et.cache.invalidate(et._cache_key("ZZOLD"))
     out = et.get_earnings_table("ZZOLD", now=now + et._STALE_SERVE_MAX + et._SLOW_TTL + 60)
     assert calls == ["ZZOLD", "ZZOLD"]                        # rebuilt on the request path
     assert out["annual"]

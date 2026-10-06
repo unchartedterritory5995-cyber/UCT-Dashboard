@@ -1,5 +1,5 @@
 import useSWR from 'swr'
-import { depthFetcher } from './depthFetch'
+import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 import HighlightThesis from '../../../utils/highlightThesis'
 
@@ -14,8 +14,9 @@ const KIND = { earnings: 'Earnings', uct_catalyst: 'UCT catalyst', filing: 'Fili
 
 export default function EventsPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  usePendingReask(data?.sources?.earnings?.state === 'pending', mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
