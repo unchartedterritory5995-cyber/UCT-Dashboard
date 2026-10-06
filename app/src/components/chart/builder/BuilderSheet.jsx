@@ -208,7 +208,7 @@ const LEVELS_GUIDE = Object.freeze({
 
 /** The default placement — its own pane, at the height every authored formula
  *  has shipped with. Named so the v2 branch and the schema-1 one cannot drift. */
-const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
+export const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
 
 /** Plot 1's label when nothing else names it — `'Value'`, the schema-1
  *  spelling `legacyDefinition` has always written. ⛔ FIX ROUND 1, MINOR 7:
@@ -220,7 +220,7 @@ const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
  *  an unreachable divergence is still two authorities over one fact — named
  *  once, here, so it cannot reopen the day something else calls
  *  `buildDefinition` directly with no name, or a hand-rolled POST does. */
-const DEFAULT_PLOT1_LABEL = (short) => short || 'Value'
+export const DEFAULT_PLOT1_LABEL = (short) => short || 'Value'
 
 /**
  * The styles this form offers, and the words it offers them in.
@@ -306,7 +306,9 @@ function newPlotRow(key) {
  *  BYTE-IDENTICAL schema-1 path. Checking a subset of the fields (the brief
  *  checked key and style) silently discards whichever ones it forgot — a
  *  recoloured or hidden plot 1 would have written a document that ignored both. */
-function isUntouchedRow(row) {
+// ⭐ P2 — exported for `authoring/model.js` (the conversational path takes the SAME plain test).
+// eslint-disable-next-line react-refresh/only-export-components
+export function isUntouchedRow(row) {
   return !!row
     && row.key === 'value'
     && row.style === 'line'
