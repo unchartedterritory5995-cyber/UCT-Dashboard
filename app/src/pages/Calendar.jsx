@@ -37,6 +37,7 @@ import useCalendarHubSection, { toggleEventType } from '../hub/sections/calendar
 import FeedView from './calendar/FeedView'
 import WireView from './calendar/WireView'
 import { useWireProbe } from './calendar/useWire'
+import EventChipNotice from './calendar/EventChipNotice'
 import { resolveCalendarView, hasExplicitView, wireHasContent } from './calendar/viewLadder'
 import TodaysBrief from './calendar/TodaysBrief'
 import WeekView from './calendar/WeekView'
@@ -235,7 +236,7 @@ export default function Calendar() {
   // B3: fetch IPOs for the visible week range (only when chip enabled)
   const weekFrom = weekDates.length ? weekDates[0] : null
   const weekTo   = weekDates.length ? weekDates[weekDates.length - 1] : null
-  const { data: iposRaw } = useIpos(
+  const { data: iposRaw, readState: iposRead } = useIpos(
     eventTypes.has('ipos') ? weekFrom : null,
     eventTypes.has('ipos') ? weekTo   : null,
   )
@@ -263,7 +264,7 @@ export default function Calendar() {
     }
     return [...all].sort().join(',') || null
   }, [mySets])
-  const { data: dividendsRaw } = useDividends(
+  const { data: dividendsRaw, readState: dividendsRead } = useDividends(
     eventTypes.has('dividends') ? mySymsList : null,
   )
 
@@ -825,8 +826,23 @@ export default function Calendar() {
   // `range_error+finviz` (Finviz salvaged real rows despite both primaries
   // failing) is deliberately excluded — there is real data to show, so it
   // falls through to normal rendering instead of hiding it behind an error.
-  if (error || (data && (data.source === 'error' || data.source === 'out_of_range'
-                         || data.source === 'range_error'))) {
+  // `out_of_range` is NOT a failed read and Retry can never fix it: the server pages only
+  // _WEEK_HORIZON_WEEKS (52) weeks either side of this one (api/routers/calendar.py), so it
+  // says so and offers the way back instead of a Retry that can never succeed.
+  if (data && data.source === 'out_of_range' && !error) {
+    return (
+      <div className={styles.page}>
+        {headerEl}
+        <div className={styles.error} data-testid="week-out-of-range">
+          That week is outside the calendar&apos;s data window, which covers 52 weeks either side
+          of this week.{' '}
+          <button className="btn btn-secondary btn-sm" onClick={gotoToday}>Back to this week</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || (data && (data.source === 'error' || data.source === 'range_error'))) {
     return (
       <div className={styles.page}>
         {headerEl}
@@ -882,6 +898,10 @@ export default function Calendar() {
                 onSelect={onSelect}
               />
             )}
+            <EventChipNotice
+              ipos={eventTypes.has('ipos') ? iposRead : null}
+              dividends={eventTypes.has('dividends') && mySymsList ? dividendsRead : null}
+            />
             <FeedView
               weekDates={weekDates}
               days={days}

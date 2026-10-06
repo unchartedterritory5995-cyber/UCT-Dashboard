@@ -87,7 +87,7 @@ function CoverageLine({ cov }) {
 export default function WireView({ dateStr }) {
   const navigate = useNavigate()
   const ta = useTickerActions()
-  const { data } = useWire(dateStr)
+  const { data, error, mutate } = useWire(dateStr)
   const { data: cov } = useWireCoverage(dateStr)
   const rows = data?.rows ?? []
   const expected = data?.expected ?? 0
@@ -98,6 +98,22 @@ export default function WireView({ dateStr }) {
     () => [...rows].sort((a, b) => (b.first_seen_at ?? 0) - (a.first_seen_at ?? 0)),
     [rows],
   )
+
+  // Three states that used to share one line ("No reporters scheduled"): the read failed, the
+  // read has not answered yet, and the read answered with nobody. Only the last is a fact
+  // about the session.
+  if (!data && error) {
+    return (
+      <div className={styles.empty} role="alert" data-testid="wire-failed">
+        The Wire couldn&apos;t be read right now. That is a gap in what we could read, not a
+        quiet session.{' '}
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
+      </div>
+    )
+  }
+  if (!data) {
+    return <div className={styles.empty} data-testid="wire-loading">Loading the Wire…</div>
+  }
 
   if (!ordered.length) {
     return (
