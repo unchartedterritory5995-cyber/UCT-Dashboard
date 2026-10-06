@@ -251,15 +251,35 @@ _UNSUPPORTED_NODES: Mapping[str, str] = {
 #: per node type: no op path, no schema word, no "None"; the model-emitted value
 #: is shown only when it is a short plain token (a ticker / timeframe), else
 #: omitted.
-_MEMBER_UNSUPPORTED: Mapping[str, str] = {
-    "sym": "it reads another symbol{value}; indicators made here use the chart's own symbol only",
-    "tf": "it reads a higher timeframe{value}; indicators made here use the chart's own timeframe only",
-    "ltf": "it reads a lower timeframe{value}; indicators made here use the chart's own timeframe only",
-    "tf_live": "it reads a live higher-timeframe bar{value}; indicators made here use the chart's own bars only",
+#:
+#: ⛔ GROUPED BY WHAT THE MEMBER IS TOLD, NOT ONE TABLE PER NODE TYPE. A single
+#: literal keyed by seven node types is, to `test_node_vocabulary_parity`, a
+#: second copy of `ast_interpret.NODE_TYPES` (majority overlap) -- and it would be
+#: one: the set of unsupported types is `_UNSUPPORTED_NODES`'s, and this file must
+#: not restate it. So the phrases are keyed by MEANING (another timeframe / text)
+#: and `_member_unsupported` maps a type onto them; an unlisted type falls to the
+#: generic clause rather than to a second roster.
+_MEMBER_TIMEFRAME_WORDS: Mapping[str, str] = {
+    "tf": "a higher timeframe",
+    "ltf": "a lower timeframe",
+    "tf_live": "a live higher-timeframe bar",
+}
+_MEMBER_TEXT_PHRASES: Mapping[str, str] = {
     "textop": "it asks a question about the symbol's name or text, which is not available here",
     "str": "it uses a quoted text value, which is not available here",
     "symtext": "it reads the symbol's text fields, which is not available here",
 }
+
+
+def _member_unsupported(node_type: Any) -> str:
+    """The member's clause for an unsupported node type ({value} still to fill)."""
+    if node_type == "sym":
+        return "it reads another symbol{value}; indicators made here use the chart's own symbol only"
+    if node_type in _MEMBER_TIMEFRAME_WORDS:
+        scope = "bars" if node_type == "tf_live" else "timeframe"
+        return (f"it reads {_MEMBER_TIMEFRAME_WORDS[node_type]}{{value}}; "
+                f"indicators made here use the chart's own {scope} only")
+    return _MEMBER_TEXT_PHRASES.get(node_type, "it needs something not available here")
 _PLAIN_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.^:/_=!-]{0,23}$")
 
 
@@ -590,8 +610,7 @@ def _refuse_unsupported_nodes(trees: List[Tuple[str, Any]]) -> None:
         for node in _walk(tree):
             why = _UNSUPPORTED_NODES.get(node.get("type"))
             if why is not None:
-                member = _MEMBER_UNSUPPORTED.get(node.get("type"),
-                                                 "it needs something not available here")
+                member = _member_unsupported(node.get("type"))
                 raise _Refused("unsupported:node",
                                f"{where}: {why.format(value=node.get('value'))}",
                                member=member.format(value=_member_value(node.get("value"))))
