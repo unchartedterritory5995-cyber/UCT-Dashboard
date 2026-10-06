@@ -2,7 +2,7 @@
 //
 // ─── H1 — THE SCRIPTS WHOSE PINNED-LANE PARAMETER MAP IS FIXED ─────────────────
 //
-// `docs/pine/param-ids.json` pins, for the 298 scripts present on this machine (P0 0L, 2026-10-05: `smart-money-breakouts-chartprime` stopped throwing and joined, with an empty map), every
+// `docs/pine/param-ids.json` pins, for the 297 scripts present on this machine, every
 // parameter id the plain strict lane gives them — and `paramIds.test.js` (whole
 // maps) and `paramIdLegacy.test.js` (a pinned map is dense, 1..k, and matches its
 // frozen entry) both forbid that lane from GROWING a pinned map. A pinned script
@@ -40,7 +40,7 @@ const KEYS = `
 29ccg81mpwo 29cf24x7es 29lg4vktzx 29mtzjbhmtf 2a0v9cs72fs 2a90oksl8x 2aaw4ggcwj8 2azvktx25i4
 2b3kiai8mt3 2bhs1j010xq 2bn6j4365ul 2bra3549xeg 2bwneh9zd3z 2cplnf1ozqk 2cy1rq9ybf0 2ec7z6ah5x2
 2esle47dcpe 2etv7h7d0lb 2fc0z6kab43 2gg6zqlr2vz 2gid394h6dp 2x08m0xxsr 3gr2z8mu2l 3grhtu5wyy
-3h5p1w7pr5 3pkgrqt9ph 3q9is2st8n 3rgye68w23 44i70a9lfu 4bze6xsbcq 4cxui61nw5 4pog5v2ei4 4v0cwzmzu
+3h5p1w7pr5 3q9is2st8n 3rgye68w23 44i70a9lfu 4bze6xsbcq 4cxui61nw5 4pog5v2ei4 4v0cwzmzu
 51idl2tcew 5vuqcomzxa 6a410n99e6 6dlrqjt5az 6g6iika8oy 6xdlxto070 732kiccsrc 7z3hdx1v4x
 80qwy2sqsn 8fi1t9bbsz 8fo0nruvw3 8kuf1emzzx 9626ux0c87 a407fxq5ll a4noqx76yr aevjwjxe8r
 ao83c0ct0e axkfq18y25 bc83m2g8u0 bedmfmfz92 blqw77f5vq botk0w6osc c478tjstez c581cnbbwm

@@ -6385,14 +6385,6 @@ export class Resolver {
      *  can see their `'D'` became the chart's own series. A fold nobody is told about
      *  is a script that quietly stopped being the one they pasted. */
     this.baseFolds = new Map()
-    /** ⭐⭐ P0 (inv + imp, 2026-10-05) — every look-ahead-OFF higher-timeframe read
-     *  this run emitted as `tf`. `tf` reads the last CLOSED period on every bar, so
-     *  on the bar that completes a week/month UCT still shows the PREVIOUS period
-     *  where TradingView already shows the completed one: one bar later on the last
-     *  bar of every period. The evaluator is not changed in P0; the difference is
-     *  DISCLOSED through the `_folds` seam (`closedTable.json::_folds.
-     *  htfLookaheadOffStepBacks`), surfaced per output exactly like `baseFolds`. */
-    this.htfStepBacks = new Map()
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
@@ -11439,109 +11431,12 @@ export class Resolver {
    *  timeframe below the base has no rewrite that keeps the member's meaning, and
    *  inventing one is the trade this whole module refuses.
    */
-  /** ⭐⭐ P0 0H (2026-10-05) — THE `request.security` ARGUMENTS THAT CHANGE THE
-   *  NUMBER, which this door used to positionalise and then never read
-   *  (`requestTargetOf` consulted symbol, timeframe and lookahead only). Returns
-   *  `{why}` for one this door cannot honour, or `null`.
-   *
-   *  ⛔ EACH ONE REFUSES RATHER THAN BEING DISCLOSED, because the served value
-   *  would be WRONG, not merely drawn differently:
-   *    `currency = currency.EUR` — TradingView converts the series; this engine
-   *      serves it unconverted, so a EUR request plots USD numbers.
-   *    `gaps = barmerge.gaps_on` on another timeframe — TradingView answers `na`
-   *      on every bar where no new higher-timeframe value arrived; a `tf` read
-   *      carries the last value forward, so a condition reading it is true where
-   *      TradingView's is unknown.
-   *    `calc_bars_count = N` — TradingView computes the requested series on its
-   *      last N bars only (`na` before them, and a recursive average seeded
-   *      there); this engine computes it on all of history.
-   *  ⭐ WHAT STAYS: an absent/`na`/`currency.NONE` currency, `currency.USD` and
-   *  `syminfo.currency` (every series this engine serves is a US listing quoted in
-   *  US dollars, so both are the identity here), `gaps_off` (the `tf` reading),
-   *  `gaps_on` at the chart's own timeframe (every bar is a new value — the
-   *  identity), and `ignore_invalid_symbol` (an invalid symbol is refused by
-   *  name before it could be ignored, so it never changes a served value). */
-  requestArgsDecline(placed) {
-    if (!placed) return null
-    const slot = (n) => placed[REQUEST_SECURITY_ARGS.indexOf(n)]
-    const nameOf = (v) => (v && v.type === 'name' ? v.name : null)
-    const cur = slot('currency')
-    if (cur !== undefined) {
-      const spelled = nameOf(cur)
-      const IDENTITY = new Set(['na', 'currency.NONE', 'currency.USD', 'syminfo.currency'])
-      if (!(spelled && IDENTITY.has(spelled))) {
-        return {
-          why: `\`currency = ${spelled || 'an expression'}\` asks TradingView to convert the series `
-            + 'into another currency, and this engine serves prices unconverted, in US dollars — '
-            + 'the plot would show dollar numbers under a converted name. Remove the argument to '
-            + 'read the series in its own currency.',
-        }
-      }
-    }
-    const cbc = slot('calc_bars_count')
-    if (cbc !== undefined && nameOf(cbc) !== 'na') {
-      return {
-        why: '`calc_bars_count =` makes TradingView compute the requested series on its last bars '
-          + 'only (nothing before them, and any average seeded where they start); this engine '
-          + 'computes it on all of the history it holds, so the values would differ. Remove the '
-          + 'argument to compute it on the full history.',
-      }
-    }
-    const gaps = slot('gaps')
-    if (gaps !== undefined && this.requestGapsOf(gaps) !== 'off' && this.requestIsOtherPeriod(placed[1])) {
-      return {
-        why: '`gaps = barmerge.gaps_on` makes TradingView answer `na` on every bar where no new '
-          + 'higher-timeframe value arrived; this engine carries the last value forward, so a '
-          + 'condition reading it would be true or false where TradingView’s is unknown. '
-          + 'Use `barmerge.gaps_off` (the default) to read the carried-forward value.',
-      }
-    }
-    return null
-  }
-
-  /** P0 0H — `'on'`, `'off'`, or `null` for a `gaps` spelling this cannot read
-   *  (which the caller treats as NOT off — the safe direction). */
-  requestGapsOf(v) {
-    if (v === undefined || v === null) return 'off'
-    if (v.type === 'name') {
-      if (v.name === 'barmerge.gaps_off' || v.name === 'na') return 'off'
-      if (v.name === 'barmerge.gaps_on') return 'on'
-    }
-    const kw = v.tok ? v.tok.value : null
-    if (kw === 'true') return 'on'
-    if (kw === 'false') return 'off'
-    // A name bound to a constant (`gaps = igaps`, an `input.bool`): ask the
-    // resolver for its folded value, minting nothing.
-    const minted = this.paramMint
-    this.paramMint = null
-    try {
-      const r = this.resolve(v)
-      if (r && r.type === 'num') return r.value ? 'on' : 'off'
-      if (r && r.type === 'name' && r.name === 'barmerge.gaps_off') return 'off'
-    } catch { /* unreadable: not off */ } finally { this.paramMint = minted }
-    return null
-  }
-
-  /** P0 0H — does this timeframe argument name bars OTHER than the chart's own?
-   *  `timeframe.period`, `''` and a literal naming the base are the identity. */
-  requestIsOtherPeriod(tfNode) {
-    if (this.ownTimeframeOf(tfNode) !== null) return false
-    const raw = this.timeframeLiteralOf(tfNode)
-    if (raw === null) return true
-    if (String(raw).trim() === '') return false
-    const code = PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
-    return !(code && code === this.basePeriod)
-  }
-
   securityDeclineReason(node) {
     const args = node.args || []
     const placed = positionaliseSecurityArgs(args)
     if (!placed) return null
     const positional = placed.slice(0, 3)
     if (positional.some((p) => p === undefined)) return null
-    // ⭐ P0 0H — a value-changing argument this door cannot honour, named first.
-    const argDecline = this.requestArgsDecline(placed)
-    if (argDecline) return argDecline
 
     // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
     //    post-market prints; `sym` serves the regular session. The rewrite keeps
@@ -11957,14 +11852,6 @@ export class Resolver {
       return { type: 'ltf', value: code, args: [out] }
     }
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (code && !live) {
-      this.htfStepBacks.set(`${node.tok ? node.tok.line : '?'}:${code}`, {
-        line: node.tok ? node.tok.line : null,
-        column: node.tok ? node.tok.column : null,
-        requested: code,
-        base: this.basePeriod,
-      })
-    }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -12026,10 +11913,6 @@ export class Resolver {
     if (!placed) return null
     const positional = placed.slice(0, 3)
     if (positional.some((p) => p === undefined)) return null
-    // ⭐⭐ P0 0H — `currency`, `gaps` (on another timeframe) and `calc_bars_count`
-    // change the number; a call this door cannot honour them on DECLINES, and
-    // `securityDeclineReason` names which (see `requestArgsDecline`).
-    if (this.requestArgsDecline(placed)) return null
 
     // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
     //    a computed symbol, another venue — falls through.
@@ -13964,20 +13847,6 @@ export function chartOnlySentence(word, how = {}) {
   if (word === 'alert') {
     return '`alert()` sends an alert on TradingView and draws nothing; this door delivers no '
       + "script's `alert()`, and a screen reads `alertcondition()`, not `alert()`, so this line does nothing here"
-  }
-  // ⭐⭐ P0 0H (2026-10-05) — A CHART-ONLY ARGUMENT of a call this door DOES read
-  // (`plot(show_last =, trackprice =)`, `indicator(format =, precision =, scale =)`),
-  // named instead of dropped. None changes a value; each is a PRESENTATION difference.
-  if (how.arg) {
-    const arg = `\`${how.arg} =\``
-    if (word === 'indicator' || word === 'study') {
-      return `${arg} on \`${word}()\` sets how a chart formats or scales the value; this engine `
-        + 'draws the value in its own format, so it is listed here and not carried. The value itself is unchanged.'
-    }
-    const what = how.arg === 'show_last' ? '(only its last bars)'
-      : how.arg === 'trackprice' ? '(a price line across the scale)' : ''
-    return `${arg} on ${code} changes how a chart draws the plot${what ? ` ${what}` : ''}; this engine `
-      + 'draws the whole plot without it, so it is listed here and not carried. The values are unchanged.'
   }
   // Pine accepts every other chart-only call at the top level only.
   if (how.site === 'nested') {
@@ -23222,23 +23091,6 @@ function translatePineResult(source, opts = {}) {
     ? runtimeErrorSitesOf(stmts) : null
   const runtimeErrorEnvAt = new Map()
   const runtimeErrorHeads = new Set(runtimeErrorPlan ? runtimeErrorPlan.sites.map((s) => s.head) : [])
-  // ⭐⭐ P0 0H (2026-10-05) — AN OUTPUT'S CHART-ONLY ARGUMENTS ARE NAMED, NOT
-  // DROPPED. `plot(x, show_last = 10, trackprice = true)` translated to `x` with no
-  // word about either (measured). Neither changes a value, so neither refuses; each
-  // is a PRESENTATION difference the member is told about (`importOutcome.js`).
-  for (const st of stmts) {
-    const h = st.header || []
-    let k = 0
-    if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=')) k = 2
-    const callTok = h[k]
-    if (!callTok || callTok.kind !== 'ident' || !OUTPUT_PRESENTATION_CALLS.has(callTok.value)
-      || !isPunct(h[k + 1], '(')) continue
-    for (const argName of OUTPUT_PRESENTATION_UNCARRIED) {
-      const a = callNamedArgToks(h.slice(k), argName)
-      if (!a) continue
-      notes.push(noteOf('pine:chart-only', chartOnlyNote(callTok.value, { arg: argName }), a.nameTok))
-    }
-  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
@@ -23289,26 +23141,6 @@ function translatePineResult(source, opts = {}) {
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
-      // ⭐⭐ P0 0H (2026-10-05) — THESE ARGUMENTS USED TO VANISH. `timeframe =`
-      // moves EVERY output onto other bars; computing on the chart's own instead
-      // is a different number under the same name, so it refuses by name.
-      // `format` / `precision` / `scale` only change how the number is shown:
-      // disclosed as a chart-only note, never silently dropped.
-      const declTf = declarationTimeframe(toks)
-      if (declTf) {
-        hardRefusals.push(refusalValue('pine:request',
-          `${REFUSALS['pine:request']} — \`${word}(timeframe = ${declTf.text})\` computes the `
-          + 'whole script on that timeframe’s bars, and this engine computes an imported '
-          + 'script on the chart’s own bars, so every value would be a different number '
-          + 'under the same name. Remove the argument to compute on the chart’s timeframe, '
-          + 'or wrap the values you need in `request.security`.',
-          locate(declTf.tok)))
-      }
-      for (const argName of DECLARATION_PRESENTATION_ARGS) {
-        const a = callNamedArgToks(toks, argName)
-        if (!a) continue
-        notes.push(noteOf('pine:chart-only', chartOnlyNote(word, { arg: argName }), a.nameTok))
-      }
       continue
     }
     if (word === 'strategy' && isPunct(toks[1], '(') && toks.some((t) => t.kind === 'string')) {
@@ -23852,18 +23684,7 @@ function translatePineResult(source, opts = {}) {
       // measured false is worse than no comment: it tells the next reader the shape is
       // already safe.
       if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
-        // ⭐⭐ P0 0L (2026-10-05) — AT THE TOP LEVEL, A REFUSAL OUT OF AN ARM IS
-        // "a shape `switchBinding` cannot take" — the null the comment above
-        // promises — so this statement gets the refusal it always got instead of
-        // the throw escaping `translatePine` (smart-money-breakouts-chartprime:
-        // `'Dashed' => line.style_dashed ,`, a trailing comma). Only a PineRefusal
-        // is converted; inside a function body the throw is left exactly as it was.
-        let built = null
-        try {
-          built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
-        } catch (e) {
-          if (!(e instanceof PineRefusal)) throw e
-        }
+        const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
         if (built) { env.set(nameTok.value, built); continue }
       }
       // ⭐⭐ WAVE 2 (a) — `name = array.new…(n)` BECOMES A PLAN-TIME VECTOR.
@@ -24581,8 +24402,6 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        // ⭐ P0 — see `htfStepBacks`; the `_folds` channel of the same name words it.
-        htfLookaheadOffStepBacks: [...resolver.htfStepBacks.values()],
         inputsFolded: [...resolver.usedInputs.values()].map((e) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
@@ -27693,69 +27512,6 @@ function declarationOverlay(toks) {
   }
   return null
 }
-
-/** ⭐⭐ P0 0H (2026-10-05) — ONE NAMED ARGUMENT OF THE FIRST CALL IN A STATEMENT,
- *  as its value tokens, or `null` when the call does not pass it.
- *
- *  Token-level on purpose, like `declarationOverlay` above: the declaration and an
- *  output call's chart-only arguments are read nowhere else, and a second parse of
- *  the line would be a second authority over what it says. Depth is counted so a
- *  nested call's own `name =` is never mistaken for the outer call's. */
-function callNamedArgToks(toks, name) {
-  const open = toks.findIndex((t) => isPunct(t, '('))
-  if (open < 0) return null
-  let depth = 0
-  for (let i = open; i < toks.length; i += 1) {
-    const t = toks[i]
-    if (t.kind === 'punct' && (t.value === '(' || t.value === '[')) { depth += 1; continue }
-    if (t.kind === 'punct' && (t.value === ')' || t.value === ']')) {
-      depth -= 1
-      if (depth === 0) return null
-      continue
-    }
-    if (depth === 1 && t.kind === 'ident' && t.value === name && isPunct(toks[i + 1], '=')
-      && (i === open + 1 || isPunct(toks[i - 1], ','))) {
-      const out = []
-      let d = 0
-      for (let j = i + 2; j < toks.length; j += 1) {
-        const v = toks[j]
-        if (v.kind === 'punct' && (v.value === '(' || v.value === '[')) d += 1
-        if (v.kind === 'punct' && (v.value === ')' || v.value === ']')) {
-          if (d === 0) break
-          d -= 1
-        }
-        if (d === 0 && isPunct(v, ',')) break
-        out.push(v)
-      }
-      return { nameTok: t, value: out }
-    }
-  }
-  return null
-}
-
-/** ⭐⭐ P0 0H — `indicator(timeframe = …)` / v4 `study(resolution = …)`: the
- *  timeframe the WHOLE SCRIPT computes on, or `null` when it is the chart's own
- *  (absent, `""`, `timeframe.period`). Anything else — a literal like `"W"`, or a
- *  spelling this cannot read — is returned as text so the caller REFUSES it: this
- *  door computes every output on the chart's own bars, so a script declared on
- *  another timeframe would plot a different number under the same name. */
-function declarationTimeframe(toks) {
-  const found = callNamedArgToks(toks, 'timeframe') || callNamedArgToks(toks, 'resolution')
-  if (!found || !found.value.length) return null
-  const v = found.value
-  if (v.length === 1 && v[0].kind === 'string' && String(v[0].value).trim() === '') return null
-  if (v.length === 1 && v[0].kind === 'ident' && v[0].value === 'timeframe.period') return null
-  const text = v.length === 1 && v[0].kind === 'string'
-    ? JSON.stringify(v[0].value) : v.map((t) => (t.raw ?? t.value)).join(' ')
-  return { text, tok: found.nameTok }
-}
-
-/** ⭐⭐ P0 0H — the arguments that change HOW A NUMBER IS SHOWN and never what it
- *  is. They are not carried, and a member is told so (a PRESENTATION difference)
- *  rather than left to discover it by comparing two charts. */
-const DECLARATION_PRESENTATION_ARGS = Object.freeze(['format', 'precision', 'scale'])
-const OUTPUT_PRESENTATION_UNCARRIED = Object.freeze(['show_last', 'trackprice'])
-const OUTPUT_PRESENTATION_CALLS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar']))
 
 const _BAR_READERS_FOR_TABLE = new WeakMap()
 

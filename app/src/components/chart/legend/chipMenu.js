@@ -158,20 +158,6 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       onClick: () => h.onSettings(chip.instanceId),
     },
   ]
-  // ⭐ P1 — VALUE: "show this output's latest value in the header". It writes a
-  // REFERENCE `{instanceId, plotKey}` (`engine/infoValues.js`) and nothing else:
-  // the output keeps its type and its compute. Offered only when the caller wires
-  // it; a refusal (an output that cannot be referenced) is shown, never hidden.
-  if (typeof h.onInfoValue === 'function') {
-    const on = caps.infoValueOn === true
-    rows.push({
-      key: 'info-value',
-      label: on ? 'Remove value from header' : 'Show latest value in header',
-      icon: 'info',
-      disabled: on ? undefined : (caps.infoValueRefusal || undefined),
-      onClick: (!on && caps.infoValueRefusal) ? undefined : () => h.onInfoValue(chip.instanceId, chip.plotKey, on),
-    })
-  }
   if (caps.canDuplicate !== false) {
     rows.push({
       key: 'duplicate',

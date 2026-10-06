@@ -755,10 +755,8 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
             by_path[(method, route.path)] = [
                 d.call for d in route.dependant.dependencies]
 
-    # `/propose` and `/converse` are the two AI doors: they store nothing, so
-    # they belong to neither write class (P2 server, 2026-10-06, for `/converse`).
     writes = [k for k in by_path if k[0] in ("POST", "PUT")
-              and not k[1].endswith(("/propose", "/converse"))]
+              and not k[1].endswith("/propose")]
 
     # ⛔⛔ TWO CLASSES, NOT ONE, AND THE SPLIT IS THE FIX. This asserted BOTH
     # gates on every write route and hand-listed two of them. The router grew

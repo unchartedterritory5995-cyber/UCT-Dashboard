@@ -46,14 +46,10 @@ const marks = (v) => Number.isFinite(v) && v > 0
  *   condition, so a marker can take the same two-colour treatment a line does
  * @param {string|null} [spec.colorUp]
  * @param {string|null} [spec.colorDown]
- * @param {boolean} [spec.unknownNone] ⭐ P1 — `binder.unknownColourRule(def)`: an
- *   UNKNOWN colour condition takes the marker's own `color`, never `colorDown`
- *   (a semantics-2 document). Off ⇒ Pine's `na`-takes-else (owner ruling 2).
- *   ⛔ An unknown MARKER column already draws no marker (`marks`), on every lane.
  * @returns {Array<object>} LWC marker objects, ascending by time
  */
 export function markersFor({ column, times, marker, color,
-  condColumn = null, colorUp = null, colorDown = null, unknownNone = false }) {
+  condColumn = null, colorUp = null, colorDown = null }) {
   const out = []
   if (!column || !times || !marker) return out
   const n = Math.min(
@@ -66,10 +62,9 @@ export function markersFor({ column, times, marker, color,
   const twoTone = condColumn && colorUp && colorDown
   for (let i = 0; i < n; i += 1) {
     if (!marks(column[i])) continue
-    const known = twoTone && Number.isFinite(condColumn[i])
-    const c = !twoTone ? color
-      : known ? (condColumn[i] !== 0 ? colorUp : colorDown)
-        : (unknownNone ? color : colorDown)
+    const c = twoTone
+      ? ((Number.isFinite(condColumn[i]) && condColumn[i] !== 0) ? colorUp : colorDown)
+      : color
     const m = {
       time: times[i],
       position: marker.position || 'aboveBar',

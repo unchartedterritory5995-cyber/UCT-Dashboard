@@ -102,19 +102,10 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending } from './otherSymbols'
+import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
+import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
-// ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
-// are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
-import {
-  chartStaticRefusals, otherSymbolsDecision, FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE,
-} from './evaluability'
-// ⭐⭐ P0G — the document's definition semantics (owner decisions A + C), read
-// off the store's own stamp (`meta.semantics`) and spread into every `interpret`
-// this registry runs for it. `{}` for every document saved before P0G and every
-// Pine translation, so their evaluation is the one it always was.
-import { semanticsOptsFor, semanticsOf } from './definitionSemantics'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -2391,19 +2382,16 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // ⭐⭐ C29 — a document folded at another chart period does not answer here
   // (`periodReads.js`): every column is refused by name, none drawn off the
   // other period's constants.
-  // ⭐⭐ P0 — A READ BELOW THE CHART (`ltf`) IN A DOCUMENT THAT IS NOT A PINE
-  // TRANSLATION IS REFUSED BY NAME, per plot. Its supply (`lowerTfFor`) is built
-  // from the member door's stamp and its admission rules (`lower-tf:expression`,
-  // `lowerTf.js`) are checked by the Pine translator — neither exists for a
-  // typed formula, so it was accepted and starved: all-NaN, no report.
-  // ⭐ P0 0F — a plot that reads a current-only scalar is refused by name
-  // (`chartScalars.js`), never drawn as the 0 a comparison makes of its hole.
-  // ⭐⭐ P1 — ALL THREE ARE DECIDED BY THE SHARED GATE (`evaluability.js::
-  // chartStaticRefusals`), so `evaluability(def, key, 'chart', ctx)` and this
-  // compute can never disagree about a pre-compute refusal. `whole` = the
-  // document computes nothing here; `staticWhy` = per plot (period > ltf > scalar).
-  const { whole, perKey: staticWhy } = chartStaticRefusals(def, ctx)
-  if (whole) return withColumnErrors({}, whole)
+  const periodWhy = new Map()
+  for (const k of keys) {
+    const why = periodReadsRefusalFor(def, k, ctx && ctx.tf)
+    if (why) periodWhy.set(k, why)
+  }
+  if (periodWhy.size && (!trees || periodWhy.size === keys.length)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) || [...periodWhy.values()][0] }
+    return withColumnErrors({}, errors)
+  }
   // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
   // into the integers THIS binding needs. `Uncharted Volume` line 233's
   // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
@@ -2499,9 +2487,8 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       // would allocate for nothing and read as a column that computed.
       // The REASON is preserved instead — see `columnErrors`.
       // ⭐ C29 — only the plots that folded the other period's value are refused.
-      // ⭐ P1 — the period / ltf / scalar refusal of THIS plot (`chartStaticRefusals`).
-      if (staticWhy.has(key)) {
-        errors[key] = staticWhy.get(key)
+      if (periodWhy.has(key)) {
+        errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }
         continue
       }
       try {
@@ -2512,7 +2499,6 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...listingOptsFor(def, ctx),
-            ...semanticsOptsFor(def),
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
@@ -2541,7 +2527,6 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         undefined, { tf: ctx && ctx.tf,
           newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
           ...listingOptsFor(def, ctx),
-          ...semanticsOptsFor(def),
           ...(other ? { symbols: other.symbols } : {}), crossMemo,
           chartClockSink: new Map() }))
       if (runsWhy) {
@@ -2573,14 +2558,11 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
-  // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
-  if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
   const clock = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...listingOptsFor(def, ctx),
-      ...semanticsOptsFor(def),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2591,7 +2573,6 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...listingOptsFor(def, ctx),
-      ...semanticsOptsFor(def),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2616,33 +2597,6 @@ export function lowerTfFor(def, ctx) {
   })
 }
 
-/** ⭐⭐ P0 — the guard a formula document's `ltf` plot is refused under
- *  (owned by `evaluability.js` since P1; re-exported for its readers). */
-export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
-
-/** ⭐⭐ P0 — WHAT A MEMBER IS TOLD ABOUT AN INSTANCE'S EXTERNAL READS ON THIS
- *  CHART: `[{code, reason}]` for a document that is NOT a Pine translation — each
- *  other symbol refused by the bind (a read still waiting for its bars says
- *  nothing yet) and each plot refused for reading below the chart. The binder
- *  publishes it on the same per-instance strip as `chartClockReport`
- *  (`chartClockNotice.js` → `AttachedPineDisclosures`), so a refused `sym` /
- *  `ltf` is never a silent blank line. ⛔ A Pine translation's own refusals are
- *  left exactly as they were (its disclosures ride on `meta.disclosures`). */
-export function externalReadNotices(def, columns) {
-  if (!def || isPineOriginDoc(def) || !columns) return []
-  const out = []
-  const other = otherSymbolReport(columns)
-  for (const r of (other && other.refused) || []) {
-    if (otherSymbolPending(r)) continue
-    out.push({ code: r.code, reason: r.reason })
-  }
-  const errs = columnErrors(columns)
-  if (Object.values(errs).some((e) => e && e.guard === FORMULA_LTF_GUARD)) {
-    out.push({ code: FORMULA_LTF_GUARD, reason: FORMULA_LTF_MESSAGE })
-  }
-  return out
-}
-
 /** The key a column map carries its lower-timeframe decision under —
  *  non-enumerable, like `__otherSymbols`. */
 const LOWER_TF = '__lowerTf'
@@ -2663,17 +2617,18 @@ export function lowerTfReport(columns) {
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
- *  or null when the document reads none.
- *
- *  ⭐⭐ P0 — EVERY DOCUMENT THAT READS ONE IS DECIDED HERE. A Pine translation by
- *  its recorded spellings (`resolveOtherSymbols`); any other document — a formula
- *  a member typed — by our store's ticker (`resolveFormulaSymbols`): served when
- *  its bars are in hand, refused by name otherwise.
- *  ⚰️ Until P0 a non-Pine `sym` "kept the unsupplied answer it always had":
- *  all-NaN, no report, never fetched — a definition accepted and starved. */
+ *  or null when the document reads none. The member door's Pine documents are
+ *  the only ones decided here: a `sym` in a document from any other translator
+ *  keeps the unsupplied answer it always had. */
 export function otherSymbolsFor(def, ctx) {
-  // ⭐ P1 — the gate's decision, verbatim (`evaluability.js::otherSymbolsDecision`).
-  return otherSymbolsDecision(def, ctx)
+  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
+  if (!symTickersOf(def).length && !(def.meta.otherSymbols || []).length) return null
+  return resolveOtherSymbols(def, {
+    secondary: ctx && ctx.secondary,
+    exchangeOf: ctx && ctx.exchangeOf,
+    symbol: ctx && ctx.symbol,
+    framed: !!(ctx && ctx.framed),
+  })
 }
 
 /** The key a column map carries its other-symbol decision under — non-enumerable
@@ -3820,11 +3775,7 @@ export function registryGeneration() { return _generation }
  *  is an SWR list that revalidates, and a bump per poll would rebuild every
  *  registry-derived memo on the chart path each time the tab regained focus. */
 function installKey(def) {
-  // ⭐ P0G — a document whose STORED semantics differ from the installed copy's
-  // (the builder's local copy before the list refetches) is a different
-  // evaluation and must reinstall. Unchanged for semantics 1.
-  const sem = semanticsOf(def) === 1 ? '' : `~s${semanticsOf(def)}`
-  return `${def.id}@${def.version}#${def.compute && def.compute.fn}${sem}`
+  return `${def.id}@${def.version}#${def.compute && def.compute.fn}`
 }
 
 /**

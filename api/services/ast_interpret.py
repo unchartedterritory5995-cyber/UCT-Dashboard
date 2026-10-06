@@ -2046,11 +2046,6 @@ def _finite_tail_start(cols: Sequence[Sequence[float]], length: int) -> int:
 
     ⛔ WRITTEN TWICE, HERE AND IN ``interpret.js``, deliberately. It is a
     CONTRACT between the two lanes, not an optimisation, and the corpus pins it.
-
-    ⚠️ P0G -- the "already-declared rule" above was retired 2026-09-08 (the
-    smoother now holds). This restart stays the contract for every document
-    WITHOUT definition semantics 2; under semantics 2 the Wilder family bypasses
-    it and holds (``FN_V2``, owner decision C).
     """
     start = 0
     for col in cols:
@@ -2393,124 +2388,6 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "ichimokuSpanA": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 2),   # noqa: E741
     "ichimokuSpanB": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 3),   # noqa: E741
     "ichimokuChikou": lambda h, l, c, t, k, s: _ichimoku_line(h, l, c, t, k, s, 4),  # noqa: E741
-}
-
-
-# --------------------------------------------------------------------------- #
-# ⭐⭐ P0G -- OWNER DECISION C: THE WILDER FAMILY HOLDS ACROSS A HOLE, under
-# definition semantics 2 only -- the twin of ``interpret.js::FN_V2`` / ``bindHeld``.
-# Every other document keeps ``FN``'s ``_finite_tail_start`` restart byte for byte.
-#
-# ⭐ THE JS LANE HANDS THE WHOLE SERIES TO ``computeRSI``/``computeATR``/
-# ``computeADX``, WHICH ALREADY HOLD. Here ``compute_rsi_raw`` holds too (a
-# non-finite diff is skipped), so ``rsi`` is the shipped function on the whole
-# column. ``compute_atr_raw``/``compute_adx_raw`` do NOT hold -- they serve the
-# server's NATIVE indicators and stay untouched -- and Python's ``max`` keeps the
-# incumbent over a NaN, so ATR and ADX are restated below as the JS loops line for
-# line, with each operand's finiteness asked explicitly. ⛔ ``mfi`` is not in the
-# family (a rolling sum, a finite window) and keeps the restart.
-def _held_tr(h: Sequence[float], l: Sequence[float], c: Sequence[float], i: int) -> float:  # noqa: E741
-    """``Math.max(h-l, |h-c[i-1]|, |l-c[i-1]|)`` as JS answers it: NaN if any operand is."""
-    a = h[i] - l[i]
-    b = abs(h[i] - c[i - 1])
-    d = abs(l[i] - c[i - 1])
-    if _isnan(a) or _isnan(b) or _isnan(d):
-        return NAN
-    return max(a, b, d)
-
-
-def _fn_rsi_held(s: Sequence[float], n: int) -> List[float]:
-    """``compute_rsi_raw`` over the whole series (it holds) -- ``rsiOfSeries``."""
-    out = _nan_col(len(s))
-    values = compute_rsi_raw(list(s), n)
-    for i, v in enumerate(values):
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
-            continue
-        out[i] = NAN if math.isnan(float(v)) else float(v)
-    return out
-
-
-def _fn_atr_held(h, l, c, n):  # noqa: E741
-    """``indicators.js::computeATR`` over the whole series (it holds)."""
-    length = len(c)
-    out = _nan_col(length)
-    if length < n + 1:
-        return out
-    atr = NAN
-    seen = 0
-    total = 0.0
-    for i in range(1, length):
-        tr = _held_tr(h, l, c, i)
-        if not math.isfinite(tr):
-            continue                                   # HOLD
-        if math.isnan(atr):
-            total += tr
-            seen += 1
-            if seen < n:
-                continue
-            atr = total / n
-        else:
-            atr = (atr * (n - 1) + tr) / n
-        out[i] = atr
-    return out
-
-
-def _adx_held(h, l, c, n):  # noqa: E741
-    """``indicators.js::computeADX`` over the whole series (it holds): (adx, +DI, -DI)."""
-    length = len(c)
-    adx_out, plus_out, minus_out = _nan_col(length), _nan_col(length), _nan_col(length)
-    if length < 2 * n:
-        return adx_out, plus_out, minus_out
-    s_plus = s_minus = s_tr = 0.0
-    di_seen = 0
-    di_ready = False
-    adx = NAN
-    dx_seen = 0
-    dx_sum = 0.0
-    for i in range(1, length):
-        up = h[i] - h[i - 1]
-        down = l[i - 1] - l[i]
-        tr = _held_tr(h, l, c, i)
-        if not math.isfinite(up) or not math.isfinite(down) or not math.isfinite(tr):
-            continue                                   # HOLD
-        p_dm = up if (up > down and up > 0) else 0.0
-        m_dm = down if (down > up and down > 0) else 0.0
-        if not di_ready:
-            s_plus += p_dm
-            s_minus += m_dm
-            s_tr += tr
-            di_seen += 1
-            if di_seen < n:
-                continue
-            di_ready = True
-        else:
-            s_plus = s_plus - s_plus / n + p_dm
-            s_minus = s_minus - s_minus / n + m_dm
-            s_tr = s_tr - s_tr / n + tr
-        pdi = 0.0 if s_tr == 0 else 100.0 * s_plus / s_tr
-        mdi = 0.0 if s_tr == 0 else 100.0 * s_minus / s_tr
-        plus_out[i] = pdi
-        minus_out[i] = mdi
-        total = pdi + mdi
-        dx = 0.0 if total == 0 else 100.0 * abs(pdi - mdi) / total
-        if math.isnan(adx):
-            dx_sum += dx
-            dx_seen += 1
-            if dx_seen < n:
-                continue
-            adx = dx_sum / n
-        else:
-            adx = (adx * (n - 1) + dx) / n
-        adx_out[i] = adx
-    return adx_out, plus_out, minus_out
-
-
-FN_V2: Dict[str, Callable[..., List[float]]] = {
-    "rsi": _fn_rsi_held,
-    "atr": _fn_atr_held,
-    "adx": lambda h, l, c, n: _adx_held(h, l, c, n)[0],  # noqa: E741
-    "plusDI": lambda h, l, c, n: _adx_held(h, l, c, n)[1],  # noqa: E741
-    "minusDI": lambda h, l, c, n: _adx_held(h, l, c, n)[2],  # noqa: E741
 }
 
 
@@ -3028,46 +2905,6 @@ _BINARY: Dict[str, Callable[[float, float], float]] = {
     "&&": _logical(lambda a, b: a and b),
     "||": _logical(lambda a, b: a or b),
 }
-
-#: ⭐⭐ P0G -- DEFINITION SEMANTICS 2 (owner decision A, 2026-10-05). The twin of
-#: ``interpret.js::SEMANTICS_UNKNOWN_PROPAGATES`` / ``BINARY_V2``. A document the
-#: store stamped ``meta.semantics: 2`` (``user_definitions.save``: a NEW native /
-#: PCF / thinkScript save, never a Pine translation) is evaluated with
-#: ``opts["semantics"] == 2``, and under it a COMPARISON WITH AN UNKNOWN OPERAND IS
-#: UNKNOWN. ``&&``/``||``/``!``/``?:`` are unchanged. Every other document keeps
-#: ``_cmp`` (X23) byte for byte. Never together with the listing (Pine-only).
-SEMANTICS_UNKNOWN_PROPAGATES = 2
-
-
-def semantics_v2(opts: Any) -> bool:
-    """Does THIS evaluation read definition semantics 2? (``interpret.js::semanticsV2``)"""
-    if not isinstance(opts, Mapping):
-        return False
-    value = opts.get("semantics")
-    return (not isinstance(value, bool) and value == SEMANTICS_UNKNOWN_PROPAGATES
-            and opts.get("historyFromListing") is not True)
-
-
-def _cmp_unknown(f: Callable[[float, float], bool]) -> Callable[[float, float], float]:
-    return lambda a, b: NAN if (_isnan(a) or _isnan(b)) else (1.0 if f(a, b) else 0.0)
-
-
-_BINARY_V2: Dict[str, Callable[[float, float], float]] = dict(
-    _BINARY,
-    **{
-        ">": _cmp_unknown(lambda a, b: a > b),
-        "<": _cmp_unknown(lambda a, b: a < b),
-        ">=": _cmp_unknown(lambda a, b: a >= b),
-        "<=": _cmp_unknown(lambda a, b: a <= b),
-        "==": _cmp_unknown(lambda a, b: a == b),
-        "!=": _cmp_unknown(lambda a, b: a != b),
-    })
-
-
-def binary_for(opts: Any) -> Dict[str, Callable[[float, float], float]]:
-    """The operator table THIS evaluation reads (``semantics_v2``)."""
-    return _BINARY_V2 if semantics_v2(opts) else _BINARY
-
 
 _UNARY: Dict[str, Callable[[float], float]] = {
     "u-": lambda a: -a,
@@ -4458,49 +4295,11 @@ def bar_index_absolute_for(definition: Any) -> bool:
     return isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == PINE_RECURRENCE_ORIGIN
 
 
-#: ⭐⭐ P0G -- WHERE A DOCUMENT'S DEFINITION SEMANTICS LIVE: ``meta.semantics``,
-#: an integer the STORE stamps (``user_definitions.save``; a client's value is
-#: discarded there). Absent means 1 -- every row saved before this, every Pine
-#: translation, every shipped document -- and 1 is today's evaluation, unchanged.
-#: Twin: ``engine/definitionSemantics.js``.
-SEMANTICS_META_KEY = "semantics"
-LEGACY_SEMANTICS = 1
-
-
-def is_pine_origin(definition: Any) -> bool:
-    """Is this document a Pine translation (``meta.recurrenceOrigin == 'pine'``)?"""
-    meta = definition.get("meta") if isinstance(definition, Mapping) else None
-    return isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == PINE_RECURRENCE_ORIGIN
-
-
-def semantics_for(definition: Any) -> int:
-    """The definition semantics THIS document is evaluated under: 2 only when it
-    carries ``meta.semantics == 2`` AND is not a Pine translation (Pine keeps
-    Pine's ``na``-compares-false; a Pine document carrying 2 is malformed and reads
-    as 1). Anything else -- absent, ``True``, ``"2"``, 3 -- is 1."""
-    if is_pine_origin(definition):
-        return LEGACY_SEMANTICS
-    meta = definition.get("meta") if isinstance(definition, Mapping) else None
-    value = meta.get(SEMANTICS_META_KEY) if isinstance(meta, Mapping) else None
-    if isinstance(value, bool) or value != SEMANTICS_UNKNOWN_PROPAGATES:
-        return LEGACY_SEMANTICS
-    return SEMANTICS_UNKNOWN_PROPAGATES
-
-
-def semantics_opts_for(definition: Any) -> dict:
-    """The ``interpret`` opts that carry this document's semantics -- ``{}`` for 1."""
-    return ({"semantics": SEMANTICS_UNKNOWN_PROPAGATES}
-            if semantics_for(definition) == SEMANTICS_UNKNOWN_PROPAGATES else {})
-
-
 def lane_opts_for(definition: Any) -> dict:
     """The ``interpret`` opts a SERVER lane adds for this document -- one function,
     so the door that admits a tree and the lane that evaluates it cannot be handed
-    different ones. Empty for every document that is neither a Pine translation
-    nor stamped with definition semantics 2 (P0G)."""
-    out = {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
-    out.update(semantics_opts_for(definition))
-    return out
+    different ones. Empty for every document that is not a Pine translation."""
+    return {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
 
 
 #: Daily bars keyed by their session DATE (``YYYYMMDD``, no time of day): the
@@ -5197,9 +4996,6 @@ def _interpret_column(ast: Any, bars: List[dict],
         # wrote, and the bars are the caller's. Conflating the two would let a
         # wiring bug read as "the formula was rejected" on a chip's tooltip.
         raise TypeError(f"interpret(ast, bars): bars must be a list, got {type(bars).__name__}")
-    # ⭐ P0G -- decided ONCE per evaluation from the caller's opts (``semantics_v2``).
-    binary = binary_for(opts)
-    v2_fn = semantics_v2(opts)
     # ⭐ THE COMPUTE-TIME BUDGET, AND IT IS THE SAFETY HALF. It runs BEFORE the
     # scope is built and before a single node is walked, because the tree it
     # exists to refuse is the one that never returns. ``check_budget``'s
@@ -5697,9 +5493,6 @@ def _interpret_column(ast: Any, bars: List[dict],
             # ``vwap``", so a third such entry needs no edit here.
             if n["name"] in _BAR_FN:
                 return _bar_column(n["name"], bars, args, length)
-            # ⭐ P0G -- owner decision C (``FN_V2``), semantics 2 only.
-            if v2_fn and n["name"] in FN_V2:
-                return FN_V2[n["name"]](*args)
             return FN[n["name"]](*args)
         if kind in BIND_TIME_NODE_TYPES:
             # ⭐⭐ R-K -- BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
@@ -5744,7 +5537,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         if isinstance(name, str) and name in _BINARY:
             if len(values) != 2:
                 _refuse("resolve:arity", f"— {name} expects 2 arguments, got {len(values)}")
-            return _lift2(values[0], values[1], binary[name], length)
+            return _lift2(values[0], values[1], _BINARY[name], length)
         return _refuse("interpret:operator",
                        f"{name!r} — this table declares {_declared(TABLE[OPERATORS_SECTION])}")
 
@@ -5773,7 +5566,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         if isinstance(name, str) and name in _BINARY:
             if len(values) != 2:
                 _refuse("resolve:arity", f"— {name} expects 2 arguments, got {len(values)}")
-            return binary[name](values[0], values[1])
+            return _BINARY[name](values[0], values[1])
         return _refuse("interpret:operator",
                        f"{name!r} — this table declares {_declared(TABLE[OPERATORS_SECTION])}")
 

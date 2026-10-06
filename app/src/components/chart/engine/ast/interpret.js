@@ -2006,13 +2006,7 @@ function crossing(a, b, fired) {
  *      byte-identical to calling the shipped function directly.
  *
  *  ⛔ WRITTEN TWICE, HERE AND IN `ast_interpret.py`, deliberately. It is a
- *  CONTRACT between the two lanes, not an optimisation, and the corpus pins it.
- *
- *  ⚠️ P0G — "`smoothStep`'s already-declared rule" above was RETIRED 2026-09-08
- *  (`smoothStep` now holds). This restart stays the contract for every document
- *  WITHOUT definition semantics 2; under semantics 2 the Wilder family (`rsi`,
- *  `atr`, `adx`, `plusDI`, `minusDI`) bypasses it and holds (`FN_V2`, owner
- *  decision C). */
+ *  CONTRACT between the two lanes, not an optimisation, and the corpus pins it. */
 function finiteTailStart(cols, length) {
   let start = 0
   for (const col of cols) {
@@ -2796,61 +2790,6 @@ export const FN = Object.freeze({
   ichimokuChikou: (h, l, c, t, k, s) => ichimokuLine(h, l, c, t, k, s, 'chikou'),
 })
 
-/** ⭐⭐ P0G — OWNER DECISION C: THE WILDER FAMILY HOLDS ACROSS A HOLE, under
- *  definition semantics 2 only (`semanticsV2`; every other document keeps `FN`'s
- *  `finiteTailStart` restart byte for byte).
- *
- *  ⭐ NOT A NEW AVERAGE — THE SHIPPED MATHS, HANDED THE WHOLE SERIES. `computeRSI`,
- *  `computeATR` and `computeADX` already HOLD on a non-finite observation (each
- *  skips a bar whose change / true range / directional movement is not finite,
- *  keeps its state, emits nothing there, and continues from the preserved state;
- *  vendor-pinned for RSI 2026-09-08). `bindShipped` hid that by truncating to the
- *  last finite tail; `bindHeld` packs every bar instead. So:
- *    - `rsi` IS `technicalStudies.js::rsiOfSeries` on every bar (the TradingView-
- *      consistent `ta.rsi` over a gappy source: `na` on the hole AND the bar after
- *      it, then one normal step from the pre-hole state) — railed in the truth corpus;
- *    - a LEFT-EDGE hole (a composed warm-up, `rsi(sma(close,20),14)`) gives the
- *      SAME column as the restart rule, because nothing precedes it to hold;
- *    - a gap-free argument gives the SAME column as `FN` (start 0 either way).
- *
- *  ⛔ ONLY THE FUNCTIONS THAT SHARE THE WILDER-STATE PRIMITIVE: `rsi`, `atr`,
- *  `adx`, `plusDI`, `minusDI`. `mfi` is NOT one — `computeMFI` is a rolling
- *  `period`-bar SUM of money flow, a finite window (the still-unruled
- *  `finite-window-propagates-na-instead-of-skipping-it` question, with `stoch`,
- *  `cci`, `williamsR`, `donchian*`), so it keeps the restart under every
- *  semantics. `macd` is EMA-based, `atrPine`/`rma`/`ema` already hold.
- *  ⛔ The NATIVE indicators (`computeRSI`/`computeATR` drawn by the library, and
- *  `rsiOfSeries`) are untouched — this only changes what the FORMULA lane hands them.
- *  Python twin: `ast_interpret.py::FN_V2` (ATR/ADX restated there with explicit
- *  finiteness checks, because `indicator_compute`'s server versions do not hold
- *  and Python's `max` keeps the incumbent over a NaN). */
-function bindHeld(fields, cols, length, run) {
-  const out = nan(length)
-  if (length <= 0) return out
-  const bars = new Array(length)
-  for (let i = 0; i < length; i++) {
-    const bar = { t: i }
-    for (let k = 0; k < fields.length; k++) bar[fields[k]] = cols[k][i]
-    bars[i] = bar
-  }
-  const points = run(bars)
-  if (!Array.isArray(points) || points.length !== length) return out
-  for (let i = 0; i < length; i++) {
-    const p = points[i]
-    const v = p ? p.value : undefined
-    out[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
-  }
-  return out
-}
-
-export const FN_V2 = Object.freeze({
-  rsi: (s, n) => bindHeld(['c'], [s], s.length, (bars) => computeRSI(bars, n)),
-  atr: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeATR(bars, n)),
-  adx: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).adx),
-  plusDI: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).plusDI),
-  minusDI: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).minusDI),
-})
-
 /** One line of the Ichimoku family, with `_functions_domain`'s guard in front.
  *
  *  ⚠️ THE FOUR MIDLINE ENTRIES PASS `high` AS THE CLOSE COLUMN AND THAT IS NOT A
@@ -3286,7 +3225,7 @@ function dailySessionVwap(name, bars, args, length, opts) {
     const b = bars[i]
     if (!(b.v > 0)) continue
     const v = src ? src[i] : (b.h + b.l + b.c) / 3
-    out[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+    out[i] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
   }
   return out
 }
@@ -3371,35 +3310,6 @@ export const BINARY = Object.freeze({
   '&&': logical((a, b) => a && b),
   '||': logical((a, b) => a || b),
 })
-
-/** ⭐⭐ P0G — DEFINITION SEMANTICS 2 (owner decision A, 2026-10-05).
- *
- *  A document the store stamped `meta.semantics: 2` (a NEW native / PCF /
- *  thinkScript save — never a Pine translation; `user_definitions.save` is the
- *  authority, `definitionSemantics.js` the browser's reader) is evaluated with
- *  `opts.semantics === 2`, and under it a COMPARISON WITH AN UNKNOWN OPERAND IS
- *  UNKNOWN, not 0. `&&`/`||`/`!`/`?:` are unchanged (they already propagate).
- *  Every other document keeps `cmp` above (X23) byte for byte.
- *
- *  ⛔ NEVER WITH THE LISTING. `historyFromListing` is a Pine-only fact (it needs
- *  `meta.recurrenceOrigin === 'pine'`) and Pine compares `na` as false; the two
- *  together mean a forged document, and Pine's rule wins.
- *  Python twin: `ast_interpret.py::semantics_v2`. */
-export const SEMANTICS_UNKNOWN_PROPAGATES = 2
-export const semanticsV2 = (opts) => !!opts && opts.semantics === SEMANTICS_UNKNOWN_PROPAGATES
-  && opts.historyFromListing !== true
-const cmpUnknown = (f) => (a, b) => (isNan(a) || isNan(b) ? NaN : (f(a, b) ? 1 : 0))
-export const BINARY_V2 = Object.freeze({
-  ...BINARY,
-  '>': cmpUnknown((a, b) => a > b),
-  '<': cmpUnknown((a, b) => a < b),
-  '>=': cmpUnknown((a, b) => a >= b),
-  '<=': cmpUnknown((a, b) => a <= b),
-  '==': cmpUnknown((a, b) => a === b),
-  '!=': cmpUnknown((a, b) => a !== b),
-})
-/** The operator table THIS evaluation reads (`semanticsV2`). */
-export const binaryFor = (opts) => (semanticsV2(opts) ? BINARY_V2 : BINARY)
 
 export const UNARY = Object.freeze({
   'u-': (a) => -a,
@@ -5527,9 +5437,6 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // read as "the formula was rejected" on a chip's tooltip.
     throw new Error(`interpret(ast, bars): bars must be an array, got ${typeof bars}`)
   }
-  // ⭐ P0G — decided ONCE per evaluation from the caller's opts (`semanticsV2`).
-  const binary = binaryFor(opts)
-  const v2Fn = semanticsV2(opts)
   // ⭐ THE COMPUTE-TIME BUDGET, AND IT IS THE SAFETY HALF. It runs BEFORE the
   // scope is built and before a single node is walked, because the tree it
   // exists to refuse is the one that never returns. `assertBudget`'s
@@ -5940,9 +5847,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // is "does this entry declare it", never "is this call `vwap`", so a
         // third such entry needs no edit here.
         if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length, opts)
-        // ⭐ P0G — owner decision C: under definition semantics 2 the Wilder
-        // family HOLDS across a hole instead of restarting after it (`FN_V2`).
-        return (v2Fn && own(FN_V2, n.name) ? FN_V2 : FN)[n.name](...args)
+        return FN[n.name](...args)
       }
       case 'str':
       case 'symtext':
@@ -6156,7 +6061,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 2) {
         refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
       }
-      return lift2(values[0], values[1], binary[name], length)
+      return lift2(values[0], values[1], BINARY[name], length)
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)
@@ -6190,7 +6095,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 2) {
         refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
       }
-      return binary[name](values[0], values[1])
+      return BINARY[name](values[0], values[1])
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)

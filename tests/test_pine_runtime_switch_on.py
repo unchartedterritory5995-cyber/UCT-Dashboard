@@ -34,7 +34,6 @@ from api.routers import user_definitions as router_mod
 from api.services import runtime_definitions as rt
 from api.services import user_definition_relint as rl
 from api.services import user_definitions as svc
-from tests._p0_legacy_rows import save_legacy
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
@@ -322,8 +321,7 @@ def _force_stored(def_id, verdicts):
 
 def test_RT4_a_pre_fix_row_reading_a_clock_leaf_is_served_WITH_a_notice_and_never_flipped(store):
     edge, stable = "u_000000000e51", "u_000000000e52"
-    # ⭐ P0/0P — a PRE-FIX row is by definition stored before the save gate.
-    save_legacy(USER, edge, _ast(edge, "islast"))
+    svc.save(USER, edge, _ast(edge, "islast"))
     svc.save(USER, stable, _ast(stable, "isconfirmed"))
     _force_stored(edge, {"value": "non-repainting"})       # what a pre-3a77b89423 save stored
     stored_before = sqlite3.connect(svc._DB_PATH).execute(
@@ -348,13 +346,7 @@ def test_RT4_a_pre_fix_row_reading_a_clock_leaf_is_served_WITH_a_notice_and_neve
 
 def test_RT4_a_fresh_save_of_the_same_leaf_carries_no_notice(store):
     edge = "u_000000000e53"
-    # ⭐ P0/0P — a FRESH save of a `repaints` leaf is now refused at the save
-    # door, so the fresh row this rail needs is the acknowledged
-    # `preview-repaints` leaf; the refusal itself is pinned beside it.
-    with pytest.raises(svc.SaveRefused) as refused:
-        svc.save(USER, "u_000000000e54", _ast("u_000000000e54", "lastbarindex"))
-    assert refused.value.gate == "repaint"
-    svc.save(USER, edge, _ast(edge, "islast"), repaint_acknowledged=True)
+    svc.save(USER, edge, _ast(edge, "lastbarindex"))
     assert _client("member").get(f"/api/user-definitions/{edge}").json()["repaint_notice"] is None
 
 

@@ -428,15 +428,7 @@ def def_hash(definition: Any) -> str:
             "that disagrees would file this formula's answers under another "
             "formula's name.",
         )
-    # ⭐⭐ THE MATHS + THE SEMANTICS (owner decision A, 2026-10-06). Two members
-    # who type the same tree still share one result set — but only when their
-    # definitions are evaluated under the same definition semantics. A semantics-2
-    # document's hits, coverage and forward record live under
-    # `<hash>~s2` (`user_definitions.result_identity`); semantics 1 keeps the bare
-    # hash, so every row filed before this line is untouched and still means
-    # what it meant. `ast_interpret.semantics_for` reads the STORED stamp.
-    from api.services import ast_interpret
-    return user_definitions.semantic_identity(computed, ast_interpret.semantics_for(definition))
+    return computed
 
 
 def _compute_of(definition: Any) -> Mapping[str, Any]:

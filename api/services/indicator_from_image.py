@@ -183,8 +183,6 @@ REFUSALS: Mapping[str, str] = MappingProxyType({
         "the picture reader replied without proposing anything"),
     "vision:no-candidate": (
         "nothing in that picture could be turned into a formula this engine can draw"),
-    "vision:internal": (
-        "the picture reader hit an internal problem checking this candidate"),
 })
 
 
@@ -559,15 +557,10 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
             # ⭐ THE GATE THAT DECIDED, CARRIED OUT WHOLE -- and NO formula.
             refused.append({**seen, "gate": exc.gate, "reason": exc.reason})
             continue
-        except Exception:                           # noqa: BLE001 -- never raises out
-            # ⭐ P0 (2026-10-05) -- A BUG IS NOT A VERDICT ON THE PICTURE. ⚰️ This
-            # filed every unexpected exception (the concierge gate's KeyError on
-            # `sym`/`tf`/`textop`) as `vision:no-candidate`, telling the member
-            # the picture held nothing drawable. It is logged WITH its traceback
-            # and carried under its own gate instead.
-            logger.exception("[indicator-vision] candidate validation failed unexpectedly")
-            refused.append({**seen, "gate": "vision:internal",
-                            "reason": REFUSALS["vision:internal"]})
+        except Exception as exc:                    # noqa: BLE001 -- never raises out
+            logger.warning("[indicator-vision] candidate rejected: %s", exc)
+            refused.append({**seen, "gate": "vision:no-candidate",
+                            "reason": REFUSALS["vision:no-candidate"]})
             continue
         accepted.append(row)
 

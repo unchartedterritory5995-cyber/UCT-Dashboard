@@ -1044,17 +1044,12 @@ def _my_scans_entry(user_id):
     for row in rows:
         definition = row.get("definition") or {}
         try:
-            # ⭐⭐ THE HANDLE IS THE ONE THE SWEEP FILED UNDER (owner decision A):
-            # `assert_scannable`'s `def_hash` is the tree hash + the definition's
-            # semantics. The row's `ast_hash` names the tree alone, so a
-            # semantics-2 scan offered under it would read the semantics-1 hits
-            # of the same tree — another definition's truth.
-            handle = scan_definition.assert_scannable(definition)["def_hash"]
+            scan_definition.assert_scannable(definition)
         except Exception:
             continue
         name = str(((definition.get("meta") or {}).get("name"))
                    or row.get("def_id") or "Untitled scan")
-        scannable.append((str(handle), name))
+        scannable.append((str(row.get("ast_hash")), name))
     if not scannable:
         return None
     # FilterControl re-finds presets by LABEL — duplicates must diverge.
@@ -1063,9 +1058,7 @@ def _my_scans_entry(user_id):
     counts = {}
     for _, name in scannable:
         counts[name] = counts.get(name, 0) + 1
-    # (a semantics-2 handle shares its first hex with its semantics-1 twin, so
-    # the suffix carries the semantics too — labels must stay unique)
-    labeled = [(h, f"{name} · {h[7:13]}{h[71:]}" if counts[name] > 1 else name)
+    labeled = [(h, f"{name} · {h[7:13]}" if counts[name] > 1 else name)
                for h, name in scannable]
     try:
         latest = scan_store.latest_coverage_for(

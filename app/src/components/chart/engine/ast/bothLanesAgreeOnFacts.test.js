@@ -166,7 +166,7 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
       .toBeGreaterThan(500)
   })
 
-  it('⭐ RETIRED FINDING (P0 0L, 2026-10-05) — NO script throws out of translatePine', () => {
+  it('⛔⛔ FINDING — exactly ONE script still THROWS out of translatePine', () => {
     // ⚰️ `translatePine`'s contract is to RETURN refusals; a caller without a try/catch
     // gets an exception where a refusal belongs. This rail rediscovered the defect
     // independently, and it was already known: `pine.js`'s `switchBinding` call site
@@ -175,10 +175,7 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
     // finding"). It throws on BOTH lanes, which is at least symmetric.
     // ⭐ Asserted as the exact name so the day it is fixed this goes red and the
     // finding is retired rather than forgotten.
-    // ⭐ RETIRED 2026-10-05 (P0 slice imp): the top-level `switchBinding` call site
-    // now turns a PineRefusal out of an arm into "a shape it cannot take", so that
-    // script gets a named refusal on both lanes. Any new thrower reds this by name.
     const throwers = rows.filter((r) => r.strict.threw || r.lenient.threw).map((r) => r.name)
-    expect(throwers).toEqual([])
+    expect(throwers).toEqual(['smart-money-breakouts-chartprime__ea79c79a67.pine'])
   })
 })

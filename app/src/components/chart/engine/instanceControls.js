@@ -73,10 +73,6 @@ import {
   isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf,
 } from './displayTarget'
 import { parsePaneOfTarget } from './sourceRef'
-// ⭐ P1 — a delete SEVERS the header's info values that read the deleted instance
-// (a visible gravestone), so a re-add under the same deterministic id can never
-// silently reconnect them. Identity when none pointed at it. See `infoValues.js`.
-import { severInfoValuesTo } from './infoValues'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
          CANDLE_COLOR_KEYS, LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES,
          DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE } from './presentation'
@@ -266,8 +262,7 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
     // Nothing stored yet, but the legacy toggle may still be projecting one in at
     // read time — the tombstone is what stops the migrator putting it straight back.
     if (!next.some(i => i && i.instanceId === id)) next.push(instanceTombstone(id))
-    const killed = list.filter(i => isLiveInstance(i) && i.defId === defId).map(i => i.instanceId)
-    return severInfoValuesTo({ ...withInstances(cs, next, registry), indicators }, [...killed, id])
+    return { ...withInstances(cs, next, registry), indicators }
   }
 
   const prev = list.find(i => i && typeof i === 'object' && i.instanceId === id)
@@ -364,7 +359,7 @@ export function removeInstance(cs, instanceId, registry) {
   if (!next.some(i => isLiveInstance(i) && i.defId === defId)) {
     indicators[defId] = { ...(indicators[defId] || {}), enabled: false }
   }
-  return severInfoValuesTo({ ...withInstances(cs, next, registry), indicators }, ids)
+  return { ...withInstances(cs, next, registry), indicators }
 }
 
 /**

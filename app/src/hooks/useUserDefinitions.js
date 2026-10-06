@@ -131,9 +131,6 @@ export function useUserDefinitions() {
 /**
  * @param {object} definition
  * @param {string|null} [defId]
- * @param {{previewAcked?: boolean}|null} [options] P0/0P — `previewAcked:
- *   true` says every `preview-repaints` plot in this save was acknowledged by
- *   the author (the server's `repaint_acknowledged`; never persisted).
  * @param {{importId: string, dialect?: string}|null} [telemetry] Phase One
  *   Track C — TELEMETRY-ONLY, never merged into `definition`. Lets the
  *   server's `import_accepted` event join back to whichever client-observed
@@ -142,7 +139,7 @@ export function useUserDefinitions() {
  *   fields from the request body — the server treats their absence as
  *   "no journey to join", not an error.
  */
-export async function saveUserDefinition(definition, defId = null, telemetry = null, options = null) {
+export async function saveUserDefinition(definition, defId = null, telemetry = null) {
   // ⭐⭐ C2C: SEND THE SMALLER FORM WHEN THE INLINED ONE WOULD NOT FIT. A
   // multi-plot Pine import computes one consensus expression and plots several
   // views of it, so `compute.trees` inlines the same subtree ten times and the
@@ -168,12 +165,6 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
           import_id: telemetry.importId,
           source_dialect: telemetry.dialect || null,
         } : {}),
-        // ⭐ P0/0P — the author's save-time acknowledgement of a
-        // `preview-repaints` badge, carried to the server, which now REFUSES an
-        // unacknowledged one (422 `repaint-ack`). Never part of `definition`
-        // and never persisted — the same contract as the sheet's checkbox (it
-        // is NOT the alert-arm acknowledgement the document can carry).
-        ...(options && options.previewAcked === true ? { repaint_acknowledged: true } : {}),
       }),
     })
   } catch {

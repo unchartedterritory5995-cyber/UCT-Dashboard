@@ -318,8 +318,8 @@ def test_a_REV_BUMP_RE_ENTERS_the_1e_9_proof_ON_THE_NEW_TREE(env):
     proofs: list[dict] = []
     real = aus.cross_lane_report
 
-    def spy(tree, bars, inputs=None, opts=None):   # P0G: + the definition's semantics opts
-        report = real(tree, bars, inputs, opts)
+    def spy(tree, bars, inputs=None):
+        report = real(tree, bars, inputs)
         proofs.append({"hash": _hash(tree), "compared": report.get("compared"),
                        "rel_tol": report.get("rel_tol")})
         return report
@@ -367,8 +367,8 @@ def test_a_RESTART_re_proves_too_because_the_RECEIPT_is_per_process(env):
     real = aus.cross_lane_report
     env["monkeypatch"].setattr(
         aus, "cross_lane_report",
-        lambda tree, bars, inputs=None, opts=None: (proofs.append(_hash(tree)),
-                                                    real(tree, bars, inputs, opts))[1])
+        lambda tree, bars, inputs=None: (proofs.append(_hash(tree)),
+                                         real(tree, bars, inputs))[1])
 
     ud.save(USER, DEF_ID, defn(20))
     alert_id = ias.create(user_id=USER, sym="PARITY", indicator=ADDRESS,
@@ -764,10 +764,7 @@ def test_the_PUT_route_is_the_ONE_the_builder_calls():
     # ⭐ Phase One Track C added a THIRD, optional telemetry-passthrough
     # argument (`importTelemetryRef.current`) — additive, never changing the
     # create-vs-edit id logic this assertion exists to pin.
-    # ⭐ P0/0P added a FOURTH, optional argument (`saveOptions` — the save-time
-    # preview-repaint acknowledgement the server now requires). Additive, and
-    # the id argument this assertion pins is unchanged.
-    assert "saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current, saveOptions)" in builder, (
+    assert "saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current)" in builder, (
         "the builder stopped passing an id to `saveUserDefinition`, which is the "
         "whole difference between a create and an edit")
 
@@ -786,8 +783,7 @@ def test_the_REPROOF_costs_ONE_subprocess_per_MISS_and_none_per_cycle(env):
     real = aus.cross_lane_report
     env["monkeypatch"].setattr(
         aus, "cross_lane_report",
-        lambda tree, bars, inputs=None, opts=None: (calls.append(1),
-                                                    real(tree, bars, inputs, opts))[1])
+        lambda tree, bars, inputs=None: (calls.append(1), real(tree, bars, inputs))[1])
 
     ud.save(USER, DEF_ID, defn(20))
     _armed_pair(armed_at=int(time.time()) - 7200)
