@@ -4,6 +4,7 @@ import styles from './ResearchCov.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import { memberText } from '../../../lib/presentation/memberCopy'
 import { usePendingReask } from '../depth/depthFetch'
+import PendingGaveUp from '../depth/PendingGaveUp'
 
 // COV-05 (roadmap RM-L19) — who runs this company: officers and key executives,
 // the proxy's compensation table, and the role each insider declares on Form 4.
@@ -138,7 +139,7 @@ export default function PeopleTab({ sym }) {
   const key = s ? `/api/research/people/${encodeURIComponent(s)}` : null
   const { data, error, mutate } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
   // The Form 4 half answers `pending` while its read is queued; ask again by itself.
-  usePendingReask(data?.insider_roles?.state === 'pending', mutate, key)
+  const reask = usePendingReask(data?.insider_roles?.state === 'pending', mutate, key)
 
   if (error) {
     return <div className={styles.note} data-testid="people-unavailable">
@@ -152,7 +153,8 @@ export default function PeopleTab({ sym }) {
     <section className={styles.section} data-testid="people">
       <div className={styles.card}><h3 className={styles.title}>Officers and key executives</h3><Executives part={data.executives} sym={s} /></div>
       <div className={styles.card}><h3 className={styles.title}>Compensation (proxy summary table)</h3><Compensation part={data.compensation} sym={s} /></div>
-      <div className={styles.card}><h3 className={styles.title}>Insider roles (SEC Form 4)</h3><InsiderRoles part={data.insider_roles} sym={s} /></div>
+      <div className={styles.card}><h3 className={styles.title}>Insider roles (SEC Form 4)</h3><InsiderRoles part={data.insider_roles} sym={s} />
+        <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The Form 4 read" /></div>
     </section>
   )
 }

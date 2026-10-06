@@ -4,7 +4,7 @@
 //   402 -> { paywalled: true }
 //   400 -> { badRequest: <the server's sentence> }  (a query the language cannot express)
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { withDeadline } from '../../../components/research/sections/sectionFetch'
 
 // Live sweep 2026-10-05: BRKE, ERX and EVTS answer `pending` on a cold read (their data is
@@ -15,14 +15,24 @@ import { withDeadline } from '../../../components/research/sections/sectionFetch
 export const PENDING_REASK_MS = 10000
 export const PENDING_REASK_MAX = 9
 
+// Returns { exhausted, retry }: once the cap is spent while the answer is still pending, the
+// panel must stop promising "this fills in by itself" and offer a manual check instead
+// (quality pass 2026-10-05). `retry` re-arms the re-ask and asks once now.
 export function usePendingReask(isPending, mutate, key) {
   const n = useRef(0)
-  useEffect(() => { n.current = 0 }, [key])
+  const [spent, setSpent] = useState(false)
+  const [round, setRound] = useState(0)
+  useEffect(() => { n.current = 0; setSpent(false) }, [key])
   useEffect(() => {
-    if (!isPending || n.current >= PENDING_REASK_MAX) return undefined
+    if (!isPending) return undefined
+    if (n.current >= PENDING_REASK_MAX) { setSpent(true); return undefined }
     const t = setTimeout(() => { n.current += 1; mutate() }, PENDING_REASK_MS)
     return () => clearTimeout(t)
-  }, [isPending, mutate, key])
+  }, [isPending, mutate, key, round])
+  const retry = useCallback(() => {
+    n.current = 0; setSpent(false); setRound((r) => r + 1); mutate()
+  }, [mutate])
+  return { exhausted: spent && Boolean(isPending), retry }
 }
 
 export class DepthFetchError extends Error {

@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
@@ -37,7 +38,7 @@ export default function EarningsReactionPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
-  usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
+  const reask = usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
@@ -90,6 +91,7 @@ export default function EarningsReactionPanel({ sym }) {
   return (
     <section className={styles.panel} data-testid="earnings-reaction-panel">
       <h3 className={styles.panelTitle}>Earnings reaction (8 quarters)</h3>
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings-reaction read" />
       {body}
     </section>
   )

@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import PendingGaveUp from './PendingGaveUp'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
@@ -22,7 +23,7 @@ export default function BrokerEstimatesPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
-  usePendingReask(data?.state === 'pending', mutate, s)
+  const reask = usePendingReask(data?.state === 'pending', mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
@@ -77,6 +78,7 @@ export default function BrokerEstimatesPanel({ sym }) {
   return (
     <section className={styles.panel} data-testid="broker-panel">
       <h3 className={styles.panelTitle}>Estimates by contributor</h3>
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The estimate read" />
       {body}
     </section>
   )
