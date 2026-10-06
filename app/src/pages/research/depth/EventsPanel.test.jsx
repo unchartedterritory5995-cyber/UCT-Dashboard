@@ -60,4 +60,16 @@ describe('EventsPanel', () => {
     expect((await screen.findByTestId('events-unstaged')).textContent).toMatch(/no reported or scheduled print/)
     expect(screen.getByTestId('events-empty')).toBeInTheDocument()
   })
+
+  // tq-panels: "No events on file" showed while a source was still being read.
+  it('a source still being read is named, and the empty line says it is still reading', async () => {
+    body = { ...OK, state: 'unstaged', reason: 'earnings history is still being read', events: [],
+      sources: { earnings: { state: 'pending' }, uct_catalyst: { state: 'empty', events: 0 } } }
+    renderTab()
+    expect((await screen.findByTestId('events-empty')).textContent)
+      .toBe('No events on file yet — Earnings is still being read.')
+    expect(screen.getByTestId('events-pending').textContent)
+      .toBe('Still reading: Earnings. Events from that source appear when the read finishes.')
+    expect(screen.queryByText('No events on file in the sources read.')).toBeNull()
+  })
 })
