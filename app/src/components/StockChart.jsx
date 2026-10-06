@@ -147,7 +147,7 @@ import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
 // installed output, read from the binder's own latest value (`infoValueResolve`).
-import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf } from './chart/engine/infoValues'
+import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf, severInfoValuesForInstanceSwap } from './chart/engine/infoValues'
 import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoValueResolve'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
 // BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
@@ -6107,8 +6107,13 @@ export default function StockChart({
       if (!encoded) return
       const decoded = urlToChartState(encoded)
       if (!decoded) return
+      // ⭐ P1 — the recipient's header is kept but the SENDER's instance list
+      // replaces theirs: an info value whose id now names a different instance
+      // (deterministic ids collide, e.g. `inst:rsi:1`) is severed, never read.
+      const _csIv = Array.isArray(decoded.indicatorInstances)
+        ? severInfoValuesForInstanceSwap(cs, decoded.indicatorInstances) : cs
       const next = {
-        ...cs,
+        ..._csIv,
         ...(decoded.chartType ? { chartType: decoded.chartType } : {}),
         ...(typeof decoded.heikinAshi === 'boolean' ? { heikinAshi: decoded.heikinAshi } : {}),
         ...(typeof decoded.logScale === 'boolean' ? { logScale: decoded.logScale } : {}),

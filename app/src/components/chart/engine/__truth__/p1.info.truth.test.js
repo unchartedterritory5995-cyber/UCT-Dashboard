@@ -14,6 +14,7 @@ import { outputTypeOf, OUTPUT_TYPES } from '../outputType'
 import { legendChips, chipValueText } from '../readout'
 import {
   addInfoValue, removeInfoValue, repairInfoValue, infoValuesOf, severInfoValuesTo, INFO_VALUES_KEY,
+  severInfoValuesForInstanceSwap,
 } from '../infoValues'
 import {
   resolveInfoValue, resolveInfoValues, infoValueOutputExists, INFO_VALUE_STATES, INFO_VALUE_GUARDS,
@@ -251,5 +252,39 @@ describe('P1 info — 19 (part): the chart and the info value read ONE computati
     expect(rows.map((r) => r.instanceId)).toEqual(['inst:rsi:2', 'inst:rsi:1'])
     expect(rows[0].state).toBe(INFO_VALUE_STATES.VALUE)
     expect(rows[1]).toMatchObject({ state: INFO_VALUE_STATES.UNAVAILABLE, guard: INFO_VALUE_GUARDS.HIDDEN })
+  })
+})
+
+describe('P1 info — 18f: a share link swaps in the SENDER’s instances under the recipient’s header', () => {
+  const recipient = () => csWith([inst('inst:rsi:1', 'rsi', { inputs: { period: 14 } })],
+    [{ instanceId: 'inst:rsi:1', plotKey: 'rsi' }])
+  const sender = [inst('inst:rsi:1', 'rsi', { inputs: { period: 2 } })]
+  const apply = (cs, swapped) => ({ ...cs, indicatorInstances: swapped })   // the ?state= apply shape
+
+  it('BEFORE (no sever): the recipient’s value would silently read the sender’s RSI(2) — the silent-wrong case', () => {
+    const naive = apply(recipient(), sender)
+    const r = resolveInfoValue(naive, infoValuesOf(naive)[0], envOf(draw(naive)))
+    const mine = registry.computeFor(registry.getDefinition('rsi'), BARS, { period: 14 }, {}).rsi
+    expect(r.state).toBe(INFO_VALUE_STATES.VALUE)
+    expect(r.value).not.toBe(mine[mine.length - 1])   // a DIFFERENT instance's number
+  })
+
+  it('AFTER: ASKED open a shared chart; CLAIMED my header value; DID severed → visible unavailable, never the sender’s number', () => {
+    const cs = recipient()
+    const next = apply(severInfoValuesForInstanceSwap(cs, sender), sender)
+    expect(next.header.infoValues).toEqual([{ instanceId: 'inst:rsi:1', plotKey: 'rsi', format: 'auto', severed: true }])
+    const r = resolveInfoValue(next, infoValuesOf(next)[0], envOf(draw(next)))
+    expect(r).toMatchObject({ state: INFO_VALUE_STATES.BROKEN, guard: INFO_VALUE_GUARDS.DELETED })
+    expect(r.value).toBeUndefined()
+  })
+
+  it('a provably identical instance (same id, defId, version, inputs) keeps its value; no info values → identity', () => {
+    const cs = recipient()
+    const same = [inst('inst:rsi:1', 'rsi', { inputs: { period: 14 } })]
+    expect(severInfoValuesForInstanceSwap(cs, same)).toBe(cs)
+    const absent = severInfoValuesForInstanceSwap(cs, [])
+    expect(absent.header.infoValues[0].severed).toBe(true)
+    const plain = csWith([inst('inst:rsi:1', 'rsi')])
+    expect(severInfoValuesForInstanceSwap(plain, sender)).toBe(plain)
   })
 })

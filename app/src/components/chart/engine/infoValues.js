@@ -240,3 +240,36 @@ export function severInfoValuesTo(cs, instanceIds) {
   })
   return touched ? withInfoValues(cs, sanitizeInfoValues(next)) : cs
 }
+
+const instanceIdentity = (i) => {
+  try {
+    return JSON.stringify([i.defId, Number.isInteger(i.defVersion) ? i.defVersion : null,
+      Object.keys(i.inputs || {}).sort().map((k) => [k, i.inputs[k]])])
+  } catch { return null }
+}
+
+/**
+ * ⭐ AN INSTANCE LIST SWAPPED IN FROM ELSEWHERE (a `?state=` share link) while the
+ * recipient's header is kept: every info value whose target is not PROVABLY the
+ * same instance — same id AND same definition id/version AND same inputs, live in
+ * both lists — is SEVERED (visible "unavailable"), because ids are deterministic
+ * (`inst:rsi:1`) and would otherwise silently read the SENDER's instance.
+ * Identity when nothing needs severing.
+ *
+ * @param {object} cs           the recipient's settings (its header is kept)
+ * @param {object[]} nextInstances the instance list about to replace `cs.indicatorInstances`
+ */
+export function severInfoValuesForInstanceSwap(cs, nextInstances) {
+  if (!isObj(cs) || !isObj(cs.header) || !Array.isArray(cs.header[INFO_VALUES_KEY])) return cs
+  const incoming = { indicatorInstances: Array.isArray(nextInstances) ? nextInstances : [] }
+  const unproven = new Set()
+  for (const o of infoValuesOf(cs)) {
+    if (o.severed) continue
+    const mine = liveInstanceOf(cs, o.instanceId)
+    const theirs = liveInstanceOf(incoming, o.instanceId)
+    const same = !!mine && !!theirs && instanceIdentity(mine) !== null
+      && instanceIdentity(mine) === instanceIdentity(theirs)
+    if (!same) unproven.add(o.instanceId)
+  }
+  return unproven.size ? severInfoValuesTo(cs, unproven) : cs
+}
