@@ -52,6 +52,13 @@ def http_as(conv):
     app = FastAPI()
     app.include_router(router_mod.router)
     app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who["user"])
+    # ⭐ THESE TESTS ARE ABOUT THE CAP AND THE TELEMETRY, NOT THE ROLLOUT GATE. Where
+    # the route carries the admin-only dark-rollout dependency (master, 2026-10-06:
+    # `require_admin_dark_rollout`), it is lifted HERE ONLY, so a member's cap is
+    # still provable through the real route; that gate has its own tests.
+    dark = getattr(router_mod, "require_admin_dark_rollout", None)
+    if dark is not None:
+        app.dependency_overrides[dark] = lambda: dict(who["user"])
     router_mod._propose_calls.clear()
     conv.reset_conversation_usage()
 
