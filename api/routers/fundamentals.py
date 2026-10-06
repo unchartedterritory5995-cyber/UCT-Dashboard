@@ -490,9 +490,9 @@ def get_earnings_intel_endpoint(ticker: str = Depends(ticker_path)):
     # already classifies the symbol in memory, so the honest answer costs nothing.
     # Unknown type (index not loaded, symbol not in it) is NOT a fund: build as before.
     from api.services import ticker_search_index
-    if ticker_search_index.instrument_type(sym) == "etf":
-        return {"ticker": sym, "not_applicable": "fund",
-                "reason": f"{sym} is a fund; funds do not report earnings",
+    na = ticker_search_index.fund_not_applicable(sym, "funds do not report earnings")
+    if na:
+        return {"ticker": sym, **na,
                 "quarters": [], "estimates": [],
                 "annual": {"reported": [], "estimates": []}, "summary": {}}
     from api.services.earnings_intel import get_earnings

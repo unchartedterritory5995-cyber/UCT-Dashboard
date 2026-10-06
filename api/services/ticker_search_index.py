@@ -453,6 +453,26 @@ def instrument_type(sym: str) -> str | None:
     return (row or {}).get("type") or None
 
 
+#: The ONE wording key a stock-only research route answers a fund with (earnings-intel,
+#: people, ratings, ...): `{"not_applicable": "fund", "reason": "<SYM> is a fund; ..."}`.
+NOT_APPLICABLE_FUND = "fund"
+
+
+def is_fund(sym: str) -> bool:
+    """True ONLY when the built index types `sym` as an ETF. Unknown -- the index not
+    built yet on a cold boot, or the symbol not in it -- is False: a route then behaves
+    exactly as it does for a company. Never claims "fund" on a guess."""
+    return instrument_type(sym) == "etf"
+
+
+def fund_not_applicable(sym: str, why: str) -> dict | None:
+    """`{"not_applicable": "fund", "reason": "<SYM> is a fund; <why>"}` for a fund, else None."""
+    if not is_fund(sym):
+        return None
+    s = (sym or "").strip().upper()
+    return {"not_applicable": NOT_APPLICABLE_FUND, "reason": f"{s} is a fund; {why}"}
+
+
 def status() -> dict:
     return {"rows": len(_INDEX), "built_at": _BUILT_AT, "building": _BUILDING,
             "snapshot": _SNAP_PATH, "liquidity_symbols": len(_LIQ), "liquidity_at": _LIQ_AT}

@@ -218,6 +218,26 @@ def research_quote(sym: str = Depends(sym_path)):
         return None
 
 
+# A FUND IS NOT A COMPANY. FA / EE / ANR answer a fund with empty records the panels render
+# as generic "no data"; each now also carries the shared, ADDITIVE fund marker
+# (`ticker_search_index.fund_not_applicable`: `not_applicable: "fund"` + `reason`) so a panel
+# can say why. The vendors are still read and the payload keeps its shape: an index that
+# mis-types a company as an ETF must not blank real data. RTG is the exception -- its composite
+# for a fund is a number built from price inputs alone, so it answers not_applicable outright.
+# Unknown type (index not built yet, symbol not in it) is never "fund".
+def _fund_marked(out, sym, why):
+    from api.services.ticker_search_index import fund_not_applicable
+    na = fund_not_applicable(sym, why)
+    return {**out, **na} if na and isinstance(out, dict) else out
+
+
+_FA_FUND_WHY = "funds report no company income statement, balance sheet or cash flow"
+_EE_FUND_WHY = "analysts publish no earnings or revenue estimates for a fund"
+_ANR_FUND_WHY = "funds carry no sell-side analyst ratings or price targets"
+_RTG_FUND_WHY = ("the UCT composite rates a company's earnings, growth, margins and value, "
+                 "which a fund does not have")
+
+
 @router.get("/api/research/financial-history/{sym}")
 def research_financial_history(sym: str = Depends(sym_path), period: str = "quarter"):
     """Deep statement series for the fundamentals panels (24q / 12y).
@@ -227,22 +247,23 @@ def research_financial_history(sym: str = Depends(sym_path), period: str = "quar
     """
     try:
         from api.services.research.financial_history import get_history
-        return get_history(sym, period=period)
+        return _fund_marked(get_history(sym, period=period), sym, _FA_FUND_WHY)
     except Exception as exc:
         _logger.warning("financial history failed for %s: %s", sym, exc)
         # `fmp_unavailable`: the read FAILED. Without it the panel said "FMP holds no statement
         # history for this ticker" - a claim about the company (quality pass 2026-10-05).
-        return {"sym": (sym or "").upper(), "period": period,
-                "periods": [], "series": {}, "fmp_unavailable": True}
+        return _fund_marked({"sym": (sym or "").upper(), "period": period,
+                             "periods": [], "series": {}, "fmp_unavailable": True}, sym, _FA_FUND_WHY)
 
 
 @router.get("/api/research/financials/{sym}")
 def research_financials(sym: str = Depends(sym_path)):
     try:
-        return get_financials(sym)
+        return _fund_marked(get_financials(sym), sym, _FA_FUND_WHY)
     except Exception as exc:
         _logger.warning("research financials failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "annual": [], "quarterly": [], "balance": {}, "metrics": {}}
+        return _fund_marked({"sym": (sym or "").upper(), "annual": [], "quarterly": [],
+                             "balance": {}, "metrics": {}}, sym, _FA_FUND_WHY)
 
 
 @router.get("/api/research/estimates/{sym}")
@@ -254,10 +275,11 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     parameter the response is exactly what it always was."""
     if not consensus:
         try:
-            return get_estimates(sym)
+            return _fund_marked(get_estimates(sym), sym, _EE_FUND_WHY)
         except Exception as exc:
             _logger.warning("research estimates failed for %s: %s", sym, exc)
-            return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+            return _fund_marked({"sym": (sym or "").upper(), "entity": None, "forward": [],
+                                 "revisions": []}, sym, _EE_FUND_WHY)
 
     from api.services.research.estimates_consensus import get_consensus
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ee-route") as ex:
@@ -280,7 +302,9 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     # Which vendor stands behind each block, for the on-screen source line.
     out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
                       "consensus": "FMP"}
-    return out
+    # `consensus.state` is untouched: the EE panel maps it through a fixed table and an
+    # unknown value would read as "FMP did not answer". The marker sits at the top level.
+    return _fund_marked(out, sym, _EE_FUND_WHY)
 
 
 # R10: ANR / OWN / RTG used to turn an exception into a 200 carrying an EMPTY
@@ -296,7 +320,7 @@ def _read_failed(what: str, sym: str, exc: Exception):
 @router.get("/api/research/analyst-ratings/{sym}")
 def research_analyst_ratings(sym: str = Depends(sym_path)):
     try:
-        return get_analyst_ratings(sym)
+        return _fund_marked(get_analyst_ratings(sym), sym, _ANR_FUND_WHY)
     except Exception as exc:
         _read_failed("analyst ratings", sym, exc)
 
@@ -318,6 +342,13 @@ def research_ownership(sym: str = Depends(sym_path)):
 
 @router.get("/api/research/ratings/{sym}")
 def research_ratings(sym: str = Depends(sym_path)):
+    # composite None + components {} is the shape RatingsTab already renders as
+    # "Ratings are unavailable for this ticker." -- never a coloured score from 2 of 6 inputs.
+    from api.services.ticker_search_index import fund_not_applicable
+    na = fund_not_applicable(sym, _RTG_FUND_WHY)
+    if na:
+        return {"sym": sym, **na, "composite": None, "components": {}, "checkup": [],
+                "coverage": None}
     try:
         return get_ratings(sym)
     except Exception as exc:
