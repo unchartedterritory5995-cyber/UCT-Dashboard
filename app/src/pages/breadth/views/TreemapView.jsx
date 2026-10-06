@@ -95,7 +95,7 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
             pctileStr = `p${pct} of ${sorted.length}d`
           }
           return (
-            `<div style="min-width:145px;font-family:Instrument Sans,sans-serif">` +
+            `<div style="min-width:145px;font-family:var(--font-sans)">` +
             `<div style="color:${ink.gold};font-weight:700;margin-bottom:3px">${metric.label}</div>` +
             `<div style="color:${ink.muted};font-size:var(--text-xs);margin-bottom:6px">${currentRow.date}</div>` +
             `<div style="font-size:16px;font-weight:700;margin-bottom:4px">${metric.getFmt(currentRow)}</div>` +

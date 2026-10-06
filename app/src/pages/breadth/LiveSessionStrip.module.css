@@ -19,7 +19,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font: 600 12px 'Instrument Sans', sans-serif;
+  font: 600 12px var(--font-sans);
   letter-spacing: 0.4px;
   color: var(--ut-gold);
   font-variant-numeric: tabular-nums;

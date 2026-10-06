@@ -102,12 +102,12 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
                 style={{ filter: colors.dim ? 'none' : `drop-shadow(0 0 ${colors.glow ? 7 : 3}px ${color}66)`,
                          transition: 'stroke-dashoffset .4s ease' }} />
         <text x={CX} y={norm == null ? CY + 4 : CY - 1} textAnchor="middle" fill="var(--text-bright)"
-              fontFamily="Instrument Sans, sans-serif" fontWeight="800"
+              style={{ fontFamily: 'var(--font-sans)' }} fontWeight="800"
               fontSize={valueFont(value)}>{value}</text>
         {norm != null && (
           <text data-testid={`rings-rank-${metric.key}`}
                 x={CX} y={CY + 12} textAnchor="middle" fill="var(--text-muted)"
-                fontFamily="Instrument Sans, sans-serif" fontWeight="700" fontSize="8">
+                style={{ fontFamily: 'var(--font-sans)' }} fontWeight="700" fontSize="8">
             {`${Math.round(norm)}/100`}
           </text>
         )}

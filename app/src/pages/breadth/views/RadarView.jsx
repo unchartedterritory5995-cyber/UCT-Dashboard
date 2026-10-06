@@ -212,8 +212,7 @@ export default function RadarView({
           })}
           {showScale && NORM_TICKS.filter(t => t > 0).map(t => (
             <text key={`sc-${t}`} data-radar-scale={t} x={CX - 6} y={CY - R * t / 100 + 3}
-                  textAnchor="end" fill="var(--text-muted)" fontWeight="700" style={{ fontSize: 'var(--text-xs)' }}
-                  fontFamily="Instrument Sans, sans-serif">{t}</text>
+                  textAnchor="end" fill="var(--text-muted)" fontWeight="700" style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)' }}>{t}</text>
           ))}
           {/* ⛔ A DASHED OUTLINE, NEVER A SECOND FILL. Two filled polygons on one
               radar read as an area chart of nothing; the prior shape is a
@@ -240,8 +239,8 @@ export default function RadarView({
             return (
               <text key={m.key} data-radar-axis={m.key} x={x} y={(ly - LINE_GAP / 2).toFixed(1)}
                     textAnchor={anchor} dominantBaseline="middle"
-                    fontSize={LABEL_FS} fontWeight="700" fontFamily="Instrument Sans, sans-serif"
-                    style={{ cursor: clickable ? 'pointer' : 'default' }}
+                    fontSize={LABEL_FS} fontWeight="700"
+                    style={{ fontFamily: 'var(--font-sans)', cursor: clickable ? 'pointer' : 'default' }}
                     onClick={clickable ? () => onDrill(m) : undefined}>
                 <tspan x={x} fill={isSignal ? 'var(--ut-gold)' : isNotable ? colors.tier.a : 'var(--text-muted)'}>
                   {isSignal ? '★ ' : ''}{m.label}

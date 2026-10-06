@@ -42,7 +42,7 @@
   border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
   background: var(--bg);
   color: var(--text-muted);
-  font: 700 10px 'Instrument Sans', sans-serif;
+  font: 700 10px var(--font-sans);
   letter-spacing: 0.3px;
   padding: 0 4px;
   cursor: pointer;

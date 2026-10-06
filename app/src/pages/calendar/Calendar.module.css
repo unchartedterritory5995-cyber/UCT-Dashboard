@@ -2183,7 +2183,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.18);
+  background: color-mix(in srgb, var(--bg) 18%, transparent);
   border: none;
   border-radius: 50%;
   width: 16px;
@@ -2192,7 +2192,7 @@
   cursor: pointer;
   padding: 0;
 }
-.sectorClear:hover { background: rgba(0, 0, 0, 0.32); }
+.sectorClear:hover { background: color-mix(in srgb, var(--bg) 32%, transparent); }
 .sectorReadInline {
   display: flex;
   align-items: center;

@@ -12,15 +12,15 @@
   border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
   border-radius: 6px;
   padding: 6px 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-  font: 600 10px 'Instrument Sans', sans-serif;
+  box-shadow: var(--shadow-popover);
+  font: 600 10px var(--font-sans);
   color: var(--text-muted);
   white-space: nowrap;
   transition: opacity 0.08s linear;
 }
 
 .tipTitle {
-  font: 800 10px 'Instrument Sans', sans-serif;
+  font: 800 10px var(--font-sans);
   letter-spacing: 0.3px;
   color: var(--text-bright);
   margin-bottom: 2px;

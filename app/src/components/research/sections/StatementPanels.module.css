@@ -11,17 +11,17 @@
 
 .count {
   font-size: var(--text-sm); font-variant-numeric: tabular-nums;
-  color: var(--text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 
 .toggle { display: flex; gap: 4px; }
 .on, .off {
   min-height: 26px; padding: 3px 10px; border-radius: var(--radius-sm); cursor: pointer;
   font-size: var(--text-sm); letter-spacing: .04em; text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, .14); background: transparent;
-  color: var(--text-muted, #8a8f98);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent); background: transparent;
+  color: var(--text-muted);
 }
-.on { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
+.on { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 /* Small multiples: three across on desktop, one on phone. auto-fit rather than
    a fixed count so the modal and the page both get a sensible layout without
@@ -34,9 +34,9 @@
 
 .panel {
   padding: 10px 12px 6px;
-  border: 1px solid rgba(255, 255, 255, .07);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, .02);
+  background: color-mix(in srgb, var(--text-heading) 2%, transparent);
   min-width: 0;
 }
 
@@ -44,7 +44,7 @@
    so without a second gold border — §3.1 keeps gold for the hero — so the lift
    is a brighter hairline and a touch more surface. */
 .clickable { cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
-.clickable:hover { border-color: rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .035); }
+.clickable:hover { border-color: color-mix(in srgb, var(--text-heading) 18%, transparent); background: color-mix(in srgb, var(--text-heading) 3.5%, transparent); }
 
 /* Title row + expand affordance: the SAME box in the skeleton and the data
    card (a span placeholder vs a button), so PANEL_HEIGHT reserves one height. */
@@ -55,21 +55,21 @@
 .title {
   font-size: var(--text-sm); font-weight: 700; letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--text, #d8dade);
+  color: var(--text);
 }
 .expand {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; margin: -4px -6px -4px 0;
   border: 0; border-radius: var(--radius-sm); background: transparent;
-  color: var(--text-muted, #8a8f98); cursor: pointer; opacity: .55;
+  color: var(--text-muted); cursor: pointer; opacity: .55;
 }
-.clickable:hover .expand, .expand:focus-visible { opacity: 1; color: var(--ut-gold, #dcbb5e); }
-.expand:focus-visible { outline: 1px solid var(--ut-gold, #dcbb5e); outline-offset: 1px; }
+.clickable:hover .expand, .expand:focus-visible { opacity: 1; color: var(--ut-gold); }
+.expand:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: 1px; }
 
 /* TOUCH: the icon becomes a full tap target. The negative margins keep the
    title row from growing by the whole difference. */
 @media (max-width: 1024px) {
-  .expand { width: var(--tap-min, 44px); height: var(--tap-min, 44px); margin: -12px -14px -12px 0; }
+  .expand { width: var(--tap-min); height: var(--tap-min); margin: -12px -14px -12px 0; }
 }
 
 .note { margin: 0; font-size: var(--text-base); color: var(--text-muted); }
@@ -81,9 +81,9 @@
 .yoy {
   display: flex; align-items: center; gap: 5px;
   font-size: var(--text-sm); letter-spacing: .04em; text-transform: uppercase;
-  color: var(--text-muted, #8a8f98); cursor: pointer;
+  color: var(--text-muted); cursor: pointer;
 }
-.yoy input { accent-color: var(--ut-gold, #dcbb5e); cursor: pointer; }
+.yoy input { accent-color: var(--ut-gold); cursor: pointer; }
 
 /* ── Pop-out (the Sheet owns the header, close button and tap targets) ──── */
 
@@ -92,5 +92,5 @@
 .expandedSym {
   margin-left: 10px;
   font-size: var(--text-base); font-weight: 600; letter-spacing: .04em;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }

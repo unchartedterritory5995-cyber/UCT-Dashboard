@@ -6,6 +6,7 @@ import { daysTo } from './ChainTools'
 import styles from './optionsAnalytics.module.css'
 import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import Select from '../../components/ui/Select'
+import UIcon from '../../components/ui/UIcon'
 import { num } from './optionsFormat'
 
 // lane/o-options-remainders — the chain-side surfaces under Research > Options:
@@ -136,7 +137,7 @@ export function SpreadBookPanel() {
                   <b>{s.label}</b>: {s.legs.map((l) => `${legText(l)} ${l.expiration}${l.price != null ? ` @ ${num(l.price)}` : ''}`).join(' / ')}
                   {s.entry?.net != null ? ` · ${s.entry.net < 0 ? 'credit' : 'debit'} ${num(Math.abs(s.entry.net))}` : ''}
                   <span className={styles.muted}> · seen {s.entry?.session || s.created_at.slice(0, 10)}</span>
-                  <button type="button" className={styles.input} aria-label={`Delete ${s.label}`} onClick={() => remove(s.id)}>×</button>
+                  <button type="button" className={styles.input} aria-label={`Delete ${s.label}`} onClick={() => remove(s.id)}><UIcon name="x" size={12} gold={false} aria-hidden="true" /></button>
                 </li>
               ))}
             </ul>
