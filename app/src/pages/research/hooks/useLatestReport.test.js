@@ -110,6 +110,15 @@ describe('useLatestReport -- an outage is never "no report"', () => {
     expect(result.current.row.reported_eps).toBe('$1.25')
   })
 
+  // tq-panels: a fund answers not_applicable -- its own state, never "empty".
+  it('a fund not_applicable answer -> not_applicable with its reason, not empty', async () => {
+    const { mod } = await load({ ok: true, httpStatus: 200, body: { ticker: 'SPY', not_applicable: 'fund',
+      reason: 'SPY is a fund; funds do not report earnings', quarters: [] } })
+    const { result } = renderHook(() => mod.default('SPY'))
+    expect(result.current.state).toBe('not_applicable')
+    expect(result.current.reason).toBe('SPY is a fund; funds do not report earnings')
+  })
+
   it('no symbol -> no fetch', async () => {
     const { mod, calls } = await load(undefined)
     renderHook(() => mod.default(''))

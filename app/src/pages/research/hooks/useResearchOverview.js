@@ -58,7 +58,12 @@ export default function useResearchOverview(rawSym, { header = true } = {}) {
     analyst: (analyst && analyst.ok ? analyst.body : null) || {},
     ai: (ai && ai.ok ? ai.body : null) || {},
     live: live || {},
-    error: Boolean((meta && !meta.ok) || (stats && !stats.ok) || (analyst && !analyst.ok) || (ai && !ai.ok)),
+    // tq-panels: `/api/earnings/intel/{sym}` answers 404 when the vendor holds no
+    // consensus/target record for the name. That is "no earnings record", not an
+    // outage -- it must not raise the "couldn't load" banner.
+    analystMissing: Boolean(analyst && !analyst.ok && analyst.httpStatus === 404),
+    error: Boolean((meta && !meta.ok) || (stats && !stats.ok)
+      || (analyst && !analyst.ok && analyst.httpStatus !== 404) || (ai && !ai.ok)),
     mutate,
   }), [sym, meta, stats, analyst, ai, live, mutate])
 }

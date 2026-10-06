@@ -43,7 +43,7 @@ export function latestReportRow(intel) {
   }
 }
 
-/** { row, state: 'loading' | 'error' | 'empty' | 'ready', retry } */
+/** { row, state: 'loading' | 'error' | 'empty' | 'not_applicable' | 'ready', reason?, retry } */
 export default function useLatestReport(rawSym) {
   const sym = (rawSym || '').toUpperCase().trim()
   const key = sym ? [KEY_TAG, `/api/earnings-intel/${encodeURIComponent(sym)}`] : null
@@ -53,6 +53,11 @@ export default function useLatestReport(rawSym) {
     if (!data) return { row: null, state: 'loading', retry: mutate }
     // A 200 can still carry `{error}` (e.g. a blank ticker) — not a report.
     if (!data.ok || data.body?.error) return { row: null, state: 'error', retry: mutate }
+    // tq-panels: a fund answers `not_applicable: 'fund'` (it reports no earnings).
+    // That is its own state, never "no reported quarter on file yet".
+    if (data.body?.not_applicable) {
+      return { row: null, state: 'not_applicable', reason: data.body.reason || null, retry: mutate }
+    }
     const row = latestReportRow(data.body)
     return { row, state: row ? 'ready' : 'empty', retry: mutate }
   }, [sym, data, mutate])
