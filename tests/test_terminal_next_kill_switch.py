@@ -605,6 +605,7 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/pages/terminal/TerminalBoards.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalRoutes.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.audit2.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.audit3.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.deleteOpenBoard.test.jsx":
         "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/phoneSwitcher.test.jsx": "TEST: fakes `cohorts` to drive the gate",

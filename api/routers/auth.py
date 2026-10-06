@@ -879,9 +879,8 @@ def signup(request: Request, req: SignupRequest, response: Response):
     # included — join the terminal-next cohort here. TERMINAL_NEXT_ENABLED stays
     # the kill switch (checked first by rollout_gate). Never fails signup.
     try:
-        from api.services import rollout
-        from api.services.rollout_gate import TERMINAL_NEXT_COHORT
-        rollout.assign_cohort(TERMINAL_NEXT_COHORT, [user["id"]])
+        from api.services import rollout_gate
+        rollout_gate.enroll_in_terminal_next(user["id"])
     except Exception as e:
         print(f"[signup] Failed to add terminal cohort: {e}")
 

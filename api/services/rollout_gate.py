@@ -188,6 +188,15 @@ def cohort_enabled_for(user_id: Optional[str], cohort: str, *,
         return False
 
 
+def enroll_in_terminal_next(user_id: str) -> None:
+    """Owner decision 2026-10-05: every new signup joins the Terminal-Next cohort.
+    Membership is a WRITE, so it is not behind the switch -- what a member SEES is still
+    decided by terminal_next_enabled_for(), which checks the kill switch first. It lives
+    here so this module stays the one place that names the cohort (the kill-switch rail)."""
+    from api.services import rollout
+    rollout.assign_cohort(TERMINAL_NEXT_COHORT, [user_id])
+
+
 def terminal_next_enabled_for(user_id: Optional[str]) -> bool:
     """Terminal-Next's composition of the two: the flag and the cohort, named
     together in the one place they are joined."""
