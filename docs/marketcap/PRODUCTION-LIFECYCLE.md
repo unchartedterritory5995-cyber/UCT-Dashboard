@@ -436,3 +436,21 @@ not computable, retried after 5 min. A response from another build drops every s
 `formula_eligible: false` in the catalogue, so the supported sourced path is an indicator (e.g. Moving Average) whose
 Source is the Market Cap instance -- proven in the browser. P/S, P/B, FCF yield keep composing close x V5 shares
 (out of scope).
+
+### 15.7 ⛔ STOP: the price input is not a stable historical authority (2026-10-05)
+Counterfactual refresh `run-20261005-cfpx` (C:/mcapcf): M3b's EXACT frozen inputs, prices replaced ONLY by today's
+production `/data/bars.db` export -> build `MCAP_V1-20261006T032631Z` -> **GATES_FAILED B, C, G, K, R** (nothing
+published, nothing advanced: the lifecycle failed closed). Root cause = production bars.db history moved since M3's
+2026-09-30 export:
+- 37 tickers LOST 39,987 daily rows (MEI / UTMD / QMCO / TZOO / HRTX / AVNW pre-2006; XOM / KO 1962-77), and 13 have
+  HOLES in Jul-Sep 2026 (ASTC, CHPT, EQ, AREC, AVEX, DFNS, FJET, SHMD, PLNH, FNMA ...) -- a live bars defect;
+- 660 tickers GAINED 1,985,937 rows (pre-2006 deep history), ~900 re-based (VRME x10, CTSO x20, PII x0.5, HPQ/JCI),
+  ~2,586 repaired partial September bars.
+Gate R: 5,709 historical valued days removed UNEXPLAINED (no withheld reason) + 8,013 evidence holds; C: new
+unadjudicated >=10x blocks VRME / STKH / BRNX / VWAV; G/K: RNST / MRTN / GBCI split cases unverified; B: FXHO.
+Consequence: a scheduled refresh would publish NOTHING and the authority would age to STALE (served, labelled).
+Not a methodology defect and not dispositioned here. OWNER DECISION REQUIRED on the price-input contract, e.g.
+(1) a versioned / sealed price snapshot owned by Market Cap (historical closes frozen; new sessions appended; a
+re-basing upstream change is an explicit reviewed event), or (2) gate the refresh on an upstream bars integrity
+attestation and re-adjudicate on accepted bars changes. Separately: the Jul-Sep 2026 holes are a bars-integrity
+defect for the bars owner.
