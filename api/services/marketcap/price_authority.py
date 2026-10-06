@@ -583,9 +583,13 @@ def _materialize_chain(store: Store, chain: list[dict], out: str, vid_hint: str 
         db.close()
 
 
-def materialize(store: Store, vid: str, out: str) -> dict:
-    """The exact build input of price version `vid` at `out`, verified against the sealed content hash."""
-    chain = store.chain(vid)
+def materialize(store: Store, vid: str, out: str, *, allow_candidate: bool = False) -> dict:
+    """The exact build input of price version `vid` at `out`, verified against the sealed content hash.
+    `allow_candidate`: ONLY the correction-impact driver may read an unapproved correction (dark); a refresh never can."""
+    if allow_candidate and store.manifest(vid)["kind"] == "HISTORICAL_CORRECTION":
+        chain = [store.manifest(vid)]
+    else:
+        chain = store.chain(vid)
     _materialize_chain(store, chain, out)
     m = chain[-1]
     cs, n, syms, lo, hi = content_sha(out)
