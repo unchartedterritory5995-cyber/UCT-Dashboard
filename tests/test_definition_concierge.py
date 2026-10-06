@@ -4083,7 +4083,13 @@ def test_the_offered_timeframes_are_the_ones_the_engine_can_serve():
     already paid for twice.
     """
     from api.services import ast_interpret as ai
-    offered = _schema_defs()["tf"]["properties"]["value"]["enum"]
+    from api.services import definition_concierge as mod
+    # ⭐ P0 GATE, OWNER DECISION E (2026-10-05) — UPDATED DELIBERATELY. `tf` is
+    # no longer ADVERTISED to the model (this door cannot finish it); its enum
+    # now lives only in the local BOUNDARY defs, which still validate a `tf` the
+    # model emits anyway before `unsupported:node` refuses it by name.
+    assert "tf" not in _schema_defs(), "tf is advertised to the model again"
+    offered = mod.tool_schema()["boundary_defs"]["tf"]["properties"]["value"]["enum"]
     assert sorted(offered) == sorted(ai.TF_RESAMPLABLE)
     # Non-vacuity: the two sets are genuinely different, so this is a real choice.
     assert set(ai.TF_LADDER) - set(ai.TF_RESAMPLABLE)
@@ -4093,7 +4099,11 @@ def test_the_offered_symbols_are_the_benchmark_whitelist():
     """⚠️ A scan may read another symbol only from the owner's benchmark roster,
     so a schema offering the whole universe would write cheques the scan gate
     refuses."""
-    offered = _schema_defs()["sym"]["properties"]["value"]["enum"]
+    from api.services import definition_concierge as mod
+    # ⭐ P0 GATE, OWNER DECISION E (2026-10-05) — UPDATED DELIBERATELY: `sym` is
+    # boundary-only now (see the `tf` rail above).
+    assert "sym" not in _schema_defs(), "sym is advertised to the model again"
+    offered = mod.tool_schema()["boundary_defs"]["sym"]["properties"]["value"]["enum"]
     assert sorted(offered) == sorted(ast_table.benchmarks())
     assert offered, "the benchmark roster is empty — this assertion proves nothing"
 

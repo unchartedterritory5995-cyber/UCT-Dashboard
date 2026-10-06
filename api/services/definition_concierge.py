@@ -58,6 +58,7 @@ account two allowances.
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import math
@@ -225,10 +226,14 @@ REFUSALS: Mapping[str, str] = {
         "the formula assistant hit an internal problem and drafted nothing"),
 }
 
-#: ⭐ P0 (2026-10-05) — node types the schema offers that this door CANNOT FINISH,
-#: each with the honest reason a member reads. See `REFUSALS["unsupported:node"]`.
-#: ⚠️ OWNER REVIEW: either omit these from the tool schema (saving a paid call)
-#: or build what is missing; until then they refuse here, never a 500.
+#: ⭐ P0 (2026-10-05) — node types this door CANNOT FINISH, each with the honest
+#: reason a member reads. See `REFUSALS["unsupported:node"]`.
+#: ⭐ P0 GATE, OWNER DECISION E (2026-10-05): they are NO LONGER ADVERTISED to the
+#: model (`CONCIERGE_OMITS` below strips them from the tool's `input_schema`), so
+#: a request needing one costs no wasted call on a tree that is then refused.
+#: This post-call refusal STAYS as defence in depth — a model can still emit a
+#: shape it was not offered. Offering one again requires it to be proven end to
+#: end (model -> schema -> AST -> definition -> evaluator -> chart) first.
 _UNFINISHABLE: Mapping[str, str] = MappingProxyType({
     "sym": ("it reads another instrument ({value}); this assistant checks a "
             "formula only against the chart's own bars and cannot verify or "
@@ -329,7 +334,30 @@ _OPERAND_ONLY: Mapping[str, str] = MappingProxyType({
     ),
 })
 
+#: ⭐ P0 GATE, OWNER DECISION E (2026-10-05) — the UNADVERTISED half of
+#: `CONCIERGE_OMITS`. Each IS fully described by `_boundary_defs` (so the local
+#: boundary still validates its shape and `formula_for` can still spell it), but
+#: it is stripped from the `input_schema` the MODEL is handed, because this door
+#: cannot carry it to an honest answer (`_UNFINISHABLE`). `str`/`symtext` go with
+#: `textop`: they are its operands and nothing else, and leaving them in an
+#: advertised schema whose only container was removed would be dead `$defs`.
+#: ⛔ THIS IS THE CONCIERGE'S GENERATION SCHEMA ONLY. The formula LANGUAGE
+#: (`closedTable.json`, `parse.js`, a member's manual `sym('SPY', close)`) is
+#: untouched by it.
+_UNADVERTISED: Mapping[str, str] = MappingProxyType({
+    "sym": ("another instrument's series. This door evaluates against the chart's "
+            "own bars only and is never supplied the benchmark's, so it cannot "
+            "verify or read back the read -- unfinishable, refused post-call."),
+    "tf": ("a higher-timeframe read. This door's Python read-back has no English "
+           "for it yet -- unfinishable, refused post-call."),
+    "textop": ("a bind-time text question. This door binds no symbol, so the "
+               "interpreter always refuses it -- unfinishable, refused post-call."),
+    "str": "a `textop` operand only; `textop` is not advertised.",
+    "symtext": "a `textop` operand only; `textop` is not advertised.",
+})
+
 CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
+    **_UNADVERTISED,
     "tf_live": (
         "the look-ahead timeframe read. It exists to translate Pine's "
         "`lookahead_on` honestly and carries a repainting badge for it; nothing "
@@ -433,6 +461,7 @@ def tool_schema(table: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
         name: {"arity": spec.get("arity")}
         for name, spec in (sections.get(ast_table.OPERATORS_SECTION) or {}).items()
     }
+    boundary = _input_schema(names, functions, operators)
     return {
         "name": TOOL_NAME,
         "sections": {k: dict(v) for k, v in sections.items()},
@@ -440,8 +469,24 @@ def tool_schema(table: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
         "functions": functions,
         "operators": operators,
         "nodeTypes": list(NODE_TYPES),
-        "input_schema": _input_schema(names, functions, operators),
+        "input_schema": _advertised(boundary),
+        # ⭐ P0 GATE (decision E): what the LOCAL boundary validates. The
+        # advertised schema is this minus `CONCIERGE_OMITS`; one derivation.
+        "boundary_defs": boundary["$defs"],
     }
+
+
+def _advertised(boundary: Mapping[str, Any]) -> Dict[str, Any]:
+    """The schema the MODEL is handed: the boundary schema with every
+    `CONCIERGE_OMITS` type removed from both `$defs` and the `node` union, so the
+    model is never offered a shape this door then refuses. ⭐ P0 GATE, decision E.
+    """
+    out = copy.deepcopy(dict(boundary))
+    defs = {k: v for k, v in out["$defs"].items() if k not in CONCIERGE_OMITS}
+    defs["node"] = {"oneOf": [ref for ref in defs["node"]["oneOf"]
+                              if ref["$ref"].rsplit("/", 1)[-1] not in CONCIERGE_OMITS]}
+    out["$defs"] = defs
+    return out
 
 
 def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
@@ -488,8 +533,11 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
             # for on their own. Excluding them from the union while DEFINING
             # them is what keeps every `$ref` resolvable — the dangling-ref
             # defect this block's own history records.
+            # ⭐ P0 GATE (decision E): this is the BOUNDARY union. The types in
+            # `_UNADVERTISED` are described and validated here but stripped from
+            # what the model is handed by `_advertised`.
             "node": {"oneOf": [{"$ref": f"#/$defs/{k}"} for k in NODE_TYPES
-                               if k not in CONCIERGE_OMITS
+                               if (k not in CONCIERGE_OMITS or k in _UNADVERTISED)
                                and k not in _OPERAND_ONLY]},
             "num": {
                 "type": "object", "additionalProperties": False,
@@ -507,6 +555,11 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
             # session did not have, so it is marked rather than presented as
             # settled.
             #
+            # ⭐ P0 GATE (decision E, 2026-10-05): the trio is now BOUNDARY-ONLY
+            # (`_UNADVERTISED`) — described and validated here, NOT handed to
+            # the model, because this door binds no symbol and so can never
+            # finish a `textop`. The paragraph below is the original intent,
+            # which holds again once a binding exists.
             # ⛔ THEY ARE DESCRIBED RATHER THAN OMITTED BECAUSE KIND 4 IS
             # MEMBER-REACHABLE. `CONCIERGE_OMITS` is for translated-only shapes
             # (`tf_live` is there because nothing a member asks for in English
@@ -832,7 +885,10 @@ def _assert_within_schema(tree: Any, table: Optional[Mapping[str, Any]] = None) 
     schema = tool_schema(table)
     names = {node_type: set(spelled)
              for node_type, spelled in schema["names"].items()}
-    defs = schema["input_schema"]["$defs"]
+    # ⭐ P0 GATE (decision E): the BOUNDARY defs, a superset of what the model is
+    # offered, so an unadvertised `sym`/`tf`/`textop` the model emits anyway is
+    # still shape-checked here and then refused BY NAME at `unsupported:node`.
+    defs = schema["boundary_defs"]
     # ⭐ P0 (2026-10-05) — THE NODE TYPES THE SCHEMA ACTUALLY OFFERS, read off its
     # own `oneOf`. ⚰️ This gate used to admit any `NODE_TYPES` member and then
     # index `names[kind]`, which only holds the three NAMED shapes — so the
