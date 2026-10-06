@@ -241,6 +241,11 @@ def test_retention_is_classified_never_deleted(rig, monkeypatch):
     monkeypatch.setenv("BREADTH_EXCH_COMPUTE_ENABLED", "0")
     st = _cycle(rig)
     v = st["retention"]["vintages"]
+    assert v["pA"]["class"] == "B_OWNER_NOT_YET_AUTHORITATIVE"            # dark: no member cutover recorded
+    assert "members are dark" in v["pA"]["why"]
+    monkeypatch.setenv("BREADTH_EXCH_MEMBER_AUTHORITY_SINCE", "2026-10-01T00:00:00Z")
+    st = _cycle(rig)
+    v = st["retention"]["vintages"]
     assert v["pA"]["class"] == "C_OWNER_AUTHORITATIVE" and v["pC"]["class"] == "C_OWNER_AUTHORITATIVE"
     assert v["pD"]["class"] == "B_OWNER_NOT_YET_AUTHORITATIVE" and not v["pD"]["proposed_policy_would_tombstone"]
     assert v["pZ"]["class"] == "E_SUPERSEDED_NON_OWNER" and v["pZ"]["proposed_policy_would_tombstone"]
