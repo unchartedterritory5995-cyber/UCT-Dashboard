@@ -101,7 +101,9 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
   const def = (i) => turns[i].state.working
 
   it('1 CREATE — ASKED "RSI overbought"; CLAIMED a definition built from the tree; DID: byte-identical to a Builder save of the same formula (EXACT)', () => {
-    const expected = builderSave({ name: 'RSI overbought', rows: [builderRow('value', 'rsi(close, 14) > 70')] })
+    // ⭐ NAME-DRIFT FIX (release gate 2026-10-06): the create's model name ("RSI
+    // overbought") is prose, not authority — the name is DERIVED from the tree.
+    const expected = builderSave({ name: 'RSI 14 > 70', rows: [builderRow('value', 'rsi(close, 14) > 70')] })
     expect(stableJson(def(0))).toBe(stableJson(expected))
     expect(JSON.stringify(def(0))).toBe(JSON.stringify(expected)) // key order too
     expect(validateUserDefinitions([def(0)]).errors).toEqual([])
@@ -111,9 +113,13 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('2 FOLLOW-UP PATCH — ASKED "make it 80"; CLAIMED only the threshold moves; DID: one literal changed, every other byte identical (EXACT)', () => {
     const paths = diffPaths(def(0), def(1))
-    expect(paths.sort()).toEqual(['compute.ast.args', 'compute.fn', 'compute.source', 'meta.description'])
-    expect(paths.every((p) => /^(compute\.(ast|fn|source)|meta\.description)/.test(p))).toBe(true)
+    // ⭐ …AND THE AUTO NAME MOVES WITH THE LITERAL (name-drift fix): the name, its
+    // short form and plot 1's label (which follows the name) are the only other bytes.
+    expect(paths.sort()).toEqual(['compute.ast.args', 'compute.fn', 'compute.source', 'meta.description',
+      'meta.name', 'meta.shortName', 'plots[value].label'])
+    expect(paths.every((p) => /^(compute\.(ast|fn|source)|meta\.(description|name|shortName)|plots\[value\]\.label)/.test(p))).toBe(true)
     expect(def(1).compute.source).toBe('rsi(close, 14) > 80')
+    expect(def(1).meta.name).toBe('RSI 14 > 80')
     expect(turns[1].result.changes[0]).toMatchObject({ kind: 'slot-set', slot: 'value#1', fromValue: 70, toValue: 80 })
   })
 
@@ -175,9 +181,9 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
     const rows = [
       builderRow('value', 'rsi(close, 14) > 75 && close > ema(close, 20) * 1.08',
         { style: 'markers', marker: { shape: 'circle', position: 'belowBar' } }),
-      builderRow('rsi', 'rsi(close, 14)', { label: 'RSI' }),
+      builderRow('rsi', 'rsi(close, 14)', { label: 'RSI 14' }),   // derived, not the model's "RSI"
     ]
-    const expected = builderSave({ name: 'RSI overbought', rows, scanPlot: 'value',
+    const expected = builderSave({ name: 'RSI 14 > 75 and Close > EMA 20 × 1.08 · RSI 14', rows, scanPlot: 'value',
       paints: signalPaintsFor('value', { barcolor: '#FFD700' }) })
     expect(stableJson(s.working)).toBe(stableJson(expected))
     expect(validateUserDefinitions([s.working]).errors).toEqual([])
@@ -207,7 +213,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('readback — deterministic lines from the resulting definition (EXACT)', () => {
     const rb = turns[7].readback
-    expect(rb.lines[0]).toBe('Name: RSI overbought')
+    expect(rb.lines[0]).toBe('Name: RSI 14 > 75 and Close > EMA 20 × 1.08 · RSI 14')
     expect(rb.lines).toContain(SEMANTICS_LINE)
     expect(rb.outputs.map((o) => [o.key, o.type])).toEqual([['value', 'condition'], ['rsi', 'series']])
     expect(rb.outputs[0].sentence).toMatch(/14-bar RSI of close\) is greater than 75/)
@@ -292,7 +298,8 @@ describe('P2 engine — type authority and gates (items 6, 9, 10, 11, 12, 13, 14
     expect(r.ok).toBe(true)
     expect(r.definition.plots.map((p) => p.key)).toEqual(['value'])
     expect(r.requests.infoValues).toEqual([])
-    expect(r.changes.map((c) => c.kind)).toEqual(['requests-cleared', 'output-removed'])
+    // the auto name drops the removed output with it (name-drift fix)
+    expect(r.changes.map((c) => c.kind)).toEqual(['requests-cleared', 'output-removed', 'name-derived'])
     const last = applyPatch(r.definition, env({ revision: 0 }, [{ op: 'remove_output', output: 'value' }]))
     expect(last.errors[0].code).toBe('output:last')
   })
@@ -367,7 +374,11 @@ describe('P2 engine — atomicity, undo, multi-output, imports, semantics, prose
     expect(r.definition.compute.trees.rsi).toEqual(P('rsi(close, 21)'))
     expect(r.definition.compute.trees.value).toBe(d.compute.trees.value)
     expect(r.definition.compute.ast).toBe(d.compute.ast)
-    expect(diffPaths(d, r.definition).sort()).toEqual(['compute.sources.rsi', 'compute.trees.rsi.args', 'compute.treesHash'])
+    // ⭐ only the rsi tree's MATHS moved; the auto names that describe it follow
+    // (definition name, the rsi label and the two chrome inputs labelled from it)
+    expect(diffPaths(d, r.definition).sort()).toEqual(['compute.sources.rsi', 'compute.trees.rsi.args', 'compute.treesHash',
+      'inputs[rsiColor].label', 'inputs[rsiWidth].label', 'meta.name', 'plots[rsi].label'])
+    expect(r.definition.compute.trees.value).toBe(d.compute.trees.value)
   })
 
   it('30 UNDO RESTORES THE PREVIOUS REVISION EXACTLY — DID: same definition object, intent, requests, assumptions; revision moves forward (EXACT)', () => {

@@ -7,6 +7,7 @@ export { parameterSlots, clausesOf, slotsOfTree, clausesOfTree, parseSlotId } fr
 export { modelOf, buildFromModel, fidelityResidual, AuthoringError } from './model'
 export { compactView, VIEW_CONTRACT, VIEW_MAX_CHARS } from './compactView'
 export { readback, presentationLines, SEMANTICS_LINE } from './readback'
+export { nameOfTree, derivedDefName, derivedRowName, namingSnapshot, applyDerivedNaming } from './derivedName'
 export {
   newAuthoringState, openAuthoringState, applyTurn, undo, prepareSave, STATE_CONTRACT, HISTORY_MAX,
 } from './authoringState'

@@ -143,15 +143,15 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
     // T1 — create, with assumptions DISCLOSED from the definition, model note ignored
     await say('RSI overbought')
     const lines = linesOf(lastUct())
-    expect(lines).toContain('Name: RSI overbought')
-    expect(lines).toContain('RSI overboug (value) — a yes/no on every bar: 1 when (the 14-bar RSI of close) is greater than 70 and 0 otherwise')
+    expect(lines).toContain('Name: RSI 14 > 70') // derived from the tree (name-drift fix)
+    expect(lines).toContain('RSI 14 > 70 (value) — a yes/no on every bar: 1 when (the 14-bar RSI of close) is greater than 70 and 0 otherwise')
     expect(lines).toContain('Assumed rsi period = 14 (value)')
     expect(lines.some((l) => /^Assumed threshold of > = 70/.test(l))).toBe(true)
     expect(lines).toContain(SEMANTICS_LINE)
     expect(screen.getByTestId('converse').textContent).not.toMatch(/MACD|IGNORE THE ENGINE/)
     expect(identity().revision).toBe('1')
     expect(identity().saved).toBe('unsaved')
-    expect(screen.getByTestId('converse-identity').textContent).toMatch(/RSI overbought.*revision 1.*Unsaved changes/)
+    expect(screen.getByTestId('converse-identity').textContent).toMatch(/RSI 14 > 70.*revision 1.*Unsaved changes/)
 
     // T2 — "make it 80"
     await say('make it 80')
@@ -160,7 +160,7 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
 
     // T3 — add clause
     await say('and close more than 8% above the 20 EMA')
-    expect(readbackLines()).toContain('RSI overboug (value) — a yes/no on every bar: (1 when (the 14-bar RSI of close) is greater than 80 and 0 otherwise) and (1 when close is greater than ((the 20-bar exponential average of close) times 1.08) and 0 otherwise)')
+    expect(readbackLines()).toContain('RSI 14 > 80 (value) — a yes/no on every bar: (1 when (the 14-bar RSI of close) is greater than 80 and 0 otherwise) and (1 when close is greater than ((the 20-bar exponential average of close) times 1.08) and 0 otherwise)')
     // the decided threshold assumption is gone; the undecided length is still disclosed
     expect(readbackLines()).toContain('Assumed rsi period = 14 (value)')
     expect(readbackLines().some((l) => /^Assumed threshold/.test(l))).toBe(false)
@@ -177,14 +177,18 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
     expect(readbackLines()).toContain('Alert when value becomes true')
     await say('show me the RSI value')
     expect(readbackLines()).toContain('Chart header shows the latest value of rsi')
-    expect(readbackLines().some((l) => /^RSI \(rsi\) — a number on every bar/.test(l))).toBe(true)
-    const presentationBefore = readbackLines().filter((l) => l.startsWith('Look: '))
+    expect(readbackLines().some((l) => /^RSI 14 \(rsi\) — a number on every bar/.test(l))).toBe(true) // derived label
+    // ⭐ The LOOK without each plot's leading label: labels are NAMES and follow the
+    // maths (name-drift fix); style, colour, width, markers, paints, placement must not.
+    const lookOnly = () => readbackLines().filter((l) => l.startsWith('Look: '))
+      .map((l) => { const parts = l.split(': '); return parts.length > 2 ? parts.slice(2).join(': ') : l })
+    const presentationBefore = lookOnly()
 
     // T8 — "RSI 75": the threshold slot re-derived from THIS turn's view
     await say('RSI 75')
     expect(readbackLines().some((l) => /greater than 75/.test(l))).toBe(true)
     // ⭐ presentation preserved across the maths edit (byte-equal readback lines)
-    expect(readbackLines().filter((l) => l.startsWith('Look: '))).toEqual(presentationBefore)
+    expect(lookOnly()).toEqual(presentationBefore)
     expect(identity().revision).toBe('8')
     expect(identity().lineage).toBe(lineage)
     expect(identity().defId).toBe('')

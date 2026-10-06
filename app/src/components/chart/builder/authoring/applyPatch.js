@@ -22,6 +22,7 @@
 // ⛔ NOTHING HERE CALLS A MODEL. ⛔ NOTHING HERE WRITES `meta.semantics`.
 // ⛔ PROSE (`note`, `*.text`) NEVER REACHES THE DEFINITION.
 
+import { namingSnapshot, applyDerivedNaming } from './derivedName'
 import { validatePatchShape, opIndexOf, PATCH_LIMITS } from './patchValidate'
 import {
   modelOf, buildFromModel, fidelityResidual, evaluateRowSource, AuthoringError, LEVELS_PLOT_KEY,
@@ -154,6 +155,7 @@ const OPS = {
     if (!st.model) throw err('definition:none', 'There is no definition yet.')
     const from = st.model.name
     st.model.name = op.name.trim()
+    st.renamedDefinition = true       // ⭐ an explicit name is CUSTOM (derivedName.js)
     st.changes.push({ op: i, kind: 'renamed', from, to: st.model.name })
   },
 
@@ -206,6 +208,7 @@ const OPS = {
     const row = rowOf(st, op.output)
     const from = row.label
     row.label = op.label.trim()
+    st.renamedOutputs.add(row.key)    // ⭐ an explicit label is CUSTOM (derivedName.js)
     st.changes.push({ op: i, kind: 'output-renamed', output: row.key, from, to: row.label })
   },
 
@@ -453,10 +456,13 @@ function runOps(input, ops, ctx) {
     model: null, ctx, changes: [], touched: new Set(), removed: new Set(), requested: new Set(),
     intent: ctx.intent ? { ...ctx.intent } : null, requests: normRequests(ctx.requests),
     engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false,
+    renamedDefinition: false, renamedOutputs: new Set(),
   }
+  let namingBefore = null
   if (input) {
     try {
       st.model = modelOf(input)
+      namingBefore = namingSnapshot(st.model)
     } catch (e) {
       if (e instanceof AuthoringError) return { ok: false, errors: [{ op: null, code: e.code, message: e.message }] }
       throw e
@@ -477,6 +483,10 @@ function runOps(input, ops, ctx) {
     }
   }
   if (!st.model) return { ok: false, errors: [{ op: null, code: 'definition:none', message: 'There is no definition yet; the first turn must create one.' }] }
+  // ⭐⭐ THE NAME DESCRIBES THE RESULT (derivedName.js): an auto name and auto
+  // labels are re-derived from the patched trees; a custom one is kept.
+  st.changes.push(...applyDerivedNaming(st.model, namingBefore,
+    { renamedDefinition: st.renamedDefinition, renamedOutputs: st.renamedOutputs }))
   const gateCtx = ctx.gateCtx || {}
   let def
   try {
