@@ -205,7 +205,8 @@ DOORS: dict[str, Door] = {
         "40/hour/member + $0.75/member/day (in-process) + catalyst member budget",
         gap="in-process windows, not the durable store this meter surface reads"),
     "api/services/definition_conversation.py": Door(
-        "member", "POST /api/user-definitions/converse (require_paid)",
+        "operator", "POST /api/user-definitions/converse (require_paid + require_admin: "
+        "ADMIN-ONLY while conversational authoring is dark, 2026-10-06)",
         "SHARES the concierge's budget: the same 40/hour/member window + $0.75/member/day "
         "ledger (in-process) + catalyst member budget; 2 calls max per turn, 0 HTTP "
         "retries, input byte caps refused before any call",

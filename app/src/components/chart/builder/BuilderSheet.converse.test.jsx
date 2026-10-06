@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
+import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet from './BuilderSheet'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
@@ -40,11 +41,14 @@ const flush = async () => { await act(async () => { for (let i = 0; i < 6; i += 
 beforeEach(() => { stubFetch(); clearUserDefinitions() })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); delete globalThis.fetch; clearUserDefinitions() })
 
+beforeEach(() => { setCreateIndicatorFlag(true) })
+afterEach(() => { setCreateIndicatorFlag(null) })
+
 describe('BuilderSheet hosts the conversation', () => {
   it('ASKED "RSI overbought" · DID POST the converse route with the view, show the readback, and save through the store door once', async () => {
     const onChange = vi.fn()
     render(
-      <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
+      <AuthContext.Provider value={{ user: { id: 7, role: 'admin' }, isPaid: true, loading: false }}>
         <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
           <BuilderSheet open onClose={() => {}} onSaved={() => {}} settings={{ indicatorInstances: [], indicators: {} }} onChange={onChange} />
         </SWRConfig>

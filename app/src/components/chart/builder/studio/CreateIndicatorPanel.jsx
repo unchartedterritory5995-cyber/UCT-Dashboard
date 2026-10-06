@@ -62,20 +62,26 @@ function lookOf(def) {
 }
 
 /** Dock on the LEFT edge of the chart: the newest bars and the price axis stay visible. */
+function measureDock(anchorRef) {
+  if (typeof window === 'undefined') return { top: INSET, left: INSET, height: 600 }
+  const el = anchorRef && anchorRef.current
+  const vh = window.innerHeight
+  if (!el) return { top: INSET, left: INSET, height: vh - 2 * INSET }
+  const r = el.getBoundingClientRect()
+  const top = Math.max(INSET, r.top + INSET)
+  const bottom = Math.min(vh - INSET, r.bottom - INSET)
+  const left = Math.max(INSET, Math.min(r.left + INSET, window.innerWidth - PANEL_W - INSET))
+  return { top, left, height: Math.max(360, bottom - top) }
+}
+
+// ⛔ FOCUS CONTRACT (2026-10-06 production defect): the panel is VISIBLE and placed
+// from its FIRST commit — measured synchronously, never a `visibility: hidden`
+// placeholder (a hidden element cannot take focus).
 function useDockRect(anchorRef, open) {
-  const [rect, setRect] = useState(null)
+  const [rect, setRect] = useState(() => measureDock(null))   // the chart edge is measured before paint, below
   useLayoutEffect(() => {
     if (!open) return undefined
-    const measure = () => {
-      const el = anchorRef && anchorRef.current
-      const vh = window.innerHeight
-      if (!el) { setRect({ top: INSET, left: INSET, height: vh - 2 * INSET }); return }
-      const r = el.getBoundingClientRect()
-      const top = Math.max(INSET, r.top + INSET)
-      const bottom = Math.min(vh - INSET, r.bottom - INSET)
-      const left = Math.max(INSET, Math.min(r.left + INSET, window.innerWidth - PANEL_W - INSET))
-      setRect({ top, left, height: Math.max(360, bottom - top) })
-    }
+    const measure = () => setRect(measureDock(anchorRef))
     measure()
     let ro = null
     if (typeof ResizeObserver !== 'undefined' && anchorRef && anchorRef.current) {
@@ -92,6 +98,14 @@ function useDockRect(anchorRef, open) {
   }, [anchorRef, open])
   return rect
 }
+
+const isEditable = (el) => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+
+// Keys typed inside the panel are the panel's. They stop at its root, so the
+// document/window handlers underneath (the drill board's Escape-closes-the-board,
+// the chart's symbol/shortcut keys, the list's arrow keys) never see them.
+// Scoped to this panel — chart shortcuts elsewhere are untouched.
+const keepKeysInPanel = (e) => e.stopPropagation()
 
 /**
  * @param {object} props
@@ -156,15 +170,49 @@ export default function CreateIndicatorPanel({
     if (body) body.scrollTop = body.scrollHeight
   }, [transcript.length, busy])
 
-  // The composer keeps focus across turns: it is never disabled while UCT builds
-  // (only Send is), so a member can type the next refinement immediately.
-  // ⚠️ One frame late on purpose: opening from Chart Settings closes that modal in
-  // the same commit, and its focus-restore would otherwise win.
+  // ⛔ FOCUS CONTRACT (2026-10-06 production defect): the composer takes focus
+  // when the panel opens and again when a turn completes. SYNCHRONOUS — the old
+  // one-frame-late `requestAnimationFrame` never ran in a backgrounded/occluded
+  // tab, so focus stayed on <body> and keystrokes drove the drill list/chart.
+  //   • OPEN is an explicit request: focus moves here from wherever it was (the
+  //     drill dialog, the toolbar button) — except out of a text field the member
+  //     is typing in.
+  //   • A COMPLETED TURN never steals: only from <body> (Send disabled itself) or
+  //     from inside the panel.
+  const panelRef = useRef(null)
+  const focusComposer = useCallback((allowFrom) => {
+    const input = inputRef.current
+    if (!input || input.disabled || typeof document === 'undefined') return
+    const active = document.activeElement
+    if (active === input) return
+    const inPanel = !!(active && panelRef.current && panelRef.current.contains(active))
+    if (!active || active === document.body || inPanel || (allowFrom && allowFrom(active))) {
+      input.focus({ preventScroll: true })
+    }
+  }, [])
   useEffect(() => {
-    if (busy) return undefined
-    const id = requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
-    return () => cancelAnimationFrame(id)
-  }, [busy])
+    const fromAnythingButAField = (el) => !isEditable(el) || !el.isConnected
+    focusComposer(fromAnythingButAField)
+    // Opening from Chart Settings closes that modal in the same commit; a focus
+    // restore it schedules can land on its trigger. One macrotask later (timers
+    // run in hidden tabs; frames do not) take focus back on the same terms.
+    const t = setTimeout(() => focusComposer(fromAnythingButAField), 0)
+    return () => clearTimeout(t)
+  }, [focusComposer])
+  //   • A CLARIFICATION with choices asks for explicit interaction: the composer
+  //     is not pulled to; focus lost to <body> (or parked on an inert panel button)
+  //     goes to the first choice instead
+  //     (still inside the panel, so keys stay isolated).
+  const hasChoices = conv.questions.some((q) => Array.isArray(q.choices) && q.choices.length)
+  useEffect(() => {
+    if (busy) return
+    if (!hasChoices) { focusComposer(null); return }
+    if (typeof document === 'undefined') return
+    const active = document.activeElement
+    const lost = !active || active === document.body
+      || (panelRef.current && panelRef.current.contains(active) && !isEditable(active))   // e.g. Send, which disabled itself
+    if (lost) panelRef.current?.querySelector('[data-testid="create-indicator-choices"] button:not(:disabled)')?.focus({ preventScroll: true })
+  }, [busy, hasChoices, focusComposer])
 
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()
@@ -188,7 +236,11 @@ export default function CreateIndicatorPanel({
   const panel = (
     <aside
       className={styles.panel}
-      style={rect ? { top: rect.top, left: rect.left, height: rect.height } : { visibility: 'hidden' }}
+      ref={panelRef}
+      style={{ top: rect.top, left: rect.left, height: rect.height }}
+      onKeyDown={keepKeysInPanel}
+      onKeyUp={keepKeysInPanel}
+      onKeyPress={keepKeysInPanel}
       role="dialog"
       aria-modal="false"
       aria-label="Create Indicator"
@@ -253,7 +305,7 @@ export default function CreateIndicatorPanel({
           </ol>
         )}
 
-        {conv.questions.some((q) => Array.isArray(q.choices) && q.choices.length) && (
+        {hasChoices && (
           <div className={styles.examples} data-testid="create-indicator-choices">
             {conv.questions.flatMap((q) => (q.choices || []).map((c) => (
               <button key={`${q.id}:${c}`} type="button" className={styles.chip} disabled={busy} onClick={() => submit(c)}>{c}</button>

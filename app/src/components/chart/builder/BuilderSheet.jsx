@@ -73,7 +73,9 @@
 // definition the chart is already drawing is never re-installed. A broken edit
 // must not brick a working indicator.
 
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { AuthContext } from '../../../context/AuthContext'
+import { useCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
@@ -904,6 +906,13 @@ export default function BuilderSheet({
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null,
 }) {
+  /** ⛔⛔ CONVERSATIONAL AUTHORING IS DARK (release gate 2026-10-06). It shipped
+   *  UNGATED here once and reached every paid member's New Formula sheet; it is
+   *  now behind the same two keys as Create Indicator — the per-browser opt-in
+   *  AND the server-provided admin role. A member sees exactly the old sheet. */
+  const conversationFlag = useCreateIndicatorFlag()
+  const conversationAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  const conversationOn = !!(conversationFlag && conversationAdmin)
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
    *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */
@@ -2201,7 +2210,7 @@ export default function BuilderSheet({
               through the same doors as `save()` (`conversationSave.js`). It does
               not touch this sheet's formula box or save state. Indicator modes
               only; the Conditions tab keeps the one-shot box below. */}
-          {buildMode !== 'picker' && (
+          {buildMode !== 'picker' && conversationOn && (
             <ConverseBox settings={settings} onChange={onChange} sym={sym} tf={tf}
               editing={editing} disabled={saving}
               onSaved={(defId, version) => setConversationSaved({ defId, version })} />

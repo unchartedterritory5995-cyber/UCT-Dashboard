@@ -38,7 +38,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.services import indicator_telemetry as telemetry
 from api.services import runtime_definitions
 from api.services import scan_definition
@@ -433,8 +433,20 @@ class ConverseIn(BaseModel):
     snippets: Optional[list] = None
 
 
+def require_admin_dark_rollout(user: dict = Depends(require_paid)) -> dict:
+    """⛔⛔ RELEASE GATE 2026-10-06 — `/converse` is ADMIN-ONLY while conversational
+    authoring is DARK. It once shipped reachable by every paid member (rolled back).
+    The browser flag is a door, not a lock: THIS is the lock. The role authority is
+    the existing `auth_middleware.require_admin` (403 "Admin access required"), run
+    on the same user `require_paid` resolved — no second entitlement system. A free
+    user still gets the router's 402 first. Lifting the dark rollout = deleting
+    this dependency from the route, deliberately."""
+    return require_admin(user)
+
+
 @router.post("/converse")
-def converse_definition(body: ConverseIn, user: dict = Depends(require_paid)):
+def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
+                        _dark: dict = Depends(require_admin_dark_rollout)):
     """THE CONVERSATIONAL AI DOOR. One member turn + the compact view in, ONE
     structured patch envelope out (`uct.authoring.patch/1`) — or a refusal.
 

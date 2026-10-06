@@ -161,7 +161,7 @@ def http(conv):
     app = FastAPI()
     app.include_router(router_mod.router)
     app.dependency_overrides[get_current_user_with_plan] = \
-        lambda: {"id": "u1", "role": "user", "plan": "premium"}
+        lambda: {"id": "u1", "role": "admin", "plan": "premium"}   # dark rollout: admin-only
     router_mod._propose_calls.clear()
     yield TestClient(app, raise_server_exceptions=False)
     router_mod._propose_calls.clear()
@@ -639,6 +639,40 @@ def test_BUDGET_converse_is_paid_gated(conv):
         lambda: {"id": "u9", "role": "user", "plan": "free"}
     r = TestClient(app).post(ENDPOINT, json={"message": "x", "view": empty_view(0)})
     assert r.status_code == 402
+
+
+def _as(user):
+    app = FastAPI()
+    app.include_router(router_mod.router)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: user
+    return TestClient(app)
+
+
+def test_ACCESS_converse_is_ADMIN_ONLY_while_dark(conv, model):
+    """⛔⛔ RELEASE GATE 2026-10-06. ASKED: a PAID MEMBER calls /converse directly
+    (no UI needed — the browser flag is not a lock). CLAIMED: server-side admin
+    enforcement with the existing role authority. DID: 403 "Admin access required",
+    and the model is never called; a paid ADMIN reaches the door (REFUSAL + EXACT)."""
+    client = model([emits(env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}]))])
+    body = {"message": "make it 80", "view": view(1, [out("value", RSI_GT_70)])}
+    for member in ({"id": "m1", "role": "user", "plan": "premium"},
+                   {"id": "m2", "role": "user", "plan": "lifetime"},
+                   {"id": "m3", "role": "user", "plan": "pro"}):
+        r = _as(member).post(ENDPOINT, json=body)
+        assert r.status_code == 403 and r.json()["detail"] == "Admin access required", r.text
+    assert client.calls == []
+    r = _as({"id": "a1", "role": "admin", "plan": "free"}).post(ENDPOINT, json=body)
+    assert r.status_code == 200 and r.json()["ok"] is True, r.text
+
+
+def test_ACCESS_the_legacy_member_concierge_is_untouched(conv):
+    """ASKED: a paid member on the LEGACY /propose path. CLAIMED: the dark gate is
+    /converse only. DID: the member is not refused by role (a bodyless/oversized
+    request is judged on its content, never 403)."""
+    over = {"prompt": "x", "bars": [0] * (router_mod.MAX_PROPOSE_BARS + 1)}
+    r = _as({"id": "m1", "role": "user", "plan": "premium"}).post(
+        "/api/user-definitions/propose", json=over)
+    assert r.status_code == 200 and r.json()["gate"] == "bars:too-large", r.text
 
 
 def test_the_server_never_applies_or_saves(conv, model, monkeypatch):
