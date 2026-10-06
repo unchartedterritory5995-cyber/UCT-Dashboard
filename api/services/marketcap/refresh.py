@@ -930,6 +930,18 @@ class Refresh:
                                              "authority_latest_session": r["authority_latest_session"],
                                              "categories": r["categories"]}, "definition": d}
 
+    def _history_corrections_block(self) -> list:
+        """Lineage: the approved historical corrections this candidate carries (identity corrections by id; reference
+        corrections are in the reference lineage), each with its sealed rows hash and approval."""
+        out = []
+        for cid in self.cfg.review.get("history_corrections") or []:
+            d = os.path.join(self.root, "history_corrections", cid)
+            m = json.load(open(os.path.join(d, "manifest.json")))
+            a = json.load(open(os.path.join(d, "APPROVAL.json")))
+            out.append({"correction_id": cid, "kind": m["kind"], "rows": m["rows"], "rows_sha256": m["rows_sha256"],
+                        "approved_by": a["approved_by"], "approved_at": a["approved_at"]})
+        return out
+
     def _sec_block(self) -> dict | None:
         r = self.ledger.stage_done(self.run_id, "sec_metadata") or {}
         if r.get("source") != "sec_authority":
@@ -967,6 +979,7 @@ class Refresh:
                 "inputs": {"snapshot_id": snap, "files": files, "price_authority": {**price_block, "version": price_block["price_version"]} if price_block else None,
                            "reference_authority": {**ref_block, "version": ref_block["reference_version"]} if ref_block else None,
                            "sec_authority": self._sec_block(),
+                           "history_corrections": self._history_corrections_block(),
                            "provenance": {"sources": src, "sec_bulk": {k: {x: v.get(x) for x in ("last_modified", "sha256", "bytes")}
                                                                       for k, v in sec.items()},
                                           "prosp_evidence_from": Q.PROSP_EVIDENCE_FROM, "run_id": self.run_id}},
