@@ -5,6 +5,7 @@ import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
 import { formatCompact, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import OffNotice from './OffNotice'
+import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 
 // The tide's own ladder: B at two decimals, M at one, K whole.
 const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
@@ -227,8 +228,8 @@ export function TideMinute({ scope, minute, setMinute }) {
                 <tbody>
                   {d.prints.map((p, i) => (
                     <tr key={`${p.symbol}-${p.time}-${i}`}>
-                      <th>{p.symbol}</th><td>{p.type} {p.strike} {p.expiration}</td><td>{p.side}</td>
-                      <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{p.trade_type}</td>
+                      <th>{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
+                      <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{tradeTypeWords(p.trade_type)}</td>
                     </tr>
                   ))}
                 </tbody>
