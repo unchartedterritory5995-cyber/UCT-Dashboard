@@ -545,3 +545,123 @@ def test_a_failed_flow_read_is_not_waited_out_twice(monkeypatch):
             th._flow_counts("ZZFL", "stocks")
     assert calls == ["stocks"]
     th._FLOW_MEMO.clear()
+
+
+# ── dual-class names: each lane asks its store in the spelling that store's WRITER holds ──
+# BRK.B has three spellings here: BRK-B (canonical, cap_universe, journal since 09-06, buzz
+# cashtags since 09-05), BRK.B (the vendor form and older rows) and BRKB (the OCC option root,
+# the only form the flow tape's writers can produce). Typed either way, HIS finds them all, and
+# a day is never shown twice.
+
+DUAL = ("BRK.B", "brk-b", "BRK-B")
+
+
+def test_wire_counts_both_class_spellings_once_each(stores):
+    from api.services import wire_archive
+    d0 = (TODAY - timedelta(days=5)).isoformat()
+    wire_archive.record({"date": d0, "rundown_html":
+                         "<p>Watching BRK.B into the print and $BRK-B on the list; BRKB and BRK are not it.</p>"})
+    for s in DUAL:
+        wire = _lane(th.history(s, days=30), "wire")
+        assert [(r["date"], r["mentions"]) for r in wire] == [(d0, 2)], s
+
+
+def test_book_holdings_in_either_spelling_are_one_holding(stores, monkeypatch):
+    """Holdings are `leadership[].sym` from the wire push; a switch of spelling between two
+    pushes is the same name staying in the book, never a 'left' and an 'entered'."""
+    from api.services import uct20_nav
+    comp = stores / "uct20-dual.json"
+    comp.write_text(json.dumps([{"date": D1, "holdings": ["BRK.B", "AMD"]},
+                                {"date": D2, "holdings": ["BRK-B", "AMD"]}]), encoding="utf-8")
+    monkeypatch.setattr(uct20_nav, "_COMPOSITIONS_FILE", str(comp))
+    for s in DUAL:
+        book = _lane(th.history(s, days=30), "book")
+        assert [(r["date"], r["event"]) for r in book] == [(D1, "entered")], s
+
+
+def test_catalysts_read_both_spellings_and_keep_one_row_per_day(stores):
+    from api.services.catalyst import store as cat_store
+    with contextlib.closing(sqlite3.connect(cat_store._DB_PATH)) as c:
+        c.executemany("INSERT INTO catalysts (market_date, ticker, rank, tag, thesis_text) VALUES (?,?,?,?,?)",
+                      [(D1, "BRK.B", None, "News", "Hunter saw it."),       # the hunter's dot spelling
+                       (D1, "BRK-B", 4, "Catalyst", "On the list today."),  # discovery's hyphen spelling
+                       (D2, "BRK.B", 2, "Earnings", "Beat and raised.")])
+        c.commit()
+    for s in DUAL:
+        cats = _lane(th.history(s, days=30), "catalysts")
+        assert sorted((r["date"], r["text"]) for r in cats) == [
+            (D1, "On the list today."), (D2, "Beat and raised.")], s
+
+
+def test_room_counts_a_message_once_across_both_spellings(stores):
+    """Cashtags were stored as typed (BRK.B) before 2026-09-05 and hyphenated after."""
+    ts = int(datetime.fromisoformat(D1 + "T11:00:00").replace(tzinfo=ET).timestamp())
+    with contextlib.closing(sqlite3.connect(stores / "buzz.db")) as c:
+        c.executemany("INSERT INTO mentions VALUES (?,?,?,?,?,?)",
+                      [("b1", "ch", "a1", "BRK.B", ts, "cashtag"),
+                       ("b2", "ch", "a2", "BRK-B", ts + 60, "cashtag"),
+                       ("b2", "ch", "a2", "BRK.B", ts + 60, "cashtag")])   # one message, both forms
+        c.commit()
+    for s in DUAL:
+        room = _lane(th.history(s, days=30), "room")
+        assert [(r["date"], r["mentions"]) for r in room] == [(D1, 2)], s
+
+
+def test_flow_asks_the_tape_in_the_occ_root_spelling(stores, monkeypatch):
+    from api import flow_router
+    flow_router.db.insert_csv(_flow_csv([("BRKB", D1), ("BRKB", D1), ("BRKB", D2)]), source="stocks")
+    th._FLOW_MEMO.clear()
+    for s in DUAL:
+        flow = _lane(th.history(s, days=30), "flow")
+        assert [(r["date"], r["prints"]) for r in flow] == [(D2, 1), (D1, 2)], s
+    asked = {p for p, _ in FLOW_REQUESTS[0] if p.startswith("/api/flow/ticker/")}
+    assert asked == {"/api/flow/ticker/BRKB"}
+    th._FLOW_MEMO.clear()
+
+
+def test_setups_read_both_spellings_and_never_show_one_setup_twice(stores):
+    db = stores / "brain" / "data" / "uct_intelligence.db"
+    with contextlib.closing(sqlite3.connect(db)) as c:
+        c.executemany(
+            "INSERT INTO setup_triggers (symbol, trigger_date, setup_name, entry_level, stop_level, "
+            "source, status) VALUES (?,?,?,?,?,?,?)",
+            [("BRK.B", D1, "VCP", 400.0, 390.0, "leadership", "open"),
+             ("BRK-B", D1, "VCP", 400.0, 390.0, "leadership", "open"),
+             ("BRK-B", D2, "Flat Base", 405.0, 395.0, "leadership", "open")])
+        c.commit()
+    for s in DUAL:
+        setups = _lane(th.history(s, days=30), "setups")
+        assert sorted((r["date"], r["setup"]) for r in setups) == [(D1, "VCP"), (D2, "Flat Base")], s
+
+
+def test_journal_matches_a_pre_normalisation_dot_row(stores, monkeypatch):
+    """Journal writes canonicalise BRK.B -> BRK-B only since 2026-09-06; an older row reads BRK.B."""
+    closed = [{"id": "t1", "symbol": "BRK.B", "side": "Long", "entryDate": D1, "exitDate": D2,
+               "result": "Win", "rMultiple": 1.5}]
+    open_pos = [{"id": "p1", "symbol": "BRK-B", "side": "Long", "entryDate": D2}]
+    monkeypatch.setattr(th, "_member_journal", lambda uid: (closed, open_pos))
+    for s in DUAL:
+        rows = _lane(th.history(s, days=30, user_id="me"), "journal")
+        assert sorted((r["date"], r["event"], r["source"]) for r in rows) == [
+            (D1, "opened", "j2_trades"), (D2, "closed", "j2_trades"), (D2, "opened", "j2_positions")], s
+
+
+def test_two_same_day_journal_trades_are_both_kept(stores, monkeypatch):
+    """The de-duplication is (date, lane, text) -- for the journal it also carries the trade's
+    ref, because two trades opened the same day read exactly alike."""
+    closed = [{"id": f"t{i}", "symbol": "NVDA", "side": "Long", "entryDate": D1, "exitDate": None}
+              for i in (1, 2)]
+    monkeypatch.setattr(th, "_member_journal", lambda uid: (closed, []))
+    rows = _lane(th.history("NVDA", days=30, user_id="me"), "journal")
+    assert sorted(r["ref"] for r in rows) == ["j2_trades#t1", "j2_trades#t2"]
+
+
+def test_the_route_hands_the_lanes_the_canonical_spelling(monkeypatch, stores):
+    monkeypatch.setenv(th.ENABLED_ENV, "1")
+    monkeypatch.setattr("api.routers.ticker_history.is_paid_user", lambda u: True)
+    asked = []
+    monkeypatch.setattr(th, "history", lambda s, **k: asked.append(s) or {"ticker": s})
+    c = _client(PAID)
+    for s in DUAL:
+        assert c.get(f"/api/research/history/{s}").status_code == 200
+    assert asked == ["BRK-B"] * 3
