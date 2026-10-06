@@ -46,7 +46,6 @@ from api.services import alert_user_series as aus                  # noqa: E402
 from api.services import indicator_alert_evaluator as ev           # noqa: E402
 from api.services import indicator_alert_service as ias            # noqa: E402
 from api.services import user_definitions as ud                    # noqa: E402
-from tests._p0_legacy_rows import save_legacy
 from api.services import watchlist_alert_service as wls            # noqa: E402
 
 
@@ -239,10 +238,7 @@ def save(user_id: str, definition: dict, *, repaint: dict | None = None,
     otherwise produce (`preview-repaints`, and a DECLARED unbounded window), and
     that is what the cases below use it for.
     """
-    # ⭐ P0/0P — planted AS A PRE-GATE ROW: this file drives the DOWNSTREAM
-    # door, which is defence in depth for rows the save door would now refuse
-    # (see `tests/_p0_legacy_rows.py`; the save door is `test_p0_truth_save.py`).
-    row = save_legacy(user_id, definition["id"], definition)
+    row = ud.save(user_id, definition["id"], definition)
     if repaint is not None:
         with sqlite3.connect(str(ud._DB_PATH)) as c:
             c.execute("UPDATE user_definitions SET repaint=? "
@@ -740,16 +736,6 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
         DEF_ID, "value",
         {"meta": {"recurrenceOrigin": "pine"},
          "compute": {"kind": "ast", "ast": {"type": "series", "name": "barindex"}}}))
-
-    # ⭐ P0 0F — DRIVEN DIRECTLY, like `withheld`: a tree reading a table-declared
-    # scalar (today's snapshot value, no bar history) is refused where the plot's
-    # tree is resolved, before it can arm and read a hole as a permanent "no".
-    capture("scalar", lambda: aus._make_value_fn(
-        DEF_ID, "value",
-        {"compute": {"kind": "ast", "ast": {
-            "type": "op", "name": ">", "args": [
-                {"type": "series", "name": "market_cap"},
-                {"type": "num", "value": 1e9}]}}}))
 
     save(USER_B, defn(), repaint={"value": "repaints"})
     capture("repaint", lambda: aus.admit_user_definition(USER_B, DEF_ID, bars=real_bars))

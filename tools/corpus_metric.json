@@ -1,9 +1,11 @@
 {
-  "measured_at": "2026-10-05",
+  "measured_at": "2026-10-04",
   "scripts": 266,
   "host_ok": 77,
   "screener_ok": 67,
-  "threw": [],
+  "threw": [
+    "smart-money-breakouts-chartprime__ea79c79a67.pine"
+  ],
   "rows": [
     {
       "file": "3-level-zigzag-semafor__3078.pine",
@@ -2137,10 +2139,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:na"
+        "THREW"
       ],
       "screenerGuards": [
-        "pine:na"
+        "THREW"
       ]
     },
     {

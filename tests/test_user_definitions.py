@@ -1338,11 +1338,7 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: kill list and whether the store takes runtime documents, read by the member
 #: door's preview. Paid-gated like every other route here; it returns no member's
 #: data, only two values off the server's own env.
-#: 2026-10-06 (P2 server): ONE MORE — `POST /converse`, the conversational
-#: authoring door (one turn in, a structured patch out, applied by the CLIENT
-#: engine, stored nowhere). It carries its OWN `require_paid` and shares
-#: `/propose`'s hourly window and daily ledger; verified before this moved.
-EXPECTED_ROUTE_COUNT = 18
+EXPECTED_ROUTE_COUNT = 17
 
 
 def _routes():

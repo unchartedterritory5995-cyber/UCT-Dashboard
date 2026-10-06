@@ -36,11 +36,6 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr(ias, "_DB_PATH", str(alert_db))
     ias.init_schema()
     rev.init_schema()
-    # ⭐ P0/0P — three of the five corpus documents are real Pine translations
-    # the linter badges `repaints`, which the save door now refuses as NEW maths.
-    # This file measures BYTES on the wire, not admission (that is
-    # `test_p0_truth_save.py`), so its rows are planted as pre-gate rows.
-    monkeypatch.setattr(svc, "_admit_new_maths", lambda *a, **k: None)
     return tmp_path
 
 

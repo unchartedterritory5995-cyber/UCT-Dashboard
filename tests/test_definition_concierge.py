@@ -2847,8 +2847,7 @@ def test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other(app, conci
     # duplication paying for itself rather than a maintenance tax. Read as a
     # cross-check it is working; read as a count it looks like a chore.
     # 2026-10-02 (RT1): 16 -> 17 with `GET /runtime-kill`, moved with its siblings.
-    # 2026-10-06 (P2 server): 17 -> 18 with `POST /converse`, moved with its siblings.
-    assert len(routes) == 18
+    assert len(routes) == 17
     propose = [r for r in routes if r.path.endswith("/propose")]
     assert len(propose) == 1 and propose[0].methods == {"POST"}
     assert router_mod.require_paid in [d.call for d in propose[0].dependant.dependencies]
@@ -4084,13 +4083,7 @@ def test_the_offered_timeframes_are_the_ones_the_engine_can_serve():
     already paid for twice.
     """
     from api.services import ast_interpret as ai
-    from api.services import definition_concierge as mod
-    # ⭐ P0 GATE, OWNER DECISION E (2026-10-05) — UPDATED DELIBERATELY. `tf` is
-    # no longer ADVERTISED to the model (this door cannot finish it); its enum
-    # now lives only in the local BOUNDARY defs, which still validate a `tf` the
-    # model emits anyway before `unsupported:node` refuses it by name.
-    assert "tf" not in _schema_defs(), "tf is advertised to the model again"
-    offered = mod.tool_schema()["boundary_defs"]["tf"]["properties"]["value"]["enum"]
+    offered = _schema_defs()["tf"]["properties"]["value"]["enum"]
     assert sorted(offered) == sorted(ai.TF_RESAMPLABLE)
     # Non-vacuity: the two sets are genuinely different, so this is a real choice.
     assert set(ai.TF_LADDER) - set(ai.TF_RESAMPLABLE)
@@ -4100,11 +4093,7 @@ def test_the_offered_symbols_are_the_benchmark_whitelist():
     """⚠️ A scan may read another symbol only from the owner's benchmark roster,
     so a schema offering the whole universe would write cheques the scan gate
     refuses."""
-    from api.services import definition_concierge as mod
-    # ⭐ P0 GATE, OWNER DECISION E (2026-10-05) — UPDATED DELIBERATELY: `sym` is
-    # boundary-only now (see the `tf` rail above).
-    assert "sym" not in _schema_defs(), "sym is advertised to the model again"
-    offered = mod.tool_schema()["boundary_defs"]["sym"]["properties"]["value"]["enum"]
+    offered = _schema_defs()["sym"]["properties"]["value"]["enum"]
     assert sorted(offered) == sorted(ast_table.benchmarks())
     assert offered, "the benchmark roster is empty — this assertion proves nothing"
 

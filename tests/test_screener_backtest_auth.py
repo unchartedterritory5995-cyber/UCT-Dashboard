@@ -189,8 +189,7 @@ class _FakeEngine:
 
     @staticmethod
     def run_backtest(tree, symbols, frm, to, *, bars_for, horizons,
-                     min_signals=30, membership="current", bars_source=None,
-                     opts=None):
+                     min_signals=30, membership="current", bars_source=None):
         return _FakeReceipt({
             "backtestable": False, "refused": "stubbed", "names": [],
             "detail": "stubbed engine", "universe": {"symbols_requested": len(symbols)},

@@ -24,11 +24,6 @@ from api.services import alert_user_series as aus
 from api.services import indicator_alert_service as ias
 from api.services import param_manifest as pms
 from api.services import user_definitions as svc
-# ⭐ P0/0P — three cases below store trees the engine cannot RUN (a non-literal
-# window, a dropped rsi argument, `sma(close, 0)`): the save door now refuses
-# those as NEW maths, so they are planted as pre-gate rows to keep measuring the
-# manifest mechanics (which run before the gate). See tests/_p0_legacy_rows.py.
-from tests._p0_legacy_rows import save_legacy
 
 USER = "spike-user"
 DEF_ID = "u_0123456789ab"
@@ -230,7 +225,7 @@ def test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save(store):
 
 def test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash(store):
     manifest = _manifest_len(14)
-    save_legacy(USER, DEF_ID, _definition(14, manifest))
+    svc.save(USER, DEF_ID, _definition(14, manifest))
     # `let len = close - open` equivalent: the locator resolves to a node,
     # but that node is no longer a plain numeric literal.
     ast = {"type": "call", "name": "sma", "args": [
@@ -238,7 +233,7 @@ def test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash(stor
         {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"},
                                               {"type": "series", "name": "open"}]},
     ]}
-    save_legacy(USER, DEF_ID, {"id": DEF_ID, "compute": {
+    svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
         "kind": "ast", "ast": ast, "source": "sma(close, close-open)", "paramManifest": manifest}})
     row = svc._newest(_conn(store), USER, DEF_ID)
     state = json.loads(row["definition"])["compute"]["paramState"]
@@ -358,7 +353,7 @@ def _retouch_trees_hash(d):
 
 def test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_working_slider(store):
     manifest = _multitree_manifest()
-    save_legacy(USER, DEF_ID, _multitree_definition(14, 14, manifest))
+    svc.save(USER, DEF_ID, _multitree_definition(14, 14, manifest))
     # The member's edit genuinely removes the rsiPlot tree's use of `len` —
     # the arg position the locator points at (`astPath: ["args", 1]`) no
     # longer exists at all, not merely a different value at the same spot
@@ -372,7 +367,7 @@ def test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_wo
                                          "args": [{"type": "series", "name": "close"}]}
     d["compute"]["sources"]["rsiPlot"] = "rsi(close)"
     _retouch_trees_hash(d)
-    save_legacy(USER, DEF_ID, d)
+    svc.save(USER, DEF_ID, d)
     row = svc._newest(_conn(store), USER, DEF_ID)
     state = json.loads(row["definition"])["compute"]["paramState"]
     assert state["__uct_param_1"]["state"] == pms.PARTIALLY_DETACHED
@@ -500,20 +495,20 @@ def _manifest_bool(value=1, def_id_note=None):
 
 def test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly(store):
     manifest = _manifest_bool()
-    r1 = save_legacy(USER, DEF_ID, _definition(1, manifest))
+    r1 = svc.save(USER, DEF_ID, _definition(1, manifest))
     row1 = svc._newest(_conn(store), USER, DEF_ID)
     d1 = json.loads(row1["definition"])
     assert d1["compute"]["paramState"]["__uct_param_1"]["state"] == pms.ATTACHED
     assert d1["compute"]["paramState"]["__uct_param_1"]["value"] == 1
 
-    r2 = save_legacy(USER, DEF_ID, _definition(0, manifest))
+    r2 = svc.save(USER, DEF_ID, _definition(0, manifest))
     assert r2["ast_hash"] != r1["ast_hash"], "flipping the boolean must produce a new tree hash"
     row2 = svc._newest(_conn(store), USER, DEF_ID)
     d2 = json.loads(row2["definition"])
     assert d2["compute"]["paramState"]["__uct_param_1"]["value"] == 0
 
     # And back on again — a real toggle, not a one-way fold.
-    save_legacy(USER, DEF_ID, _definition(1, manifest))
+    svc.save(USER, DEF_ID, _definition(1, manifest))
     row3 = svc._newest(_conn(store), USER, DEF_ID)
     assert json.loads(row3["definition"])["compute"]["paramState"]["__uct_param_1"]["value"] == 1
 

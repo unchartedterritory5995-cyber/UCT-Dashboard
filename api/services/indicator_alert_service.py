@@ -72,28 +72,6 @@ STATE_ERROR = "error"
 # trading rationale.
 SNOOZE_MAX_MINUTES = 60 * 24 * 30
 
-#: ⭐ P1 — ALERTS PER MEMBER, A CAPACITY BOUND THAT LIVES WITH THE THING IT
-#: BOUNDS. ⚠️ OWNER DECISION ON THE NUMBER: `entitlements.Limits` defines no
-#: alert axis, and this slice may not add one (entitlement policy is out of
-#: scope), so the value is the old branch's 200 (`fa988edc9`) as a NAMED
-#: constant, flagged in the P1 signal report. An alert is standing work, not a
-#: row: every active one is read by the 60-second evaluator forever.
-MAX_ALERTS_PER_USER = 200
-
-
-class AlertCountExceeded(ValueError):
-    """The per-member alert count refused a create. A ``ValueError`` so the
-    router answers 400 with this sentence; its own class because "delete an
-    alert" is a different next action from any other refusal."""
-
-    def __init__(self, count: int, cap: int) -> None:
-        self.count = count
-        self.cap = cap
-        super().__init__(
-            f"you have {count} alerts, which is the most an account can hold "
-            f"({cap}) — delete one before creating another")
-
-
 # How often the silence sweep is allowed to pay for a diagnostic recompute per
 # alert. A warming alert produces no value every cycle and its diagnosis does
 # not change; re-deriving it every sweep would be a compute per alert per sweep
@@ -327,15 +305,8 @@ def create(
     params_json: Optional[Any] = None,
     instance_id: Optional[str] = None,
     scope: Optional[str] = None,
-    max_alerts: Optional[int] = None,
 ) -> int:
     """Create a new indicator alert. Returns the new alert ID.
-
-    ⭐ P1 — `max_alerts` IS THE PER-MEMBER COUNT CAP, AND IT IS ATOMIC. The
-    member's door (`POST /api/indicator-alerts`) passes `MAX_ALERTS_PER_USER`;
-    ``None`` (every operator tool that calls this directly) is uncapped, so the
-    soak matrix's idempotent `--arm` is unchanged. The count is read INSIDE a
-    `BEGIN IMMEDIATE` transaction on the connection that appends — see below.
 
     ⚠️ `scope` IS OPTIONAL AND OMITTING IT MEANS **GLOBAL**, not "unknown".
     An alert armed from a surface with no chart identity belongs to every chart,
@@ -373,27 +344,7 @@ def create(
     source = None if admitted is None else DEF_SOURCE_USER
 
     now = int(time.time())
-    # ⛔⛔ `BEGIN IMMEDIATE` BEFORE THE COUNT, AND THE CAP DEPENDS ON IT.
-    # This store runs SQLite in WAL: every connection reads its own snapshot and
-    # a DEFERRED transaction takes no lock until its first WRITE, so N concurrent
-    # creates would all count the same N-less number and all insert (measured on
-    # the old branch: 12 threads against a cap of 5 -> 12 rows; re-measured here
-    # by `tests/test_p1_truth_signal.py`). IMMEDIATE takes the write lock FIRST,
-    # in the database rather than a Python mutex, so a second worker process is
-    # bounded by the same gate. `busy_timeout` bounds the wait; a contender that
-    # times out RAISES — a refusal, never a bypass.
-    db = _conn()
-    db.isolation_level = None            # explicit transaction control
-    try:
-        db.execute("BEGIN IMMEDIATE")
-        if max_alerts is not None:
-            # EVERY row the member holds, active or not: counting only active
-            # rows would let toggle-off / create / toggle-on walk past the cap.
-            count = int(db.execute(
-                "SELECT COUNT(*) FROM indicator_alerts WHERE user_id=?",
-                (str(user_id),)).fetchone()[0])
-            if count >= int(max_alerts):
-                raise AlertCountExceeded(count, int(max_alerts))
+    with _conn() as db:
         cur = db.execute(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
@@ -421,19 +372,7 @@ def create(
                 source,
             ),
         )
-        new_id = int(cur.lastrowid)
-        db.execute("COMMIT")
-        return new_id
-    except BaseException:
-        # ⛔ INCLUDING THE CAP REFUSAL, raised inside the transaction: an open
-        # IMMEDIATE transaction holds the write lock, so it is always released.
-        try:
-            db.execute("ROLLBACK")
-        except Exception:  # noqa: BLE001
-            pass
-        raise
-    finally:
-        db.close()
+        return int(cur.lastrowid)
 
 
 def get(alert_id: int) -> Optional[dict]:

@@ -204,18 +204,6 @@ DOORS: dict[str, Door] = {
         "member", "POST /api/user-definitions/propose (require_paid)",
         "40/hour/member + $0.75/member/day (in-process) + catalyst member budget",
         gap="in-process windows, not the durable store this meter surface reads"),
-    "api/services/definition_conversation.py": Door(
-        "member", "POST /api/user-definitions/converse (require_paid)",
-        "SHARES the concierge's budget: the same 40/hour/member window + $0.75/member/day "
-        "ledger (in-process) + catalyst member budget; 2 calls max per turn, 0 HTTP "
-        "retries, input byte caps refused before any call",
-        gap="in-process windows, not the durable store this meter surface reads"),
-    "api/services/screener/nl_compile.py": Door(
-        "member", "POST /api/screener/compile (SCREENER_NL_COMPILE_ENABLED, dark)",
-        "SCREENER_NL_DAILY_CAP 30/member/ET day (daily_counters scope "
-        "screener_nl_compile, durable) + ai_population_cap 'screener_nl'",
-        pop_cap="api/routers/screener_nl.py",
-        gap="no ai_meters key yet; the durable daily counter is the bound"),
     "api/services/indicator_from_image.py": Door(
         "member", "POST /api/indicator-vision/candidates (INDICATOR_VISION_ENABLED, dark)",
         "10/hour/member in-process + catalyst member budget",

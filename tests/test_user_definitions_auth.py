@@ -85,10 +85,7 @@ PAID_DETAIL = "Custom indicators require a paid plan"
 #: kill list and save switch for the member door's preview. It carries its OWN
 #: `require_paid`, verified before this number moved; the other two sites moved
 #: with it.
-#: 2026-10-06 (P2 server): 17 -> 18 — `POST /converse`, the conversational
-#: authoring door. Its OWN `require_paid` was verified before this moved; the
-#: other two sites moved with it, and the path count below 10 -> 11.
-EXPECTED_ROUTE_COUNT = 18
+EXPECTED_ROUTE_COUNT = 17
 
 
 # ─── the derived route table ─────────────────────────────────────────────────
@@ -178,9 +175,8 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
     # verb count alone cannot see a new path. Both went red together here, which
     # is the pair working.
     # ⭐ 9 -> 10 on 2026-10-02 (RT1): `GET /runtime-kill` is a new PATH.
-    # ⭐ 10 -> 11 on 2026-10-06 (P2 server): `POST /converse` is a new PATH.
     assert sorted(seen) == sorted(set(seen)), seen
-    assert len({s.split(" ", 1)[1] for s in seen}) == 11, seen
+    assert len({s.split(" ", 1)[1] for s in seen}) == 10, seen
 
 
 def test_every_route_declares_its_OWN_require_paid_and_the_router_declares_NONE():

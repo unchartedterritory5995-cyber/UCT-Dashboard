@@ -97,7 +97,6 @@ import UIcon from '../ui/UIcon'
 import CoverageLine from './CoverageLine'
 import ChartPane from '../chart/pane/ChartPane'
 import { astHash } from '../chart/engine/ast/parse'
-import { semanticIdentity, semanticsOf } from '../chart/engine/definitionSemantics'
 import { sentenceFor } from '../chart/engine/ast/sentence'
 import { declaredInputs } from '../chart/engine/ast/lint'
 import * as engineRegistry from '../chart/engine/nativeRegistry'
@@ -267,15 +266,7 @@ export function ScanResultRow({ ticker, definition, onChart, tier = null }) {
  *        (W4a's on-demand run). Non-null means this surface fetches nothing.
  */
 export default function ScanResults({ definition, asOf, tf = 'D', payload: given = null }) {
-  // ⭐⭐ THE RESULT IDENTITY, NOT THE BARE TREE HASH (owner decision A): the sweep
-  // files a semantics-2 definition's hits under `<hash>~s2`, so asking with
-  // `compute.fn` would read the semantics-1 results of the same tree — another
-  // definition's truth. `resultIdentity` is the server rule's browser twin; the
-  // Evidence tab below compares its receipt against this same string.
-  // (`compute.fn` IS the tree hash — the server refuses a disagreeing one — so the
-  // identity is that handle plus the stored semantics; semantics 1 is unchanged)
-  const defHash = definition && definition.compute && definition.compute.fn
-    ? semanticIdentity(definition.compute.fn, semanticsOf(definition)) : null
+  const defHash = definition && definition.compute ? definition.compute.fn : null
 
   const [payload, setPayload] = useState(null)
   const [loadError, setLoadError] = useState(null)

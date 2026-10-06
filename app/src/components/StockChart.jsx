@@ -137,8 +137,6 @@ import {
 import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
-// ⭐ P2 Track B — Create Indicator's ephemeral live-chart preview (a READ VIEW).
-import { withPreviewInstance, stripPreview } from './chart/builder/studio/chartPreview'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -147,10 +145,6 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
-// ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
-// installed output, read from the binder's own latest value (`infoValueResolve`).
-import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf, severInfoValuesForInstanceSwap } from './chart/engine/infoValues'
-import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoValueResolve'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
 // BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
 // than stored and how it relates to the definition's own `meta.repaint`.
@@ -5020,11 +5014,6 @@ export default function StockChart({
     // to computeSMA/computeEMA's read guard. Reverts a bad length to the prior valid
     // one (or 20). Same-reference on the common path, so no needless churn.
     let newSettings = sanitizeOverlayPeriods(incoming, cs)
-    // ⛔⛔ THE CREATE INDICATOR PREVIEW NEVER REACHES STORAGE. It lives only in
-    // `csView` (below), so no writer that spreads `{...cs}` can carry it — this is
-    // the defence in depth for one that reads the view by mistake, or a pane-size
-    // drag on the preview's own pane. Identity when there is nothing to strip.
-    newSettings = stripPreview(newSettings)
     // ⛔⛔ AN ECONOMIC PRIMARY'S DERIVED VIEW NEVER REACHES STORAGE. Its companion
     // instance (`econp:`) is stripped, and the scalar chart-type clamp is undone
     // when the write carried it through unchanged — so a member who edits a
@@ -5092,19 +5081,6 @@ export default function StockChart({
   // instance.
   const handleChipRemove = useCallback((instanceId) => {
     writeInstance(removeInstance(cs, instanceId, engineRegistry))
-  }, [cs, writeInstance])
-
-  // ⭐ P1 — VALUE: add / remove this output's latest value in the header. ONE
-  // writer (`infoValues.js`), through the same `writeInstance` identity guard, so
-  // a hosted surface's `onSettingsPersist` seam carries it like any other edit.
-  const _infoDefOf = useCallback((id) => engineRegistry.getDefinition(id), [])
-  const handleChipInfoValue = useCallback((instanceId, plotKey, on) => {
-    writeInstance(on
-      ? removeInfoValue(cs, { instanceId, plotKey, severed: false })
-      : addInfoValue(cs, { instanceId, plotKey, format: 'auto' }, _infoDefOf, infoValueOutputExists))
-  }, [cs, writeInstance, _infoDefOf])
-  const handleInfoValueRemove = useCallback((ref) => {
-    writeInstance(removeInfoValue(cs, ref))
   }, [cs, writeInstance])
 
   // ⭐ chart-UX-walls TASK 6 — DUPLICATE. The first caller `addInstance` has ever
@@ -5181,11 +5157,6 @@ export default function StockChart({
       // any other way. Returns `false` on a read-only chart, like its neighbour.
       openFormulaBuilder: () => {
         try { return toolbarRef.current?.openFormulaBuilder?.() ?? false } catch { return false }
-      },
-      // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator", the
-      // same CALL-not-mount route; the studio is mounted inside the toolbar.
-      openCreateIndicator: () => {
-        try { return toolbarRef.current?.openCreateIndicator?.() ?? false } catch { return false }
       },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
@@ -6119,13 +6090,8 @@ export default function StockChart({
       if (!encoded) return
       const decoded = urlToChartState(encoded)
       if (!decoded) return
-      // ⭐ P1 — the recipient's header is kept but the SENDER's instance list
-      // replaces theirs: an info value whose id now names a different instance
-      // (deterministic ids collide, e.g. `inst:rsi:1`) is severed, never read.
-      const _csIv = Array.isArray(decoded.indicatorInstances)
-        ? severInfoValuesForInstanceSwap(cs, decoded.indicatorInstances) : cs
       const next = {
-        ..._csIv,
+        ...cs,
         ...(decoded.chartType ? { chartType: decoded.chartType } : {}),
         ...(typeof decoded.heikinAshi === 'boolean' ? { heikinAshi: decoded.heikinAshi } : {}),
         ...(typeof decoded.logScale === 'boolean' ? { logScale: decoded.logScale } : {}),
@@ -6491,18 +6457,10 @@ export default function StockChart({
   // symbol. `cs` itself is returned (by identity) when there is no COT indicator.
   const _cotFollow = useMemo(() => cotFollowOf(sym, _miRegistry.cotSymbols),
     [sym, _miRegistry.cotSymbols])
-  // ⭐⭐ P2 TRACK B — …AND CREATE INDICATOR'S WORKING DEFINITION IS LAID OVER IT.
-  // One instance of the installed preview definition (`chartPreview.js`), set by
-  // the studio panel through the primary toolbar. Same rule as the COT view: the
-  // renderer, the legend and the pane layout read it; every write keeps using
-  // `cs`, and `handleUpdateChartSettings` strips it besides. Local state, so it
-  // dies with this chart and can never outlive the conversation that owns it.
-  const [studioPreview, setStudioPreview] = useState(null)
   const csView = useMemo(() => {
     const list = resolveCotFollow(cs.indicatorInstances, _cotFollow)
-    const view = list === cs.indicatorInstances ? cs : { ...cs, indicatorInstances: list }
-    return withPreviewInstance(view, studioPreview)
-  }, [cs, _cotFollow, studioPreview])
+    return list === cs.indicatorInstances ? cs : { ...cs, indicatorInstances: list }
+  }, [cs, _cotFollow])
   const _storedInstances = useCallback(() => csView.indicatorInstances, [csView])
   // ⭐ WHICH PANE A CHIP BELONGS TO, IN PANE-KEY UNITS. Pane keys are host
   // instance ids, so a chip's pane is: its own instance when it hosts one, or the
@@ -10586,14 +10544,6 @@ export default function StockChart({
         mkN: mergedMarkers?.length ?? 0,
         plN: allPriceLines?.length ?? 0,
         cmpN: comparisonData?.length ?? 0,
-        // ⭐ P2 Track B — WHAT `cs` CANNOT SEE. Create Indicator's preview lives in
-        // `csView` and the registry, never in `cs`, so a conversational patch
-        // ("make it 50") left this signature byte-identical, the plan read 'noop'
-        // and `_applyData` skipped the recomputed column — the chart kept drawing
-        // EMA 20 (measured in the browser). The registry generation moves on every
-        // definition install; the preview id on open/close.
-        defsGen: userDefsGeneration,
-        preview: studioPreview ? studioPreview.instanceId : null,
       })
     } catch {
       // A non-serializable setting must never break the chart — fail safe to a
@@ -18271,11 +18221,7 @@ export default function StockChart({
           // click went away. One click, the canonical writer, and the popover
           // closes with the thing it was about.
           onRemove: (id) => { close(); handleChipRemove(id) },
-          onInfoValue: (id, pk, on) => { close(); handleChipInfoValue(id, pk, on) },
         }, {
-          infoValueOn: hasInfoValue(cs, c.instanceId, c.plotKey),
-          infoValueRefusal: infoValueAddRefusal(cs, { instanceId: c.instanceId, plotKey: c.plotKey },
-            _infoDefOf, infoValueOutputExists) || undefined,
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
@@ -19203,39 +19149,6 @@ export default function StockChart({
               </div>
               )}
 
-              {/* ══ A2. THE HEADER'S INFO VALUES (P1) ══════════════════════
-                  ⭐ The latest value of each referenced output, read from the
-                  binder (`infoValueResolve.resolveInfoValues`) — never computed
-                  here. A refused output prints `n/a` with the gate's reason, an
-                  unknown newest bar prints `—`, and a broken reference (deleted
-                  instance / removed plot) stays visible as `unavailable` until the
-                  member removes it with its ×. Nothing renders when none stored. */}
-              {infoValuesOf(cs).length > 0 && (() => {
-                const _eng = engineRef.current
-                const _rows = resolveInfoValues(cs, {
-                  registry: engineRegistry,
-                  bindings: _eng && _eng.binder ? _eng.binder.bindings() : [],
-                  columnErrorsOf: _eng && _eng.binder && typeof _eng.binder.columnErrorsOf === 'function'
-                    ? _eng.binder.columnErrorsOf : undefined,
-                  gateCtx: { tf: resolvedTf, secondary: secondarySources, exchangeOf: otherSymbolExchangeOf, symbol: symbolMeta },
-                })
-                return (
-                  <div className={styles.barInfo} data-testid="info-values">
-                    {_rows.map((r) => (
-                      <span key={`${r.instanceId}::${r.plotKey}::${r.severed ? 'x' : 'v'}`}
-                        className={styles.barField} style={legBase}
-                        data-state={r.state} data-guard={r.guard || undefined} title={r.reason || undefined}>
-                        <span className={styles.barKey}>{r.label}</span>
-                        <span className={styles.barVal}>{r.text}</span>
-                        <button type="button" aria-label={`Remove ${r.label} from header`}
-                          style={{ background: 'none', border: 0, padding: '0 2px', cursor: 'pointer', color: 'inherit', opacity: 0.6 }}
-                          onClick={() => handleInfoValueRemove({ instanceId: r.instanceId, plotKey: r.plotKey, severed: r.severed })}>×</button>
-                      </span>
-                    ))}
-                  </div>
-                )
-              })()}
-
               {/* ══ B. THE STUDY STACK ══════════════════════════════════════
                   ⭐ ONE ROW PER PLOT DRAWN IN THIS PANE: `label · value · ›`.
                   Every row is the Track B door — click it, right-click it, or
@@ -20053,12 +19966,6 @@ export default function StockChart({
             chartSettings={cs}
             volumePaneFixed={volumePaneFixed}
             onUpdateSettings={handleUpdateChartSettings}
-            /* ⭐ P2 Track B — Create Indicator's preview channel (see `csView`) and
-               its Library door (Chart Settings → Indicators → Add to Chart). The
-               PRIMARY toolbar only: it is the one handed this chart's symbol. */
-            onStudioPreview={setStudioPreview}
-            anchorRef={containerRef}
-            onOpenLibrary={onOpenSettings ? () => onOpenSettings('add') : null}
             /* Charts workspace has the new settings modal (onOpenSettings) — drop
                the legacy V1 toolbar gear + its inline panel there. Other surfaces
                (no modal) keep it as their only settings entry point. */

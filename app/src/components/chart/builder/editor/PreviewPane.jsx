@@ -99,17 +99,13 @@ const PREVIEW_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: 
 // Recorded here so the next engineer wondering "why is my preview blank on the
 // Model Book toolbar" has a thread to pull.
 
-// ⭐ P2 — `previewId` lets a SECOND preview (the conversation's working
-// definition, `CONVERSE_PREVIEW_DEF_ID`) coexist with the formula box's without
-// the two fighting over one registry entry. The document handed in must carry
-// that same id; the teardown below is per id, so neither can leak the other.
-export default function PreviewPane({ sym = null, tf = null, settings = null, definition = null, previewId = PREVIEW_DEF_ID }) {
+export default function PreviewPane({ sym = null, tf = null, settings = null, definition = null }) {
   const live = !!(sym && tf && definition)
   const [installed, setInstalled] = useState(null)
 
   useEffect(() => {
     if (!live) {
-      engineRegistry.uninstallUserDefinition(previewId)
+      engineRegistry.uninstallUserDefinition(PREVIEW_DEF_ID)
       setInstalled(null)
       return undefined
     }
@@ -148,17 +144,17 @@ export default function PreviewPane({ sym = null, tf = null, settings = null, de
     // how a MEMBER gets there; the badge is what the DOOR refuses on. Do not
     // read the case as a reproduction of the rename — it is a reproduction of
     // the refusal.
-    engineRegistry.uninstallUserDefinition(previewId)
+    engineRegistry.uninstallUserDefinition(PREVIEW_DEF_ID)
     setInstalled(null)
     return undefined
-  }, [live, definition, previewId])
+  }, [live, definition])
 
   // ⛔ A SEPARATE, EMPTY-DEP EFFECT. Putting the uninstall in the cleanup of the
   // effect above would fire it on EVERY keystroke that changes `definition` —
   // uninstall-then-reinstall bumps `_generation` twice per character and rebuilds
   // every registry-keyed memo on the chart path each time. This one runs once, on
   // the way out.
-  useEffect(() => () => { engineRegistry.uninstallUserDefinition(previewId) }, [previewId])
+  useEffect(() => () => { engineRegistry.uninstallUserDefinition(PREVIEW_DEF_ID) }, [])
 
   // ⛔ THE MEMBER'S OWN CANVAS, WITH EVERY INSTANCE REMOVED — the draft and
   // nothing else. Their colours, their candles, their background; none of their
@@ -168,12 +164,12 @@ export default function PreviewPane({ sym = null, tf = null, settings = null, de
     if (!installed) return null
     const base = mergeChartSettings(settings || {})
     const bare = { ...base, indicatorInstances: [], indicators: {} }
-    return addInstance(bare, previewId, engineRegistry)
-  }, [installed, settings, previewId])
+    return addInstance(bare, PREVIEW_DEF_ID, engineRegistry)
+  }, [installed, settings])
 
   if (!live || !stored) return null
   return (
-    <div className={styles.preview} data-testid="formula-preview" data-def-id={previewId}>
+    <div className={styles.preview} data-testid="formula-preview" data-def-id={PREVIEW_DEF_ID}>
       <ChartPane
         sym={sym}
         tf={tf}

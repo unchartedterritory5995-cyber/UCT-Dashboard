@@ -334,8 +334,6 @@ export default function ChartSettingsModal({
   // A surface with no way to reach a builder shows no New Formula button rather
   // than one that does nothing.
   onCreateFormula = null,
-  // ⭐ P2 Track B — Create Indicator's door; passed through to the Indicators tab.
-  onCreateIndicator = null,
 }) {
   const panelRef = useRef(null)
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
@@ -1275,7 +1273,6 @@ export default function ChartSettingsModal({
             colorSwatch={colorSwatch}
             volumeRef={volumeRef}
             onCreateFormula={onCreateFormula}
-            onCreateIndicator={onCreateIndicator}
             /* Subscribed up here, for the reason written beside the hooks: this
                component builds `indRows`, so it is the one that has to re-render
                when a member's formulas install. Handing the two results down is

@@ -23,11 +23,6 @@ watch paths set in the Railway service settings (never railway.json — that fil
 # db/delivery/outbound_webhooks/routing_rule, bars_sqlite, breadth_timing,
 # data_sync, disk_watchdog, fmp_client, store_retention, ticker_resolver,
 # watchlist_alert_service, web_push). Shipped on a Saturday: no tape to drop.
-# 2026-10-05 - deploy trigger. The indicator P0 truth branch changed two modules
-# this worker reaches but does not watch (alert_user_series: refuse plots that
-# read an unsupplied sym/ltf series or a current-only scalar instead of arming
-# them starved; user_definitions: the server is the save authority). Without
-# this touch the alert refusals ship inert here. Ship off-hours.
 is shared by all three services): api/{massive_ws_worker,massive_processor,
 flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,

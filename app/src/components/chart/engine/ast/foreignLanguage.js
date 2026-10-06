@@ -59,24 +59,13 @@ const LANGUAGES = Object.freeze([
   {
     name: 'MetaStock',
     home: 'MetaStock',
-    // ⭐ P0 0K (2026-10-05) — a typical MetaStock paste is ONE line
-    // (`Mov(C, 20, S) > Ref(C, -1)`) and showed one marker, so it fell through to
-    // TC2000 and was told "`S` is not a TC2000 name". `Mov(…, S|E|W|T|V|VAR)`'s
-    // method letter and `Ref(x, -n)`'s NEGATIVE offset are MetaStock's own; no
-    // dialect this engine reads writes either.
-    markers: [/\bMov\s*\(\s*C\s*,/i, /\bExtFml\s*\(/i, /\bFml\s*\(\s*"/i,
-      /\bMov\s*\([^()]*,\s*(?:S|E|W|T|TRI|V|VAR|SIMPLE|EXPONENTIAL|WEIGHTED)\s*\)/i,
-      /\bRef\s*\(\s*[^,()]+,\s*-\s*\d+\s*\)/i],
+    markers: [/\bMov\s*\(\s*C\s*,/i, /\bExtFml\s*\(/i, /\bFml\s*\(\s*"/i],
   },
   {
     name: 'AmiBroker (AFL)',
     home: 'AmiBroker',
     markers: [/\b_SECTION_BEGIN\s*\(/, /\bPlotShapes\s*\(/, /\bParamToggle\s*\(/,
-      /\bBuy\s*=\s*Cross\s*\(/i,
-      // ⭐ P0 0K — AFL's assignment-style signals and its `Plot(x, "name", colorX)`
-      // colour constants: a two-line AFL paste carried one marker before.
-      /^\s*(?:Buy|Sell|Short|Cover)\s*=[^=\n][^\n]*;\s*$/m,
-      /\bPlot\s*\([^;]*,\s*"[^"]*"\s*,\s*color[A-Z]\w*/],
+      /\bBuy\s*=\s*Cross\s*\(/i],
   },
 ])
 

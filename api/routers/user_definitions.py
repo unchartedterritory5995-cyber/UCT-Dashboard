@@ -3,7 +3,6 @@
   GET    /api/user-definitions            → every live definition (newest version)
   POST   /api/user-definitions            → create; the server mints the `u_<12 hex>` id
   POST   /api/user-definitions/propose    → English in, a canonical tree out (the concierge)
-  POST   /api/user-definitions/converse   → one authoring turn in, a structured PATCH out (never applied here)
   GET    /api/user-definitions/{def_id}   → one definition; `?version=N` serves a PIN
   PUT    /api/user-definitions/{def_id}   → save an edit (appends a version)
   DELETE /api/user-definitions/{def_id}   → soft delete (appends a tombstone version)
@@ -32,10 +31,9 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Dict, Optional, Union
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
@@ -70,12 +68,6 @@ class DefinitionIn(BaseModel):
     # `import_accepted` still fires, just without a linkable `import_id`.
     import_id: Optional[str] = None
     source_dialect: Optional[str] = None
-    # ⭐ P0/0P — the author's save-time acknowledgement of a `preview-repaints`
-    # badge: `true` (every plot) or `{plotKey: true}`. The browser's per-row
-    # checkbox, carried to the authority. NEVER persisted (it is a save-time
-    # gate, like the checkbox); `meta.repaintAck` — the ALERT-arm
-    # acknowledgement — is a different fact and is not written from this.
-    repaint_acknowledged: Optional[Union[bool, Dict[str, bool]]] = None
 
 
 class ProposeIn(BaseModel):
@@ -168,8 +160,7 @@ def _save_or_400(user_id, def_id: str, definition: dict,
                  limits: Limits | None = None, *,
                  import_id: Optional[str] = None,
                  source_dialect: Optional[str] = None,
-                 role: Optional[str] = None,
-                 repaint_acknowledged=None):
+                 role: Optional[str] = None) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -189,19 +180,7 @@ def _save_or_400(user_id, def_id: str, definition: dict,
     caller that predates this track, present for BuilderSheet's own save path.
     """
     try:
-        # ⭐ P0G -- `source_dialect` is also the store's one fact about where THIS
-        # save's maths came from: Pine-translated maths is never stamped with
-        # definition semantics 2 (`svc.decide_semantics`).
-        row = svc.save(user_id, def_id, definition, limits=limits, role=role,
-                       repaint_acknowledged=repaint_acknowledged,
-                       source_dialect=source_dialect)
-    except svc.SaveRefused as exc:
-        # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
-        # is still the store's own sentence (so every client that renders
-        # `detail` keeps working) and whose `refusal` names the gate, plot,
-        # measured mode and guard — branch on those, never on the prose.
-        return JSONResponse(status_code=422,
-                            content={"detail": str(exc), "refusal": exc.as_dict()})
+        row = svc.save(user_id, def_id, definition, limits=limits, role=role)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     telemetry.log_event(
@@ -336,8 +315,7 @@ def create_definition(body: DefinitionIn,
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition, limits,
                         import_id=body.import_id, source_dialect=body.source_dialect,
-                        role=user.get("role"),
-                        repaint_acknowledged=body.repaint_acknowledged)
+                        role=user.get("role"))
 
 
 @router.post("/propose")
@@ -414,45 +392,6 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     result = dict(result)
     result["import_id"] = import_id
     return result
-
-
-class ConverseIn(BaseModel):
-    """ONE conversational authoring turn (Phase 2).
-
-    `message` is the member's words. `view` is the client engine's compact view
-    of the CURRENT indicator (`compactView`, contract `uct.authoring.view/1`) —
-    every string in it is untrusted DATA. `authoring` is the authoring-state
-    summary (`assumptions`, `openQuestions`). `snippets` are at most a few short
-    recent turns, `{role: member|assistant, text}`, language only. All bounded in
-    `definition_conversation` before any model call.
-    """
-
-    message: str
-    view: dict
-    authoring: Optional[dict] = None
-    snippets: Optional[list] = None
-
-
-@router.post("/converse")
-def converse_definition(body: ConverseIn, user: dict = Depends(require_paid)):
-    """THE CONVERSATIONAL AI DOOR. One member turn + the compact view in, ONE
-    structured patch envelope out (`uct.authoring.patch/1`) — or a refusal.
-
-    ⛔ IT STORES NOTHING AND APPLIES NOTHING. The envelope is returned verbatim;
-    the client engine applies it atomically and the ordinary `POST ""` /
-    `PUT /{def_id}` doors do any writing, through the same validation as every
-    other save. A refusal is a 200 with `ok: False` and NO envelope.
-
-    ⭐ THE SAME BUDGET AS `/propose`, NOT A SECOND ONE: it is charged against the
-    SAME per-member hourly window (`_charge_propose`) before anything else runs,
-    and the service spends from the concierge's per-member daily ledger and the
-    global member budget, checked before every model call.
-    """
-    _charge_propose(str(user["id"]))
-    from api.services import definition_conversation
-    return definition_conversation.converse(
-        body.message, user_id=user["id"], view=body.view,
-        authoring=body.authoring, snippets=body.snippets)
 
 
 @router.get("/library")
@@ -540,8 +479,7 @@ def save_definition(def_id: str, body: DefinitionIn,
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition, limits,
                         import_id=body.import_id, source_dialect=body.source_dialect,
-                        role=user.get("role"),
-                        repaint_acknowledged=body.repaint_acknowledged)
+                        role=user.get("role"))
 
 
 @router.delete("/{def_id}")

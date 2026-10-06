@@ -155,12 +155,8 @@ def definition_record_claim(
         raise HTTPException(
             status_code=400,
             detail=f"definition {def_id!r} carries no usable `compute.rev`, and the record is keyed on it")
-    # ⭐ THE MATHS + ITS SEMANTICS — the same result identity the sweep filed the
-    # record under (`scan_definition.def_hash`). The STORED document's
-    # `meta.semantics` decides it: a semantics-2 definition reads ONLY its own
-    # `~s2` record, never the semantics-1 record of the same tree (which keeps
-    # its provenance and is left exactly where it was).
-    def_hash = defs.result_identity(doc)
+    # ⭐ THE MATHS, HASHED — the same `astHash` the sweep filed the record under.
+    def_hash = defs.ast_hash(tree)
     label = _tf_label(tf)
 
     if (frm is None) != (to is None):

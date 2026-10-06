@@ -35,11 +35,6 @@ import {
 import { formatET } from '../../utils/timeAgo'
 import AlertStateLine from './alertState'
 import { instancesForAddress } from './engine/alertSets'
-import { getDefinition } from './engine/nativeRegistry'
-import {
-  POLICY_OPTIONS, DEFAULT_POLICY, compileTriggerPolicy, policyOf, policyLabel,
-  takesTriggerPolicy, signalAlertGate, outputTypeForAddress,
-} from './engine/triggerPolicy'
 import { NATIVE_TFS, tfLabel } from './timeframes'
 import UIcon from '../ui/UIcon'
 
@@ -147,10 +142,6 @@ export default function IndicatorAlertPopover({
   const [plot, setPlot] = useState('')
   const [condition, setCondition] = useState('')
   const [threshold, setThreshold] = useState('')
-  // ⭐ P1 SIGNAL — WHEN A YES/NO OUTPUT ALERTS (is true / becomes true / becomes
-  // false). Used instead of `condition` + `threshold` for a CONDITION/EVENTS
-  // output; see `signalType` below.
-  const [policy, setPolicy] = useState(DEFAULT_POLICY)
   // ⭐ SPEC §8 — WHICH INSTANCE. `{period: 7}` vs `{period: 14}` is what makes
   // "RSI(7) crossed 70" a different alert from "RSI(14)". Until this existed
   // the popover sent NO params at all, so every alert a user could create was
@@ -300,28 +291,8 @@ export default function IndicatorAlertPopover({
     selectEntry(catalog[0])
   }, [catalog, byIndicator, indicator, selectEntry, selectPlot, initialAddress, initial])
 
-  // ⭐⭐ P1 SIGNAL — IS THE SELECTED OUTPUT A YES/NO? The type comes from the ONE
-  // authority (`outputTypeOf`) over the INSTALLED definition when the browser
-  // has it, else from the server's own derivation served on the catalog plot
-  // (`output_type`) — never from a label, an intent or a guess. A yes/no gets
-  // trigger-policy choices INSTEAD of a numeric threshold: the old prefill read
-  // the current value (1) into the box, and `cross_above 1` on a 0/1 column can
-  // never fire. A numeric SERIES keeps the numeric conditions, untouched.
-  const installedOutput = useMemo(() => outputTypeForAddress(getDefinition, plot), [plot])
-  const signalType = installedOutput ? installedOutput.type : (plotEntry?.output_type ?? null)
-  const isSignal = takesTriggerPolicy(signalType)
-  // The shared gate's browser preflight (lanes `alert`, then `signal`) before
-  // arming. A refusal is shown with the gate's own sentence and blocks submit;
-  // `supported` is never final — the server decides at arm.
-  const preflight = useMemo(
-    () => (isSignal && installedOutput
-      ? signalAlertGate(installedOutput.def, installedOutput.key, { tf })
-      : null),
-    [isSignal, installedOutput, tf],
-  )
-  const preflightRefused = !!preflight && preflight.status === 'refused'
   const conditionEntry = conditionOptions.find((c) => c.value === condition) || null
-  const needsThreshold = !isSignal && !!conditionEntry?.needs_threshold
+  const needsThreshold = !!conditionEntry?.needs_threshold
   const catalogReady = !catalogLoading && !catalogError && catalog.length > 0
   const inputKeys = useMemo(
     () => Object.keys(plotEntry?.inputs || {}),
@@ -408,15 +379,7 @@ export default function IndicatorAlertPopover({
     // server (`_clean_scope` stores NULL), so the unchecked path is the shape
     // every existing row has and the shape every previous client sent.
     if (chartOnly && chartId) payload.scope = chartId
-    if (isSignal) {
-      // The policy, and the rule it compiles to; the server recompiles and
-      // refuses a mismatch, so this is a statement, not an authority.
-      if (preflightRefused) return
-      const compiled = compileTriggerPolicy(policy)
-      payload.trigger_policy = policy
-      payload.condition = compiled.condition
-      payload.threshold = compiled.threshold
-    } else if (needsThreshold) {
+    if (needsThreshold) {
       const num = parseFloat(threshold)
       if (!Number.isFinite(num)) return
       payload.threshold = num
@@ -570,49 +533,22 @@ export default function IndicatorAlertPopover({
           </div>
         )}
 
-        {isSignal ? (
-          <div className={styles.row}>
-            <span className={styles.label}>Alert when</span>
-            <select
-              className={styles.select}
-              aria-label="Trigger policy"
-              value={policy}
-              disabled={!catalogReady}
-              onChange={(e) => setPolicy(e.target.value)}
-            >
-              {POLICY_OPTIONS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div className={styles.row}>
-            <span className={styles.label}>Condition</span>
-            <select
-              className={styles.select}
-              aria-label="Condition"
-              value={condition}
-              disabled={!catalogReady}
-              onChange={(e) => setCondition(e.target.value)}
-            >
-              {conditionOptions.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* The shared gate's refusal, in its own words (guard as data). */}
-        {preflightRefused && (
-          <div className={styles.catalogError} role="alert"
-            data-testid="alert-signal-refused" data-guard={preflight.guard || undefined}>
-            {preflight.reason}
-          </div>
-        )}
+        <div className={styles.row}>
+          <span className={styles.label}>Condition</span>
+          <select
+            className={styles.select}
+            aria-label="Condition"
+            value={condition}
+            disabled={!catalogReady}
+            onChange={(e) => setCondition(e.target.value)}
+          >
+            {conditionOptions.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {needsThreshold && (
           <div className={styles.row}>
@@ -676,8 +612,7 @@ export default function IndicatorAlertPopover({
         <button
           type="submit"
           className={styles.addBtn}
-          disabled={!ownSym || submitting || !catalogReady || !plot || (needsThreshold && !threshold)
-            || preflightRefused}
+          disabled={!ownSym || submitting || !catalogReady || !plot || (needsThreshold && !threshold)}
         >
           {submitting ? 'Adding…' : 'Add Alert'}
         </button>
@@ -777,13 +712,9 @@ export default function IndicatorAlertPopover({
             // that fired come from the same field. The catalog label remains
             // the fallback for a row served before this shipped.
             const indLbl = a.instance_label || labelForAlert(a)
-            // ⭐ P1 — a yes/no output's alert reads as its policy ("Becomes
-            // true"), never as "Crosses above @ 0.5": the decoder is not a level.
-            const rowPolicy = takesTriggerPolicy(byAddress.get(a.indicator)?.output_type)
-              ? policyOf(a.condition, a.threshold) : null
-            const condLbl = rowPolicy ? policyLabel(rowPolicy) : conditionLabelForAlert(a)
-            const thrTxt = !rowPolicy && a.threshold !== null && a.threshold !== undefined
-              ? ` @ ${a.threshold}` : ''
+            const condLbl = conditionLabelForAlert(a)
+            const thrTxt =
+              a.threshold !== null && a.threshold !== undefined ? ` @ ${a.threshold}` : ''
             // ⭐ THE ROW NOTHING USED TO REPORT. A stored alert naming something
             // the evaluator has no value function for is accepted by the API and
             // silently never fires. Only assertable once the catalog has

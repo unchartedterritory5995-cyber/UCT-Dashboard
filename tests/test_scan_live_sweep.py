@@ -1247,13 +1247,8 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # read by `ast_interpret.bar_index_absolute_for` — the same call
     # `assert_scannable` makes at the door. False for every document that is not a
     # Pine translation, and `interpret` asks `is True`.
-    # ⭐ `semantics` JOINED THEM 2026-10-06 (owner decision A), REVIEWED HERE: the
-    # STORED document's definition semantics, read by `ast_interpret.semantics_for`
-    # — the function `lane_opts_for` and `scan_definition.def_hash` use — so the
-    # sweep evaluates a semantics-2 screen as its chart and alert do, and files it
-    # under the `~s2` identity. `1` (every legacy document) is identical to absent.
     keys = {k.value for k in opts.keys}
-    assert keys == {"tf", "symbols", "now", "barIndexAbsolute", "semantics"}, keys
+    assert keys == {"tf", "symbols", "now", "barIndexAbsolute"}, keys
     handed = dict(zip([k.value for k in opts.keys], opts.values))
     assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
@@ -1265,11 +1260,6 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
             and [getattr(a, "id", None) for a in declared.args] == ["definition"]), (
         "the sweep's `barIndexAbsolute` is not the document's own declaration, read "
         "by the function the door reads it with")
-    sem = handed["semantics"]
-    assert (isinstance(sem, pyast.Call) and getattr(sem.func, "attr", None) == "semantics_for"
-            and [getattr(a, "id", None) for a in sem.args] == ["definition"]), (
-        "the sweep's `semantics` is not the STORED document's, read by the one "
-        "function the identity (`def_hash`) and the alert lane read it with")
 
 # ═══ 11. the live cycle's rails: the window, the budget, the flag ════════════
 #
