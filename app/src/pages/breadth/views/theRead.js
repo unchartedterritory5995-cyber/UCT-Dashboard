@@ -51,11 +51,13 @@ import { zscore, divergenceRuns, MIN_SESSIONS as DIVERGENCE_MIN_SESSIONS } from 
 import { scanEvents } from './breadthEvents'
 import { ROTATION_PANELS, rotationReading, rotationWord } from './rotation'
 import { optionDefaults, optionLabel } from './viewMetricConfig'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 // ── formatting ──────────────────────────────────────────────────────────────
-const one = (v) => Number(v).toFixed(1)
-const signedOne = (v) => `${v >= 0 ? '+' : ''}${Number(v).toFixed(1)}`
-const signedThree = (v) => `${v >= 0 ? '+' : ''}${Number(v).toFixed(3)}`
+const fixed = (v, d) => formatNumber(Number(v), { decimals: d, grouping: false })
+const one = (v) => fixed(v, 1)
+const signedOne = (v) => `${v >= 0 ? '+' : ''}${fixed(v, 1)}`
+const signedThree = (v) => `${v >= 0 ? '+' : ''}${fixed(v, 3)}`
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 const num = (v) => (v == null || isNaN(Number(v)) ? null : Number(v))
 

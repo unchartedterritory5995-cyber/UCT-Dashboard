@@ -9,7 +9,7 @@ import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { usePendingReask } from '../depth/depthFetch'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
-import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { pctUpTo } from '../researchFormat'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
@@ -55,31 +55,17 @@ function TrustStrip({ meta, sessionContext }) {
 // hold nothing (every ETF reads "Float 0"). Rendered as not reported, never as "0".
 const reported = (v) => (v == null || Number(v) === 0 || !Number.isFinite(Number(v)) ? null : Number(v))
 
-function fmtShares(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${(v / 1e3).toFixed(0)}K`
-  return `${v}`
-}
-function fmtMoney(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  return `$${v.toFixed(0)}`
-}
+const fmtShares = (v) => formatCompactTerminal(v)
+const fmtMoney = (v) => formatCompactTerminal(v, { money: true })
 const fmtPct = (v) => pctUpTo(v, 2)
 const fmtNum = (v) => formatNumber(v == null ? null : Math.round(v))
 function fmtChgPp(v) {  // ownership-percent change, in percentage points
   if (v == null) return null
-  return `${v > 0 ? '+' : ''}${v.toFixed(2)}pp`
+  return `${v > 0 ? '+' : ''}${formatNumber(v, { decimals: 2 })}pp`
 }
 function fmtChgInt(v) {
   if (v == null) return null
-  return `${v > 0 ? '+' : ''}${Math.round(v).toLocaleString()}`
+  return `${v > 0 ? '+' : ''}${formatNumber(Math.round(v))}`
 }
 function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
 // tq-panels: the transaction side printed as the raw lowercase enum ("buy" / "sell").

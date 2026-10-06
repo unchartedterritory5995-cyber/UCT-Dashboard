@@ -252,13 +252,6 @@
 .checkItem { display: flex; align-items: center; gap: 6px; }
 .techChart { height: min(420px, 60vh); }
 
-/* coming soon */
-.soon { display: flex; align-items: center; justify-content: center; min-height: 280px; }
-.soonInner { text-align: center; color: var(--text-muted); }
-.soonGlyph { font-size: var(--text-display); color: var(--ut-gold); opacity: 0.6; }
-.soonTitle { font-size: var(--text-xl); font-weight: 700; color: var(--text-bright); margin-top: 8px; }
-.soonSub { font-size: var(--text-base); margin-top: 4px; }
-
 /* paywall */
 .paywall { display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: 24px; }
 .paywallGlass { max-width: 520px; text-align: center; background: var(--bg-surface); border: 1px solid var(--ut-gold); border-radius: var(--radius-2xl); padding: 28px 26px; box-shadow: var(--shadow-lg); }

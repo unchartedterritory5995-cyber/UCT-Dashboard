@@ -12,13 +12,14 @@ import EarningsTile from './EarningsTile'
 import { applyFilters, sortEntries, hiddenByQuickFilters } from './filterLogic'
 import { rankEntries } from './importance'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
+import { formatCompactTerminal } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 
 const MAX_ROWS_PER_SESSION = 12
 
 function fmtCap(v) {
   if (v == null || v <= 0) return null
-  return v >= 1000 ? `$${(v / 1000).toFixed(1)}T` : v >= 1 ? `$${Math.round(v)}B` : `$${Math.round(v * 1000)}M`
+  return formatCompactTerminal(v * 1e9, { money: true, absent: null })   // mc_b arrives in $B
 }
 
 function WeekRow({ e, isFeatured, onSelect }) {

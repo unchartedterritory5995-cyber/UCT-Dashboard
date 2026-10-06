@@ -6,6 +6,7 @@ import { daysTo } from './ChainTools'
 import styles from './optionsAnalytics.module.css'
 import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import Select from '../../components/ui/Select'
+import { num } from './optionsFormat'
 
 // lane/o-options-remainders — the chain-side surfaces under Research > Options:
 //   FT-012 EdgePanel        theoretical value vs the quote mid    (OPTIONS_EDGE_RANKING_ENABLED)
@@ -18,7 +19,6 @@ import Select from '../../components/ui/Select'
 // ⛔ Read-only by charter: a candidate or a saved spread is a record, never an order.
 
 const enc = encodeURIComponent
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (p) => formatPercent(p == null ? NaN : Number(p) * 100, { decimals: 1 })
 const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
@@ -197,7 +197,7 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
                       <td>{c.legs.map(legText).join(' / ')}</td>
                       <td>{c.cost >= 0 ? `pay ${money(c.cost)}` : `collect ${money(-c.cost)}`}</td>
                       <td>{money(c.maxProfit)}</td><td>{money(c.maxLoss)}</td>
-                      <td>{c.breakevens.map((b) => b.toFixed(2)).join(' / ') || '—'}</td>
+                      <td>{c.breakevens.map((b) => num(b)).join(' / ') || '—'}</td>
                       <td>{pct(c.pop)}</td>
                       {canSave && (
                         <td>

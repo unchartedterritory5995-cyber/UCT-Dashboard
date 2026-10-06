@@ -5,6 +5,7 @@ import EChart from '../../../components/research-kit/charts/echartsCore'
 import { buildSmileOption, buildTermOption, heatOf, pct, quoteClock, quoteSpan } from './volSurface'
 import styles from './OptionsChainTab.module.css'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { num } from '../../optionsAnalytics/optionsFormat'
 
 // BRK-01 increment 3 (roadmap RM-L01): the implied-vol surface, under the chain, from TODAY'S
 // live chain only (api/services/vol_surface.py). DARK behind OPTIONS_VOL_SURFACE_ENABLED, which
@@ -91,7 +92,7 @@ export default function VolSurfacePanel({ sym, expiration }) {
       <ul className={styles.volList} data-testid="term-points">
         {(d.term?.points || []).filter((p) => p.atm_iv != null).map((p) => (
           <li key={p.expiration}>
-            {p.expiration} ({p.dte}d) · ATM {Number(p.atm_strike).toFixed(2)} · <b>{pct(p.atm_iv)}</b>
+            {p.expiration} ({p.dte}d) · ATM {num(p.atm_strike)} · <b>{pct(p.atm_iv)}</b>
             {' '}<span className={styles.muted}>{p.atm_basis} · quoted {quoteClock(p.t, servedDay)}</span>
           </li>
         ))}
@@ -113,7 +114,7 @@ export default function VolSurfacePanel({ sym, expiration }) {
               <tbody>
                 {grid.rows.map((r) => (
                   <tr key={r.strike}>
-                    <td className={styles.strike}>{Number(r.strike).toFixed(2)}</td>
+                    <td className={styles.strike}>{num(r.strike)}</td>
                     {r.cells.map((c, i) => (
                       <td key={grid.expirations[i]}
                           className={c ? styles.volCell : undefined}

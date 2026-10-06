@@ -2,20 +2,13 @@ import { useState } from 'react'
 import useFinancials from '../hooks/useFinancials'
 import { MetricTrendChart, SeriesChart } from '../../../components/research-kit'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
-import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
-function fmtBig(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  return `$${v.toFixed(0)}`
-}
+const fmtBig = (v) => formatCompactTerminal(v, { money: true })
 const fmtMargin = (v) => formatPercent(v, { decimals: 1 })
 function fmtVal(v, suffix = '') { return v == null ? '—' : `${v}${suffix}` }
 
@@ -23,7 +16,7 @@ function fmtVal(v, suffix = '') { return v == null ? '—' : `${v}${suffix}` }
 // api/services/metric_disagreement.py -- so it is shown as the ratio it means.
 export function fmtDebtToEquity(v) {
   const n = Number(v)
-  return v == null || v === '' || !Number.isFinite(n) ? '—' : `${(n / 100).toFixed(2)}×`
+  return v == null || v === '' || !Number.isFinite(n) ? '—' : `${formatNumber(n / 100, { decimals: 2 })}×`
 }
 
 function heat(v) {
@@ -125,7 +118,7 @@ function TrendPair({ quarterly, annual }) {
           periods={periods}
           values={list.map(r => B(r.revenue))}
           label="Revenue ($B)"
-          valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(1)}B`)}
+          valueFormatter={(v) => (v == null ? '—' : `${formatCurrency(v, { decimals: 1 })}B`)}
           ariaLabel="Revenue by period"
         />
         <MetricTrendChart

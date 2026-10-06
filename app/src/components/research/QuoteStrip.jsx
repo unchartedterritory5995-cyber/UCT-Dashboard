@@ -19,6 +19,7 @@
 // RangeSlider. Removed in favour of the labelled one — see that section.
 import useMobileSWR from '../../hooks/useMobileSWR'
 import { toNum } from '../research-kit'
+import { formatCompactTerminal, formatCurrency } from '../../lib/presentation/presentationPrimitives'
 import styles from './QuoteStrip.module.css'
 
 const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -29,16 +30,12 @@ const n = toNum
 
 export function fmtPrice(v) {
   const x = n(v)
-  return x == null ? '—' : `$${x.toFixed(2)}`
+  return x == null ? '—' : formatCurrency(x)
 }
 
 export function fmtVol(v) {
   const x = n(v)
-  if (x == null) return '—'
-  if (x >= 1e9) return `${(x / 1e9).toFixed(2)}B`
-  if (x >= 1e6) return `${(x / 1e6).toFixed(2)}M`
-  if (x >= 1e3) return `${(x / 1e3).toFixed(1)}K`
-  return String(Math.round(x))
+  return x == null ? '—' : formatCompactTerminal(x)
 }
 
 export default function QuoteStrip({ sym }) {

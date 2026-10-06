@@ -10,6 +10,7 @@ import { rankEntries } from './importance'
 import { useReactions } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import UIcon from '../../components/ui/UIcon'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 
 function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers, enrichReady, onClearQuick }) {
@@ -195,12 +196,12 @@ function PrintTape({ entries, reactions, onSelect }) {
               <span className={styles.printSym}>{e.sym}</span>
               {beat != null && (
                 <span className={beat ? styles.printBeat : styles.printMiss}>
-                  {beat ? 'BEAT' : 'MISS'}{s != null && ` ${s >= 0 ? '+' : ''}${s.toFixed(0)}%`}
+                  {beat ? 'BEAT' : 'MISS'}{s != null && ` ${formatPercent(s, { decimals: 0, signed: true })}`}
                 </span>
               )}
               {gap != null && (
                 <span className={gap >= 0 ? styles.pos : styles.neg}>
-                  {gap >= 0 ? '▲ +' : '▼ '}{gap.toFixed(1)}%
+                  {gap >= 0 ? '▲ +' : '▼ '}{formatPercent(gap, { decimals: 1 })}
                 </span>
               )}
             </button>

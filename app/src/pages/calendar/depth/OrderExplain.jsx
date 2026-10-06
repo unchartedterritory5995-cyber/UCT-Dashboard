@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { boostParts } from '../importance'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import styles from './CalendarDepth.module.css'
 
 // D-10 (Lane R) — Personalization UC-3: why the calendar is ordered the way it is,
@@ -25,7 +26,7 @@ export function useBoostOff() {
 
 const SOURCE_LABEL = { positions: 'your positions', watchlist: 'a watchlist', flagged: 'your flagged list', uct20: 'the UCT 20' }
 
-function fmtW(w) { return Number.isInteger(w) ? String(w) : w.toFixed(1) }
+function fmtW(w) { return Number.isInteger(w) ? String(w) : formatNumber(w, { decimals: 1 }) }
 
 export default function OrderExplain({ entries, weightBuckets, boostOff, onBoostOff }) {
   const buckets = weightBuckets || []

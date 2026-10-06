@@ -11,16 +11,15 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
 import styles from './WireView.module.css'
+import { formatCompactTerminal, formatNumber, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import { useWire } from './useWire'
 import { useWireCoverage } from './useWireCoverage'
 
-/** Compact money: 51.2B / 9.4M / 1.24 */
+/** Compact money: 51.23B / 9.4M / 1.24 */
 function fmtNum(v) {
   if (v == null || Number.isNaN(v)) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e9) return `${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  return v.toFixed(2)
+  // A revenue figure reads on the terminal compact ladder; an EPS keeps two decimals.
+  return Math.abs(v) >= 1e6 ? formatCompactTerminal(v) : formatNumber(v, { decimals: 2 })
 }
 
 // Weight, never position.
@@ -155,7 +154,7 @@ export default function WireView({ dateStr }) {
                 own onClick, unchanged. */}
             <span className={styles.sym} data-testid="wire-sym" {...ta.longPressProps(r.sym)}>{r.sym}</span>
             <span className={mv != null && mv < 0 ? styles.down : styles.up}>
-              {mv == null ? '—' : `${mv >= 0 ? '▲' : '▼'} ${Math.abs(mv).toFixed(1)}%`}
+              {mv == null ? '—' : `${mv >= 0 ? '▲' : '▼'} ${formatPercent(Math.abs(mv), { decimals: 1 })}`}
             </span>
             {r.eps_act == null && r.rev_act == null ? (
               <span className={styles.pending}>numbers pending…</span>

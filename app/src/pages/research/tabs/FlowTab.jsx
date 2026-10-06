@@ -1,6 +1,6 @@
 import useResearchFlow from '../hooks/useResearchFlow'
 import Provenance from '../../../components/provenance/Provenance'
-import { formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
@@ -21,14 +21,7 @@ import styles from '../ResearchPage.module.css'
 // already use), and let "My Research"/"Technical" keep owning thesis/setup as
 // they already do. Deterministic only — no AI here.
 
-function fmtMoney(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`
-  return `$${Math.round(v)}`
-}
+const fmtMoney = (v) => formatCompactTerminal(v, { money: true })
 const fmtNum = (v) => formatNumber(v == null ? null : Math.round(v))
 
 function contractLabel(c) {

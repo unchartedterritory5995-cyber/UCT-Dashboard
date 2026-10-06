@@ -3,13 +3,13 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useDarkSection from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
-import { formatCompact, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import OffNotice from './OffNotice'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 import Select from '../../components/ui/Select'
 
-// The tide's own ladder: B at two decimals, M at one, K whole.
-const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
+// Premium reads on the terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS):
+// T/B at two decimals, M at one, K whole -- the tide's own old ladder, now shared.
 
 // FT-056 Market Tide: market-wide net call / net put premium by minute, COMPUTED from our flow
 // tape (api/services/options_analytics/market_tide.py).
@@ -31,7 +31,7 @@ export function money(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
   const a = Math.abs(n)
-  const s = formatCompact(a, { tiers: TIDE_TIERS })
+  const s = formatCompactTerminal(a)
   return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
 }
 

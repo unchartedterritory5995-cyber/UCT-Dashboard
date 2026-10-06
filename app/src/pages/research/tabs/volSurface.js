@@ -8,6 +8,8 @@
 // ⛔ Every plotted point carries its quote time into the tooltip.
 import { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from '../../../components/research-kit/charts/echartsCore'
 import { fractionPct } from '../researchFormat'
+import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { num } from '../../optionsAnalytics/optionsFormat'
 
 export const pct = (v) => fractionPct(v, 1)
 
@@ -30,7 +32,7 @@ export function quoteSpan(points, servedDay) {
 
 const pointTip = (servedDay) => (p) => {
   const [x, y, t] = p.data || []
-  return `${p.seriesName} ${Number(x).toFixed(2)}: ${Number(y).toFixed(1)}%<br/>quoted ${quoteClock(t, servedDay)}`
+  return `${p.seriesName} ${num(x)}: ${formatPercent(Number(y), { decimals: 1 })}<br/>quoted ${quoteClock(t, servedDay)}`
 }
 
 const yPct = () => ({
@@ -55,7 +57,7 @@ export function buildSmileOption(smile, spot, servedDay) {
     series[0].markLine = {
       silent: true, symbol: 'none',
       lineStyle: { color: CHART_INK.muted, type: 'dashed', width: 1 },
-      label: { color: CHART_INK.muted, fontSize: 10, formatter: `spot ${spot.toFixed(2)}` },
+      label: { color: CHART_INK.muted, fontSize: 10, formatter: `spot ${num(spot)}` },
       data: [{ xAxis: spot }],
     }
   }
@@ -79,7 +81,7 @@ export function buildTermOption(term, servedDay) {
       ...TOOLTIP_BASE, trigger: 'item',
       formatter: (p) => {
         const [dte, iv, t, exp, strike, basis] = p.data || []
-        return `${exp} (${dte}d) ATM ${Number(strike).toFixed(2)}: ${Number(iv).toFixed(1)}%<br/>${basis} · quoted ${quoteClock(t, servedDay)}`
+        return `${exp} (${dte}d) ATM ${num(strike)}: ${formatPercent(Number(iv), { decimals: 1 })}<br/>${basis} · quoted ${quoteClock(t, servedDay)}`
       },
     },
     series: term?.drawable ? [{

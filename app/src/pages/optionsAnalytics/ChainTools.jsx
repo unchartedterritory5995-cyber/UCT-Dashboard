@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { price } from './blackScholes'
 import { mid, summary, curve } from '../research/tabs/optionPayoff'
+import { formatNumber, formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
@@ -15,8 +17,7 @@ import Select from '../../components/ui/Select'
 // ⛔ Vendor numbers and computed numbers sit side by side and are labelled as such.
 
 const enc = encodeURIComponent
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
-const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
+const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${formatNumber(Math.round(Math.abs(v)))}`)
 
 // Today's calendar date IN NEW YORK, as [y, m, d]. Options expire on an exchange calendar, so "days to
 // expiry" counts from the ET date -- NOT the UTC one, which turns over at 8 pm EDT / 7 pm EST and made
@@ -61,13 +62,13 @@ export function ProbabilityPanel({ sym, expiration }) {
             <ul className={styles.list}>
               {data.ranges.map((r) => (
                 <li key={r.probability} data-testid={`probability-${r.probability}`}>
-                  {(r.probability * 100).toFixed(2)}% range by {data.expiration}: <b>{num(r.low)}</b> to <b>{num(r.high)}</b>
+                  {formatPercent(r.probability * 100, { decimals: 2 })} range by {data.expiration}: <b>{num(r.low)}</b> to <b>{num(r.high)}</b>
                   <span className={styles.muted}> (z {num(r.z)})</span>
                 </li>
               ))}
             </ul>
           ) : <p className={styles.note}>{data.note}</p>}
-          <p className={styles.muted}>ATM IV {data.atm_iv == null ? '—' : `${(data.atm_iv * 100).toFixed(1)}%`} (vendor), {data.days} days. {data.method}</p>
+          <p className={styles.muted}>ATM IV {fracPct(data.atm_iv)} (vendor), {data.days} days. {data.method}</p>
         </>
       )}
     </section>
@@ -282,7 +283,7 @@ export function PositionBuilder({ sym, rows, spot }) {
           {path && <svg className={styles.chart} viewBox="0 0 520 170" role="img" aria-label="Position profit and loss at expiration"><path className={styles.lineGold} d={path} /></svg>}
           <p className={styles.facts} data-testid="builder-facts">
             {s.cost >= 0 ? `Costs ${money(s.cost)}` : `Collects ${money(-s.cost)}`} · Max loss {money(s.maxLoss)} · Max profit {money(s.maxProfit)}
-            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => b.toFixed(2)).join(' and ')}` : ''}
+            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => num(b)).join(' and ')}` : ''}
           </p>
           <p className={styles.facts} data-testid="builder-greeks">
             Net Δ {num(g.delta, 1)} · Γ {num(g.gamma, 2)} · Θ {num(g.theta, 1)}/day · Vega {num(g.vega, 1)} <span className={styles.muted}>(vendor greeks x quantity x 100; blank when a leg has none)</span>

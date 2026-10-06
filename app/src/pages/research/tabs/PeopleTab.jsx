@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
-import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { ABSENT, formatCompactTerminal } from '../../../lib/presentation/presentationPrimitives'
 import { memberText } from '../../../lib/presentation/memberCopy'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
@@ -11,14 +11,27 @@ import PendingGaveUp from '../depth/PendingGaveUp'
 // DARK behind RESEARCH_PEOPLE_ENABLED.
 //
 // ⛔ Every row names its source and date. A value the source did not give is the
-//    word "unavailable" with the reason beside it, never an empty cell.
+//    standard missing-value glyph (ABSENT, "—") with "unavailable" and the reason
+//    as its accessible text and tooltip, never an empty cell.
 // ⛔ A section that could not be read says so; it is never an empty table that
 //    reads as "this company has no officers".
 
 const money = (v, cur) => {
   if (v == null) return null
-  const s = formatCompact(Number(v), { tiers: [{ at: 1e6, suffix: 'M', decimals: 2 }, { at: 1e3, suffix: 'K', decimals: 0 }] })
+  const s = formatCompactTerminal(Number(v))
   return `${cur && cur !== 'USD' ? `${cur} ` : '$'}${s}`
+}
+
+// The shared missing-value glyph, read aloud as "unavailable" (plus the source's
+// reason when it gave one). The dash is what every other panel prints for a
+// value it does not have; the words stay for screen readers and the tooltip.
+function Missing({ reason }) {
+  return (
+    <span className={styles.gap} title={reason || undefined} data-testid="people-missing">
+      <span aria-hidden="true">{ABSENT}</span>
+      <span className="sr-only">{reason ? `unavailable: ${reason}` : 'unavailable'}</span>
+    </span>
+  )
 }
 
 // Member copy for a section with no rows. `not_found` is the vendor holding nothing for the
@@ -45,12 +58,12 @@ function Executives({ part, sym }) {
           {part.rows.map((e) => (
             <tr key={e.name} data-testid={`exec-${e.name}`}>
               <td>{e.name}</td>
-              <td>{e.title || 'unavailable'}</td>
-              <td>{e.since || <span className={styles.gap} title={e.unavailable?.since}>unavailable</span>}</td>
+              <td>{e.title || <Missing />}</td>
+              <td>{e.since || <Missing reason={e.unavailable?.since} />}</td>
               <td className={styles.num}>
                 {e.pay != null
                   ? <span title={e.pay_note}>{money(e.pay, e.pay_currency)}*</span>
-                  : <span className={styles.gap} title={e.unavailable?.pay}>unavailable</span>}
+                  : <Missing reason={e.unavailable?.pay} />}
               </td>
               <td className={styles.num}>
                 {e.comp_total != null
@@ -63,7 +76,7 @@ function Executives({ part, sym }) {
         </tbody>
       </table>
       <div className={styles.muted} data-testid="people-execs-source">
-        Source: {memberText(part.source)}, read {part.as_of}. "Since" is unavailable where FMP reports no start date.
+        Source: {memberText(part.source)}, read {part.as_of}. "Since" shows {ABSENT} where FMP reports no start date.
         * FMP does not state which year a pay figure covers.
       </div>
     </div>
@@ -84,13 +97,13 @@ function Compensation({ part, sym }) {
           {part.rows.map((r, i) => (
             <tr key={`${r.name_and_position}-${i}`}>
               <td>{r.name_and_position}</td>
-              <td className={styles.num}>{money(r.salary) ?? 'unavailable'}</td>
-              <td className={styles.num}>{money(r.stock_award) ?? 'unavailable'}</td>
-              <td className={styles.num}>{money(r.incentive) ?? 'unavailable'}</td>
-              <td className={styles.num}>{money(r.total) ?? 'unavailable'}</td>
+              <td className={styles.num}>{money(r.salary) ?? <Missing />}</td>
+              <td className={styles.num}>{money(r.stock_award) ?? <Missing />}</td>
+              <td className={styles.num}>{money(r.incentive) ?? <Missing />}</td>
+              <td className={styles.num}>{money(r.total) ?? <Missing />}</td>
               <td>{r.url
                 ? <a className={styles.link} href={r.url} target="_blank" rel="noopener noreferrer">{r.filing_date || 'filing'}</a>
-                : (r.filing_date || 'unavailable')}</td>
+                : (r.filing_date || <Missing />)}</td>
             </tr>
           ))}
         </tbody>

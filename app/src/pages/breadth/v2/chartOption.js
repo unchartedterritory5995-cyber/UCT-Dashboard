@@ -20,6 +20,7 @@ import { shouldSample } from './lttb'
 import { spanDays, tickBoundary, formatSessionTick, formatTooltipDate } from '../chartTicks'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import { withAlpha } from '../../../lib/theme/resolveThemeColor'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 /**
  * The chart's chrome inks. Canvas cannot read `var(--…)`, so the component resolves
@@ -122,8 +123,8 @@ export function logEligibility(panel, valuesByKey) {
 /** Numbers as a reader wants them: thousands separated, two decimals only below 1,000. */
 export function formatValue(v) {
   if (v === null || v === undefined || typeof v !== 'number' || !Number.isFinite(v)) return '—'
-  if (Math.abs(v) >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  return Number.isInteger(v) ? String(v) : v.toFixed(2)
+  if (Math.abs(v) >= 1000) return formatNumber(v, { decimals: 0 })
+  return Number.isInteger(v) ? String(v) : formatNumber(v, { decimals: 2, grouping: false })
 }
 
 const escapeHtml = s => String(s)

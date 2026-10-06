@@ -3,7 +3,7 @@ import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
-import { formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
@@ -17,7 +17,7 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 const n2 = (v) => formatNumber(v == null ? NaN : Number(v), { decimals: 2 })
 const big = (v) => {
   if (v == null) return '—'
-  return formatCompact(Number(v), { tiers: [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }] })
+  return formatCompactTerminal(Number(v))
 }
 
 export default function BrokerEstimatesPanel({ sym }) {

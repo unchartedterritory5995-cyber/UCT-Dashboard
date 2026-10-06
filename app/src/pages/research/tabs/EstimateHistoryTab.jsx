@@ -2,7 +2,7 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { signedPct } from '../researchFormat'
 import styles from './ResearchCov.module.css'
-import { ABSENT, formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { ABSENT, formatCompactTerminal, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
@@ -19,7 +19,7 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 // line below still says "unavailable" in words.
 const eps = (v) => formatNumber(v, { decimals: 2 })
 const rev = (v) => (v == null ? ABSENT
-  : formatCompact(Number(v), { tiers: [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }] }))
+  : formatCompactTerminal(Number(v)))
 const chg = (c) => {
   if (!c || c.pct == null) return { text: 'unavailable', cls: '' }
   return { text: signedPct(c.pct, 2), cls: c.pct > 0 ? styles.up : c.pct < 0 ? styles.down : '' }

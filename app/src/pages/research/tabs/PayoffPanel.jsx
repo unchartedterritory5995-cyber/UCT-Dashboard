@@ -4,6 +4,7 @@ import useDarkSection from '../../optionsAnalytics/useDarkSection'
 import { todayPnl, popAtExpiry, priceSlices } from '../../optionsAnalytics/chainModels'
 import { daysTo } from '../../optionsAnalytics/ChainTools'
 import { fractionPct } from '../researchFormat'
+import { num } from '../../optionsAnalytics/optionsFormat'
 import styles from './OptionsChainTab.module.css'
 import Select from '../../../components/ui/Select'
 
@@ -85,7 +86,7 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
 
   const strikeSelect = (value, set, label) => (
     <Select aria-label={label} value={value ?? ''} onChange={(e) => set(Number(e.target.value))}>
-      {strikes.map((k) => <option key={k} value={k}>{k.toFixed(2)}</option>)}
+      {strikes.map((k) => <option key={k} value={k}>{num(k)}</option>)}
     </Select>
   )
 
@@ -114,7 +115,7 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
             {s.cost >= 0 ? `Costs ${money(s.cost)}` : `Collects ${money(-s.cost)}`}
             {' · '}Max loss {money(s.maxLoss)}
             {' · '}Max profit {money(s.maxProfit)}
-            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => b.toFixed(2)).join(' and ')}` : ''}
+            {s.breakevens.length ? ` · Breakeven ${s.breakevens.map((b) => num(b)).join(' and ')}` : ''}
           </p>
           {today && (
             <div data-testid="payoff-today">
@@ -130,7 +131,7 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
                   <tbody>
                     {slices.map((r) => (
                       <tr key={r.price}>
-                        <td>{r.price.toFixed(2)}</td><td>{r.today == null ? '—' : money(r.today)}</td>
+                        <td>{num(r.price)}</td><td>{r.today == null ? '—' : money(r.today)}</td>
                         <td>{money(r.expiry)}</td><td>{pct(r.below)}</td>
                       </tr>
                     ))}

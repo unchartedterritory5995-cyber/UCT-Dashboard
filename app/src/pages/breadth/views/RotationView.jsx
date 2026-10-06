@@ -43,6 +43,7 @@ import { ROTATION_PANELS as PANELS, rotationMeasured, traceDomain } from './rota
 // reason both live in a stylesheet instead of the inline style below is stated
 // at the top of that file.
 import styles from './RotationView.module.css'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 const pointIndex = (e) => {
   const el = e.target?.closest?.('[data-seek-idx]')
@@ -84,7 +85,7 @@ const AXIS_W = 46
 // volatility spread), which is this file's own reading — the shared registry
 // `getFmt` formats a metric ROW and none of these three is a registry metric —
 // so one local authority is the right number of authorities.
-const fmt = (v) => Number(v).toFixed(3)
+const fmt = (v) => formatNumber(Number(v), { decimals: 3, grouping: false })
 
 export default function RotationView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},

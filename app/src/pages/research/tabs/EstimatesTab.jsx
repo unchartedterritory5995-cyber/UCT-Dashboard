@@ -1,7 +1,7 @@
 import useEstimates from '../hooks/useEstimates'
 import { RevisionColumns, SeriesChart } from '../../../components/research-kit'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
-import { formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
@@ -14,14 +14,7 @@ import styles from '../ResearchPage.module.css'
 // FMP, via analyst_grades.py, overriding yfinance's own thinner feed) now
 // live in their own dedicated home: AnalystRatingsTab.jsx. Do not re-add
 // analyst-grade content here.
-function fmtBig(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  return `$${v.toFixed(0)}`
-}
+const fmtBig = (v) => formatCompactTerminal(v, { money: true })
 const fmtEps = (v) => formatNumber(v, { decimals: 2 })
 
 function trendDir(cur, ago) {

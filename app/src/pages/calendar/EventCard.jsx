@@ -3,23 +3,19 @@
 // Used in FeedView DayGroup when the matching event-type chip is enabled.
 import { useNavigate } from 'react-router-dom'
 import CompanyLogo from '../../components/CompanyLogo'
+import { formatCompactTerminal, formatCurrency } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
 function fmtShares(n) {
   if (n == null) return null
-  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B shares`
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M shares`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K shares`
-  return `${n} shares`
+  return `${formatCompactTerminal(Number(n))} shares`
 }
 
 function fmtValue(v) {
   if (v == null) return null
-  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`
-  return `$${v.toFixed(0)}`
+  return formatCompactTerminal(Number(v), { money: true })
 }
 
 // ── IPO status pill color ─────────────────────────────────────────────────────
@@ -100,7 +96,7 @@ function IpoCard({ event }) {
 function DividendCard({ event }) {
   const navigate = useNavigate()
   const sym    = event.sym || ''
-  const amount = event.amount != null ? `$${event.amount.toFixed(4)}` : null
+  const amount = event.amount != null ? formatCurrency(event.amount, { decimals: 4 }) : null
   const exDate = event.date || null
 
   return (
