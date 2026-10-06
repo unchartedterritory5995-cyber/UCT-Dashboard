@@ -928,6 +928,10 @@ export default function BuilderSheet({
    *  program, waiting for the member's explicit confirmation (`objectCarry`'s
    *  lossy verdict). Nothing is sent while this is set. */
   const [objectLoss, setObjectLoss] = useState(null)
+  /** ⭐⭐ P2X — true once the member PASTED a different script into the edit.
+   *  Until then the stored row's source stamps (`meta.recurrenceOrigin`, …) are
+   *  carried through the save; after it, the new script's own stamps win. */
+  const [scriptReplaced, setScriptReplaced] = useState(false)
 
   // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
   //
@@ -1463,6 +1467,7 @@ export default function BuilderSheet({
     // loaded; `objectCarry` then reports it lost and the save asks first.
     setObjectProgram(carriableObjectProgram(def))
     setObjectLoss(null)
+    setScriptReplaced(false)
 
     // ⭐ P0G — `prior` is the stored document, so the preview can apply the
     // store's semantics rule (a presentation edit inherits; new maths gets 2).
@@ -1497,6 +1502,7 @@ export default function BuilderSheet({
   const cancelEdit = useCallback(() => {
     setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setParamCarryNote(null); setObjectProgram(null)
     setObjectLoss(null)
+    setScriptReplaced(false)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -1663,13 +1669,15 @@ export default function BuilderSheet({
     const kept = preservePresentation(built, prior, {
       ownedPaints: builderOwnedPaintIndexes(prior, sigKey, NO_PAINT),
     }).doc
-    // ⭐⭐ P2X — WHILE THE STORED PROGRAM IS THE ONE IN HAND (not replaced by a
-    // re-paste), the stamps it evaluates under ride with it: the object lane
-    // reads `meta.recurrenceOrigin` / `naConditionFalse` / `runtimeErrors` / …
-    // (`objectReaderFor`), so the program without them would draw differently.
-    return (objectProgram && objectProgram === carriableObjectProgram(prior))
-      ? carryProgramMeta(kept, prior) : kept
-  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing])
+    // ⭐⭐ P2X — SOURCE-LANGUAGE FIDELITY IS DECIDED BY THE STORED ROW. A Pine
+    // import's stamps (`meta.recurrenceOrigin`, `naConditionFalse`, `lowerTf`,
+    // `otherSymbols`, `periodReads`, `runtimeErrors`, …) are not the Builder's to
+    // write, and dropping them silently re-evaluated the plots (and any object
+    // program) under native rules. They ride through every manual edit unless
+    // the member PASTED a different script, whose own stamps then win. Never
+    // `semantics` (the store's decision, `decide_semantics`).
+    return scriptReplaced ? kept : carryProgramMeta(kept, prior)
+  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing, scriptReplaced])
 
   /** Every row with its OWN settled evaluation, or null while any row has none. */
   const evaluatedRows = useMemo(() => {
@@ -2256,6 +2264,8 @@ export default function BuilderSheet({
             replacedAt={replacedAt}
             onAccept={(proposal) => {
               setSource(proposal?.source || '')
+              // ⭐ P2X — a drafted formula replaces the stored script's maths wholesale.
+              if (editing) setScriptReplaced(true)
               // ⭐ Phase One Track C. `propose_definition` (the plain-language
               // door) mints `import_id` SERVER-SIDE and already fired
               // `import_submitted`/`compile_finished` for it — `proposal`
@@ -2400,6 +2410,8 @@ export default function BuilderSheet({
                 // the gesture: *"here is a working scan, now change it"*.
                 setSource(entry.source)
                 setBuildMode('formula')
+                // ⭐ P2X — a different script: the stored row's stamps stop riding.
+                if (editing) setScriptReplaced(true)
                 // ⭐ …EXCEPT THE NAME, WHICH IS A FORM FIELD AND NOT PART OF THE
                 // WRITE PATH. ⚰️ Measured 2026-08-11: clicking "Open it and edit"
                 // on **Classic Flag/Pullback** loaded its formula and left Name
@@ -2830,6 +2842,8 @@ export default function BuilderSheet({
                 // string-form rail caught it immediately, which is what that
                 // rail is for.
                 setObjectProgram((picked2 && picked2.objects) || null)
+                // ⭐ P2X — a different script: its stamps, not the stored row's.
+                if (editing) setScriptReplaced(true)
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
@@ -2872,6 +2886,8 @@ export default function BuilderSheet({
                 setSource(picked && picked.source ? picked.source : '')
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
+                // ⭐ P2X — a different script: the stored row's stamps stop riding.
+                if (editing) setScriptReplaced(true)
               }}
             />
           )}

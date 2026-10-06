@@ -23,6 +23,8 @@ import { validateDefinition } from '../engine/defSchema'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
 import { objectReaderFor } from '../engine/objectColumns'
 import { evaluateObjects } from '../engine/objectRuntime'
+import { computeFor } from '../engine/nativeRegistry'
+import { stampSemantics } from '../engine/definitionSemantics'
 
 const DEF_ID = 'u_0b1ec7000001'
 const H = vi.hoisted(() => ({ requests: [] }))
@@ -212,5 +214,74 @@ describe('⭐⭐ P2X — an edit that would invalidate the program asks first, a
     await settle()
     expect(screen.queryByTestId('object-loss-confirm')).toBeNull()
     expect(writes()).toHaveLength(0)
+  })
+})
+
+// ─── ⭐⭐ P2X (coordinator ruling on gap 2) — THE STORED ROW'S SOURCE STAMPS RIDE
+//     THROUGH EVERY MANUAL EDIT, objects or not ───────────────────────────────
+describe('⭐⭐ P2X — a Pine-origin definition keeps its Pine semantics through a manual edit', () => {
+  // `close > sma(close, 50)` is `na` for the first 49 bars; Pine (v4+,
+  // `naConditionFalse`) reads that `?:` test as FALSE → 0, native rules do not.
+  const NA_SRC = `//@version=5
+indicator("P2X na ternary")
+plot(close > ta.sma(close, 50) ? 1 : 0, title = "Above")
+`
+  const pineDoc = () => {
+    const built = memberPaneDefinition({ source: NA_SRC, id: DEF_ID })
+    if (!built.ok) throw new Error(built.reason)
+    return JSON.parse(JSON.stringify(built.definition))
+  }
+  const column = (def) => {
+    const cols = computeFor(def, BARS, undefined, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false })
+    return JSON.stringify(Array.from(cols.value).slice(0, 60))
+  }
+  const STAMPS = ['recurrenceOrigin', 'naConditionFalse', 'lowerTf', 'otherSymbols', 'periodReads', 'runtimeErrors', 'disclosures', 'requirementTags']
+
+  it('ASKED reopen a Pine pane WITHOUT objects and rename it · CLAIMED Pine semantics unchanged · DID keep every stored stamp byte-identical and the same column (na tests still false) — EXACT', async () => {
+    const prior = deepFreeze(pineDoc())
+    expect(prior.objects).toBeUndefined()
+    expect(prior.meta.recurrenceOrigin).toBe('pine')
+    expect(prior.meta.naConditionFalse).toBe(true)
+    // non-vacuity: WITHOUT the Pine origin a maths-moving draft is stamped
+    // semantics 2 (`stampSemantics`, the store's own rule), and under it the
+    // `na` test is UNKNOWN rather than false — a different column
+    const { recurrenceOrigin: _r, naConditionFalse: _n, ...nativeMeta } = prior.meta
+    const stripped = { ...prior, meta: nativeMeta }
+    const restamped = stampSemantics({ ...stripped, compute: { ...stripped.compute, ast: { type: 'series', name: 'close' } } }, { prior: stripped })
+    expect(restamped.meta.semantics).toBe(2)
+    expect(column({ ...stripped, meta: { ...nativeMeta, semantics: 2 } })).not.toBe(column(prior))
+    mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
+    await settle()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed na' } })
+    await settle()
+    await act(async () => { fireEvent.click(saveButton()) })
+    await flush()
+    const doc = sent()
+    expect(doc, 'the edit was never sent').toBeTruthy()
+    expect(doc.meta.name).toBe('Renamed na')
+    for (const k of STAMPS) expect(JSON.stringify(doc.meta[k]), k).toBe(JSON.stringify(prior.meta[k]))
+    expect('semantics' in doc.meta).toBe(false)
+    expect(validateDefinition(doc).ok).toBe(true)
+    expect(column(doc)).toBe(column(prior))
+    // and a later maths edit of THIS document is still never stamped 2
+    expect(stampSemantics({ ...doc, compute: { ...doc.compute, ast: { type: 'series', name: 'close' } } }, { prior: doc }).meta.semantics).toBeUndefined()
+  })
+
+  it('ASKED reopen a NATIVE definition and rename it · CLAIMED it gains no Pine stamps (nor a forged semantics) · DID', async () => {
+    const native = memberPaneDefinition({ source: NA_SRC, id: DEF_ID }).definition
+    const prior = JSON.parse(JSON.stringify(native))
+    for (const k of STAMPS) delete prior.meta[k]
+    prior.meta.semantics = 2
+    deepFreeze(prior)
+    mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
+    await settle()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Native renamed' } })
+    await settle()
+    await act(async () => { fireEvent.click(saveButton()) })
+    await flush()
+    const doc = sent()
+    expect(doc).toBeTruthy()
+    for (const k of STAMPS) expect(k in doc.meta, k).toBe(false)
+    expect('semantics' in doc.meta).toBe(false)
   })
 })
