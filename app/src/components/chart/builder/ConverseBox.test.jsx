@@ -297,7 +297,8 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     const lines = linesOf(refusal)
     expect(lines[0]).toBe('Nothing was changed.')
     expect(lines.some((l) => /\(output rsi\) was refused: .*\[signal:numeric-output\]$/.test(l)), lines.join('\n')).toBe(true)
-    expect(lines).toContain('Cannot apply: change 2 (request_alert on rsi).')
+    // P2X: the op reads in member words, not its wire id
+    expect(lines).toContain('Cannot apply: change 2 (alert request on rsi).')
     expect(readbackLines()).toEqual(before)
     expect(identity().revision).toBe(rev)
     // nothing applied until the member CHOOSES the valid part

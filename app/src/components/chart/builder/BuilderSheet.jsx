@@ -139,6 +139,7 @@ import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueD
 import {
   preservePresentation, restorableRowFields, rowCarriesPresentation, builderOwnedPaintIndexes,
 } from './presentationPreserve'
+import { objectCarry, carriableObjectProgram, carryProgramMeta } from './objectProgramCarry'
 import { isTruthType } from '../engine/outputType'
 import { STATUS as GATE_STATUS } from '../engine/evaluability'
 import styles from './BuilderSheet.module.css'
@@ -932,6 +933,14 @@ export default function BuilderSheet({
   /** ⭐⭐ C3B — the imported script's graphical-object program, held beside
    *  the parameter manifest and written onto the document at save. */
   const [objectProgram, setObjectProgram] = useState(null)
+  /** ⭐⭐ P2X (owner decision 3) — a save that would REMOVE the stored object
+   *  program, waiting for the member's explicit confirmation (`objectCarry`'s
+   *  lossy verdict). Nothing is sent while this is set. */
+  const [objectLoss, setObjectLoss] = useState(null)
+  /** ⭐⭐ P2X — true once the member PASTED a different script into the edit.
+   *  Until then the stored row's source stamps (`meta.recurrenceOrigin`, …) are
+   *  carried through the save; after it, the new script's own stamps win. */
+  const [scriptReplaced, setScriptReplaced] = useState(false)
 
   // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
   //
@@ -1459,6 +1468,15 @@ export default function BuilderSheet({
       compute?.paramManifest && typeof compute.paramManifest === 'object' ? compute.paramManifest : null,
     )
     setParamCarryNote(null)
+    // ⭐⭐ P2X (owner decision 3) — THE STORED OBJECT PROGRAM COMES BACK WITH THE
+    // ROWS. The row model has no slot for it; held here, `documentFor` writes the
+    // STORED object onto the edit (byte-identical) and `save()` asks
+    // `objectCarry` whether it can still ride before anything is sent. A program
+    // bound to a computation graph (which this editor never writes) is not
+    // loaded; `objectCarry` then reports it lost and the save asks first.
+    setObjectProgram(carriableObjectProgram(def))
+    setObjectLoss(null)
+    setScriptReplaced(false)
 
     // ⭐ P0G — `prior` is the stored document, so the preview can apply the
     // store's semantics rule (a presentation edit inherits; new maths gets 2).
@@ -1492,6 +1510,8 @@ export default function BuilderSheet({
 
   const cancelEdit = useCallback(() => {
     setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setParamCarryNote(null); setObjectProgram(null)
+    setObjectLoss(null)
+    setScriptReplaced(false)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -1626,14 +1646,15 @@ export default function BuilderSheet({
    * ⛔ With no look this is `save()`'s body verbatim: the same `plain` test and
    * the same `buildDefinition` call, so every existing document is unchanged.
    */
-  const documentFor = useCallback((evRows, { defId, version, name: docName, look = null }) => {
+  const documentFor = useCallback((evRows, { defId, version, name: docName, look = null, dropObjects = false }) => {
     const touched = !!(look && look.key && hasSignalLook(look))
     const sig = touched ? applySignalLook(evRows, look.key, look) : { rows: evRows, paints: null }
     const plain = !touched && plotRows.length === 0 && target === 'pane' && levels.length === 0
       && isUntouchedRow(plot0)
     const built = buildDefinition({
       ...evaluatedDocArgs(result, memberInputs, paramManifest),
-      objects: objectProgram,
+      // ⭐ P2X — `dropObjects` only after the member CONFIRMED the lossy save.
+      objects: dropObjects ? null : objectProgram,
       defId,
       version,
       name: docName,
@@ -1654,10 +1675,18 @@ export default function BuilderSheet({
     if (!prior) return built
     const sigKey = defaultIntentFor(prior) === INTENTS.SIGNAL
       ? intentReadback(prior, INTENTS.SIGNAL).selectedKey : null
-    return preservePresentation(built, prior, {
+    const kept = preservePresentation(built, prior, {
       ownedPaints: builderOwnedPaintIndexes(prior, sigKey, NO_PAINT),
     }).doc
-  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing])
+    // ⭐⭐ P2X — SOURCE-LANGUAGE FIDELITY IS DECIDED BY THE STORED ROW. A Pine
+    // import's stamps (`meta.recurrenceOrigin`, `naConditionFalse`, `lowerTf`,
+    // `otherSymbols`, `periodReads`, `runtimeErrors`, …) are not the Builder's to
+    // write, and dropping them silently re-evaluated the plots (and any object
+    // program) under native rules. They ride through every manual edit unless
+    // the member PASTED a different script, whose own stamps then win. Never
+    // `semantics` (the store's decision, `decide_semantics`).
+    return scriptReplaced ? kept : carryProgramMeta(kept, prior)
+  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing, scriptReplaced])
 
   /** Every row with its OWN settled evaluation, or null while any row has none. */
   const evaluatedRows = useMemo(() => {
@@ -1676,6 +1705,9 @@ export default function BuilderSheet({
       return documentFor(evaluatedRows, { defId: PREVIEW_DEF_ID, version: 1, name: name.trim() || 'Preview' })
     } catch { return null }
   }, [evaluatedRows, inputsValid, documentFor, name])
+  // ⭐ P2X — a lossy-save confirmation answers ONE draft; any change to the draft
+  // withdraws it, so a Confirm can never apply to an edit the member did not see.
+  useEffect(() => { setObjectLoss(null) }, [baseDraft])
 
   /** ⭐⭐ P1 — THE TYPED READ-BACK, through the ONE gate, over EVERY output. */
   const intentRead = useMemo(() => (baseDraft
@@ -1841,7 +1873,10 @@ export default function BuilderSheet({
     setCopied(true)
   }, [result, mode])
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (opts) => {
+    // ⭐ P2X — `{confirmObjectLoss: true}` only from the lossy-save confirmation
+    // below; the Save button's click event carries no such field.
+    const confirmObjectLoss = !!(opts && opts.confirmObjectLoss === true)
     // ⛔⛔ RISK-012's ACTUAL FIX. Checked-and-set BEFORE the state-derived
     // `canSave` guard, and synchronously — see the comment on `savingRef`'s
     // declaration for why `canSave` alone let a real double-click through.
@@ -1882,12 +1917,28 @@ export default function BuilderSheet({
     // fields, the rows, the scan key the index becomes HERE), shared with the
     // typed read-back so the read-back types exactly what is stored. `look` is
     // the gate-approved SIGNAL presentation, or null.
-    const doc = documentFor(rows, {
+    const docArgs = {
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
       look: lookToApply,
-    })
+    }
+    let doc = documentFor(rows, docArgs)
+    // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
+    // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
+    // until the member confirms a save that names what it removes; Cancel leaves
+    // the stored definition exactly as it was.
+    const carry = objectCarry(editing && editing.prior, doc)
+    if (carry.status === 'lossy') {
+      if (!confirmObjectLoss) {
+        setObjectLoss({ sentence: carry.sentence, reasons: carry.reasons })
+        savingRef.current = false
+        setSaving(false)
+        return
+      }
+      doc = documentFor(rows, { ...docArgs, dropObjects: true })
+    }
+    setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
     // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
@@ -2215,6 +2266,18 @@ export default function BuilderSheet({
               editing={editing} disabled={saving}
               onSaved={(defId, version) => setConversationSaved({ defId, version })} />
           )}
+          {/* ⭐ P2X OWNER DECISION 4 (2026-10-06) — THE ONE-SHOT "Draft a formula"
+              IS RETIRED FROM THE INDICATOR MODES. The conversation above is the
+              canonical AI door for an indicator (patch, readback, save through the
+              same doors); two AI boxes in one sheet were two answers to one
+              question. It stays on the Conditions tab only, where it drafts a
+              SCREEN (`kind: 'scan'`) and is still that tab's only AI door — the
+              one remaining product caller of `POST /propose`. */}
+          {/* ⛔ INTEGRATION (2026-10-06): WHILE THE CONVERSATION IS DARK for this
+              user (`conversationOn` false — the release gate), the indicator modes
+              keep the one-shot so a member's sheet is exactly the old sheet; the
+              moment the conversation is on, the one-shot is gone there. Never both. */}
+          {(buildMode === 'picker' || !conversationOn) && (
           <ConciergeBox
             bars={bars}
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
@@ -2222,6 +2285,8 @@ export default function BuilderSheet({
             replacedAt={replacedAt}
             onAccept={(proposal) => {
               setSource(proposal?.source || '')
+              // ⭐ P2X — a drafted formula replaces the stored script's maths wholesale.
+              if (editing) setScriptReplaced(true)
               // ⭐ Phase One Track C. `propose_definition` (the plain-language
               // door) mints `import_id` SERVER-SIDE and already fired
               // `import_submitted`/`compile_finished` for it — `proposal`
@@ -2233,6 +2298,7 @@ export default function BuilderSheet({
               }
             }}
           />
+          )}
 
           {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
               ⛔ A MODE, NOT A SECOND BUILDER. The picker's only output is the SAME
@@ -2366,6 +2432,8 @@ export default function BuilderSheet({
                 // the gesture: *"here is a working scan, now change it"*.
                 setSource(entry.source)
                 setBuildMode('formula')
+                // ⭐ P2X — a different script: the stored row's stamps stop riding.
+                if (editing) setScriptReplaced(true)
                 // ⭐ …EXCEPT THE NAME, WHICH IS A FORM FIELD AND NOT PART OF THE
                 // WRITE PATH. ⚰️ Measured 2026-08-11: clicking "Open it and edit"
                 // on **Classic Flag/Pullback** loaded its formula and left Name
@@ -2796,6 +2864,8 @@ export default function BuilderSheet({
                 // string-form rail caught it immediately, which is what that
                 // rail is for.
                 setObjectProgram((picked2 && picked2.objects) || null)
+                // ⭐ P2X — a different script: its stamps, not the stored row's.
+                if (editing) setScriptReplaced(true)
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
@@ -2838,6 +2908,8 @@ export default function BuilderSheet({
                 setSource(picked && picked.source ? picked.source : '')
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
+                // ⭐ P2X — a different script: the stored row's stamps stop riding.
+                if (editing) setScriptReplaced(true)
               }}
             />
           )}
@@ -3502,6 +3574,29 @@ export default function BuilderSheet({
           )}
           {saveHint && (
             <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
+          )}
+          {/* ⭐⭐ P2X (owner decision 3) — THE LOSSY-SAVE CONFIRMATION. Shown only
+              when this edit cannot carry the stored drawings; nothing has been
+              sent. Cancel changes nothing; Remove and save is the explicit act. */}
+          {objectLoss && (
+            <div className={styles.discardBar} role="alertdialog" data-testid="object-loss-confirm">
+              <span data-testid="object-loss-sentence">{objectLoss.sentence}</span>
+              {objectLoss.reasons.length > 0 && (
+                <span data-testid="object-loss-reason">{` (${objectLoss.reasons.join('; ')}.)`}</span>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="object-loss-cancel"
+                onClick={() => setObjectLoss(null)}
+              >Cancel</button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="object-loss-confirm-save"
+                onClick={() => save({ confirmObjectLoss: true })}
+              >Remove drawings and save</button>
+            </div>
           )}
 
           {/* ⛔ AN INLINE CONFIRM, NOT `window.confirm`. A native dialog blocks the
