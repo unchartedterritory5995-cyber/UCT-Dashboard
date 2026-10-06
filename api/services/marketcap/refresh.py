@@ -186,6 +186,10 @@ def mod(name: str, *a) -> list[str]:
 
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────────────────
+# an interrupted run younger than this is resumed (checkpoints); the schedule's own window is far shorter
+RESUME_HOURS = float(os.environ.get("MCAP_PIT_RESUME_HOURS", "20"))
+
+
 class Ledger:
     def __init__(self, root: str):
         self.db = sqlite3.connect(os.path.join(root, "ledger.db"), timeout=30)
@@ -236,13 +240,41 @@ class Refresh:
         self.root = root
         self.cfg = Config(root)
         self.ledger = Ledger(root)
-        self.run_id = run_id or "run-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        self.rdir = os.path.join(root, "runs", self.run_id)
-        self.data = os.path.join(self.rdir, "data")
-        self.logs = os.path.join(self.rdir, "logs")
+        self.explicit_run_id = run_id is not None
+        if run_id is None:                    # a generated id never re-plays an existing run's checkpoints
+            base = "run-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            run_id, n = base, 1
+            while self.ledger.run(run_id) is not None or os.path.exists(os.path.join(root, "runs", run_id)):
+                n += 1
+                run_id = f"{base}-{n}"
+        self._set_run(run_id)
         self.env = {**os.environ, "MCAP_CACHE": self.cfg.raw.get("cache_dir") or os.path.join(root, "cache"), "PYTHONUTF8": "1",
                     "SEC_MAX_RPS": str(self.cfg.raw.get("sec_max_rps", os.environ.get("SEC_MAX_RPS", "4")))}
         self.repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+    def _set_run(self, run_id: str) -> None:
+        self.run_id = run_id
+        self.rdir = os.path.join(self.root, "runs", run_id)
+        self.data = os.path.join(self.rdir, "data")
+        self.logs = os.path.join(self.rdir, "logs")
+
+    def _adopt_interrupted(self) -> dict | None:
+        """Called holding the run lock, so every run still marked RUNNING is DEAD (a deploy / restart / OOM killed it).
+        The newest one that started within RESUME_HOURS is RESUMED under its own run id: its DONE stages are
+        checkpoints, so a worker restart costs only the interrupted stage. Older ones are closed as CRASHED."""
+        dead = [r for (r,) in self.ledger.db.execute("SELECT run_id FROM run WHERE state='RUNNING' ORDER BY started_at DESC")]
+        adopted = None
+        for rid in dead:
+            r = self.ledger.run(rid)
+            age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(r["started_at"].replace("Z", "+00:00"))).total_seconds() / 3600
+            if adopted is None and age_h <= RESUME_HOURS:
+                adopted = r
+            else:
+                self.ledger.finish_run(rid, "CRASHED", error=f"interrupted at {r.get('stage')}; not resumed (age {age_h:.1f} h)")
+        if adopted is not None:
+            self.ledger.event(adopted["run_id"], "resumed", {"stage": adopted.get("stage"), "pid_was": adopted.get("pid")})
+            self._set_run(adopted["run_id"])
+        return adopted
 
     # one stage: skipped if already DONE in this run (checkpoint), recorded either way
     def stage(self, name, fn):
@@ -363,6 +395,8 @@ class Refresh:
         if fd is None:
             return {"state": "BUSY", "detail": "another refresh holds the lock"}
         try:
+            if not self.explicit_run_id:
+                self._adopt_interrupted()
             return self._execute_locked()
         finally:
             fd.close()

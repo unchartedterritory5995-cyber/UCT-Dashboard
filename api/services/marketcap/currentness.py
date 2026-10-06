@@ -74,6 +74,20 @@ def _parse_dt(s: str) -> datetime:
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 
+# a heartbeat that says "in progress" but has not moved for this long is a DEAD run (a killed worker leaves
+# in_progress=true behind): it no longer excuses lateness. Above the scheduler's child-process timeout (6 h).
+HEARTBEAT_DEAD_HOURS = float(os.environ.get("MCAP_PIT_HEARTBEAT_DEAD_HOURS", "6.5"))
+
+
+def _live(hb: dict, now: datetime) -> bool:
+    if not hb.get("in_progress"):
+        return False
+    try:
+        return (now - _parse_dt(hb["at"])).total_seconds() / 3600 <= HEARTBEAT_DEAD_HOURS
+    except Exception:  # noqa: BLE001 -- an unreadable heartbeat excuses nothing
+        return False
+
+
 def evaluate(manifest: dict, *, heartbeat: dict | None = None, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     k = manifest["knowledge"]
@@ -99,7 +113,7 @@ def evaluate(manifest: dict, *, heartbeat: dict | None = None, now: datetime | N
         if failed_for_expected:
             state = "BUILD_FAILED"
             reasons.append(f"refresh {last.get('run_id')} FAILED at {last.get('stage')}: {str(last.get('error'))[:160]}")
-        elif lag <= 1 and filing_ok is not False and (overdue_h <= GRACE_HOURS or hb.get("in_progress")
+        elif lag <= 1 and filing_ok is not False and (overdue_h <= GRACE_HOURS or _live(hb, now)
                                                       or last.get("state") == "WAITING_UPSTREAM"):
             state = "DEGRADED_UPSTREAM_LATE"
         else:

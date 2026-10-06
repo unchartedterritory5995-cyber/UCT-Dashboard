@@ -43,9 +43,16 @@ def test_one_session_behind_past_grace_is_stale():
 
 
 def test_running_refresh_keeps_degraded_past_grace():
-    c = CU.evaluate(man("2026-09-30", "2026-10-01T04:00:00Z"), heartbeat={"in_progress": True},
+    c = CU.evaluate(man("2026-09-30", "2026-10-01T04:00:00Z"), heartbeat={"in_progress": True, "at": "2026-10-02T17:30:00Z"},
                     now=at("2026-10-02T15:00:00-04:00"))
     assert c["state"] == "DEGRADED_UPSTREAM_LATE"
+
+
+def test_a_dead_runs_heartbeat_excuses_nothing():
+    # a deploy killed the run: status.json still says in_progress, but it has not moved for > 6.5 h (or has no time)
+    for hb in ({"in_progress": True, "at": "2026-10-02T05:20:00Z"}, {"in_progress": True}):
+        c = CU.evaluate(man("2026-09-30", "2026-10-01T04:00:00Z"), heartbeat=hb, now=at("2026-10-02T15:00:00-04:00"))
+        assert c["state"] == "STALE"
 
 
 def test_failed_refresh_after_due_is_build_failed_and_old_authority_named():
