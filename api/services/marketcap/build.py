@@ -794,6 +794,76 @@ def unlisted_split_events(days: list, closes: dict, ledger_splits, counts: list 
     return out
 
 
+# ---------------------------------------------------------------- succession (M3.1, owner decision 2026-10-06)
+SUCCESSION_NOTICE_FORMS = frozenset({"8-K12B", "8-K12G3", "8-K12G"})
+TERMINATION_FORMS = frozenset({"15-12B", "15-12G", "15-15D", "25", "25-NSE"})
+# filings that do NOT show an operating Exchange Act registrant (registration / offering / notices before trading)
+NOT_ACTIVE_FORMS = frozenset({"S-1", "S-1/A", "S-3", "S-3/A", "S-4", "S-4/A", "S-8", "S-8 POS", "F-1", "F-1/A", "F-3",
+                              "F-3/A", "F-4", "F-4/A", "F-10", "F-10/A", "F-10POS", "EFFECT", "D", "D/A", "CORRESP",
+                              "UPLOAD", "DRS", "DRS/A", "DRSLTR", "8-A12B", "8-A12G", "CERT", "POS AM", "424B1", "424B2",
+                              "424B3", "424B4", "424B5", "424B7", "FWP", "S-4MEF", "F-4MEF", "S-1MEF"})
+
+
+def _known_from_filings(D, cik: int, forms=None, exclude=None):
+    """Earliest known_from (the first close the filing can inform -- the one PIT clock) among `cik`'s filings of
+    `forms` (or of every form not in `exclude`): (known_from, form, accession, filing date) or None."""
+    best = None
+    for a, f, fd, acc_raw in D.inp.execute("SELECT accn, form, filing_date, accepted FROM filing WHERE cik=? "
+                                            "ORDER BY filing_date, accn", (cik,)):
+        if (forms is not None and f not in forms) or (exclude is not None and f in exclude):
+            continue
+        fl = _Filing(D, a, acc_raw, form=f, filing_date=fd)
+        kf = Obs(date.fromisoformat(fd), _ts(fl["public_at"]), 1.0, "SUCCESSION", a, f).known_from
+        if best is None or (kf, a) < (best[0], best[2]):
+            best = (kf, f, a, fd)
+    return best
+
+
+def succession_boundary(D, pred: int, succ: int, pred_last: date) -> dict:
+    """THE TEMPORAL BOUNDARY between a PREDECESSOR issuer that held a symbol and the SUCCESSOR now holding it (owner
+    decision 2026-10-06: a current ticker->CIK reassignment never erases proven predecessor history; distinct CIKs are
+    never stitched; an uncertain boundary fails closed LOCALLY). From SEC filings only, one PIT clock:
+      CERTAIN    the successor's succession notice (8-K12B / 8-K12G3: successor issuer under Rule 12g-3), or the
+                 predecessor's termination (Form 15 / 25) when the successor shows no Exchange Act activity before it
+      UNCERTAIN  the successor is active (Form 3/4, 6-K, 10-Q ...) BEFORE the predecessor terminates, or the predecessor
+                 never terminates: [successor active, termination or the predecessor's last attribution] is withheld
+                 from BOTH issuers
+    {"kind", "cut" (the predecessor keeps days < cut), "succ_from" (the successor keeps days >= succ_from), evidence}."""
+    notice = _known_from_filings(D, succ, forms=SUCCESSION_NOTICE_FORMS)
+    term = _known_from_filings(D, pred, forms=TERMINATION_FORMS)
+    active = _known_from_filings(D, succ, exclude=NOT_ACTIVE_FORMS)
+    ev = {"succession_notice": notice and list(notice), "predecessor_termination": term and list(term),
+          "successor_first_active": active and list(active)}
+    after_last = pred_last + timedelta(days=1)
+    if notice is not None:
+        b = min(notice[0], after_last)
+        return {"kind": "CERTAIN", "cut": b, "succ_from": b, "evidence": ev}
+    if term is not None and (active is None or active[0] >= term[0]):
+        b = min(term[0], after_last)
+        return {"kind": "CERTAIN", "cut": b, "succ_from": b, "evidence": ev}
+    if active is None:
+        return {"kind": "NO_SUCCESSOR_ACTIVITY", "cut": after_last, "succ_from": after_last, "evidence": ev}
+    if active[0] >= after_last:     # the new issuer appears only after the predecessor's attribution ended: true reuse
+        return {"kind": "SUCCESSOR_AFTER_LAST_ATTRIBUTION", "cut": after_last, "succ_from": after_last, "evidence": ev}
+    lo = min(active[0], after_last)
+    hi = min(term[0], after_last) if term is not None else after_last
+    return {"kind": "UNCERTAIN", "cut": lo, "succ_from": max(hi, lo), "evidence": ev}
+
+
+def _predecessors_of(D, cik: int, ticker: str) -> list:
+    """Other CIKs the identity ledger attributed `ticker` to that no longer list it currently (they RETAIN it):
+    [(cik, last attribution)] -- the successor side of a reassignment."""
+    if D.identity is None:
+        return []
+    out = []
+    for c, last in D.identity.execute("SELECT cik, last_as_of FROM ticker_seen WHERE ticker=? AND cik<>? ORDER BY cik",
+                                      (ticker, cik)):
+        r = D.inp.execute("SELECT tickers_json FROM issuer WHERE cik=?", (c,)).fetchone()
+        if r is not None and ticker not in json.loads(r[0] or "[]"):
+            out.append((int(c), date.fromisoformat(last)))
+    return out
+
+
 # ---------------------------------------------------------------- per issuer
 def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None = None, gates_enabled: bool = True) -> dict:
     iss = D.inp.execute("SELECT name, tickers_json, exchanges_json FROM issuer WHERE cik=?", (cik,)).fetchone()
@@ -816,6 +886,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
 
     # identity: every equity ticker with bars
     listings, bars, decisions = {}, {}, {}
+    succ_before: list = []          # M3.1: the successor side -- valued days before these boundaries are withheld
+    basis_end: dict = {}            # M3.1: a succession-cut symbol's price basis = its LAST bar in the price input
     for t in tickers:
         ref, sp = D.ref.get(t, (None, []))
         if ref is not None and (ref.type not in EQUITY_TYPES or NOT_COMMON_EQUITY.search(ref.name or "")):
@@ -825,12 +897,35 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         if t in kept:
             last = kept[t]
             if ref is not None and ref.cik is not None and int(ref.cik) != int(cik):
-                w["identity_retention"].append((cik, t, last.isoformat(), "WITHHELD_REASSIGNED",
-                                                f"massive names cik {ref.cik} for {t}: the symbol was reassigned", 0, len(days)))
-                continue
-            after = sum(1 for d in days if d > last)
-            days = [d for d in days if d <= last]
-            closes = {d: closes[d] for d in days}
+                # M3.1: the symbol now belongs to another CIK -- the predecessor KEEPS its proven history up to the
+                # succession boundary (never the whole series withheld); an uncertain part fails closed locally
+                sb = succession_boundary(D, cik, int(ref.cik), last)
+                n_all = len(days)
+                if days:                    # the PRICES keep the basis of the symbol's full history (CLBK 2.2 on 07-21)
+                    basis_end[t] = days[-1]
+                days = [d for d in days if d <= last and d < sb["cut"]]
+                closes = {d: closes[d] for d in days}
+                status = "SUCCESSION_UNCERTAIN" if sb["kind"] == "UNCERTAIN" else "SUCCESSION_BOUNDARY"
+                w["identity_retention"].append((cik, t, last.isoformat(), status, json.dumps(
+                    {"successor_cik": int(ref.cik), "kind": sb["kind"], "withheld_from": _i(sb["cut"]),
+                     "successor_from": _i(sb["succ_from"]), "evidence": sb["evidence"]}, default=str),
+                    len(days), n_all - len(days)))
+                if not days:
+                    continue
+            else:
+                after = sum(1 for d in days if d > last)
+                days = [d for d in days if d <= last]
+                closes = {d: closes[d] for d in days}
+        else:
+            # the SUCCESSOR side: a current symbol another CIK still RETAINS -- the successor's own listing / lineage
+            # semantics are untouched (no truncation: that would move its listing start); any VALUED day before the
+            # boundary (or inside an uncertain window) is withheld after valuation, so the two never share a day
+            for p_, plast in _predecessors_of(D, cik, t):
+                sb = succession_boundary(D, p_, cik, plast)
+                succ_before.append(sb["succ_from"])
+                w["identity_retention"].append((cik, t, plast.isoformat(), "SUCCESSOR_FROM", json.dumps(
+                    {"predecessor_cik": p_, "kind": sb["kind"], "successor_from": _i(sb["succ_from"]),
+                     "withheld_from": _i(sb["cut"]), "evidence": sb["evidence"]}, default=str), len(days), 0))
         if not days:
             if t in kept:
                 w["identity_retention"].append((cik, t, kept[t].isoformat(), "RETAINED_NO_BARS", None, 0, after))
@@ -845,6 +940,32 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                                 dec.basis, dec.pre_reason, dec.pre_bars, json.dumps(dec.notes)))
     if not listings:
         return {"cik": cik, "status": "NO_PRICED_TICKER"}
+    # ⭐ M3.1 RENAME STITCH: the sealed price authority keeps a renamed security's history under its OLD symbol (the
+    # upstream re-labels it, the authority never rewrites history). A RETAINED symbol O of this CIK and a CURRENT
+    # symbol P are ONE security when the provider's own record says so -- a ticker_change event of P's security to P
+    # dated E -- and the bars hand over at E without overlap (O ends <= E <= P starts): ANY -> DRK on 2026-09-17.
+    # The series is O's history then P's; O's split ledger stays with it. Never across CIKs, never with an overlap.
+    for P_ in [t for t in current if t in listings]:
+        refP = D.ref.get(P_, (None, []))
+        evs = [e[0] for e in ((refP[0].events if refP[0] else None) or []) if e[1] == "ticker_change" and e[2] == P_ and e[0]]
+        if not evs:
+            continue
+        E_ = max(evs)
+        for O_ in [t for t in list(listings) if t in kept and t != P_]:
+            od, pd_ = bars[O_][0], bars[P_][0]
+            if not (od and pd_ and od[-1] <= E_ <= pd_[0] and od[-1] < pd_[0]):
+                continue
+            bars[P_] = (od + pd_, {**bars[O_][1], **bars[P_][1]})
+            lo_ = listings[O_]
+            listings[P_] = Listing(P_, lo_.start, listings[P_].end, lo_.prior_other_issuer)
+            decisions[P_] = _dc_replace(decisions[O_], listing=listings[P_])
+            refO = D.ref.get(O_, (None, []))
+            D.ref[P_] = (refP[0], sorted({(x.ex_date, x.ratio): x for x in list(refO[1]) + list(refP[1])}.values(),
+                                         key=lambda x: (x.ex_date, x.ratio)))
+            w["identity_retention"].append((cik, O_, kept[O_].isoformat(), "RENAMED_INTO", json.dumps(
+                {"into": P_, "ticker_change_date": E_.isoformat(), "old_last_bar": _i(od[-1]), "new_first_bar": _i(pd_[0])}),
+                len(od), 0))
+            del listings[O_], bars[O_], decisions[O_]
     primary = next(t for t in tickers if t in listings)
 
     obs, fsets, invalid_obs = observations(D, cik, filings)
@@ -1039,6 +1160,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
 
     # multi-class SUSPECT: never price a non-dimensional (possibly all-class) total at one class's price
     pref = D.ref.get(primary, (None, []))[0]
+    if pref is not None and primary in kept and pref.cik is not None and int(pref.cik) != int(cik):
+        pref = None     # M3.1: a REASSIGNED symbol's current record describes the successor, never this predecessor (GORO)
     diverge = bool(pref and pref.share_class_shares and pref.weighted_shares
                    and abs(pref.share_class_shares / pref.weighted_shares - 1) > 0.05)
     # ⛔ Massive's WEIGHTED figure is a stale period average (APH: 2.47B weighted vs 1.23B current after its 2024 2:1
@@ -1124,7 +1247,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 cdays_all, ccloses = bars[c.price_ticker]
                 # ⛔ only splits the PRICES reflect: a split after the last bar (KUST 1:10 on 2026-10-01, bars end
                 # 09-29) was applied to the shares but not to the prices -> cap 10x low
-                cand_splits = [s_ for s_ in ref_c[1] if lst.start <= s_.ex_date <= cdays_all[-1]]
+                cand_splits = [s_ for s_ in ref_c[1] if lst.start <= s_.ex_date <= basis_end.get(c.price_ticker, cdays_all[-1])]
                 # ⛔ a ledger split dated INSIDE a > 90-day break in the bars (ALT 2007-07-25 1:50: the last bar of the
                 # SPAC is 07-24, the next one 2008-05): whether the bars before the break carry it cannot be seen
                 for s_ in cand_splits:
@@ -1193,7 +1316,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                                                    "HELD_LEDGER_SPLIT_UNRESOLVED", s_.ex_date.isoformat(), s_.ratio, "LEDGER",
                                                    None, f"raw {a0:.0f} -> {b0:.0f}; no contemporaneous count on either side"))
                     kept_splits.append(s_)
-                extra_c = [s_ for s_ in (extra_splits or []) if s_.ex_date <= cdays_all[-1]]
+                extra_c = [s_ for s_ in (extra_splits or []) if s_.ex_date <= basis_end.get(c.price_ticker, cdays_all[-1])]
                 ledger = Ledger(merge_evidence_splits(kept_splits, extra_c))
                 ledgers_used.append((st.kind, ledger, cand_splits))
                 cobs = [o for k, o, _m in obs if k == c.class_key]
@@ -1359,7 +1482,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         known = [s_ for _k, l_, c_ in ledgers_used for s_ in list(l_.splits) + list(c_)]
         if last_asof:
             rows_ = D.splitev.execute("SELECT DISTINCT ex_date, ratio FROM split_evidence WHERE cik=? AND source LIKE 'XBRL%' "
-                                      "AND ex_date > ?", (cik, last_asof)).fetchall()
+                                      "AND ex_date > ? ORDER BY ex_date, ratio", (cik, last_asof)).fetchall()
             for ed_, r_ in unapplied_post_state_splits(rows_, last_asof, known, pdays_all[-1]):
                 w["split_gap"].append((cik, ed_.isoformat(), None, "EVIDENCE", None, None, last_asof, "HELD_SPLIT_AFTER_LAST_STATE",
                                        ed_.isoformat(), r_, "XBRL", None, f"issuer split {r_:g} on {ed_} after the last share "
@@ -1448,6 +1571,11 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         w["extreme_step"].append((cik, _i(a_), _i(b_), v_["verdict"], v_.get("basis"), v_["unexplained_ratio"],
                                   v_.get("share_ratio"), XSTEP_SEMANTICS,
                                   json.dumps({k_: x_ for k_, x_ in v_.items() if not k_.startswith("_")}, default=str)[:4000]))
+    if succ_before:                 # M3.1: never value a day the predecessor owns (or that is uncertain)
+        sb_from = max(succ_before)
+        for d_ in [d_ for d_ in caps if d_ < sb_from]:
+            del caps[d_]
+            reasons_by_day[d_] = R.SUCCESSOR_UNRESOLVED
     first_val = min(caps) if caps else None
     # ⭐ M3 GAP-REASON PRECEDENCE (owner ruling 2026-10-05): M3 owns only the holds it CREATES. A day the pre-M3
     # derivation (this very issuer, gates off, same inputs and confirmed splits) also withholds keeps that derivation's
@@ -1561,7 +1689,8 @@ def main(argv=None) -> int:
                 ev_ciks = [cik] + ([p_ for (p_,) in D.lineage.execute(
                     "SELECT pred_cik FROM lineage WHERE succ_cik=? AND pred_cik IS NOT NULL", (cik,))] if D.lineage is not None else [])
                 ev = D.splitev.execute(f"SELECT ex_date, ratio, source, accn, snippet FROM split_evidence WHERE cik IN "
-                                       f"({','.join('?' * len(ev_ciks))}) ORDER BY source DESC, ex_date", ev_ciks).fetchall()
+                                       f"({','.join('?' * len(ev_ciks))}) ORDER BY source DESC, ex_date, accn, ratio, snippet",
+                                       ev_ciks).fetchall()   # M3.1: a TOTAL order (ties were insertion order)
                 new = {}
                 for g_ in gaps:
                     c_ = confirm(ev, g_["k"], g_["direction"], g_["prev_asof"], g_["next_asof"])

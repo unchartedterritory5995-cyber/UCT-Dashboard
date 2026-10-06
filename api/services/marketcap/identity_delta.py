@@ -66,8 +66,18 @@ def delta(build: str, reference: str, attestations: list | None = None) -> dict:
         att[int(a["cik"])].append((int(a["start"]), int(a["end"]), a["reason"], a.get("evidence", "")))
     withheld = defaultdict(list)
     retained = []
+    succession = defaultdict(list)                     # M3.1: (from, to, class, evidence) per cik
     if _has(N, "identity_retention"):
         for cik, t, last, st, why, kept, after in N.execute("SELECT * FROM identity_retention"):
+            if st in ("SUCCESSION_BOUNDARY", "SUCCESSION_UNCERTAIN", "SUCCESSOR_FROM"):
+                j = json.loads(why)
+                if st == "SUCCESSOR_FROM":
+                    rng = (0, j["successor_from"] - 1, "SUCCESSION_UNCERTAIN" if j["kind"] == "UNCERTAIN" else "SUCCESSION_BOUNDARY")
+                else:
+                    rng = (j["withheld_from"], 99991231, st)
+                succession[cik].append((rng[0], rng[1], rng[2], json.dumps(j["evidence"], default=str)[:300]))
+                retained.append({"cik": cik, "ticker": t, "status": st, "detail": j})
+                continue
             if st.startswith("WITHHELD"):
                 withheld[cik].append({"ticker": t, "status": st, "reason": why})
             else:
@@ -108,6 +118,9 @@ def delta(build: str, reference: str, attestations: list | None = None) -> dict:
             for s, e, why, _ev in att.get(c, []):
                 if s <= d <= e:
                     return "ATTESTED", why
+            for s, e, cls, ev in succession.get(c, []):
+                if s <= d <= e:                        # a filing-evidenced succession boundary (listed, never silent)
+                    return cls, ev
             if r is None:
                 return ("IDENTITY_WITHHELD", "WITHHELD_REASSIGNED") if withheld.get(c) else ("UNEXPLAINED", None)
             if r in IDENTITY_REASONS:

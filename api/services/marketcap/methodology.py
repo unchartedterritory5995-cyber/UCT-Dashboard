@@ -19,6 +19,16 @@ MCAP_V1-M3 (owner decisions 2026-10-05, OFFERING PROJECTIONS OF AN ALREADY-PUBLI
 counts pre-funded warrants as shares outstanding) and, in build.py, two eligibility rules -- a preliminary projection is
 usable only once pricing is public (the one existing clock), and a priced projection counting non-common instruments is
 refused. reasons.py gains the observation status REJECTED_PROJECTION_NOT_COMMON_BASIS; no gap reason changes.
+MCAP_V1-M3.1 (owner decisions 2026-10-06, TEMPORAL TICKER ATTRIBUTION + DETERMINISTIC EVIDENCE SELECTION): build.py only;
+every other pinned file is byte-identical to M3. (1) a RETAINED symbol whose Massive record now names another CIK keeps
+its proven history up to the SUCCESSION BOUNDARY (SEC 8-K12B / 8-K12G3, or the predecessor's Form 15 / 25; an uncertain
+boundary withholds only the uncertain window, from both issuers) instead of being withheld whole; the successor's
+valued days before the boundary are withheld (SUCCESSOR_ISSUER_RELATIONSHIP_UNRESOLVED); a succession-cut symbol keeps
+its full price basis for split selection; a reassigned symbol's current Massive record is not multi-class evidence
+about its predecessor. (2) a retained symbol and a current symbol of the same CIK joined by the provider's
+ticker_change event, with non-overlapping bars, are one security (rename stitch). (3) split evidence is read in a TOTAL
+order (ties were insertion order). Every rule triggers only on a RETAINED symbol, so an M3.1 build from M3's own
+inputs (where no such symbol exists) is the M3 build.
 """
 from __future__ import annotations
 
@@ -27,14 +37,14 @@ import os
 
 from .extreme_steps import SEMANTICS_VERSION
 
-METHODOLOGY_VERSION = "MCAP_V1-M3"
-METHODOLOGY_PREVIOUS = "MCAP_V1-M2"
+METHODOLOGY_VERSION = "MCAP_V1-M3.1"
+METHODOLOGY_PREVIOUS = "MCAP_V1-M3"
 METHODOLOGY_COMMIT = "4ab71757383dbea6004f68ba15bef1cb868d8190"            # M3 pinned here (M2: 3c0ed9939, M1: ad40add51)
 EXTREME_STEP_SEMANTICS = SEMANTICS_VERSION
 SAFETY_BOUND_DAYS = 456
 
 METHODOLOGY_FILES = {
-    "build.py": "38ef6f27fe4eb248c45ac0cd6afb9b423f98b715317b9235a94b377e5cf03bd3",
+    "build.py": "ea2be60a74598ae53084e4042128c0c29dfb09328e347a5fe1c40069ee2cf348",
     "adr.py": "30fedef57a1c6837e8fdce40aaa61f6fb2d1a4870d095d28c4e62f63e6fc3ddd",
     "classecon.py": "69979a2e7a67737ce6f21e9b48ad1a73eb5812043de5192f0c813fcbc9a09886",
     "cover.py": "35de23bf13fe0311fe65141ef19e5ec37cd65afeed25e54410e51a2edd42b261",

@@ -9,6 +9,9 @@ latest V1 value is >= 10x away from Massive's. Each outlier is classified:
   RECENT_V1_INTRODUCED     the V1 value is current (within 10 sessions of the last bar) and production's value on the
                            same day is absent or materially different -> a BLOCKER unless proven correct;
   RECENT_PRODUCTION_SAME   production shows the same value (pre-existing, not introduced by V1);
+  RECENT_PRODUCTION_SAME_STATE  production's comparator does not reach V1's last day (a frozen review baseline is
+                           older than a fresh refresh), but on the LAST day both cover V1 equals production and V1's
+                           share state has not changed since: the value is production's own, carried forward;
   OLD_LAST_VALUE           V1's last value is older than 10 sessions (the security is HELD now) -- not comparable to a
                            current figure; reported with the reason now in force.
 
@@ -63,6 +66,16 @@ def scan(build: str, baseline: str, data: str) -> dict:
         bars_after = B.execute("SELECT COUNT(*) FROM gap_run WHERE cik=? AND start > ?", (cik, last[0])).fetchone()[0]
         recent = last_day and last[0] >= int(last_day.replace("-", "")) - 15 and bars_after == 0
         b = base.get(last[0])
+        same_state = None
+        if b is None and base:
+            d0 = max((d for d in base if d <= last[0]), default=None)
+            v0 = B.execute("SELECT cap FROM cap_daily WHERE cik=? AND d=?", (cik, d0)).fetchone() if d0 else None
+            if v0 and base[d0] and abs(math.log(v0[0] / base[d0])) < 0.05:
+                iso = lambda x: f"{x // 10000}-{x // 100 % 100:02d}-{x % 100:02d}"
+                st = lambda x: sorted(B.execute("SELECT class_key, shares, obs_accession FROM state_run WHERE issuer_id=? "
+                                                 "AND start<=? AND end>=?", (f"cik:{cik}", iso(x), iso(x))).fetchall())
+                if st(d0) and st(d0) == st(last[0]):
+                    same_state = d0
         ds = f"{last[0] // 10000}-{last[0] // 100 % 100:02d}-{last[0] % 100:02d}"
         v1_shares = sum(sh * (1.0 if not mult else mult) for sh, mult in B.execute(
             "SELECT s.shares, NULL FROM state_run s WHERE s.issuer_id=? AND s.start<=? AND s.end>=?", (f"cik:{cik}", ds, ds)))
@@ -74,12 +87,16 @@ def scan(build: str, baseline: str, data: str) -> dict:
             k = "RECENT_SHARES_AGREE_PRICE_BASIS"       # V1's share count == the detector's own count: the cap gap is price
         elif b and abs(math.log(last[1] / b)) < 0.05:
             k = "RECENT_PRODUCTION_SAME"
+        elif same_state:
+            k = "RECENT_PRODUCTION_SAME_STATE"
         else:
             k = "RECENT_V1_INTRODUCED"
         now = B.execute("SELECT reason FROM gap_run WHERE cik=? ORDER BY end DESC LIMIT 1", (cik,)).fetchone()
         rows.append({"ticker": t, "cik": cik, "class": k, "v1_last_day": last[0], "v1_last_cap": last[1], "massive_cap": M[t][0],
                      "ratio": r, "before_same_day": b, "reason_now": now[0] if now else None, "v1_shares": v1_shares,
-                     "massive_shares": m_sh})
+                     "massive_shares": m_sh, "comparator_day": same_state,
+                     "state": sorted(B.execute("SELECT class_key, shares, obs_accession FROM state_run WHERE issuer_id=? "
+                                               "AND start<=? AND end>=?", (f"cik:{cik}", ds, ds)).fetchall())})
     return {"outliers": rows, "by_class": dict(Counter(r["class"] for r in rows)),
             "history_10x_vs_production": {"sessions": hist["sessions"], "securities": len(hist_secs),
                                           "top": hist_secs.most_common(40)}}

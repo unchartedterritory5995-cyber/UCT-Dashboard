@@ -132,12 +132,13 @@ def test_ticker_reuse_by_a_different_issuer_keeps_histories_separate(tmp_path, m
     old, new = valued(b, 301), valued(b, 302)
     assert new and min(new) >= 20160104                                     # the new issuer inherits nothing
     assert all(abs(v / (80e6 * 55.0) - 1) < 1e-9 for v in new.values())
-    if massive_names_new_issuer:                                           # reassigned: withheld, with a reason
-        assert old == {}
-        assert rows(b, "SELECT status FROM identity_retention WHERE cik=301") == [("WITHHELD_REASSIGNED",)]
-    else:                                                                  # retained to its last attribution only
-        assert old and max(old) <= 20150331 and min(old) >= 20100104
-        assert all(abs(v / (5e6 * 20.0) - 1) < 1e-9 for v in old.values())
+    # M3.1 (owner decision 2026-10-06): a later reassignment never erases the predecessor's proven history -- it is
+    # retained to its last attribution (and, when Massive names another CIK, bounded by the succession boundary)
+    assert old and max(old) <= 20150331 and min(old) >= 20100104
+    assert all(abs(v / (5e6 * 20.0) - 1) < 1e-9 for v in old.values())
+    if massive_names_new_issuer:
+        st = rows(b, "SELECT status FROM identity_retention WHERE cik=301")
+        assert ("SUCCESSION_BOUNDARY",) in st and ("WITHHELD_REASSIGNED",) not in st
     assert not (set(old) & set(new))
 
 

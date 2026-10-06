@@ -341,7 +341,7 @@ def _finality(c: float, v, oc, prev_close, conv: float = 1.0, prev_target=None):
 
 def append(store: Store, parent: str, source: str, *, official: dict, splits: dict, now: datetime | None = None,
            sessions: list[int] | None = None, provenance: dict | None = None, tickers: set | None = None,
-           official_basis_date: int | None = None) -> dict:
+           official_basis_date: int | None = None, official_fetched_at: str | None = None) -> dict:
     """Seal the APPEND child of `parent` holding every validated new completed session from `source`.
     official: {session(int): {ticker: close}} -- the official daily aggregate for each session (finality evidence).
     splits:   {ticker: [[execution_date, split_from, split_to], ...]} -- the reference snapshot of this refresh.
@@ -395,7 +395,16 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
         raise PriceHold(f"price append held at {session_report[-1]['session']}: {session_report[-1]['hold']}")
     upto = accepted_sessions[-1]
     today = _int((now or datetime.now(timezone.utc)).date())
-    fetched = int(official_basis_date or today)        # the official aggregate is split-adjusted up to its fetch date
+    # the official aggregate is split-adjusted for a split only if it was FETCHED after that split's effective open
+    # (09:30 ET on the execution date): ITOC 1-for-16 on 2026-10-06, aggregate fetched 2026-10-06 03:53Z = 23:53 ET
+    # 10-05 -> NOT yet adjusted. `fetched` = the last execution date the fetch can reflect.
+    if official_fetched_at:
+        from zoneinfo import ZoneInfo
+        fet = datetime.fromisoformat(official_fetched_at.replace("Z", "+00:00")).astimezone(ZoneInfo("America/New_York"))
+        fd = fet.date() if (fet.hour, fet.minute) >= (9, 30) else fet.date() - __import__("datetime").timedelta(days=1)
+        fetched = _int(fd)
+    else:
+        fetched = int(official_basis_date or today)
     tick = sorted({r[0] for d in accepted_sessions for r in new_rows[d]})
     # ── (1) BASIS EVENTS -- the price basis must be the basis the builder normalizes shares to: every REFERENCE split
     # executed in (parent's last session, this version's last session] of any ticker the lineage carries. The factor

@@ -67,8 +67,21 @@ def evaluate(build: str, reports: str, adjudication: str | None = None) -> dict:
     gate("A", un == 0 and fc["unexplained_days"] == 0 and fc["bug_reason_days"] == 0 and not fc["bug_issuers"],
          {"unexplained_sessions": un, "unexplained_days": fc["unexplained_days"], "bug_reason_days": fc["bug_reason_days"],
           "bug_issuers": len(fc["bug_issuers"])}, "unexplained gaps = 0")
-    v1i = [o["ticker"] for o in ms["outliers"] if o["class"] == "RECENT_V1_INTRODUCED"]
-    gate("B", not v1i, {"recent_v1_introduced": v1i[:20], "outliers_by_class": ms["by_class"]}, "V1-introduced current >= 10x = 0")
+    # an adjudication binds ONE outlier to the exact share state behind its V1 value (ticker, cik, every state
+    # accession and count): new evidence for that issuer re-opens the gate by construction
+    gb_path = os.path.join(adjudication or reports, "gate_b_adjudication.json")
+    gb = json.load(open(gb_path)) if os.path.exists(gb_path) else []
+    if adjudication and not os.path.exists(gb_path):
+        alt = os.path.join(os.path.dirname(__file__), "adjudication", "gate_b_adjudication.json")
+        gb = json.load(open(alt)) if os.path.exists(alt) else []
+    def _adjudicated(o):
+        st = sorted([list(x) for x in (o.get("state") or [])])
+        return any(a["ticker"] == o["ticker"] and int(a["cik"]) == int(o["cik"]) and a.get("disposition") == "CORRECT"
+                   and sorted([list(x) for x in a["state"]]) == st for a in gb)
+    v1i = [o["ticker"] for o in ms["outliers"] if o["class"] == "RECENT_V1_INTRODUCED" and not _adjudicated(o)]
+    adj_b = [o["ticker"] for o in ms["outliers"] if o["class"] == "RECENT_V1_INTRODUCED" and _adjudicated(o)]
+    gate("B", not v1i, {"recent_v1_introduced": v1i[:20], "adjudicated_correct": adj_b, "outliers_by_class": ms["by_class"]},
+         "V1-introduced current >= 10x = 0 (an outlier passes only through an evidence-bound CORRECT adjudication)")
     cover = {}
     for c in hc:
         cover.setdefault(c["ticker"], []).append((c["interval"][0], c["interval"][1], c.get("disposition")))

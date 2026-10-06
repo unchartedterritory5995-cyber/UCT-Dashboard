@@ -42,6 +42,7 @@ import traceback
 from datetime import datetime, timezone
 
 from . import acquire as Q, identity_ledger as IL, methodology as M, price_authority as PA, publication as P, release_contract as C
+from . import reference_authority as RA
 
 PY = sys.executable
 LEDGER_DDL = """
@@ -373,9 +374,14 @@ class Refresh:
         # a raw file / a live bars.db export would let a mutable upstream history become Market Cap's history
         if str(self.cfg.raw.get("target", "")).startswith("r2") and (S.get("prices") or {}).get("kind") != "price_authority":
             raise RuntimeError("production refreshes read prices only through the price authority (sources.prices.kind)")
+        if str(self.cfg.raw.get("target", "")).startswith("r2") and (S.get("reference") or {}).get("kind") != "reference_authority":
+            raise RuntimeError("production refreshes read the reference only through the reference authority")
         # the reference first: its split history is the price authority's basis evidence
-        res["reference"] = self._source_file("reference", "ref.jsonl") or \
-            {"source": "massive", **Q.reference_from_massive(uni, os.path.join(self.data, "ref.jsonl"))}
+        if (S.get("reference") or {}).get("kind") == "reference_authority":
+            res["reference"] = self._reference_authority(S["reference"], uni)
+        else:
+            res["reference"] = self._source_file("reference", "ref.jsonl") or \
+                {"source": "massive", **Q.reference_from_massive(uni, os.path.join(self.data, "ref.jsonl"))}
         if (S.get("prices") or {}).get("kind") == "price_authority":
             res["prices"] = self._price_authority(S["prices"], uni)
         else:
@@ -403,6 +409,42 @@ class Refresh:
         raise RuntimeError("the current authority names no price version and its prices.db is not the sealed root: "
                            "price lineage is ambiguous")
 
+    def reference_parent(self, sr: dict) -> str:
+        """The reference version an ordinary refresh extends = the CURRENT authority's (rollback carries it); before any
+        authority, the sealed root; an authority built before the reference authority: its ref.jsonl must BE the root."""
+        store = RA.Store(sr.get("store") or self.root)
+        cur = P.read_pointer(self.cfg.target())
+        if cur is None:
+            return sr["root_version"]
+        m = P.read_manifest(self.cfg.target(), cur["build_id"], cur["manifest_sha256"])
+        rv = ((m.get("inputs") or {}).get("reference_authority") or {}).get("version")
+        if rv:
+            return rv
+        if ((m.get("inputs") or {}).get("files") or {}).get("ref.jsonl", {}).get("sha256") ==                 store.manifest(sr["root_version"])["files"]["ref.jsonl"]:
+            return sr["root_version"]
+        raise RuntimeError("the current authority names no reference version and its ref.jsonl is not the sealed root: "
+                           "reference lineage is ambiguous")
+
+    def _reference_authority(self, sr: dict, uni: str) -> dict:
+        store = RA.Store(sr.get("store") or self.root)
+        out = os.path.join(self.data, "ref.jsonl")
+        if sr.get("pin_version"):                 # parity / correction-impact runs: an exact, existing version
+            mat = RA.materialize(store, sr["pin_version"], out, allow_candidate=bool(sr.get("allow_candidate")))
+            return {"source": "reference_authority", "pinned": True, **mat}
+        parent = self.reference_parent(sr)
+        pull = sr.get("pull") or {"kind": "massive"}
+        pulled = os.path.join(self.data, "ref_pulled.jsonl")
+        if pull.get("kind") == "file":
+            shutil.copyfile(pull["path"], pulled)
+            pulled_at = pull["pulled_at"]
+        else:
+            Q.reference_from_massive(uni, pulled)
+            pulled_at = now_iso()
+        child = RA.append(store, parent, pulled, pulled_at=pulled_at, provenance={"run_id": self.run_id})
+        mat = RA.materialize(store, child["version_id"], out)
+        return {"source": "reference_authority", "parent": parent, "pulled_at": pulled_at,
+                "merge": child.get("merge"), "unchanged": bool(child.get("unchanged")), **mat}
+
     def _price_authority(self, sp: dict, uni: str) -> dict:
         store = PA.Store(sp.get("store") or self.root)
         out = os.path.join(self.data, "prices.db")
@@ -415,6 +457,7 @@ class Refresh:
         official = {}
         o = sp.get("official") or {"kind": "massive"}
         fetched = int(o.get("fetched") or datetime.now(timezone.utc).strftime("%Y%m%d"))
+        fetched_at = o.get("fetched_at") or (None if o.get("kind") == "file" else now_iso())
         if due:
             if o.get("kind") == "file":
                 official = {int(k): v for k, v in json.load(open(o["path"])).items()}
@@ -429,7 +472,7 @@ class Refresh:
                 splits[t] = sp_
         try:
             child = PA.append(store, parent, sp["source"], official=official, splits=splits, sessions=due,
-                              tickers=set(Q.tickers_of(uni)), official_basis_date=fetched,
+                              tickers=set(Q.tickers_of(uni)), official_basis_date=fetched, official_fetched_at=fetched_at,
                               provenance={"run_id": self.run_id, "source": sp["source"], "official_fetched": fetched})
         except PA.PriceHold as e:
             raise PriceHoldStop(str(e)) from e
@@ -803,6 +846,11 @@ class Refresh:
         price_block = ({k: pa.get(k) for k in ("price_version", "kind", "parent", "content_sha256", "rows", "symbols",
                                                 "first_session", "last_session", "chain", "file_sha256", "pinned")}
                        if pa.get("source") == "price_authority" else None)
+        ra = (src or {}).get("reference") or {}
+        ref_block = ({k: ra.get(k) for k in ("reference_version", "kind", "parent", "as_of", "sha256", "tickers", "pinned")}
+                     if ra.get("source") == "reference_authority" else None)
+        if ref_block and ref_block["sha256"] != files.get("ref.jsonl", {}).get("sha256"):
+            raise RuntimeError("the sealed ref.jsonl is not the materialized reference version")
         if price_block and price_block["file_sha256"] != files.get("prices.db", {}).get("sha256"):
             raise RuntimeError("the sealed prices.db is not the materialized price version")
         snap = P.A.sha("\n".join(f"{k}={v['sha256']}" for k, v in sorted(files.items())).encode())
@@ -813,6 +861,7 @@ class Refresh:
                 "code": {"commit": man.get("code_commit"), "tree": git("rev-parse", "HEAD^{tree}") or None,
                          "dirty": bool(git("status", "--porcelain", "--", "api/services/marketcap"))},
                 "inputs": {"snapshot_id": snap, "files": files, "price_authority": {**price_block, "version": price_block["price_version"]} if price_block else None,
+                           "reference_authority": {**ref_block, "version": ref_block["reference_version"]} if ref_block else None,
                            "provenance": {"sources": src, "sec_bulk": {k: {x: v.get(x) for x in ("last_modified", "sha256", "bytes")}
                                                                       for k, v in sec.items()},
                                           "prosp_evidence_from": Q.PROSP_EVIDENCE_FROM, "run_id": self.run_id}},
