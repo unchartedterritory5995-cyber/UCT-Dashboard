@@ -117,6 +117,7 @@ import PreviewPane from './editor/PreviewPane'
 import MemberPane from './memberPane/MemberPane'
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
+import ConverseBox from './ConverseBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
@@ -2153,6 +2154,16 @@ export default function BuilderSheet({
               match every symbol on the board. A box that always asked for an
               indicator would be a box whose scan stage can never fire, and no
               component test on either side could see it. */}
+          {/* ⭐⭐ P2 — CONVERSATIONAL AUTHORING. A self-contained box: it holds
+              its own working definition (the deterministic engine applies the
+              server's patch), shows the readback from the definition, and saves
+              through the same doors as `save()` (`conversationSave.js`). It does
+              not touch this sheet's formula box or save state. Indicator modes
+              only; the Conditions tab keeps the one-shot box below. */}
+          {buildMode !== 'picker' && (
+            <ConverseBox settings={settings} onChange={onChange} sym={sym} tf={tf}
+              editing={editing} disabled={saving} />
+          )}
           <ConciergeBox
             bars={bars}
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
