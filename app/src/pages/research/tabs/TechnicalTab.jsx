@@ -72,7 +72,7 @@ function VerdictCard({ v, selected, onSelect }) {
 }
 
 export default function TechnicalTab({ sym }) {
-  const { data, isLoading, error, mutate } = useTechnical(sym, 'D')
+  const { data, isLoading, error, paywalled, mutate } = useTechnical(sym, 'D')
   const [searchParams] = useSearchParams()
   const scannerHint = (searchParams.get('setup') || '').trim()
 
@@ -152,6 +152,9 @@ export default function TechnicalTab({ sym }) {
           as "none confirmed" -- collapsing the confirmed/rejected signal
           this tab exists to preserve into a false "nothing confirmed"
           bucket. */}
+      {!isLoading && paywalled && (
+        <div className={styles.fnote} data-testid="technical-paywalled">Technical setups require a paid plan.</div>
+      )}
       {!isLoading && error && (
         <div className={styles.fnote} data-testid="technical-error">
           Couldn't load technical setups for {sym}.
@@ -160,7 +163,7 @@ export default function TechnicalTab({ sym }) {
         </div>
       )}
 
-      {!isLoading && !error && !verdicts.length && (
+      {!isLoading && !error && !paywalled && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
           {evaluated > 0 ? (
             <>

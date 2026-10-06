@@ -105,6 +105,10 @@ export default function DecisionRecordTab({ sym }) {
     )
   }
 
+  // tq-panels: a 402 is the paid gate, not "unavailable".
+  if (result && !result.ok && result.httpStatus === 402) {
+    return <div className={styles.fnote} data-testid="decision-record-paywalled">The decision record requires a paid plan.</div>
+  }
   if (!result || !result.ok || !result.body) return <Unavailable />
   const body = result.body
   if (body.status === 'unavailable') return <Unavailable />
