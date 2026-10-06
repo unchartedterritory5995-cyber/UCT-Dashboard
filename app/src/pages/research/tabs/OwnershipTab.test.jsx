@@ -25,7 +25,8 @@ describe('OwnershipTab', () => {
     expect(screen.getByText('0.73%')).toBeInTheDocument()       // short % float
     expect(screen.getByText('6.80B')).toBeInTheDocument()       // float shares, from share_counts
     expect(screen.getByText('Tim Cook · CEO')).toBeInTheDocument()
-    expect(screen.getByText('sell')).toBeInTheDocument()
+    expect(screen.getByText('Sell')).toBeInTheDocument()     // tq-panels: a word, not the lowercase enum
+    expect(screen.queryByText('sell')).toBeNull()
     // A resolved entity shows no unresolved-identity note.
     expect(screen.queryByTestId('entity-unresolved-note')).toBeNull()
   })
