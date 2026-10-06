@@ -617,11 +617,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Row rhythm follows the terminal board's density (--panel-gap: 12 / 8 / 4px on desktop), and
+   is exactly the old 5px everywhere else (tokens.css gives the comfortable value). */
 .wrow {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 6px;
+  padding: calc(var(--panel-gap) / 2 - 1px) 6px;
   cursor: pointer;
   border-radius: 10px;
   transition: background 0.12s, transform 0.12s;
@@ -2848,7 +2850,7 @@
      tight list, not a spreadsheet stretched thin across the whole width. */
   grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 var(--panel-inset);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
 }
@@ -2888,8 +2890,10 @@
   grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
   align-items: center;
-  min-height: 36px;
-  padding: 0 12px;
+  /* 36px outside the terminal; a dense board takes it to 28 (--panel-row-h + 8). The touch
+     tier keeps the comfortable values, so this never undercuts a finger target. */
+  min-height: calc(var(--panel-row-h) + 8px);
+  padding: 0 var(--panel-inset);
   cursor: pointer;
   border-bottom: 1px solid var(--header-line);
   transition: background 0.1s;

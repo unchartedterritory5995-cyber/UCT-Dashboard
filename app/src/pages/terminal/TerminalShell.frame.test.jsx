@@ -113,6 +113,25 @@ describe('density changes panel spacing, not only inherited text', () => {
     for (const v of ['--panel-inset', '--panel-gap', '--panel-fs', '--panel-row-h']) expect(block, `${d} ${v}`).toContain(`${v}:`)
   })
 
+  it.each(['compact', 'dense'])('%s reaches the tables inside a panel body: row height and cell padding from the variables', (d) => {
+    for (const cell of ['td', 'th']) {
+      expect(desktop).toContain(`.shell[data-density='${d}'] .panelBody ${cell}`)
+    }
+    const rule = /\.panelBody th\s*\{([^}]*)\}/.exec(desktop)?.[1] || ''
+    expect(rule).toMatch(/height:\s*var\(--panel-row-h\)/)
+    expect(rule).toMatch(/padding-block:\s*calc\(var\(--panel-gap\)/)
+  })
+
+  it('panel content outside the shell stylesheet reads the same variables (calendar rows, research cards)', () => {
+    const read = (f) => fs.readFileSync(path.join(process.cwd(), f), 'utf8')
+    const cal = read('src/pages/calendar/Calendar.module.css')
+    expect(/\.dtRow\s*\{[^}]*min-height:\s*calc\(var\(--panel-row-h\)/.test(cal)).toBe(true)
+    expect(/\.wrow\s*\{[^}]*padding:\s*calc\(var\(--panel-gap\)/.test(cal)).toBe(true)
+    const card = read('src/components/research-kit/GlassCard.module.css')
+    expect(/\.card\s*\{[^}]*gap:\s*var\(--panel-gap\)/.test(card)).toBe(true)
+    expect(/\.card\s*\{[^}]*padding:\s*calc\(var\(--panel-inset\)/.test(card)).toBe(true)
+  })
+
   it('the comfortable values are declared once, in tokens.css, so pages outside the terminal resolve them', () => {
     const tokens = fs.readFileSync(path.join(process.cwd(), 'src/styles/tokens.css'), 'utf8')
     for (const v of ['--panel-inset', '--panel-gap', '--panel-fs', '--panel-row-h']) expect(tokens).toMatch(new RegExp(`${v}:`))

@@ -829,6 +829,21 @@
   .shell[data-density='dense'] .grid {
     gap: 0;
   }
+
+  /* Density reaches the CONTENT, not only the frame: every table inside a panel body (the
+     research tables, the options tables, the flow and heat tables, HELP's own) takes its row
+     height from --panel-row-h and its cell padding from --panel-gap, whatever its own
+     stylesheet says. Comfortable is left to each component's own look; desktop only, so the
+     touch tier's floors are never touched. Lists and cards that are not <table>s read the same
+     variables in their own stylesheets (Calendar.module.css .dtRow/.wrow, GlassCard, the
+     screener grid through useInTerminalPanel). */
+  .shell[data-density='compact'] .panelBody td,
+  .shell[data-density='compact'] .panelBody th,
+  .shell[data-density='dense'] .panelBody td,
+  .shell[data-density='dense'] .panelBody th {
+    height: var(--panel-row-h);
+    padding-block: calc(var(--panel-gap) / 4);
+  }
 }
 
 /* ── TOUCH TIER (phone + tablet): the 44px floor on every control, and the grid stacks ── */

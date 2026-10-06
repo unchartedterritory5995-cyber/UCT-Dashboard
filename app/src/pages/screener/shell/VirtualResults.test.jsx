@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import VirtualResults from './VirtualResults'
+import VirtualResults, { effectiveDensity } from './VirtualResults'
+import { TerminalPanelContext } from '../../../components/terminal/terminalPanel'
 import { COLUMN_DEFS, DESC_TRIGGER_W } from '../columnDefs'
 import { sortRowsLive } from './liveSort'
 
@@ -166,5 +167,39 @@ describe('sortRowsLive', () => {
   it('non-live sort keys pass through untouched', () => {
     const r = [{ ticker: 'A' }, { ticker: 'B' }]
     expect(sortRowsLive(r, { key: 'rs_rank', dir: 'desc' }, {})).toBe(r)
+  })
+})
+
+describe('VirtualResults inside a UCT Terminal panel (board density reaches the grid)', () => {
+  const desktop = () => {
+    window.matchMedia = (query) => {
+      const max = /max-width:\s*(\d+)px/.exec(query)
+      const min = /min-width:\s*(\d+)px/.exec(query)
+      const matches = (!max || 1400 <= Number(max[1])) && (!min || 1400 >= Number(min[1]))
+      return { matches, media: query, onchange: null, addListener() {}, removeListener() {},
+        addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false } }
+    }
+  }
+  const bodyRowHeight = () => screen.getAllByRole('row')[1].style.height
+
+  it('effectiveDensity: a dense/compact board tightens, a comfortable board keeps the member choice', () => {
+    expect(effectiveDensity('comfortable', 'dense')).toBe('dense')
+    expect(effectiveDensity('comfortable', 'compact')).toBe('compact')
+    expect(effectiveDensity('comfortable', 'comfortable')).toBe('comfortable')
+    expect(effectiveDensity('compact', null)).toBe('compact')
+  })
+
+  it('a dense board draws 24px rows; outside the terminal the same grid draws its own 30px', () => {
+    desktop()
+    const { unmount } = render(<VirtualResults {...base} />)
+    expect(bodyRowHeight()).toBe('30px')
+    unmount()
+    render(
+      <TerminalPanelContext.Provider value={{ code: 'SCR', density: 'dense', inset: true }}>
+        <VirtualResults {...base} />
+      </TerminalPanelContext.Provider>,
+    )
+    expect(bodyRowHeight()).toBe('24px')
+    expect(screen.getByRole('table').parentElement).toHaveAttribute('data-density', 'dense')
   })
 })
