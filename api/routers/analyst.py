@@ -21,6 +21,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import sym_path
 from api.services.analyst_intel import get_analyst_intel
 from api.services.institutional_holdings import get_ownership
 
@@ -46,7 +47,7 @@ _OWNERSHIP_EMPTY = {"ticker": "", "inst_pct": None, "inst_holders_count": None,
 
 
 @router.get("/api/analyst/{sym}")
-def analyst_endpoint(sym: str, debug: int = 0, user: dict = Depends(require_paid)):
+def analyst_endpoint(sym: str = Depends(sym_path), debug: int = 0, user: dict = Depends(require_paid)):
     s = (sym or "").upper().strip()
     if not s:
         return {"ticker": "", "consensus": None, "price_target": None, "recent_actions": []}
@@ -58,7 +59,7 @@ def analyst_endpoint(sym: str, debug: int = 0, user: dict = Depends(require_paid
 
 
 @router.get("/api/ownership/{sym}")
-def ownership_endpoint(sym: str, debug: int = 0, user: dict = Depends(require_paid)):
+def ownership_endpoint(sym: str = Depends(sym_path), debug: int = 0, user: dict = Depends(require_paid)):
     s = (sym or "").upper().strip()
     if not s:
         return dict(_OWNERSHIP_EMPTY)

@@ -6,6 +6,7 @@ read endpoints). Uses api.middleware.auth_middleware.get_current_user.
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user
+from api.services.ticker_resolver import sym_path
 from api.services import tweet_store
 
 router = APIRouter(prefix="/api/tweets", tags=["tweets"])
@@ -28,12 +29,12 @@ def _current_mover_symbols() -> set[str]:
 
 
 @router.get("/ticker/{sym}")
-def tweets_for_ticker(sym: str,
+def tweets_for_ticker(sym: str = Depends(sym_path),
                       hours: int = Query(24, ge=1, le=168),
                       user=Depends(get_current_user)):
-    sym = sym.upper().strip()
-    if not sym or not sym.isalpha() or len(sym) > 6:
-        raise HTTPException(400, "invalid ticker")
+    # `sym_path` is the one route spelling: the store holds cashtags in the HYPHEN
+    # form (`ticker_resolver.canonical`), and the old `isalpha()` check refused
+    # every dual-class name -- BRK.B and BRK-B alike -- with a 400.
     return tweet_store.tweets_for_ticker(sym, hours=hours)
 
 

@@ -441,6 +441,18 @@ def contains(sym: str) -> bool:
         return sym.strip().upper() in _BY_SYM
 
 
+def instrument_type(sym: str) -> str | None:
+    """The built index's own classification of `sym` ("stock", "etf", "index", ...)
+    or None when the symbol is not in it or the index is not loaded yet. An in-memory
+    lookup, so a route can tell a fund apart from a company WITHOUT a vendor call.
+    ⚠️ None is "unknown", never "stock": callers must treat it as such."""
+    if not sym:
+        return None
+    with _LOCK:
+        row = _BY_SYM.get(sym.strip().upper())
+    return (row or {}).get("type") or None
+
+
 def status() -> dict:
     return {"rows": len(_INDEX), "built_at": _BUILT_AT, "building": _BUILDING,
             "snapshot": _SNAP_PATH, "liquidity_symbols": len(_LIQ), "liquidity_at": _LIQ_AT}

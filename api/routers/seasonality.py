@@ -45,6 +45,16 @@ class HistoryPending(Exception):
     shallow tail while the deep backfill runs in the background)."""
 
 
+class NoDailyHistory(Exception):
+    """The bar serve said, in so many words, that it carries no bars for this symbol
+    (`no_data`). That is an answer -- a 404 -- not an outage."""
+
+
+class BarsUnavailable(Exception):
+    """The bar serve failed (a non-200 that is not a fetch in flight). Carries the
+    serve's own classified reason so the 503 says which failure it was."""
+
+
 def _history_is_partial(sym: str, n_bars: int) -> bool:
     """The bar serve's OWN test for a partial deep read (bars_fetch: fewer than 90% of
     the requested bars AND no "this is all there is" marker), so the two cannot
@@ -57,18 +67,32 @@ def _history_is_partial(sym: str, n_bars: int) -> bool:
 def _daily_bars(sym: str) -> list:
     """The LOCAL serve core, every parameter explicit (an omitted Query(...) default is a
     truthy FieldInfo when called directly). Only a 200 with a list counts. Raises
-    HistoryPending when the serve handed back a partial cold read (L8)."""
+    HistoryPending when the serve handed back a partial cold read (L8).
+
+    ⛔ THE SERVE'S OWN VERDICT IS READ, NEVER FLATTENED. This used to turn every
+    non-200 into `[]`, so a "warming" 503 (a cold fetch already running, which the
+    serve answers with Retry-After so the client re-polls) and a real fault both
+    reached the member as "unavailable right now" with no Retry-After -- and a
+    "this symbol is not carried" 200 read the same way. Each is now its own answer:
+    warming -> HistoryPending (503 + Retry-After), not carried -> NoDailyHistory
+    (404), any other failure -> BarsUnavailable carrying the serve's reason."""
     from api.routers import bars as bars_router
     resp = bars_router.serve_bars(sym, "D", DAILY_BARS, "", "", 0)
-    if getattr(resp, "status_code", 200) != 200:
-        return []
+    status = getattr(resp, "status_code", 200)
     body = getattr(resp, "body", b"") or b""
     try:
         payload = json.loads(body)
     except ValueError:
-        return []
-    out = payload.get("bars") if isinstance(payload, dict) else None
+        payload = None
+    payload = payload if isinstance(payload, dict) else {}
+    if status != 200:
+        if payload.get("warming") is True or payload.get("error") == "warming":
+            raise HistoryPending(sym)
+        raise BarsUnavailable(str(payload.get("error") or f"status {status}"))
+    out = payload.get("bars")
     out = out if isinstance(out, list) else []
+    if not out and payload.get("no_data"):
+        raise NoDailyHistory(sym)
     if out and _history_is_partial(sym, len(out)):
         raise HistoryPending(sym)
     return out
@@ -76,9 +100,9 @@ def _daily_bars(sym: str) -> list:
 
 @router.get("/api/research/seasonality/{sym}", dependencies=[Depends(_armed)])
 def seasonality(sym: str, _user: dict = Depends(require_paid)):
-    s = (sym or "").upper().strip()
-    if not _SYM_RE.match(s):
-        raise HTTPException(status_code=400, detail="Not a ticker")
+    # The one route spelling: the bar store holds BRK-B, never BRK.B.
+    from api.services.ticker_resolver import require_route_symbol
+    s = require_route_symbol(sym)
     from api.services import seasonality as svc
     try:
         bars = _daily_bars(s)
@@ -90,6 +114,13 @@ def seasonality(sym: str, _user: dict = Depends(require_paid)):
             status_code=503,
             detail=f"The full daily history for {s} is still being read; try again shortly",
             headers={"Retry-After": "15"})
+    except NoDailyHistory:
+        raise HTTPException(status_code=404, detail=f"No daily bars are held for {s}")
+    except BarsUnavailable as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Daily bars for {s} are unavailable right now ({e})",
+            headers={"Retry-After": "30"})
     if not bars:
         # unavailable, never an empty table presented as "no pattern"
         raise HTTPException(status_code=503, detail=f"Daily bars for {s} are unavailable right now")
