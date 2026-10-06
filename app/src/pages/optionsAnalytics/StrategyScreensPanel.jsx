@@ -3,6 +3,7 @@ import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import CoverageLine from '../../components/provenance/CoverageLine'
 import { sideWords, callPutWords } from './flowWords'
+import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 
 // FT-072 / FT-073 — one screener per option strategy, over COV-02's end-of-day screen file
@@ -17,7 +18,6 @@ import styles from './optionsAnalytics.module.css'
 // options by expiration, block trades; multi-leg trades stated as not built) and FT-075 Sizzle
 // (OPTIONS_SIZZLE_ENABLED: COV-03's unusual volume on a 5-session window).
 
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const leg = (l) => `${l.type} ${num(l.strike)}`
 // Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
 // They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
@@ -111,7 +111,7 @@ function MoreRow({ kind, r }) {
   if (kind === 'by_expiration') {
     return <tr><th>{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
       <td>{Number(r.open_interest).toLocaleString()}</td><td>{r.call_share_pct == null ? '—' : `${num(r.call_share_pct, 1)}%`}</td>
-      <td>{r.atm_iv == null ? '—' : `${(r.atm_iv * 100).toFixed(1)}%`}</td></tr>
+      <td>{fracPct(r.atm_iv)}</td></tr>
   }
   return <tr><th>{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
     <td>${Math.round(r.premium).toLocaleString()}</td><td>{r.contracts}</td><td>{r.time}</td></tr>

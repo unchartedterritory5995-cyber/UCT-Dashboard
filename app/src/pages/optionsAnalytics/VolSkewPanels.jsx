@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import useDarkSection from './useDarkSection'
+import { volPts } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 
 // FT-018 (lane/o-options-remainders) under Research > Options:
@@ -13,8 +14,8 @@ import styles from './optionsAnalytics.module.css'
 //    A blank grid cell stays a hole in the mesh, never interpolated.
 
 const enc = encodeURIComponent
-const vp = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}`)
-const signed = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(2)}`)
+const vp = (v) => volPts(v)
+const signed = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${volPts(v, 2)}`)
 
 export function RrBfTable({ sym }) {
   const { data, hidden, failed } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/rr-bf` : null)
