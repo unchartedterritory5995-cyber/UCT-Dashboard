@@ -71,7 +71,7 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15   # 10 -> 15 (2026-10-06): + the production dependency smoke
     steps:
       # Two commits so the secret scan has a range to look at; without this
       # `HEAD^` does not resolve and the scan silently has nothing to scan.
@@ -316,6 +316,22 @@ jobs:
           python -m pip install --quiet fastapi tzdata matplotlib pynacl
           python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q
 
+      # ⛔⛔ 2026-10-06: `jsonschema` was imported by the conversation door but absent from
+      # requirements.txt. Every dev venv had it, every test passed, and THIS gate installs
+      # a hand-picked list — so production's POST /api/user-definitions/converse 500'd
+      # (ModuleNotFoundError) and the release was rolled back. `Dockerfile.web` builds
+      # /opt/venv from requirements.txt ALONE; this step proves THAT set, in a venv of its
+      # own (nothing above leaks in): the server and the conversation door import, the
+      # patch validator really validates, and `uvicorn api.main:app` boots to a 200
+      # /api/health with /converse refusing an anonymous caller by auth, not by 500.
+      # ~2-3 min (wheels). Gating: a requirements gap is exactly what must stop promotion.
+      - name: The production dependency set imports and boots the server
+        run: |
+          python -m venv /tmp/prodvenv
+          /tmp/prodvenv/bin/python -m pip install --quiet --upgrade pip
+          /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
+          /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py
+
       - name: Explain a failure
         if: failure()
         run: |
@@ -337,3 +353,4 @@ jobs:
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
           echo "  python tools/check_repo_hygiene.py"
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
+          echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"

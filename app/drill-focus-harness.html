@@ -1,0 +1,100 @@
+<!doctype html>
+<!--
+  DRILL-BOARD FOCUS (release retry) — LIVE HARNESS. The REAL BreadthDrillModal (board, list, ChartWidget) + Create Indicator, to reproduce the production keyboard-focus defect.
+
+  The REAL ChartWidget (ChartPane, Chart Settings → Indicators, StockChart,
+  ChartToolbar → Create Indicator) with its opts in page state. The ONE stand-in
+  is the model behind POST /converse (scriptedConverse.js — no paid LLM calls);
+  the engine, the preview, the save door and the store are the product's own.
+
+  ⛔ IT CANNOT WRITE A PREFERENCE OR A LAYOUT (see createIndicatorHarness.jsx).
+  Dev-server only — `vite build` takes index.html as its single input; railed by
+  src/testing/createIndicator/createIndicatorHarnessAbsent.test.js.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>   (from app/, SANDBOXED backend on :8000)
+  Then: http://127.0.0.1:<port>/create-indicator-harness.html?sym=AAPL&w=1400
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>drill focus harness</title>
+    <!-- The app's OWN faces, copied from index.html, plus its global stylesheet
+         (imported by the harness module) — so every measurement here is taken in
+         Instrument Sans, the font members see, not a harness fallback. -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-sans-v4-latin.woff2" crossorigin />
+    <style>
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: italic; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext-italic.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: italic; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-italic.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 500;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 500;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 600;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 600;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 700;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 700;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Instrument Sans Tab'; font-style: normal; font-weight: 400 700;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-tab.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      #root { padding: 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/drillFocus/drillFocusHarness.jsx"></script>
+  </body>
+</html>
