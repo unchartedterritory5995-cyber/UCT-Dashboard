@@ -28,6 +28,25 @@ BOUNDED AND PACED
 -----------------
 One thread, one symbol at a time, a pause between symbols, a wall-clock budget. Funds are
 left out: EE / FA / ANR answer them as not applicable.
+
+IT NEVER MAKES A MEMBER WAIT (2026-10-06 boot-contention fix)
+-------------------------------------------------------------
+Measured on the 17:46 UTC web boot, the first with this warm: three opens of `TSM EE`
+(started 17:48:41, 17:49:36, 17:50:18) all answered within 7 ms of each other at 17:50:23
+-- 102 s, 47 s, 5 s, identical bodies -- while unrelated sync routes answered in 0.3 s.
+Released together means they waited on ONE in-flight computation, i.e. a `single_flight`
+leader, and on a booting pod a warmer is exactly the leader nobody should be queued behind.
+The same pass then drained the process-wide FMP bucket (`local FMP budget exhausted` for
+AVGO / PLTR / NFLX at 17:50:52-17:51:01), the bucket a member's EE / FA read also spends.
+
+So, three rules:
+  1. The whole pass runs inside `single_flight.background()`: a member who opens a symbol
+     the warm is building does NOT follow the warm's flight, it builds on its own thread
+     (single_flight.py explains the take-over). Worst case one duplicated read.
+  2. Before each symbol the pass waits until the FMP bucket holds `FMP_RESERVE_TOKENS`
+     (half the per-minute ceiling), so a warm symbol can never take the bucket a member
+     needs; if it does not refill inside the wall-clock budget the pass stops.
+  3. Each symbol's wall time is logged, so the next boot shows what the pass cost.
 """
 from __future__ import annotations
 
@@ -49,6 +68,23 @@ PRIORITY_SYMBOLS: tuple[str, ...] = (
 PACE_SECONDS = 1.5
 # The whole pass stops here even if symbols remain.
 BUDGET_SECONDS = 300.0
+# A symbol starts only while the FMP bucket (fmp_client, 120/min by default) holds at least
+# this many tokens: one warm symbol spends ~12-15 FMP calls across its surfaces, so starting
+# at >= 60 leaves members >= 45 of the minute's budget even mid-symbol.
+FMP_RESERVE_TOKENS = 60.0
+# How long to wait between bucket re-reads while below the reserve.
+RESERVE_POLL_SECONDS = 5.0
+
+
+def _fmp_tokens() -> float:
+    """Tokens available on the shared FMP bucket now; +inf when it cannot be read (an
+    unreadable bucket must not stall the warm -- the vendor reads then answer for
+    themselves)."""
+    try:
+        from api.services import fmp_client
+        return float(fmp_client.tokens_available())
+    except Exception:                                            # noqa: BLE001
+        return float("inf")
 
 
 def _surfaces() -> list[tuple[str, Callable[[str], Any]]]:
@@ -79,26 +115,46 @@ def warm_research_panels(symbols: Iterable[str] = PRIORITY_SYMBOLS, *,
                          budget_seconds: float = BUDGET_SECONDS,
                          surfaces: list[tuple[str, Callable[[str], Any]]] | None = None,
                          sleep: Callable[[float], None] = time.sleep,
-                         clock: Callable[[], float] = time.monotonic) -> dict[str, Any]:
+                         clock: Callable[[], float] = time.monotonic,
+                         fmp_reserve: float = FMP_RESERVE_TOKENS,
+                         fmp_tokens: Callable[[], float] | None = None,
+                         reserve_poll_seconds: float = RESERVE_POLL_SECONDS) -> dict[str, Any]:
     """Warm each surface for each symbol, best-effort. Never raises.
 
+    Runs as BACKGROUND work for `single_flight` (a member never follows its flights) and
+    yields the shared FMP bucket to members (see the module docstring).
+
     Returns {"symbols": n warmed, "ok": n calls that returned, "failed": n that raised,
-    "stopped": "budget" | None}."""
+    "stopped": "budget" | None, "fmp_waits": n bucket re-reads spent below the reserve}."""
+    from api.services import single_flight
     surfaces = _surfaces() if surfaces is None else surfaces
-    stats: dict[str, Any] = {"symbols": 0, "ok": 0, "failed": 0, "stopped": None}
+    tokens = _fmp_tokens if fmp_tokens is None else fmp_tokens
+    stats: dict[str, Any] = {"symbols": 0, "ok": 0, "failed": 0, "stopped": None,
+                             "fmp_waits": 0}
     start = clock()
-    for i, sym in enumerate(symbols):
-        if clock() - start > budget_seconds:
-            stats["stopped"] = "budget"
-            break
-        if i:
-            sleep(pace_seconds)
-        for name, fn in surfaces:
-            try:
-                fn(sym)
-                stats["ok"] += 1
-            except Exception as e:                               # noqa: BLE001
-                stats["failed"] += 1
-                _log.info("[research-warm] %s %s failed: %s", name, sym, e)
-        stats["symbols"] += 1
+    with single_flight.background():
+        for i, sym in enumerate(symbols):
+            if clock() - start > budget_seconds:
+                stats["stopped"] = "budget"
+                break
+            if i:
+                sleep(pace_seconds)
+            waited = False
+            while tokens() < fmp_reserve and clock() - start <= budget_seconds:
+                waited = True
+                stats["fmp_waits"] += 1
+                sleep(reserve_poll_seconds)
+            if waited and clock() - start > budget_seconds:
+                stats["stopped"] = "budget"
+                break
+            t0 = clock()
+            for name, fn in surfaces:
+                try:
+                    fn(sym)
+                    stats["ok"] += 1
+                except Exception as e:                           # noqa: BLE001
+                    stats["failed"] += 1
+                    _log.info("[research-warm] %s %s failed: %s", name, sym, e)
+            stats["symbols"] += 1
+            _log.info("[research-warm] %s done in %.1fs", sym, clock() - t0)
     return stats
