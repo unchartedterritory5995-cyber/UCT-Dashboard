@@ -82,7 +82,7 @@ function Track({ metric, barKey, share, side, color, onDrill, dim, pulse }) {
 }
 
 const Count = ({ text, align, color }) => (
-  <div style={{ font: '800 12px \'Instrument Sans\', sans-serif', color,
+  <div style={{ fontWeight: 800, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color,
                 textAlign: align, fontVariantNumeric: 'tabular-nums',
                 overflow: 'hidden', whiteSpace: 'nowrap',
                 paddingRight: align === 'right' ? 8 : 0,
@@ -94,7 +94,7 @@ const Count = ({ text, align, color }) => (
 function CentreLabel({ label, sub, gold }) {
   return (
     <div style={{ textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
-      <div style={{ font: '700 10px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
+      <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', letterSpacing: '.5px',
                     color: gold ? 'var(--ut-gold)' : 'var(--text-muted)', textTransform: 'uppercase',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
@@ -127,7 +127,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="tug-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 6, flex: '0 0 auto' }}>
         Bar length = that side’s share of its pair (ticks at 25 · 50 · 75%) · the number is today’s count
       </div>
@@ -232,7 +232,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
                           background: posture >= 0 ? colors.bull : colors.bear,
                           opacity: dim ? 0.62 : 0.92, borderRadius: 3 }} />
           </div>
-          <div style={{ font: '800 12px \'Instrument Sans\', sans-serif',
+          <div style={{ fontWeight: 800, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)',
                         color: posture >= 0 ? colors.bull : colors.bear,
                         whiteSpace: 'nowrap', flex: '0 0 auto' }}>
             {`${posture >= 0 ? '+' : ''}${posture}% ${posture >= 0 ? 'BULLISH' : 'BEARISH'}`}

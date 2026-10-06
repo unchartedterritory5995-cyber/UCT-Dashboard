@@ -4,7 +4,8 @@
  * are the server's (`breadth_analogues.py`); this view ranks and reads them.
  */
 import useSWR from 'swr'
-import { resolveViewColors, medianOf } from './breadthViewShared'
+import { medianOf } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import SeekDate from './SeekDate'
 // ⭐ ONE AUTHOR FOR THE KEY. The Read reads this endpoint's answer OUT OF THE
 // SWR CACHE without fetching it, which only works if it asks for the exact
@@ -64,7 +65,7 @@ const CARD_MAX_H = 560
  * becomes live, with no other change.
  */
 export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const horizon = options.horizon ?? 'fwd_20d'
   const topN = Number(options.matches ?? 5)
 
@@ -79,13 +80,13 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
   )
 
   if (isLoading) {
-    return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>Finding analogues…</div>
+    return <div style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>Finding analogues…</div>
   }
   const analogues = data?.analogues ?? []
   if (error || !analogues.length) {
     return (
       <div data-testid="analogues-refusal"
-           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
+           style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
         {error ? `Could not load analogues — ${error.message ?? 'network error'}`
                : 'No historical session resembles today closely enough to report.'}
       </div>
@@ -107,20 +108,20 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="analogues-summary"
-           style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: '#e8e8ea',
+           style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)',
                     marginBottom: 4, flex: '0 0 auto' }}>
         {withReturn.length
           ? `${higher} of ${withReturn.length} higher ${horizonLabel(horizon)} later`
           : `No match has ${horizonLabel(horizon)} of history after it yet`}
         {median != null && (
-          <span style={{ marginLeft: 8, font: '700 12px \'Instrument Sans\', sans-serif',
+          <span style={{ marginLeft: 8, fontWeight: 700, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)',
                          color: median >= 0 ? colors.bull : colors.bear }}>
             median {median >= 0 ? '+' : ''}{median.toFixed(1)}%
           </span>
         )}
       </div>
       <div data-testid="analogues-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     marginBottom: 10, flex: '0 0 auto' }}>
         Matched against {data.reference_date} · similarity over 16 weighted breadth metrics
         {withReturn.length > 1
@@ -142,21 +143,21 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
                     maxHeight: CARD_MAX_H }}>
         {analogues.map(a => {
           const fwd = a.forward_returns?.[horizon]
-          const tone = fwd == null ? '#64748b' : (fwd >= 0 ? colors.bull : colors.bear)
+          const tone = fwd == null ? 'var(--text-muted)' : (fwd >= 0 ? colors.bull : colors.bear)
           return (
             <div key={a.date} data-testid={`analogues-card-${a.date}`}
-                 style={{ background: '#0e131a', borderRadius: 8, padding: 10,
+                 style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: 10,
                           border: '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)', minHeight: 0,
                           display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flex: '0 0 auto' }}>
-                <span style={{ font: '700 12px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)' }}>
+                <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-bright)' }}>
                   <SeekDate date={a.date} styleKey="analogues" onSeek={onSeek} canSeek={canSeek} />
                 </span>
                 <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                   {Number(a.similarity).toFixed(1)}% match
                 </span>
               </div>
-              <div style={{ font: `800 20px 'Instrument Sans', sans-serif`, marginTop: 4,
+              <div style={{ fontWeight: 800, fontSize: 'var(--text-2xl)', fontFamily: 'var(--font-sans)', marginTop: 4,
                             flex: '0 0 auto', color: tone }}>
                 {fwd == null ? 'Not yet' : `${fwd >= 0 ? '+' : ''}${Number(fwd).toFixed(1)}%`}
               </div>

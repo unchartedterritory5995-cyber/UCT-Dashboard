@@ -108,7 +108,7 @@ export default function ScoreboardView({
          style={{ height: '100%', minHeight: 0, padding: '12px 18px', position: 'relative',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="scoreboard-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`${live.length} reporting · sparkline spans ${asc.length} session${asc.length === 1 ? '' : 's'}`}
         {silent.length ? ` · ${silent.length} not reported in this window` : ''}
@@ -133,7 +133,7 @@ export default function ScoreboardView({
             return (
               <div key={m.key} {...drillProps(m, onDrill)}
                    className={isNotable ? signalStyles.pulse : undefined}
-                   style={{ background: '#0e131a', borderRadius: 8, padding: pad,
+                   style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: pad,
                             border: isSignal ? '1px solid var(--ut-gold)' : '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)',
                             display: 'flex', flexDirection: 'column', minHeight: 0,
                             cursor: clickable ? 'pointer' : 'default' }}>
@@ -143,7 +143,7 @@ export default function ScoreboardView({
                               flex: '0 0 auto' }}>
                   {isSignal ? <><UIcon name="star-fill" size={8} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
                 </div>
-                <div style={{ font: `800 ${compact ? 18 : 24}px Instrument Sans, sans-serif`, color: '#e8e8ea',
+                <div style={{ font: `800 ${compact ? 18 : 24}px Instrument Sans, sans-serif`, color: 'var(--text-bright)',
                               lineHeight: 1.1, marginTop: 2, fontVariantNumeric: 'tabular-nums',
                               flex: '0 0 auto' }}>
                   {m.getFmt(currentRow)}
@@ -171,7 +171,7 @@ export default function ScoreboardView({
                      onMouseLeave={hide}>
                   {sp
                     ? <polyline points={sp.pts} fill="none" stroke={sp.color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    : <line x1="0" y1="8" x2="60" y2="8" stroke="#334155" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
+                    : <line x1="0" y1="8" x2="60" y2="8" stroke="var(--border-accent)" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
                   {sp?.marks.map(p => (
                     <rect key={p.i} data-testid={`scoreboard-point-${m.key}-${p.i}`}
                           data-seek-idx={p.i} data-seek-date={asc[p.i].date}

@@ -3,7 +3,8 @@
  * happened. Every threshold is sourced (tier / formula / percentile) and shown,
  * so a reader can check the claim rather than trust it.
  */
-import { fillsRow, resolveViewColors } from './breadthViewShared'
+import { fillsRow } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import SeekDate from './SeekDate'
 import { scanEvents } from './breadthEvents'
 // The neutral fired accent, and the ruling behind it, live in a pure module so
@@ -53,7 +54,7 @@ function byFamily(events) {
 export default function EventLedgerView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const accent = firedAccent(colors)
   // `win`, not `window`: a local named `window` shadows the global for the whole
   // function body, so any later `window.matchMedia` / `window.addEventListener`
@@ -75,11 +76,11 @@ export default function EventLedgerView({
                     flex: '0 0 auto' }}>
         <span data-testid="events-headline"
               style={{ font: '800 15px \'Instrument Sans\', sans-serif',
-                       color: firedCount ? accent : '#94a3b8' }}>
+                       color: firedCount ? accent : 'var(--text-muted)' }}>
           {firedCount ? `${firedCount} event${firedCount > 1 ? 's' : ''} today` : 'No named event today'}
         </span>
         <span data-testid="events-basis"
-              style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           {win.length} sessions · since {win[win.length - 1].date}
         </span>
       </div>
@@ -140,7 +141,7 @@ export default function EventLedgerView({
             </span>
             <span style={{ flex: 1, height: 1, background: 'color-mix(in srgb, var(--text-heading) 6%, transparent)' }} />
             <span style={{ font: '700 9px \'Instrument Sans\', sans-serif',
-                           color: firedHere ? accent : '#475569', whiteSpace: 'nowrap' }}>
+                           color: firedHere ? accent : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {firedHere ? `${firedHere} today` : `${list.length}`}
             </span>
           </div>
@@ -176,14 +177,14 @@ export default function EventLedgerView({
                           opacity: e.unavailable ? 0.55 : 1 }}>
               <span style={{ width: 7, height: 7, borderRadius: 4,
                              opacity: e.firedToday ? colors.fillOpacity : 1,
-                             background: e.firedToday ? accent : '#334155' }} />
-              <span style={{ font: '700 11px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)',
+                             background: e.firedToday ? accent : 'var(--border-accent)' }} />
+              <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: 'var(--text-bright)',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.label}
               </span>
-              <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', minWidth: 0,
-                             color: e.firedToday ? accent : '#94a3b8' }}>
+              <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', minWidth: 0,
+                             color: e.firedToday ? accent : 'var(--text-muted)' }}>
                 {status}
               </span>
               {/* The basis gets a column of its own rather than a tail on the

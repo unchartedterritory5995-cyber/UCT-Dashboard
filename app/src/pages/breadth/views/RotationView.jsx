@@ -32,7 +32,7 @@
  * for the second. What is left is a line, the dashed reference it is measured
  * from, and the two numbers that bound the axis.
  */
-import { resolveViewColors } from './breadthViewShared'
+import useViewColors from './useViewColors'
 // ⭐ The panel table MOVED to `rotation.js` (framework-free) — The Read quotes a
 // panel's own `up`/`down` sentence, and a second copy of that copy is how the
 // strip and the card beneath it would end up naming opposite directions. The
@@ -89,7 +89,7 @@ const fmt = (v) => Number(v).toFixed(3)
 export default function RotationView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const lookback = Number(options.lookback ?? 20)
   // `win`, not `window`: a local named `window` shadows the global for the
   // whole function body.
@@ -112,7 +112,7 @@ export default function RotationView({
          style={{ height: '100%', minHeight: 0, overflow: 'auto',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="rotation-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', flex: '0 0 auto' }}>
         {win.length} session{win.length === 1 ? '' : 's'} · since {win[win.length - 1].date}
         {measured < lookback
@@ -159,7 +159,7 @@ export default function RotationView({
 
         return (
           <div key={p.key} data-testid={`rotation-panel-${p.key}`} className={styles.panel}
-               style={{ background: '#0e131a', borderRadius: 10,
+               style={{ background: 'var(--bg-elevated)', borderRadius: 10,
                         border: '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)',
                         // Longhands, never the `flex` shorthand: jsdom's CSSOM
                         // drops the shorthand silently, so the rail that pins
@@ -172,7 +172,7 @@ export default function RotationView({
                 One line, so it costs the trace nothing it does not have to. */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flex: '0 0 auto',
                           minWidth: 0 }}>
-              <span style={{ font: '700 10px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
+              <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', letterSpacing: '.5px',
                              textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 {p.label}
               </span>
@@ -184,14 +184,14 @@ export default function RotationView({
                   number on this panel that has to be smaller in a compare pane,
                   and an inline `font` would beat the pane rule. */}
               <span data-testid={`rotation-value-${p.key}`} className={styles.value}
-                    style={{ color: '#e8e8ea',
+                    style={{ color: 'var(--text-bright)',
                              letterSpacing: '-0.4px', lineHeight: 1, marginLeft: 'auto',
                              fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                 {usable ? fmt(now) : '—'}
               </span>
               {usable && (
                 <span data-testid={`rotation-delta-${p.key}`}
-                      style={{ font: '700 11px \'Instrument Sans\', sans-serif', color: deltaColor,
+                      style={{ fontWeight: 700, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: deltaColor,
                                fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                   {delta >= 0 ? '+' : ''}{fmt(delta)} / {measured}d
                 </span>
@@ -244,9 +244,9 @@ export default function RotationView({
                     {refY != null && (
                       <>
                         <line data-testid={`rotation-baseline-${p.key}`}
-                              x1="0" y1={refY} x2="100" y2={refY} stroke="#475569" strokeWidth="0.8"
+                              x1="0" y1={refY} x2="100" y2={refY} stroke="var(--border-accent)" strokeWidth="0.8"
                               strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-                        <line x1={refX} y1={TOP} x2={refX} y2={BOT} stroke="#334155" strokeWidth="0.8"
+                        <line x1={refX} y1={TOP} x2={refX} y2={BOT} stroke="var(--border-accent)" strokeWidth="0.8"
                               strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
                       </>
                     )}
@@ -266,7 +266,7 @@ export default function RotationView({
                     )}
                   </>
                 ) : (
-                  <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="#334155" strokeDasharray="2 2" />
+                  <line x1="0" y1={H / 2} x2="100" y2={H / 2} stroke="var(--border-accent)" strokeDasharray="2 2" />
                 )}
                 {pts && asc.map((v, i) => (v == null ? null : (
                   <rect key={ascRows[i]?.date ?? i} data-testid={`rotation-point-${p.key}-${i}`}
@@ -287,7 +287,7 @@ export default function RotationView({
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flex: '0 0 auto',
                           flexWrap: 'wrap', minWidth: 0 }}>
               <span data-testid={`rotation-verdict-${p.key}`}
-                    style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                    style={{ fontWeight: 600, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                              flex: '1 1 auto', minWidth: 0, lineHeight: 1.35 }}>
                 {verdict}
               </span>

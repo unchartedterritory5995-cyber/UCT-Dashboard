@@ -19,8 +19,9 @@
  *     the number, rather than on the mass of paint beneath it.
  */
 import {
-  NORM_TICKS, drillProps, metricColor, normBasis, resolveViewColors, sortVisibleMetrics,
+  NORM_TICKS, drillProps, metricColor, normBasis, sortVisibleMetrics,
 } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -33,15 +34,15 @@ const COL_MIN_W = 34
 export default function EqualizerView({
   currentRow, rows = [], metrics, normalize, onDrill, signalKey, notableKey, options = {},
 }) {
+  const colors = useViewColors(options.palette, options.intensity)
   if (!currentRow || !metrics?.length) return null
   const ordered = sortVisibleMetrics(metrics, options.sort ?? 'board', normalize, currentRow)
-  const colors = resolveViewColors(options.palette, options.intensity)
 
   return (
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px 10px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="equalizer-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`Column height = ${normBasis(rows.length)} · the cap marks the reading`}
       </div>
@@ -73,8 +74,8 @@ export default function EqualizerView({
               {NORM_TICKS.map(t => (
                 <div key={t}
                      style={{ position: 'absolute', left: 0, right: 0, bottom: `${t}%`, height: 1,
-                              background: t === 50 ? 'rgba(226,232,240,0.16)'
-                                : t === 0 ? 'rgba(148,163,184,0.22)' : 'rgba(148,163,184,0.08)' }} />
+                              background: t === 50 ? 'color-mix(in srgb, var(--text) 16%, transparent)'
+                                : t === 0 ? 'color-mix(in srgb, var(--text-muted) 22%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)' }} />
               ))}
             </div>
 
@@ -101,7 +102,7 @@ export default function EqualizerView({
                                     borderTop: `2.5px solid ${color}`,
                                     opacity: colors.fillOpacity,
                                     boxShadow: isSignal
-                                      ? '0 0 0 1px #c9a84c, 0 0 10px rgba(201,168,76,.35)'
+                                      ? '0 0 0 1px var(--ut-gold), 0 0 10px color-mix(in srgb, var(--ut-gold) 35%, transparent)'
                                       : (colors.glow ? `0 0 12px ${color}55` : 'none'),
                                     transition: 'height .4s ease' }} />
                       {/* The reading rides just above its own cap, and stops
@@ -110,8 +111,8 @@ export default function EqualizerView({
                            style={{ position: 'absolute', left: 0, right: 0,
                                     bottom: `min(calc(${h}% + 4px), calc(100% - 13px))`,
                                     textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap',
-                                    font: '800 10px \'Instrument Sans\', sans-serif',
-                                    fontVariantNumeric: 'tabular-nums', color: '#dbe4ee' }}>
+                                    fontWeight: 800, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)',
+                                    fontVariantNumeric: 'tabular-nums', color: 'var(--text-bright)' }}>
                         {m.getFmt(currentRow)}
                       </div>
                     </div>

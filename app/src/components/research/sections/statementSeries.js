@@ -6,6 +6,12 @@
 // only components (react-refresh needs that for HMR to keep its state) and so
 // the tests can exercise the arithmetic without a render.
 
+import { CHART_INK } from '../../research-kit/charts/echartsCore'
+
+// A fixed series palette, tuned on the dark ground. It is NOT re-tuned per
+// theme here: SeriesChart nudges any entry under 3:1 against the live chart
+// surface (lib/theme ensureContrast), so on a light theme the pale blues and
+// greens darken just enough to read and keep their hue.
 const INK = {
   revenue: '#5aa9e6',
   opinc: '#e8a33d',
@@ -88,7 +94,7 @@ export function panelSeries(spec, series, period, yoy) {
   return [
     ...(yoy ? spec.series.map(([field, name]) => ({
       name: `${name} (yr ago)`,
-      color: 'rgba(255,255,255,.20)',
+      color: CHART_INK.ghost,
       values: yoyShift(series[field] || [], period),
     })) : []),
     ...spec.series.map(([field, name, color]) => ({

@@ -3,7 +3,8 @@
  * sustained gaps shaded. Answers "is price outrunning the troops?", the
  * classic breadth read, which the table can only imply.
  */
-import { resolveViewColors, WIDEN_WINDOW_HINT } from './breadthViewShared'
+import { WIDEN_WINDOW_HINT } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 // Both series are z-scored against the loaded window, so the refusal below is a
@@ -36,7 +37,7 @@ export default function DivergenceView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
   const { hostRef, tipRef, show, hide } = useHoverReadout()
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const priceKey = options.price ?? 'sp500_close'
   const partKey = options.participation ?? 'pct_above_50sma'
   const minGap = Number(options.minGap ?? 5)
@@ -44,7 +45,7 @@ export default function DivergenceView({
   const asc = rows.slice(rowIdx).reverse()  // oldest → newest for plotting
   if (asc.length < MIN_SESSIONS) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
+      <div style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
         <div data-testid="divergence-refusal">
           Needs {MIN_SESSIONS} sessions to z-score both series — has {asc.length}.
         </div>
@@ -100,7 +101,7 @@ export default function DivergenceView({
                        color: verdictColor }}>
           {verdict}
         </span>
-        <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+        <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           <span style={{ color: 'var(--text-bright)' }}>■</span> {PRICE_LABEL[priceKey] ?? priceKey}
           {'   '}
           <span style={{ color: colors.bull }}>■</span> {PART_LABEL[partKey] ?? partKey}
@@ -128,8 +129,8 @@ export default function DivergenceView({
           <rect key={k} x={X(r.start)} y="0" width={Math.max(0.4, X(r.end) - X(r.start))} height="100"
                 fill={r.dir === 'price-leads' ? colors.bear : colors.bull} opacity="0.12" />
         ))}
-        <line x1="0" y1="50" x2="100" y2="50" stroke="#1e293b" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
-        <polyline points={line(zPrice)} fill="none" stroke="#e2e8f0" strokeWidth="1.2"
+        <line x1="0" y1="50" x2="100" y2="50" stroke="var(--border-accent)" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
+        <polyline points={line(zPrice)} fill="none" stroke="var(--text-bright)" strokeWidth="1.2"
                   vectorEffect="non-scaling-stroke" />
         <polyline points={line(zPart)} fill="none" stroke={colors.bull} strokeWidth="1.2"
                   opacity={colors.fillOpacity} vectorEffect="non-scaling-stroke" />
@@ -152,7 +153,7 @@ export default function DivergenceView({
       </svg>
 
       <div data-testid="divergence-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginTop: 6 }}>
         {asc.length} sessions · since {asc[0].date} · shaded where the gap held ≥{minGap} sessions
       </div>
       <HoverReadout tipRef={tipRef} styleKey="divergence" />

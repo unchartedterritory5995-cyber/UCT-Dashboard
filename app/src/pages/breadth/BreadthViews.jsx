@@ -517,7 +517,7 @@ export default function BreadthViews({
             </span>
           ) : (
             <span data-testid="cursor-date"
-                  style={{ font: '700 13px Instrument Sans, sans-serif', color: 'var(--text-bright)',
+                  style={{ fontWeight: 700, fontSize: 'var(--text-md)', fontFamily: 'var(--font-sans)', color: 'var(--text-bright)',
                            letterSpacing: '.2px', fontVariantNumeric: 'tabular-nums',
                            minWidth: 88, textAlign: 'center' }}>{currentRow.date}</span>
           )}

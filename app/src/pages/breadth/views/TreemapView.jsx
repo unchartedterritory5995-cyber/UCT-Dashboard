@@ -10,8 +10,18 @@ import {
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS,
 } from '../heatmapMetrics'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
+import { useThemeInk, CHROME_INK, SEMANTIC_INK, SIZE_INK, ensureContrast } from '../../../lib/theme'
+
+// The "notable" accent: an amber kept distinct from the gold "signal" border. It sits
+// on the tile's own dark tier fill, so it is fixed rather than themed.
+const NOTABLE_INK = '#fbbf24'
+// ⭐ TIER_CELL_COLORS stay fixed on purpose: every tier is an OPAQUE dark fill that
+// carries its own white ink, so the tiles read the same on any page theme (worst case
+// white on #a01919 crimson = 7.9:1). What follows the theme is the chrome AROUND them.
 
 export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, onDrill, options = {} }) {
+  const ink = useThemeInk({ bg: CHROME_INK.bg, elevated: CHROME_INK.elevated, text: CHROME_INK.text,
+    muted: CHROME_INK.muted, gold: SEMANTIC_INK.gold, ...SIZE_INK })
   const option = useMemo(() => {
     if (!currentRow) return {}
     const items = TREEMAP_DEF[0].items.filter(it => visibleKeys.has(it.metricKey))
@@ -48,9 +58,9 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
       const isSignal = item.metricKey === signalKey
       const isNotable = item.metricKey === notableKey
       const itemStyle = isSignal
-        ? { color, borderColor: '#c9a84c', borderWidth: 2 }
+        ? { color, borderColor: ink.gold, borderWidth: 2 }
         : isNotable
-        ? { color, borderColor: '#fbbf24', borderWidth: 2 }
+        ? { color, borderColor: NOTABLE_INK, borderWidth: 2 }
         : { color, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 }
       return {
         name: item.metricKey, value: tileWeight(item),
@@ -62,9 +72,9 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
     return {
       backgroundColor: 'transparent', animation: false,
       tooltip: {
-        trigger: 'item', backgroundColor: 'rgba(8,8,8,0.96)', borderColor: '#c9a84c',
+        trigger: 'item', backgroundColor: ink.elevated, borderColor: ink.gold,
         borderWidth: 1, padding: [8, 12],
-        textStyle: { color: '#e0e0e0', fontFamily: CHART_FONT_FAMILY, fontSize: 11 },
+        textStyle: { color: ink.text, fontFamily: CHART_FONT_FAMILY, fontSize: ink.sm },
         formatter: params => {
           const d = params.data
           if (!d || !d.tier) return ''
@@ -72,7 +82,10 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
           if (!metric) return ''
           const score = TIER_SCORES[d.tier]
           const tierLabel = score != null ? (TIER_LABELS[score] ?? '') : 'No signal'
-          const tierColor = score != null ? (TIER_TIP_COLORS[score] ?? '#666') : '#666'
+          // Tooltip TEXT, so 4.5:1 against the tooltip's own (themed) surface.
+          const tierColor = score != null && TIER_TIP_COLORS[score]
+            ? ensureContrast(TIER_TIP_COLORS[score], ink.elevated, 4.5)
+            : ink.muted
           let pctileStr = ''
           const rawVal = currentRow[d.name]
           const sorted = pctileByKey[d.name]
@@ -83,11 +96,11 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
           }
           return (
             `<div style="min-width:145px;font-family:Instrument Sans,sans-serif">` +
-            `<div style="color:#c9a84c;font-weight:700;margin-bottom:3px">${metric.label}</div>` +
-            `<div style="color:#555;font-size:10px;margin-bottom:6px">${currentRow.date}</div>` +
+            `<div style="color:${ink.gold};font-weight:700;margin-bottom:3px">${metric.label}</div>` +
+            `<div style="color:${ink.muted};font-size:var(--text-xs);margin-bottom:6px">${currentRow.date}</div>` +
             `<div style="font-size:16px;font-weight:700;margin-bottom:4px">${metric.getFmt(currentRow)}</div>` +
-            `<div style="color:${tierColor};font-size:10px;letter-spacing:0.5px${pctileStr ? ';margin-bottom:3px' : ''}">${tierLabel}</div>` +
-            (pctileStr ? `<div style="color:#555;font-size:10px">${pctileStr}</div>` : '') +
+            `<div style="color:${tierColor};font-size:var(--text-xs);letter-spacing:0.5px${pctileStr ? ';margin-bottom:3px' : ''}">${tierLabel}</div>` +
+            (pctileStr ? `<div style="color:${ink.muted};font-size:var(--text-xs)">${pctileStr}</div>` : '') +
             `</div>`
           )
         },
@@ -99,11 +112,11 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
           return `{lbl|${params.data.labelText.toUpperCase()}}\n{val|${params.data.valText ?? '—'}}`
         },
         rich: {
-          lbl: { fontSize: 11, fontFamily: 'Instrument Sans, sans-serif', fontWeight: 700, color: 'rgba(255,255,255,0.60)', lineHeight: 18 },
+          lbl: { fontSize: ink.sm, fontFamily: CHART_FONT_FAMILY, fontWeight: 700, color: 'rgba(255,255,255,0.60)', lineHeight: 18 },
           // options.valFontSize: the newsletter's MARKET INTERNALS panel renders
           // narrower tiles than the Breadth page; at 30px a value carrying its
           // tier arrow ("29.0% ▼") truncated to "29...." (9/26). Default unchanged.
-          val: { fontSize: valFontSize, fontFamily: 'Instrument Sans, sans-serif', fontWeight: 700, color: '#ffffff', lineHeight: Math.round(valFontSize * 4 / 3) },
+          val: { fontSize: valFontSize, fontFamily: CHART_FONT_FAMILY, fontWeight: 700, color: '#ffffff', lineHeight: Math.round(valFontSize * 4 / 3) },
         },
         position: 'inside', align: 'center', verticalAlign: 'middle', overflow: 'truncate',
       },
@@ -113,12 +126,13 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
         width: '100%', height: '100%', top: 0, bottom: 0, left: 0, right: 0,
         roam: false, nodeClick: false, breadcrumb: { show: false }, visibleMin: 200,
         levels: [
-          { itemStyle: { borderWidth: 0, gapWidth: 1, borderColor: '#0a0f1a' }, upperLabel: { show: false }, label: { show: false } },
-          { itemStyle: { borderWidth: 1, gapWidth: 0, borderColor: '#0a0f1a' }, emphasis: { itemStyle: { borderColor: '#c9a84c', borderWidth: 2 } } },
+          // The gutters between tiles are the page's own ground, whatever the theme.
+          { itemStyle: { borderWidth: 0, gapWidth: 1, borderColor: ink.bg }, upperLabel: { show: false }, label: { show: false } },
+          { itemStyle: { borderWidth: 1, gapWidth: 0, borderColor: ink.bg }, emphasis: { itemStyle: { borderColor: ink.gold, borderWidth: 2 } } },
         ],
       }],
     }
-  }, [currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, options])
+  }, [currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, options, ink])
 
   if (!currentRow) return null
   return (

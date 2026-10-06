@@ -15,7 +15,9 @@
 // which one is the sell bucket; the chart will not guess from position.
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
-import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
+import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase, resolveChartInk } from './echartsCore'
+import { resolveThemeColor, ensureContrast } from '../../../lib/theme/resolveThemeColor'
+import { useThemeVersion } from '../../../lib/theme/useThemeInk'
 import { toNum } from './format'
 import styles from './MetricTrendChart.module.css'
 
@@ -143,7 +145,7 @@ export function buildSeriesOption(periods, series, { mode = 'line', valueFormatt
         {
           type: 'line', name: high?.name || 'high', stack: 'band', symbol: 'none',
           lineStyle: { opacity: 0 },
-          areaStyle: { color: high?.color || CHART_INK.muted, opacity: 0.18 },
+          areaStyle: { color: high?.color || CHART_INK.muted, opacity: 0.24 },
           // Stacked, so the value plotted is the SPAN, not the high itself.
           data: (high?.values || []).map((v, i) => {
             const hi = num(v)
@@ -190,6 +192,15 @@ export default function SeriesChart({
   ariaLabel,
   emptyMessage = 'Not enough history to chart yet.',
 }) {
+  // ⭐ Each series colour is resolved for the member's theme (a `var()` or a dark
+  // CHART_INK literal becomes the live token) and then nudged, only if it must
+  // be, to clear 3:1 against the chart's own surface — so a palette tuned on
+  // the dark ground stays readable on a light one. Re-runs on a theme change.
+  useThemeVersion()
+  const surface = resolveThemeColor('--bg-surface', '#17181b')
+  const themed = (series || []).map((s) => (s && s.color
+    ? { ...s, color: ensureContrast(resolveChartInk(s.color), surface) }
+    : s))
   if (!hasPlottableData(series, mode)) {
     // A single point draws a dot and reads as a broken chart — say it in words.
     return (
@@ -203,14 +214,14 @@ export default function SeriesChart({
     <div className={className}>
       {label ? <EyebrowLabel info={info}>{label}</EyebrowLabel> : null}
       <EChart
-        option={buildSeriesOption(periods, series, { mode, valueFormatter })}
+        option={buildSeriesOption(periods, themed, { mode, valueFormatter })}
         height={height}
         ariaLabel={ariaLabel || label}
         className={styles.chart}
       />
       {mode !== 'rank' && (
       <ul className={styles.legend} aria-hidden="true">
-        {(series || []).map((s) => (
+        {themed.map((s) => (
           <li key={s.name}>
             <span style={{ background: s.color }} /> {s.name}
           </li>

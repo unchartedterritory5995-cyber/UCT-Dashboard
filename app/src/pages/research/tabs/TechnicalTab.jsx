@@ -6,7 +6,7 @@ import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
 import UIcon from '../../../components/ui/UIcon'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { ABSENT } from '../../../lib/presentation/presentationPrimitives'
-import { themeInk } from '../themeInk'
+import { themeInk, useThemeVersion } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
@@ -123,13 +123,16 @@ export default function TechnicalTab({ sym }) {
     return verdicts[0]
   }, [verdicts, selectedKey])
 
+  // Re-resolve the key-level ink when the member switches theme.
+  const themeVersion = useThemeVersion()
   const priceLines = useMemo(() => {
     if (!selected || selected.key_level == null) return []
     return [{
       price: selected.key_level, color: keyLevelInk(), lineStyle: 2,
       title: `${setupLabel(selected.setup, selected.setup_name)} key level`,
     }]
-  }, [selected])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, themeVersion])
 
   const callouts = useMemo(() => {
     if (!selected || !selected.asof_date) return null

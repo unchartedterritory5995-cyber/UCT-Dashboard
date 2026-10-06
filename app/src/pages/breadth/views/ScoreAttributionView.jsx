@@ -6,7 +6,8 @@
  * from its weights alone.
  */
 import useSWR from 'swr'
-import { fillsRow, resolveViewColors } from './breadthViewShared'
+import { fillsRow } from './breadthViewShared'
+import useViewColors from './useViewColors'
 // ⛔ NOT an inline `fetch(url).then(r => r.json())`. A 401 from `require_paid`
 // or a 503 answers JSON too, and its `{detail}` body is a perfectly good object —
 // so `data.ok === false` is `undefined === false`, the refusal branch is skipped,
@@ -41,7 +42,7 @@ const BAR_MAX_H = 34
 export default function ScoreAttributionView({
   rows = [], currentRow, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const date = currentRow?.date
   // ⭐ The window the CLIENT loaded, not a fourth one nobody warms. `get_history`
   // caches per `days` value and startup warms only 90, so a hardcoded 400 here
@@ -51,7 +52,7 @@ export default function ScoreAttributionView({
   const { data, isLoading, error } = useSWR(attributionKey(date, rows.length), jsonFetcher)
 
   if (isLoading) {
-    return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>Loading attribution…</div>
+    return <div style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>Loading attribution…</div>
   }
   // ⛔ `data.ok === false` ALONE IS NOT THE GUARD. A non-ok body answers
   // `undefined` there, which is not `false`, so a malformed payload sailed
@@ -59,7 +60,7 @@ export default function ScoreAttributionView({
   // instead of the shape a healthy server happens to send.
   if (error || !data || data.ok === false || !Array.isArray(data.components)) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
+      <div style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
         <div data-testid="attribution-refusal">
           {error ? `Could not load attribution — ${error.message ?? 'network error'}`
                  : (data?.reason ?? data?.detail ?? 'No attribution for this session')}
@@ -77,7 +78,7 @@ export default function ScoreAttributionView({
                   display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10,
                     flexWrap: 'wrap', flex: '0 0 auto' }}>
-        <span style={{ font: '800 26px \'Instrument Sans\', sans-serif', color: '#e8e8ea' }}>
+        <span style={{ font: '800 26px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)' }}>
           {data.total == null ? '—' : data.total}
         </span>
         {totalDelta != null && (
@@ -86,13 +87,13 @@ export default function ScoreAttributionView({
           // It comes off the SERVER's payload, not the loaded window, so it can
           // legitimately fall outside it (a cursor on the oldest loaded row has
           // a prior session nobody fetched) and renders disabled when it does.
-          <span style={{ font: '700 12px \'Instrument Sans\', sans-serif',
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)',
                          color: totalDelta >= 0 ? colors.bull : colors.bear }}>
             {totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(1)} vs{' '}
             <SeekDate date={data.prev.date} styleKey="attribution" onSeek={onSeek} canSeek={canSeek} />
           </span>
         )}
-        <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+        <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           {data.min_weight_met
             ? `renormalized over ${data.components.filter(c => c.present).length} of ${data.components.length} inputs`
             : 'below the minimum available weight — no score reported'}
@@ -110,7 +111,7 @@ export default function ScoreAttributionView({
                  style={{ display: 'flex', alignItems: 'center', gap: 10,
                           ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
               <div style={{ width: 150, flex: '0 0 150px', textAlign: 'right',
-                            font: '700 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                            fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.label}
               </div>
@@ -125,7 +126,7 @@ export default function ScoreAttributionView({
                                 background: fill >= 50 ? colors.bull : colors.bear }} />
                 )}
               </div>
-              <div style={{ width: 130, flex: '0 0 130px', font: '700 10px \'Instrument Sans\', sans-serif',
+              <div style={{ width: 130, flex: '0 0 130px', fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)',
                             color: c.present ? 'var(--text-bright)' : 'var(--text-muted)' }}>
                 {c.present ? `${Number(c.points).toFixed(0)} / ${c.max_points}` : 'Not reported'}
                 {delta != null && (
@@ -141,7 +142,7 @@ export default function ScoreAttributionView({
       </div>
 
       {dropped.length > 0 && (
-        <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+        <div style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                       marginTop: 10, flex: '0 0 auto' }}>
           {dropped.length} component{dropped.length > 1 ? 's' : ''} dropped from both sides of the ratio —
           an input that cannot be measured is not scored zero.
