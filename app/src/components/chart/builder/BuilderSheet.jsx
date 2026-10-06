@@ -137,6 +137,7 @@ import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueD
 import {
   preservePresentation, restorableRowFields, rowCarriesPresentation, builderOwnedPaintIndexes,
 } from './presentationPreserve'
+import { objectCarry, carriableObjectProgram, carryProgramMeta } from './objectProgramCarry'
 import { isTruthType } from '../engine/outputType'
 import { STATUS as GATE_STATUS } from '../engine/evaluability'
 import styles from './BuilderSheet.module.css'
@@ -923,6 +924,10 @@ export default function BuilderSheet({
   /** ⭐⭐ C3B — the imported script's graphical-object program, held beside
    *  the parameter manifest and written onto the document at save. */
   const [objectProgram, setObjectProgram] = useState(null)
+  /** ⭐⭐ P2X (owner decision 3) — a save that would REMOVE the stored object
+   *  program, waiting for the member's explicit confirmation (`objectCarry`'s
+   *  lossy verdict). Nothing is sent while this is set. */
+  const [objectLoss, setObjectLoss] = useState(null)
 
   // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
   //
@@ -1450,6 +1455,14 @@ export default function BuilderSheet({
       compute?.paramManifest && typeof compute.paramManifest === 'object' ? compute.paramManifest : null,
     )
     setParamCarryNote(null)
+    // ⭐⭐ P2X (owner decision 3) — THE STORED OBJECT PROGRAM COMES BACK WITH THE
+    // ROWS. The row model has no slot for it; held here, `documentFor` writes the
+    // STORED object onto the edit (byte-identical) and `save()` asks
+    // `objectCarry` whether it can still ride before anything is sent. A program
+    // bound to a computation graph (which this editor never writes) is not
+    // loaded; `objectCarry` then reports it lost and the save asks first.
+    setObjectProgram(carriableObjectProgram(def))
+    setObjectLoss(null)
 
     // ⭐ P0G — `prior` is the stored document, so the preview can apply the
     // store's semantics rule (a presentation edit inherits; new maths gets 2).
@@ -1483,6 +1496,7 @@ export default function BuilderSheet({
 
   const cancelEdit = useCallback(() => {
     setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setParamCarryNote(null); setObjectProgram(null)
+    setObjectLoss(null)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -1617,14 +1631,15 @@ export default function BuilderSheet({
    * ⛔ With no look this is `save()`'s body verbatim: the same `plain` test and
    * the same `buildDefinition` call, so every existing document is unchanged.
    */
-  const documentFor = useCallback((evRows, { defId, version, name: docName, look = null }) => {
+  const documentFor = useCallback((evRows, { defId, version, name: docName, look = null, dropObjects = false }) => {
     const touched = !!(look && look.key && hasSignalLook(look))
     const sig = touched ? applySignalLook(evRows, look.key, look) : { rows: evRows, paints: null }
     const plain = !touched && plotRows.length === 0 && target === 'pane' && levels.length === 0
       && isUntouchedRow(plot0)
     const built = buildDefinition({
       ...evaluatedDocArgs(result, memberInputs, paramManifest),
-      objects: objectProgram,
+      // ⭐ P2X — `dropObjects` only after the member CONFIRMED the lossy save.
+      objects: dropObjects ? null : objectProgram,
       defId,
       version,
       name: docName,
@@ -1645,9 +1660,15 @@ export default function BuilderSheet({
     if (!prior) return built
     const sigKey = defaultIntentFor(prior) === INTENTS.SIGNAL
       ? intentReadback(prior, INTENTS.SIGNAL).selectedKey : null
-    return preservePresentation(built, prior, {
+    const kept = preservePresentation(built, prior, {
       ownedPaints: builderOwnedPaintIndexes(prior, sigKey, NO_PAINT),
     }).doc
+    // ⭐⭐ P2X — WHILE THE STORED PROGRAM IS THE ONE IN HAND (not replaced by a
+    // re-paste), the stamps it evaluates under ride with it: the object lane
+    // reads `meta.recurrenceOrigin` / `naConditionFalse` / `runtimeErrors` / …
+    // (`objectReaderFor`), so the program without them would draw differently.
+    return (objectProgram && objectProgram === carriableObjectProgram(prior))
+      ? carryProgramMeta(kept, prior) : kept
   }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing])
 
   /** Every row with its OWN settled evaluation, or null while any row has none. */
@@ -1667,6 +1688,9 @@ export default function BuilderSheet({
       return documentFor(evaluatedRows, { defId: PREVIEW_DEF_ID, version: 1, name: name.trim() || 'Preview' })
     } catch { return null }
   }, [evaluatedRows, inputsValid, documentFor, name])
+  // ⭐ P2X — a lossy-save confirmation answers ONE draft; any change to the draft
+  // withdraws it, so a Confirm can never apply to an edit the member did not see.
+  useEffect(() => { setObjectLoss(null) }, [baseDraft])
 
   /** ⭐⭐ P1 — THE TYPED READ-BACK, through the ONE gate, over EVERY output. */
   const intentRead = useMemo(() => (baseDraft
@@ -1832,7 +1856,10 @@ export default function BuilderSheet({
     setCopied(true)
   }, [result, mode])
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (opts) => {
+    // ⭐ P2X — `{confirmObjectLoss: true}` only from the lossy-save confirmation
+    // below; the Save button's click event carries no such field.
+    const confirmObjectLoss = !!(opts && opts.confirmObjectLoss === true)
     // ⛔⛔ RISK-012's ACTUAL FIX. Checked-and-set BEFORE the state-derived
     // `canSave` guard, and synchronously — see the comment on `savingRef`'s
     // declaration for why `canSave` alone let a real double-click through.
@@ -1873,12 +1900,28 @@ export default function BuilderSheet({
     // fields, the rows, the scan key the index becomes HERE), shared with the
     // typed read-back so the read-back types exactly what is stored. `look` is
     // the gate-approved SIGNAL presentation, or null.
-    const doc = documentFor(rows, {
+    const docArgs = {
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
       look: lookToApply,
-    })
+    }
+    let doc = documentFor(rows, docArgs)
+    // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
+    // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
+    // until the member confirms a save that names what it removes; Cancel leaves
+    // the stored definition exactly as it was.
+    const carry = objectCarry(editing && editing.prior, doc)
+    if (carry.status === 'lossy') {
+      if (!confirmObjectLoss) {
+        setObjectLoss({ sentence: carry.sentence, reasons: carry.reasons })
+        savingRef.current = false
+        setSaving(false)
+        return
+      }
+      doc = documentFor(rows, { ...docArgs, dropObjects: true })
+    }
+    setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
     // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
@@ -3493,6 +3536,29 @@ export default function BuilderSheet({
           )}
           {saveHint && (
             <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
+          )}
+          {/* ⭐⭐ P2X (owner decision 3) — THE LOSSY-SAVE CONFIRMATION. Shown only
+              when this edit cannot carry the stored drawings; nothing has been
+              sent. Cancel changes nothing; Remove and save is the explicit act. */}
+          {objectLoss && (
+            <div className={styles.discardBar} role="alertdialog" data-testid="object-loss-confirm">
+              <span data-testid="object-loss-sentence">{objectLoss.sentence}</span>
+              {objectLoss.reasons.length > 0 && (
+                <span data-testid="object-loss-reason">{` (${objectLoss.reasons.join('; ')}.)`}</span>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="object-loss-cancel"
+                onClick={() => setObjectLoss(null)}
+              >Cancel</button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="object-loss-confirm-save"
+                onClick={() => save({ confirmObjectLoss: true })}
+              >Remove drawings and save</button>
+            </div>
           )}
 
           {/* ⛔ AN INLINE CONFIRM, NOT `window.confirm`. A native dialog blocks the
