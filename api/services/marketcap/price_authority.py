@@ -309,29 +309,39 @@ def _split_factor(splits: list, after: int, upto: int) -> list[tuple[str, float]
     return out
 
 
-def _finality(c: float, v, oc, prev_close, later_splits: list) -> str | None:
-    """How a new bars.db row is proven final, or None (NOT_FINAL: never appended).
-      OFFICIAL             the official daily aggregate's close (to its 4-decimal rounding)
-      OFFICIAL_SPLIT_BASIS bars.db is already on the basis of a split executed after the session and the official
-                           aggregate is not: the ratio is exactly that reference split factor
-      NO_TRADE_CARRY       no trade that day (absent from the aggregate, volume 0, the previous close carried) -- the
-                           representation bars.db and the accepted root already use for no-trade days"""
+def _prod(it) -> float:
+    out = 1.0
+    for f in it:
+        out *= f
+    return out
+
+
+def _close_eq(a: float, b: float) -> bool:
+    return abs(a - b) <= max(1e-6 * abs(b), 5e-5)          # the aggregate's 4-decimal rounding
+
+
+def _finality(c: float, v, oc, prev_close, conv: float = 1.0, prev_target=None):
+    """(evidence, value on the TARGET basis) for a new bars.db row, or (None, None) -- NOT_FINAL, never appended.
+    `oc` is the official aggregate close on its FETCH basis; `conv` the factor of reference splits executed after the
+    target basis (this version's last session) and up to the fetch, so the official target-basis close is oc / conv.
+      OFFICIAL             bars.db == the official close on the target basis (to the aggregate's rounding)
+      OFFICIAL_SPLIT_BASIS bars.db already carries a later split (== oc on the fetch basis): value = c / conv
+      NO_TRADE_CARRY       no trade (absent from the aggregate, volume 0, bars.db carried its previous close): the
+                           previous target-basis value carries -- the root's own no-trade representation"""
     if oc is not None and oc > 0:
-        if abs(c - oc) <= max(1e-6 * abs(oc), 5e-5):
-            return "OFFICIAL"
-        prod = 1.0
-        for _ex, f in later_splits:
-            prod *= f
-        if later_splits and any(abs((c / oc) / k - 1) < 1e-4 for k in (prod, 1 / prod)):
-            return "OFFICIAL_SPLIT_BASIS"
-        return None
-    if (v or 0) == 0 and prev_close is not None and c == prev_close:
-        return "NO_TRADE_CARRY"
-    return None
+        if _close_eq(c, oc / conv):
+            return "OFFICIAL", c
+        if conv != 1.0 and _close_eq(c, oc):
+            return "OFFICIAL_SPLIT_BASIS", c / conv
+        return None, None
+    if (v or 0) == 0 and prev_close is not None and c == prev_close and prev_target is not None:
+        return "NO_TRADE_CARRY", prev_target
+    return None, None
 
 
 def append(store: Store, parent: str, source: str, *, official: dict, splits: dict, now: datetime | None = None,
-           sessions: list[int] | None = None, provenance: dict | None = None, tickers: set | None = None) -> dict:
+           sessions: list[int] | None = None, provenance: dict | None = None, tickers: set | None = None,
+           official_basis_date: int | None = None) -> dict:
     """Seal the APPEND child of `parent` holding every validated new completed session from `source`.
     official: {session(int): {ticker: close}} -- the official daily aggregate for each session (finality evidence).
     splits:   {ticker: [[execution_date, split_from, split_to], ...]} -- the reference snapshot of this refresh.
@@ -383,47 +393,64 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
     if not accepted_sessions:
         P.close()
         raise PriceHold(f"price append held at {session_report[-1]['session']}: {session_report[-1]['hold']}")
-    # anchors: EACH ticker's own last <= ANCHOR_DAYS stored rows, whatever their date (a long-inactive ticker that
-    # resumes is basis-checked like any other), on the parent's materialized basis; the upstream rows of those keys
+    upto = accepted_sessions[-1]
+    today = _int((now or datetime.now(timezone.utc)).date())
+    fetched = int(official_basis_date or today)        # the official aggregate is split-adjusted up to its fetch date
     tick = sorted({r[0] for d in accepted_sessions for r in new_rows[d]})
+    # ── (1) BASIS EVENTS -- the price basis must be the basis the builder normalizes shares to: every REFERENCE split
+    # executed in (parent's last session, this version's last session] of any ticker the lineage carries. The factor
+    # is the reference's own (the same evidence the share ledger applies), so Market Cap is invariant by construction;
+    # stored observations never change (materialization applies it). Upstream corroboration is recorded, not required:
+    # bars.db may not have re-based yet (KUST 2026-10-01: history still pre-split, new rows post-split).
+    carried = {t for (t,) in P.execute("SELECT DISTINCT ticker FROM bar")} | set(tick)
+    events: list[tuple] = []
+    for t in sorted(carried):
+        for ex, f in _split_factor(splits.get(t) or [], last, upto):
+            events.append((t, ex, f))
+    ev_of: dict[str, list] = {}
+    for t, ex, f in events:
+        ev_of.setdefault(t, []).append((int(ex.replace("-", "")), f))
+    # anchors: EACH ticker's own last <= ANCHOR_DAYS stored rows (materialized parent basis) and the upstream rows of
+    # those keys -- divergence evidence, and the detector of an upstream re-basing no reference split explains
+    anc_t = sorted(set(tick) | set(ev_of))
     anchors = {t: P.execute("SELECT d, c FROM bar WHERE ticker=? ORDER BY d DESC LIMIT ?", (t, ANCHOR_DAYS)).fetchall()
-               for t in tick}
+               for t in anc_t}
     P.close()
     up_anchor = _src_points(source, {(t, d) for t, a in anchors.items() for d, _c in a})
-    # ── per-ticker basis + finality ────────────────────────────────────────────────────────────────────────────
-    upto = accepted_sessions[-1]
-    holds, events, keep = [], [], []
+    holds, keep, ev_rows = [], [], []
     basis_of: dict[str, str] = {}
-    factor_of: dict[str, float] = {}
+    for t, ex, f in events:
+        a = anchors.get(t) or []
+        rs = [up_anchor.get((t, d)) / c for d, c in a if c and up_anchor.get((t, d))]
+        corr = ("UPSTREAM_REBASED" if rs and all(abs(r / f - 1) < 1e-4 for r in rs) else
+                "UPSTREAM_NOT_YET_REBASED" if rs and all(abs(r - 1) < 1e-6 for r in rs) else
+                "NO_UPSTREAM_ANCHOR" if not rs else "UPSTREAM_OTHER")
+        ev_rows.append((t, ex, f, rs[0] if rs else None, corr))
     for t in tick:
         a = anchors.get(t)
         if not a:
             basis_of[t] = "NEW_LISTING"
             continue
         rs = [(up_anchor.get((t, d)) / c) if c and up_anchor.get((t, d)) else None for d, c in a]
-        ones = sum(1 for r in rs if r is not None and abs(r - 1) < 1e-6)
-        if ones >= (len(a) - 1 if len(a) >= ANCHOR_DAYS else len(a)):
-            basis_of[t] = "SAME_BASIS"       # one differing anchor = a repaired (partial) bar: tolerated, NOT inherited
-            continue
-        r0 = rs[0]
-        if r0 is not None and all(r is not None and abs(r / r0 - 1) < 1e-6 for r in rs):
-            sp = _split_factor(splits.get(t) or [], a[0][0], upto)
-            if len(sp) == 1 and abs(sp[0][1] / r0 - 1) < 1e-4:
-                basis_of[t] = "BASIS_EVENT"
-                factor_of[t] = sp[0][1]
-                events.append((t, sp[0][0], sp[0][1], r0, json.dumps(sp)))
-                continue
+        known = [f for _e, f in ev_of.get(t, [])] + [f for _ex, f in _split_factor(splits.get(t) or [], upto, fetched)]
+        prod = 1.0
+        for f in known:
+            prod *= f
+        if len(rs) >= 3 and all(r is not None for r in rs) and all(abs(r / rs[0] - 1) < 1e-6 for r in rs)                 and abs(rs[0] - 1) > 1e-6 and not any(abs(rs[0] / k - 1) < 1e-4 for k in (prod, 1 / prod)):
             holds.append((t, accepted_sessions[0], "PRICE_BASIS_DIVERGENCE",
-                          f"constant upstream/authority ratio {r0:.6g} with no matching reference split"))
+                          f"upstream history re-based by {rs[0]:.6g} with no reference split explaining it"))
+            basis_of[t] = "HOLD"
         else:
-            holds.append((t, accepted_sessions[0], "PRICE_BASIS_DIVERGENCE",
-                          "upstream history differs from the accepted lineage on the anchor sessions"))
-        basis_of[t] = "HOLD"
+            basis_of[t] = "SAME_BASIS" if all(r is not None and abs(r - 1) < 1e-6 for r in rs) else "UPSTREAM_DIVERGED"
     held = {h[0] for h in holds}
+    # ── (2) every new row: final on the TARGET basis (reference splits <= this version's last session) ─────────────
     finality_mismatch = 0
-    finality = {}
-    today = _int((now or datetime.now(timezone.utc)).date())
+    finality: dict[str, int] = {}
     last_up = {t: up_anchor.get((t, a[0][0])) for t, a in anchors.items() if a}
+    last_t = {}
+    for t, a in anchors.items():
+        if a:                                          # the parent's last value, carried onto the target basis
+            last_t[t] = a[0][1] * _prod(f for e, f in ev_of.get(t, []) if a[0][0] < e)
     for d in accepted_sessions:
         off = official.get(d) or official.get(str(d)) or {}
         for t, _d, c, v in new_rows[d]:
@@ -432,18 +459,18 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
             if c is None or not (c > 0):
                 holds.append((t, d, "INVALID_CLOSE", repr(c)))
                 continue
-            how = _finality(c, v, off.get(t), last_up.get(t), _split_factor(splits.get(t) or [], d, today))
+            conv = _prod(f for _ex, f in _split_factor(splits.get(t) or [], max(d, upto), fetched))
+            how, val = _finality(c, v, off.get(t), last_up.get(t), conv, last_t.get(t))
             last_up[t] = c
             if how is None:
                 finality_mismatch += 1
                 holds.append((t, d, "NOT_FINAL", f"bars.db close {c!r} vol {v!r} vs official {off.get(t)!r}"))
                 continue
             finality[how] = finality.get(how, 0) + 1
-            # stored on the ROOT basis: a basis-event ticker's new rows are divided back by the event factor when they
-            # are dated before its effective date (bars.db already carries the new basis on them)
-            f = factor_of.get(t)
-            eff = next((int(e[1].replace("-", "")) for e in events if e[0] == t), None)
-            keep.append((t, d, c / f if f and eff and d < eff else c, v))
+            last_t[t] = val
+            # stored on the ROOT basis: divided back by this version's events effective after the row
+            keep.append((t, d, val / _prod(f for e, f in ev_of.get(t, []) if d < e), v))
+    events = [(t, ex, f, r, corr) for t, ex, f, r, corr in ev_rows]
     # a ticker held on one session is not appended on any later session of this version (no hole-then-resume)
     first_hold = {}
     for t, d, *_ in holds:
@@ -626,22 +653,38 @@ def approve(store: Store, vid: str, *, by: str, reason: str, market_cap_gates: s
 
 
 # ── divergence monitor (operational; never changes anything) ────────────────────────────────────────────────────────
-def divergence(store: Store, vid: str, source: str) -> dict:
-    """Accepted price authority vs the current upstream daily source, over the authority's history."""
+def divergence(store: Store, vid: str, source: str, *, since: int | None = None) -> dict:
+    """Accepted price authority vs the current upstream daily source over already-accepted history (all of it, or
+    sessions >= `since`). OPERATIONAL ONLY: it reports that upstream history moved; it never changes the lineage."""
     tmp = os.path.join(store.root, "cache", f"upstream-{os.getpid()}.db")
     os.makedirs(os.path.dirname(tmp), exist_ok=True)
     m = store.manifest(vid)
+    lo = since or 0
     db = sqlite3.connect(tmp)
     db.executescript(DDL)
-    db.executemany("INSERT OR IGNORE INTO bar VALUES(?,?,?,?)", _src_rows(source, 0, m["last_session"]))
+    db.executemany("INSERT OR IGNORE INTO bar VALUES(?,?,?,?)", _src_rows(source, lo, m["last_session"]))
     db.commit()
     db.close()
     try:
-        out = diff(_materialized_reader(store, vid), tmp)
-        out.update(price_version=vid, measured_at=now_iso())
+        auth = _materialized_reader(store, vid)
+        if since:                                         # compare like with like: the authority's window only
+            win = os.path.join(store.root, "cache", f"window-{os.getpid()}.db")
+            w = sqlite3.connect(f"file:{win}", uri=True)
+            try:
+                w.executescript(DDL)
+                w.execute("ATTACH DATABASE ? AS a", (f"file:{auth}?mode=ro",))
+                w.execute("INSERT INTO main.bar SELECT ticker, d, c, v FROM a.bar WHERE d >= ?", (lo,))
+                w.commit()
+            finally:
+                w.close()
+            auth = win
+        out = diff(auth, tmp)
+        out.update(price_version=vid, measured_at=now_iso(), window_from=lo or None)
         return out
     finally:
-        os.remove(tmp)
+        for f in (tmp, os.path.join(store.root, "cache", f"window-{os.getpid()}.db")):
+            if os.path.exists(f):
+                os.remove(f)
 
 
 def main(argv=None) -> int:

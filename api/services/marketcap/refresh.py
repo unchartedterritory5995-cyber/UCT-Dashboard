@@ -187,6 +187,22 @@ def mod(name: str, *a) -> list[str]:
 
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────────────────
+class PriceHoldStop(RuntimeError):
+    """The next due session cannot be appended to the price authority: the run ends PRICE_HOLD, nothing is built."""
+
+
+def _sessions_back(last: int, n: int) -> int:
+    """The session n trading sessions before YYYYMMDD `last` (the divergence monitor's recent window)."""
+    from datetime import date as _d, timedelta as _t
+    from .currentness import _cal
+    d = _d(last // 10000, last // 100 % 100, last % 100)
+    k = 0
+    while k < n:
+        d -= _t(days=1)
+        k += _cal().is_trading_day(d)
+    return d.year * 10000 + d.month * 100 + d.day
+
+
 # an interrupted run younger than this is resumed (checkpoints); the schedule's own window is far shorter
 RESUME_HOURS = float(os.environ.get("MCAP_PIT_RESUME_HOURS", "20"))
 
@@ -397,8 +413,9 @@ class Refresh:
         pm = store.manifest(parent)
         due = PA.completed_sessions(pm["last_session"])
         official = {}
+        o = sp.get("official") or {"kind": "massive"}
+        fetched = int(o.get("fetched") or datetime.now(timezone.utc).strftime("%Y%m%d"))
         if due:
-            o = sp.get("official") or {"kind": "massive"}
             if o.get("kind") == "file":
                 official = {int(k): v for k, v in json.load(open(o["path"])).items()}
             else:
@@ -412,11 +429,23 @@ class Refresh:
                 splits[t] = sp_
         try:
             child = PA.append(store, parent, sp["source"], official=official, splits=splits, sessions=due,
-                              tickers=set(Q.tickers_of(uni)), provenance={"run_id": self.run_id, "source": sp["source"]})
+                              tickers=set(Q.tickers_of(uni)), official_basis_date=fetched,
+                              provenance={"run_id": self.run_id, "source": sp["source"], "official_fetched": fetched})
         except PA.PriceHold as e:
             raise PriceHoldStop(str(e)) from e
         mat = PA.materialize(store, child["version_id"], out)
-        return {"source": "price_authority", "parent": parent, "appended": child.get("appended"),
+        # ⭐ DIVERGENCE MONITOR (report only): the recent 60 sessions every refresh, the full history on Saturdays
+        try:
+            full = datetime.now(timezone.utc).weekday() == 5 or sp.get("divergence") == "full"
+            since = None if full else _sessions_back(mat["last_session"], 60)
+            dv = PA.divergence(store, child["version_id"], sp["source"], since=since)
+            json.dump(dv, open(os.path.join(self.rdir, "price_divergence.json"), "w"), indent=1, default=str)
+            div = {"window_from": dv.get("window_from"), "lost_rows": dv["lost"]["rows"], "gained_rows": dv["gained"]["rows"],
+                   "changed_rows": dv["changed"]["rows"], "changed_tickers": dv["changed"]["tickers"],
+                   "recent_lost_tickers": dv["lost"]["recent_window_tickers"][:25]}
+        except Exception as e:  # noqa: BLE001 -- the monitor never fails a refresh
+            div = {"error": f"{type(e).__name__}: {e}"[:300]}
+        return {"source": "price_authority", "parent": parent, "appended": child.get("appended"), "divergence": div,
                 "no_new_session": bool(child.get("no_new_session")), "reused": bool(child.get("reused")),
                 **mat, "sha256": mat["file_sha256"]}
 
@@ -703,10 +732,63 @@ class Refresh:
         after = P.file_sha(bpath)[0]
         v["gates"]["SEALED"] = {"pass": after == sealed["db_sha256"], "value": {"sealed": sealed["db_sha256"], "after_suite": after},
                                 "definition": "the build DB is byte-identical before and after the report suite"}
+        v["gates"]["HISTORY"] = self._history_gate(bpath)
         v["status"] = "PASS" if all(x["pass"] for x in v["gates"].values()) else "FAIL"
         v["failed"] = [k for k, x in v["gates"].items() if not x["pass"]]
         json.dump(v, open(os.path.join(self.rdir, "validation.json"), "w"), indent=1, default=str)
         return {"status": v["status"], "failed": v["failed"], "path": os.path.join(self.rdir, "validation.json")}
+
+    def _authority_build_db(self) -> tuple[str | None, str | None]:
+        """(build id, local DB path) of the CURRENT Market Cap authority, from this root's own runs."""
+        try:
+            cur = P.read_pointer(self.cfg.target())
+        except Exception:  # noqa: BLE001
+            return None, None
+        if cur is None:
+            return None, None
+        for (rid,) in self.ledger.db.execute("SELECT run_id FROM run WHERE build_id=?", (cur["build_id"],)):
+            p = os.path.join(self.root, "runs", rid, "data", "builds", f"{cur['build_id']}.db")
+            if os.path.exists(p):
+                return cur["build_id"], p
+        return cur["build_id"], None
+
+    def _history_gate(self, bpath) -> dict:
+        """HISTORY: no ACCEPTED historical value (a day the current authority values, up to its latest valued session)
+        moves by a factor >= 2 (or <= 0.5) in the candidate. Found by the price-authority reproof: a split executed
+        after the root with no basis event moved KUST's entire 2008-2026 history x0.1 and no other gate saw it. Every
+        historical change is listed for review either way."""
+        bid, ref = self._authority_build_db()
+        if bid is None:
+            return {"pass": True, "value": {"note": "no current authority (first cutover is a human review)"},
+                    "definition": "historical values vs the current authority: no factor >= 2 move"}
+        if ref is None:
+            return {"pass": False, "value": {"authority": bid, "error": "the authority's build DB is not on this volume"},
+                    "definition": "historical values vs the current authority: no factor >= 2 move"}
+        c = sqlite3.connect(f"file:{bpath}?mode=ro", uri=True)
+        try:
+            c.execute("ATTACH DATABASE ? AS a", (f"file:{ref}?mode=ro",))
+            upto = c.execute("SELECT MAX(d) FROM a.cap_daily").fetchone()[0]
+            big = c.execute("SELECT n.cik, COUNT(*), MIN(n.d), MAX(n.d), MIN(n.cap/o.cap), MAX(n.cap/o.cap) FROM main.cap_daily n "
+                            "JOIN a.cap_daily o ON o.cik=n.cik AND o.d=n.d WHERE n.d<=? AND (n.cap/o.cap >= 2 OR n.cap/o.cap <= 0.5) "
+                            "GROUP BY n.cik ORDER BY COUNT(*) DESC", (upto,)).fetchall()
+            changed = c.execute("SELECT COUNT(*), COUNT(DISTINCT n.cik) FROM main.cap_daily n JOIN a.cap_daily o ON o.cik=n.cik "
+                                "AND o.d=n.d WHERE n.d<=? AND ABS(n.cap/o.cap-1) > 1e-9", (upto,)).fetchone()
+            removed = c.execute("SELECT COUNT(*) FROM a.cap_daily o WHERE NOT EXISTS (SELECT 1 FROM main.cap_daily n "
+                                "WHERE n.cik=o.cik AND n.d=o.d)").fetchone()[0]
+            added = c.execute("SELECT COUNT(*) FROM main.cap_daily n WHERE n.d<=? AND NOT EXISTS (SELECT 1 FROM a.cap_daily o "
+                              "WHERE o.cik=n.cik AND o.d=n.d)", (upto,)).fetchone()[0]
+            try:
+                tick = dict(c.execute("SELECT cik, primary_ticker FROM main.coverage"))
+            except sqlite3.OperationalError:        # labels only
+                tick = {}
+        finally:
+            c.close()
+        return {"pass": not big, "value": {"authority": bid, "authority_latest_session": upto,
+                                           "factor2_moves": [{"ticker": tick.get(k), "cik": k, "days": n, "from": lo, "to": hi,
+                                                              "min_ratio": a, "max_ratio": b} for k, n, lo, hi, a, b in big[:40]],
+                                           "changed_values": changed[0], "changed_issuers": changed[1],
+                                           "removed_valued_days": removed, "added_historical_valued_days": added},
+                "definition": "historical values vs the current authority: no factor >= 2 move (every change listed)"}
 
     def manifest_fields(self, bpath, build, src, sec) -> dict:
         sealed = self.ledger.stage_done(self.run_id, "seal")

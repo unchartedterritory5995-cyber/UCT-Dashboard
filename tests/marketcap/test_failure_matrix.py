@@ -471,3 +471,44 @@ def test_retention_keeps_the_seed_runs_and_the_authoritys_run(root):  # noqa: F8
     assert present("run-failed")                                          # the run doing the pruning keeps its own
     assert os.path.isdir(os.path.join(root["root"], "runs", "run-0"))     # ...but the run record itself stays
     assert authority(root) == runs[3]["build_id"]
+
+
+# ── PRICE_HOLD: the due session cannot be appended -> nothing built, previous authority, currentness PRICE_HOLD ─────
+def test_price_hold_is_a_terminal_state_and_currentness_says_so(root, reader):  # noqa: F811
+    from datetime import datetime, timezone
+    from api.services.marketcap import currentness as CU
+    orig = root["make"]
+
+    def make(run_id=None):
+        r = orig(run_id)
+
+        def held():
+            raise RF.PriceHoldStop("price append held at 20261005: NO_OFFICIAL_DAILY_AGGREGATE")
+        r.sources = held
+        return r
+    res = make("run-h").execute()
+    assert res["state"] == "PRICE_HOLD" and "NO_OFFICIAL_DAILY_AGGREGATE" in res["error"]
+    assert "build" not in root["state"]["calls"] and authority(root) == B0 and reader() == B0
+    hb = json.load(open(os.path.join(root["root"], "status.json")))
+    assert hb["last_run"]["state"] == "PRICE_HOLD"
+    m = P.read_manifest(root["t"], B0, P.read_pointer(root["t"])["manifest_sha256"])
+    c = CU.evaluate(m, heartbeat=hb, now=datetime.now(timezone.utc))
+    assert c["state"] in ("PRICE_HOLD", "STALE")         # STALE only if the hold finished before the expected close
+    hb["last_run"]["finished_at"] = "2099-01-01T00:00:00Z"
+    assert CU.evaluate(m, heartbeat=hb, now=datetime.now(timezone.utc))["state"] == "PRICE_HOLD"
+
+
+# ── HISTORY gate: an accepted historical value moving by a factor >= 2 vs the current authority fails ──────────────
+@pytest.mark.parametrize("bump,ok", [(1.0, True), (1.4, True), (3.0, False), (0.1, False)])
+def test_history_gate_vs_the_current_authority(root, tmp_path, bump, ok):  # noqa: F811
+    import shutil
+    rd = os.path.join(root["root"], "runs", "run-auth", "data", "builds")
+    os.makedirs(rd)
+    shutil.copyfile(make_build(str(tmp_path / "auth.db"), B0, last_day=20260930), os.path.join(rd, f"{B0}.db"))
+    L = RF.Ledger(root["root"])
+    with L.db:
+        L.db.execute("INSERT INTO run(run_id, state, started_at, build_id) VALUES ('run-auth','ADVANCED','2026-10-01T05:00:00Z',?)", (B0,))
+    cand = make_build(str(tmp_path / "cand.db"), "MCAP_V1-20261002T050000Z", last_day=20261001, bump=bump)
+    g = root["make"]("run-g")._history_gate(cand)
+    assert g["pass"] is ok
+    assert (g["value"]["factor2_moves"] == []) is ok

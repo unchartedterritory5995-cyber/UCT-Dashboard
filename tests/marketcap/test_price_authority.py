@@ -401,20 +401,42 @@ def test_counterfactual_mutable_bars_history_is_never_an_ordinary_append(st):
         PA.materialize(st["s"], c["version_id"], str(st["tmp"] / "x.db"))
 
 
-# ── finality evidence ──────────────────────────────────────────────────────────────────────────────────────────────
-@pytest.mark.parametrize("c,v,oc,prev,splits,want", [
-    (10.12, 500.0, 10.12, 10.0, [], "OFFICIAL"),
-    (0.0112, 9.0, 0.011202, 0.01, [], "OFFICIAL"),                         # the aggregate's 4-decimal rounding
-    (0.8051, 9.0, 6.4409, 0.8, [("2026-10-05", 8.0)], "OFFICIAL_SPLIT_BASIS"),   # bars.db not yet re-based
-    (6.4409, 9.0, 0.8051, 6.4, [("2026-10-05", 8.0)], "OFFICIAL_SPLIT_BASIS"),   # aggregate not yet re-based
-    (10.12, 0.0, None, 10.12, [], "NO_TRADE_CARRY"),                       # no trade: carried close, volume 0
-    (10.30, 0.0, None, 10.12, [], None),                                   # "no trade" with a different close
-    (10.05, 182744.0, None, 10.0, [], None),                               # traded but not in the aggregate
-    (175.325, 846010.0, 175.03, 175.0, [], None),                          # a partial bar (M3's 2026-09-29 class)
-    (0.8051, 9.0, 6.4409, 0.8, [], None),                                  # a factor with no reference split
+# ── finality evidence ──────────────────────────────────────────────────────────────────────────────────────────
+@pytest.mark.parametrize("c,v,oc,prev,conv,prev_t,want", [
+    (10.12, 500.0, 10.12, 10.0, 1.0, 10.0, ("OFFICIAL", 10.12)),
+    (0.0112, 9.0, 0.011202, 0.01, 1.0, 0.01, ("OFFICIAL", 0.0112)),           # the aggregate's 4-decimal rounding
+    (0.8051, 9.0, 6.4409, 0.8, 8.0, 0.8, ("OFFICIAL", 0.8051)),               # aggregate already on a LATER split
+    (6.4409, 9.0, 6.4409, 6.4, 8.0, 0.8, ("OFFICIAL_SPLIT_BASIS", 6.4409 / 8)),  # bars.db already on it too
+    (10.12, 0.0, None, 10.12, 1.0, 10.12, ("NO_TRADE_CARRY", 10.12)),
+    (10.30, 0.0, None, 10.12, 1.0, 10.12, (None, None)),                      # "no trade" with a different close
+    (10.05, 182744.0, None, 10.0, 1.0, 10.0, (None, None)),                   # traded but not in the aggregate
+    (175.325, 846010.0, 175.03, 175.0, 1.0, 175.0, (None, None)),             # a partial bar (M3's 09-29 class)
+    (0.8051, 9.0, 6.4409, 0.8, 1.0, 0.8, (None, None)),                       # a factor no reference split explains
 ])
-def test_finality_rule(c, v, oc, prev, splits, want):
-    assert PA._finality(c, v, oc, prev, splits) == want
+def test_finality_rule(c, v, oc, prev, conv, prev_t, want):
+    got = PA._finality(c, v, oc, prev, conv, prev_t)
+    assert got[0] == want[0] and (got[1] is None or abs(got[1] - want[1]) < 1e-12)
+
+
+def test_kust_class_split_after_the_root_with_bars_db_not_yet_rebased(st):
+    """KUST 2026-10-01 (1-for-10): bars.db history still PRE-split, its new rows POST-split (== the official
+    aggregate). The reference split is a BASIS_EVENT (the builder applies the same split to shares), the new rows are
+    stored on the root basis, and the materialized series is continuous on today's basis -- never a x10 jump, never a
+    x0.1 history."""
+    rows = upstream_rows(extra_days=[])
+    rows += [("SPL", d, (100.0 + i * 0.1) * 20, 1000.0) for i, d in enumerate(NEW, start=6)]   # post-split new rows
+    rows += [(t, d, p + i * 0.1, 1000.0) for t, p in TICKERS.items() if t != "SPL" for i, d in enumerate(NEW, start=6)]
+    src = mkdb(st["tmp"] / "kust.db", rows, kind="ohlcv")
+    m = PA.append(st["s"], st["root"], src, official=official_from(rows), splits={"SPL": [["2026-10-01", 20, 1]]},
+                  sessions=NEW, official_basis_date=20261006)
+    assert m["appended"]["basis_events"] == [["SPL", "2026-10-01", 20.0]] and m["appended"]["holds"] == 0
+    D = sqlite3.connect(st["s"].path(m["version_id"], "delta.db"))
+    assert D.execute("SELECT split FROM basis_event").fetchone()[0] == "UPSTREAM_NOT_YET_REBASED"
+    PA.materialize(st["s"], m["version_id"], str(st["tmp"] / "mat.db"))
+    M = sqlite3.connect(str(st["tmp"] / "mat.db"))
+    mat = [c for _d, c in M.execute("SELECT d, c FROM bar WHERE ticker='SPL' ORDER BY d")]
+    assert all(abs(b / a - 1) < 0.01 for a, b in zip(mat, mat[1:]))       # continuous: no split-sized step anywhere
+    assert abs(mat[-1] - (100.0 + 8 * 0.1) * 20) < 1e-9                  # today's basis
 
 
 def test_a_no_trade_day_absent_from_the_aggregate_is_appended(st):
@@ -426,3 +448,13 @@ def test_a_no_trade_day_absent_from_the_aggregate_is_appended(st):
     del off[20260930]["AAA"]                                                # the aggregate omits a no-trade day
     m = PA.append(st["s"], st["root"], src, official=off, splits={}, sessions=NEW)
     assert m["appended"]["finality_evidence"].get("NO_TRADE_CARRY") == 1 and m["appended"]["holds"] == 0
+    D = sqlite3.connect(st["s"].path(m["version_id"], "delta.db"))
+    assert D.execute("SELECT c FROM bar WHERE ticker='AAA' AND d=20260930").fetchone()[0] == TICKERS["AAA"] + 5 * 0.1
+
+
+def test_divergence_recent_window_sees_only_the_window(st):
+    src, rows = up(st, drop=("AAA", 20260922), change=("BBB", 20260929, 99.0))
+    full = PA.divergence(st["s"], st["root"], src)
+    win = PA.divergence(st["s"], st["root"], src, since=20260925)
+    assert full["lost"]["rows"] == 1 and full["changed"]["rows"] == 1
+    assert win["lost"]["rows"] == 0 and win["changed"]["rows"] == 1 and win["window_from"] == 20260925

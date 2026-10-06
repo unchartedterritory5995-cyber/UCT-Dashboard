@@ -454,3 +454,56 @@ Not a methodology defect and not dispositioned here. OWNER DECISION REQUIRED on 
 re-basing upstream change is an explicit reviewed event), or (2) gate the refresh on an upstream bars integrity
 attestation and re-adjudicate on accepted bars changes. Separately: the Jul-Sep 2026 holes are a bars-integrity
 defect for the bars owner.
+
+## 16. Price Input Authority V1 (owner decision 2026-10-05: Option 1)
+
+Market Cap = PRICE x PIT SHARE STATE. Production bars.db is a mutable historical source (§15.7), so Market Cap owns a
+SEALED, VERSIONED, APPEND-ONLY-BY-DEFAULT price lineage (`price_authority.py`). An ordinary refresh appends newly
+completed sessions; it never inherits an upstream historical rewrite. History changes only through an explicit,
+human-approved HISTORICAL_CORRECTION.
+
+### 16.1 Root
+`PRICE-ROOT-07b851631ec08ea8` = the accepted M3 price evidence, sealed byte-for-byte: `C:/mcapdata/prices.db`, sha256
+`07b85163…`, 693,006,336 bytes, `bar(ticker, d, c, v)` + `input_file` (24 export parts), 23,478,488 rows, 7,051
+tickers, sessions 1962-01-02 … 2026-09-29, content sha256 `0de77958…`. Identity proven four independent ways: the
+accepted build DB's `input_sha256:prices.db`, the published M3 manifest `inputs.files.prices.db`, the M3b ledger's
+`sources` and `seal` stages, and the file bytes. Kept as-is (not repaired): its 2026-09-29 bars include ~1,186 partial
+closes and 244 rows have a non-positive close -- candidates for a future reviewed correction, never a silent one.
+
+### 16.2 Versions
+`<root>/prices/versions/<id>/` -- every file write-once and 0444; `manifest.json` is written LAST (a crash leaves no
+version). ROOT/CORRECTION carry `base.db`; APPEND carries `delta.db` (rows on the ROOT's split basis, basis events,
+per-ticker holds). The manifest records parent, file sha256s, content sha256 (ordered row hash) of the materialized
+build input, rows / symbols / session range, appended sessions, finality evidence, holds, provenance, code.
+Materialization = base + deltas (INSERT, never replace) + basis events, re-verified against the sealed content hash on
+every use. An APPEND id is content-derived, so a retry after a failed Market Cap build reuses the orphan exactly.
+
+### 16.3 APPEND contract
+- due sessions only: NYSE sessions after the parent's last session that are due (currentness `expected_session`, D+1
+  `MCAP_PIT_DUE_ET`) -- no lookahead;
+- session-level: the official daily aggregate (Massive grouped daily) must exist; population >= 90% of the parent's
+  last session; invalid closes <= 1% -- else PRICE_HOLD (nothing sealed, nothing built, previous authority served);
+- row-level finality: OFFICIAL (close within aggregate rounding), OFFICIAL_SPLIT_BASIS (ratio == a reference split
+  executed after the session), NO_TRADE_CARRY (absent from the aggregate, volume 0, previous close carried -- the root's
+  own no-trade representation); otherwise NOT_FINAL (held);
+- per-ticker basis anchor on its last 5 stored rows: SAME_BASIS (>= 4/5 ratios == 1; a repaired partial bar tolerated,
+  not inherited) / BASIS_EVENT (constant ratio == a reference split in the window: recorded, applied at
+  materialization, stored rows never change) / HOLD (PRICE_BASIS_DIVERGENCE);
+- a held ticker gets no rows after its first hold in that version (no hole-then-resume). ⚠ A held key can never be
+  appended later (that would be a historical insert): it stays a gap until a reviewed correction;
+- invariant: every parent key identical, appended keys all after the parent's last session; refused otherwise.
+- new listings enter on new sessions; inactive symbols simply stop.
+- the parent of an ordinary refresh = the price version of the CURRENT Market Cap authority (pre-price-authority
+  authority: its prices.db must be the root, else "price lineage is ambiguous"), so a Market Cap rollback carries the
+  price lineage with it.
+- a refresh targeting the production bucket refuses any price source other than the price authority.
+
+### 16.4 HISTORICAL_CORRECTION
+`propose-correction` seals a complete corrected snapshot + its exact diff (lost / gained / changed, re-based, repaired,
+recent-window, large factors, affected tickers) as a CANDIDATE. It is never a build input or a parent until `approve`,
+which requires a human approver (never `refresh:*` / `scheduler`) and a Market Cap release-gate result of PASS from a
+dark refresh pinned to it (`sources.prices.pin_version`). The scheduler has no correction path at all.
+
+### 16.5 Divergence monitor
+Report-only: every refresh compares the accepted lineage with the upstream source over the recent 60 sessions
+(`runs/<id>/price_divergence.json`, summary in the run's sources result); Saturday runs compare the full history.
