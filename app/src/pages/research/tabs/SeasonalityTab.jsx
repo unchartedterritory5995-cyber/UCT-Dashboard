@@ -45,7 +45,8 @@ function Table({ caption, rows, nLabel, thinNote }) {
 export const PENDING_TRIES = 8
 
 export async function seasonalityFetcher(url) {
-  const res = await fetch(url).catch(() => null)
+  let res = null
+  try { res = await fetch(url) } catch { return sectionFetcher(url) }
   const retryAfter = res?.status === 503 ? res.headers?.get?.('Retry-After') : null
   if (retryAfter) {
     const secs = Number(retryAfter) || 15
