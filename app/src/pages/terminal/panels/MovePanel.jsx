@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
-import { usePanelFreshness } from '../panelFreshness'
+import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import styles from '../TerminalShell.module.css'
 
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
@@ -52,8 +52,14 @@ export default function MovePanel({ sym, onRun, onRows }) {
     ? { freshnessClass: 'real_time', asOf: new Date(state.fetchedAt).toISOString() }
     : null)
 
-  if (!sym) return <div className={styles.panelEmpty}>Type a ticker for MOVE — e.g. <kbd>NVDA MOVE</kbd></div>
-  if (state.phase === 'loading') return <div className={styles.panelEmpty}>Loading why {sym} is moving…</div>
+  if (!sym) {
+    return (
+      <PanelState kind="input" title="MOVE needs a ticker.">
+        Type one first, e.g. <kbd>NVDA MOVE</kbd>
+      </PanelState>
+    )
+  }
+  if (state.phase === 'loading') return <PanelSkeleton label={`Loading why ${sym} is moving`} testId="terminal-move-loading" />
   if (state.phase === 'error') {
     const status = state.error?.status
     return (

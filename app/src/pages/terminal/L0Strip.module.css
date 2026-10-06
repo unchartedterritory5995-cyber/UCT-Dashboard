@@ -26,13 +26,13 @@
   background: var(--text-muted);
 }
 .toneOpen { background: var(--gain); box-shadow: 0 0 6px var(--gain); }
-.toneExt { background: var(--ut-gold, #dcbb5e); box-shadow: 0 0 6px rgba(220, 187, 94, 0.7); }
+.toneExt { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 .toneClosed { background: var(--text-muted); }
 
 .time {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text-bright, var(--text));
+  color: var(--text-bright);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -51,7 +51,7 @@
   white-space: nowrap;
 }
 .sessionLabel.toneOpen { color: var(--gain); }
-.sessionLabel.toneExt { color: var(--ut-gold, #dcbb5e); }
+.sessionLabel.toneExt { color: var(--accent); }
 .sessionLabel.toneClosed { color: var(--text-muted); }
 
 .chip {
@@ -80,8 +80,10 @@
 }
 
 .regime_bull .chipValue { color: var(--gain); }
-.regime_neutral .chipValue { color: var(--warn, #f59e0b); }
-.regime_caution .chipValue { color: #e67e22; }
+.regime_neutral .chipValue { color: var(--warn); }
+/* Caution sits between neutral (warn) and bear (loss): mixed from those two tokens, so it
+   follows the light theme's darker inks instead of a fixed orange. */
+.regime_caution .chipValue { color: color-mix(in srgb, var(--warn) 50%, var(--loss)); }
 .regime_bear .chipValue { color: var(--loss); }
 .regime_muted .chipValue { color: var(--text-muted); }
 
