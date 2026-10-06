@@ -4,7 +4,7 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
-import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { formatCurrency, formatNumber, formatPercent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
@@ -17,6 +17,10 @@ import { signedPct } from '../researchFormat'
 
 const pct = (v) => signedPct(v, 2)
 const eps = (v) => formatCurrency(v == null || v === '' ? NaN : Number(v))
+// A non-USD filer's EPS (TSM: its sources mix per-share TWD and per-ADR figures)
+// carries no symbol rather than a guessed "$". The implied move stays "$": it is
+// read off the US-listed option chain. USD and unknown render as before.
+const epsIn = (v, ccy) => (isForeignCurrency(ccy) ? n2(v == null || v === '' ? NaN : v) : eps(v))
 const n2 = (v) => formatNumber(Number(v), { decimals: 2 })
 const tone = (v) => (v == null ? '' : v > 0 ? styles.up : v < 0 ? styles.down : '')
 const COLS = [['run_in_pct', 'Run-in (5d)'], ['gap_pct', 'Gap'], ['reaction_pct', 'Reaction'], ['drift_pct', 'Drift (5d)']]
@@ -72,7 +76,7 @@ export default function EarningsReactionPanel({ sym }) {
                       {k === 'drift_pct' && q.drift_state === 'pending' ? 'pending' : pct(q[k])}
                     </td>
                   ))}
-                  <td>{q.eps_actual == null ? '—' : `${eps(q.eps_actual)} vs ${q.eps_estimate == null ? '—' : eps(q.eps_estimate)}`}</td>
+                  <td>{q.eps_actual == null ? '—' : `${epsIn(q.eps_actual, data.currency)} vs ${q.eps_estimate == null ? '—' : epsIn(q.eps_estimate, data.currency)}`}</td>
                 </tr>
               ))}
             </tbody>
@@ -87,6 +91,11 @@ export default function EarningsReactionPanel({ sym }) {
         {data.realized_vol && (
           <p className={styles.muted} data-testid="realized-vol">
             Realized volatility, last {data.realized_vol.sessions} sessions through {data.realized_vol.through}: {data.realized_vol.annualized_pct}% annualized.
+          </p>
+        )}
+        {isForeignCurrency(data.currency) && (
+          <p className={styles.muted} data-testid="earnings-reaction-currency" data-currency={normalizeCurrencyCode(data.currency)}>
+            {s} reports in {normalizeCurrencyCode(data.currency)}. EPS is shown without a currency symbol because its sources do not all state one; nothing is converted.
           </p>
         )}
         <Implied im={data.implied_move} next={data.next_report_date} />

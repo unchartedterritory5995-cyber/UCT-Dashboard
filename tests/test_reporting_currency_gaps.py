@@ -29,19 +29,26 @@ class _Cache:
         self.d[k] = v
 
 
-def _no_vendor(*a, **k):
-    raise AssertionError("a vendor call on a cache-only path")
-
-
 @pytest.fixture
 def rc(monkeypatch):
+    """reporting_currency on a private cache, with the vendor leg RECORDED. A raise
+    alone would not do: `read()` swallows every exception into "unknown", so a
+    cache-only path that quietly called the vendor would still pass. The teardown
+    asserts the record is empty."""
     import api.services.research.reporting_currency as m
     importlib.reload(m)
     cache = _Cache()
+    calls = []
+
+    def _no_vendor(*a, **k):
+        calls.append(a)
+        raise AssertionError("a vendor call on a cache-only path")
+
     monkeypatch.setattr(m, "_cache", lambda: cache)
     monkeypatch.setattr(m.fmp_client, "get_income_statement", _no_vendor)
     m._test_cache = cache
-    return m
+    yield m
+    assert calls == [], f"cache-only path called FMP: {calls}"
 
 
 # ── peek: the cache-only read ──────────────────────────────────────────────
@@ -146,3 +153,94 @@ def test_a_JPY_filer_listed_in_JPY_is_labelled_and_keeps_its_ratios(monkeypatch)
     assert out["total_revenue"] == "JPY 48.00T"
     assert out["ps"] == pytest.approx(0.9)                 # same currency both sides: kept
     assert not out.get("currency_withheld")
+
+
+# ── DES "Latest report" + Depth earnings reaction: the earnings payload ────
+
+@pytest.fixture
+def ei_stub(monkeypatch):
+    import api.services.earnings_intel as ei
+    monkeypatch.setattr("api.services.financial_statements.get_statements", lambda sym: {})
+    import api.services.earnings_estimates as ee
+    monkeypatch.setattr(ee, "get_year_earnings", lambda sym, year, **kw: [])
+    import api.services.earnings_table as et
+    monkeypatch.setattr(et, "_forward_quarters", lambda sym, limit, *a, **kw: [])
+    import api.services.annual_financials as af
+    monkeypatch.setattr(af, "get_annual_financials", lambda sym, **kw: [])
+    return ei
+
+
+def test_the_earnings_payload_carries_the_reporting_currency(ei_stub, monkeypatch):
+    monkeypatch.setattr(ei_stub, "_reporting_currency", lambda s: "TWD")
+    assert ei_stub._build("TSM")["currency"] == "TWD"
+    monkeypatch.setattr(ei_stub, "_reporting_currency", lambda s: None)
+    assert ei_stub._build("ZZZQ")["currency"] is None             # unknown, never a guess
+
+
+def test_the_earnings_currency_read_is_unknown_on_a_failed_read(ei_stub, monkeypatch):
+    import api.services.research.reporting_currency as rcm
+    monkeypatch.setattr(rcm, "read", lambda s, timeout=10: ("error", None))
+    assert ei_stub._reporting_currency("TSM") is None
+    monkeypatch.setattr(rcm, "read", lambda s, timeout=10: ("ok", "JPY"))
+    assert ei_stub._reporting_currency("TM") == "JPY"
+
+
+def _reaction_panel(monkeypatch, payload):
+    from datetime import date as _d, timedelta as _td
+    import api.services.earnings_reaction_panel as p
+    days, d = [], _d(2026, 1, 5)
+    while len(days) < 31:
+        if d.weekday() < 5:
+            days.append(d.isoformat())
+        d += _td(days=1)
+    bars = [{"t": x, "o": 100 + i, "c": 100 + i} for i, x in enumerate(days)]
+    q = {"label": "Q1", "report_date": days[10], "reported": True, "eps_actual": 15.4, "eps_estimate": 14.9}
+    monkeypatch.setattr(p, "_cached_earnings", lambda s: {**payload, "quarters": [q]})
+    monkeypatch.setattr(p.er, "_daily_bars", lambda s, since: bars)
+    monkeypatch.setattr(p, "implied_snapshot", lambda s, n: {"state": "pending"})
+    return p
+
+
+def test_the_reaction_panel_carries_the_currency_from_the_cached_payload(monkeypatch, rc):
+    p = _reaction_panel(monkeypatch, {"currency": "TWD"})
+    assert p.panel("TSM")["currency"] == "TWD"
+
+
+def test_the_reaction_panel_falls_back_to_the_cache_only_read(monkeypatch, rc):
+    p = _reaction_panel(monkeypatch, {})                    # a payload from before the field
+    assert p.panel("TSM")["currency"] is None               # nothing cached: unknown, no vendor call
+    rc._test_cache.set("reporting_currency::v1::TSM", ["ok", "TWD"])
+    assert p.panel("TSM")["currency"] == "TWD"
+
+
+# ── Depth "Estimates by contributor": FMP consensus, same basis as EE ──────
+
+@pytest.fixture
+def be(monkeypatch, rc):
+    import api.services.broker_estimates as m
+    m._cache.clear()
+    m._queued.clear()
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+    monkeypatch.setattr(m, "_fetch_rows", lambda s: [
+        {"date": "2026-12-31", "epsAvg": 18.5, "epsLow": 17.0, "epsHigh": 20.0, "numAnalystsEps": 12,
+         "revenueAvg": 1.1e12, "numAnalystsRevenue": 10}])
+    monkeypatch.setattr(m, "_fetch_last_report", lambda s: "2026-07-16")
+    monkeypatch.setattr(m, "_fetch_grades", lambda s: None)
+    yield m
+    m._cache.clear()
+    m._queued.clear()
+
+
+def test_broker_estimates_carry_the_currency_read_off_the_request(be, monkeypatch):
+    monkeypatch.setattr(be, "_fetch_currency", lambda s: "TWD")
+    be._read("TSM")
+    out = be.view("TSM", today="2026-10-06")
+    assert out["state"] == "ok" and out["currency"] == "TWD"
+
+
+def test_broker_estimates_view_is_cache_only_for_the_currency(be, rc, monkeypatch):
+    monkeypatch.setattr(be, "_fetch_currency", lambda s: None)
+    be._read("TSM")
+    assert be.view("TSM", today="2026-10-06")["currency"] is None    # rc's fixture forbids a vendor call
+    rc._test_cache.set("reporting_currency::v1::TSM", ["ok", "TWD"])
+    assert be.view("TSM", today="2026-10-06")["currency"] == "TWD"

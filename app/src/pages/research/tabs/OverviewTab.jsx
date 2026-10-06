@@ -153,6 +153,9 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
             </tr>
           </tbody>
         </table>
+        {row?.currency_note && (
+          <div className={styles.fnote} data-testid="latest-report-currency" data-currency={row.currency}>{row.currency_note}</div>
+        )}
         <ReportNote state={reportState} reason={reportReason} retry={retryReport} />
       </section>
 

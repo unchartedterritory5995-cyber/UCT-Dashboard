@@ -221,7 +221,15 @@ def panel(sym: str) -> dict:
     summary = {k: _stat([r[f] for r in rows]) for k, f in
                (("run_in", "run_in_pct"), ("gap", "gap_pct"), ("reaction", "reaction_pct"), ("drift", "drift_pct"))}
     nxt = (payload.get("summary") or {}).get("next_report_date") or payload.get("next_report_date")
-    return {**base, "state": "ok", "quarters": rows, "summary": summary,
+    # The company's reporting currency, from the cached earnings payload or the
+    # cached reporting-currency read -- never a vendor call here. A non-USD
+    # filer's EPS is then shown without "$" (its legs do not share a stated
+    # currency). None = not known, rendered as before.
+    currency = payload.get("currency")
+    if not currency:
+        from api.services.research import reporting_currency
+        currency = reporting_currency.peek(sym)
+    return {**base, "state": "ok", "quarters": rows, "summary": summary, "currency": currency,
             "realized_vol": realized_vol(bars), "next_report_date": nxt,
             "implied_move": implied_snapshot(sym, nxt),
             "bars_through": str(bars[-1]["t"])[:10]}
