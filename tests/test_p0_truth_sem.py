@@ -180,6 +180,22 @@ def test_A_unknown_then_false_then_true_edges_only_on_two_known_bars():
     assert _fires([0.0, None, 1.0], "cross_above", 0.5) == [False, False]
 
 
+@pytest.mark.parametrize("seq,fires_last", [
+    ([0.0, 1.0], True),               # false -> true                     = FIRE
+    ([None, 1.0], False),             # unknown -> true                   = no fire
+    ([None, None, 1.0], False),       # unknown -> unknown -> true        = no fire
+    ([None, 0.0, 1.0], True),         # unknown -> false -> true          = FIRE on false -> true
+    ([0.0, None, 1.0], False),        # false -> unknown -> true          = no fire
+], ids=["F-T", "U-T", "U-U-T", "U-F-T", "F-U-T"])
+def test_A_owner_crossing_contract_five_sequences(seq, fires_last):
+    """OWNER CONTRACT (P0 final clarification, 2026-10-05): an UNKNOWN bar breaks
+    crossing continuity; a later real FALSE -> TRUE is a genuine crossing. Only the
+    final transition may fire, and nothing before it does."""
+    edges = _fires(seq, "cross_above", 0.5)
+    assert edges[-1] is fires_last
+    assert not any(edges[:-1])
+
+
 def test_A_arm_time_cross_lane_proof_runs_under_the_documents_semantics():
     """The 1e-9 arm-time proof is taken with the SAME opts production evaluates
     with (`semantics_opts_for`), on the gap fixture, and the lanes agree."""
