@@ -145,7 +145,8 @@ def symbol_reports(D, cik: int, filings: dict) -> list[tuple[str, set]]:
     if getattr(D, "cov", None) is None:
         return []
     by: dict = {}
-    for accn, text in D.cov.execute("SELECT accn, text FROM cover_fact WHERE cik=? AND concept='dei:TradingSymbol'", (cik,)):
+    for accn, text in D.cov.execute("SELECT accn, text FROM cover_fact WHERE cik=? AND concept='dei:TradingSymbol' "
+                                    "ORDER BY accn, rowid", (cik,)):   # M3.1: filings in a total order
         f = filings.get(accn)
         if not f:
             continue
@@ -153,7 +154,7 @@ def symbol_reports(D, cik: int, filings: dict) -> list[tuple[str, set]]:
             s = _sym(part)
             if s and not re.search(r"\d", s) and s not in ("NA", "NONE"):
                 by.setdefault((f["filing_date"], accn), set()).add(s)
-    return sorted((fd, v) for (fd, _a), v in by.items())
+    return [(fd, v) for (fd, _a), v in sorted(by.items(), key=lambda kv: (kv[0][0], kv[0][1]))]
 
 
 def reported_symbol_switch(ticker: str, reports: list, issuer_tickers: list, event_symbols: list,
@@ -184,8 +185,8 @@ def reported_symbol_switch(ticker: str, reports: list, issuer_tickers: list, eve
     post = [x for x in counts if lo < x[0] <= switch + timedelta(days=150)]
     if not pre or not post or (switch - lo).days > 300:
         return None
-    a = max(pre, key=lambda x: x[0])[1]
-    b = min(post, key=lambda x: x[0])[1]
+    a = max(pre, key=lambda x: (x[0], x[1]))[1]       # M3.1: a TOTAL tie-break (same-day counts were list order)
+    b = min(post, key=lambda x: (x[0], x[1]))[1]
     if abs(math.log(b / a)) < math.log(1.25):
         return None                                  # a rename: the count carries through
     return switch, f"registrant reported {sorted({s for fd, ss in reports if fd == last_other for s in ss})} until {last_other}; {ticker} from {switch}; count {a:.0f} -> {b:.0f}"
@@ -567,7 +568,7 @@ def filing_key_maps(cov, cik: int) -> dict:
     rows: dict = defaultdict(set)
     for accn_, mem, lab in cov.execute(
             "SELECT DISTINCT accn, member, label FROM cover_fact WHERE cik=? AND concept IN "
-            "('dei:EntityCommonStockSharesOutstanding','dei:TradingSymbol','dei:Security12bTitle')", (cik,)):
+            "('dei:EntityCommonStockSharesOutstanding','dei:TradingSymbol','dei:Security12bTitle') ORDER BY accn, member, label", (cik,)):
         # ⛔ a listings-exchange axis member or a DEBT / preferred row (TAK's "Ordinary shares | 0.750% Senior Notes due
         # 2027" symbols) is not a share class: it turned TAK's ordinary shares into a second 'class' with no economics
         if invalid_member(mem, lab) or (mem and "EntityListingsExchange" in mem) or NOT_COMMON_EQUITY.search(lab or ""):
@@ -644,8 +645,8 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     # 2. companyfacts non-dimensional facts
     for tag, as_of, val, accn, form, filed in D.inp.execute(
             "SELECT tag, as_of, value, accn, form, filed FROM fact WHERE cik=? AND tag IN "
-            "('dei:EntityCommonStockSharesOutstanding','us-gaap:CommonStockSharesOutstanding','ifrs-full:NumberOfSharesOutstanding')",
-            (cik,)):
+            "('dei:EntityCommonStockSharesOutstanding','us-gaap:CommonStockSharesOutstanding','ifrs-full:NumberOfSharesOutstanding') "
+            "ORDER BY accn, rowid", (cik,)):
         src = R.COVER_XBRL if tag.startswith("dei:") else R.BALANCE_SHEET_XBRL
         if src == R.COVER_XBRL and (accn, "COMMON", round(val)) in seen:
             continue
@@ -658,7 +659,7 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     if D.txt is not None:
         for accn, form, fd, status, complete, cls, cnt, as_of, rule, off, snip, classes in D.txt.execute(
                 "SELECT accn, form, filing_date, status, complete, class, count, as_of, rule, offset, snippet, classes "
-                "FROM text_obs WHERE cik=?", (cik,)):
+                "FROM text_obs WHERE cik=? ORDER BY accn, rowid", (cik,)):
             f = filings.get(accn)
             p = pub(accn, fd)
             if status == "OK" and cnt:
@@ -676,7 +677,7 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     if D.prosp is not None:
         for accn, form, fd, status, cls, cnt, as_of, rule, snip in D.prosp.execute(
                 "SELECT accn, form, filing_date, status, class, count, as_of, rule, snippet FROM prosp_obs "
-                "WHERE cik=? AND status IN ('OK','MULTI_CLASS') AND count IS NOT NULL", (cik,)):
+                "WHERE cik=? AND status IN ('OK','MULTI_CLASS') AND count IS NOT NULL ORDER BY accn, rowid", (cik,)):
             p = pub(accn, fd)
             out.append((cls or "COMMON", Obs(date.fromisoformat(as_of), p, cnt, R.OFFERING_TEXT, accn, form, f"offering:{rule}",
                                              cls or "COMMON", snip or "", "MEDIUM"), {}))
@@ -744,7 +745,8 @@ def ipo_observations(D: Data, cik: int, filings: dict, listing_start: date) -> t
     src = D.ipo or D.txt
     if src is None:
         return [], "NO_IPO_DATA"
-    rows = src.execute("SELECT accn, form, filing_date, status, class, count, snippet FROM ipo_obs WHERE cik=? AND listing_start=?",
+    rows = src.execute("SELECT accn, form, filing_date, status, class, count, snippet FROM ipo_obs WHERE cik=? AND listing_start=? "
+                         "ORDER BY filing_date, accn, class, count",
                          (cik, listing_start.isoformat())).fetchall()
     good = [r for r in rows if r[3] in ("OK", "MULTI_CLASS") and r[5]]
     if not good:
@@ -877,7 +879,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     # ⛔ public times come ONLY from the acceptance authority (submissions' acceptanceDateTime can be Eastern labelled
     # UTC -- a one-day lookahead at the daily close). See acceptance.py.
     filings = {}
-    for a, f, fd, acc_raw, rd in D.inp.execute("SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=?", (cik,)):
+    for a, f, fd, acc_raw, rd in D.inp.execute("SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=? "
+                                              "ORDER BY filing_date, accn", (cik,)):
         filings[a] = _Filing(D, a, acc_raw, form=f, filing_date=fd, report_date=rd)
     foreign = any(v["form"] in FPI_FORMS for v in filings.values())
     first_filing = min((date.fromisoformat(v["filing_date"]) for v in filings.values()), default=None)
@@ -1010,7 +1013,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             pf = {}
             if D.pred is not None:
                 for a, f, fd, acc_raw, rd in D.pred.inp.execute(
-                        "SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=?", (pred_cik,)):
+                        "SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=? ORDER BY filing_date, accn", (pred_cik,)):
                     pf[a] = _Filing(D, a, acc_raw, form=f, filing_date=fd, report_date=rd)
             if not pf:
                 lin_reason, lin_note = R.SUCCESSOR_UNRESOLVED, f"predecessor {pred_cik} evidence not staged"
@@ -1029,7 +1032,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     if D.pred.cov is not None:
                         pfk = filing_key_maps(D.pred.cov, pred_cik)
                         for accn_, mem, lab, text in D.pred.cov.execute(
-                                "SELECT accn, member, label, text FROM cover_fact WHERE cik=? AND concept='dei:TradingSymbol'", (pred_cik,)):
+                                "SELECT accn, member, label, text FROM cover_fact WHERE cik=? AND concept='dei:TradingSymbol' ORDER BY accn, rowid", (pred_cik,)):
                             if not invalid_member(mem, lab):
                                 pred_listed_rows.append((pfk.get(accn_, {}).get((mem, lab)) or class_key(mem, lab), text))
         elif kind in ("MERGER", "SPINOFF", "NEW_ENTITY"):
@@ -1046,7 +1049,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     if D.cov is not None:
         sym_rows = D.cov.execute(
             "SELECT accn, member, label, concept, text FROM cover_fact WHERE cik=? AND concept IN ('dei:TradingSymbol','dei:Security12bTitle') "
-            "ORDER BY accn DESC", (cik,)).fetchall()                # the LATEST filing's class -> symbol mapping wins
+            "ORDER BY accn DESC, rowid", (cik,)).fetchall()                # the LATEST filing's class -> symbol mapping wins
         fk_by_accn = filing_key_maps(D.cov, cik)
         for accn_, mem, lab, concept, text in sym_rows:
             if invalid_member(mem, lab) or (mem and "EntityListingsExchange" in mem) or NOT_COMMON_EQUITY.search(lab or ""):
@@ -1083,7 +1086,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             listed.setdefault(next(iter(letters)), listed["COMMON"])
 
     # regimes from per-filing class sets (ordered by knowledge time)
-    seq = sorted(fsets.values(), key=lambda x: x[0])
+    seq = sorted(fsets.values(), key=lambda x: (x[0], sorted(x[1])))   # M3.1: total order (same-time ties)
     regimes = []
     for p, ks in seq:
         ks = frozenset(k for k in ks if k != "COMMON") or frozenset({"COMMON"}) if len(ks) > 1 else ks
@@ -1132,13 +1135,15 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     is_adr = bool(ptype and ptype.type in ("ADRC", "ADRS"))
     ratio_stmts = []
     if (D.adr or D.txt) is not None:
-        for accn, fd, st, ratio, snip in (D.adr or D.txt).execute("SELECT accn, filing_date, status, ratio, snippet FROM adr_ratio WHERE cik=?", (cik,)):
+        for accn, fd, st, ratio, snip in (D.adr or D.txt).execute("SELECT accn, filing_date, status, ratio, snippet FROM adr_ratio "
+                                                                  "WHERE cik=? ORDER BY filing_date, accn, ratio", (cik,)):
             if st == "OK" and ratio:
                 ratio_stmts.append(RatioStatement(date.fromisoformat(fd), ratio, accn, snip or ""))
     titled: dict = {}
     if D.cov is not None:
         from .adr import parse_ratio
-        for accn, text in D.cov.execute("SELECT accn, text FROM cover_fact WHERE cik=? AND concept='dei:Security12bTitle'", (cik,)):
+        for accn, text in D.cov.execute("SELECT accn, text FROM cover_fact WHERE cik=? AND concept='dei:Security12bTitle' "
+                                        "ORDER BY accn, rowid", (cik,)):
             if accn not in filings:
                 continue
             fdate = date.fromisoformat(filings[accn]["filing_date"])
@@ -1391,7 +1396,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 if D.prosp is not None and st.kind != "ADR":
                     usable_ = [ch for ch in checked if ch.usable and "REDUNDANT" not in ch.flags and ch.effective_from]
                     for raccn, rfd, rcls, rcnt in D.prosp.execute(
-                            "SELECT accn, filing_date, class, count FROM prosp_obs WHERE cik=? AND status='REGISTERED' AND count IS NOT NULL",
+                            "SELECT accn, filing_date, class, count FROM prosp_obs WHERE cik=? AND status='REGISTERED' AND count IS NOT NULL ORDER BY filing_date, accn, rowid",
                             (cik,)):
                         if (rcls or "COMMON") != c.class_key:
                             continue
@@ -1635,6 +1640,36 @@ def sha256(p: str) -> str:
     return h.hexdigest()
 
 
+def split_evidence_rows(splitev, ciks: list) -> list[tuple]:
+    """The split statements `confirm` ranks, in an EXPLICIT total order (M3.1; ties were insertion order): XBRL
+    before TEXT, then the statement's dates (as stated, in document order), accession, ratio, snippet. The first row
+    confirming a transition is cited -- the same row for the same evidence set, whatever the harvest path."""
+    return splitev.execute(f"SELECT ex_date, ratio, source, accn, snippet FROM split_evidence WHERE cik IN "
+                           f"({','.join('?' * len(ciks))}) ORDER BY source DESC, ex_date, accn, ratio, snippet",
+                           ciks).fetchall()
+
+
+EVIDENCE_SET_DBS = ("covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prosp.db", "splitev.db", "lineage.db",
+                    "pred_covers.db", "pred_text.db", "pred_econ.db", "identity.db", "offering.db")
+
+
+def evidence_set_sha256(p: str) -> str:
+    """M3.1 EVIDENCE IDENTITY: a harvested evidence store's identity is its ROW SET, not its file. A file hash moves
+    with insertion order / page layout / rowids (the same evidence harvested incrementally or fresh, in a different
+    order); this one does not: per table, the multiset of rows (sum of row hashes mod 2^256, plus the count), over the
+    sorted table names and their DDL. Equal evidence sets <=> equal identity, whatever the harvest path."""
+    c = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+    h = hashlib.sha256()
+    for name, sql in sorted(c.execute("SELECT name, sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL")):
+        acc, n = 0, 0
+        for row in c.execute(f'SELECT * FROM "{name}"'):
+            acc = (acc + int.from_bytes(hashlib.sha256(json.dumps(row, default=repr).encode()).digest(), "big")) % (1 << 256)
+            n += 1
+        h.update(json.dumps([name, sql, n, f"{acc:064x}"]).encode())
+    c.close()
+    return h.hexdigest()
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
@@ -1687,10 +1722,8 @@ def main(argv=None) -> int:
                 if not gaps or D.splitev is None:
                     break
                 ev_ciks = [cik] + ([p_ for (p_,) in D.lineage.execute(
-                    "SELECT pred_cik FROM lineage WHERE succ_cik=? AND pred_cik IS NOT NULL", (cik,))] if D.lineage is not None else [])
-                ev = D.splitev.execute(f"SELECT ex_date, ratio, source, accn, snippet FROM split_evidence WHERE cik IN "
-                                       f"({','.join('?' * len(ev_ciks))}) ORDER BY source DESC, ex_date, accn, ratio, snippet",
-                                       ev_ciks).fetchall()   # M3.1: a TOTAL order (ties were insertion order)
+                    "SELECT DISTINCT pred_cik FROM lineage WHERE succ_cik=? AND pred_cik IS NOT NULL ORDER BY pred_cik", (cik,))] if D.lineage is not None else [])
+                ev = split_evidence_rows(D.splitev, ev_ciks)
                 new = {}
                 for g_ in gaps:
                     c_ = confirm(ev, g_["k"], g_["direction"], g_["prev_asof"], g_["next_asof"])
@@ -1738,6 +1771,8 @@ def main(argv=None) -> int:
                   "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db", "identity.db", "offering.db"):
             if os.path.exists(P(n)):
                 man[f"input_sha256:{n}"] = sha256(P(n))
+                if n in EVIDENCE_SET_DBS:
+                    man[f"evidence_set_sha256:{n}"] = evidence_set_sha256(P(n))
     for k, v in man.items():
         db.execute("INSERT OR REPLACE INTO manifest VALUES(?,?)", (k, json.dumps(v) if not isinstance(v, str) else v))
     db.commit()

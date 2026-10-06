@@ -552,3 +552,65 @@ Measured: SEC companyfacts 04:23Z, submissions 04:31Z (2026-10-06); official gro
 Recommendation: cron 06:15 ET Tue-Sat (after the 06:00 ET due time and SEC's ~00:30 ET bulk), CURRENT by ~09:00-10:00
 ET; or set MCAP_PIT_DUE_ET=02:00 with the cron at 02:15 ET (finality is now proven by the official aggregate, not by
 the clock) for CURRENT by ~05:00-07:00 ET.
+
+## 17. Identity + reference evidence closure (owner decisions 2026-10-06) -- methodology MCAP_V1-M3.1
+
+### 17.1 Temporal ticker attribution (build.py, M3.1)
+A RETAINED symbol (SEC no longer lists it for this CIK) whose Massive record now names ANOTHER CIK keeps the
+predecessor's proven history up to the SUCCESSION BOUNDARY, from SEC filings only (one PIT clock, known_from):
+- CERTAIN: the successor's succession notice (8-K12B / 8-K12G3 / 8-K12G), or the predecessor's termination (Form 15 /
+  25 / 25-NSE) when the successor shows no Exchange Act activity before it;
+- UNCERTAIN: the successor is active before the predecessor terminates, or the predecessor never terminates: the window
+  [successor first active, termination or last attribution] is withheld from BOTH issuers;
+- SUCCESSOR_AFTER_LAST_ATTRIBUTION (true ticker reuse): nothing withheld.
+The successor's own listing / lineage semantics are untouched; its valued days before the boundary are withheld
+(SUCCESSOR_ISSUER_RELATIONSHIP_UNRESOLVED). Distinct CIKs are never stitched; no share history moves across CIKs.
+Related fixes: a succession-cut symbol keeps its FULL price basis for split selection (CLBK's 2.2 exchange on
+2026-07-21); a reassigned symbol's current Massive record is not multi-class evidence about its predecessor (GORO).
+Rename stitch: a retained and a current symbol of the SAME CIK joined by the provider's ticker_change event with
+non-overlapping bars are one security (ANY -> DRK on 2026-09-17). Gate R classes SUCCESSION_BOUNDARY /
+SUCCESSION_UNCERTAIN (filing evidence listed). Every rule triggers only on a retained symbol: an M3.1 build from M3's
+own inputs is the M3 build.
+
+| issuer | predecessor -> successor | evidence | kind | predecessor keeps | successor from |
+|---|---|---|---|---|---|
+| CBAT | 1117171 -> 2086841 | 8-K12B 0001213900-26-071131 filed 2026-06-23 (after the close) | CERTAIN | 2006-10-16 .. 2026-06-23 (4,951 = M3) | 2026-06-24 |
+| GORO | 1160791 -> 1515964 | 8-K12B 0001104659-26-085075 + 25-NSE, 2026-07-20 | CERTAIN | 2010-10-25 .. 2026-07-20 (3,956 = M3) | 2026-07-21 |
+| DTSS | 1631282 -> 2110423 | no notice, no termination; successor 6-K 0001213900-26-043958 2026-04-15 | UNCERTAIN | 2018-09-14 .. 2026-04-15 (1,896 = M3) | window 04-16 .. 10-02 withheld |
+| UROY | 1711570 -> 2143673 | 8-K12B 0001493152-26-034947 filed 2026-07-28 | CERTAIN | 2021-07-29 .. 2026-07-28 (1,254 = M3) | 2026-07-29 (44 = M3) |
+| CLBK | 1723596 -> 2115119 | 8-K12B 0001193125-26-309602 + 15-12G, 2026-07-21 | CERTAIN | 2018-11-15 .. 2026-07-20 (1,926 = M3) | 2026-07-21 (36 = M3) |
+
+### 17.2 Reference / split evidence authority (reference_authority.py)
+Root `REF-ROOT-3aa16777fcb59302` = M3's reference (pull of 2026-09-30, 9,227 tickers). An ordinary refresh MERGES a
+fresh pull: accepted historical split / event / type / list-date evidence is immutable (a disagreement is a divergence,
+kept accepted); a vanished record keeps the accepted one; current-state fields follow upstream; new tickers and splits /
+events after the accepted pull date are appended. First merge (pull completed 2026-10-06T04:17:17Z):
+`REF-APPEND-20261006-0559ff7094ba` -- 33 tickers added, 20 records vanished upstream and kept (incl. NTRBW, GFAIW, COLA,
+COLAR, COLAU -> those issuers SINGLE again, = M3), 13 new splits, 17 divergences (ECL and SLM 2003 1:3 -> 1:2, ...).
+REFERENCE_HISTORICAL_CORRECTION: candidate + exact diff; approval = human + its Market Cap gates PASS; the scheduler
+has no path. Every build manifest records `inputs.reference_authority` (version, parent, sha256).
+
+### 17.3 Correction impact driver (correction_impact.py)
+accepted run + one candidate -> the accepted inputs with only that input replaced, a full derivation, the refresh's
+own suite + gates + HISTORY vs the accepted build, the exact impact; never publishes, never moves authority.
+ECL (`REF-CORRECTION-fb4af5f1edaeb091`): exactly ECL changes, 2,080 days 1995-03-14 .. 2004-03-04, every day x 0.666667,
+nothing added / removed elsewhere; all gates PASS -- approvable, NOT approved (human act).
+
+### 17.4 Deterministic evidence (build.py + refresh.py, M3.1)
+- Every evidence read the build iterates is in a TOTAL order (filing date / accession, then document order = rowid
+  within one filing); every max / min / sort has a total tie-break (same-day share counts, same-time class regimes).
+  `split_evidence_rows` is the explicit ranking `confirm` uses: XBRL before TEXT, then the statement's dates as
+  stated, accession, ratio, snippet.
+- Evidence IDENTITY is the row set, not the file: `evidence_set_sha256:<store>` in every build manifest (a per-table
+  multiset hash). A store harvested in another order (another rowid / page layout) has the same identity; the file
+  hash `input_sha256:` is kept beside it.
+- Proof: every evidence table re-inserted in reverse filing order (document order kept) -> the same evidence
+  identity, and the build is identical (all tables).
+- JCI 1999 (Tyco, CIK 833444) is pinned (`tests/marketcap/test_evidence_determinism.py`). The two harvest paths hold
+  DIFFERENT evidence sets: the accumulated store has the 2003 10-K (0001047469-03-041163, applied 1999-09-30); a fresh
+  harvest of today's candidates fetches the 1999 10-K (0000912057-99-009052, applied 1999-08-23); values identical.
+  Each set cites deterministically. If an ordinary refresh ever adds the 1999 10-K, the ranking would re-cite JCI --
+  so HISTORY now also fails on any replaced ACCEPTED historical split interpretation
+  (`refresh.split_reinterpretations`: status / date / ratio / source / accession of APPLIED rows; status of held rows;
+  new historical APPLIED rows). Such a change is a reviewed correction, never a silent refresh. M3.1 from M3's inputs
+  vs the accepted M3 build: 0 reinterpretations.

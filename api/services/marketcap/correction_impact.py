@@ -97,8 +97,11 @@ def run(root: str, accepted_run: str, out: str, *, reference_version: str | None
     v = evaluate(nb, os.path.join(out, "reports"), dark.cfg.review.get("adjudication_dir"))
     imp = impact(acc_build, nb)
     hist_bad = [x for x in imp["affected_issuers"] if x["max_ratio"] >= 2 or x["min_ratio"] <= 0.5]
-    v["gates"]["HISTORY"] = {"pass": not hist_bad, "value": {"factor2_moves": hist_bad[:40]},
-                             "definition": "historical values vs the accepted build: no factor >= 2 move"}
+    reint = RF.split_reinterpretations(nb, acc_build, imp["upto"])
+    imp["split_reinterpretations"] = reint
+    v["gates"]["HISTORY"] = {"pass": not hist_bad, "value": {"factor2_moves": hist_bad[:40], "split_reinterpretations": reint[:40]},
+                             "definition": "historical values vs the accepted build: no factor >= 2 move (a correction "
+                                           "candidate's split reinterpretations are LISTED -- they are what it proposes)"}
     v["status"] = "PASS" if all(x["pass"] for x in v["gates"].values()) else "FAIL"
     v["failed"] = [k for k, x in v["gates"].items() if not x["pass"]]
     res = {"candidate": cand, "accepted_build": {"build_id": run_row["build_id"], "path": acc_build,

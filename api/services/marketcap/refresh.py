@@ -188,6 +188,40 @@ def mod(name: str, *a) -> list[str]:
 
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────────────────
+def split_reinterpretations(new_db: str, old_db: str, upto: str | None) -> list[dict]:
+    """M3.1 (JCI 1999): the ACCEPTED interpretation of every historical split transition is part of history. A later
+    harvest may add a document that also states an already-applied split (JCI: the 1999 10-K beside the accepted 2003
+    10-K) and the deterministic ranking would then cite it -- a different date, possibly different values. An ordinary
+    refresh must not do that silently: any accepted historical split_gap row (on or before the authority's latest
+    session) whose status / date / ratio / source / accession differs, or a new historical APPLIED row, is a
+    reinterpretation -- HISTORY fails, and the change goes through a reviewed correction. Held rows compare by status."""
+    u = str(upto or "9999-12-31")
+    upto = f"{u[:4]}-{u[4:6]}-{u[6:8]}" if len(u) == 8 and u.isdigit() else u   # cap_daily.d is YYYYMMDD, split_gap.d ISO
+    c = sqlite3.connect(f"file:{new_db}?mode=ro", uri=True)
+    try:
+        c.execute("ATTACH DATABASE ? AS a", (f"file:{old_db}?mode=ro",))
+        q = ("SELECT cik, d, status, CASE WHEN status='APPLIED' THEN ex_date END, CASE WHEN status='APPLIED' THEN ratio END, "
+             "CASE WHEN status='APPLIED' THEN source END, CASE WHEN status='APPLIED' THEN accn END FROM {s}.split_gap "
+             "WHERE d<=? AND status NOT IN ('LEDGER_SPLIT_CONTRADICTED')")
+        old = set(c.execute(q.format(s="a"), (upto,)).fetchall())
+        new = set(c.execute(q.format(s="main"), (upto,)).fetchall())
+        covered = {k for (k,) in c.execute("SELECT cik FROM main.coverage")}
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        c.close()
+    out = []
+    for r in sorted(old - new, key=repr):
+        if r[0] in covered:                          # an issuer that left the universe is the identity gates' business
+            out.append({"kind": "ACCEPTED_REPLACED", "cik": r[0], "d": r[1], "status": r[2], "ex_date": r[3],
+                        "ratio": r[4], "source": r[5], "accn": r[6]})
+    for r in sorted(new - old, key=repr):
+        if r[2] == "APPLIED":
+            out.append({"kind": "NEW_HISTORICAL_APPLIED", "cik": r[0], "d": r[1], "ex_date": r[3], "ratio": r[4],
+                        "source": r[5], "accn": r[6]})
+    return out
+
+
 class PriceHoldStop(RuntimeError):
     """The next due session cannot be appended to the price authority: the run ends PRICE_HOLD, nothing is built."""
 
@@ -797,6 +831,17 @@ class Refresh:
         return cur["build_id"], None
 
     def _history_gate(self, bpath) -> dict:
+        r = self._history_values_gate(bpath)
+        bid, ref = self._authority_build_db()
+        if bid is not None and ref is not None:
+            sr = split_reinterpretations(bpath, ref, r["value"]["authority_latest_session"])
+            r["value"]["split_reinterpretations"] = sr[:40]
+            r["value"]["split_reinterpretation_count"] = len(sr)
+            r["pass"] = r["pass"] and not sr
+            r["definition"] += "; no ACCEPTED historical split-evidence interpretation replaced"
+        return r
+
+    def _history_values_gate(self, bpath) -> dict:
         """HISTORY: no ACCEPTED historical value (a day the current authority values, up to its latest valued session)
         moves by a factor >= 2 (or <= 0.5) in the candidate. Found by the price-authority reproof: a split executed
         after the root with no basis event moved KUST's entire 2008-2026 history x0.1 and no other gate saw it. Every
