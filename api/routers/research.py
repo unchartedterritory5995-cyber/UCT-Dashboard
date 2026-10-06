@@ -113,10 +113,15 @@ def research_company_news(sym: str):
     touch a working legacy consumer" instruction.
     """
     try:
-        return get_company_news(sym)
+        out = get_company_news(sym)
     except Exception as exc:
         _logger.warning("research company-news failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "entity": None, "items": [], "_meta": None}
+        out = {"_outage": True}
+    if out.get("_outage"):
+        # A failed read is not an empty feed (quality pass 2026-10-05): the tab renders a 503 as
+        # "couldn't load" with Retry, and a 200 with no items as "no recent news".
+        raise HTTPException(status_code=503, detail="Company news could not be read right now.")
+    return out
 
 
 @router.post("/api/research/explain/{sym}")
