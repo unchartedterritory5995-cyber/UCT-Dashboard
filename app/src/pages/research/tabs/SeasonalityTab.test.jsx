@@ -81,4 +81,24 @@ describe('SeasonalityTab', () => {
     renderTab()
     expect(await screen.findByTestId('seasonality-unavailable')).toBeInTheDocument()
   })
+
+  // tq-panels: a symbol with no full month on file rendered two empty tables.
+  it('a symbol with no full month says there is not enough history, and for what window', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
+      json: () => Promise.resolve({ ticker: 'NEWCO', covered_from: '2026-09-15', covered_to: '2026-10-02',
+        full_months: 0, min_years: 5, months: [], weekdays: [] }) }))
+    renderTab()
+    const t = (await screen.findByTestId('seasonality-thin')).textContent
+    expect(t).toMatch(/Not enough history for seasonality/)
+    expect(t).toMatch(/from 2026-09-15 to 2026-10-02/)
+    expect(screen.queryByText('By month')).toBeNull()
+  })
+
+  it('a symbol with no bars at all says we hold none', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
+      json: () => Promise.resolve({ ticker: 'NVDA', covered_from: null, covered_to: null,
+        full_months: 0, min_years: 5, months: [], weekdays: [] }) }))
+    renderTab()
+    expect((await screen.findByTestId('seasonality-thin')).textContent).toMatch(/We hold no daily bars for NVDA/)
+  })
 })
