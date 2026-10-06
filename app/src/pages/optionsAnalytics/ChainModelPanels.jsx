@@ -5,6 +5,7 @@ import { findStrategies, VIEWS } from './chainModels'
 import { daysTo } from './ChainTools'
 import styles from './optionsAnalytics.module.css'
 import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+import Select from '../../components/ui/Select'
 
 // lane/o-options-remainders — the chain-side surfaces under Research > Options:
 //   FT-012 EdgePanel        theoretical value vs the quote mid    (OPTIONS_EDGE_RANKING_ENABLED)
@@ -175,10 +176,10 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
         <span className={styles.seg} role="group" aria-label="Market view">
           {VIEWS.map((v) => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{v}</button>)}
         </span>
-        <select className={styles.select} aria-label="Sort candidates" value={sort} onChange={(e) => setSort(e.target.value)}>
+        <Select className={styles.select} aria-label="Sort candidates" value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="pop">by probability of profit</option>
           <option value="reward">by reward to risk</option>
-        </select>
+        </Select>
       </div>
       {failed ? <p className={styles.note}>The strategy finder is unavailable right now.</p> : (
         <>

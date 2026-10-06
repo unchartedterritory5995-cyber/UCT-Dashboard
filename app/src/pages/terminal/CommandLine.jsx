@@ -29,6 +29,7 @@ import { rankCandidates } from './ranking'
 import { BY_CODE, editDistance } from './functions'
 import { BOARD_ADDRESS_RE, findBoard } from './boardModel'
 import styles from './TerminalShell.module.css'
+import Input from '../../components/ui/Input'
 
 export const HISTORY_KEY = 'uct.terminal.history'
 export const HISTORY_MAX = 50
@@ -306,7 +307,7 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="terminal-echo-announce">{announce}</div>
       <div className={styles.cmdWrap}>
         <span className={styles.cmdPrompt} aria-hidden="true">&gt;</span>
-        <input
+        <Input
           ref={ref}
           className={styles.cmdInput}
           value={text}

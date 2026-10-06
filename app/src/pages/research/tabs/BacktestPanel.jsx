@@ -10,6 +10,7 @@ import {
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
 import useDarkSection from '../../optionsAnalytics/useDarkSection'
+import Select from '../../../components/ui/Select'
 
 // BRK-01 increment 4 (roadmap RM-L01): the options strategy backtester, under the chain.
 //
@@ -135,49 +136,49 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
       </div>
       <div className={styles.head}>
         <label>Strategy{' '}
-          <select aria-label="Backtest strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
+          <Select aria-label="Backtest strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
             {choices.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
+          </Select>
         </label>
         {more && (
           <label>Anchor{' '}
-            <select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
+            <Select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
               <option value="monthly">Monthly expirations</option>
               <option value="earnings" disabled={!earningsAnchor}>
                 {earningsAnchor ? 'Earnings prints (AMC / BMO)' : 'Earnings prints (AMC / BMO) — not available yet'}
               </option>
-            </select>
+            </Select>
           </label>
         )}
         {more && !earningsAnchor && <span className={styles.muted} data-testid="backtest-earnings-off">{EARNINGS_ANCHOR_OFF_NOTE}</span>}
         {!earnings && <label>Enter{' '}
-          <select aria-label="Entry days before expiry" value={dte} onChange={(e) => setDte(Number(e.target.value))}>
+          <Select aria-label="Entry days before expiry" value={dte} onChange={(e) => setDte(Number(e.target.value))}>
             {ENTRY_DTES.map((d) => <option key={d} value={d}>{d} trading days before expiry</option>)}
-          </select>
+          </Select>
         </label>}
         <label>Strike{' '}
-          <select aria-label="Strike offset" value={offset} onChange={(e) => setOffset(Number(e.target.value))}>
+          <Select aria-label="Strike offset" value={offset} onChange={(e) => setOffset(Number(e.target.value))}>
             {OFFSETS.map((k) => <option key={k} value={k}>{offsetLabel(k)}</option>)}
-          </select>
+          </Select>
         </label>
         {spread && (
           <label>Width{' '}
-            <select aria-label="Spread width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
+            <Select aria-label="Spread width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
               {WIDTHS.map((w) => <option key={w} value={w}>{w} strike{w === 1 ? '' : 's'}</option>)}
-            </select>
+            </Select>
           </label>
         )}
         {!earnings && <label>Exit at profit{' '}
-          <select aria-label="Take profit" value={tp} onChange={(e) => setTp(e.target.value)}>
+          <Select aria-label="Take profit" value={tp} onChange={(e) => setTp(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>+{p}%</option>)}
-          </select>
+          </Select>
         </label>}
         {!earnings && <label>Exit at loss{' '}
-          <select aria-label="Stop loss" value={sl} onChange={(e) => setSl(e.target.value)}>
+          <Select aria-label="Stop loss" value={sl} onChange={(e) => setSl(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>-{p}%</option>)}
-          </select>
+          </Select>
         </label>}
         <button type="button" onClick={onSimulate} disabled={busy || Boolean(waiting && !exhausted) || st?.state === 'queued' || st?.state === 'running'}
                 data-testid="backtest-simulate">

@@ -4,6 +4,8 @@ import OffNotice from './OffNotice'
 import CoverageLine from '../../components/provenance/CoverageLine'
 import { sideWords, callPutWords } from './flowWords'
 import styles from './optionsAnalytics.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 // FT-072 / FT-073 — one screener per option strategy, over COV-02's end-of-day screen file
 // (api/services/options_analytics/strategy_screens.py).
@@ -75,10 +77,10 @@ function FirstScreens() {
       <div className={styles.head}>
         <span className={styles.title}>Strategy screens</span>
         <span className={styles.badge}>end of day</span>
-        <select className={styles.select} aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select className={styles.select} aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
           {cat.data.strategies.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-        <input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
+        </Select>
+        <Input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
       {res.failed && <p className={styles.note} data-testid="strategy-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>}
       {res.data && Array.isArray(res.data.rows) && (
@@ -145,10 +147,10 @@ export function MoreStrategyScreens() {
       <div className={styles.head}>
         <span className={styles.title}>More strategy screens</span>
         <span className={styles.badge}>{cat.data.strategies.find((x) => x.id === kind)?.source === 'tape' ? "today's tape" : 'end of day'}</span>
-        <select className={styles.select} aria-label="More strategies" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select className={styles.select} aria-label="More strategies" value={kind} onChange={(e) => setKind(e.target.value)}>
           {cat.data.strategies.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-        </select>
-        <input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
+        </Select>
+        <Input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
       {res.failed && <p className={styles.note} data-testid="more-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>}
       {d && Array.isArray(d.rows) && (

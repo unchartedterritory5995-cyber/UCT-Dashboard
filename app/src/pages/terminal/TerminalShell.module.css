@@ -685,6 +685,24 @@
   padding: 0;
 }
 
+/* Form controls inside a panel follow the member's theme. The panels embed pages whose own
+   stylesheets style most of their fields; the few that styled none rendered the browser's
+   white default on every dark theme. This is a ZERO-specificity floor (both halves in
+   :where), so any class a component gives its own <select>/<input> still wins outright. */
+:where(.panelBody) :where(select, input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])) {
+  min-height: var(--panel-row-h);
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+}
+
+:where(.panelBody) :where(input[type='checkbox'], input[type='radio'], input[type='range']) {
+  accent-color: var(--accent);
+}
+
 /* Shell-owned notes inside a panel (MOVE's own states); the body supplies the inset. */
 .panelEmpty {
   color: var(--text-muted);
@@ -848,6 +866,11 @@
 
 /* ── TOUCH TIER (phone + tablet): the 44px floor on every control, and the grid stacks ── */
 @media (max-width: 1024px) {
+  /* The panel form-control floor (above) is a finger target on touch: same zero specificity. */
+  :where(.panelBody) :where(select, input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])) {
+    min-height: var(--tap-min);
+  }
+
   .cmdInput {
     height: var(--tap-min);
     font-size: 16px; /* >=16px: iOS does not zoom the page on focus */

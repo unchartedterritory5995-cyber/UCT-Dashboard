@@ -6,6 +6,7 @@ import styles from './optionsAnalytics.module.css'
 import { formatCompact, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import OffNotice from './OffNotice'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
+import Select from '../../components/ui/Select'
 
 // The tide's own ladder: B at two decimals, M at one, K whole.
 const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
@@ -210,10 +211,10 @@ export function TideMinute({ scope, minute, setMinute }) {
     <section className={styles.panel} data-testid="tide-minute">
       <div className={styles.head}>
         <span className={styles.title}>Tape at a minute</span>
-        <select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
+        <Select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
           <option value="">pick a minute, or click the tide…</option>
           {probe.data.minutes.map((t) => <option key={t} value={t}>{t} ET</option>)}
-        </select>
+        </Select>
       </div>
       {one.failed && <p className={styles.note}>That minute&apos;s prints are unavailable right now.</p>}
       {d && Array.isArray(d.prints) && (

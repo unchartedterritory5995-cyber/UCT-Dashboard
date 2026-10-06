@@ -17,6 +17,7 @@ import { EdgePanel, SpreadBookPanel, StrategyFinder } from '../../optionsAnalyti
 import VolSkewPanels from '../../optionsAnalytics/VolSkewPanels'
 import { mergeChain, atmIvOf, midOf, volOiOf, isItm, expectedMove } from './chainMath'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
+import Select from '../../../components/ui/Select'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -123,12 +124,12 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
       <div className={styles.head}>
         <label className={styles.expiry}>
           Expiration{' '}
-          <select value={d.expiration || ''} onChange={(e) => setPicked(e.target.value)} aria-label="Expiration">
+          <Select value={d.expiration || ''} onChange={(e) => setPicked(e.target.value)} aria-label="Expiration">
             {(expList.length ? expList : [d.expiration]).filter(Boolean).map((x) => {
               const n = daysTo(x)
               return <option key={x} value={x}>{n == null ? x : `${x} (${n}d)`}</option>
             })}
-          </select>
+          </Select>
         </label>
         <span>{s} <b>{fmt(d.spot, 2)}</b></span>
         <span data-testid="atm-iv" title="Mean of the call and put implied volatility at the strike nearest spot (vendor IV)">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>

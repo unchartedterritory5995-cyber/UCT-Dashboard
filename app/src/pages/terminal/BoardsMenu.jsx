@@ -9,6 +9,8 @@ import { BY_CODE } from './functions'
 import { FAVORITES_MAX, boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
 import TerminalVersions from './TerminalVersions'
 import styles from './TerminalShell.module.css'
+import Input from '../../components/ui/Input'
+import Checkbox from '../../components/ui/Checkbox'
 
 function validPresetTicker(raw) {
   const s = raw.trim().toUpperCase()
@@ -55,7 +57,7 @@ export function BoardsMenu({
       >
         <label className={styles.menuLabel} htmlFor="terminal-board-name">Save this board as</label>
         <div className={styles.menuInline}>
-          <input id="terminal-board-name" className={styles.menuInput} value={name} maxLength={60}
+          <Input id="terminal-board-name" className={styles.menuInput} value={name} maxLength={60}
             onChange={(e) => setName(e.target.value)} placeholder="Earnings morning" data-testid="terminal-board-name" />
           <button type="submit" className={styles.menuBtn} disabled={!libraryWritable || !name.trim()}
             data-testid="terminal-board-save">Save</button>
@@ -89,7 +91,7 @@ export function BoardsMenu({
                 <span className={styles.menuHint}>
                   {presets.length ? `Opens for ${presets.map((p) => (p === PRESET_ANY_TICKER ? 'any ticker' : p)).join(', ')}` : 'Open it for a ticker:'}
                 </span>
-                <input className={styles.menuInputSm} value={presetSym[b.id] || ''} maxLength={10}
+                <Input className={styles.menuInputSm} value={presetSym[b.id] || ''} maxLength={10}
                   placeholder="NVDA or *" aria-label={`Ticker that opens ${b.name}`}
                   onChange={(e) => { setPresetSym((s) => ({ ...s, [b.id]: e.target.value })); setPresetError(null) }}
                   data-testid={`terminal-board-preset-input-${b.slug}`} />
@@ -120,14 +122,14 @@ export function BoardsMenu({
       {shared && (
         <div className={styles.menuShare} role="status" data-testid="terminal-share-link">
           <span className={styles.menuHint}>Share link for {shared.label} (copied when your browser allows):</span>
-          <input className={styles.menuInput} readOnly value={shared.url} aria-label="Share link"
+          <Input className={styles.menuInput} readOnly value={shared.url} aria-label="Share link"
             onFocus={(e) => e.target.select()} />
         </div>
       )}
 
       <div className={styles.menuHead}>Classic calendar</div>
       <label className={styles.menuCheck}>
-        <input type="checkbox" checked={library.keepCalendar} disabled={!libraryWritable}
+        <Checkbox checked={library.keepCalendar} disabled={!libraryWritable}
           onChange={(e) => onKeepCalendar(e.target.checked)} data-testid="terminal-keep-calendar" />
         <span>Open <code>/calendar</code> as the classic page instead of this terminal. The terminal stays at <code>/terminal</code>.</span>
       </label>

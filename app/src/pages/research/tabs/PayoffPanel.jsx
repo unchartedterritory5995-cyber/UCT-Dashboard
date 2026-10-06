@@ -5,6 +5,7 @@ import { todayPnl, popAtExpiry, priceSlices } from '../../optionsAnalytics/chain
 import { daysTo } from '../../optionsAnalytics/ChainTools'
 import { fractionPct } from '../researchFormat'
 import styles from './OptionsChainTab.module.css'
+import Select from '../../../components/ui/Select'
 
 // BRK-01 increment 2: the profit-and-loss picture at expiration, under the chain.
 // Read-only. Every number is stated with its assumption (mid fill, one contract,
@@ -83,18 +84,18 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
   }
 
   const strikeSelect = (value, set, label) => (
-    <select aria-label={label} value={value ?? ''} onChange={(e) => set(Number(e.target.value))}>
+    <Select aria-label={label} value={value ?? ''} onChange={(e) => set(Number(e.target.value))}>
       {strikes.map((k) => <option key={k} value={k}>{k.toFixed(2)}</option>)}
-    </select>
+    </Select>
   )
 
   return (
     <div className={styles.payoff} data-testid="payoff">
       <div className={styles.head}>
         <strong>Payoff at expiration</strong>
-        <select aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
           {Object.entries(STRATEGIES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        </Select>
         {strikeSelect(k1, setK1, two ? 'Lower strike' : 'Strike')}
         {two && strikeSelect(k2, setK2, 'Upper strike')}
       </div>

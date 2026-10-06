@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import { saveForkOffer, saveFork } from './saveForkApi'
 import styles from './SaveForkDialog.module.css'
+import Input from '../../../components/ui/Input'
 
 // SaveForkDialog — the save-time fork (AC-11 / UC-4). On open it asks the
 // server what this result set can BECOME — a frozen list, a re-runnable
@@ -79,7 +80,7 @@ export default function SaveForkDialog({ open, onClose, spec, fetcher = fetch, o
       {choices && (
         <div className={styles.name}>
           <label htmlFor="save-fork-name" className={styles.nameLabel}>Name (optional)</label>
-          <input id="save-fork-name" type="text" className={styles.nameInput}
+          <Input id="save-fork-name" type="text" className={styles.nameInput}
             value={name} onChange={e => setName(e.target.value)} placeholder="Untitled screen" />
         </div>
       )}

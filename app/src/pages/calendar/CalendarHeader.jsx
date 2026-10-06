@@ -14,6 +14,9 @@ import { todayIsoEt } from './calendarTime'
 // actually lands on.
 import { DEFAULT_FILTERS } from './filterLogic'
 import styles from './Calendar.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Checkbox from '../../components/ui/Checkbox'
 
 const AUDIENCE = [
   ['mine', 'My Stocks', 'star-fill'], ['watchlist', 'Watchlist'], ['positions', 'Positions'],
@@ -157,7 +160,7 @@ function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
   return (
     <span className={styles.searchWrap} ref={boxRef}>
       <UIcon name="search" size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-      <input
+      <Input
         ref={inputRef}
         className={styles.searchInput}
         placeholder="Filter or find a ticker…  ( / )"
@@ -482,32 +485,32 @@ export default function CalendarHeader({
   ))
 
   const sortSelect = (
-    <select aria-label="Sort" className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
+    <Select aria-label="Sort" className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
       {SORTS.map(([k, lbl]) => <option key={k} value={k}>Sort: {lbl}</option>)}
-    </select>
+    </Select>
   )
   const metricInputs = (
     <>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Min avg vol</label>
-        <input aria-label="Minimum average volume" className={styles.filterInput} type="number" min={0} inputMode="numeric"
+        <Input aria-label="Minimum average volume" className={styles.filterInput} type="number" min={0} inputMode="numeric"
                placeholder="e.g. 500000" value={filters.minAvgVol ?? ''}
                onChange={e => setNum('minAvgVol', e.target.value)} />
       </div>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Price min ($)</label>
-        <input aria-label="Minimum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
+        <Input aria-label="Minimum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
                placeholder="e.g. 5" value={filters.priceMin ?? ''}
                onChange={e => setNum('priceMin', e.target.value)} />
       </div>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Price max ($)</label>
-        <input aria-label="Maximum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
+        <Input aria-label="Maximum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
                placeholder="e.g. 500" value={filters.priceMax ?? ''}
                onChange={e => setNum('priceMax', e.target.value)} />
       </div>
       <label className={styles.gearRow} title="Hide reporters whose date is only a projection">
-        <input type="checkbox" checked={!!filters.confirmedOnly}
+        <Checkbox checked={!!filters.confirmedOnly}
                onChange={e => set('confirmedOnly', e.target.checked)} /> Confirmed dates only
       </label>
     </>
@@ -515,7 +518,7 @@ export default function CalendarHeader({
 
   const sourcesCheckboxes = SOURCES.map(([k, lbl]) => (
     <label key={k} className={styles.gearRow}>
-      <input type="checkbox" checked={mySources.includes(k)} onChange={() => toggleSource(k)} /> {lbl}
+      <Checkbox checked={mySources.includes(k)} onChange={() => toggleSource(k)} /> {lbl}
     </label>
   ))
 
@@ -566,13 +569,13 @@ export default function CalendarHeader({
       {view !== 'month' && availableSectors.length > 1 && (
         <div className={styles.sheetSec}>
           <div className={styles.sheetLbl}>Sector</div>
-          <select aria-label="Sector" className={styles.sel} value={filters.sector || ''}
+          <Select aria-label="Sector" className={styles.sel} value={filters.sector || ''}
                   onChange={e => set('sector', e.target.value || null)}>
             <option value="">All sectors</option>
             {availableSectors.map(([s, c]) => (
               <option key={s} value={s}>{s} ({c})</option>
             ))}
-          </select>
+          </Select>
         </div>
       )}
       <div className={styles.sheetSec}>

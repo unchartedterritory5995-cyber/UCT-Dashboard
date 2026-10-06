@@ -4,6 +4,8 @@ import useDarkSection from './useDarkSection'
 import { price } from './blackScholes'
 import { mid, summary, curve } from '../research/tabs/optionPayoff'
 import styles from './optionsAnalytics.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 // FT-003 probability analysis, FT-016 chain -> chart -> pricer drill, FT-002 multi-leg builder.
 // (api/services/options_analytics/chain_tools.py; payoff math is optionPayoff.js, the one copy)
@@ -49,7 +51,7 @@ export function ProbabilityPanel({ sym, expiration }) {
         <span className={styles.title}>Probability analysis</span>
         <span className={styles.badge}>computed</span>
         <label>Probability{' '}
-          <input className={styles.input} aria-label="Probability percent" type="number" min="50" max="99.9" step="0.01"
+          <Input className={styles.input} aria-label="Probability percent" type="number" min="50" max="99.9" step="0.01"
             value={pct} onChange={(e) => setPct(e.target.value)} style={{ width: 80 }} />%
         </label>
       </div>
@@ -118,9 +120,9 @@ export function ContractDrill({ sym, contract, spot, onClose }) {
         </>
       )}
       <div className={styles.head}>
-        <label>Spot <input className={styles.input} aria-label="Pricer spot" value={S} onChange={(e) => setS(e.target.value)} style={{ width: 80 }} /></label>
-        <label>Days <input className={styles.input} aria-label="Pricer days" value={days} onChange={(e) => setDays(e.target.value)} style={{ width: 60 }} /></label>
-        <label>IV % <input className={styles.input} aria-label="Pricer IV" value={ivPct} onChange={(e) => setIvPct(e.target.value)} style={{ width: 60 }} /></label>
+        <label>Spot <Input className={styles.input} aria-label="Pricer spot" value={S} onChange={(e) => setS(e.target.value)} style={{ width: 80 }} /></label>
+        <label>Days <Input className={styles.input} aria-label="Pricer days" value={days} onChange={(e) => setDays(e.target.value)} style={{ width: 60 }} /></label>
+        <label>IV % <Input className={styles.input} aria-label="Pricer IV" value={ivPct} onChange={(e) => setIvPct(e.target.value)} style={{ width: 60 }} /></label>
       </div>
       <table className={styles.table} data-testid="pricer">
         <thead><tr><th /><th>Vendor</th><th>Computed</th></tr></thead>
@@ -145,11 +147,11 @@ export function ContractPicker({ sym, rows, onPick }) {
   if (hidden || !Array.isArray(data?.bars) || !all.length) return null
   return (
     <label className={styles.muted} data-testid="contract-picker">Drill into{' '}
-      <select className={styles.select} aria-label="Drill into contract" value=""
+      <Select className={styles.select} aria-label="Drill into contract" value=""
         onChange={(e) => { const c = all.find((x) => x.contract === e.target.value); if (c) onPick(c) }}>
         <option value="">a contract…</option>
         {all.map((c) => <option key={c.contract} value={c.contract}>{c.type} {num(c.strike)}</option>)}
-      </select>
+      </Select>
     </label>
   )
 }
@@ -255,13 +257,13 @@ export function PositionBuilder({ sym, rows, spot }) {
       <div className={styles.head}>
         <span className={styles.title}>Position builder</span>
         <span className={styles.badge}>computed</span>
-        <select className={styles.select} aria-label="Leg type" value={type} onChange={(e) => setType(e.target.value)}>
+        <Select className={styles.select} aria-label="Leg type" value={type} onChange={(e) => setType(e.target.value)}>
           <option value="call">Call</option><option value="put">Put</option>
-        </select>
-        <select className={styles.select} aria-label="Leg strike" value={k ?? ''} onChange={(e) => setStrike(e.target.value)}>
+        </Select>
+        <Select className={styles.select} aria-label="Leg strike" value={k ?? ''} onChange={(e) => setStrike(e.target.value)}>
           {strikes.map((x) => <option key={x} value={x}>{num(x)}</option>)}
-        </select>
-        <input className={styles.input} aria-label="Leg quantity" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 50 }} />
+        </Select>
+        <Input className={styles.input} aria-label="Leg quantity" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 50 }} />
         <button type="button" className={styles.input} onClick={() => add(1)}>Buy</button>
         <button type="button" className={styles.input} onClick={() => add(-1)}>Sell</button>
         {legs.length > 0 && <button type="button" className={styles.input} onClick={() => setLegs([])}>Clear</button>}

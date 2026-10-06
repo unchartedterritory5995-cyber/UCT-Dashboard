@@ -6,6 +6,8 @@ import { OffLine } from '../../optionsAnalytics/OffNotice'
 import { useInTerminalPanel } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
 import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import Input from '../../../components/ui/Input'
+import Select from '../../../components/ui/Select'
 
 // COV-02 (screen the OPTION, not the stock) + COV-03 (market-wide unusual option volume and
 // IV percentile), read ONLY from our own options log (api/services/research/options_screener.py).
@@ -79,13 +81,13 @@ function Screen() {
       {preset && presets[preset] && <p className={styles.muted} data-testid="opts-preset-desc">{presets[preset].description}</p>}
       <form className={styles.form} onSubmit={(e) => { e.preventDefault(); setFilters(draft) }}>
         <label>Type{' '}
-          <select value={draft.type || 'any'} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>
+          <Select value={draft.type || 'any'} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>
             <option value="any">Any</option><option value="call">Calls</option><option value="put">Puts</option>
-          </select>
+          </Select>
         </label>
         {FIELDS.map(([k, label, kind]) => (
           <label key={k} className={kind === 'text' ? styles.wide : undefined}>{label}{' '}
-            <input type={kind} step="any" value={draft[k] ?? ''} aria-label={label}
+            <Input type={kind} step="any" value={draft[k] ?? ''} aria-label={label}
               onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
           </label>
         ))}

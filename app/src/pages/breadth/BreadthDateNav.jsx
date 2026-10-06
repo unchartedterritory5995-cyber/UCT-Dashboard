@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './BreadthDateNav.module.css'
+import Input from '../../components/ui/Input'
 
 // Breadth Time Navigator — the Monitor header's date box (the same MarketSmith-
 // style control the /charts widget uses, adapted to the breadth sheet). Type a
@@ -192,7 +193,7 @@ export default function BreadthDateNav({
         aria-label="Step back one trading day"
         onClick={() => onStep(-1)}
       >◀</button>
-      <input
+      <Input
         className={styles.field}
         value={shown}
         placeholder="M/D/YYYY"

@@ -50,6 +50,8 @@ import { describeLoadError } from '../chartLoadError'
 import PresetRow from '../PresetRow'
 import MetricReadout from '../MetricReadout'
 import styles from './BreadthChartsV2.module.css'
+import Input from '../../../components/ui/Input'
+import Checkbox from '../../../components/ui/Checkbox'
 
 /** Shared with V1 on purpose: a member's saved selection opens as the same view. */
 const PREF_KEY = 'breadth_charts_state'
@@ -525,8 +527,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
                   const checked = baseSelection.includes(m.key)
                   return (
                     <label key={m.key} className={styles.metricItem}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={checked}
                         disabled={!checked && baseSelection.length >= MAX_KEYS}
                         onChange={() => togglePickedKey(m.key)}
@@ -570,7 +571,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
                 <div className={styles.dates}>
                   <label className={styles.dateLabel}>
                     From
-                    <input
+                    <Input
                       type="date"
                       className={styles.dateInput}
                       value={customFrom}
@@ -581,7 +582,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
                   </label>
                   <label className={styles.dateLabel}>
                     To
-                    <input
+                    <Input
                       type="date"
                       className={styles.dateInput}
                       value={customTo}

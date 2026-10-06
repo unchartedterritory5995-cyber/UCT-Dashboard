@@ -4,6 +4,8 @@ import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import Input from '../../../components/ui/Input'
+import Select from '../../../components/ui/Select'
 
 // FT-058 / FT-059 / FT-060 — boolean, proximity, synonym and section-scoped
 // search over this ticker's newest 10-K and 10-Q. DARK behind FILING_SEARCH_ENABLED.
@@ -95,15 +97,15 @@ export default function FilingSearchPanel({ sym }) {
     <section className={chrome.panelClass} data-testid="filing-search">
       {chrome.showTitle && <h3 className={styles.panelTitle}>Filing search</h3>}
       <form className={styles.form} onSubmit={onSubmit} role="search">
-        <input className={styles.input} aria-label="Search this company's filings" value={draft}
+        <Input className={styles.input} aria-label="Search this company's filings" value={draft}
           placeholder='e.g. tariff NEAR/8 margin, "supply chain" -china, section:risk'
           onChange={(e) => setDraft(e.target.value)} />
-        <select className={styles.select} aria-label="Section" value={section} onChange={(e) => setSection(e.target.value)}>
+        <Select className={styles.select} aria-label="Section" value={section} onChange={(e) => setSection(e.target.value)}>
           {SECTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        <select className={styles.select} aria-label="Form" value={form} onChange={(e) => setForm(e.target.value)}>
+        </Select>
+        <Select className={styles.select} aria-label="Form" value={form} onChange={(e) => setForm(e.target.value)}>
           {FORMS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
+        </Select>
         <button className={styles.button} type="submit">Search</button>
       </form>
       <ul className={styles.help}>

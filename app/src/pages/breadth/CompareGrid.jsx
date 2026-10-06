@@ -35,6 +35,7 @@ import { anchorProps } from './customizeAnchor'
 import UIcon from '../../components/ui/UIcon'
 import customizeStyles from './CustomizePanel.module.css'
 import styles from './CompareGrid.module.css'
+import Select from '../../components/ui/Select'
 
 // The same two words the switcher shows, from the same registry kinds.
 const GROUP_LABELS = { board: 'Boards', lens: 'Lenses' }
@@ -61,7 +62,7 @@ export default function CompareGrid({ quad = [], propsForStyle, customizeForStyl
           <section key={i} className={styles.pane}
                    data-testid={`compare-pane-${i}`} data-pane-style={style}>
             <header className={styles.head}>
-              <select className={styles.pick} data-testid={`compare-pick-${i}`}
+              <Select className={styles.pick} data-testid={`compare-pick-${i}`}
                       value={style} title={SWAP_HINT}
                       aria-label={`Pane ${i + 1} style`}
                       onChange={(e) => { setOpenPane(null); onPick?.(i, e.target.value) }}>
@@ -74,7 +75,7 @@ export default function CompareGrid({ quad = [], propsForStyle, customizeForStyl
                     </optgroup>
                   )
                 ))}
-              </select>
+              </Select>
               {custom && (
                 <div className={`${customizeStyles.anchor} ${styles.gearAnchor}`} {...anchorProps()}>
                   <button type="button" className={styles.gear}

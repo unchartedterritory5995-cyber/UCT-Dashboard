@@ -25,6 +25,7 @@ import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { FETCH_FAILED, sectionFetcher } from './sectionFetch'
 import { EXPANDED_HEIGHT, PANEL_HEIGHT, PANEL_SPECS, panelSeries, spanLabel } from './statementSeries'
 import styles from './StatementPanels.module.css'
+import Checkbox from '../../ui/Checkbox'
 
 // NO_HISTORY is a claim about the company, so it is only ever said off a
 // successful answer. A failed request throws out of sectionFetcher (TERM-033)
@@ -38,7 +39,7 @@ function Controls({ period, setPeriod, yoy, setYoy }) {
   return (
     <>
       <label className={styles.yoy}>
-        <input type="checkbox" checked={yoy} onChange={e => setYoy(e.target.checked)} />
+        <Checkbox checked={yoy} onChange={e => setYoy(e.target.checked)} />
         Year-ago
       </label>
       <div className={styles.toggle} role="group" aria-label="Reporting period">

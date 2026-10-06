@@ -18,6 +18,7 @@ import {
 } from './scrubberPlayback'
 import UIcon from '../../components/ui/UIcon'
 import styles from './BreadthScrubber.module.css'
+import Select from '../../components/ui/Select'
 
 export default function BreadthScrubber({
   rows = [], rowIdx = 0, playing = false, onSeek, onStep, onPlayingChange,
@@ -115,11 +116,11 @@ export default function BreadthScrubber({
         {Math.max(1, Math.min(rows.length, last - rowIdx + 1))} of {rows.length}
       </span>
 
-      <select className={styles.speed} data-testid="scrubber-speed" value={speed}
+      <Select className={styles.speed} data-testid="scrubber-speed" value={speed}
               disabled={reduceMotion} aria-label="Playback speed"
               onChange={(e) => setSpeed(Number(e.target.value))}>
         {SPEEDS.map(s => <option key={s} value={s}>{s}/s</option>)}
-      </select>
+      </Select>
 
       {reduceMotion && (
         <span className={styles.note} data-testid="scrubber-note">{REDUCED_MOTION_NOTE}</span>
