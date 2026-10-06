@@ -46,6 +46,7 @@ import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
 import { useInTerminalPanel } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
+import { formatNumber } from '../lib/presentation/presentationPrimitives'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -312,11 +313,11 @@ function fmtTooltipVal(col, row) {
 // ── Formatters ─────────────────────────────────────────────────────────────
 function fmtDec(v, d = 1) {
   if (v === null || v === undefined) return '—'
-  return Number(v).toFixed(d)
+  return formatNumber(Number(v), { decimals: d, grouping: false })
 }
 function fmtPct(v) {
   if (v === null || v === undefined) return '—'
-  return Number(v).toFixed(1)
+  return formatNumber(Number(v), { decimals: 1, grouping: false })
 }
 function fmtPrice(v) {
   if (v === null || v === undefined) return '—'
@@ -437,7 +438,7 @@ function AnalogueCard({ analogue, refMetrics }) {
           const fmtV = v => {
             if (v == null) return '--'
             if (key === 'sp500_close') return Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
-            return Number(v).toFixed(key === 'ratio_5day' ? 2 : key === 'vix' ? 1 : 0)
+            return formatNumber(Number(v), { decimals: key === 'ratio_5day' ? 2 : key === 'vix' ? 1 : 0, grouping: false })
           }
           return (
             <div key={key} className={styles.analogueMetricRow}>

@@ -17,6 +17,8 @@
 // than any other, so every value routes through `num()` and a genuine zero is
 // distinguished from a missing one throughout.
 
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+
 const num = (v) => {
   if (v == null) return null
   const n = Number(v)
@@ -73,7 +75,7 @@ export function historyLead(sym, quarters) {
   }
   if (!parts.length) return null
 
-  const tail = avgAbs == null ? '' : ` It moves ±${avgAbs.toFixed(1)}% on average.`
+  const tail = avgAbs == null ? '' : ` It moves ±${formatPercent(avgAbs, { decimals: 1 })} on average.`
   return `${parts.join(', and ')}.${tail}`
 }
 
@@ -139,7 +141,7 @@ export function catalystsLead(sym, items) {
   if (!withMove.length) return `${head}.`
 
   const top = withMove.reduce((a, x) => (Math.abs(x.m) > Math.abs(a.m) ? x : a))
-  const signed = `${top.m > 0 ? '+' : ''}${top.m.toFixed(1)}%`
+  const signed = formatPercent(top.m, { decimals: 1, signed: top.m > 0 })
   const title = typeof top.it?.title === 'string' ? top.it.title.trim() : ''
   // The headline is provider text of unbounded length; a lead that runs three
   // lines stops being a lead. Trim on a word boundary, and only when needed.

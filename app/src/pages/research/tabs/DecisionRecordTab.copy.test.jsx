@@ -11,8 +11,9 @@ import DecisionRecordTab from './DecisionRecordTab'
 describe('dropReasonText covers every format the engine emits', () => {
   it.each([
     ['market-cap-0.00B-below-1.0B-floor (tier passed but mcap floor failed)',
-      'Its market cap could not be read that morning, so it did not clear the $1.0B minimum.'],
-    ['market-cap-0.45B-below-1.0B-floor (tier passed but mcap floor failed)', 'Its market cap of $450M is below the $1.0B minimum.'],
+      'Its market cap could not be read that morning, so it did not clear the $1.00B minimum.'],
+    // terminal compact ladder (round 2): B two decimals, M one, on every panel
+    ['market-cap-0.45B-below-1.0B-floor (tier passed but mcap floor failed)', 'Its market cap of $450.0M is below the $1.00B minimum.'],
     ['tier-D-never-trade-list (and 4/5 thresholds passed)', 'It is on the never-trade list. It passed 4 of 5 setup thresholds.'],
     ['tier-B-not-leading-and-gap-1.2<3.0 (and 2/5 thresholds passed)',
       'A tier-B name whose sector was not leading, and its 1.2% gap was under the 3.0% needed. It passed 2 of 5 setup thresholds.'],

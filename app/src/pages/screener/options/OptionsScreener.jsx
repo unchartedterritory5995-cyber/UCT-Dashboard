@@ -6,6 +6,7 @@ import { OffLine } from '../../optionsAnalytics/OffNotice'
 import { useInTerminalPanel } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
 import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { num } from '../../optionsAnalytics/optionsFormat'
 
 // COV-02 (screen the OPTION, not the stock) + COV-03 (market-wide unusual option volume and
 // IV percentile), read ONLY from our own options log (api/services/research/options_screener.py).
@@ -33,7 +34,6 @@ const FIELDS = [
 
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const int = (v) => (v == null ? '—' : Math.round(Number(v)).toLocaleString('en-US'))
 
 export function screenUrl(preset, filters) {

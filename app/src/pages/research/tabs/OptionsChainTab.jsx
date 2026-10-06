@@ -17,6 +17,8 @@ import { EdgePanel, SpreadBookPanel, StrategyFinder } from '../../optionsAnalyti
 import VolSkewPanels from '../../optionsAnalytics/VolSkewPanels'
 import { mergeChain, atmIvOf, midOf, volOiOf, isItm, expectedMove } from './chainMath'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
+import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { num } from '../../optionsAnalytics/optionsFormat'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -52,10 +54,10 @@ const PHONE_SIDES = [['calls', 'Calls'], ['puts', 'Puts']]
 function fmt(v, how) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
-  if (how === 'pct') return `${(n * 100).toFixed(1)}%`
-  if (how === 'int') return Math.round(n).toLocaleString()
-  if (how === 'ratio') return `${n.toFixed(2)}×`
-  return n.toFixed(how)
+  if (how === 'pct') return formatPercent(n * 100, { decimals: 1 })
+  if (how === 'int') return formatNumber(Math.round(n))
+  if (how === 'ratio') return `${num(n, 2)}×`
+  return num(n, how)
 }
 
 export function atmStrike(rows, spot) {
@@ -134,7 +136,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         <span data-testid="atm-iv" title="Mean of the call and put implied volatility at the strike nearest spot (vendor IV)">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>
         <span data-testid="expected-move" title="At-the-money straddle mid (call mid + put mid at the strike nearest spot) ÷ spot. A rule of thumb from today's quotes, not a forecast.">
           Expected move to {d.expiration || 'expiry'}{days != null ? ` (${days}d)` : ''}{' '}
-          {move ? <b>±${move.dollars.toFixed(2)} (±{move.pct.toFixed(1)}%)</b> : <b>—</b>}
+          {move ? <b>±{formatCurrency(move.dollars)} (±{formatPercent(move.pct, { decimals: 1 })})</b> : <b>—</b>}
           <span className={styles.muted}> ATM straddle ÷ spot</span>
         </span>
         {isPhone && (

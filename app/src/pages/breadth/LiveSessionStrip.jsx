@@ -1,5 +1,6 @@
 import DayPath from '../../components/breadth/DayPath'
 import styles from './LiveSessionStrip.module.css'
+import { formatNumber } from '../../lib/presentation/presentationPrimitives'
 
 /**
  * The session so far, above the table that describes finished days.
@@ -46,7 +47,7 @@ export default function LiveSessionStrip({ live }) {
           <div key={item.key} className={styles.item}>
             <span className={styles.label}>{item.label}</span>
             <span className={styles.value}>
-              {Number(row[item.key]).toFixed(item.decimals)}{item.suffix ?? ''}
+              {formatNumber(Number(row[item.key]), { decimals: item.decimals, grouping: false })}{item.suffix ?? ''}
             </span>
             <DayPath
               points={live.path?.[item.key]}

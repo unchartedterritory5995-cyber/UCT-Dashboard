@@ -14,7 +14,7 @@ import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
 import { useInTerminalPanel } from '../components/terminal'
-import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
+import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -175,7 +175,7 @@ export default function CatalystsHistory() {
                         {fmtPct(r.gap_pct)}
                       </td>
                       <td className={styles.colVol}>
-                        {r.vol_x ? `${r.vol_x.toFixed(2)}×` : '—'}
+                        {r.vol_x ? `${formatNumber(r.vol_x, { decimals: 2, grouping: false })}×` : '—'}
                       </td>
                       <td className={styles.colTag}><TagChip tag={r.tag} /></td>
                       <td className={styles.colThesis}>

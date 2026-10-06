@@ -13,6 +13,7 @@ import HoverReadout from './HoverReadout'
 // (`divergence.js`) because The Read refuses on the same number, and the
 // boundary itself is pinned in the test file.
 import { zscore, divergenceRuns, MIN_SESSIONS } from './divergence'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 const PRICE_LABEL = { sp500_close: 'S&P 500', qqq_close: 'QQQ' }
 const PART_LABEL = {
@@ -30,7 +31,7 @@ const columnIndex = (e) => {
   return Number.isInteger(i) ? i : null
 }
 
-const fmtZ = (z) => (z == null ? 'not reported' : `${z >= 0 ? '+' : ''}${z.toFixed(2)}σ`)
+const fmtZ = (z) => (z == null ? 'not reported' : `${z >= 0 ? '+' : ''}${formatNumber(z, { decimals: 2, grouping: false })}σ`)
 
 export default function DivergenceView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},

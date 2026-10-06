@@ -3,6 +3,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import { fractionPct } from '../researchFormat'
 import styles from './OptionsChainTab.module.css'
 import OffNotice from '../../optionsAnalytics/OffNotice'
+import { num as optNum } from '../../optionsAnalytics/optionsFormat'
 import { memberText } from '../../../lib/presentation/memberCopy'
 
 // RM-L01 (IV-history half) + RM-L02 (BRK-10 first slice): IV history read ONLY from our own
@@ -17,7 +18,7 @@ import { memberText } from '../../../lib/presentation/memberCopy'
 
 const KNOWN = new Set(['ok', 'not_in_log', 'no_log'])
 const pct = (v, d = 1) => fractionPct(v, d)
-const num = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d))
+const num = (v, d = 1) => optNum(v, d)
 
 function Spark({ points }) {
   const ivs = points.map((p) => p.atm_iv)

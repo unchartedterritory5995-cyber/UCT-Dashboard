@@ -3,6 +3,7 @@ import styles from './DailyOverview.module.css'
 import DayPath from '../../components/breadth/DayPath'
 import useSessionPath from '../../hooks/useSessionPath'
 import { drillTarget } from './liveDrill'
+import { formatNumber } from '../../lib/presentation/presentationPrimitives'
 
 /**
  * The Daily tab: today's tape, readable in ten seconds.
@@ -59,15 +60,15 @@ function fmtVal(col, v) {
   if (v === null || v === undefined) return '—'
   const n = Number(v)
   if (!Number.isFinite(n)) return String(v)
-  return Number.isInteger(n) ? n.toLocaleString('en-US') : n.toFixed(1)
+  return Number.isInteger(n) ? formatNumber(n) : formatNumber(n, { decimals: 1, grouping: false })
 }
 
 function fmtDelta(d) {
   if (d == null || !Number.isFinite(d)) return null
   const a = Math.abs(d)
   const body = a >= 10 ? String(Math.round(a))
-    : a >= 1 ? a.toFixed(1).replace(/\.0$/, '')
-    : a.toFixed(2).replace(/0$/, '').replace(/\.$/, '')
+    : a >= 1 ? formatNumber(a, { decimals: 1, grouping: false }).replace(/\.0$/, '')
+    : formatNumber(a, { decimals: 2, grouping: false }).replace(/0$/, '').replace(/\.$/, '')
   return `${d > 0 ? '+' : d < 0 ? '-' : ''}${body}`
 }
 

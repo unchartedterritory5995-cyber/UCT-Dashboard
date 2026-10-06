@@ -25,6 +25,7 @@ import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from '.
 import { feedbackIconSvg } from './morningWireFeedbackIcons'
 import styles from './MorningWire.module.css'
 import jsonFetcher from '../utils/jsonFetcher'
+import { formatPercent } from '../lib/presentation/presentationPrimitives'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
 const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
@@ -69,7 +70,7 @@ function EarningsRow({ row }) {
       <span className={`${styles.surprise} ${isPos ? styles.gainText : styles.lossText}`}>
         {surprise != null
           ? (typeof surprise === 'number'
-              ? `${surprise > 0 ? '+' : ''}${surprise.toFixed(1)}%`
+              ? formatPercent(surprise, { decimals: 1, signed: surprise > 0 })
               : surprise)
           : '—'}
       </span>

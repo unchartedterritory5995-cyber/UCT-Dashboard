@@ -3,6 +3,7 @@ import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
 import styles from './Histogram.module.css'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 /** §3.4 skeleton size contract. */
 export const SIZE = { width: '100%', height: 160 }
@@ -53,7 +54,7 @@ function binIndexOf(bins, v) {
 }
 
 export function buildHistogramOption(bins, { marker, markerLabel, valueFormatter } = {}) {
-  const fmt = valueFormatter || ((v) => (v == null ? '—' : Number(v).toFixed(0)))
+  const fmt = valueFormatter || ((v) => (v == null ? '—' : formatNumber(Number(v), { decimals: 0, grouping: false })))
   const markIdx = binIndexOf(bins, marker)
 
   const series = {
@@ -125,7 +126,7 @@ export default function Histogram({
     )
   }
 
-  const fmt = valueFormatter || ((v) => Number(v).toFixed(0))
+  const fmt = valueFormatter || ((v) => formatNumber(Number(v), { decimals: 0, grouping: false }))
   const total = binned.reduce((a, b) => a + b.count, 0)
   const built = ariaLabel
     || `Distribution of ${total} values from ${fmt(binned[0].x0)} to ${fmt(binned[binned.length - 1].x1)}.`
