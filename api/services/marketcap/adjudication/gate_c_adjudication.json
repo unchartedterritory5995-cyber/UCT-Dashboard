@@ -1,0 +1,20 @@
+[
+ {
+  "ticker": "CLBK",
+  "cik": 1723596,
+  "interval": [20260609, 20260720],
+  "state": [["COMMON", 228904431.8, "0001723596-26-000020"]],
+  "disposition": "CORRECT",
+  "class": "A_NEW_VALUE_CORRECT_PRODUCTION_MISATTRIBUTED",
+  "evidence": {
+   "identity": "CIK 1723596 = Columbia Financial, Inc. (the listed CLBK security through 2026-07-20). Successor CIK 2115119 (new holding company, second-step conversion) filed Form 8-K12B 0001193125-26-309602 on 2026-07-21; the predecessor filed Form 15-12G 0001193125-26-309130 on 2026-07-21 -> M3.1 succession boundary CERTAIN, predecessor keeps every day < 2026-07-21, successor valued from 2026-07-21. Distinct CIKs, no stitching.",
+   "applicability": "the predecessor's own 10-Q 0001723596-26-000020: cover dei:EntityCommonStockSharesOutstanding 104,047,469 as of 2026-05-07 (state 2026-05-12 .. 2026-07-20), carried on the price basis x 2.2 (the 2026-07-21 conversion exchange in the split ledger; bars are on the successor basis) = 228,904,431.8",
+   "market_cap": "V1 2026-06-09 .. 2026-07-20 (28 sessions): $2.06B .. $2.55B",
+   "production": "the V5 baseline attributes CLBK to the SUCCESSOR CIK 2115119 for these sessions at ~$2,000 (the pre-conversion holding-company shell's ~100 shares x price): production is misattributed, V1/production ~1.04e6",
+   "price_session": "2026-06-09 .. 2026-07-20 (NASDAQ), price authority PRICE-ROOT-07b851631ec08ea8",
+   "split_state": "the 2.2 exchange on 2026-07-21 is the only corporate action; it lies after the block"
+  },
+  "adjudicated_by": "production-lifecycle reproof 2026-10-06 (identity -> evidence applicability -> market cap); owner acceptance pending",
+  "adjudicated_at": "2026-10-06"
+ }
+]

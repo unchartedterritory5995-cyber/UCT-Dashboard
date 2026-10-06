@@ -85,6 +85,19 @@ def evaluate(build: str, reports: str, adjudication: str | None = None) -> dict:
     cover = {}
     for c in hc:
         cover.setdefault(c["ticker"], []).append((c["interval"][0], c["interval"][1], c.get("disposition")))
+    # evidence-bound history adjudications (the gate B mechanism): a case covers a block only while the build's
+    # share state over its interval is EXACTLY the adjudicated one (class, count, accession) -- new evidence re-opens it
+    gc_path = os.path.join(adjudication or reports, "gate_c_adjudication.json")
+    if not os.path.exists(gc_path):
+        gc_path = os.path.join(os.path.dirname(__file__), "adjudication", "gate_c_adjudication.json")
+    adj_c = []
+    for a_ in (json.load(open(gc_path)) if os.path.exists(gc_path) else []):
+        lo_, hi_ = (f"{str(x)[:4]}-{str(x)[4:6]}-{str(x)[6:8]}" for x in a_["interval"])
+        st = sorted([list(x) for x in B.execute("SELECT class_key, shares, obs_accession FROM state_run WHERE issuer_id=? "
+                                                 "AND start<=? AND end>=?", (f"cik:{int(a_['cik'])}", hi_, lo_))])
+        if a_.get("disposition") == "CORRECT" and st == sorted([list(x) for x in a_["state"]]):
+            cover.setdefault(a_["ticker"], []).append((a_["interval"][0], a_["interval"][1], "CORRECT"))
+            adj_c.append(a_["ticker"])
     unadj = []
     for t, blocks in ha["per_security"].items():
         for b in blocks:
@@ -93,7 +106,7 @@ def evaluate(build: str, reports: str, adjudication: str | None = None) -> dict:
             if not any(lo <= b["start"] and b["end"] <= hi and disp not in (None, "UNKNOWN_BUT_VALUED")
                        for lo, hi, disp in cover.get(t, [])):
                 unadj.append({"ticker": t, **b})
-    gate("C", not unadj, {"unadjudicated_blocks": unadj[:20], "n": len(unadj)},
+    gate("C", not unadj, {"unadjudicated_blocks": unadj[:20], "n": len(unadj), "adjudicated_correct": adj_c},
          "every UNDECIDED / MIXED / V1_JUMPS >= 10x block lies inside an adjudicated case")
     an = ua["anomalies"]
     gate("D", fc["lookahead_state_runs_before_known_from"] == 0 and fc["observations_known_before_public"] == 0
