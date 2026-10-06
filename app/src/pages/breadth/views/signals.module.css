@@ -31,7 +31,7 @@
 .chipClickable:hover .chipLabel { text-decoration: underline; }
 
 .kicker {
-  font: 800 9px 'Instrument Sans', sans-serif;
+  font: 800 var(--text-xs) var(--font-sans);
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }

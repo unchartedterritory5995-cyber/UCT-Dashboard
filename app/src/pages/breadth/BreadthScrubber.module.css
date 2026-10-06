@@ -28,7 +28,7 @@
 .range:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .ends {
-  font: 600 9px 'Instrument Sans', sans-serif;
+  font: 600 var(--text-xs) var(--font-sans);
   color: var(--text-muted);
   letter-spacing: 0.4px;
   white-space: nowrap;

@@ -137,13 +137,13 @@ export default function ScoreboardView({
                             border: isSignal ? '1px solid var(--ut-gold)' : '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)',
                             display: 'flex', flexDirection: 'column', minHeight: 0,
                             cursor: clickable ? 'pointer' : 'default' }}>
-                <div style={{ font: '700 8px Instrument Sans, sans-serif', letterSpacing: '.5px',
+                <div style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.5px',
                               textTransform: 'uppercase', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               flex: '0 0 auto' }}>
                   {isSignal ? <><UIcon name="star-fill" size={8} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
                 </div>
-                <div style={{ font: `800 ${compact ? 18 : 24}px Instrument Sans, sans-serif`, color: 'var(--text-bright)',
+                <div style={{ font: `800 ${compact ? 18 : 24}px var(--font-sans)`, color: 'var(--text-bright)',
                               lineHeight: 1.1, marginTop: 2, fontVariantNumeric: 'tabular-nums',
                               flex: '0 0 auto' }}>
                   {m.getFmt(currentRow)}
@@ -189,7 +189,7 @@ export default function ScoreboardView({
 
         {silent.length > 0 && (
           <div data-testid="scoreboard-silent" style={{ flex: '0 0 auto', marginTop: 12 }}>
-            <div style={{ font: '700 8px Instrument Sans, sans-serif', letterSpacing: '.7px',
+            <div style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.7px',
                           textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
               Not reported in this window
             </div>
@@ -197,7 +197,7 @@ export default function ScoreboardView({
               {silent.map(m => (
                 <span key={m.key} data-testid={`scoreboard-silent-${m.key}`}
                       title={`${m.label} — no reading in the ${asc.length} sessions drawn here`}
-                      style={{ font: '600 9px Instrument Sans, sans-serif', letterSpacing: '.4px',
+                      style={{ font: '600 var(--text-xs) var(--font-sans)', letterSpacing: '.4px',
                                textTransform: 'uppercase', color: 'var(--text-muted)',
                                border: '1px dashed color-mix(in srgb, var(--text-muted) 22%, transparent)', borderRadius: 6,
                                padding: '3px 8px', whiteSpace: 'nowrap' }}>

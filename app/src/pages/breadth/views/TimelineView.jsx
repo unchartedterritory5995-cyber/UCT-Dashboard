@@ -120,7 +120,7 @@ export default function TimelineView({
         <div />
         {days.map((row, i) => (
           <div key={row.date ?? i}
-               style={{ font: '700 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+               style={{ font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                         letterSpacing: '.3px', textAlign: 'center', fontVariantNumeric: 'tabular-nums',
                         overflow: 'hidden', whiteSpace: 'nowrap' }}>
             {dayLabel(row.date)}
@@ -159,7 +159,7 @@ export default function TimelineView({
               <Fragment key={m.key}>
                 <div {...drillProps(m, onDrill)}
                      className={isNotable ? signalStyles.pulse : undefined}
-                     style={{ font: '700 9px \'Instrument Sans\', sans-serif', textTransform: 'uppercase',
+                     style={{ font: '700 var(--text-xs) var(--font-sans)', textTransform: 'uppercase',
                               letterSpacing: '.3px', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                               display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                               textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -177,7 +177,7 @@ export default function TimelineView({
                                   background: bg, opacity: colors.fillOpacity,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   overflow: 'hidden', whiteSpace: 'nowrap',
-                                  font: `800 ${fs}px 'Instrument Sans', sans-serif`,
+                                  font: `800 ${fs}px var(--font-sans)`,
                                   fontVariantNumeric: 'tabular-nums',
                                   // Derived from the fill, not chosen: the tier
                                   // range runs from pale mint to near-black.

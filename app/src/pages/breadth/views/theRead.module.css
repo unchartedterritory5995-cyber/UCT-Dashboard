@@ -22,7 +22,7 @@
   align-self: stretch;
   padding: 3px 13px 0 0;
   border-right: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent);
-  font: 800 9px 'Instrument Sans', sans-serif;
+  font: 800 var(--text-xs) var(--font-sans);
   letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--text-muted);

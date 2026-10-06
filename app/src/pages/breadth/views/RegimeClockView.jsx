@@ -61,7 +61,7 @@ const momTickLabel = (v) => {
 // HTML label can be placed with the SAME X()/Y() the trail is drawn with.
 const GUTTER_L = 34
 const GUTTER_B = 26
-const tickText = { position: 'absolute', font: '600 8px \'Instrument Sans\', sans-serif',
+const tickText = { position: 'absolute', font: '600 var(--text-xs) var(--font-sans)',
                    color: 'var(--text-muted)', whiteSpace: 'nowrap' }
 
 // The trail dot under the pointer, found once per event instead of one handler
@@ -246,15 +246,15 @@ export default function RegimeClockView({
                 {v}
               </span>
             ))}
-            <span style={{ ...tickText, left: '50%', top: '100%', fontSize: 7,
+            <span style={{ ...tickText, left: '50%', top: '100%',
                            letterSpacing: '.7px', color: 'var(--text-muted)',
-                           transform: 'translate(-50%, 14px)' }}>
+                           transform: 'translate(-50%, 16px)' }}>
               PARTICIPATION LEVEL %
             </span>
             {QUADRANT_CORNERS.map(q => (
               <span key={q.name}
                     style={{ position: 'absolute', [q.x]: 4, [q.y]: 4,
-                             font: '800 8px \'Instrument Sans\', sans-serif',
+                             font: '800 var(--text-xs) var(--font-sans)',
                              letterSpacing: '.7px', textTransform: 'uppercase',
                              color: q.name === regime ? 'var(--text-muted)' : 'color-mix(in srgb, var(--text-muted) 60%, transparent)' }}>
                 {q.name}

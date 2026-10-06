@@ -112,7 +112,7 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
           </text>
         )}
       </svg>
-      <div style={{ font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
+      <div style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.6px',
                     textTransform: 'uppercase', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                     marginTop: 2, maxWidth: '100%', overflow: 'hidden',
                     textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '0 0 auto' }}>

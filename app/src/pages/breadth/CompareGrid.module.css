@@ -69,7 +69,7 @@
 .gear[aria-expanded='true'] { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 .gearPreset {
-  font: 700 9px 'Instrument Sans', sans-serif;
+  font: 700 var(--text-xs) var(--font-sans);
   letter-spacing: 0.3px;
   max-width: 84px;
   overflow: hidden;

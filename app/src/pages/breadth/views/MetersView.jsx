@@ -60,18 +60,18 @@ export default function MetersView({
       <div data-testid="meters-scale" aria-hidden="true"
            style={{ display: 'grid', gridTemplateColumns: TEMPLATE, gap: 10,
                     flex: '0 0 auto', marginBottom: 4 }}>
-        <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+        <div style={{ font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                       letterSpacing: '.5px', textAlign: 'right' }}>OVERSOLD</div>
         <div style={{ position: 'relative', height: 11 }}>
           {NORM_TICKS.map(t => (
             <span key={t}
                   style={{ position: 'absolute', left: `${t}%`,
                            transform: t === 0 ? 'none' : t === 100 ? 'translateX(-100%)' : 'translateX(-50%)',
-                           font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+                           font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                            fontVariantNumeric: 'tabular-nums' }}>{t}</span>
           ))}
         </div>
-        <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
+        <div style={{ font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                       letterSpacing: '.5px' }}>OVERBOUGHT</div>
       </div>
 
@@ -90,7 +90,7 @@ export default function MetersView({
                  style={{ display: 'grid', gridTemplateColumns: TEMPLATE,
                           alignItems: 'center', gap: 10, cursor: clickable ? 'pointer' : 'default',
                           ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
-              <span style={{ font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
+              <span style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.5px',
                              textTransform: 'uppercase', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                              textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>

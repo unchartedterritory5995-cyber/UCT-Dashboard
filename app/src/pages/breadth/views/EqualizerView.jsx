@@ -57,7 +57,7 @@ export default function EqualizerView({
             <span key={t}
                   style={{ position: 'absolute', right: 6, bottom: `${t}%`,
                            transform: 'translateY(50%)',
-                           font: '700 8px \'Instrument Sans\', sans-serif',
+                           font: '700 var(--text-xs) var(--font-sans)',
                            color: t === 50 ? 'var(--text-muted)' : 'var(--text-muted)',
                            fontVariantNumeric: 'tabular-nums' }}>{t}</span>
           ))}
@@ -117,7 +117,7 @@ export default function EqualizerView({
                       </div>
                     </div>
                     <div style={{ flex: `0 0 ${NAME_H}px`, height: NAME_H, paddingTop: 6,
-                                  font: '700 8px \'Instrument Sans\', sans-serif',
+                                  font: '700 var(--text-xs) var(--font-sans)',
                                   color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)', textAlign: 'center',
                                   textTransform: 'uppercase', letterSpacing: '.3px',
                                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

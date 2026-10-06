@@ -4,6 +4,7 @@ import EyebrowLabel from '../EyebrowLabel'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
 import styles from './Histogram.module.css'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { resolveThemeSize } from '../../../lib/theme/resolveThemeColor'
 
 /** §3.4 skeleton size contract. */
 export const SIZE = { width: '100%', height: 160 }
@@ -68,7 +69,7 @@ export function buildHistogramOption(bins, { marker, markerLabel, valueFormatter
       silent: true,
       symbol: 'none',
       lineStyle: { color: CHART_INK.gold, width: 1, type: 'dashed' },
-      label: { color: CHART_INK.bright, fontSize: 9, formatter: () => markerLabel || fmt(marker) },
+      label: { color: CHART_INK.bright, fontSize: resolveThemeSize('--text-xs', 10), formatter: () => markerLabel || fmt(marker) },
       data: [{ xAxis: markIdx, name: markerLabel || fmt(marker) }],
     }
   }
@@ -78,7 +79,7 @@ export function buildHistogramOption(bins, { marker, markerLabel, valueFormatter
     xAxis: {
       type: 'category',
       data: bins.map((b) => (b.x0 === b.x1 ? fmt(b.x0) : `${fmt(b.x0)}–${fmt(b.x1)}`)),
-      ...axisBase({ axisLabel: { color: CHART_INK.muted, fontSize: 9, interval: 0, rotate: bins.length > 5 ? 30 : 0 } }),
+      ...axisBase({ axisLabel: { color: CHART_INK.muted, fontSize: resolveThemeSize('--text-xs', 10), interval: 0, rotate: bins.length > 5 ? 30 : 0 } }),
     },
     yAxis: {
       type: 'value',
