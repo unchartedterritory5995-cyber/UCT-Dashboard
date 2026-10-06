@@ -60,3 +60,17 @@ def test_request_errors_fail_closed(tmp_path, monkeypatch):
     monkeypatch.setattr(Q.urllib.request, "urlopen", _fake())
     r = Q.reference_from_massive(_universe(tmp_path), str(tmp_path / "r.jsonl"), key="k", workers=4)
     assert r["tickers_pulled"] == 1 and r["tickers"] == 40
+
+
+def test_an_invalid_ticker_400_is_a_definitive_not_found(tmp_path, monkeypatch):
+    monkeypatch.setattr(Q.time, "sleep", lambda s: None)
+
+    def urlopen(url, timeout=30):
+        if "/v3/reference/tickers/T003" in url:
+            raise urllib.error.HTTPError(url, 400, "Invalid ticker", {}, None)
+        return _fake()(url, timeout)
+    monkeypatch.setattr(Q.urllib.request, "urlopen", urlopen)
+    r = Q.reference_from_massive(_universe(tmp_path), str(tmp_path / "r.jsonl"), key="k", workers=4)
+    assert r["tickers"] == 40
+    row = next(json.loads(x) for x in (tmp_path / "r.jsonl").read_text().splitlines() if json.loads(x)[0] == "T003")
+    assert row[1]["ticker"] is None and row[1]["cik"] is None          # recorded, details null (as in M3's reference)

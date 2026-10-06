@@ -154,7 +154,10 @@ def reference_from_massive(universe_path: str, out: str, *, key: str | None = No
                 with urllib.request.urlopen(url, timeout=30) as r:
                     return json.loads(r.read())
             except urllib.error.HTTPError as e:
-                if e.code == 404:
+                # 404 and 400 ("Invalid ticker: ABR-PD" -- a bars.db spelling Massive does not resolve) are DEFINITIVE
+                # answers, recorded as not found exactly like M3's reference (null details); only 429 / 5xx / network
+                # failures are retried and, if they persist, fail the pull
+                if e.code in (400, 404):
                     return {"status": "NOT_FOUND"}
                 time.sleep(2 * (i + 1))
             except Exception:  # noqa: BLE001
