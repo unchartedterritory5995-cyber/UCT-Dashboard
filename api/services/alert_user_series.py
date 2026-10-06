@@ -1231,6 +1231,7 @@ def user_catalog(user_id: Any) -> list[dict]:
     """
     if not user_id:
         return []
+    from api.services import alert_trigger_policy as _trigger
     from api.services import indicator_alert_evaluator as ev
     from api.services import user_definitions
 
@@ -1283,6 +1284,14 @@ def user_catalog(user_id: Any) -> list[dict]:
                 "default_threshold": None,
                 "inputs": _inputs_for(definition, None),
                 "instance_label": _instance_label(definition, def_id),
+                # ⭐ P1 SIGNAL — WHAT KIND OF OUTPUT THIS PLOT IS, DERIVED HERE
+                # from its own tree (`alert_trigger_policy.output_type_of`: the
+                # manifest `yields` resolver + the scalar walk), never stored and
+                # never read from the client. A `condition` is offered as a
+                # trigger policy (is true / becomes true / becomes false) instead
+                # of a numeric threshold, which on a 0/1 column could be set to a
+                # level that never fires. Additive: the GLOBAL catalog is untouched.
+                "output_type": _trigger.output_type_of(definition, plot_key),
             }
             for plot, plot_key in pairs
         ]
