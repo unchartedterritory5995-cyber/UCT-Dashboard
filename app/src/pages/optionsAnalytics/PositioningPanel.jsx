@@ -43,8 +43,12 @@ function Levels({ sym }) {
             ))}
           </ul>
           {(data.notes || []).map((n) => <p key={n} className={styles.muted}>{n}</p>)}
-          {data.atm_iv && <p className={styles.muted}>ATM IV {(data.atm_iv.value * 100).toFixed(1)}% on {data.atm_iv.expiration} (vendor).</p>}
-          <p className={styles.muted}>{data.method} Vocabulary v{data.vocabulary_version}.</p>
+          {Number.isFinite(data.atm_iv?.value) && (
+            <p className={styles.muted} data-testid="levels-atm-iv">
+              ATM IV {(data.atm_iv.value * 100).toFixed(1)}%{data.atm_iv.expiration ? ` on ${data.atm_iv.expiration}` : ' (30-day interpolated)'}.
+            </p>
+          )}
+          <p className={styles.muted}>{data.method}</p>
         </>
       )}
     </Block>

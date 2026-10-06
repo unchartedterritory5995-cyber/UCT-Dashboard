@@ -44,6 +44,11 @@ function TrustStrip({ meta, sessionContext }) {
   )
 }
 
+// A vendor ZERO for a float, a short count or days to cover is not a measured zero: a listed
+// security with shares outstanding cannot have a float of 0, and Yahoo/FMP write 0 where they
+// hold nothing (every ETF reads "Float 0"). Rendered as not reported, never as "0".
+const reported = (v) => (v == null || Number(v) === 0 || !Number.isFinite(Number(v)) ? null : Number(v))
+
 function fmtShares(v) {
   if (v == null) return '—'
   const a = Math.abs(v)
@@ -60,7 +65,7 @@ function fmtMoney(v) {
   if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
   return `$${v.toFixed(0)}`
 }
-function fmtPct(v) { return v == null ? '—' : `${v}%` }
+function fmtPct(v) { return v == null || !Number.isFinite(Number(v)) ? '—' : `${+Number(v).toFixed(2)}%` }
 function fmtNum(v) { return v == null ? '—' : Math.round(v).toLocaleString() }
 function fmtChgPp(v) {  // ownership-percent change, in percentage points
   if (v == null) return null
@@ -183,7 +188,7 @@ export default function OwnershipTab({ sym }) {
     <div className={styles.finWrap}>
       {o.entity && o.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({o.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
@@ -231,13 +236,13 @@ export default function OwnershipTab({ sym }) {
 
         <section className={styles.card}>
           <div className={styles.ct}>Short interest</div>
-          <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(sh.short_pct_float)}</b></div>
-          <div className={styles.kv}><span>Days to cover</span><b>{sh.days_to_cover ?? '—'}</b></div>
-          <div className={styles.kv}><span>Shares short</span><b>{fmtShares(sh.shares_short)}</b></div>
+          <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(reported(sh.short_pct_float))}</b></div>
+          <div className={styles.kv}><span>Days to cover</span><b>{reported(sh.days_to_cover) == null ? '—' : reported(sh.days_to_cover).toFixed(1)}</b></div>
+          <div className={styles.kv}><span>Shares short</span><b>{fmtShares(reported(sh.shares_short))}</b></div>
           <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>Source: Yahoo Finance</div>
 
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-            <div className={styles.kv}><span>Float</span><b>{fmtShares(sc.float_shares)}</b></div>
+            <div className={styles.kv}><span>Float</span><b>{fmtShares(reported(sc.float_shares))}</b></div>
             <div className={styles.kv}><span>Shares outstanding</span><b>{fmtShares(sc.shares_outstanding)}</b></div>
             <TrustStrip meta={sc._meta} sessionContext={sessionContext} />
           </div>

@@ -969,6 +969,7 @@ export default function Calendar() {
             onPollActuals={mutate}
             isTodayReporter={isTodayReporter}
             enrichReady={!!enrichmentByDate}
+            enrichFailed={!!enrichmentByDate?.__failed}
           />
         </ErrorBoundary>
       )}

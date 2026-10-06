@@ -2,6 +2,9 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePendingReask } from '../depth/depthFetch'
+import PendingGaveUp from '../depth/PendingGaveUp'
 
 // COV-05 (roadmap RM-L19) — who runs this company: officers and key executives,
 // the proxy's compensation table, and the role each insider declares on Form 4.
@@ -18,16 +21,19 @@ const money = (v, cur) => {
   return `${cur && cur !== 'USD' ? `${cur} ` : '$'}${s}`
 }
 
-function Gap({ part, testid }) {
-  return (
-    <div className={styles.gap} data-testid={testid}>
-      Unavailable: {part?.reason || 'the source could not be read'}. ({part?.source})
-    </div>
-  )
+// Member copy for a section with no rows. `not_found` is the vendor holding nothing for the
+// symbol (every fund/ETF reads this: no officer list, no proxy pay table), said plainly; a
+// read that failed says so and is not a finding. Never the vendor endpoint path (live sweep
+// 2026-10-05: "Unavailable: FMP returned no rows for this symbol. (FMP /stable/key-executives)").
+function Gap({ part, testid, what, sym }) {
+  const text = part?.state === 'not_found'
+    ? `No ${what} for ${sym}.`
+    : `${what[0].toUpperCase()}${what.slice(1)} could not be read right now. That is a gap in what we could read, not a finding about ${sym}.`
+  return <div className={styles.gap} data-testid={testid}>{text}</div>
 }
 
-function Executives({ part }) {
-  if (!part?.rows) return <Gap part={part} testid="people-execs-unavailable" />
+function Executives({ part, sym }) {
+  if (!part?.rows) return <Gap part={part} testid="people-execs-unavailable" what="officer records" sym={sym} />
   return (
     <div className={styles.scroll}>
       <table className={styles.grid} data-testid="people-execs">
@@ -57,15 +63,15 @@ function Executives({ part }) {
         </tbody>
       </table>
       <div className={styles.muted} data-testid="people-execs-source">
-        Source: {part.source}, read {part.as_of}. "Since" is unavailable where FMP reports no start date.
+        Source: {memberText(part.source)}, read {part.as_of}. "Since" is unavailable where FMP reports no start date.
         * FMP does not state which year a pay figure covers.
       </div>
     </div>
   )
 }
 
-function Compensation({ part }) {
-  if (!part?.rows) return <Gap part={part} testid="people-comp-unavailable" />
+function Compensation({ part, sym }) {
+  if (!part?.rows) return <Gap part={part} testid="people-comp-unavailable" what="proxy compensation records" sym={sym} />
   return (
     <div className={styles.scroll}>
       <table className={styles.grid} data-testid="people-comp">
@@ -90,17 +96,20 @@ function Compensation({ part }) {
         </tbody>
       </table>
       <div className={styles.muted} data-testid="people-comp-source">
-        Fiscal {part.year}. Source: {part.source}, read {part.as_of}; each row links to its SEC filing.
+        Fiscal {part.year}. Source: {memberText(part.source)}, read {part.as_of}; each row links to its SEC filing.
       </div>
     </div>
   )
 }
 
-function InsiderRoles({ part }) {
+function InsiderRoles({ part, sym }) {
   if (!part?.rows || part.rows.length === 0) {
-    return <div className={styles.gap} data-testid="people-roles-gap">
-      {part?.state === 'none_in_window' ? 'None in window' : 'Unavailable'}: {part?.reason}. ({part?.source})
-    </div>
+    let text
+    if (part?.state === 'pending') text = 'Reading the Form 4 filings for this company now. This section updates by itself.'
+    else if (part?.state === 'none_in_window') text = `No Form 4 filed for ${sym} in the last ${part.window_days} days (SEC EDGAR).`
+    else if (part?.state === 'not_found') text = `No SEC filer could be matched to ${sym}.`
+    else text = `Insider roles: unavailable right now (${memberText(part?.reason) || 'SEC EDGAR could not be read'}). That is a gap in what we could read, not a finding about ${sym}.`
+    return <div className={styles.gap} data-testid="people-roles-gap">{text}</div>
   }
   return (
     <div className={styles.scroll}>
@@ -119,7 +128,7 @@ function InsiderRoles({ part }) {
         </tbody>
       </table>
       <div className={styles.muted} data-testid="people-roles-source">
-        Source: {part.source}, filings since {part.since} ({part.window_days} days).{part.reason ? ` Partial: ${part.reason}.` : ''}
+        Source: {memberText(part.source)}, filings since {part.since} ({part.window_days} days).{part.reason ? ` Partial: ${memberText(part.reason)}.` : ''}
       </div>
     </div>
   )
@@ -127,8 +136,10 @@ function InsiderRoles({ part }) {
 
 export default function PeopleTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/people/${encodeURIComponent(s)}` : null,
-    sectionFetcher, { revalidateOnFocus: false })
+  const key = s ? `/api/research/people/${encodeURIComponent(s)}` : null
+  const { data, error, mutate } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
+  // The Form 4 half answers `pending` while its read is queued; ask again by itself.
+  const reask = usePendingReask(data?.insider_roles?.state === 'pending', mutate, key)
 
   if (error) {
     return <div className={styles.note} data-testid="people-unavailable">
@@ -140,9 +151,10 @@ export default function PeopleTab({ sym }) {
 
   return (
     <section className={styles.section} data-testid="people">
-      <div className={styles.card}><h3 className={styles.title}>Officers and key executives</h3><Executives part={data.executives} /></div>
-      <div className={styles.card}><h3 className={styles.title}>Compensation (proxy summary table)</h3><Compensation part={data.compensation} /></div>
-      <div className={styles.card}><h3 className={styles.title}>Insider roles (SEC Form 4)</h3><InsiderRoles part={data.insider_roles} /></div>
+      <div className={styles.card}><h3 className={styles.title}>Officers and key executives</h3><Executives part={data.executives} sym={s} /></div>
+      <div className={styles.card}><h3 className={styles.title}>Compensation (proxy summary table)</h3><Compensation part={data.compensation} sym={s} /></div>
+      <div className={styles.card}><h3 className={styles.title}>Insider roles (SEC Form 4)</h3><InsiderRoles part={data.insider_roles} sym={s} />
+        <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The Form 4 read" /></div>
     </section>
   )
 }

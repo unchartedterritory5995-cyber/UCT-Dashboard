@@ -190,7 +190,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           fabricated-provenance failure S8 exists to prevent. */}
       {fin.entity && fin.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({fin.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       {/* ⚠️ These grids are yfinance-derived and label CALENDAR quarters. FMP,

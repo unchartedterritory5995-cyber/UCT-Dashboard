@@ -1,6 +1,8 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import PendingGaveUp from './PendingGaveUp'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
 // opening gap, the reacting session's close-to-close move and the 5-session
@@ -11,6 +13,7 @@ import styles from './Depth.module.css'
 // ⛔ Every summary shows its n; the implied move names its expiry, strike and marks.
 
 const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`)
+const eps = (v) => (Number.isFinite(Number(v)) ? `$${Number(v).toFixed(2)}` : '—')
 const tone = (v) => (v == null ? '' : v > 0 ? styles.up : v < 0 ? styles.down : '')
 const COLS = [['run_in_pct', 'Run-in (5d)'], ['gap_pct', 'Gap'], ['reaction_pct', 'Reaction'], ['drift_pct', 'Drift (5d)']]
 const SUMS = [['run_in', 'Run-in'], ['gap', 'Gap'], ['reaction', 'Reaction'], ['drift', 'Drift']]
@@ -20,7 +23,7 @@ function Implied({ im, next }) {
     return <p className={styles.muted} data-testid="implied-pending">Implied move for the next print: being read from the option chain.</p>
   }
   if (im.state !== 'ok') {
-    return <p className={styles.muted} data-testid="implied-unavailable">Implied move: unavailable ({im.reason || 'no reading'}).</p>
+    return <p className={styles.muted} data-testid="implied-unavailable">Implied move: unavailable ({memberText(im.reason) || 'no reading'}).</p>
   }
   const read = im.read_at ? new Date(im.read_at * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
   return (
@@ -36,13 +39,13 @@ export default function EarningsReactionPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
-  usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
+  const reask = usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
   else if (!data) body = <div className={styles.note}>Loading the earnings reaction…</div>
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{data.reason}</div>
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason)}</div>
   else {
     const sum = data.summary || {}
     body = (
@@ -64,7 +67,7 @@ export default function EarningsReactionPanel({ sym }) {
                       {k === 'drift_pct' && q.drift_state === 'pending' ? 'pending' : pct(q[k])}
                     </td>
                   ))}
-                  <td>{q.eps_actual == null ? '—' : `${q.eps_actual} vs ${q.eps_estimate ?? '—'}`}</td>
+                  <td>{q.eps_actual == null ? '—' : `${eps(q.eps_actual)} vs ${q.eps_estimate == null ? '—' : eps(q.eps_estimate)}`}</td>
                 </tr>
               ))}
             </tbody>
@@ -82,13 +85,14 @@ export default function EarningsReactionPanel({ sym }) {
           </p>
         )}
         <Implied im={data.implied_move} next={data.next_report_date} />
-        <p className={styles.muted}>Bars through {data.bars_through}. Source: {data.source}. History describes the past; it is not a forecast.</p>
+        <p className={styles.muted}>Bars through {data.bars_through}. Source: {memberText(data.source)}. History describes the past; it is not a forecast.</p>
       </div>
     )
   }
   return (
     <section className={styles.panel} data-testid="earnings-reaction-panel">
       <h3 className={styles.panelTitle}>Earnings reaction (8 quarters)</h3>
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings-reaction read" />
       {body}
     </section>
   )

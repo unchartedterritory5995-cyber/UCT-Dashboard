@@ -28,6 +28,7 @@ from typing import Optional
 from api.services import fmp_client
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
+from api.services.provider_errors import ProviderNotFound
 from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
@@ -38,18 +39,32 @@ _MAX_ITEMS = 40
 
 
 def _fmp_rows_with_meta(fn, ticker: str, **kwargs) -> tuple[list, Optional[dict]]:
-    """Same 'never raises, (rows, meta)' contract as analyst_grades.py's
-    identically-named helper -- copied locally (module-private there too)
-    rather than shared, until a third caller justifies promoting it. One
-    provenance/freshness envelope for the WHOLE leg, never per-article --
-    matches every other list-shaped leg's S8 treatment this session."""
+    """Never raises; (rows, meta). One provenance envelope for the WHOLE leg."""
+    rows, meta, _failed = _fmp_rows_meta_failed(fn, ticker, **kwargs)
+    return rows, meta
+
+
+def _fmp_rows_meta_failed(fn, ticker: str, **kwargs) -> tuple[list, Optional[dict], bool]:
+    """`_fmp_rows_with_meta` plus whether the leg FAILED. A not-found answer is FMP saying it
+    holds nothing (a real empty); any other exception, or a degraded result (the endpoint in
+    its cached-forbidden window), is a read that failed. The News tab rendered both as "No
+    recent news for this ticker" (quality pass 2026-10-05) -- a claim about the company that
+    a failed read cannot support."""
     try:
         result = fn(ticker, **kwargs)
+    except ProviderNotFound:
+        return [], None, False
     except Exception:
-        return [], None
+        return [], None, True
+    if getattr(result, "degraded", None):
+        return [], None, True
+    return _fmp_rows_with_meta_inner(result)
+
+
+def _fmp_rows_with_meta_inner(result) -> tuple[list, Optional[dict], bool]:
     rows = result.value if isinstance(result.value, list) else []
     if not rows:
-        return [], None
+        return [], None, False
     meta = {
         "vendor": result.provenance.vendor,
         "sourceActivity": result.provenance.source_activity,
@@ -60,7 +75,7 @@ def _fmp_rows_with_meta(fn, ticker: str, **kwargs) -> tuple[list, Optional[dict]
         "licensingClass": result.licensing_class,
         "degraded": result.degraded,
     }
-    return rows, meta
+    return rows, meta, False
 
 
 def _published_at(raw: Optional[str]) -> Optional[str]:
@@ -136,12 +151,14 @@ def _articles(fmp_symbol: str, limit: int) -> tuple[list, Optional[dict], bool]:
     got: dict[str, tuple[list, Optional[dict]]] = {}
     all_answered = True
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="news") as ex:
-        futures = {kind: ex.submit(_fmp_rows_with_meta, fn, fmp_symbol, limit=limit) for kind, fn in legs}
+        futures = {kind: ex.submit(_fmp_rows_meta_failed, fn, fmp_symbol, limit=limit) for kind, fn in legs}
         for kind, fut in futures.items():
             try:
-                got[kind] = fut.result()
+                rows_, meta_, failed_ = fut.result()
             except Exception:
-                got[kind] = ([], None)
+                rows_, meta_, failed_ = [], None, True
+            got[kind] = (rows_, meta_)
+            if failed_:
                 all_answered = False
 
     seen: set[str] = set()
@@ -194,5 +211,8 @@ def get_company_news(sym: str) -> dict:
     items, meta, all_answered = _articles(fmp_symbol, _MAX_ITEMS)
 
     out = {"sym": sym, "entity": entity, "items": items, "_meta": meta}
+    if not items and not all_answered:
+        # Nothing to show AND a leg failed: an outage, never "no news". The route answers 503.
+        out["_outage"] = True
     set_by_completeness(ck, out, complete=all_answered, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

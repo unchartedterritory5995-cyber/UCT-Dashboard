@@ -1,7 +1,9 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import PendingGaveUp from './PendingGaveUp'
 import HighlightThesis from '../../../utils/highlightThesis'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -16,7 +18,7 @@ export default function EventsPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
-  usePendingReask(data?.sources?.earnings?.state === 'pending', mutate, s)
+  const reask = usePendingReask(data?.sources?.earnings?.state === 'pending', mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
@@ -27,7 +29,7 @@ export default function EventsPanel({ sym }) {
     const events = [...(data.events || [])].reverse()
     body = (
       <div data-testid="events">
-        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {data.reason}.</p>}
+        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {memberText(data.reason)}.</p>}
         {errs.length > 0 && (
           <p className={styles.error} data-testid="events-source-errors">
             Could not read: {errs.map(([k]) => KIND[k] || k).join(', ')}. Events from those sources are missing, not absent.
@@ -50,7 +52,7 @@ export default function EventsPanel({ sym }) {
                         <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{e.source}</td>
+                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{memberText(e.source)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -64,6 +66,7 @@ export default function EventsPanel({ sym }) {
   return (
     <section className={styles.panel} data-testid="events-panel">
       <h3 className={styles.panelTitle}>Events around the print</h3>
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings read" />
       {body}
     </section>
   )

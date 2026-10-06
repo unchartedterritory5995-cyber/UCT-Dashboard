@@ -131,7 +131,7 @@ export default function AnalystRatingsTab({ sym }) {
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({e.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
@@ -140,7 +140,7 @@ export default function AnalystRatingsTab({ sym }) {
           <div className={styles.ct}>Analyst consensus</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
             <span className={consensusClass(con.label)} style={{ fontSize: 18, fontWeight: 700 }}>{con.label || '—'}</span>
-            <span className={styles.muted}>{con.total} analysts</span>
+            {Number.isFinite(con.total) && <span className={styles.muted}>{con.total} {con.total === 1 ? 'analyst' : 'analysts'}</span>}
           </div>
           <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', margin: '10px 0' }}>
             {SEG.map(s => {

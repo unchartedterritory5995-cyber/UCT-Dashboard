@@ -39,7 +39,9 @@ describe('EventsPanel', () => {
     const rows = await screen.findAllByTestId('event-row')
     expect(rows[0].textContent).toContain('T Q2')
     expect(rows[1].textContent).toContain('T-2 Q2')
-    expect(rows[1].textContent).toContain('UCT catalyst engine (catalysts.db)')
+    expect(rows[1].textContent).toContain('UCT catalyst engine')
+    // the database file name is internal detail, not member copy (quality pass 2026-10-05)
+    expect(rows[1].textContent).not.toContain('catalysts.db')
   })
 
   it('a source that could not be read is called missing, not absent', async () => {

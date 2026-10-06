@@ -2,6 +2,7 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
 // upcoming quarter has moved, from UCT's own daily snapshots of FMP's consensus
@@ -31,7 +32,7 @@ function Period({ p }) {
         ? <div className={styles.muted} data-testid={`revision-${p.period_end}`}>
             Since {p.first_snapshot} ({p.n} snapshots): EPS <span className={e.cls}>{e.text}</span>, revenue <span className={r.cls}>{r.text}</span>.
           </div>
-        : <div className={styles.gap} data-testid={`collecting-${p.period_end}`}>Collecting: {p.reason}.</div>}
+        : <div className={styles.gap} data-testid={`collecting-${p.period_end}`}>Collecting: {memberText(p.reason)}.</div>}
       <div className={styles.scroll}>
         <table className={styles.grid}>
           <thead><tr>
@@ -75,16 +76,16 @@ export default function EstimateHistoryTab({ sym }) {
       <p className={styles.muted} data-testid="esthist-window">
         {data.covers_from
           ? `${s}: daily snapshots since ${data.covers_from} (${data.snapshot_days} days, last ${data.last_snapshot}). History before ${data.covers_from} was not recorded.`
-          : `${s}: ${data.reason}.`}
+          : `${s}: ${memberText(data.reason)}.`}
       </p>
-      {data.state === 'no_upcoming_periods' && <div className={styles.gap}>{data.reason}.</div>}
+      {data.state === 'no_upcoming_periods' && <div className={styles.gap}>{memberSentence(data.reason)}</div>}
       {(data.periods || []).map((p) => <Period key={p.period_end} p={p} />)}
       {failed.length > 0 && (
         <div className={styles.gap} data-testid="esthist-failed">
           Days with no snapshot (the read failed): {failed.map((f) => f.snap_date).join(', ')}.
         </div>
       )}
-      <p className={styles.muted} data-testid="esthist-source">Source: {data.source}.</p>
+      <p className={styles.muted} data-testid="esthist-source">Source: {memberText(data.source)}.</p>
     </section>
   )
 }

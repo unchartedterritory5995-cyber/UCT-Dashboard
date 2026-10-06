@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-068 — SEC fails-to-deliver as its own dataset. DARK behind FTD_DATASET_ENABLED.
 //
@@ -21,8 +22,8 @@ export default function FtdPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="ftd-unavailable">Fails-to-deliver data is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
   else if (!data) body = <div className={styles.note}>Loading fails to deliver…</div>
   else if (data.paywalled) body = <div className={styles.note}>Fails to deliver requires a paid plan.</div>
-  else if (data.state === 'not_ingested') body = <div className={styles.note} data-testid="ftd-not-ingested">{data.reason}.</div>
-  else if (data.state === 'none_reported') body = <div className={styles.note} data-testid="ftd-none">{data.reason}.</div>
+  else if (data.state === 'not_ingested') body = <div className={styles.note} data-testid="ftd-not-ingested">{memberSentence(data.reason)}</div>
+  else if (data.state === 'none_reported') body = <div className={styles.note} data-testid="ftd-none">{memberSentence(data.reason)}</div>
   else {
     const pts = [...(data.points || [])].reverse()
     body = (
@@ -56,7 +57,7 @@ export default function FtdPanel({ sym }) {
       <h3 className={styles.panelTitle}>Fails to deliver (SEC)</h3>
       {body}
       {data && !data.paywalled && !error && (
-        <p className={styles.muted} data-testid="ftd-basis">{data.basis} Source: {data.source}.</p>
+        <p className={styles.muted} data-testid="ftd-basis">{data.basis} Source: {memberText(data.source)}.</p>
       )}
     </section>
   )

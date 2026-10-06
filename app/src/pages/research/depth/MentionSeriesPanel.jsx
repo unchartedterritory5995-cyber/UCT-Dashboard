@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
 // panel, not a chart overlay. DARK behind MENTION_SERIES_ENABLED.
@@ -22,8 +23,11 @@ export default function MentionSeriesPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
   else if (!data) body = <div className={styles.note}>Loading room attention…</div>
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{data.reason}.</div>
-  else {
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason)}</div>
+  else if (!data.summary?.days_measured) {
+    // state ok with nothing measured rendered "Last 0 measured days: — mentions a day"
+    body = <div className={styles.note} data-testid="mentions-none-measured">No days of #main-chat have been measured for {s} in this window yet.</div>
+  } else {
     const sm = data.summary || {}
     const recent = [...(data.points || [])].reverse().slice(0, 14)
     body = (
@@ -48,8 +52,8 @@ export default function MentionSeriesPanel({ sym }) {
             </tbody>
           </table>
         </div>
-        <p className={styles.muted} data-testid="mentions-polarity">Positive/negative sentiment: unavailable, because {data.polarity?.reason}.</p>
-        <p className={styles.muted}>Source: {data.source}.</p>
+        <p className={styles.muted} data-testid="mentions-polarity">Positive/negative sentiment: unavailable, because {memberText(data.polarity?.reason)}.</p>
+        <p className={styles.muted}>Source: {memberText(data.source)}.</p>
       </div>
     )
   }

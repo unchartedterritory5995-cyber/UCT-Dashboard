@@ -5,17 +5,22 @@ import useCallRecap from '../hooks/useCallRecap'
 import useEarningsAudio from '../hooks/useEarningsAudio'
 import { recapEmptyState } from '../../../components/research/callRecap'
 import styles from '../ResearchPage.module.css'
+import { usePendingReask } from '../depth/depthFetch'
+import PendingGaveUp from '../depth/PendingGaveUp'
 
 export default function CallsTab({ sym }) {
   const { data: recapData, isLoading, error, mutate } = useCallRecap(sym)
   const { data: audioData } = useEarningsAudio(sym)
   const recap = recapData?.recap
+  // "this panel updates on its own" (callRecap.js generating copy) was not true: nothing
+  // re-asked. It does now, while the recap is being written.
+  const reask = usePendingReask(!recap && recapData?.recap_status === 'generating', mutate, sym)
 
   return (
     <div className={styles.finWrap}>
       {recapData?.entity && recapData.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({recapData.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       <SentimentGauge ticker={sym} />
@@ -41,11 +46,12 @@ export default function CallsTab({ sym }) {
         // which is the common one — the request path never synthesises inline.
         const { title, hint } = recapEmptyState(recapData?.recap_status)
         return (
-          <div className={styles.fnote}>
+          <div className={styles.fnote} data-testid="call-recap-empty">
             <strong>{title}</strong> {hint}
           </div>
         )
       })()}
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The recap" />
     </div>
   )
 }

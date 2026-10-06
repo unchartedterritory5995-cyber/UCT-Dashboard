@@ -14,8 +14,12 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
+import jsonFetcher from '../utils/jsonFetcher'
 
 const fetcher = url => fetch(url).then(r => r.json())
+// The leadership read THROWS on failure (jsonFetcher: non-2xx, network, 30 s deadline). With
+// the bare fetcher a 503 {detail} became an empty list and read "not yet available, check back".
+const leadershipFetcher = url => jsonFetcher(url)
 
 function num(v) {
   const n = typeof v === 'number' ? v : parseFloat(v)
@@ -358,7 +362,7 @@ function MethodologySheet({ open, onClose }) {
 
 export default function UCT20() {
   const { mutate } = useSWRConfig()
-  const { data: rows }    = useSWR('/api/leadership',      fetcher, { refreshInterval: 3600000 })
+  const { data: rows, error: rowsError, mutate: retryRows } = useSWR('/api/leadership', leadershipFetcher, { refreshInterval: 3600000 })
   const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
@@ -542,8 +546,16 @@ export default function UCT20() {
           rebuild appears to have been missed. It will catch up on the next run.
         </div>
       )}
-      <TileCard title="UCT 20 — Current Top Stocks">
-        {!rows ? (
+      <TileCard title={`UCT 20 — Current Top Stocks${leadershipUpdated ? ` · as of ${leadershipUpdated}` : ''}`}>
+        {rowsError && !rows ? (
+          <div className={styles.emptyState} data-testid="uct20-error">
+            <p className={styles.emptyStateTitle}>The UCT 20 could not be read right now</p>
+            <p className={styles.emptyStateBody}>
+              That is a gap in what we could read, not a change to the list.{' '}
+              <button type="button" onClick={() => retryRows()}>Retry</button>
+            </p>
+          </div>
+        ) : !rows ? (
           <SkeletonTable rows={8} cols={3} />
         ) : stocks.length === 0 ? (
           <div className={styles.emptyState}>
@@ -558,7 +570,7 @@ export default function UCT20() {
               <>
                 <p className={styles.emptyStateTitle}>Leadership data not yet available</p>
                 <p className={styles.emptyStateBody}>
-                  The UCT 20 refreshes daily at 7:35 AM ET after the morning wire push. Check back after.
+                  The UCT 20 is built each trading morning at 7:35 AM ET after the Morning Wire. This page checks for it again every hour.
                 </p>
               </>
             )}

@@ -2,6 +2,7 @@
 import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import { localIso } from './weekAnchor'
+import { withDeadline } from '../../utils/withDeadline'
 
 const fetcher = (url) => fetch(url).then(r => r.ok ? r.json() : null)
 
@@ -117,16 +118,22 @@ export function useReactions(ds) {
 // enrichment endpoint and returns a { [ds]: {SYM:{expected_move,beat_history}} } map.
 // MUST be a single stable hook (not a loop) to avoid "rendered more hooks than during
 // the previous render" crash when weekDates length changes between renders.
+export const ENRICHMENT_FAILED = Object.freeze({ __failed: true })
+
 export function useWeekEnrichment(weekDates) {
   const key = weekDates && weekDates.length ? `enrich:${weekDates.join(',')}` : null
   return useSWR(
     key,
     // ONE batch request for the whole week (was one fetch per day → N round-trips
-    // + N backend threadpool slots). Falls back to {} on any failure.
-    () => fetch(`/api/calendar/enrichment-batch?dates=${weekDates.join(',')}`)
-      .then(r => (r.ok ? r.json() : {}))
-      .then(e => e || {})
-      .catch(() => ({})),
+    // + N backend threadpool slots). A failure answers ENRICHMENT_FAILED: the week's
+    // columns still settle to "—", but the earnings modal must not read a failed batch
+    // as "this company has never reported" (it did: a {} here made every modal opened
+    // that week claim "No reported quarters yet"). It resolves rather than throws so
+    // the 5-minute refresh keeps re-asking (SWR stops polling a key holding an error).
+    () => withDeadline(fetch(`/api/calendar/enrichment-batch?dates=${weekDates.join(',')}`), 'enrichment-batch')
+      .then(r => (r.ok ? r.json() : ENRICHMENT_FAILED))
+      .then(e => e || ENRICHMENT_FAILED)
+      .catch(() => ENRICHMENT_FAILED),
     { refreshInterval: 300000, revalidateOnFocus: false }
   )
 }

@@ -114,10 +114,15 @@ def research_company_news(sym: str = Depends(sym_path)):
     touch a working legacy consumer" instruction.
     """
     try:
-        return get_company_news(sym)
+        out = get_company_news(sym)
     except Exception as exc:
         _logger.warning("research company-news failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "entity": None, "items": [], "_meta": None}
+        out = {"_outage": True}
+    if out.get("_outage"):
+        # A failed read is not an empty feed (quality pass 2026-10-05): the tab renders a 503 as
+        # "couldn't load" with Retry, and a 200 with no items as "no recent news".
+        raise HTTPException(status_code=503, detail="Company news could not be read right now.")
+    return out
 
 
 @router.post("/api/research/explain/{sym}")
@@ -225,8 +230,10 @@ def research_financial_history(sym: str = Depends(sym_path), period: str = "quar
         return get_history(sym, period=period)
     except Exception as exc:
         _logger.warning("financial history failed for %s: %s", sym, exc)
+        # `fmp_unavailable`: the read FAILED. Without it the panel said "FMP holds no statement
+        # history for this ticker" - a claim about the company (quality pass 2026-10-05).
         return {"sym": (sym or "").upper(), "period": period,
-                "periods": [], "series": {}}
+                "periods": [], "series": {}, "fmp_unavailable": True}
 
 
 @router.get("/api/research/financials/{sym}")
@@ -260,7 +267,10 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
             out = dict(f_yf.result() or {})
         except Exception as exc:
             _logger.warning("research estimates failed for %s: %s", sym, exc)
-            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+            # `yf_unavailable`: the Yahoo leg FAILED, so an empty forward list is not a finding
+            # (the EE panel said "Neither FMP nor Yahoo Finance holds forward estimates").
+            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": [],
+                   "yf_unavailable": True}
         try:
             out["consensus"] = f_fmp.result()
         except Exception as exc:

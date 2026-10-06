@@ -11,9 +11,20 @@ import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import styles from './FlowScoreboard.module.css'
+import jsonFetcher from '../utils/jsonFetcher'
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+// jsonFetcher THROWS on a non-2xx, a network error and a 30 s deadline. The old fetcher
+// mapped every failure to null, which rendered "The tracker is warming up" - an outage read
+// as a young tracker (quality pass 2026-10-05).
+const fetcher = (url) => jsonFetcher(url, { credentials: 'include' })
+
+/** "Oct 5, 4:12 PM ET" from the payload's generated_at, or null. */
+export function asOfText(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return `${d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET`
+}
 
 /* ── Formatting helpers ──────────────────────────────────────────────────── */
 
@@ -66,7 +77,7 @@ function OiBadge({ confirmed }) {
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function FlowScoreboard({ embedded = false }) {
-  const { data, isLoading } = useSWR('/api/flow-scoreboard', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR('/api/flow-scoreboard', fetcher, {
     refreshInterval: 300_000,
     revalidateOnFocus: false,
   })
@@ -89,12 +100,19 @@ export default function FlowScoreboard({ embedded = false }) {
           calls. This is the tape.
         </p>
 
-        {isLoading && !data ? (
+        {error && !data ? (
+          <div className={styles.empty} data-testid="scoreboard-error">
+            The scoreboard could not be read right now. That is a gap in what we could read, not a
+            statement about the picks.{' '}
+            <button type="button" onClick={() => mutate()}>Retry</button>
+          </div>
+        ) : isLoading && !data ? (
           <div className={styles.loading}>Loading the scoreboard…</div>
         ) : !hasData ? (
           <div className={styles.empty}>
             The tracker is warming up — picks need at least two daily snapshots before
-            they&rsquo;re scored. Check back after the next market close.
+            they&rsquo;re scored, so the first scores land after the next market close. This
+            page re-checks every five minutes.
             {data?.too_new > 0 && (
               <span className={styles.emptySub}> {data.too_new} picks are being tracked now.</span>
             )}
@@ -248,6 +266,10 @@ export default function FlowScoreboard({ embedded = false }) {
             </div>
           </section>
         </>
+      )}
+
+      {asOfText(data?.generated_at) && (
+        <p className={styles.methodText} data-testid="scoreboard-asof">Scores as of {asOfText(data.generated_at)}.</p>
       )}
 
       {/* ── Methodology footnote ─────────────────────────────────────────── */}

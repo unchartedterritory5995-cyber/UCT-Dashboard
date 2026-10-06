@@ -184,3 +184,26 @@ describe('FilingChangesTab', () => {
     expect((await screen.findByTestId('blackline-unavailable')).textContent).toMatch(/not a finding about AAPL/)
   })
 })
+
+// Quality pass 2026-10-05: the pending re-ask is capped, and once spent the tab stops
+// promising "the page will update" and offers Check again.
+import { act } from '@testing-library/react'
+import { PENDING_REASK_MS, PENDING_REASK_MAX } from '../depth/depthFetch'
+describe('FilingChanges pending re-ask', () => {
+  it('re-asks with a cap, then offers Check again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      body = { ticker: 'AAPL', state: 'pending', queued: false }
+      renderTab()
+      await screen.findByTestId('blackline-pending')
+      for (let i = 0; i < PENDING_REASK_MAX + 1; i++) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(PENDING_REASK_MS + 10) })
+      }
+      const calls = global.fetch.mock.calls.length
+      expect(calls).toBeLessThanOrEqual(PENDING_REASK_MAX + 2)
+      expect(screen.getByTestId('pending-gave-up').textContent).toMatch(/automatic checking has stopped/)
+      await act(async () => { await vi.advanceTimersByTimeAsync(PENDING_REASK_MS * 3) })
+      expect(global.fetch.mock.calls.length).toBe(calls)
+    } finally { vi.useRealTimers() }
+  })
+})

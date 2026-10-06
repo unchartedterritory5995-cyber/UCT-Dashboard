@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { withDeadline } from '../../../utils/withDeadline'
 
 // TERM-088 -- the decision record for one ticker.
 //
@@ -10,7 +11,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 // fetcher keeps the HTTP outcome, and the tab renders an error as an error.
 export async function fetchDecisionRecord(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {

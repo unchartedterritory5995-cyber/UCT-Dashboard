@@ -162,6 +162,32 @@ describe('FA — FinancialsDeep', () => {
   })
 })
 
+describe('quality pass 2026-10-05: a failed leg is not a finding', () => {
+  it('FA: a failed FMP history read says so on the fallback line, not "holds no history"', async () => {
+    routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {}, fmp_unavailable: true }
+    routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
+    mount(<FinancialsDeep sym="ZZZ" />)
+    const src = await screen.findByTestId('depth-source')
+    expect(src).toHaveTextContent(/could not be read right now; showing yfinance/)
+    expect(src).not.toHaveTextContent(/holds no statement history/)
+  })
+
+  it('EE: FMP erroring and Yahoo failing is "could not be read", never "Neither ... holds"', async () => {
+    routes['/api/research/estimates/ZZZ?consensus=1'] = { sym: 'ZZZ', entity: null, forward: [], revisions: [], yf_unavailable: true,
+      consensus: { state: 'error', annual: [], quarterly: [] } }
+    mount(<ConsensusEstimates sym="ZZZ" />)
+    expect((await screen.findByTestId('ee-unread')).textContent).toMatch(/not a finding about ZZZ/)
+    expect(screen.queryByText(/Neither FMP nor Yahoo/)).toBeNull()
+  })
+
+  it('EE: both genuinely empty still says neither holds any', async () => {
+    routes['/api/research/estimates/ZZZ?consensus=1'] = { sym: 'ZZZ', entity: null, forward: [], revisions: [],
+      consensus: { state: 'empty', annual: [], quarterly: [] } }
+    mount(<ConsensusEstimates sym="ZZZ" />)
+    expect(await screen.findByText(/Neither FMP nor Yahoo Finance holds forward estimates/)).toBeInTheDocument()
+  })
+})
+
 describe('EE — ConsensusEstimates', () => {
   it('renders >= 3 forward FMP fiscal years with # analysts and hi/lo', async () => {
     routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)

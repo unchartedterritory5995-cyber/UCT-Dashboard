@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { withDeadline } from '../../../utils/withDeadline'
 
 // Chart/Technical Intelligence Convergence (owner authorization, Phase B).
 // Reuses the EXISTING, already-shipped `/api/patterns/{sym}` endpoint as-is —
@@ -19,7 +20,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 // fetcher keeps the HTTP outcome instead of guessing.
 export async function fetchTechnical(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {

@@ -14,8 +14,11 @@ import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
+import jsonFetcher from '../utils/jsonFetcher'
 
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : { rows: [] }))
+// Throws on failure (jsonFetcher). The old `r.ok ? r.json() : { rows: [] }` rendered a failed
+// read as "No catalysts recorded for this date" (quality pass 2026-10-05).
+const fetcher = (url) => jsonFetcher(url)
 
 function ymdNDaysAgo(n) {
   // ET-aware date string. Returns YYYY-MM-DD.
@@ -69,8 +72,8 @@ function parseSources(raw) {
 
 export default function CatalystsHistory() {
   const [date, setDate] = useState(ymdNDaysAgo(0))
-  const { data, isLoading } = useSWR(
-    `/api/catalysts/by-date/${date}`,
+  const { data, error, isLoading, mutate } = useSWR(
+    date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,
     { revalidateOnFocus: false }
   )
@@ -121,12 +124,20 @@ export default function CatalystsHistory() {
 
       <div className={styles.tile}>
         <div className={styles.tileHeader}>
-          <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date}</span>
-          <span className={styles.tileMeta}>{rows.length} rows</span>
+          <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date || 'pick a date'}</span>
+          <span className={styles.tileMeta}>{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
         </div>
 
-        {isLoading ? (
-          <div className={styles.empty}>Loading…</div>
+        {!date ? (
+          <div className={styles.empty}>Pick a date to see that day&rsquo;s catalysts.</div>
+        ) : error && !data ? (
+          <div className={styles.empty} data-testid="cath-error">
+            Catalysts for {date} could not be read right now. That is a gap in what we could read,
+            not a finding that the day was quiet.{' '}
+            <button type="button" onClick={() => mutate()}>Retry</button>
+          </div>
+        ) : isLoading ? (
+          <div className={styles.empty}>Loading catalysts for {date}…</div>
         ) : rows.length === 0 ? (
           <div className={styles.empty}>
             No catalysts recorded for this date. The engine started persisting on 2026-05-25;
