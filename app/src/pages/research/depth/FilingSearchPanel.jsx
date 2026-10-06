@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-058 / FT-059 / FT-060 — boolean, proximity, synonym and section-scoped
 // search over this ticker's newest 10-K and 10-Q. DARK behind FILING_SEARCH_ENABLED.
@@ -57,7 +58,7 @@ export default function FilingSearchPanel({ sym }) {
   else if (data.paywalled) body = <div className={styles.note}>Filing search requires a paid plan.</div>
   else if (data.badRequest) body = <div className={styles.error} data-testid="filing-search-bad-query">{data.badRequest}</div>
   else if (data.index_state && !['indexed', 'corpus'].includes(data.index_state)) {
-    body = <div className={styles.note} data-testid="filing-search-not-indexed">{data.reason || `${s}'s filings are not indexed yet.`}</div>
+    body = <div className={styles.note} data-testid="filing-search-not-indexed">{memberSentence(data.reason) || `${s}'s filings are not indexed yet.`}</div>
   } else {
     const exp = Object.entries(data.expanded || {})
     body = (
@@ -83,7 +84,7 @@ export default function FilingSearchPanel({ sym }) {
             </li>
           ))}
         </ol>
-        <p className={styles.muted}>Source: {data.source}.</p>
+        <p className={styles.muted}>Source: {memberText(data.source)}.</p>
       </div>
     )
   }

@@ -10,6 +10,7 @@ import { SkeletonTable } from '../../../components/Skeleton'
 import UIcon from '../../../components/ui/UIcon'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { scanErrorText } from './scanErrorText'
 import useColumnPresets from '../hooks/useColumnPresets'
 import useScreenerCount from '../hooks/useScreenerCount'
 import FilterChips from '../FilterChips'
@@ -98,7 +99,7 @@ const galleryCardSelector = (ticker) => `[data-testid="gallery-card-${ticker}"]`
 // receipt reads its own store, has nothing to do with the 7 AM candidate
 // board's feed, and must never go blank because that unrelated fetch failed.
 export default function ScannerShell({ embedded = false }) {
-  const { meta } = useScreenerMeta()
+  const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const isPhone = useIsPhone()
   const viewColumnsFor = useMemo(() => {
     const map = Object.fromEntries((meta?.views || []).map(v => [v.key, v.columns]))
@@ -435,9 +436,18 @@ export default function ScannerShell({ embedded = false }) {
             ))}
           </div>
         )}
+        {/* Quality pass 2026-10-05: a failed filter-registry read was silent -- the rail and
+            the chips simply did not render. */}
+        {metaError && !meta && (
+          <div className={styles.scanError} role="alert" data-testid="screener-meta-failed">
+            The screener&apos;s filter list couldn&apos;t be loaded, so filters, views and lists are
+            unavailable right now.
+            <button type="button" className="btn btn-secondary btn-sm" onClick={retryMeta}>Retry</button>
+          </div>
+        )}
         {error && (
           <div className={styles.scanError} role="alert">
-            Scan failed — {String(error.message || error)}.
+            {scanErrorText(error)}
             <button type="button" className="btn btn-secondary btn-sm" onClick={retry}>Retry</button>
           </div>
         )}

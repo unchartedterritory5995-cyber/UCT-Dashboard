@@ -843,6 +843,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Round 3: what the echo WARNS about comes last ("…ZZZZQ is not a ticker we know"), and at
+     phone width the one-line ellipsis cut exactly that part off. On a phone it wraps. */
+  .echoText {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   /* At 375px the scope note wraps onto its own line under the label instead of
      pushing the row wider than the screen. */
   .helpRow {

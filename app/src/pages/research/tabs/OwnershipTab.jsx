@@ -7,6 +7,7 @@ import { epochSecondsToIso } from '../../../components/provenance/presentationFo
 import { computeSessionStale } from '../../../components/provenance/sessionStale'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
+import { usePendingReask } from '../depth/depthFetch'
 import styles from '../ResearchPage.module.css'
 
 /** S8/S11 vertical slice (2026-09-03 A6/A7 pass): Float/shares-outstanding
@@ -44,6 +45,11 @@ function TrustStrip({ meta, sessionContext }) {
   )
 }
 
+// A vendor ZERO for a float, a short count or days to cover is not a measured zero: a listed
+// security with shares outstanding cannot have a float of 0, and Yahoo/FMP write 0 where they
+// hold nothing (every ETF reads "Float 0"). Rendered as not reported, never as "0".
+const reported = (v) => (v == null || Number(v) === 0 || !Number.isFinite(Number(v)) ? null : Number(v))
+
 function fmtShares(v) {
   if (v == null) return '—'
   const a = Math.abs(v)
@@ -60,7 +66,7 @@ function fmtMoney(v) {
   if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
   return `$${v.toFixed(0)}`
 }
-function fmtPct(v) { return v == null ? '—' : `${v}%` }
+function fmtPct(v) { return v == null || !Number.isFinite(Number(v)) ? '—' : `${+Number(v).toFixed(2)}%` }
 function fmtNum(v) { return v == null ? '—' : Math.round(v).toLocaleString() }
 function fmtChgPp(v) {  // ownership-percent change, in percentage points
   if (v == null) return null
@@ -71,6 +77,12 @@ function fmtChgInt(v) {
   return `${v > 0 ? '+' : ''}${Math.round(v).toLocaleString()}`
 }
 function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
+// tq-panels: the transaction side printed as the raw lowercase enum ("buy" / "sell").
+export function sideLabel(type) {
+  const s = String(type || '').trim()
+  if (!s) return '—'
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
 
 /** TERM-045 (dark, EDGAR_OWNERSHIP_ENABLED): present only when the server
  *  sourced the insider section from SEC EDGAR Form 4. Every state says what it
@@ -79,15 +91,18 @@ function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
  *  empty list. */
 function edgarStateLine(src, sym) {
   switch (src.state) {
-    case 'pending': return `Reading SEC EDGAR Form 4 filings for ${sym}.`
+    case 'pending': return `Reading SEC EDGAR Form 4 filings for ${sym}… this fills in by itself.`
     case 'not_found': return `No SEC filer could be matched to ${sym}, so insider activity is unknown.`
     case 'unavailable': return 'SEC EDGAR could not be read just now, so insider activity is unknown.'
     default: return null
   }
 }
 
-function EdgarInsiderSection({ src, rows, sym, onRetry }) {
+function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
   const readable = src.state === 'ok' || src.state === 'partial'
+  // tq-panels: pending re-asks by itself (usePendingReask) -- no button while it does;
+  // once the re-asks are spent it says so and offers a manual check.
+  const autoReading = src.state === 'pending' && !reaskExhausted
   const unread = src.filings_unread || []
   const windowDays = src.window_days || 180
   return (
@@ -95,8 +110,10 @@ function EdgarInsiderSection({ src, rows, sym, onRetry }) {
       <div className={styles.ct}>Insider activity (recent)</div>
       {!readable && (
         <div className={styles.muted} style={{ fontSize: 12 }}>
-          {edgarStateLine(src, sym)}
-          {onRetry && (
+          {src.state === 'pending' && reaskExhausted
+            ? `SEC EDGAR Form 4 filings for ${sym} are still being read.`
+            : edgarStateLine(src, sym)}
+          {onRetry && !autoReading && (
             <button type="button" className={styles.explainNewConvoBtn} style={{ marginLeft: 8 }} onClick={() => onRetry()}>
               Check again
             </button>
@@ -114,7 +131,7 @@ function EdgarInsiderSection({ src, rows, sym, onRetry }) {
             <div key={`${t.accession}-${t.date}-${i}`} className={styles.insrow}>
               <span className={styles.rcdate}>{t.date}</span>
               <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
-              <span className={t.type === 'buy' ? styles.up : styles.down}>{t.type}</span>
+              <span className={t.type === 'buy' ? styles.up : styles.down}>{sideLabel(t.type)}</span>
               <span>{fmtShares(t.shares)}</span>
               <span className={styles.muted}>{fmtMoney(t.amount)}</span>
               {t.url
@@ -149,6 +166,8 @@ function EdgarInsiderSection({ src, rows, sym, onRetry }) {
 export default function OwnershipTab({ sym }) {
   const { data, isLoading, error, mutate } = useOwnership(sym)
   const session = useMarketOpen()
+  const edgarPending = !error && data?.insider_source?.state === 'pending'
+  const { exhausted: reaskExhausted, retry: reaskRetry } = usePendingReask(edgarPending, mutate, sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading ownership…</div></div></div>
@@ -179,11 +198,22 @@ export default function OwnershipTab({ sym }) {
   const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null
     && inst.pct_held == null && !tf && sc.float_shares == null && !edgarSrc
 
+  // tq-panels: one leg failing (Yahoo, or the insider read) used to leave its cards
+  // reading as dashes -- indistinguishable from "nothing reported". Say which.
+  const failed = Array.isArray(o.legs_failed) ? o.legs_failed : []
+
   return (
     <div className={styles.finWrap}>
+      {failed.length > 0 && (
+        <div className={styles.fnote} data-testid="ownership-partial">
+          Part of {o.sym || sym}'s ownership could not be read right now: {failed.join('; ')}. The rest is what answered.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+        </div>
+      )}
       {o.entity && o.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({o.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
@@ -231,13 +261,13 @@ export default function OwnershipTab({ sym }) {
 
         <section className={styles.card}>
           <div className={styles.ct}>Short interest</div>
-          <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(sh.short_pct_float)}</b></div>
-          <div className={styles.kv}><span>Days to cover</span><b>{sh.days_to_cover ?? '—'}</b></div>
-          <div className={styles.kv}><span>Shares short</span><b>{fmtShares(sh.shares_short)}</b></div>
+          <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(reported(sh.short_pct_float))}</b></div>
+          <div className={styles.kv}><span>Days to cover</span><b>{reported(sh.days_to_cover) == null ? '—' : reported(sh.days_to_cover).toFixed(1)}</b></div>
+          <div className={styles.kv}><span>Shares short</span><b>{fmtShares(reported(sh.shares_short))}</b></div>
           <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>Source: Yahoo Finance</div>
 
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-            <div className={styles.kv}><span>Float</span><b>{fmtShares(sc.float_shares)}</b></div>
+            <div className={styles.kv}><span>Float</span><b>{fmtShares(reported(sc.float_shares))}</b></div>
             <div className={styles.kv}><span>Shares outstanding</span><b>{fmtShares(sc.shares_outstanding)}</b></div>
             <TrustStrip meta={sc._meta} sessionContext={sessionContext} />
           </div>
@@ -310,7 +340,8 @@ export default function OwnershipTab({ sym }) {
       )}
 
       {edgarSrc && (
-        <EdgarInsiderSection src={edgarSrc} rows={insider} sym={o.sym || sym} onRetry={mutate} />
+        <EdgarInsiderSection src={edgarSrc} rows={insider} sym={o.sym || sym}
+          onRetry={edgarSrc.state === 'pending' ? reaskRetry : mutate} reaskExhausted={reaskExhausted} />
       )}
 
       {!edgarSrc && !!insider.length && (
@@ -321,7 +352,7 @@ export default function OwnershipTab({ sym }) {
               <div key={`${t.date}-${t.name}-${i}`} className={styles.insrow}>
                 <span className={styles.rcdate}>{t.date}</span>
                 <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
-                <span className={t.type === 'buy' ? styles.up : styles.down}>{t.type}</span>
+                <span className={t.type === 'buy' ? styles.up : styles.down}>{sideLabel(t.type)}</span>
                 <span>{fmtShares(t.shares)}</span>
                 <span className={styles.muted}>{fmtMoney(t.amount)}</span>
               </div>

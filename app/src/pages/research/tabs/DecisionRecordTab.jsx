@@ -2,6 +2,7 @@ import useDecisionRecord from '../hooks/useDecisionRecord'
 import Provenance from '../../../components/provenance/Provenance'
 import { PROVIDER_ERROR } from '../../../components/provenance/availabilityContract'
 import styles from '../ResearchPage.module.css'
+import { stageText, dropReasonText } from './decisionRecordCopy'
 
 // TERM-088 (item 15 ACC-02) -- "the decision record gets a member surface".
 //
@@ -26,16 +27,10 @@ import styles from '../ResearchPage.module.css'
 
 const SOURCE_NAME = 'UCT Morning Wire decision record'
 
-function stageText(row) {
-  if (row.outcome === 'passed') return 'Passed every stage'
-  const n = row.dropped_at_stage
-  return row.stage_label ? `Dropped at stage ${n} · ${row.stage_label}` : `Dropped at stage ${n}`
-}
-
 function sourceLine(source, extra) {
   const pack = source && source.pack_installed_at ? ` · Brain Pack installed ${source.pack_installed_at}` : ''
-  const tables = source && Array.isArray(source.tables) ? ` (${source.tables.join(' × ')})` : ''
-  return `${SOURCE_NAME}${tables}${extra ? ` · ${extra}` : ''}${pack}`
+  // the engine's table names are internal detail, not member copy
+  return `${SOURCE_NAME}${extra ? ` · ${extra}` : ''}${pack}`
 }
 
 function Figure({ value, source, calc }) {
@@ -84,14 +79,14 @@ function SafetyNote() {
   )
 }
 
-function Unavailable({ reason }) {
+function Unavailable() {
   return (
     <div className={styles.finWrap}>
       <section className={styles.card} data-testid="decision-record-unavailable">
         <div className={styles.ct}>Decision record</div>
         <Provenance value="Decision record" availability={PROVIDER_ERROR} />
         <p className={styles.fnote}>
-          The decision record could not be read right now{reason ? ` (${reason})` : ''}. That is not
+          The decision record could not be read right now. That is not
           the same as this name never having been considered &mdash; nothing is being said about it.
         </p>
       </section>
@@ -110,9 +105,13 @@ export default function DecisionRecordTab({ sym }) {
     )
   }
 
-  if (!result || !result.ok || !result.body) return <Unavailable reason={null} />
+  // tq-panels: a 402 is the paid gate, not "unavailable".
+  if (result && !result.ok && result.httpStatus === 402) {
+    return <div className={styles.fnote} data-testid="decision-record-paywalled">The decision record requires a paid plan.</div>
+  }
+  if (!result || !result.ok || !result.body) return <Unavailable />
   const body = result.body
-  if (body.status === 'unavailable') return <Unavailable reason={body.reason} />
+  if (body.status === 'unavailable') return <Unavailable />
 
   const { rows = [], counts, coverage, source, paging, entity } = body
   const ticker = body.ticker || (sym || '').toUpperCase()
@@ -185,7 +184,7 @@ export default function DecisionRecordTab({ sym }) {
                   <span className={styles.muted}>Issue {r.issue_id}</span>
                   {r.is_exploration ? <span className={styles.muted}>exploration pick</span> : null}
                 </div>
-                {r.drop_reason ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}>{r.drop_reason}</p> : null}
+                {dropReasonText(r.drop_reason) ? <p className={styles.fnote} style={{ padding: '4px 0 0' }} data-testid="decision-record-reason">{dropReasonText(r.drop_reason)}</p> : null}
               </div>
             </li>
           ))}

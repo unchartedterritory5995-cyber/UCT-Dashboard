@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import CoverageLine from '../../components/provenance/CoverageLine'
+import { sideWords, callPutWords } from './flowWords'
 import styles from './optionsAnalytics.module.css'
 
 // FT-072 / FT-073 — one screener per option strategy, over COV-02's end-of-day screen file
@@ -112,7 +113,7 @@ function MoreRow({ kind, r }) {
       <td>{Number(r.open_interest).toLocaleString()}</td><td>{r.call_share_pct == null ? '—' : `${num(r.call_share_pct, 1)}%`}</td>
       <td>{r.atm_iv == null ? '—' : `${(r.atm_iv * 100).toFixed(1)}%`}</td></tr>
   }
-  return <tr><th>{r.symbol}</th><td>{r.type} {num(r.strike)} {r.expiration}</td><td>{r.side}</td>
+  return <tr><th>{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
     <td>${Math.round(r.premium).toLocaleString()}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
 }
 

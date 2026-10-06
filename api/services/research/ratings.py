@@ -468,5 +468,8 @@ def _build_ratings(sym):
         "price_as_of": price_as_of,
     }
     complete = fund_ok and own_ok and hist_ok
+    # tq-panels: says whether every input leg answered, so an all-blank rating can
+    # be told apart from a read that failed (the panel cannot otherwise know).
+    out["complete"] = bool(complete)
     set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

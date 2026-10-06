@@ -20,8 +20,15 @@ import styles from '../ResearchPage.module.css'
 
 const KEY_LEVEL_COLOR = '#c9a84c' // ut-gold, matches this app's technical-level convention elsewhere
 
-function setupLabel(setup) {
-  return (setup || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+// Acronyms the fallback title-casing would mangle ("Macd", "Vsa", "Avwap").
+const ACRONYMS = { macd: 'MACD', vsa: 'VSA', avwap: 'AVWAP', vwap: 'VWAP', rsi: 'RSI', sma: 'SMA', ema: 'EMA', atr: 'ATR', htf: 'HTF', ep: 'EP' }
+
+/** The server's `setup_name` (the pattern engine's own name) when it sent one; otherwise the id,
+ *  title-cased with acronyms kept (quality pass 2026-10-05: "Macd Bullish Cross"). */
+export function setupLabel(setup, name = null) {
+  if (name) return name
+  return (setup || '').split('_').filter(Boolean)
+    .map((w) => ACRONYMS[w.toLowerCase()] || (w[0].toUpperCase() + w.slice(1))).join(' ')
 }
 
 // Whole ET calendar days since `asof_date` (a market date). It used to round
@@ -47,7 +54,7 @@ function VerdictCard({ v, selected, onSelect }) {
         borderColor: selected ? 'var(--ut-gold)' : undefined,
       }}
     >
-      <div className={styles.ct}>{setupLabel(v.setup)}</div>
+      <div className={styles.ct}>{setupLabel(v.setup, v.setup_name)}</div>
       <div style={{ fontSize: 12, marginBottom: 4 }}>
         Confirmed as of {v.asof_date || '—'}{ageLabel && ` (${ageLabel})`}
         {typeof v.vision_confidence === 'number' && ` · ${Math.round(v.vision_confidence)}% confidence`}
@@ -65,7 +72,7 @@ function VerdictCard({ v, selected, onSelect }) {
 }
 
 export default function TechnicalTab({ sym }) {
-  const { data, isLoading, error, mutate } = useTechnical(sym, 'D')
+  const { data, isLoading, error, paywalled, mutate } = useTechnical(sym, 'D')
   const [searchParams] = useSearchParams()
   const scannerHint = (searchParams.get('setup') || '').trim()
 
@@ -113,13 +120,13 @@ export default function TechnicalTab({ sym }) {
     if (!selected || selected.key_level == null) return []
     return [{
       price: selected.key_level, color: KEY_LEVEL_COLOR, lineStyle: 2,
-      title: `${setupLabel(selected.setup)} key level`,
+      title: `${setupLabel(selected.setup, selected.setup_name)} key level`,
     }]
   }, [selected])
 
   const callouts = useMemo(() => {
     if (!selected || !selected.asof_date) return null
-    return [{ time: selected.asof_date, text: setupLabel(selected.setup) }]
+    return [{ time: selected.asof_date, text: setupLabel(selected.setup, selected.setup_name) }]
   }, [selected])
 
   const highlightBarTime = selected?.asof_date || null
@@ -145,6 +152,9 @@ export default function TechnicalTab({ sym }) {
           as "none confirmed" -- collapsing the confirmed/rejected signal
           this tab exists to preserve into a false "nothing confirmed"
           bucket. */}
+      {!isLoading && paywalled && (
+        <div className={styles.fnote} data-testid="technical-paywalled">Technical setups require a paid plan.</div>
+      )}
       {!isLoading && error && (
         <div className={styles.fnote} data-testid="technical-error">
           Couldn't load technical setups for {sym}.
@@ -153,7 +163,7 @@ export default function TechnicalTab({ sym }) {
         </div>
       )}
 
-      {!isLoading && !error && !verdicts.length && (
+      {!isLoading && !error && !paywalled && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
           {evaluated > 0 ? (
             <>

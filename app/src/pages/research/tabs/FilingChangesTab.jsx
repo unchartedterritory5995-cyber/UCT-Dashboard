@@ -2,6 +2,9 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './FilingChangesTab.module.css'
+import { usePendingReask } from '../depth/depthFetch'
+import PendingGaveUp from '../depth/PendingGaveUp'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // COV-04 (roadmap RM-L12) — what changed between a company's two most recent 10-Ks
 // (or, selectable, its two most recent 10-Qs), section by section, from SEC EDGAR.
@@ -128,11 +131,11 @@ export default function FilingChangesTab({ sym }) {
 
 function FilingChanges({ sym, form }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/blackline/${encodeURIComponent(s)}?form=${form}` : null,
-    sectionFetcher, {
-      revalidateOnFocus: false,
-      refreshInterval: (d) => (d && d.state === 'pending' ? 5000 : 0),
-    })
+  const key = s ? `/api/research/blackline/${encodeURIComponent(s)}?form=${form}` : null
+  const { data, error, mutate } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
+  // Re-asks while the comparison is being built, with a cap (it used to poll every 5 s with no
+  // end, promising "the page will update" forever when the queue was full).
+  const reask = usePendingReask(data?.state === 'pending', mutate, key)
 
   if (error) {
     return <div className={styles.note} data-testid="blackline-unavailable">
@@ -144,6 +147,7 @@ function FilingChanges({ sym, form }) {
   if (data.state === 'pending') {
     return <div className={styles.note} data-testid="blackline-pending">
       Reading {s}'s two most recent {form}s from SEC EDGAR. This can take a minute; the page will update.
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The comparison" />
     </div>
   }
   // not_found WITH both filings: the pair was read, but no comparable section
@@ -153,7 +157,7 @@ function FilingChanges({ sym, form }) {
   // both filings is the older spelling a still-cached snapshot may carry.
   const sectionsMissing = data.state === 'sections_unlocated' || (data.state === 'not_found' && !!data.newer)
   if (!sectionsMissing && (data.state === 'not_found' || data.state === 'unavailable')) {
-    const why = data.state === 'not_found' ? `No comparison for ${s}: ${data.detail || 'no SEC filer matched'}.`
+    const why = data.state === 'not_found' ? `No comparison for ${s}: ${memberText(data.detail) || 'no SEC filer matched'}.`
       : `SEC EDGAR could not be read for ${s} right now.`
     return <div className={styles.note} data-testid="blackline-unread">
       {why} That is a gap in what we could read, not a finding that nothing changed.

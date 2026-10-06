@@ -153,3 +153,39 @@ describe('OptionsScreener', () => {
     expect(screenUrl('', { type: 'any', iv_min: '', oi_min: '5' })).toBe('/api/options-screener/screen?oi_min=5')
   })
 })
+
+describe('OSCR states that used to read wrong (quality pass 2026-10-05)', () => {
+  const answer = (status, body = {}) => ({ ok: status < 400, status, json: async () => body })
+
+  it('a 404 (the switch is off) reads as switched off, not as a failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => answer(404)))
+    wrap(<OptionsScreener />)
+    expect((await screen.findByTestId('feature-off')).textContent)
+      .toBe("The option screener isn't switched on yet. That is a setting on our side, not an empty result.")
+    expect(screen.queryByTestId('opts-unavailable')).toBeNull()
+  })
+
+  it('a real failure still says unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => answer(503)))
+    wrap(<OptionsScreener />)
+    expect((await screen.findByTestId('opts-unavailable')).textContent)
+      .toMatch(/^The option screener is unavailable right now\./)
+    expect(screen.queryByTestId('feature-off')).toBeNull()
+  })
+
+  it('the rankings name what they are loading, and a switched-off ranking says so', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    const a = wrap(<OptionsScreener />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Unusual volume' }))
+    expect(screen.getByText('Loading the unusual-volume ranking…')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'IV percentile' }))
+    expect(screen.getByText('Loading the IV percentile ranking…')).toBeTruthy()
+    a.unmount()
+
+    vi.stubGlobal('fetch', vi.fn(async () => answer(404)))
+    wrap(<OptionsScreener />)
+    fireEvent.click(screen.getByRole('tab', { name: 'IV percentile' }))
+    expect((await screen.findByTestId('feature-off')).textContent)
+      .toBe("The IV percentile ranking isn't switched on yet. That is a setting on our side, not an empty result.")
+  })
+})

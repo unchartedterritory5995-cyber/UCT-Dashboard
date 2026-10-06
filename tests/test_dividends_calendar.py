@@ -333,3 +333,46 @@ class TestDividendsEndpoint:
         r = client.get("/api/calendar/dividends?syms=AAPL")
         # Could be 401 or 422 depending on auth middleware; must not be 200 with no auth
         assert r.status_code in (401, 403, 422)
+
+
+# ── Quality pass 2026-10-05: a failed read is labelled, never served as "no dividends" ──
+
+class TestDividendFailedReadIsLabelled:
+    def teardown_method(self):
+        app.dependency_overrides.clear()
+
+    def test_a_failed_symbol_marks_the_answer_partial_and_a_clean_one_does_not(self):
+        from api.services import dividends_calendar as dc
+        store = {}
+
+        def _set(k, v, ttl):
+            store[k] = v
+        with mock.patch.object(dc.cache, "get", side_effect=store.get), \
+             mock.patch.object(dc.cache, "set", side_effect=_set), \
+             mock.patch.object(dc.cache, "invalidate", side_effect=lambda k: store.pop(k, None)), \
+             mock.patch("api.services.cache_policy.cache.set", side_effect=_set), \
+             _patch_massive(_FakeMassive(fail={"AAPL"})):
+            rows, complete = dc.get_events_with_status(["AAPL"])
+            assert complete is False
+            assert dc.read_partial(["aapl"]) is True
+        store.clear()
+        with mock.patch.object(dc.cache, "get", side_effect=store.get), \
+             mock.patch.object(dc.cache, "set", side_effect=_set), \
+             mock.patch.object(dc.cache, "invalidate", side_effect=lambda k: store.pop(k, None)), \
+             mock.patch("api.services.cache_policy.cache.set", side_effect=_set), \
+             _patch_massive(_FakeMassive()):
+            rows, complete = dc.get_events_with_status(["AAPL"])
+            assert complete is True
+            assert dc.read_partial(["AAPL"]) is False
+
+    def test_the_route_labels_failed_and_partial_reads(self):
+        TestDividendsEndpoint._authed_client(self)
+        cases = (([], True, "failed"),
+                 ([{"sym": "KO", "type": "dividend", "date": "2099-01-01"}], True, "partial"),
+                 ([], False, None))
+        for rows, partial, header in cases:
+            with mock.patch("api.routers.calendar._get_div_events", return_value=rows), \
+                 mock.patch("api.routers.calendar._div_read_partial", return_value=partial):
+                r = client.get("/api/calendar/dividends?syms=AAPL")
+            assert r.status_code == 200
+            assert r.headers.get("x-calendar-read") == header

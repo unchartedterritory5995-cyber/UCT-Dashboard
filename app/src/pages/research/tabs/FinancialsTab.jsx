@@ -175,6 +175,11 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const bal = fin.balance || {}
   const met = fin.metrics || {}
   const hasGrids = (fin.quarterly?.length || fin.annual?.length)
+  // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
+  // say that instead of a generic "unavailable" that reads like a gap.
+  if (!hasGrids && fin.not_applicable) {
+    return <div className={styles.fnote} data-testid="financials-na">Not applicable to funds — {fin.reason || `${sym} is a fund`}.</div>
+  }
 
   return (
     <div className={styles.finWrap}>
@@ -190,7 +195,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           fabricated-provenance failure S8 exists to prevent. */}
       {fin.entity && fin.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({fin.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       {/* ⚠️ These grids are yfinance-derived and label CALENDAR quarters. FMP,

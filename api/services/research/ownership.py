@@ -166,12 +166,19 @@ def _reconcile_share_counts(info, fmp_counts):
     that invents a figure no provider reported."""
     info = info or {}
     counts = fmp_counts or {}
-    float_shares = counts.get("float_shares")
+
+    # A ZERO (or negative) share count is a vendor's "nothing held", never a measurement:
+    # no listed security has 0 shares outstanding. FMP and Yahoo write 0 for funds, and the
+    # Ownership tab rendered "Shares outstanding 0" as data. Not reported -> the next source.
+    def _held(v):
+        return v if v is not None and v > 0 else None
+
+    float_shares = _held(counts.get("float_shares"))
     if float_shares is None:
-        float_shares = _num(info.get("floatShares"))
-    shares_out = counts.get("shares_outstanding")
+        float_shares = _held(_num(info.get("floatShares")))
+    shares_out = _held(counts.get("shares_outstanding"))
     if shares_out is None:
-        shares_out = _num(info.get("sharesOutstanding"))
+        shares_out = _held(_num(info.get("sharesOutstanding")))
 
     if float_shares is not None and shares_out is not None and float_shares > shares_out:
         _logger.warning("share counts inconsistent (float %s > outstanding %s) — suppressing both",
@@ -394,5 +401,13 @@ def _build_ownership(sym):
         "thirteen_f": thirteen_f,
     }
     complete = yf_ok and insider_ok
+    # tq-panels: name the legs that failed, so the panel can say which part of the
+    # record is missing because a read failed (not because nothing is reported).
+    legs_failed = []
+    if not yf_ok:
+        legs_failed.append("institutional holders and short interest (Yahoo Finance)")
+    if not insider_ok:
+        legs_failed.append("insider activity")
+    out["legs_failed"] = legs_failed
     set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

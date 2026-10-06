@@ -37,6 +37,7 @@ from api.services import fmp_client
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import ticker_path
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -398,7 +399,7 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
 
 
 @router.get("/api/fundamentals/{ticker}")
-def get_fundamentals_endpoint(ticker: str):
+def get_fundamentals_endpoint(ticker: str = Depends(ticker_path)):
     """Compact fundamentals for a ticker.
 
     Returns {market_cap, forward_pe, beta, week52_high, week52_low, avg_vol, div_yield}.
@@ -430,7 +431,7 @@ def get_fundamentals_endpoint(ticker: str):
 
 
 @router.get("/api/fundamentals-full/{ticker}")
-def get_fundamentals_full(ticker: str):
+def get_fundamentals_full(ticker: str = Depends(ticker_path)):
     """Rich fundamentals "data window" for a ticker — the FULL metric set
     (valuation, profitability, growth, balance-sheet, margins) that the compact
     `/api/fundamentals/{ticker}` deliberately omits. Backs the chart's Stock
@@ -444,7 +445,7 @@ def get_fundamentals_full(ticker: str):
 
 
 @router.get("/api/fundamentals-statements/{ticker}")
-def get_fundamentals_statements(ticker: str):
+def get_fundamentals_statements(ticker: str = Depends(ticker_path)):
     """Historical income / balance-sheet / cash-flow statements (annual + quarterly
     + TTM) for the Company Intelligence panel's Financials tab. Sourced from
     yfinance (already a dependency — no new paid provider), curated to a stable set
@@ -457,7 +458,7 @@ def get_fundamentals_statements(ticker: str):
 
 
 @router.get("/api/earnings-intel/{ticker}")
-def get_earnings_intel_endpoint(ticker: str):
+def get_earnings_intel_endpoint(ticker: str = Depends(ticker_path)):
     """The COMPLETE normalized earnings model for the Company Intelligence
     panel's Earnings tab — reported quarters (EPS and revenue actual vs
     consensus, surprise, year-over-year growth against the same fiscal quarter,
@@ -483,5 +484,16 @@ def get_earnings_intel_endpoint(ticker: str):
     sym = (ticker or "").upper().strip()
     if not sym:
         return {}
+    # A FUND REPORTS NO EARNINGS. Building the model for SPY walked every earnings
+    # provider for nothing (4.7 s measured on production 2026-10-05) and then
+    # answered with empty arrays that read as "no data yet". The search index
+    # already classifies the symbol in memory, so the honest answer costs nothing.
+    # Unknown type (index not loaded, symbol not in it) is NOT a fund: build as before.
+    from api.services import ticker_search_index
+    na = ticker_search_index.fund_not_applicable(sym, "funds do not report earnings")
+    if na:
+        return {"ticker": sym, **na,
+                "quarters": [], "estimates": [],
+                "annual": {"reported": [], "estimates": []}, "summary": {}}
     from api.services.earnings_intel import get_earnings
     return get_earnings(sym)

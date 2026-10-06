@@ -55,7 +55,7 @@ export default function EstimatesTab({ sym }) {
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({e.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
@@ -154,7 +154,9 @@ export default function EstimatesTab({ sym }) {
         </section>
       )}
 
-      {empty && <div className={styles.fnote}>Estimate data is unavailable for this ticker.</div>}
+      {/* tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). */}
+      {empty && e.not_applicable && <div className={styles.fnote} data-testid="estimates-na">Not applicable to funds — {e.reason || `${sym} is a fund`}.</div>}
+      {empty && !e.not_applicable && <div className={styles.fnote}>Estimate data is unavailable for this ticker.</div>}
     </div>
   )
 }

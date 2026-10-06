@@ -38,13 +38,23 @@ export default function FinancialsDeep({ sym }) {
   if (data === undefined) {
     return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note}>Loading financials…</p></div>
   }
+  if (data?.paywalled) {
+    return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note}>Financial statement history requires a paid plan.</p></div>
+  }
   const hasFmp = (data?.periods || []).length > 0
+  // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
+  // say that instead of a generic "unavailable" that reads like a gap.
+  if (!hasFmp && data?.not_applicable) {
+    return <div className={styles.wrap} data-testid="fa-deep"><p className={styles.note} data-testid="fa-na">Not applicable to funds — {data.reason || `${s} is a fund`}.</p></div>
+  }
   if (!hasFmp) {
     return (
       <div className={styles.wrap} data-testid="fa-deep" data-source="yfinance">
         <SourceLine vendor="Yahoo Finance" fallback
                     activity="yfinance quarterly_income_stmt / income_stmt"
-                    reason="FMP holds no statement history for this ticker; showing yfinance (about 5 years / 5 quarters, calendar-quarter labels)." />
+                    reason={data?.fmp_unavailable
+                      ? 'FMP statement history could not be read right now; showing yfinance (about 5 years / 5 quarters, calendar-quarter labels).'
+                      : 'FMP holds no statement history for this ticker; showing yfinance (about 5 years / 5 quarters, calendar-quarter labels).'} />
         <FinancialsTab sym={s} />
       </div>
     )

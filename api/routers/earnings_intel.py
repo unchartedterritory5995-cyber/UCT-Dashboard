@@ -41,6 +41,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import ticker_shape
 from api.services.call_recap import (
     get_call_recap_with_status,
     get_sentiment,
@@ -108,7 +109,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/api/earnings/call-recap/{ticker}")
 def call_recap_endpoint(
-    ticker: str,
+    ticker: str = Depends(ticker_shape),
     quarter: Optional[str] = Query(default=None, description="e.g. 2026Q3; omit for latest"),
     user: dict = Depends(require_paid),
 ):
@@ -235,7 +236,7 @@ def audio_endpoint(ticker: str):
 
 
 @router.get("/api/earnings/sentiment/{ticker}")
-def sentiment_endpoint(ticker: str, user: dict = Depends(require_paid)):
+def sentiment_endpoint(ticker: str = Depends(ticker_shape), user: dict = Depends(require_paid)):
     """AI-derived earnings sentiment.
 
     Returns {score: int(-100..100), label, rationale, drivers[]}
@@ -280,7 +281,7 @@ def _with_qa_boundary(res):
 
 @router.get("/api/earnings/transcript/{ticker}")
 def transcript_endpoint(
-    ticker: str,
+    ticker: str = Depends(ticker_shape),
     quarter: Optional[str] = Query(default=None, description="e.g. 2025Q1; omit to auto-resolve latest"),
     user: dict = Depends(require_paid),
 ):
@@ -382,7 +383,7 @@ def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(require
 
 
 @router.get("/api/earnings/transcript-quarters/{ticker}")
-def transcript_quarters_endpoint(ticker: str, user: dict = Depends(require_paid)):
+def transcript_quarters_endpoint(ticker: str = Depends(ticker_shape), user: dict = Depends(require_paid)):
     """Quarters with a published transcript, newest first.
 
     Cheap (one cached FMP index call, no transcript bodies) and it is what lets
@@ -423,7 +424,7 @@ def analyst_grades_endpoint(ticker: str, user: dict = Depends(require_paid)):
 
 @router.get("/api/earnings/timed-transcript/{ticker}")
 def timed_transcript_endpoint(
-    ticker: str,
+    ticker: str = Depends(ticker_shape),
     year: Optional[int] = Query(default=None),
     quarter: Optional[int] = Query(default=None),
     user: dict = Depends(require_paid),

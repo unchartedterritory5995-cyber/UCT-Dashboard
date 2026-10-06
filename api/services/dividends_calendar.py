@@ -91,7 +91,31 @@ def _get_forward_splits(sym: str, today: date) -> list[dict]:
 
 
 def get_events(syms: list[str]) -> list[dict]:
-    """Return forward dividends + splits for the given symbols.
+    """The rows alone; `get_events_with_status` also says whether every symbol answered."""
+    return get_events_with_status(syms)[0]
+
+
+def _partial_key(cache_key: str) -> str:
+    return f"{cache_key}::partial"
+
+
+def _clean(syms: list[str]) -> list[str]:
+    return sorted({s.strip().upper() for s in (syms or []) if s and s.strip()})[:200]
+
+
+def read_partial(syms: list[str]) -> bool:
+    """True while the last read of this symbol set was incomplete (a Massive read failed or
+    was shed). The route asks this after `get_events` to label the answer."""
+    clean = _clean(syms)
+    return bool(clean) and bool(cache.get(_partial_key(_syms_cache_key(clean))))
+
+
+def get_events_with_status(syms: list[str]) -> tuple[list[dict], bool]:
+    """`(events, complete)`. `complete` is False when any symbol's Massive read failed or was
+    shed by the deadline, so the list may be missing that symbol's events (quality pass
+    2026-10-05: the calendar's dividend chips vanished silently on a failed read).
+
+    Return forward dividends + splits for the given symbols.
 
     Result: list of { sym, type: 'dividend'|'split', date, amount? (dividend), ratio? (split) }
     Only events with date >= today are returned.
@@ -101,11 +125,11 @@ def get_events(syms: list[str]) -> list[dict]:
         syms: list of ticker strings (case-insensitive)
     """
     if not syms:
-        return []
+        return [], True
 
     clean_syms = sorted({s.strip().upper() for s in syms if s and s.strip()})
     if not clean_syms:
-        return []
+        return [], True
 
     # Cap at 200 to prevent a large My-Stocks set from hanging the request
     # (two Massive reads per symbol).
@@ -114,7 +138,7 @@ def get_events(syms: list[str]) -> list[dict]:
     cache_key = _syms_cache_key(clean_syms)
     cached = cache.get(cache_key)
     if cached is not None:
-        return cached
+        return cached, not cache.get(_partial_key(cache_key))
 
     today = date.today()
     results: list[dict] = []
@@ -181,10 +205,16 @@ def get_events(syms: list[str]) -> list[dict]:
     # per-leg signal (every symbol either answered, failed or timed out), not a
     # truthiness check on `results` (a fully-completed but genuinely
     # dividend-free batch must still get the full TTL).
+    complete = completed == len(futures)
     set_by_completeness(
         cache_key, results,
-        complete=completed == len(futures),
+        complete=complete,
         ttl_ok=_CACHE_TTL,
         ttl_partial=_CACHE_TTL_PARTIAL,
     )
-    return results
+    if not complete:
+        # Lives exactly as long as the partial entry, so a cache hit still says "partial".
+        cache.set(_partial_key(cache_key), True, ttl=_CACHE_TTL_PARTIAL)
+    else:
+        cache.invalidate(_partial_key(cache_key))
+    return results, complete

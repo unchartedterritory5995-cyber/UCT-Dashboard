@@ -1,6 +1,15 @@
 import useMobileSWR from './useMobileSWR'
+import { withDeadline } from '../utils/withDeadline'
 
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
+// THROWS on a failed request (quality pass 2026-10-05). It mapped a failure to `[]`, so every
+// surface read a 5xx as "No tweets on the tape yet". SWR keeps the last good list on an error,
+// so a blip never empties a populated feed; a surface with nothing yet reads `error`.
+// Consumers (all four distinguish it): MorningWire OnTheTape, MoversSidebar, tiles/TapeFeed,
+// desk/PostsSection.
+const fetcher = (url) => withDeadline(fetch(url), url).then((r) => {
+  if (!r.ok) throw new Error(`tweet feed ${r.status}`)
+  return r.json()
+})
 
 /**
  * Chronological live tweet feed (newest first) from the curated accounts.

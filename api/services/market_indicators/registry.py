@@ -19,7 +19,7 @@ registry that will disagree with itself.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from api.services.breadth_metrics import (
@@ -265,6 +265,72 @@ _NOT_NYMO = (
 )
 
 
+# ── Exchange Breadth V1 rows (dormant) ───────────────────────────────────────
+
+#: Evidence-backed canonical starts (venue ledger 72eef1c2…, Phase 1 gate 2026-10-03):
+#: Nasdaq by SIP tape from the first V2 session; NYSE from the first session after the dated
+#: XNYS coverage gap (2008-11..2009-06-10, up to 1.7% of NYSE names unplaceable).
+EXCHANGE_START = {"nyse": "2009-06-11", "nasdaq": "2008-01-02"}
+#: The summation's declared epoch: the first session with 120 real observations behind it.
+#: Pinned from the accepted artifact (it is the DEFINITION of the level, never re-derived).
+EXCHANGE_MCS_EPOCH = {"nyse": "2009-12-01", "nasdaq": "2008-06-24"}
+_EXCH_ALIAS = {("nyse", "MCO"): ("NYMO", "$NYMO"), ("nyse", "MCS"): ("NYSI", "$NYSI"),
+               ("nyse", "AD"): ("NYAD", "$NYAD"), ("nasdaq", "MCO"): ("NAMO", "$NAMO"),
+               ("nasdaq", "MCS"): ("NASI", "$NASI"), ("nasdaq", "AD"): ("NAAD", "$NAAD")}
+_EXCH_POP = ("UCT calculation using point-in-time exchange membership and the UCT operating-equity "
+             "breadth universe (common stock + ADRs, as US Breadth V2). %s means %s-listed on that "
+             "session (NYSE excludes NYSE American, NYSE Arca and Cboe). NOT the vendor's %s: the "
+             "vendor composites count every listed issue, so values differ by design.")
+
+
+def _exchange_row(universe: str, kind: str) -> "Series":
+    X = "NYSE" if universe == "nyse" else "NASDAQ"
+    label = "NYSE" if universe == "nyse" else "Nasdaq"
+    vendor = "$" + _EXCH_ALIAS[(universe, kind)][0]
+    pop = _EXCH_POP % (label, label, vendor)
+    common = dict(id=f"{X}:{kind}", family=FAM_MCCLELLAN if kind != "AD" else FAM_BREADTH,
+                  source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT, frequency=FREQ_DAILY,
+                  universe=universe, aliases=_EXCH_ALIAS[(universe, kind)],
+                  observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
+                  source_owner="UCT", licensing="Own data.", reproduces_reference=False,
+                  history_start=EXCHANGE_START[universe],
+                  blocked_on="Exchange Breadth V1 cutover: awaiting owner authorization of the member-authority "
+                             "switch; published only while `breadth_exchange_authority` serves a verified "
+                             "authority (BREADTH_AUTHORITY_EXCH=v1).")
+    if kind == "MCO":
+        return Series(**common, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
+                      metric_name="McClellan Oscillator", metric_short="McClellan",
+                      synonyms=(f"{label.upper()} MCCLELLAN", "MCCLELLAN", "MCCLELLAN OSCILLATOR"),
+                      presentation=PRES_LINE, centerline=0.0, reference_lines=(-100.0, -50.0, 50.0, 100.0),
+                      methodology=_MC_METHOD_RATIO + " Seed 0; not published inside the 120-session "
+                                  "burn-in. " + pop,
+                      methodology_version="mcclellan-v1/ratio_adjusted",
+                      provenance=f"Derived from breadth_daily_ohlc `advancing`/`declining` for universe "
+                                 f"`{universe}` (Exchange Breadth V1 artifact).")
+    if kind == "MCS":
+        return Series(**common, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
+                      metric_name="McClellan Summation Index", metric_short="Summation",
+                      synonyms=(f"{label.upper()} SUMMATION", "MCCLELLAN SUMMATION", "SUMMATION INDEX"),
+                      presentation=PRES_LINE, centerline=0.0, reference_lines=(-500.0, 500.0),
+                      methodology=_MC_METHOD_RATIO + " Cumulative sum of the oscillator from a DECLARED "
+                                  "epoch (the first session with 120 real observations behind it) at "
+                                  "base 0 — neutral at zero, not the classic +1000. " + pop,
+                      methodology_version="mcclellan-v1/ratio_adjusted",
+                      provenance=f"Cumulated from {X}:MCO in one forward pass from the pinned epoch.",
+                      summation_epoch=EXCHANGE_MCS_EPOCH[universe], summation_base=0.0,
+                      summation_anchor_source="declared")
+    return Series(**common, unit=UNIT_COUNT, domain=DOMAIN_SIGNED,
+                  metric_name="Advance/Decline Line", metric_short="A/D Line",
+                  synonyms=(f"{label.upper()} ADVANCE DECLINE", "ADVANCE DECLINE", "AD LINE",
+                            "ADVANCE DECLINE LINE"),
+                  presentation=PRES_LINE,
+                  methodology="Running cumulative total of daily net advances (advances − declines), "
+                              "base 0 from the declared start; a missing session holds the level. " + pop,
+                  methodology_version="adline-v1",
+                  provenance=f"Cumulated from breadth_daily_ohlc `adv_decline` for universe `{universe}` "
+                             f"in one forward pass, starting at 0 on {EXCHANGE_START[universe]}.")
+
+
 # ── The catalogue ────────────────────────────────────────────────────────────
 
 _ROWS: list[Series] = [
@@ -326,81 +392,15 @@ _ROWS: list[Series] = [
         summation_anchor_source="declared",
     ),
 
-    # ⛔⛔ DORMANT — registered so the design is reviewable and the dependency is
-    # explicit, NOT servable and NOT discoverable. `published_rows()` excludes them and
-    # `resolve()` refuses them, so no flag, no typo and no client cache can reach one.
-    Series(
-        id="NYSE:MCO", symbol="NYMO", family=FAM_MCCLELLAN,
-        source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT,
-        frequency=FREQ_DAILY, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
-        universe="nyse", display="NYSE McClellan Oscillator", short="NYMO",
-        metric_name="McClellan Oscillator", metric_short="McClellan",
-        aliases=("NYSE:MCO", "$NYMO"), synonyms=("NYSE MCCLELLAN", "MCCLELLAN"),
-        presentation=PRES_LINE, centerline=0.0, reference_lines=(-100.0, -50.0, 50.0, 100.0),
-        methodology=_MC_METHOD_RATIO,
-        methodology_version="mcclellan-v1/ratio_adjusted",
-        history_start="2011-01-01",
-        observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
-        provenance="Will derive from breadth_daily_ohlc `advancing`/`declining` for "
-                   "universe `nyse` once Breadth V2 populates it.",
-        source_owner="UCT", licensing="Own data.",
-        blocked_on="Breadth V2 has not populated the `nyse` universe (0 rows, "
-                   "`not_populated`). Floor is 2011-01-01: pre-2011 exchange "
-                   "attribution collapses and count metrics are unusable. Also requires "
-                   "a passing golden matrix against a reference series before the "
-                   "established name may be used.",
-    ),
-    Series(
-        id="NYSE:MCS", symbol="NYSI", family=FAM_MCCLELLAN,
-        source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT,
-        frequency=FREQ_DAILY, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
-        universe="nyse", display="NYSE McClellan Summation Index", short="NYSI",
-        metric_name="McClellan Summation Index", metric_short="Summation",
-        aliases=("NYSE:MCS", "$NYSI"), synonyms=("NYSE SUMMATION", "MCCLELLAN SUMMATION"),
-        presentation=PRES_LINE, centerline=0.0, reference_lines=(-500.0, 500.0),
-        methodology=_MC_METHOD_RATIO + " Summation anchored to a published reference "
-                    "value on a known date (McClellan Financial publish theirs daily), "
-                    "which is what makes the LEVEL comparable rather than declared.",
-        methodology_version="mcclellan-v1/ratio_adjusted",
-        history_start="2011-01-01",
-        observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
-        provenance="Cumulated from NYSE:MCO once it exists.",
-        source_owner="UCT", licensing="Own data.",
-        blocked_on="NYSE:MCO, plus a reference anchor decision.",
-    ),
-    Series(
-        id="NASDAQ:MCO", symbol="NAMO", family=FAM_MCCLELLAN,
-        source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT,
-        frequency=FREQ_DAILY, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
-        universe="nasdaq", display="Nasdaq McClellan Oscillator", short="NAMO",
-        metric_name="McClellan Oscillator", metric_short="McClellan",
-        aliases=("NASDAQ:MCO", "$NAMO"), synonyms=("NASDAQ MCCLELLAN", "MCCLELLAN"),
-        presentation=PRES_LINE, centerline=0.0, reference_lines=(-100.0, -50.0, 50.0, 100.0),
-        methodology=_MC_METHOD_RATIO,
-        methodology_version="mcclellan-v1/ratio_adjusted",
-        history_start="2011-01-01",
-        observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
-        provenance="Will derive from the `nasdaq` universe once Breadth V2 populates it.",
-        source_owner="UCT", licensing="Own data.",
-        blocked_on="Breadth V2 has not populated the `nasdaq` universe (0 rows). "
-                   "Floor 2011-01-01. Requires a passing golden matrix.",
-    ),
-    Series(
-        id="NASDAQ:MCS", symbol="NASI", family=FAM_MCCLELLAN,
-        source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT,
-        frequency=FREQ_DAILY, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
-        universe="nasdaq", display="Nasdaq McClellan Summation Index", short="NASI",
-        metric_name="McClellan Summation Index", metric_short="Summation",
-        aliases=("NASDAQ:MCS", "$NASI"), synonyms=("NASDAQ SUMMATION", "MCCLELLAN SUMMATION"),
-        presentation=PRES_LINE, centerline=0.0, reference_lines=(-500.0, 500.0),
-        methodology=_MC_METHOD_RATIO + " Anchored to a published reference value.",
-        methodology_version="mcclellan-v1/ratio_adjusted",
-        history_start="2011-01-01",
-        observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
-        provenance="Cumulated from NASDAQ:MCO once it exists.",
-        source_owner="UCT", licensing="Own data.",
-        blocked_on="NASDAQ:MCO, plus a reference anchor decision.",
-    ),
+    # ⛔⛔ DORMANT — Exchange Breadth V1 (2026-10-03). Fully specified, NOT servable and NOT
+    # discoverable: `published_rows()` excludes them and `resolve()` refuses them, so no flag, no
+    # typo and no client cache can reach one before the cutover authorizes publication.
+    #
+    # ⭐ CANONICAL IDENTITY IS THE UCT SYMBOL (`NYSE:MCO`). NYMO/NYSI/NAMO/NASI/NYAD/NAAD are SEARCH
+    # ALIASES ONLY (naming Rule 1's precondition fails: our census is point-in-time NYSE / Nasdaq
+    # operating equity, not the vendors' all-issues composites).
+    *[_exchange_row(u, kind) for u in ("nyse", "nasdaq") for kind in ("MCO", "MCS", "AD")],
+
     Series(
         id="UCT:MCO", family=FAM_MCCLELLAN, source_type=SRC_BREADTH_DERIVED,
         status=ST_DORMANT,
@@ -907,11 +907,34 @@ for _s in _ROWS:
 SERIES_IDS = [s.id for s in _ROWS]
 
 
+#: Exchange Breadth V1 rows: DORMANT in the table, PUBLISHED exactly while the exchange authority serves
+#: their universe (`breadth_exchange_authority.serves`). One predicate, read by every accessor below, so
+#: the catalogue, search, `/api/bars` and the metadata route can never disagree.
+EXCHANGE_SERIES_IDS = frozenset(f"{x}:{k}" for x in ("NYSE", "NASDAQ") for k in ("MCO", "MCS", "AD"))
+_LIVE_ROW: dict = {}
+
+
+def _effective(s: Optional[Series]) -> Optional[Series]:
+    if s is None or s.id not in EXCHANGE_SERIES_IDS:
+        return s
+    try:
+        from api.services import breadth_exchange_authority as _ea
+        serving = _ea.serves(s.universe)
+    except Exception:
+        serving = False
+    if not serving:
+        return s
+    hit = _LIVE_ROW.get(s.id)
+    if hit is None:
+        hit = _LIVE_ROW[s.id] = replace(s, status=ST_PUBLISHED, blocked_on=None)
+    return hit
+
+
 def get(series_id: str) -> Optional[Series]:
     """The row for a canonical id, whatever its status. Discovery must NOT use this."""
     if not series_id:
         return None
-    return SERIES.get(str(series_id).strip().upper())
+    return _effective(SERIES.get(str(series_id).strip().upper()))
 
 
 def resolve(token: str, include_dormant: bool = False) -> Optional[Series]:
@@ -932,7 +955,7 @@ def resolve(token: str, include_dormant: bool = False) -> Optional[Series]:
     sid = _ALIAS_INDEX.get(str(token).strip().upper())
     if not sid:
         return None
-    s = SERIES[sid]
+    s = _effective(SERIES[sid])
     if s.status != ST_PUBLISHED and not include_dormant:
         return None
     return s
@@ -1203,21 +1226,26 @@ def product_of(series_id: str) -> Optional[Product]:
     return None
 
 
+def all_rows() -> list[Series]:
+    """Every row with its EFFECTIVE status (the exchange rows follow their authority)."""
+    return [_effective(s) for s in _ROWS]
+
+
 def published_rows() -> list[Series]:
-    return [s for s in _ROWS if s.status == ST_PUBLISHED]
+    return [s for s in all_rows() if s.status == ST_PUBLISHED]
 
 
 def dormant_rows() -> list[Series]:
-    return [s for s in _ROWS if s.status == ST_DORMANT]
+    return [s for s in all_rows() if s.status == ST_DORMANT]
 
 
 def rows_for_family(family: str, published_only: bool = True) -> list[Series]:
-    src = published_rows() if published_only else _ROWS
+    src = published_rows() if published_only else all_rows()
     return [s for s in src if s.family == family]
 
 
 def families(published_only: bool = True) -> list[dict]:
-    src = published_rows() if published_only else _ROWS
+    src = published_rows() if published_only else all_rows()
     present = {s.family for s in src}
     return [{"id": f, "label": FAMILY_LABEL[f]}
             for f in FAMILY_ORDER if f in present]

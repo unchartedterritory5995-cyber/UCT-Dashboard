@@ -410,19 +410,20 @@ describe('🟡 the URL-sync breaker and the write cost', () => {
   it('#19: a focus-only click posts nothing; real changes coalesce into ONE debounced write', async () => {
     store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'AMD', B: 'MSFT' }),
       terminal_layout: TWO({ code: 'DES', channel: 'A' }, { code: 'CN', channel: 'B' }, 0) }
-    saveTiming.debounceMs = 250
+    // 1 s, not 250 ms: two typed commands must land inside ONE debounce even on a loaded box
+    saveTiming.debounceMs = 1000
     renderAt(['/terminal'])
     await settle()
     const writes = () => store.writes.filter(([k]) => k === 'terminal_layout')
     await act(async () => { fireEvent.mouseDown(screen.getByTestId('terminal-panel-1')) })
     await act(async () => { fireEvent.mouseDown(screen.getByTestId('terminal-panel-0')) })
-    await wait(320)
+    await wait(1100)
     expect(writes()).toHaveLength(0)
     await type('NVDA FA')
     await type('NVDA OWN')
     expect(writes()).toHaveLength(0)                    // still inside the debounce
     expect(code(0)).toBe('OWN')                          // …but on screen at once
-    await wait(320)
+    await wait(1100)
     expect(writes()).toHaveLength(1)
     expect(layout().panels[0].code).toBe('OWN')
   })

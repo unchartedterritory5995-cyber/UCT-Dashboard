@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
 // market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
@@ -19,12 +20,12 @@ const when = (r) => (r.accepted ? String(r.accepted).replace('T', ' ').slice(0, 
 // the filtered form says so about the WINDOW we fetched, never about the
 // company: the feed and the submissions list are both a recent slice.
 export function emptyText(data, form, label) {
-  const src = data.source ? ` (${data.source})` : ''
-  const why = data.reason ? `: ${data.reason}` : ''
+  const src = data.source ? ` (${memberText(data.source)})` : ''
+  const why = data.reason ? `: ${memberText(data.reason)}` : ''
   if (data.state === 'pending') return `Pending${why}.${src}`
   if ((data.state === 'ok' || data.state === 'stale') && Array.isArray(data.rows)) {
     const what = form && form !== 'All' ? `${form === '4' ? 'Form 4' : form} filing` : 'filing in the forms this feed covers'
-    const stale = data.state === 'stale' && data.reason ? ` Note: ${data.reason}.` : ''
+    const stale = data.state === 'stale' && data.reason ? ` Note: ${memberText(data.reason)}.` : ''
     return `None: no ${what} for ${label} among the most recent filings we fetched.${stale}${src}`
   }
   if (data.state === 'none_in_scope') return `None${why}.${src}`
@@ -92,8 +93,8 @@ export default function FilingsFeedTab({ sym }) {
         </div>
         <p className={styles.muted} data-testid="feed-source">
           {scope === 'ticker'
-            ? `Source: ${data.source}${data.merged_from_feed ? ` plus ${data.merged_from_feed} newer from the SEC latest-filings feed` : ''}.`
-            : `Source: ${data.source}, polled every ${data.poll_minutes} minutes.`}
+            ? `Source: ${memberText(data.source)}${data.merged_from_feed ? ` plus ${data.merged_from_feed} newer from the SEC latest-filings feed` : ''}.`
+            : `Source: ${memberText(data.source)}, polled every ${data.poll_minutes} minutes.`}
         </p>
       </>
     )

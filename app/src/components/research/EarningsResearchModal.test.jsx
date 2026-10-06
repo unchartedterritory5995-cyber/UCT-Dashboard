@@ -153,8 +153,8 @@ describe('entity resolution (A5) — the canonical identity calendar rows now ca
   it('shows the entity-unresolved note when the calendar event has not resolved', () => {
     renderModal({ row: { ...row, entity: { status: 'not_found', entityId: null } } })
     const note = screen.getByTestId('entity-unresolved-note')
-    expect(note.textContent).toMatch(/not yet linked to a canonical identity/i)
-    expect(note.textContent).toMatch(/not_found/)
+    expect(note.textContent).toMatch(/not yet linked to a company record/i)
+    expect(note.textContent).not.toMatch(/not_found/) // the enum is not member copy
   })
 
   it('shows no note once the event has resolved', () => {

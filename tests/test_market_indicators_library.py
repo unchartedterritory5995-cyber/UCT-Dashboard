@@ -108,11 +108,23 @@ def test_a_dormant_series_serves_no_bars():
         assert mseries.build_bars(sym)["bars"] == []
 
 
-def test_the_dormant_rows_name_their_exact_data_dependency():
-    assert "nyse" in reg.resolve("NYMO", include_dormant=True).blocked_on.lower()
-    assert "nasdaq" in reg.resolve("NAMO", include_dormant=True).blocked_on.lower()
-    # and the 2011 attribution floor is stated, not implied
-    assert "2011" in reg.resolve("NYMO", include_dormant=True).blocked_on
+def test_the_dormant_rows_name_their_gate_and_their_evidence_backed_starts():
+    """Exchange Breadth V1 (2026-10-03): the data exists (PIT venue ledger + exchange artifact);
+    what keeps them dormant is the owner's cutover authorization, and the starts are the
+    Phase 1 gate's evidence-backed dates (NOT the old 2011 list-venue floor)."""
+    nymo, namo = reg.resolve("NYMO", include_dormant=True), reg.resolve("NAMO", include_dormant=True)
+    assert (nymo.universe, namo.universe) == ("nyse", "nasdaq")
+    for row in (nymo, namo):
+        assert "authorization" in row.blocked_on.lower()
+    assert nymo.history_start == "2009-06-11" and namo.history_start == "2008-01-02"
+
+
+def test_canonical_identity_is_the_uct_symbol_and_vendor_names_are_aliases():
+    for alias, canon in (("NYMO", "NYSE:MCO"), ("$NYSI", "NYSE:MCS"), ("NYAD", "NYSE:AD"),
+                         ("$NAMO", "NASDAQ:MCO"), ("NASI", "NASDAQ:MCS"), ("$NAAD", "NASDAQ:AD")):
+        row = reg.resolve(alias, include_dormant=True)
+        assert row.id == canon and row.symbol == canon, alias
+        assert "NOT the vendor" in row.methodology
 
 
 def test_vix_is_dormant_because_something_else_already_serves_it():
@@ -400,7 +412,7 @@ def test_dormant_series_are_invisible_to_discovery():
     from api.services.market_indicators import discovery as disc
     for q in ("NYMO", "NASI", "NYSI", "NAMO"):
         assert disc.search(q, limit=10) == [], f"{q} must not be discoverable"
-    assert any(r["symbol"] == "NASI"
+    assert any(r["symbol"] == "NASDAQ:MCS"
                for r in disc.search("NASI", limit=10, include_dormant=True))
 
 
@@ -540,14 +552,12 @@ def test_the_oscillator_is_served_from_the_first_session_but_the_summation_is_no
     assert reg.get("US:MCS").summation_epoch is not None
 
 
-def test_the_dormant_exchange_summations_carry_no_declared_level_yet():
-    """⛔ NYSI/NASI will be anchored to a PUBLISHED reference value, which is what makes
-    their level comparable rather than merely self-consistent. Pinning a declared one
-    now would bake in the wrong strategy."""
+def test_the_exchange_summations_are_declared_never_vendor_anchored():
+    """⛔ Owner ruling 2026-10-03: the UCT exchange summations use a DECLARED epoch at base 0.
+    Our census differs from the vendors', so anchoring to $NYSI/$NASI would fake comparability."""
     for sym in ("NYSI", "NASI"):
         row = reg.resolve(sym, include_dormant=True)
-        assert row.summation_epoch is None
-        assert "anchor" in row.blocked_on.lower()
+        assert row.summation_anchor_source == "declared" and row.summation_base == 0.0
 
 
 # ══════════════════════════════════════════════════════════════════════════

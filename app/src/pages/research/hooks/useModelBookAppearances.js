@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { withDeadline } from '../../../utils/withDeadline'
 
 // Packet H CP1: every curated Model Book appearance for this ticker, across
 // all years -- keyed off the SETTLED symbol, same convention as every other
@@ -10,7 +11,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 // collapsing a non-2xx into null.
 export async function fetchModelBookAppearances(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {
@@ -25,7 +26,10 @@ export default function useModelBookAppearances(rawSym) {
   return useMemo(() => ({
     data: data ? data.body : null,
     isLoading: Boolean(isLoading && !data),
-    error: Boolean(data && !data.ok),
+    // tq-panels: 402 is the paid gate -- a state with its own sentence, not "couldn't load".
+    // (This fetcher keeps {ok, httpStatus}, so sectionFetcher's {paywalled} never applied.)
+    paywalled: Boolean(data && !data.ok && data.httpStatus === 402),
+    error: Boolean(data && !data.ok && data.httpStatus !== 402),
     mutate,
   }), [data, isLoading, mutate])
 }

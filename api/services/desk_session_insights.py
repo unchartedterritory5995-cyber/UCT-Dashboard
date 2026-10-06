@@ -254,12 +254,13 @@ def parse_zoom_summary(raw: str) -> dict:
 
 
 def _recap_date(title: str) -> str:
-    """Session titles are '{type} — {Month D, YYYY}'; pull the date tail for the
-    poster, falling back to the whole title."""
+    """Session titles are '{type}: {Month D, YYYY}' (legacy '{type} — {date}');
+    pull the date tail for the poster, falling back to the whole title. The
+    split belongs to desk_creative.parse_session_title, the format's owner."""
     t = (title or "").strip()
-    if "—" in t:
-        return t.rsplit("—", 1)[-1].strip() or t
-    return t
+    from api.services import desk_creative
+    parsed = desk_creative.parse_session_title(t)
+    return (parsed[1] if parsed else "") or t
 
 
 def _hhmmss(sec: int) -> str:

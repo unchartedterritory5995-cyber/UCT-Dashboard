@@ -319,3 +319,28 @@ class TestRoute:
             "source": {"vendor": "FMP"}})
         body = self._client().get("/api/research/financial-history/AAPL?period=annual").json()
         assert body["source"]["vendor"] == "FMP" and body["period"] == "annual"
+
+
+# ── quality pass 2026-10-05: a failed leg is marked, so the panel never states absence ──
+
+def test_a_failed_history_read_is_marked_fmp_unavailable(monkeypatch):
+    from api.routers import research as r
+    from api.services.research import financial_history as fh
+
+    def boom(sym, period="quarter"):
+        raise RuntimeError("FMP down")
+    monkeypatch.setattr(fh, "get_history", boom)
+    out = r.research_financial_history("ZZZQ")
+    assert out["periods"] == [] and out["fmp_unavailable"] is True
+
+
+def test_a_failed_yahoo_estimates_leg_is_marked_yf_unavailable(monkeypatch):
+    from api.routers import research as r
+    from api.services.research import estimates_consensus as ec
+
+    def boom(sym):
+        raise RuntimeError("yahoo down")
+    monkeypatch.setattr(r, "get_estimates", boom)
+    monkeypatch.setattr(ec, "get_consensus", lambda sym: {"state": "empty", "annual": [], "quarterly": []})
+    out = r.research_estimates("ZZZQ", consensus=1)
+    assert out["forward"] == [] and out["yf_unavailable"] is True

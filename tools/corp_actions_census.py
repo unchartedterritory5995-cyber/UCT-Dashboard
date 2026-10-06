@@ -201,6 +201,11 @@ REGISTER: dict[tuple, tuple] = {
                  "makes, and it renders no adjusted equity price to a member."),
     ("api/gex_router.py", VENDOR_ADJUSTED): (
         OUTSIDE, "same surface as gex_service; router-level pass-through."),
+    ("api/services/options_analytics/chain_tools.py", VENDOR_ADJUSTED): (
+        OUTSIDE, "one option CONTRACT's own daily bars, asked for raw "
+                 "(adjusted=False) on purpose: an OCC contract's price is never "
+                 "split-rescaled (an adjusted contract gets a new root, BRKB1), so "
+                 "no equity split basis is claimed or rendered."),
     ("api/index_bars.py", VENDOR_ADJUSTED): (
         OUTSIDE, "index series; indices do not split, so the flag is inert here."),
     ("api/oi_morning.py", VENDOR_ADJUSTED): (

@@ -202,6 +202,36 @@ def _merge_ipo_rows(fh_entries: list[dict], fmp_entries: list[dict]) -> list[dic
     return sorted(merged.values(), key=lambda r: (r.get("date") or "", r.get("sym") or ""))
 
 
+_CACHE_TTL_FAILED = 300   # both providers failed: re-ask in 5 min, never pin "no IPOs" for 6 h
+
+
+def get_ipos_with_status(from_date: str, to_date: str) -> tuple[list[dict], bool]:
+    """`(rows, answered)`. `answered` is False only when BOTH providers failed to answer, so
+    the empty list is "we could not read the IPO calendar", not "no IPOs this week"
+    (quality pass 2026-10-05: the calendar's IPO chips vanished silently on that case).
+    A failure of one provider still serves the other's rows and counts as answered."""
+    cache_key = f"ipo_calendar_{from_date}_{to_date}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached, True
+    failed_key = f"ipo_calendar_failed_{from_date}_{to_date}"
+    if cache.get(failed_key):
+        return [], False
+    fh_raw = _fh_ipo_get(from_date, to_date)
+    fmp_raw = _fmp_ipo_get(from_date, to_date)
+    if fh_raw is None and fmp_raw is None:
+        cache.set(failed_key, True, ttl=_CACHE_TTL_FAILED)
+        return [], False
+    return _build(cache_key, fh_raw, fmp_raw), True
+
+
+def read_failed(from_date: str, to_date: str) -> bool:
+    """True while the last read of this range found BOTH providers failing (the 5-min
+    negative entry `get_ipos_with_status` writes). The route asks this after `get_ipos`
+    to label an empty answer as a failed read, not as "no IPOs"."""
+    return bool(cache.get(f"ipo_calendar_failed_{from_date}_{to_date}"))
+
+
 def get_ipos(from_date: str, to_date: str) -> list[dict]:
     """Return normalized IPO calendar entries for the given date range,
     merging Finnhub `/calendar/ipo` (numeric detail) with FMP
@@ -211,13 +241,14 @@ def get_ipos(from_date: str, to_date: str) -> list[dict]:
     Rows with no symbol or date are silently dropped.
     Cached per (from_date, to_date) for 6 hours.
     Never raises — returns [] on any failure of EITHER provider; a failure
-    of one still serves the other's rows.
+    of one still serves the other's rows. Both failing is NOT cached for 6 h
+    (`get_ipos_with_status` says which case an empty list is).
     """
-    cache_key = f"ipo_calendar_{from_date}_{to_date}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    return get_ipos_with_status(from_date, to_date)[0]
 
+
+def _build(cache_key: str, fh_raw, fmp_raw) -> list[dict]:
+    """Normalize + merge both providers' raw rows, stamp entities, cache for 6 h."""
     def _normalize_all(raw, normalize_fn):
         out = []
         if not raw:
@@ -238,8 +269,8 @@ def get_ipos(from_date: str, to_date: str) -> list[dict]:
             out.append(entry)
         return out
 
-    fh_entries = _normalize_all(_fh_ipo_get(from_date, to_date), _normalize_row)
-    fmp_entries = _normalize_all(_fmp_ipo_get(from_date, to_date), _normalize_fmp_row)
+    fh_entries = _normalize_all(fh_raw, _normalize_row)
+    fmp_entries = _normalize_all(fmp_raw, _normalize_fmp_row)
 
     result = _merge_ipo_rows(fh_entries, fmp_entries)
 

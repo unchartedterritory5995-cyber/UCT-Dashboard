@@ -1052,6 +1052,15 @@ def history(metric: str, limit: int = 6000,
     chart's observed-OHLC mark (`OBSERVED_OHLC_SOURCES`). Off, the row shape is unchanged."""
     if not metric:
         return {}
+    # ⭐ EXCHANGE AUTHORITY (NYSE / NASDAQ, breadth_exchange_authority): when in force it answers
+    # nyse/nasdaq — FAIL CLOSED ({}), never this store and never US V2's today-venue rows. None = off.
+    try:
+        from api.services import breadth_exchange_authority as _ea
+        _ex = _ea.universe_history(metric, universe, limit, with_source=with_source)
+    except Exception:
+        _ex = {} if str(universe or "").strip().lower() in ("nyse", "nasdaq") and             (os.environ.get("BREADTH_AUTHORITY_EXCH") or "").strip().lower() == "v1" else None
+    if _ex is not None:
+        return _ex
     # ⭐ BREADTH AUTHORITY: a universe V2 owns is answered by the seam (breadth_authority),
     # never by this store. None = not owned → the V1 store below, unchanged.
     try:
@@ -1092,6 +1101,13 @@ def dates_since(universe: str = DEFAULT_UNIVERSE, since: str = "") -> list:
     leading columns of `idx_bdo_source_date (universe, source, date, metric, c)`, so
     this is an index range scan rather than a table walk.
     """
+    try:
+        from api.services import breadth_exchange_authority as _ea
+        _ex = _ea.universe_dates(universe, since)
+    except Exception:
+        _ex = None
+    if _ex is not None:
+        return _ex
     try:
         from api.services import breadth_authority as _ba
         _v2 = _ba.universe_dates(universe, since)

@@ -113,6 +113,24 @@ def test_month_empty_safe_on_fh_failure():
     assert body["days"] == {}
 
 
+def test_month_says_degraded_when_a_week_could_not_be_read_and_not_when_it_could():
+    """Quality pass 2026-10-05: an empty grid from a failed provider read is labelled, so the
+    client can say "could not be read" instead of showing a quiet month."""
+    def _week(failing):
+        def _get(monday):
+            if failing:
+                return None
+            return {"source": "range", "days": {
+                "2026-06-02": {"bmo": [{"sym": "AAPL"}], "amc": [], "tbd": []}}}
+        return _get
+    for failing, expected in ((True, True), (False, False)):
+        with mock.patch("api.routers.calendar.cache.get", return_value=None), \
+             mock.patch("api.routers.calendar.cache.set"), \
+             mock.patch("api.routers.calendar._get_or_build_range_week", side_effect=_week(failing)):
+            body = client.get("/api/calendar/month?year=2026&month=6").json()
+        assert body["degraded"] is expected
+
+
 def test_month_invalid_month_returns_empty():
     """Out-of-range month returns empty days instead of 500."""
     r = client.get("/api/calendar/month?year=2026&month=13")

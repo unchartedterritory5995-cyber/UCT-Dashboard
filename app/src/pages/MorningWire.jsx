@@ -22,11 +22,15 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
 import styles from './MorningWire.module.css'
+import jsonFetcher from '../utils/jsonFetcher'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
 const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
 
 const fetcher = url => fetch(url).then(r => r.json())
+// The rundown read THROWS on failure (jsonFetcher, 30 s deadline): with the bare fetcher a
+// 503 {detail} and a not-yet-published wire ({html: ''}) both left the skeleton up forever.
+const rundownFetcher = url => jsonFetcher(url)
 
 // Small stat pill used in the page header strip
 function StatPill({ label, value, color }) {
@@ -108,14 +112,16 @@ function renderTweetText(text) {
   )
 }
 
-function OnTheTape() {
-  const { data: tweets } = useTweetFeed({ hours: 12, limit: 50 })
+export function OnTheTape() {
+  const { data: tweets, error: tweetsError } = useTweetFeed({ hours: 12, limit: 50 })
 
   return (
     <div className={styles.tapeBlock}>
       <div className={styles.tapeLabel}><UIcon name="wire" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />ON THE TAPE</div>
       <div className={styles.tapeBody}>
-        {tweets == null
+        {tweets == null && tweetsError
+          ? <span className={styles.noData} role="status">The tape couldn&apos;t be read right now. That is not the same as no tweets.</span>
+          : tweets == null
           ? <SkeletonTileContent lines={5} />
           : tweets.length === 0
             ? <span className={styles.noData}>No tweets on the tape yet</span>
@@ -150,7 +156,7 @@ function OnTheTape() {
 // read as a section loading forever. It is said plainly instead.
 export const WIRE_SECTION_MISSING = "This section was not produced in this morning's wire."
 export function settleLoadingPlaceholders(html) {
-  return String(html || '').replace(/<p class="rd-loading"[^>]*>[\s\S]*?<\/p>/g,
+  return String(html || '').replace(/<p class=(["'])rd-loading\1[^>]*>[\s\S]*?<\/p>/g,
     `<p class="rd-loading rd-missing" data-testid="wire-section-missing">${WIRE_SECTION_MISSING}</p>`)
 }
 
@@ -159,7 +165,7 @@ export default function MorningWire() {
   // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { data: rundown }  = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
+  const { data: rundown, error: rundownError, mutate: retryRundown } = useSWR('/api/rundown', rundownFetcher, { refreshInterval: 300000 })
 
   // Morning Wire is MANUAL-only: no auto-read on page open. (The hands-free
   // hook is intentionally NOT invoked here — decoupled from proactive_speak so
@@ -406,7 +412,22 @@ export default function MorningWire() {
                 dangerouslySetInnerHTML={rundownHtml}
               />
             )
-            : <SkeletonTileContent lines={12} />
+            : rundownError && !rundown
+              ? (
+                <p className={styles.noData} data-testid="rundown-error">
+                  The Morning Wire could not be read right now. That is a gap in what we could
+                  read, not a statement about the market.{' '}
+                  <button type="button" onClick={() => retryRundown()}>Retry</button>
+                </p>
+              )
+              : rundown
+                ? (
+                  <p className={styles.noData} data-testid="rundown-not-out">
+                    Today&rsquo;s Morning Wire is not out yet. It publishes each trading morning
+                    around 7:35 AM ET, and this page checks for it every five minutes.
+                  </p>
+                )
+                : <SkeletonTileContent lines={12} />
           }
         </div>
       </TileCard>

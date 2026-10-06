@@ -2,7 +2,8 @@
 // sourced it from SEC EDGAR Form 4. Asserts RENDERED TEXT, never state: every
 // state must say what it is, and an unknown must never read as "none".
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import { PENDING_REASK_MS, PENDING_REASK_MAX } from '../depth/depthFetch'
 
 const mutate = vi.fn()
 let current = null
@@ -45,14 +46,51 @@ describe('OwnershipTab — SEC EDGAR Form 4 insider section', () => {
       .toBeInTheDocument()
   })
 
-  it('says it is still reading, offers a retry, and never says there is nothing', () => {
-    current = { ...bare, insider: null, insider_source: src({ state: 'pending' }) }
+  // tq-panels: pending was manual-only ("Check again"). It now re-asks by itself
+  // (usePendingReask), and offers the manual check only once the re-asks are spent.
+  it('says it is still reading, asks again by itself, and never says there is nothing', () => {
+    vi.useFakeTimers()
+    try {
+      current = { ...bare, insider: null, insider_source: src({ state: 'pending' }) }
+      render(<OwnershipTab sym="AAPL" />)
+      expect(screen.getByText('Reading SEC EDGAR Form 4 filings for AAPL… this fills in by itself.')).toBeInTheDocument()
+      expect(screen.queryByText(/No open-market insider buys or sells/)).toBeNull()
+      expect(screen.queryByText('Ownership data is unavailable for this ticker.')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Check again' })).toBeNull()
+      act(() => { vi.advanceTimersByTime(PENDING_REASK_MS) })
+      expect(mutate).toHaveBeenCalledTimes(1)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('once the re-asks are spent it says so and offers a manual check', async () => {
+    vi.useFakeTimers()
+    try {
+      current = { ...bare, insider: null, insider_source: src({ state: 'pending' }) }
+      render(<OwnershipTab sym="AAPL" />)
+      for (let i = 0; i <= PENDING_REASK_MAX; i += 1) {
+        await act(async () => { vi.advanceTimersByTime(PENDING_REASK_MS) })
+      }
+      expect(screen.getByText('SEC EDGAR Form 4 filings for AAPL are still being read.')).toBeInTheDocument()
+      mutate.mockClear()
+      fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
+      expect(mutate).toHaveBeenCalledTimes(1)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('a buy or sell reads as a capitalised word', () => {
+    current = { ...bare, insider: [row, { ...row, type: 'buy', accession: 'x2' }], insider_source: src({ state: 'ok' }) }
     render(<OwnershipTab sym="AAPL" />)
-    expect(screen.getByText('Reading SEC EDGAR Form 4 filings for AAPL.')).toBeInTheDocument()
-    expect(screen.queryByText(/No open-market insider buys or sells/)).toBeNull()
-    expect(screen.queryByText('Ownership data is unavailable for this ticker.')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
-    expect(mutate).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Sell')).toBeInTheDocument()
+    expect(screen.getByText('Buy')).toBeInTheDocument()
+    expect(screen.queryByText('sell')).toBeNull()
+  })
+
+  // tq-panels: one leg failing (Yahoo / insider) is named, not left as dashes.
+  it('a partial failure names the leg that could not be read', () => {
+    current = { ...bare, insider: [], legs_failed: ['institutional holders and short interest (Yahoo Finance)'] }
+    render(<OwnershipTab sym="AAPL" />)
+    expect(screen.getByTestId('ownership-partial').textContent).toMatch(
+      /^Part of AAPL's ownership could not be read right now: institutional holders and short interest \(Yahoo Finance\)\. The rest is what answered\./)
   })
 
   it('names an unmatched filer and an unreachable SEC as unknowns', () => {

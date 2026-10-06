@@ -29,7 +29,7 @@ import logging
 from datetime import date, datetime, timezone
 from statistics import median
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -294,27 +294,44 @@ def compute_scoreboard(picks: list, today: date | None = None) -> dict:
 
 # ── Response cache (module-level, 5-min TTL) ─────────────────────────────────
 
-_CACHE: dict = {"ts": 0.0, "payload": None}
+_CACHE: dict = {"ts": 0.0, "payload": None, "failed_ts": 0.0}
+
+FAILURE_TTL_SECONDS = 30          # a failed tracker read is re-tried after this, never cached as data
+UNAVAILABLE_DETAIL = ("The scoreboard could not be read right now. That is a gap in what we "
+                      "could read, not a statement about the picks.")
+
+
+class ScoreboardUnavailable(RuntimeError):
+    """The tracker read failed (now, or within FAILURE_TTL_SECONDS)."""
 
 
 def _invalidate_cache() -> None:
     """For tests / future admin hooks."""
     _CACHE["ts"] = 0.0
     _CACHE["payload"] = None
+    _CACHE["failed_ts"] = 0.0
 
 
 def _get_payload() -> dict:
     now = time.time()
     if _CACHE["payload"] is not None and (now - _CACHE["ts"]) < CACHE_TTL_SECONDS:
         return _CACHE["payload"]
+    if (now - _CACHE.get("failed_ts", 0.0)) < FAILURE_TTL_SECONDS:
+        raise ScoreboardUnavailable()
 
     from api.top_flow_tracker import get_all
 
     try:
         data = get_all()
-    except Exception as e:  # tracker unavailable — serve an empty (honest) board
+    except Exception as e:
+        # A failed tracker read is NOT an empty board. It used to compute a zero-pick board
+        # and cache it for the full 5 minutes, so every member read "the tracker is warming
+        # up" -- a statement about the picks -- for a read we never made. Now: a short
+        # negative cache (FAILURE_TTL_SECONDS, so a broken tracker is not re-hit on every
+        # request) that the route answers as a 503, never as data.
         logger.error("[flow-scoreboard] tracker read failed: %s", e)
-        data = {"active": [], "archived": []}
+        _CACHE["failed_ts"] = now
+        raise ScoreboardUnavailable() from e
 
     picks = list(data.get("active", [])) + list(data.get("archived", []))
     payload = compute_scoreboard(picks)
@@ -325,12 +342,20 @@ def _get_payload() -> dict:
 
 # ── Routes (public, read-only) ───────────────────────────────────────────────
 
+def _served() -> dict:
+    try:
+        return _get_payload()
+    except ScoreboardUnavailable as exc:
+        raise HTTPException(status_code=503, detail=UNAVAILABLE_DETAIL,
+                            headers={"Retry-After": str(FAILURE_TTL_SECONDS)}) from exc
+
+
 @router.get("")
 def get_scoreboard():
     """Public Flow Scoreboard — no auth by design (read-only trust asset)."""
-    return _get_payload()
+    return _served()
 
 
 @router.get("/", include_in_schema=False)
 def get_scoreboard_slash():
-    return _get_payload()
+    return _served()

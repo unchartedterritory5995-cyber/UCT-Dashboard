@@ -108,7 +108,7 @@ export default function NewsTab({ sym }) {
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({e.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 

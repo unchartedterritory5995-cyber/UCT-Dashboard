@@ -47,3 +47,36 @@ describe('usePendingReask', () => {
     expect(mutate.mock.calls.length).toBe(PENDING_REASK_MAX + 1)
   })
 })
+
+import { cleanup, screen } from '@testing-library/react'
+import PendingGaveUp from './PendingGaveUp'
+
+function GaveUpProbe({ pending, mutate, k = 'NVDA' }) {
+  const r = usePendingReask(pending, mutate, k)
+  return <PendingGaveUp exhausted={r.exhausted} onRetry={r.retry} what="The read" />
+}
+
+describe('after the cap the panel stops promising and offers a check', () => {
+  afterEach(() => cleanup())
+  it('says automatic checking has stopped, and Check again re-arms it', () => {
+    const mutate = vi.fn()
+    const { rerender } = render(<GaveUpProbe pending mutate={mutate} />)
+    for (let i = 0; i < PENDING_REASK_MAX + 1; i++) {
+      act(() => { vi.advanceTimersByTime(PENDING_REASK_MS) })
+      rerender(<GaveUpProbe pending={false} mutate={mutate} />)
+      rerender(<GaveUpProbe pending mutate={mutate} />)
+    }
+    expect(screen.getByTestId('pending-gave-up').textContent).toMatch(/automatic checking has stopped/)
+    const before = mutate.mock.calls.length
+    act(() => { screen.getByRole('button', { name: 'Check again' }).click() })
+    expect(mutate.mock.calls.length).toBe(before + 1)
+    expect(screen.queryByTestId('pending-gave-up')).toBeNull()
+    act(() => { vi.advanceTimersByTime(PENDING_REASK_MS) })
+    expect(mutate.mock.calls.length).toBe(before + 2)
+  })
+
+  it('never shows while the re-ask is still running', () => {
+    render(<GaveUpProbe pending mutate={vi.fn()} />)
+    expect(screen.queryByTestId('pending-gave-up')).toBeNull()
+  })
+})

@@ -2766,6 +2766,42 @@
       "kind": "gate (other repo)",
       "status": "dark",
       "note": "TERM-085: one sentence under the wire's regime banner naming the surface it came from; this repo carries only the styling (app/src/pages/MorningWire.module.css .rd-surface). Default OFF in the engine. Ledgered HERE because morning-wire has no flag ledger and the dashboard renders its output; arming is a morning-wire config change on the local engine box (CONFIG or env), the owner's call. Reversal: unset it; the dashboard renders nothing when the engine emits no line."
+    },
+    "DESK_YT_FIRST_COMMENT": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/desk_daily_session.py::first_comment_enabled (read per upload; 1/true/yes is on)",
+      "kind": "toggle",
+      "status": "pending",
+      "since": "2026-10-05",
+      "default": "off",
+      "note": "After a successful Desk upload, post one channel comment via commentThreads.insert ('Join the live trading room: https://whop.com/c/uncharted/yt-desk  Education only, not financial advice.') and add a pin reminder to the ops publish notice (the Data API cannot pin). Default OFF: the comment is public on every show, which is the owner's call. Fail-soft: a rejected comment is logged and the upload proceeds. Reversal: unset it."
+    },
+    "DESK_YT_PLAYLISTS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/desk_daily_session.py::_playlist_map (read per upload; JSON object {routed section: playlistId})",
+      "kind": "config",
+      "status": "pending",
+      "since": "2026-10-05",
+      "default": "unset (no playlist adds)",
+      "note": "Maps a routed Desk section (the canonical shelf name, matched case- and whitespace-insensitively) to a YouTube playlist; after a successful upload the video is added with playlistItems.insert. Unset, blank or malformed JSON adds nothing (malformed is logged). A section with no entry is skipped silently; an API failure is logged and never fails the job."
+    },
+    "DESK_KNOWN_SHOWS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/desk_title_guard.py::known_shows (read per routing call; comma-separated show names)",
+      "kind": "config",
+      "status": "pending",
+      "since": "2026-10-05",
+      "default": "unset (routed sections + the static allowlist only)",
+      "note": "Extends the title guard's known-show allowlist without a deploy. A webinar name equal (casefold) or close to an entry publishes in the entry's spelling. Unknown names must pass the dictionary check or they publish under the generic Live Trading Session title with an ops alert."
+    },
+    "DESK_TITLE_EXTRA_WORDS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/desk_title_guard.py::_words (read per routing call; comma or space separated words)",
+      "kind": "config",
+      "status": "pending",
+      "since": "2026-10-05",
+      "default": "unset (built-in word list only)",
+      "note": "Extends the title guard's dictionary without a deploy, for a new show or guest word the built-in list does not know. Without it, such a name publishes under the generic title and the ops alert names the suspect words, which is the cue to add them here."
     }
   }
 }

@@ -875,6 +875,15 @@ def signup(request: Request, req: SignupRequest, response: Response):
         finally:
             conn.close()
 
+    # Owner decision 2026-10-05: every member sees the UCT Terminal, new signups
+    # included — join the terminal-next cohort here. TERMINAL_NEXT_ENABLED stays
+    # the kill switch (checked first by rollout_gate). Never fails signup.
+    try:
+        from api.services import rollout_gate
+        rollout_gate.enroll_in_terminal_next(user["id"])
+    except Exception as e:
+        print(f"[signup] Failed to add terminal cohort: {e}")
+
     # Send verification email (non-blocking — don't fail signup if email fails)
     try:
         ver_token = create_email_verification(user["id"])

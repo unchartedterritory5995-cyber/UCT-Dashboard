@@ -127,9 +127,11 @@ function MonthCell({ cell, onOpenDay, verdicts }) {
 
 // ── Mobile agenda list ─────────────────────────────────────────────────────
 
-function AgendaList({ rows, onOpenDay }) {
+function AgendaList({ rows, onOpenDay, answered }) {
   if (!rows.length) {
-    return <div className={styles.loading}>No reporters this month.</div>
+    // "No reporters" is a fact only once the month has actually been read; before that (or
+    // when the read failed) MonthReadLine above says which.
+    return answered ? <div className={styles.loading}>No reporters this month.</div> : null
   }
   return (
     <div className={styles.agenda}>
@@ -150,6 +152,34 @@ function AgendaList({ rows, onOpenDay }) {
   )
 }
 
+// ── Read state ─────────────────────────────────────────────────────────────
+// Quality pass 2026-10-05: a failed month read, a month still loading and a month with no
+// reporters all drew the same empty grid. The grid still renders (this week's reporters come
+// from the week payload), and this line says which of the three an empty cell is.
+export function MonthReadLine({ label, data, error, onRetry }) {
+  if (!data && error) {
+    return (
+      <div className={styles.error} role="alert" data-testid="month-read">
+        {label} earnings couldn&apos;t be read right now. Empty days below are a gap in what we
+        could read, not days without reporters.{' '}
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onRetry}>Retry</button>
+      </div>
+    )
+  }
+  if (!data) {
+    return <div className={styles.loading} data-testid="month-read">Loading {label} earnings…</div>
+  }
+  if (data.degraded) {
+    return (
+      <div className={styles.loading} role="status" data-testid="month-read">
+        Some weeks of {label} couldn&apos;t be read from the earnings providers, so the grid may be
+        missing reporters.
+      </div>
+    )
+  }
+  return null
+}
+
 // ── Main MonthView ─────────────────────────────────────────────────────────
 
 export default function MonthView({
@@ -166,7 +196,7 @@ export default function MonthView({
   const { year, month } = monthCursor
 
   // Fetch full-month data from backend
-  const { data: monthData } = useMonthCalendar(year, month)
+  const { data: monthData, error: monthError, mutate: retryMonth } = useMonthCalendar(year, month)
 
   // Build day map: prefer weekly tagged data for current week, month data
   // otherwise. Iterate the UNION of both key sets — a current-week day the
@@ -234,6 +264,8 @@ export default function MonthView({
 
   return (
     <div>
+      <MonthReadLine label={fmtMonthLabel(year, month)} data={monthData} error={monthError}
+        onRetry={() => retryMonth()} />
       {/* Month nav removed — CalendarHeader renders it in month view to avoid
           duplicate ‹ Month Year › controls. prevMonth/nextMonth are still
           passed up via setMonthCursor so CalendarHeader can call them. */}
@@ -250,7 +282,7 @@ export default function MonthView({
 
       {/* Mobile agenda (hidden on desktop via CSS) */}
       <div className={styles.mgridMobile}>
-        <AgendaList rows={agendaRows} onOpenDay={handleOpenDay} />
+        <AgendaList rows={agendaRows} onOpenDay={handleOpenDay} answered={Boolean(monthData) && !monthData.degraded} />
       </div>
     </div>
   )

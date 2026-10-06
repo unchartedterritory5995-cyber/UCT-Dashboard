@@ -1,7 +1,9 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import PendingGaveUp from './PendingGaveUp'
 import HighlightThesis from '../../../utils/highlightThesis'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -16,7 +18,9 @@ export default function EventsPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
-  usePendingReask(data?.sources?.earnings?.state === 'pending', mutate, s)
+  // tq-panels: any source still being read (not only earnings) re-asks, and is named.
+  const pendingKinds = Object.entries(data?.sources || {}).filter(([, v]) => v?.state === 'pending').map(([k]) => KIND[k] || k)
+  const reask = usePendingReask(pendingKinds.length > 0, mutate, s)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
@@ -27,14 +31,25 @@ export default function EventsPanel({ sym }) {
     const events = [...(data.events || [])].reverse()
     body = (
       <div data-testid="events">
-        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {data.reason}.</p>}
+        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {memberText(data.reason)}.</p>}
         {errs.length > 0 && (
           <p className={styles.error} data-testid="events-source-errors">
             Could not read: {errs.map(([k]) => KIND[k] || k).join(', ')}. Events from those sources are missing, not absent.
           </p>
         )}
+        {pendingKinds.length > 0 && (
+          <p className={styles.note} data-testid="events-pending">
+            Still reading: {pendingKinds.join(', ')}. Events from {pendingKinds.length > 1 ? 'those sources' : 'that source'} appear when the read finishes.
+          </p>
+        )}
         {events.length === 0
-          ? <p className={styles.note} data-testid="events-empty">No events on file in the sources read.</p>
+          ? <p className={styles.note} data-testid="events-empty">
+            {/* tq-panels: "No events on file" while a source is still pending was a claim
+                about sources not yet read. */}
+            {pendingKinds.length > 0
+              ? `No events on file yet — ${pendingKinds.join(', ')} ${pendingKinds.length > 1 ? 'are' : 'is'} still being read.`
+              : 'No events on file in the sources read.'}
+          </p>
           : (
             <div className={styles.scroll}>
               <table className={styles.grid}>
@@ -50,7 +65,7 @@ export default function EventsPanel({ sym }) {
                         <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{e.source}</td>
+                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{memberText(e.source)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -64,6 +79,7 @@ export default function EventsPanel({ sym }) {
   return (
     <section className={styles.panel} data-testid="events-panel">
       <h3 className={styles.panelTitle}>Events around the print</h3>
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings read" />
       {body}
     </section>
   )

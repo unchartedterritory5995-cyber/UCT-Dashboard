@@ -78,6 +78,17 @@ export default function SeasonalityTab({ sym }) {
   if (data.paywalled) return <div className={styles.note}>Seasonality requires a paid plan.</div>
 
   const since = data.covered_from ? data.covered_from.slice(0, 4) : null
+  // tq-panels: a symbol with no full month on file (a fresh listing, a thin record) used to
+  // render two empty tables. Say there is not enough history, and for what window we hold.
+  if (!data.full_months) {
+    const held = data.covered_from && data.covered_to
+      ? `We hold daily bars for ${s} only from ${data.covered_from} to ${data.covered_to}`
+      : `We hold no daily bars for ${s}`
+    return <div className={styles.note} data-testid="seasonality-thin">
+      Not enough history for seasonality. {held}, which is not one full calendar month
+      — at least one full month is needed, and {data.min_years || 5} years before a month can be leaned on.
+    </div>
+  }
   const thinNote = `Seen fewer than ${data.min_years} times: too few to lean on.`
   return (
     <section data-testid="seasonality">

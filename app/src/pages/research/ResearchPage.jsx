@@ -225,7 +225,7 @@ export default function ResearchPage() {
           >{t}</button>
         ))}
       </nav>
-      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={report.row} reportState={report.state} retryReport={report.retry} error={data.error} mutate={data.mutate} />}
+      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={report.row} reportState={report.state} reportReason={report.reason} retryReport={report.retry} analystMissing={data.analystMissing} error={data.error} mutate={data.mutate} />}
       {active === 'News' && <NewsTab sym={sym} />}
       {active === 'Catalysts' && <CatalystsTab sym={sym} />}
       {active === 'Technical' && <TechnicalTab sym={sym} />}

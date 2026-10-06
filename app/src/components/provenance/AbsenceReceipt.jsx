@@ -187,10 +187,21 @@ export function describeAbsence(body, { listLabel = DEFAULT_LIST_LABEL } = {}) {
 }
 
 /** The words for a check that FAILED. Never an answer about the list. */
+// tq-panels: the headline printed a raw "(HTTP 503)". Plain words, by what happened.
+export function failureCause(status) {
+  if (!status) return 'the connection did not go through'
+  if (status === 401 || status === 403) return 'you are signed out or this check is not open to your account'
+  if (status === 404) return 'the check was not found'
+  if (status === 429) return 'too many checks were asked for at once'
+  if (status === 503 || status === 502 || status === 504) return 'the service is busy or restarting'
+  if (status >= 500) return 'the service hit an error'
+  return 'the request was refused'
+}
+
 export function describeFailure(sym, status) {
   return {
     kind: 'failed',
-    headline: `Could not check ${sym} right now${status ? ` (HTTP ${status})` : ' (network error)'}.`,
+    headline: `Could not check ${sym} right now: ${failureCause(status)}.`,
     detail: 'This is a failed check, not an answer about the list. Try again in a moment.',
     facts: [],
   }

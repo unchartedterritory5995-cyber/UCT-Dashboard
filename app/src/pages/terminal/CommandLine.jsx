@@ -27,7 +27,7 @@ import parseCommand from './parseCommand'
 import { describeCommand } from './grammar'
 import { rankCandidates } from './ranking'
 import { BY_CODE, editDistance } from './functions'
-import { BOARD_ADDRESS_RE } from './boardModel'
+import { BOARD_ADDRESS_RE, findBoard } from './boardModel'
 import styles from './TerminalShell.module.css'
 
 export const HISTORY_KEY = 'uct.terminal.history'
@@ -99,25 +99,44 @@ export function didYouMean(sym, results) {
 }
 
 /** Pure: what the echo says for a line — `B:<board>` is the shell's own address, answered
- *  here exactly as Enter answers it (`run` opens the board before the parser sees it). */
-export function echoFor(text, aliases = {}) {
+ *  here exactly as Enter answers it (`run` opens the board before the parser sees it). With
+ *  the member's `boards` known, a board they do not have is said BEFORE Enter (round 3). */
+export function echoFor(text, aliases = {}, boards = null) {
   const raw = String(text || '').trim()
   if (!raw) return null
   const b = raw.match(BOARD_ADDRESS_RE)
-  if (b) return { text: `Open your board B:${b[1]}`, tone: 'ok', shape: 'B:name' }
+  if (b) {
+    if (!Array.isArray(boards)) return { text: `Open your board B:${b[1]}`, tone: 'ok', shape: 'B:name' }
+    const board = findBoard({ boards }, raw)
+    return board
+      ? { text: `Open your board ${board.name} (B:${board.slug})`, tone: 'ok', shape: 'B:name' }
+      : { text: `No board at B:${b[1]}. Open Boards to see yours.`, tone: 'error', shape: 'B:name' }
+  }
   return describeCommand(parseCommand(raw, { aliases }))
+}
+
+/** Pure: is `sym` in the ticker search's answer (share-class spellings are one ticker)? */
+export function knownTicker(sym, results) {
+  const canon = (v) => String(v || '').toUpperCase().replace(/-/g, '.')
+  const s = canon(sym)
+  return Array.isArray(results) && results.some((r) => canon(r?.ticker || r?.value) === s)
 }
 
 // One cached answer per query: the completion list and the echo's "did you mean" ask the
 // same endpoint for the same token, and must not each pay for it.
+//
+// ⛔ The shared request carries NO caller's AbortSignal (round 3). It used to take the first
+// caller's: the completion list asked for "NVDQ", the echo's check joined that request, then
+// the member typed on, the completion aborted ITS request — and the echo's answer died with
+// it, so "did you mean NVDA?" never appeared. Each caller now drops a late answer itself.
 const searchCache = new Map()
-function searchTickers(q, signal) {
+function searchTickers(q) {
   const key = q.toUpperCase()
   const hit = searchCache.get(key)
   if (hit && Date.now() - hit.at < 60000) return hit.promise
   // 20, not 6: the search orders by length then A-Z, so a well-known name (NVDA for "NV") can
   // sit past its sixth row; ranking.js decides what the member sees.
-  const promise = jsonFetcher(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal })
+  const promise = jsonFetcher(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`)
     .then((d) => (Array.isArray(d?.results) ? d.results : []))
   promise.catch(() => searchCache.delete(key))
   searchCache.set(key, { at: Date.now(), promise })
@@ -125,7 +144,7 @@ function searchTickers(q, signal) {
   return promise
 }
 
-export default function CommandLine({ onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {} }) {
+export default function CommandLine({ onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {}, boards = null }) {
   const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
   const [text, setText] = useState('')
   const [tickers, setTickers] = useState([])
@@ -165,7 +184,7 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
       if (!tickerSlot || (q.startsWith('$') && q.length < 2)) return
       const sq = q.replace(/^\$/, '')
       if (!/^[A-Za-z][A-Za-z.-]{0,6}$/.test(sq)) return
-      searchTickers(sq, ac.signal)
+      searchTickers(sq)
         .then((rows) => { if (!ac.signal.aborted) setTickers(rows.map((r) => ({
           value: String(r.ticker || '').toUpperCase(), label: r.name || '',
         })).filter((r) => r.value)) })
@@ -175,18 +194,19 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
   }, [last, tickerSlot, addressSpaceEnabled])
 
   const parsed = useMemo(() => (text.trim() ? parseCommand(text, { aliases }) : null), [text, aliases])
-  const parsedSym = parsed?.ok && parsed.type === 'function' ? parsed.sym : null
+  // Only a security the command will USE is checked (`NVDA DASH` ignores NVDA anyway).
+  const parsedSym = parsed?.ok && parsed.type === 'function' && BY_CODE[parsed.code]?.ticker ? parsed.sym : null
 
   // The echo's "did you mean": does the ticker search know the security this line names?
   useEffect(() => {
     if (!parsedSym) return undefined
-    const ac = new AbortController()
+    let live = true
     const t = setTimeout(() => {
-      searchTickers(parsedSym, ac.signal)
-        .then((rows) => { if (!ac.signal.aborted) setSymCheck({ sym: parsedSym, results: rows }) })
-        .catch(() => {})
+      searchTickers(parsedSym)
+        .then((rows) => { if (live) setSymCheck({ sym: parsedSym, results: rows }) })
+        .catch(() => {})            // a failed search proves nothing: say nothing
     }, 250)
-    return () => { clearTimeout(t); ac.abort() }
+    return () => { live = false; clearTimeout(t) }
   }, [parsedSym])
 
   const suggestions = useMemo(() => {
@@ -196,13 +216,16 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
 
   // The interpreted-parse echo: what Enter will do, BEFORE Enter (one parser, same answer).
   const echo = useMemo(() => {
-    const e = echoFor(text, aliases)
+    const e = echoFor(text, aliases, boards)
     if (!e || !parsedSym || symCheck?.sym !== parsedSym) return e
+    if (knownTicker(parsedSym, symCheck.results)) return e
+    // Round 3: a symbol the search has never heard of (`ZZZZQ DES`) is said too, not only one
+    // with a close spelling — the line still runs on Enter, but the member is not surprised.
     const cand = didYouMean(parsedSym, symCheck.results)
-    if (!cand) return e
+    const tail = cand ? `did you mean ${cand}?` : 'check the spelling, or press Enter to open it anyway.'
     return { ...e, tone: e.tone === 'error' ? 'error' : 'warn',
-      text: `${e.text} ${parsedSym} is not a ticker we know — did you mean ${cand}?`, didYouMean: cand }
-  }, [text, aliases, parsedSym, symCheck])
+      text: `${e.text} ${parsedSym} is not a ticker we know — ${tail}`, didYouMean: cand || undefined }
+  }, [text, aliases, boards, parsedSym, symCheck])
 
   // Announce the echo once typing pauses (a screen reader must not read every keystroke).
   const echoText = echo?.text || ''
@@ -275,7 +298,7 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
       >
         {echo && (
           <>
-            <span className={styles.echoText}>{echo.text}</span>
+            <span className={styles.echoText} title={echo.text}>{echo.text}</span>
             {echo.shape && <span className={styles.echoShape} data-testid="terminal-arg-shape">{echo.shape}</span>}
           </>
         )}

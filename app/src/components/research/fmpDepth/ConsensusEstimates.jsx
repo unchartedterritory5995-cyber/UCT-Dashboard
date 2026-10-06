@@ -130,6 +130,9 @@ export default function ConsensusEstimates({ sym }) {
   if (data === undefined) {
     return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Loading estimates…</p></div>
   }
+  if (data.paywalled) {
+    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Estimates require a paid plan.</p></div>
+  }
 
   const c = data.consensus || { state: 'error', annual: [], quarterly: [] }
   const fmpOk = c.state === 'ok' && ((c.annual || []).length || (c.quarterly || []).length)
@@ -139,6 +142,11 @@ export default function ConsensusEstimates({ sym }) {
   const bases = [['annual', 'Annual'], ['quarterly', 'Quarterly']].filter(([k]) => (c[k] || []).length)
   const shown = bases.some(([k]) => k === basis) ? basis : bases[0]?.[0]
   const rows = shown ? c[shown] : []
+  // tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). With
+  // nothing usable from either vendor, say that -- not "Neither FMP nor Yahoo holds...".
+  if (data.not_applicable && !fmpOk && !fwd.length && !revs.length) {
+    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note} data-testid="ee-na">Not applicable to funds — {data.reason || `${s} is a fund`}.</p></div>
+  }
 
   return (
     <div className={styles.wrap} data-testid="ee-deep" data-source={fmpOk ? 'fmp' : 'yfinance'}>
@@ -180,7 +188,9 @@ export default function ConsensusEstimates({ sym }) {
                       reason={FALLBACK_REASON[c.state] || FALLBACK_REASON.error} />
           {fwd.length
             ? <YahooForward rows={fwd} />
-            : <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>}
+            : (c.state === 'empty' && !data.yf_unavailable)
+              ? <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>
+              : <p className={styles.note} data-testid="ee-unread">Forward estimates could not be read right now. That is a gap in what we could read, not a finding about {s}.</p>}
         </section>
       )}
 
@@ -188,7 +198,7 @@ export default function ConsensusEstimates({ sym }) {
         <section className={styles.card} data-testid="ee-revisions">
           <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
           <SourceLine vendor="Yahoo Finance" activity="yfinance eps_trend / eps_revisions"
-                      detail="FMP does not publish estimate revisions on this plan" />
+                      detail="FMP does not publish estimate revisions" />
           <Revisions rows={revs} />
         </section>
       )}

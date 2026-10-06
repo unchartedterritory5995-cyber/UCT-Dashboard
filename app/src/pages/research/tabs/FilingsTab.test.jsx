@@ -35,7 +35,7 @@ describe('FilingsTab', () => {
   it('shows an entity-unresolved note when Entity Master has not linked the symbol', () => {
     mockData = { ...mockData, entity: { status: 'not_found', entityId: null } }
     render(<FilingsTab sym="AAPL" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
     mockData = { ...mockData, entity: { status: 'resolved', entityId: 'em_aapl' } }
   })
 

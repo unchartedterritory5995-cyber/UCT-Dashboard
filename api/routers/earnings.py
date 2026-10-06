@@ -5,13 +5,14 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from api.services.engine import (
     EARNINGS_CACHE_KEY, build_earnings, get_earnings,
     _generate_earnings_analysis, _generate_earnings_preview,
 )
 from api.services.earnings_estimates import get_earnings_intel
 from api.services.cache import cache
+from api.services.ticker_resolver import sym_shape
 from api.services.serve_stale import ServeStale, TIER_FRESH, serve_with_tier, server_timing
 from api.limiter import limiter
 
@@ -505,7 +506,7 @@ def _kick_generation(sym: str, row, pending: bool) -> bool:
 
 @router.get("/api/earnings-analysis/{sym}")
 @limiter.limit("60/minute")
-def earnings_analysis(request: Request, sym: str, cached_only: bool = False,
+def earnings_analysis(request: Request, sym: str = Depends(sym_shape), cached_only: bool = False,
                       background: bool = False, force: bool = False):
     sym = sym.upper()
 

@@ -33,8 +33,16 @@ export class SectionFetchError extends Error {
   }
 }
 
+// The deadline lives in utils/withDeadline.js (one owner; raw-fetch hooks share it).
+export { SECTION_TIMEOUT_MS, SectionTimeoutError, withDeadline } from '../../../utils/withDeadline'
+import { withDeadline } from '../../../utils/withDeadline'
+
 /** SWR fetcher: resolves with the payload, or THROWS so `error` is populated. */
-export async function sectionFetcher(url) {
+export function sectionFetcher(url) {
+  return withDeadline(sectionFetchOnce(url), url)
+}
+
+async function sectionFetchOnce(url) {
   let res
   try {
     res = await fetch(url)

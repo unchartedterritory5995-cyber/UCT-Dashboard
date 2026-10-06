@@ -162,6 +162,32 @@ describe('FA — FinancialsDeep', () => {
   })
 })
 
+describe('quality pass 2026-10-05: a failed leg is not a finding', () => {
+  it('FA: a failed FMP history read says so on the fallback line, not "holds no history"', async () => {
+    routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {}, fmp_unavailable: true }
+    routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
+    mount(<FinancialsDeep sym="ZZZ" />)
+    const src = await screen.findByTestId('depth-source')
+    expect(src).toHaveTextContent(/could not be read right now; showing yfinance/)
+    expect(src).not.toHaveTextContent(/holds no statement history/)
+  })
+
+  it('EE: FMP erroring and Yahoo failing is "could not be read", never "Neither ... holds"', async () => {
+    routes['/api/research/estimates/ZZZ?consensus=1'] = { sym: 'ZZZ', entity: null, forward: [], revisions: [], yf_unavailable: true,
+      consensus: { state: 'error', annual: [], quarterly: [] } }
+    mount(<ConsensusEstimates sym="ZZZ" />)
+    expect((await screen.findByTestId('ee-unread')).textContent).toMatch(/not a finding about ZZZ/)
+    expect(screen.queryByText(/Neither FMP nor Yahoo/)).toBeNull()
+  })
+
+  it('EE: both genuinely empty still says neither holds any', async () => {
+    routes['/api/research/estimates/ZZZ?consensus=1'] = { sym: 'ZZZ', entity: null, forward: [], revisions: [],
+      consensus: { state: 'empty', annual: [], quarterly: [] } }
+    mount(<ConsensusEstimates sym="ZZZ" />)
+    expect(await screen.findByText(/Neither FMP nor Yahoo Finance holds forward estimates/)).toBeInTheDocument()
+  })
+})
+
 describe('EE — ConsensusEstimates', () => {
   it('renders >= 3 forward FMP fiscal years with # analysts and hi/lo', async () => {
     routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)
@@ -218,5 +244,27 @@ describe('EE — ConsensusEstimates', () => {
     unmount()
     mount(<ConsensusEstimates sym="NVDA" />, { estimateHistoryEnabled: true })
     expect(await screen.findByTestId('ee-history-pointer')).toBeInTheDocument()
+  })
+})
+
+// tq-panels: the route marks a fund (e910f8ff6) -- FA and EE say "not applicable to funds".
+describe('a fund on FA / EE', () => {
+  it('FA: a fund with no FMP history says not applicable, not the yfinance fallback', async () => {
+    routes['/api/research/financial-history/SPY'] = { sym: 'SPY', period: 'quarter', periods: [], series: {},
+      not_applicable: 'fund', reason: 'SPY is a fund; funds report no company income statement, balance sheet or cash flow' }
+    mount(<FinancialsDeep sym="SPY" />)
+    expect((await screen.findByTestId('fa-na')).textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
+    expect(screen.queryByText(/FMP holds no statement history/)).toBeNull()
+  })
+
+  it('EE: a fund with nothing from either vendor says not applicable, not "Neither ... holds"', async () => {
+    routes['/api/research/estimates/SPY?consensus=1'] = { sym: 'SPY', entity: null, forward: [], revisions: [],
+      consensus: { state: 'empty', annual: [], quarterly: [] },
+      not_applicable: 'fund', reason: 'SPY is a fund; analysts publish no earnings or revenue estimates for a fund' }
+    mount(<ConsensusEstimates sym="SPY" />)
+    expect((await screen.findByTestId('ee-na')).textContent)
+      .toBe('Not applicable to funds — SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
+    expect(screen.queryByText(/Neither FMP nor Yahoo/)).toBeNull()
   })
 })

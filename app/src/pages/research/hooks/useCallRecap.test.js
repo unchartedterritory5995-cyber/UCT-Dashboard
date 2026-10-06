@@ -48,12 +48,24 @@ describe('useCallRecap', () => {
   })
 
   it('renders a failed fetch (500/404/network) as error:true, never silently empty', async () => {
-    const swr = { data: { ok: false, httpStatus: 402, body: null }, isLoading: false, mutate: () => {} }
+    // tq-panels: this used 402 -- the paid gate -- and pinned it as an error, which is the
+    // bug (a paywalled member read "Couldn't load"). 500 is a failure; 402 is paywalled.
+    const swr = { data: { ok: false, httpStatus: 500, body: null }, isLoading: false, mutate: () => {} }
     vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => swr }))
     const { default: useCallRecap } = await import('./useCallRecap')
     const { result } = renderHook(() => useCallRecap('aapl'))
     expect(result.current.data).toBeNull()
     expect(result.current.error).toBe(true)
+    expect(result.current.paywalled).toBe(false)
+  })
+
+  it('a 402 is paywalled, not an error', async () => {
+    const swr = { data: { ok: false, httpStatus: 402, body: null }, isLoading: false, mutate: () => {} }
+    vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => swr }))
+    const { default: useCallRecap } = await import('./useCallRecap')
+    const { result } = renderHook(() => useCallRecap('aapl'))
+    expect(result.current.paywalled).toBe(true)
+    expect(result.current.error).toBe(false)
   })
 
   it('returns the SAME object across re-renders with the same data (H14 shape)', async () => {

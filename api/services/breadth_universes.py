@@ -92,6 +92,9 @@ _ROWS = [
     ("nyse",   "NYSE",   NYSE_VENUES,    "pit",       HISTORY_FLOOR["nyse"]),
 ]
 
+#: The universes whose ONLY member authority is Exchange Breadth V1 (`breadth_exchange_authority`).
+EXCHANGE_UNIVERSE_IDS = frozenset({"nyse", "nasdaq"})
+
 #: The universe every pre-universe row belongs to. Storage defaults to this, every
 #: existing reader keeps seeing exactly what it saw, and no migration reinterprets
 #: a single stored value.
@@ -134,9 +137,21 @@ def published_universe_ids() -> list[str]:
     for part in raw.split(","):
         p = part.strip().lower()
         if p == "*":
-            return list(UNIVERSE_IDS)
+            want |= set(UNIVERSE_IDS)
+            break
         if p in UNIVERSES:
             want.add(p)
+    # ⛔⛔ NYSE / NASDAQ ARE PUBLISHED ONLY FROM THE EXCHANGE AUTHORITY. The only other rows those ids
+    # could reach are the V1 store and the US V2 producer's today-venue membership, which fails
+    # point-in-time — so no flag value can publish them unless `breadth_exchange_authority` is in force
+    # AND serving a verified authority. (Flag on + authority down = not published, never wrong data.)
+    if want & EXCHANGE_UNIVERSE_IDS:
+        try:
+            from api.services import breadth_exchange_authority as _ea
+            served = {u for u in EXCHANGE_UNIVERSE_IDS if _ea.serves(u)}
+        except Exception:
+            served = set()
+        want -= EXCHANGE_UNIVERSE_IDS - served
     return [u for u in UNIVERSE_IDS if u in want]
 
 

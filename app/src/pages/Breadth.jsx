@@ -44,6 +44,7 @@ export {
 }
 import UIcon from '../components/ui/UIcon'
 import PageHeader from '../components/PageHeader'
+import jsonFetcher from '../utils/jsonFetcher'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -51,7 +52,15 @@ import PageHeader from '../components/PageHeader'
 // entry chunk.
 const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
-const fetcher = url => fetch(url).then(r => r.json())
+// Throws on a non-2xx / network / 30 s deadline (jsonFetcher). The bare `r.json()` turned a
+// 402 or 5xx {detail} into a payload with no rows, which read "No data yet. Run python ...".
+const fetcher = url => jsonFetcher(url)
+
+/** Member copy for a failed breadth read; never the raw error text. */
+export function breadthErrorText(error, what = 'Breadth data') {
+  if (error?.status === 402) return `${what} requires a paid plan.`
+  return `${what} could not be read right now. That is a gap in what we could read, not a market reading.`
+}
 
 function exportCsv(rows, cols) {
   const headers = ['date', ...cols.map(c => c.key)]
@@ -470,7 +479,7 @@ function BreadthAnalogues() {
   if (error) {
     return (
       <div className={styles.analoguesWrap}>
-        <div className={styles.analoguesEmpty}>Could not load analogues — {error.message ?? 'network error'}</div>
+        <div className={styles.analoguesEmpty}>{breadthErrorText(error, 'Breadth analogues')}</div>
       </div>
     )
   }
@@ -1113,7 +1122,7 @@ export default function Breadth() {
       {error && (
         <div className={styles.errorBanner} role="alert">
           <span>
-            Could not load breadth data — {error.message ?? 'network error'}. Retrying in 5m.
+            {breadthErrorText(error)}
           </span>
           {/* ⛔ A 5-minute auto-retry with no manual lever leaves a reader who
               already knows the network recovered staring at a stale error for
@@ -1132,7 +1141,8 @@ export default function Breadth() {
 
       {!error && rows.length === 0 && !isLoading && (
         <div className={styles.empty}>
-          No data yet. Run <code>python scripts/breadth_collector.py</code> in uct-intelligence.
+          No breadth history has been recorded yet. Each session is recorded after the close
+          (about 4:30 PM ET).
         </div>
       )}
 

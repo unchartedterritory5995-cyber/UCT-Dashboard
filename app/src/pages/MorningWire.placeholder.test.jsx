@@ -12,6 +12,14 @@ describe('settleLoadingPlaceholders', () => {
     expect(out).toContain('rd-monologue')
   })
 
+  it('matches the single-quoted form the engine actually writes (live 2026-10-05)', () => {
+    const html = "<div class=\"rd-sections rd-monologue\"><p class='rd-loading'>Market intelligence loading...</p><div class=\"rd-x\">kept</div></div>"
+    const out = settleLoadingPlaceholders(html)
+    expect(out).not.toMatch(/loading\.\.\./i)
+    expect(out).toContain(WIRE_SECTION_MISSING)
+    expect(out).toContain('<div class="rd-x">kept</div>')
+  })
+
   it('leaves every other paragraph exactly as it was', () => {
     const html = '<p class="rd-pick">Loading dock stocks are leading.</p><p>Plain</p>'
     expect(settleLoadingPlaceholders(html)).toBe(html)

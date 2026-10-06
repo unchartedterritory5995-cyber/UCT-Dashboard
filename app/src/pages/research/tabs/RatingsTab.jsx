@@ -57,15 +57,32 @@ export default function RatingsTab({ sym }) {
   const r = data || {}
   const comp = r.components || {}
   const checkup = r.checkup || []
-  if (r.composite == null && !Object.keys(comp).length) {
-    return <div className={styles.fnote}>Ratings are unavailable for this ticker.</div>
+  // tq-panels: a fund gets no UCT Composite (it has no earnings, margins or sponsorship).
+  if (r.not_applicable) {
+    return <div className={styles.fnote} data-testid="ratings-na">Not applicable to funds — {r.reason || `${sym} is a fund`}.</div>
+  }
+  // tq-panels: this branch used to test `!Object.keys(comp).length`, but the server
+  // always sends all seven component keys (null when unmeasured), so it could never
+  // fire and an all-blank rating rendered as a grid of dashes. Test the VALUES.
+  const SYM = (sym || '').toUpperCase()
+  if (r.composite == null && Object.values(comp).every((v) => v == null)) {
+    if (r.complete === false) {
+      return (
+        <div className={styles.fnote} data-testid="ratings-error">
+          Couldn't read the inputs for {SYM}'s rating — no component could be measured.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+        </div>
+      )
+    }
+    return <div className={styles.fnote} data-testid="ratings-empty">No rating inputs on file for {SYM} — none of the seven components could be measured.</div>
   }
 
   return (
     <div className={styles.finWrap}>
       {r.entity && r.entity.status !== 'resolved' && (
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({r.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 

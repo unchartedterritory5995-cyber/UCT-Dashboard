@@ -110,6 +110,30 @@ def _since(days: int) -> date:
     return datetime.now(ET).date() - timedelta(days=days)
 
 
+# ── dual-class spellings, decided per store FROM ITS WRITER ──────────────────────
+# A class share has three spellings in this system: BRK-B (cap_universe, the journal since
+# 2026-09-06, buzz cashtags since 2026-09-05), BRK.B (Massive's vendor form, buzz cashtags
+# before 2026-09-05, older journal rows, the catalyst hunter), and BRKB (the OCC option root,
+# the only form `massive_processor.OCC_PATTERN` `[A-Z]+` can write to the flow tape).
+# A store whose writer is certain is asked in that spelling; a store that holds both is asked
+# in both, and `history()` drops a repeated (date, lane, text) so a day never shows twice.
+
+def _canon(sym: str) -> str:
+    from api.services.ticker_resolver import canonical
+    return canonical(sym)
+
+
+def _class_spellings(sym: str) -> tuple[str, ...]:
+    """(hyphen form, dot form) for a class share; (sym,) for anything else."""
+    c = _canon(sym)
+    return (c, c.replace("-", ".")) if "-" in c else (c,)
+
+
+def _occ_root(sym: str) -> str:
+    """The flow tape's spelling: the OCC root, which carries no class separator (BRK-B -> BRKB)."""
+    return _canon(sym).replace("-", "")
+
+
 def _mention_regex(sym: str) -> re.Pattern:
     # A whole-word ticker, optionally cashtagged; never inside another word or ticker.
     return re.compile(r"(?<![A-Za-z0-9.$-])\$?" + re.escape(sym) + r"(?![A-Za-z0-9])")
@@ -170,7 +194,11 @@ def wire_lane(sym: str, since: date) -> list[dict]:
         entry = wire_archive.read(ymd)
         if not entry:
             continue
-        hits = _wire_mentions(sym, entry.get("rundown_html") or "")
+        # The wire's prose is written by the engine, which spells a class share both ways
+        # (morning-wire `substack/lead.py` lists BRK.B AND BRK-B), so both are counted. The two
+        # patterns cannot match the same characters, so no mention is counted twice.
+        html = entry.get("rundown_html") or ""
+        hits = sum(_wire_mentions(s, html) for s in _class_spellings(sym))
         if hits:
             rows.append({"date": d.isoformat(), "lane": "wire", "mentions": hits,
                          "text": f"Named in the Morning Wire ({hits} mention{'s' if hits != 1 else ''})",
@@ -185,8 +213,11 @@ def book_lane(sym: str, since: date) -> list[dict]:
     comps = sorted((c for c in uct20_nav._load_compositions() if c.get("date")),
                    key=lambda c: c["date"])
     rows, held = [], False
+    # Holdings are `leadership[].sym` as the wire push carried it (routers/push.py), i.e. the
+    # Finviz export's spelling, which this repo cannot see. Compared in the one canonical form.
+    want = _canon(sym)
     for c in comps:
-        now = sym in {_norm(h) for h in (c.get("holdings") or [])}
+        now = want in {_canon(h) for h in (c.get("holdings") or [])}
         if now != held:
             d = c["date"]
             if d >= since.isoformat():
@@ -202,24 +233,37 @@ def book_lane(sym: str, since: date) -> list[dict]:
 def catalysts_lane(sym: str, since: date) -> list[dict]:
     from api.services.catalyst import store
 
-    rows = []
+    # The catalyst store holds BOTH spellings: the hunter keeps a dot class (hunter.py, "BRK.B")
+    # and the discovery pass hands back the hyphen form (sources.py, ticker_resolver). Upserts key
+    # on (market_date, ticker), so one day can hold the name twice. Both are read and ONE row per
+    # day is kept: the one on the list (a rank), best rank first, the canonical spelling on a tie.
+    spellings = _class_spellings(sym)
+    picked: dict = {}
     try:
         with contextlib.closing(store._connect()) as c:
             c.row_factory = sqlite3.Row
+            marks = ",".join("?" * len(spellings))
             for r in c.execute(
-                    "SELECT market_date, rank, tag, thesis_text FROM catalysts "
-                    "WHERE ticker = ? AND market_date >= ? ORDER BY market_date",
-                    (sym, since.isoformat())):
-                rows.append({"date": r["market_date"], "lane": "catalysts",
-                             "rank": r["rank"], "tag": r["tag"],
-                             # a pre-L5 row stores the engine's failure sentence as the thesis
-                             "text": ("" if store.is_failed_writeup(r["thesis_text"]) else (r["thesis_text"] or "").strip())
-                                     or f"On the catalyst list ({r['tag'] or 'untagged'})",
-                             "source": "catalysts", "as_of": r["market_date"],
-                             "ref": f"/catalysts/history?date={r['market_date']}"})
+                    "SELECT market_date, ticker, rank, tag, thesis_text FROM catalysts "
+                    f"WHERE ticker IN ({marks}) AND market_date >= ? ORDER BY market_date",
+                    (*spellings, since.isoformat())):
+                key = (r["rank"] is None, r["rank"] if r["rank"] is not None else 0,
+                       spellings.index(r["ticker"]) if r["ticker"] in spellings else len(spellings))
+                held = picked.get(r["market_date"])
+                if held is None or key < held[0]:
+                    picked[r["market_date"]] = (key, r)
     except sqlite3.Error as e:
         logger.warning("[ticker-history] catalysts lane unreadable: %s", e)
         raise
+    rows = []
+    for _d, (_k, r) in sorted(picked.items()):
+        rows.append({"date": r["market_date"], "lane": "catalysts",
+                     "rank": r["rank"], "tag": r["tag"],
+                     # a pre-L5 row stores the engine's failure sentence as the thesis
+                     "text": ("" if store.is_failed_writeup(r["thesis_text"]) else (r["thesis_text"] or "").strip())
+                             or f"On the catalyst list ({r['tag'] or 'untagged'})",
+                     "source": "catalysts", "as_of": r["market_date"],
+                     "ref": f"/catalysts/history?date={r['market_date']}"})
     return rows
 
 
@@ -228,14 +272,22 @@ def room_lane(sym: str, since: date) -> list[dict]:
     from api.services import buzz_store
 
     start = int(datetime.combine(since, datetime.min.time(), tzinfo=ET).timestamp())
-    per_day: dict[str, int] = {}
+    # Spelling, from the writer (buzz_extract.extract): cashtags are stored hyphenated since
+    # be67086e0 (2026-09-05) and AS TYPED before it, so a 365-day window holds BRK.B rows then
+    # BRK-B rows. Both are read; a message is counted once (PK is message_id + ticker, so one
+    # message that typed both spellings would otherwise count twice).
+    spellings = _class_spellings(sym)
+    marks = ",".join("?" * len(spellings))
+    per_day: dict[str, set] = {}
     # buzz_store.connect() is the PROCESS-WIDE shared connection (the ingest poller, /buzz
     # and the scheduled boards all use it). Never close it: closing it here took every
     # buzz read and write on the pod down after the first History request (2026-09-29).
     c = buzz_store.connect()
-    for (ts,) in c.execute("SELECT ts FROM mentions WHERE ticker = ? AND ts >= ?", (sym, start)):
+    for (mid, ts) in c.execute(f"SELECT message_id, ts FROM mentions WHERE ticker IN ({marks}) AND ts >= ?",
+                               (*spellings, start)):
         d = datetime.fromtimestamp(int(ts), ET).date().isoformat()
-        per_day[d] = per_day.get(d, 0) + 1
+        per_day.setdefault(d, set()).add(mid)
+    per_day = {d: len(m) for d, m in per_day.items()}
     return [{"date": d, "lane": "room", "mentions": n,
              "text": f"Mentioned {n} time{'s' if n != 1 else ''} in the community room",
              "source": "buzz_mentions", "as_of": d, "ref": f"buzz_mentions#{sym}@{d}"}
@@ -345,7 +397,13 @@ def flow_lane(sym: str, since: date) -> list[dict]:
 
     The tape files index/ETF symbols under `source=indexes` and everything else under `stocks`;
     asking the wrong one is a 200 with no rows. So: `stocks`, then `indexes` only if `stocks`
-    held nothing (the signature indicator's rule, `routers/signature._fetch_flow_by_date`)."""
+    held nothing (the signature indicator's rule, `routers/signature._fetch_flow_by_date`).
+
+    The tape is asked in the OCC root spelling, because that is the only one its writers can
+    produce: `Symbol` is the root parsed out of the option ticker by `massive_processor.parse_occ`
+    (`OCC_PATTERN` root `[A-Z]+`) and `build_gap_fill_csv.parse_occ` -- BRK.B's options are
+    `O:BRKB...`, so its prints are filed under BRKB, never BRK.B or BRK-B."""
+    sym = _occ_root(sym)
     per_day = _flow_counts(sym, "stocks") or _flow_counts(sym, "indexes")
     lo = since.isoformat()
     return [{"date": d, "lane": "flow", "prints": n,
@@ -384,12 +442,18 @@ def setups_lane(sym: str, since: date) -> list[dict]:
     has no outcome row. ⛔ `quality_*` is never read: it is a composite score."""
     lo = since.isoformat()
     rows = []
+    # The writer (uct-intelligence `api.record_setup_trigger`) stores `symbol.upper()` as the
+    # morning wire handed it -- the Finviz leadership export's spelling, not visible from this
+    # repo. Both class spellings are read; a setup recorded under both repeats the same
+    # (date, lane, text) and `history()` keeps one.
+    spellings = _class_spellings(sym)
+    marks = ",".join("?" * len(spellings))
     with contextlib.closing(_engine_ro()) as c:
         for r in c.execute(
                 "SELECT trigger_date, setup_name, source, status, resolved_at, r_multiple "
-                "FROM setup_triggers WHERE UPPER(symbol) = ? "
+                f"FROM setup_triggers WHERE UPPER(symbol) IN ({marks}) "
                 "AND (trigger_date >= ? OR substr(resolved_at, 1, 10) >= ?) "
-                "ORDER BY trigger_date, setup_name", (sym, lo, lo)):
+                "ORDER BY trigger_date, setup_name", (*spellings, lo, lo)):
             td, name = r["trigger_date"], r["setup_name"]
             ref = f"setup_triggers#{sym}@{td}:{name}"
             if td >= lo:
@@ -439,8 +503,11 @@ def journal_lane(sym: str, since: date, user_id: Optional[str] = None) -> list[d
     closed, open_pos = _member_journal(user_id)
     lo = since.isoformat()
     rows = []
+    # Journal writes go through `journal_two.symbol_normalize` (BRK.B -> BRK-B) only since
+    # 5b925477a (2026-09-06); an older row can still read BRK.B. Compared in the canonical form.
+    sym = _canon(sym)
     for t in closed:
-        if _norm(t.get("symbol")) != sym:
+        if _canon(t.get("symbol")) != sym:
             continue
         ref = f"j2_trades#{t.get('tradeRef') or t.get('id')}"
         side = t.get("side") or ""
@@ -459,7 +526,7 @@ def journal_lane(sym: str, since: date, user_id: Optional[str] = None) -> list[d
                          "text": f"You closed your {side.lower() or 'trade'} from {opened or 'an earlier date'}: {said}{tail}",
                          "source": "j2_trades", "as_of": closed_on, "ref": ref})
     for p in open_pos:
-        if _norm(p.get("symbol")) != sym:
+        if _canon(p.get("symbol")) != sym:
             continue
         opened = _day(p.get("entryDate"))
         if opened and opened >= lo:
@@ -590,7 +657,9 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
     `user_id` is the REQUESTING member; it keys the member's own lanes (``MEMBER_LANES``) and
     nothing else. A lane that errors reports `status: "unavailable"` and contributes no rows —
     never an empty list presented as "nothing happened"."""
-    sym = _norm(sym)
+    # The one spelling (BRK.B -> BRK-B). Each lane then asks its store in the spelling(s) that
+    # store's writer produces (see `_class_spellings` / `_occ_root`).
+    sym = _canon(sym)
     days = max(1, min(int(days or DEFAULT_DAYS), MAX_DAYS))
     since = _since(days)
     entity, eras = _entity_eras(sym)
@@ -604,7 +673,7 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
     # HIS costs its slowest lane instead of the sum. Each keeps its own failure as before.
     def _one(name):
         try:
-            rows = []
+            rows, seen = [], set()
             for alias, valid_from, valid_to in eras:
                 if valid_to is not None and valid_to <= since.isoformat():
                     continue                                   # this name ended before the window
@@ -612,6 +681,15 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
                              else _LANE_FNS[name](alias, since))
                 for r in lane_rows:
                     if _in_era(r["date"], valid_from, valid_to):
+                        # A store read in two spellings, or two aliases that are one class
+                        # share's spellings, can hand back the same fact twice: one is kept.
+                        # The journal reads one store row per trade, and two same-day trades
+                        # read alike, so its identity also carries the trade's own ref.
+                        k = (r["date"], r["lane"], r.get("text"),
+                             r.get("ref") if r["lane"] in MEMBER_LANES else None)
+                        if k in seen:
+                            continue
+                        seen.add(k)
                         rows.append({**r, "symbol": alias})    # the name it was RECORDED under
             covers_from, covers_to = (_COVERAGE_FNS[name](user_id) if name in MEMBER_LANES
                                       else _COVERAGE_FNS[name]())

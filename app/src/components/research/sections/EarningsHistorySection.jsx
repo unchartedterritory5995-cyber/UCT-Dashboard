@@ -51,7 +51,7 @@ function rev(v) {
   return n >= 1000 ? `$${(n / 1000).toFixed(2)}B` : `$${Math.round(n)}M`
 }
 
-export default function EarningsHistorySection({ sym, row, reportDate, expectedMove, enrichReady = true }) {
+export default function EarningsHistorySection({ sym, row, reportDate, expectedMove, enrichReady = true, enrichFailed = false }) {
   const quarters = useMemo(() => buildQuarters({
     beatHistory: row?.beat_history, histStats: row?.hist_stats, reportDate, row,
   }), [row, reportDate])
@@ -113,7 +113,9 @@ export default function EarningsHistorySection({ sym, row, reportDate, expectedM
     // bare `{ sym }` is exactly what MyStocksHub and the direct research
     // routes pass for a company that genuinely has no history, so the two are
     // indistinguishable by content. Only the caller knows it is guessing.
-    if (row?.history_unresolved) {
+    // A failed enrichment BATCH is the same admission for every symbol in the week
+    // (useWeekEnrichment answers ENRICHMENT_FAILED): it is not a finding about the company.
+    if (row?.history_unresolved || enrichFailed) {
       return (
         <EmptyState
           icon="clock"

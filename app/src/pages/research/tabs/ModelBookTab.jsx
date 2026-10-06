@@ -14,7 +14,7 @@ import styles from '../ResearchPage.module.css'
 // exactly that, so this tab links to the page as it actually exists today
 // rather than to a URL shape that would silently do nothing.
 export default function ModelBookTab({ sym }) {
-  const { data, isLoading, error, mutate } = useModelBookAppearances(sym)
+  const { data, isLoading, error, paywalled, mutate } = useModelBookAppearances(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading Model Book history…</div></div></div>
@@ -22,6 +22,9 @@ export default function ModelBookTab({ sym }) {
 
   // TERM-088 -- a failed read is not "never in the Model Book". Render the
   // error distinctly so a backend hiccup never reads as a genuine absence.
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="modelbook-appearances-paywalled">Model Book history requires a paid plan.</div>
+  }
   if (error) {
     return (
       <div className={styles.fnote} data-testid="modelbook-appearances-error">
