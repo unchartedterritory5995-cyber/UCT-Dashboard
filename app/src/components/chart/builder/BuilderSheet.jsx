@@ -1223,6 +1223,10 @@ export default function BuilderSheet({
   // instance already on the chart names that one and a PUT at any other id is a
   // second definition wearing an edit's clothes.
   const [editing, setEditing] = useState(null)
+  /** P2 — `{defId, version}` the conversation box last saved, or null. Cleared
+   *  whenever the sheet (re)opens a definition, i.e. the form is fresh again. */
+  const [conversationSaved, setConversationSaved] = useState(null)
+  useEffect(() => { setConversationSaved(null) }, [editing])
   // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
   // picker is on screen; it is NOT persisted, NOT written into the document and
   // NOT read back — the saved artifact is the same one either door produces.
@@ -1752,8 +1756,14 @@ export default function BuilderSheet({
   // reported symptom was a swallowed click, not a wrong save. It is
   // surfaced ONLY as the `saveHint` message below: informational, additive,
   // and reverts to exactly today's gating the moment `pending` clears.
+  // ⛔ P2 — A CONVERSATION SAVED THIS SAME DEFINITION. The sheet's own form is
+  // now an OLDER version; saving it would silently revert the conversation's
+  // change (the store has no version check — last writer wins). Reopen first.
+  const supersededByConversation = !!(editing && conversationSaved
+    && conversationSaved.defId === editing.defId)
   const canSave = saveGates.formula && saveGates.named && saveGates.idle
     && saveGates.inputs && saveGates.plots && saveGates.intent
+    && !supersededByConversation
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
@@ -1763,7 +1773,9 @@ export default function BuilderSheet({
   // definition while `pending` is true, so reading `saveGates.formula` here
   // would show whatever the PREVIOUS formula's verdict happened to be —
   // exactly the confusing-message failure mode this hint exists to prevent.
-  const saveHint = (saveGates.idle && !saveGates.settled)
+  const saveHint = supersededByConversation
+    ? `The conversation above saved this formula as version ${conversationSaved.version}. Reopen it from "Your formulas" to edit it here.`
+    : (saveGates.idle && !saveGates.settled)
     ? 'Checking your formula…'
     : (saveGates.idle && saveGates.settled && saveGates.formula && !saveGates.named)
       ? 'Give it a name to save.'
@@ -2189,7 +2201,8 @@ export default function BuilderSheet({
               only; the Conditions tab keeps the one-shot box below. */}
           {buildMode !== 'picker' && (
             <ConverseBox settings={settings} onChange={onChange} sym={sym} tf={tf}
-              editing={editing} disabled={saving} />
+              editing={editing} disabled={saving}
+              onSaved={(defId, version) => setConversationSaved({ defId, version })} />
           )}
           <ConciergeBox
             bars={bars}

@@ -77,10 +77,11 @@ function errorLine(e, ops) {
  * @param {{defId, version, prior}|null} props.editing the sheet's stored definition being edited
  * @param {boolean} props.disabled
  * @param {Function} props.converse  injectable converse client (tests)
+ * @param {Function|null} props.onSaved `(defId, version)` after a conversational save
  */
 export default function ConverseBox({
   settings = null, onChange = null, sym = null, tf = null, editing = null, disabled = false,
-  converse = converseTurn,
+  converse = converseTurn, onSaved = null,
 }) {
   const [state, setState] = useState(() => newAuthoringState())
   const stateRef = useRef(state)
@@ -226,6 +227,8 @@ export default function ConverseBox({
       setSavedRevision(next.revision)
       setSavedVersion(stored.storedDoc.version)
       setPartial(null)
+      // tell the host sheet — its own form may now be an older version of this row
+      if (typeof onSaved === 'function') onSaved(stored.storedDoc.id, stored.storedDoc.version)
       say({
         role: 'uct', kind: 'saved',
         lines: [`Saved — version ${stored.storedDoc.version}.`, ...[...attached.outcomes, ...alerts].map((o) => o.text)],
@@ -234,7 +237,7 @@ export default function ConverseBox({
     } finally {
       setSaving(false)
     }
-  }, [saving, acked, settings, onChange, sym, tf, commit, say])
+  }, [saving, acked, settings, onChange, sym, tf, commit, say, onSaved])
 
   /** The preview draws the WHOLE working definition (every output, its
    *  presentation and placement) under its own transient id. */
