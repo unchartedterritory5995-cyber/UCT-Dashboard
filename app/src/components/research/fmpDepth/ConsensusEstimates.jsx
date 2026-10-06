@@ -130,6 +130,9 @@ export default function ConsensusEstimates({ sym }) {
   if (data === undefined) {
     return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Loading estimates…</p></div>
   }
+  if (data.paywalled) {
+    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Estimates require a paid plan.</p></div>
+  }
 
   const c = data.consensus || { state: 'error', annual: [], quarterly: [] }
   const fmpOk = c.state === 'ok' && ((c.annual || []).length || (c.quarterly || []).length)
@@ -180,7 +183,9 @@ export default function ConsensusEstimates({ sym }) {
                       reason={FALLBACK_REASON[c.state] || FALLBACK_REASON.error} />
           {fwd.length
             ? <YahooForward rows={fwd} />
-            : <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>}
+            : (c.state === 'empty' && !data.yf_unavailable)
+              ? <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>
+              : <p className={styles.note} data-testid="ee-unread">Forward estimates could not be read right now. That is a gap in what we could read, not a finding about {s}.</p>}
         </section>
       )}
 

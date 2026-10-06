@@ -229,8 +229,10 @@ def research_financial_history(sym: str, period: str = "quarter"):
         return get_history(sym, period=period)
     except Exception as exc:
         _logger.warning("financial history failed for %s: %s", sym, exc)
+        # `fmp_unavailable`: the read FAILED. Without it the panel said "FMP holds no statement
+        # history for this ticker" - a claim about the company (quality pass 2026-10-05).
         return {"sym": (sym or "").upper(), "period": period,
-                "periods": [], "series": {}}
+                "periods": [], "series": {}, "fmp_unavailable": True}
 
 
 @router.get("/api/research/financials/{sym}")
@@ -264,7 +266,10 @@ def research_estimates(sym: str, consensus: int = 0):
             out = dict(f_yf.result() or {})
         except Exception as exc:
             _logger.warning("research estimates failed for %s: %s", sym, exc)
-            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+            # `yf_unavailable`: the Yahoo leg FAILED, so an empty forward list is not a finding
+            # (the EE panel said "Neither FMP nor Yahoo Finance holds forward estimates").
+            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": [],
+                   "yf_unavailable": True}
         try:
             out["consensus"] = f_fmp.result()
         except Exception as exc:
