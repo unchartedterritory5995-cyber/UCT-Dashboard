@@ -407,20 +407,28 @@ describe('🔴 "Open it and edit" carries the setup`s name', () => {
 // so this case drives the REAL sheet: type a description, pick a starter, and the
 // mark must appear on the real box.
 describe('🔴 picking a starter marks the description stale — through the SHEET', () => {
-  it('the note appears on the real concierge box', async () => {
+  // ⭐ P2X OWNER DECISION 4 (2026-10-06, deliberate rail move). The one-shot box
+  // lives on the CONDITIONS tab only; a starter lands in the formula mode, so a
+  // description typed there cannot sit, stale, beside the starter.
+  it('a description typed on the Conditions tab cannot survive into the loaded starter', async () => {
     mount()
+    await flush()
+    fireEvent.click(tab(/conditions/i))
     await flush()
     fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
       { target: { value: 'stocks above the 200 day average' } })
     await flush()
     expect(screen.queryByTestId('concierge-stale')).toBeNull()
 
+    fireEvent.click(tab(/library/i))
+    await flush()
     fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
     await flush()
 
-    expect(screen.getByTestId('concierge-stale'),
-      'the sheet loaded a starter and never told the description it was stale')
-      .toBeTruthy()
+    expect(screen.queryByTestId('concierge-box'),
+      'the retired one-shot box is still beside a loaded starter')
+      .toBeNull()
+    expect(screen.queryByDisplayValue('stocks above the 200 day average')).toBeNull()
   })
 
   it('⛔ THE CONTROL — with no description there is nothing to mark', async () => {

@@ -147,16 +147,17 @@ describe('🔴 the English box on the CONDITIONS tab asks for a SCAN, and the an
     expect(expected.readback).toBe(sentenceFor(parseFormula('(close > open)').ast))
   })
 
-  it('the FORMULA tab asks for an indicator — the kind is the mode, not a constant', async () => {
-    // ⚠️ THE CONTROL. Without it, "the request says scan" would be satisfied by a
-    // box hard-wired to scan, which would refuse every indicator a member drafts.
+  it('⭐ P2X — the indicator modes have NO one-shot box (the conversation is that door); the Conditions tab asks for a scan', async () => {
+    // ⭐ P2X OWNER DECISION 4 (2026-10-06, deliberate rail move). This case used to
+    // be the control "the FORMULA tab asks for an indicator". The one-shot is now
+    // retired from the indicator modes, so the control is its ABSENCE there; the
+    // scan request below still proves the kind is the Conditions tab's.
     mount()
-    H.proposeResponse = proposalFor('sma(close, 20)', { kind: 'indicator' })
-    await askFor('the twenty bar average of the close')
-    expect(lastProposal().kind).toBe('indicator')
+    expect(screen.queryByTestId('concierge-box')).toBeNull()
+    expect(screen.getByTestId('converse')).toBeTruthy()
 
-    // …and switching tabs moves it, with no remount and no retyping.
     openConditions()
+    expect(screen.getByTestId('concierge-box').dataset.kind).toBe('scan')
     H.proposeResponse = proposalFor('(close > open)')
     await askFor('stocks closing above the open')
     expect(lastProposal().kind).toBe('scan')
