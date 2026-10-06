@@ -399,3 +399,30 @@ def test_counterfactual_mutable_bars_history_is_never_an_ordinary_append(st):
     assert c["diff_summary"]["changed"]["rows"] == 1
     with pytest.raises(PA.PriceAuthorityError, match="UNAPPROVED"):
         PA.materialize(st["s"], c["version_id"], str(st["tmp"] / "x.db"))
+
+
+# ── finality evidence ──────────────────────────────────────────────────────────────────────────────────────────────
+@pytest.mark.parametrize("c,v,oc,prev,splits,want", [
+    (10.12, 500.0, 10.12, 10.0, [], "OFFICIAL"),
+    (0.0112, 9.0, 0.011202, 0.01, [], "OFFICIAL"),                         # the aggregate's 4-decimal rounding
+    (0.8051, 9.0, 6.4409, 0.8, [("2026-10-05", 8.0)], "OFFICIAL_SPLIT_BASIS"),   # bars.db not yet re-based
+    (6.4409, 9.0, 0.8051, 6.4, [("2026-10-05", 8.0)], "OFFICIAL_SPLIT_BASIS"),   # aggregate not yet re-based
+    (10.12, 0.0, None, 10.12, [], "NO_TRADE_CARRY"),                       # no trade: carried close, volume 0
+    (10.30, 0.0, None, 10.12, [], None),                                   # "no trade" with a different close
+    (10.05, 182744.0, None, 10.0, [], None),                               # traded but not in the aggregate
+    (175.325, 846010.0, 175.03, 175.0, [], None),                          # a partial bar (M3's 2026-09-29 class)
+    (0.8051, 9.0, 6.4409, 0.8, [], None),                                  # a factor with no reference split
+])
+def test_finality_rule(c, v, oc, prev, splits, want):
+    assert PA._finality(c, v, oc, prev, splits) == want
+
+
+def test_a_no_trade_day_absent_from_the_aggregate_is_appended(st):
+    rows = upstream_rows()
+    rows = [(t, d, (TICKERS["AAA"] + 5 * 0.1) if (t == "AAA" and d == 20260930) else c,
+             0.0 if (t == "AAA" and d == 20260930) else v) for t, d, c, v in rows]
+    src = mkdb(st["tmp"] / "nt.db", rows, kind="ohlcv")
+    off = official_from(rows)
+    del off[20260930]["AAA"]                                                # the aggregate omits a no-trade day
+    m = PA.append(st["s"], st["root"], src, official=off, splits={}, sessions=NEW)
+    assert m["appended"]["finality_evidence"].get("NO_TRADE_CARRY") == 1 and m["appended"]["holds"] == 0

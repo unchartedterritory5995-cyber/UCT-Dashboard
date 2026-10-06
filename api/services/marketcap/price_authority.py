@@ -309,6 +309,27 @@ def _split_factor(splits: list, after: int, upto: int) -> list[tuple[str, float]
     return out
 
 
+def _finality(c: float, v, oc, prev_close, later_splits: list) -> str | None:
+    """How a new bars.db row is proven final, or None (NOT_FINAL: never appended).
+      OFFICIAL             the official daily aggregate's close (to its 4-decimal rounding)
+      OFFICIAL_SPLIT_BASIS bars.db is already on the basis of a split executed after the session and the official
+                           aggregate is not: the ratio is exactly that reference split factor
+      NO_TRADE_CARRY       no trade that day (absent from the aggregate, volume 0, the previous close carried) -- the
+                           representation bars.db and the accepted root already use for no-trade days"""
+    if oc is not None and oc > 0:
+        if abs(c - oc) <= max(1e-6 * abs(oc), 5e-5):
+            return "OFFICIAL"
+        prod = 1.0
+        for _ex, f in later_splits:
+            prod *= f
+        if later_splits and any(abs((c / oc) / k - 1) < 1e-4 for k in (prod, 1 / prod)):
+            return "OFFICIAL_SPLIT_BASIS"
+        return None
+    if (v or 0) == 0 and prev_close is not None and c == prev_close:
+        return "NO_TRADE_CARRY"
+    return None
+
+
 def append(store: Store, parent: str, source: str, *, official: dict, splits: dict, now: datetime | None = None,
            sessions: list[int] | None = None, provenance: dict | None = None, tickers: set | None = None) -> dict:
     """Seal the APPEND child of `parent` holding every validated new completed session from `source`.
@@ -400,6 +421,9 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
         basis_of[t] = "HOLD"
     held = {h[0] for h in holds}
     finality_mismatch = 0
+    finality = {}
+    today = _int((now or datetime.now(timezone.utc)).date())
+    last_up = {t: up_anchor.get((t, a[0][0])) for t, a in anchors.items() if a}
     for d in accepted_sessions:
         off = official.get(d) or official.get(str(d)) or {}
         for t, _d, c, v in new_rows[d]:
@@ -408,11 +432,13 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
             if c is None or not (c > 0):
                 holds.append((t, d, "INVALID_CLOSE", repr(c)))
                 continue
-            oc = off.get(t)
-            if oc is None or abs(oc / c - 1) > 1e-6:
+            how = _finality(c, v, off.get(t), last_up.get(t), _split_factor(splits.get(t) or [], d, today))
+            last_up[t] = c
+            if how is None:
                 finality_mismatch += 1
-                holds.append((t, d, "NOT_FINAL", f"bars.db close {c!r} vs official {oc!r}"))
+                holds.append((t, d, "NOT_FINAL", f"bars.db close {c!r} vol {v!r} vs official {off.get(t)!r}"))
                 continue
+            finality[how] = finality.get(how, 0) + 1
             # stored on the ROOT basis: a basis-event ticker's new rows are divided back by the event factor when they
             # are dated before its effective date (bars.db already carries the new basis on them)
             f = factor_of.get(t)
@@ -459,7 +485,8 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
          "appended": {"sessions": accepted_sessions, "rows": len(keep), "symbols": len({r[0] for r in keep}),
                       "new_listings": sorted(t for t, b in basis_of.items() if b == "NEW_LISTING"),
                       "basis_events": [list(e[:3]) for e in events], "holds": len(holds),
-                      "holds_by_reason": _count(h_[2] for h_ in holds), "finality_mismatch": finality_mismatch},
+                      "holds_by_reason": _count(h_[2] for h_ in holds), "finality_mismatch": finality_mismatch,
+                      "finality_evidence": finality},
          "session_report": session_report, "provenance": provenance or {}, "code": _code()}
     m.update(rows=pm["rows"] + len(keep), first_session=pm["first_session"], last_session=upto)
     # materialize once to record the build input's identity, and PROVE the invariant on it
