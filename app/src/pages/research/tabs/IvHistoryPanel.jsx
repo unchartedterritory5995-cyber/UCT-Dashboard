@@ -76,6 +76,8 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
   const { data, error } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
 
   if (key && error?.status === 404 && offNotice) return <OffNotice urls={[key]} feature="IV history" />
+  if (offNotice && data?.paywalled) return <div className={styles.note} data-testid="feature-paywalled">IV history requires a paid plan.</div>
+  if (offNotice && key && !data && !error) return <div className={styles.note} data-testid="feature-loading">Loading IV history for {s}…</div>
   if (!key || error?.status === 404 || data?.paywalled) return null
   if (error) {
     return <div className={styles.note} data-testid="iv-history-unavailable">

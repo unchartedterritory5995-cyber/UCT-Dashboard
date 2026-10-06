@@ -1,4 +1,4 @@
-import { useAllOff } from './useDarkSection'
+import { useSectionsState } from './useDarkSection'
 import styles from './optionsAnalytics.module.css'
 
 // The terminal opens these options panels on their own (IVH, VOL, POS, OHIS, TIDE, STRS). Each
@@ -21,6 +21,9 @@ export function OffLine({ feature }) {
 }
 
 export default function OffNotice({ urls, feature }) {
-  const allOff = useAllOff(urls)
-  return allOff ? <OffLine feature={feature} /> : null
+  const { allOff, allLoading, allPaywalled } = useSectionsState(urls)
+  if (allOff) return <OffLine feature={feature} />
+  if (allPaywalled) return <p className={styles.note} data-testid="feature-paywalled">{feature} requires a paid plan.</p>
+  if (allLoading) return <p className={styles.note} data-testid="feature-loading">Loading {feature.toLowerCase()}…</p>
+  return null
 }

@@ -101,6 +101,14 @@ export function VolStatsPanel({ sym, offNotice = false }) {
   if (offNotice && rv.off && cm.off && vp.off) {
     return <OffLine feature="Volatility stats" />
   }
+  // Standalone (the terminal's VOL) the panel IS the page: say what is happening rather than
+  // opening blank while the reads are in flight or every read answered the paid gate.
+  if (offNotice && rv.paywalled && cm.paywalled && vp.paywalled) {
+    return <p className={styles.note} data-testid="feature-paywalled">Volatility stats require a paid plan.</p>
+  }
+  if (offNotice && rv.loading && cm.loading && vp.loading) {
+    return <p className={styles.note} data-testid="feature-loading">Loading volatility stats for {String(sym || '').toUpperCase()}…</p>
+  }
   if (rv.hidden && cm.hidden && vp.hidden) return null
   if (rv.loading && cm.loading && vp.loading) return null
   // a body that is not a volatility answer (another route's JSON, an HTML page) renders nothing

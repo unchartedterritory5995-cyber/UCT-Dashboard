@@ -11,14 +11,28 @@ export default function useDarkSection(url) {
   const { data, error } = useSWR(url || null, sectionFetcher, { revalidateOnFocus: false })
   const off = Boolean(url) && error?.status === 404
   const hidden = !url || off || Boolean(data?.paywalled)
-  return { data: hidden ? undefined : data, hidden, off, failed: !hidden && Boolean(error), loading: !hidden && !error && !data }
+  const paywalled = Boolean(data?.paywalled)
+  return { data: hidden ? undefined : data, hidden, off, paywalled, failed: !hidden && Boolean(error), loading: !hidden && !error && !data }
 }
 
 /** Every one of `urls` answered 404 (each switch is off). Hook count is `urls.length`, so a call
  *  site must pass a fixed-length list. */
 export function useAllOff(urls) {
+  return useSectionsState(urls).allOff
+}
+
+/** The whole-panel state of a standalone options panel's reads: every one switched off, every
+ *  one still loading (the panel would otherwise be a titled box with an empty body while its
+ *  reads are in flight), or every one answering the paid gate (each section renders nothing on
+ *  402, so the panel was blank). Same fixed-length rule as useAllOff. */
+export function useSectionsState(urls) {
   const reads = []
   // eslint-disable-next-line react-hooks/rules-of-hooks -- fixed-length list per call site
   for (const u of urls) reads.push(useDarkSection(u))
-  return reads.length > 0 && reads.every((r) => r.off)
+  const any = reads.length > 0
+  return {
+    allOff: any && reads.every((r) => r.off),
+    allLoading: any && reads.every((r) => r.loading),
+    allPaywalled: any && reads.every((r) => r.paywalled),
+  }
 }
