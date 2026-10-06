@@ -150,7 +150,7 @@ function OnTheTape() {
 // read as a section loading forever. It is said plainly instead.
 export const WIRE_SECTION_MISSING = "This section was not produced in this morning's wire."
 export function settleLoadingPlaceholders(html) {
-  return String(html || '').replace(/<p class="rd-loading"[^>]*>[\s\S]*?<\/p>/g,
+  return String(html || '').replace(/<p class=(["'])rd-loading\1[^>]*>[\s\S]*?<\/p>/g,
     `<p class="rd-loading rd-missing" data-testid="wire-section-missing">${WIRE_SECTION_MISSING}</p>`)
 }
 
