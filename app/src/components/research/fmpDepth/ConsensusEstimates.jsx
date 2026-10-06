@@ -19,6 +19,7 @@ import useSWR from 'swr'
 import { EmptyState, SeriesChart } from '../../research-kit'
 import { AuthContext } from '../../../context/AuthContext'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
+import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import SourceLine from './SourceLine'
 import { fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
 import { formatNumber, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
@@ -135,13 +136,22 @@ export default function ConsensusEstimates({ sym }) {
   const estimateHistoryOn = useContext(AuthContext)?.estimateHistoryEnabled === true
   const { data, error, mutate } = useSWR(s ? estimatesKey(s) : null, sectionFetcher,
     { revalidateOnFocus: false })
+  // The first read after a deploy can hit a cold pod; sectionFetcher asks again once, and the
+  // panel says so instead of flashing "Could not load this section" (2026-10-06).
+  const warming = useWarming(s ? estimatesKey(s) : null)
 
   if (!s) return null
   if (error) {
     return <div className={styles.wrap} data-testid="ee-deep"><EmptyState {...FETCH_FAILED} compact onRetry={() => mutate()} /></div>
   }
   if (data === undefined) {
-    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Loading estimates…</p></div>
+    return (
+      <div className={styles.wrap} data-testid="ee-deep">
+        {warming
+          ? <p className={styles.note} data-testid="ee-warming">{WARMING_UP}</p>
+          : <p className={styles.note}>Loading estimates…</p>}
+      </div>
+    )
   }
   if (data.paywalled) {
     return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Estimates require a paid plan.</p></div>

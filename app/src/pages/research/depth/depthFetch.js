@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { withDeadline } from '../../../components/research/sections/sectionFetch'
+import { withWarmRetry } from '../../../utils/warmRetry'
 
 // Live sweep 2026-10-05: BRKE, ERX and EVTS answer `pending` on a cold read (their data is
 // fetched behind the request) and the server's sentence told the member to "reopen in a
@@ -53,8 +54,9 @@ export class DepthFetchError extends Error {
 
 // Same deadline as sectionFetcher: a request that never answers ends as a failure, not an
 // endless loading line.
+// A transient first failure is asked again once before it throws (utils/warmRetry.js).
 export function depthFetcher(url) {
-  return withDeadline(depthFetchOnce(url), url)
+  return withWarmRetry(() => withDeadline(depthFetchOnce(url), url), url)
 }
 
 async function depthFetchOnce(url) {
@@ -62,7 +64,9 @@ async function depthFetchOnce(url) {
   try {
     res = await fetch(url)
   } catch (e) {
-    throw new DepthFetchError(`network: ${e?.message || e}`)
+    const err = new DepthFetchError(`network: ${e?.message || e}`)
+    err.network = true
+    throw err
   }
   if (res.status === 402) return { paywalled: true }
   if (res.status === 400) {
