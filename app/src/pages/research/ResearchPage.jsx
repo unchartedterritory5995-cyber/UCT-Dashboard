@@ -36,6 +36,7 @@ import ResearchNotices from './notices/ResearchNotices'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
+import { useThemeVersion } from '../../lib/theme/useThemeInk'
 import styles from './ResearchPage.module.css'
 
 // 2026-09-03 A6/A7 pass: "Filings & Events" corrected to "Filings" — the tab
@@ -144,6 +145,9 @@ const SECTION_TO_TAB = {
 }
 
 export default function ResearchPage() {
+  // Canvas charts in the tabs resolve their inks at render (`themeInk`); re-render
+  // the page (and so every un-memoised tab under it) when the member's theme changes.
+  useThemeVersion()
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
   const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, researchDepth, researchNotices, researchFmpDepthEnabled } = useAuth()

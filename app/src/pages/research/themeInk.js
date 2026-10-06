@@ -1,21 +1,20 @@
 // app/src/pages/research/themeInk.js
 //
-// A canvas (ECharts, Lightweight Charts) cannot resolve `var(--token)`: handed
-// one, it silently drops the colour. So a chart colour has to be the token's
-// RESOLVED value, read from <html>, where both [data-theme] and the app theme's
-// inline overrides (styles/appThemes.js) land. The fallback is the dark-theme
-// value from components/research-kit/charts/echartsCore.js's CHART_INK mirror,
-// used only where no stylesheet is loaded (tests, a detached render).
+// A thin wrapper over the app's ONE canvas-colour resolver
+// (`lib/theme/resolveThemeColor.js`), kept so the research tabs that import
+// `themeInk` need no edits. The fallback is the dark-theme value from
+// components/research-kit/charts/echartsCore.js's CHART_INK mirror, used only
+// where no stylesheet is loaded (tests, a detached render).
 //
-// ⚠️ Read at render time: a chart drawn before a theme switch keeps the old ink
-// until it next renders. No shared hook re-renders on a theme change today;
-// noted for lane 1 as a missing shared helper.
+// ⭐ Re-render on a theme change comes from `useThemeVersion()` in
+// `ResearchPage.jsx`: the tabs are plain (un-memoised) children, so the page
+// re-rendering on a theme change re-runs every `themeInk(...)` call below it.
+// A component that renders a research chart OUTSIDE ResearchPage should call
+// `useThemeVersion()` itself (re-exported here).
+import { resolveThemeColor } from '../../lib/theme/resolveThemeColor'
+
+export { useThemeVersion } from '../../lib/theme/useThemeInk'
+
 export function themeInk(token, fallback) {
-  try {
-    if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') return fallback
-    const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim()
-    return v || fallback
-  } catch {
-    return fallback
-  }
+  return resolveThemeColor(token, fallback)
 }
