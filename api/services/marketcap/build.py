@@ -185,8 +185,10 @@ def reported_symbol_switch(ticker: str, reports: list, issuer_tickers: list, eve
     post = [x for x in counts if lo < x[0] <= switch + timedelta(days=150)]
     if not pre or not post or (switch - lo).days > 300:
         return None
-    a = max(pre, key=lambda x: (x[0], x[1]))[1]       # M3.1: a TOTAL tie-break (same-day counts were list order)
-    b = min(post, key=lambda x: (x[0], x[1]))[1]
+    # same-day counts (one filing's per-class counts: CBUS 2023-08-09 16,641,505 then 4,642,636) resolve to the FIRST
+    # in observation order -- M3.1: that order is total (accession, then the filing's own document order)
+    a = max(pre, key=lambda x: x[0])[1]
+    b = min(post, key=lambda x: x[0])[1]
     if abs(math.log(b / a)) < math.log(1.25):
         return None                                  # a rename: the count carries through
     return switch, f"registrant reported {sorted({s for fd, ss in reports if fd == last_other for s in ss})} until {last_other}; {ticker} from {switch}; count {a:.0f} -> {b:.0f}"
@@ -599,9 +601,11 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
         # 1,400,000 ... 27,952,473 -- a subsidiary was selected before this rule).
         cur_cik: dict[tuple, int | None] = {}
         has_cik_rows: dict[tuple, bool] = {}
-        rows_all = D.cov.execute(
-            "SELECT accn, file, member, label, concept, as_of, text, share_scale FROM cover_fact WHERE cik=? AND "
-            "concept IN ('dei:EntityCommonStockSharesOutstanding','dei:EntityCentralIndexKey') ORDER BY rowid", (cik,)).fetchall()
+        rows_all = [r[:-1] for r in sorted(D.cov.execute(
+            "SELECT accn, file, member, label, concept, as_of, text, share_scale, rowid FROM cover_fact WHERE cik=? AND "
+            "concept IN ('dei:EntityCommonStockSharesOutstanding','dei:EntityCentralIndexKey')", (cik,)),
+            key=lambda r: (filings[r[0]]["filing_date"] if r[0] in filings else "", r[0], r[-1]))]
+        # M3.1: a TOTAL order -- filing date (the PIT clock), accession, then the filing's own document order
         for accn, fil, mem, lab, concept, as_of, text, scale in rows_all:
             if concept == "dei:EntityCentralIndexKey":
                 has_cik_rows[(accn, fil)] = True
@@ -646,7 +650,7 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     for tag, as_of, val, accn, form, filed in D.inp.execute(
             "SELECT tag, as_of, value, accn, form, filed FROM fact WHERE cik=? AND tag IN "
             "('dei:EntityCommonStockSharesOutstanding','us-gaap:CommonStockSharesOutstanding','ifrs-full:NumberOfSharesOutstanding') "
-            "ORDER BY accn, rowid", (cik,)):
+            "ORDER BY filed, accn, rowid", (cik,)):
         src = R.COVER_XBRL if tag.startswith("dei:") else R.BALANCE_SHEET_XBRL
         if src == R.COVER_XBRL and (accn, "COMMON", round(val)) in seen:
             continue
@@ -659,7 +663,7 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     if D.txt is not None:
         for accn, form, fd, status, complete, cls, cnt, as_of, rule, off, snip, classes in D.txt.execute(
                 "SELECT accn, form, filing_date, status, complete, class, count, as_of, rule, offset, snippet, classes "
-                "FROM text_obs WHERE cik=? ORDER BY accn, rowid", (cik,)):
+                "FROM text_obs WHERE cik=? ORDER BY filing_date, accn, rowid", (cik,)):
             f = filings.get(accn)
             p = pub(accn, fd)
             if status == "OK" and cnt:
@@ -677,7 +681,7 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
     if D.prosp is not None:
         for accn, form, fd, status, cls, cnt, as_of, rule, snip in D.prosp.execute(
                 "SELECT accn, form, filing_date, status, class, count, as_of, rule, snippet FROM prosp_obs "
-                "WHERE cik=? AND status IN ('OK','MULTI_CLASS') AND count IS NOT NULL ORDER BY accn, rowid", (cik,)):
+                "WHERE cik=? AND status IN ('OK','MULTI_CLASS') AND count IS NOT NULL ORDER BY filing_date, accn, rowid", (cik,)):
             p = pub(accn, fd)
             out.append((cls or "COMMON", Obs(date.fromisoformat(as_of), p, cnt, R.OFFERING_TEXT, accn, form, f"offering:{rule}",
                                              cls or "COMMON", snip or "", "MEDIUM"), {}))

@@ -44,7 +44,7 @@ EXTREME_STEP_SEMANTICS = SEMANTICS_VERSION
 SAFETY_BOUND_DAYS = 456
 
 METHODOLOGY_FILES = {
-    "build.py": "068f2ac7acaca1fe70dabd559cd9042bb84ea2c47ba9a112bd9c038a0f19fe3c",
+    "build.py": "1652bc7c635aca631c4f08739af4edd77dc3c93bad7153d4607cdefb9b9959b2",
     "adr.py": "30fedef57a1c6837e8fdce40aaa61f6fb2d1a4870d095d28c4e62f63e6fc3ddd",
     "classecon.py": "69979a2e7a67737ce6f21e9b48ad1a73eb5812043de5192f0c813fcbc9a09886",
     "cover.py": "35de23bf13fe0311fe65141ef19e5ec37cd65afeed25e54410e51a2edd42b261",
