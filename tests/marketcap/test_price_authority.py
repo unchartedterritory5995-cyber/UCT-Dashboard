@@ -418,6 +418,17 @@ def test_finality_rule(c, v, oc, prev, conv, prev_t, want):
     assert got[0] == want[0] and (got[1] is None or abs(got[1] - want[1]) < 1e-12)
 
 
+def test_finality_bars_still_on_the_pre_event_basis():
+    # CMND 1-for-8 on 2026-10-05 inside the version: bars.db 09-30 0.8051 (not yet re-based), official 6.4409
+    assert PA._finality(0.8051, 99780.0, 6.4409, 0.8, 1.0, 0.8, pre=8.0) == ("OFFICIAL_PRE_EVENT_BASIS", 0.8051 * 8.0)
+    assert PA._finality(0.8051, 99780.0, 6.4409, 0.8, 1.0, 0.8, pre=1.0) == (None, None)    # without the event: held
+
+
+def _unused_finality(c, v, oc, prev, conv, prev_t, want):
+    got = PA._finality(c, v, oc, prev, conv, prev_t)
+    assert got[0] == want[0] and (got[1] is None or abs(got[1] - want[1]) < 1e-12)
+
+
 def test_kust_class_split_after_the_root_with_bars_db_not_yet_rebased(st):
     """KUST 2026-10-01 (1-for-10): bars.db history still PRE-split, its new rows POST-split (== the official
     aggregate). The reference split is a BASIS_EVENT (the builder applies the same split to shares), the new rows are

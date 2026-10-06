@@ -316,16 +316,20 @@ def _prod(it) -> float:
     return out
 
 
-def _close_eq(a: float, b: float) -> bool:
-    return abs(a - b) <= max(1e-6 * abs(b), 5e-5)          # the aggregate's 4-decimal rounding
+def _close_eq(a: float, b: float, scale: float = 1.0) -> bool:
+    """Equal to the 4-decimal rounding of both sources (a value scaled by `scale` carries `scale` x the rounding)."""
+    return abs(a - b) <= max(1e-6 * abs(b), 5e-5 * max(1.0, scale) * 1.0001)
 
 
-def _finality(c: float, v, oc, prev_close, conv: float = 1.0, prev_target=None):
+def _finality(c: float, v, oc, prev_close, conv: float = 1.0, prev_target=None, pre: float = 1.0):
     """(evidence, value on the TARGET basis) for a new bars.db row, or (None, None) -- NOT_FINAL, never appended.
     `oc` is the official aggregate close on its FETCH basis; `conv` the factor of reference splits executed after the
     target basis (this version's last session) and up to the fetch, so the official target-basis close is oc / conv.
       OFFICIAL             bars.db == the official close on the target basis (to the aggregate's rounding)
       OFFICIAL_SPLIT_BASIS bars.db already carries a later split (== oc on the fetch basis): value = c / conv
+      OFFICIAL_PRE_EVENT_BASIS  bars.db has not yet re-based for a split executed AFTER the row inside this version
+                           (`pre` = those basis events' factor): c x pre == the official target-basis close (CMND 1-for-8
+                           on 2026-10-05: bars.db 09-30 0.8051, official 6.4409)
       NO_TRADE_CARRY       no trade (absent from the aggregate, volume 0, bars.db carried its previous close): the
                            previous target-basis value carries -- the root's own no-trade representation"""
     if oc is not None and oc > 0:
@@ -333,6 +337,8 @@ def _finality(c: float, v, oc, prev_close, conv: float = 1.0, prev_target=None):
             return "OFFICIAL", c
         if conv != 1.0 and _close_eq(c, oc):
             return "OFFICIAL_SPLIT_BASIS", c / conv
+        if pre != 1.0 and _close_eq(c * pre, oc / conv, scale=pre):
+            return "OFFICIAL_PRE_EVENT_BASIS", c * pre
         return None, None
     if (v or 0) == 0 and prev_close is not None and c == prev_close and prev_target is not None:
         return "NO_TRADE_CARRY", prev_target
@@ -469,7 +475,8 @@ def append(store: Store, parent: str, source: str, *, official: dict, splits: di
                 holds.append((t, d, "INVALID_CLOSE", repr(c)))
                 continue
             conv = _prod(f for _ex, f in _split_factor(splits.get(t) or [], max(d, upto), fetched))
-            how, val = _finality(c, v, off.get(t), last_up.get(t), conv, last_t.get(t))
+            how, val = _finality(c, v, off.get(t), last_up.get(t), conv, last_t.get(t),
+                                 _prod(f for e, f in ev_of.get(t, []) if d < e))
             last_up[t] = c
             if how is None:
                 finality_mismatch += 1
