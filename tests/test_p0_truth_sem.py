@@ -314,6 +314,22 @@ def test_store_never_stamps_a_pine_document_or_pine_translated_maths(store):
     assert out["semantics"] == 2
 
 
+def test_P2_a_pine_row_stays_unstamped_when_an_edit_door_drops_its_origin(store):
+    """ASKED edit the maths of a Pine import through a door that rebuilds the document
+    (the manual Builder's reopen→save drops `meta.recurrenceOrigin`) · CLAIMED the same
+    indicator, edited · BEFORE: the maths edit was stamped semantics 2 (na-compares-false
+    silently became unknown) · NOW: the STORED row's Pine origin decides — no stamp."""
+    svc.save("u1", "u_000000000004", _defn(def_id="u_000000000004", meta_extra={"recurrenceOrigin": "pine"}))
+    assert "semantics" not in _stored("u_000000000004")["meta"]
+    out = svc.save("u1", "u_000000000004", _defn(period=50, def_id="u_000000000004"))  # origin dropped, maths moved
+    assert out["rev_bumped"] is True
+    assert out["semantics"] == 1 and "semantics" not in _stored("u_000000000004")["meta"]
+    # a NATIVE row edited the same way still gets the new semantics
+    svc.save("u1", "u_000000000005", _defn(def_id="u_000000000005"))
+    out = svc.save("u1", "u_000000000005", _defn(period=50, def_id="u_000000000005"))
+    assert out["semantics"] == 2
+
+
 def test_client_cannot_forge_the_stamp(store):
     # a create carrying a bogus value is stored with the store's own decision
     svc.save("u1", "u_000000000001", _defn(meta_extra={"semantics": 7}))

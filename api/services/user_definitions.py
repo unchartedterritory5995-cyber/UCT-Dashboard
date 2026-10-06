@@ -1469,6 +1469,13 @@ def decide_semantics(definition: Mapping[str, Any], prev_definition: Optional[Ma
     two = ast_interpret.SEMANTICS_UNKNOWN_PROPAGATES
     if ast_interpret.is_pine_origin(definition):
         return None
+    # ⛔ P2 — A PINE-ORIGIN ROW STAYS UNSTAMPED, whatever the incoming copy says.
+    # An edit door that rebuilds the document (the manual Builder's reopen→save)
+    # can drop `meta.recurrenceOrigin`; without this, a maths edit would stamp
+    # semantics 2 onto a Pine import and silently move its `na`-compares-false
+    # outputs to unknown. Source-language fidelity is decided by the STORED row.
+    if prev_definition is not None and ast_interpret.is_pine_origin(prev_definition):
+        return None
     if copy_of_stored:
         return two if (not isinstance(carried, bool) and carried == two) else None
     if maths_moved:
