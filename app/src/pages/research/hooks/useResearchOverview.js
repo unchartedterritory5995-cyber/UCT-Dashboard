@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useLivePrices from '../../../hooks/useLivePrices'
-import { withDeadline } from '../../../utils/withDeadline'
+import { fetchWithWarmRetry } from '../../../utils/warmRetry'
 
 // TERM-088 -- the Overview tab (DES) composes four independent reads. A
 // failed read on any of them is not an empty card; see useDecisionRecord.js
@@ -9,7 +9,7 @@ import { withDeadline } from '../../../utils/withDeadline'
 // non-2xx into null.
 export async function fetchResearchOverviewPart(url) {
   try {
-    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
+    const r = await fetchWithWarmRetry(url, { credentials: 'include' })
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {
