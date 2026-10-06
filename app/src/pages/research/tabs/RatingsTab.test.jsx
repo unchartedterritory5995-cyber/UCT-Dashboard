@@ -83,10 +83,11 @@ describe('RatingsTab -- failed read vs genuine empty state', () => {
   })
 
   it('a fund says not applicable to funds -- no composite', async () => {
-    await renderWith({ data: { sym: 'SPY', not_applicable: 'fund',
-      reason: 'SPY is a fund; the UCT Composite rates operating companies (earnings, growth, margins, sponsorship), which a fund does not have' },
+    // the route's fund shape (fix/terminal-quality-routes-3, e910f8ff6)
+    await renderWith({ data: { sym: 'SPY', not_applicable: 'fund', composite: null, components: {}, checkup: [], coverage: null,
+      reason: "SPY is a fund; the UCT composite rates a company's earnings, growth, margins and value, which a fund does not have" },
     isLoading: false, error: false, mutate: () => {} })
-    expect(screen.getByTestId('ratings-na').textContent).toMatch(/^Not applicable to funds — SPY is a fund; the UCT Composite rates operating companies/)
+    expect(screen.getByTestId('ratings-na').textContent).toMatch(/^Not applicable to funds — SPY is a fund; the UCT composite rates a company/)
     expect(screen.queryByText('UCT Composite Rating')).toBeNull()
   })
 

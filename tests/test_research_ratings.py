@@ -338,29 +338,15 @@ class TestPriceAsOf:
         assert out["price_as_of"] is None
 
 
-class TestRatingsFundAndCompleteness:
-    """tq-panels: a fund is not an operating company, so it gets no UCT Composite --
-    and an all-blank rating says whether its input legs actually answered."""
+class TestRatingsCompleteness:
+    """tq-panels: an all-blank rating says whether its input legs actually answered.
+    (The fund answer itself lives on the route -- fix/terminal-quality-routes-3, e910f8ff6.)"""
 
     def setup_method(self):
         cache.invalidate("research_rat::SPY")
         cache.invalidate("research_rat::TEST")
 
-    def test_a_fund_answers_not_applicable_without_a_vendor_call(self, monkeypatch):
-        from api.services import ticker_search_index
-        monkeypatch.setattr(ticker_search_index, "instrument_type", lambda s: "etf" if s == "SPY" else None)
-
-        def boom(*a, **k):
-            raise AssertionError("a fund must not reach the vendors")
-        monkeypatch.setattr(rt, "get_fundamentals", boom)
-        monkeypatch.setattr(rt, "get_ownership", boom)
-        monkeypatch.setattr(rt, "fetch_history", boom)
-        out = rt.get_ratings("spy")
-        assert out["not_applicable"] == "fund"
-        assert out["reason"].startswith("SPY is a fund")
-        assert "composite" not in out
-
-    def test_unknown_type_is_not_a_fund(self, monkeypatch):
+    def test_every_leg_answering_with_nothing_is_complete(self, monkeypatch):
         from api.services import ticker_search_index
         monkeypatch.setattr(ticker_search_index, "instrument_type", lambda s: None)
         monkeypatch.setattr(rt, "get_fundamentals", lambda s: {})

@@ -298,16 +298,6 @@ def get_ratings(sym):
     s = (sym or "").upper().strip()
     if not s:
         return {}
-    # tq-panels: the UCT Composite rates OPERATING COMPANIES -- EPS, growth, margins,
-    # value, sponsorship. A fund has none of those, so the old build renormalized a
-    # "composite" out of relative strength alone and typeset it like a company's. The
-    # search index classifies the symbol in memory (no vendor call); unknown (None) is
-    # NOT a fund and builds as before.
-    from api.services import ticker_search_index
-    if ticker_search_index.instrument_type(s) == "etf":
-        return {"sym": s, "not_applicable": "fund",
-                "reason": (f"{s} is a fund; the UCT Composite rates operating companies "
-                           "(earnings, growth, margins, sponsorship), which a fund does not have")}
     cached = cache.get(f"research_rat::{s}")
     if cached is not None:
         return cached
