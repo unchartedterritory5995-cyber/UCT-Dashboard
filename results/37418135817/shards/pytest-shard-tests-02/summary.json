@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2427,
+  "passed": 2405,
+  "failed": 5,
+  "errored": 0,
+  "skipped": 17,
+  "wall_s": 191.6,
+  "failed_files": [
+    "tests/test_auth_surface_reads.py",
+    "tests/test_bars_ordinal_census.py",
+    "tests/test_bars_server_include_today.py",
+    "tests/test_bars_server_timing.py",
+    "tests/test_breadth_compat_index.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "5 failed, 2405 passed, 17 skipped, 1 xfailed, 230 warnings in 191.60s (0:03:11)",
+  "ok": true
+}
