@@ -73,10 +73,11 @@ def test_warm_calls_every_surface_per_symbol_and_paces_between_symbols():
     calls, sleeps = [], []
     surfaces = [("a", lambda s: calls.append(("a", s))), ("b", lambda s: calls.append(("b", s)))]
     stats = rpw.warm_research_panels(["X", "Y", "Z"], pace_seconds=2.0, surfaces=surfaces,
-                                     sleep=sleeps.append, clock=lambda: 0.0)
+                                     sleep=sleeps.append, clock=lambda: 0.0,
+                                     fmp_tokens=lambda: 999.0)
     assert calls == [("a", "X"), ("b", "X"), ("a", "Y"), ("b", "Y"), ("a", "Z"), ("b", "Z")]
     assert sleeps == [2.0, 2.0]          # between symbols, never before the first
-    assert stats == {"symbols": 3, "ok": 6, "failed": 0, "stopped": None}
+    assert stats == {"symbols": 3, "ok": 6, "failed": 0, "stopped": None, "fmp_waits": 0}
 
 
 def test_a_failing_surface_costs_itself_not_the_pass():
@@ -90,10 +91,16 @@ def test_a_failing_surface_costs_itself_not_the_pass():
 
 
 def test_the_budget_stops_the_pass():
-    t = iter([0.0, 0.0, 10.0, 999.0, 999.0])
+    # Each symbol's work costs 40 s of wall clock: X starts at 0, Y at 40, Z would at 80.
+    now = [0.0]
+
+    def _work(sym):
+        seen.append(sym)
+        now[0] += 40.0
     seen = []
     stats = rpw.warm_research_panels(["X", "Y", "Z"], budget_seconds=60.0,
-                                     surfaces=[("s", seen.append)],
-                                     sleep=lambda _s: None, clock=lambda: next(t))
+                                     surfaces=[("s", _work)],
+                                     sleep=lambda _s: None, clock=lambda: now[0],
+                                     fmp_tokens=lambda: 999.0)
     assert seen == ["X", "Y"]
     assert stats["stopped"] == "budget"

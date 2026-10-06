@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -266,6 +267,19 @@ def research_financials(sym: str = Depends(sym_path)):
                              "balance": {}, "metrics": {}}, sym, _FA_FUND_WHY)
 
 
+#: An EE consensus open slower than this logs one `[ee-slow]` line naming its legs.
+_SLOW_EE_SECONDS = 5.0
+
+
+def _timed(legs: dict, name: str, fn, *args):
+    """Run `fn(*args)` and record its wall time in `legs[name]`, raise or return."""
+    t0 = time.monotonic()
+    try:
+        return fn(*args)
+    finally:
+        legs[name] = time.monotonic() - t0
+
+
 @router.get("/api/research/estimates/{sym}")
 def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     """yfinance forward estimates + revisions. `?consensus=1` (the terminal's EE
@@ -282,9 +296,20 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
                                  "revisions": []}, sym, _EE_FUND_WHY)
 
     from api.services.research.estimates_consensus import get_consensus
+    # Slow-open trace (2026-10-06 boot contention): three opens of TSM EE hung 102 / 47 / 5 s
+    # and released within 7 ms of each other, and no log line said what they waited on. A
+    # slow answer now names its legs and whether the estimates key was already in flight.
+    t_start = time.monotonic()
+    est_key = f"research_est::{(sym or '').upper().strip()}"
+    try:
+        from api.services import single_flight as _sf
+        in_flight_at_entry = est_key in _sf.inflight_keys()
+    except Exception:                                    # noqa: BLE001 -- a trace never fails a read
+        in_flight_at_entry = None
+    legs: dict = {}
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ee-route") as ex:
-        f_yf = ex.submit(get_estimates, sym)
-        f_fmp = ex.submit(get_consensus, sym)
+        f_yf = ex.submit(_timed, legs, "yf", get_estimates, sym)
+        f_fmp = ex.submit(_timed, legs, "fmp", get_consensus, sym)
         try:
             out = dict(f_yf.result() or {})
         except Exception as exc:
@@ -299,6 +324,11 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
             _logger.warning("research consensus failed for %s: %s", sym, exc)
             out["consensus"] = {"sym": (sym or "").upper(), "state": "error",
                                 "annual": [], "quarterly": []}
+    total = time.monotonic() - t_start
+    if total >= _SLOW_EE_SECONDS:
+        _logger.warning("[ee-slow] %s %.1fs: yf %.1fs, fmp %.1fs, estimates key in flight at entry=%s",
+                        (sym or "").upper(), total, legs.get("yf", -1.0), legs.get("fmp", -1.0),
+                        in_flight_at_entry)
     # Which vendor stands behind each block, for the on-screen source line.
     out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
                       "consensus": "FMP"}
