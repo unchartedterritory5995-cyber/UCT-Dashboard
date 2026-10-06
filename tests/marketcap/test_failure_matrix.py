@@ -467,6 +467,8 @@ def test_retention_keeps_the_seed_runs_and_the_authoritys_run(root):  # noqa: F8
     f.execute()
     present = lambda rid: os.path.isdir(os.path.join(root["root"], "runs", rid, "data"))
     assert present("run-3") and present("run-2")                          # the last two successful runs (seeds)
+    p = P.read_pointer(root["t"])
+    assert p["previous"]["build_id"] == runs[2]["build_id"]               # the rollback target's run is kept too
     assert not present("run-0") and not present("run-1")                  # older successful runs: bulky files gone
     assert present("run-failed")                                          # the run doing the pruning keeps its own
     assert os.path.isdir(os.path.join(root["root"], "runs", "run-0"))     # ...but the run record itself stays
@@ -512,3 +514,23 @@ def test_history_gate_vs_the_current_authority(root, tmp_path, bump, ok):  # noq
     g = root["make"]("run-g")._history_gate(cand)
     assert g["pass"] is ok
     assert (g["value"]["factor2_moves"] == []) is ok
+
+
+def test_retention_never_drops_the_rollback_target_or_store_evidence(root):  # noqa: F811
+    policy(root, auto_advance=True, retain_successful_runs=1)
+    make = with_data(root)
+    out = []
+    for i in range(3):
+        root["state"]["px"] = f"r{i}".encode()
+        r = make(f"run-r{i}")
+        os.makedirs(r.data, exist_ok=True)
+        out.append(r.execute())
+    os.makedirs(os.path.join(root["root"], "prices", "versions", "PRICE-CORRECTION-x"), exist_ok=True)
+    open(os.path.join(root["root"], "prices", "versions", "PRICE-CORRECTION-x", "manifest.json"), "w").write("{}")
+    root["state"]["px"] = b"r-last"
+    make("run-r3").execute()
+    present = lambda rid: os.path.isdir(os.path.join(root["root"], "runs", rid, "data"))
+    cur = P.read_pointer(root["t"])
+    by_build = {o["build_id"]: o["run_id"] for o in out}
+    assert present(by_build.get(cur["previous"]["build_id"], "run-r3")) or cur["previous"]["build_id"] not in by_build
+    assert os.path.exists(os.path.join(root["root"], "prices", "versions", "PRICE-CORRECTION-x", "manifest.json"))

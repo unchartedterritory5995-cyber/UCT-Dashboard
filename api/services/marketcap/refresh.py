@@ -637,8 +637,9 @@ class Refresh:
             cur = P.read_pointer(self.cfg.target())
         except Exception:  # noqa: BLE001 -- unreadable authority: keep everything
             return {"removed_runs": [], "removed_cache": [], "skipped": "authority unreadable"}
-        if cur:
-            keep |= {r for r, _s, b in rows if b == cur["build_id"]}
+        if cur:                             # the authority's run AND its rollback target's (pointer.previous)
+            keep_b = {cur["build_id"]} | ({(cur.get("previous") or {}).get("build_id")} - {None})
+            keep |= {r for r, _s, b in rows if b in keep_b}
         runs_dir = os.path.join(self.root, "runs")
         removed = []
         for rid in sorted(os.listdir(runs_dir)) if os.path.isdir(runs_dir) else []:
