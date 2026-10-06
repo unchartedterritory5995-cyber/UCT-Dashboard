@@ -1,0 +1,559 @@
+{
+  "_": "P1 shared fixture: outputType.js::treeOutputType per tree. The server derives the same type from its own authorities (scan_definition.is_boolean_tree + ast_interpret.unresolved_scalars) in tests/test_p1_truth_core.py — neither lane takes a type from the other or from a client.",
+  "cases": [
+    {
+      "source": "close",
+      "ast": {
+        "type": "series",
+        "name": "close"
+      },
+      "expect": {
+        "type": "series",
+        "yields": "num",
+        "scalars": []
+      }
+    },
+    {
+      "source": "sma(close, 20)",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      },
+      "expect": {
+        "type": "series",
+        "yields": "num",
+        "scalars": []
+      }
+    },
+    {
+      "source": "close > open",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "series",
+            "name": "open"
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "crossOver(close, sma(close, 10))",
+      "ast": {
+        "type": "call",
+        "name": "crossOver",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 10
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "(close > open)[1]",
+      "ast": {
+        "type": "offset",
+        "value": 1,
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "tf(close > open, 'W')",
+      "ast": {
+        "type": "tf",
+        "value": "W",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "close > open && volume > 1000000",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "volume"
+              },
+              {
+                "type": "num",
+                "value": 1000000
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "!(close > open)",
+      "ast": {
+        "type": "op",
+        "name": "!",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "close > open ? 1 : 0",
+      "ast": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "close > open ? close : open",
+      "ast": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "series",
+            "name": "open"
+          }
+        ]
+      },
+      "expect": {
+        "type": "series",
+        "yields": "num",
+        "scalars": []
+      }
+    },
+    {
+      "source": "1",
+      "ast": {
+        "type": "num",
+        "value": 1
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "0",
+      "ast": {
+        "type": "num",
+        "value": 0
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "2",
+      "ast": {
+        "type": "num",
+        "value": 2
+      },
+      "expect": {
+        "type": "series",
+        "yields": "num",
+        "scalars": []
+      }
+    },
+    {
+      "source": "rising(close, 3)",
+      "ast": {
+        "type": "call",
+        "name": "rising",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "market_cap",
+      "ast": {
+        "type": "series",
+        "name": "market_cap"
+      },
+      "expect": {
+        "type": "scalar",
+        "yields": "num",
+        "scalars": [
+          "market_cap"
+        ]
+      }
+    },
+    {
+      "source": "market_cap > 1e9",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "market_cap"
+          },
+          {
+            "type": "num",
+            "value": 1000000000
+          }
+        ]
+      },
+      "expect": {
+        "type": "scalar",
+        "yields": "bool",
+        "scalars": [
+          "market_cap"
+        ]
+      }
+    },
+    {
+      "source": "is_etf",
+      "ast": {
+        "type": "series",
+        "name": "is_etf"
+      },
+      "expect": {
+        "type": "scalar",
+        "yields": "bool",
+        "scalars": [
+          "is_etf"
+        ]
+      }
+    },
+    {
+      "source": "close > 10 && rs_rank > 80",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 80
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "type": "scalar",
+        "yields": "bool",
+        "scalars": [
+          "rs_rank"
+        ]
+      }
+    },
+    {
+      "source": "sma(market_cap, 5)",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "market_cap"
+          },
+          {
+            "type": "num",
+            "value": 5
+          }
+        ]
+      },
+      "expect": {
+        "type": "scalar",
+        "yields": "num",
+        "scalars": [
+          "market_cap"
+        ]
+      }
+    },
+    {
+      "source": "sym('SPY', close)",
+      "ast": {
+        "type": "sym",
+        "value": "SPY",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      },
+      "expect": {
+        "type": "series",
+        "yields": "num",
+        "scalars": []
+      }
+    },
+    {
+      "source": "close / sym('SPY', close) > 1",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "sym",
+                "value": "SPY",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1
+          }
+        ]
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    },
+    {
+      "source": "nz(close, 0)",
+      "ast": {
+        "type": "call",
+        "name": "nz",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      },
+      "expect": {
+        "type": "series",
+        "yields": "num",
+        "scalars": []
+      }
+    },
+    {
+      "source": "isintraday",
+      "ast": {
+        "type": "series",
+        "name": "isintraday"
+      },
+      "expect": {
+        "type": "condition",
+        "yields": "bool",
+        "scalars": []
+      }
+    }
+  ]
+}

@@ -586,6 +586,30 @@ export function foldNotesOf(table) {
 
 export const FOLD_NOTES = Object.freeze(foldNotesOf(TABLE))
 
+/** ⭐ P0 gate (pineack) — the HEADING a fold note is printed under. A note's
+ *  `name` is its channel KEY (`htfLookaheadOffStepBacks`), an internal
+ *  identifier the import box used to print verbatim above the sentence. The
+ *  label is declared beside the sentence (`_folds.<channel>.memberLabel`) and
+ *  read ONLY by renderers — `foldNotesForOutput`'s `{name, note}` shape (which
+ *  `memberPaneDefinition` persists as `meta.disclosures`) is unchanged. */
+export function foldLabelsOf(table) {
+  const out = {}
+  for (const [channel, spec] of Object.entries((table && table._folds) || {})) {
+    if (spec && typeof spec === 'object' && typeof spec.memberLabel === 'string' && spec.memberLabel.trim()) {
+      out[channel] = spec.memberLabel
+    }
+  }
+  return out
+}
+
+export const FOLD_LABELS = Object.freeze(foldLabelsOf(TABLE))
+
+/** The heading a rendered note is printed under: its fold's declared label,
+ *  else its own name (a function name such as `ta.rsi` is already readable). */
+export function noteHeading(name, labels = FOLD_LABELS) {
+  return (typeof name === 'string' && Object.prototype.hasOwnProperty.call(labels, name)) ? labels[name] : name
+}
+
 /** Every fold disclosure an OUTPUT ROW carries, in the shape `vendorNotesForTree`
  *  returns, so the renderer has one list and one spelling.
  *

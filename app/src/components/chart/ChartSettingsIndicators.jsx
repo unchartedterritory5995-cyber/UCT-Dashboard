@@ -47,7 +47,7 @@
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys,
 } from './indicatorRegistry'
@@ -56,6 +56,8 @@ import {
 // is there room for two columns. A `matchMedia` of its own here would be a
 // second breakpoint authority beside `useMediaQuery`.
 import useMediaQuery from '../../hooks/useMediaQuery'
+import { useCreateIndicatorFlag } from './builder/studio/createIndicatorFlag'
+import { AuthContext } from '../../context/AuthContext'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
@@ -289,6 +291,10 @@ export default function ChartSettingsIndicators({
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
   // New Formula action rather than a button that opens nothing.
   onCreateFormula = null,
+  // ⭐ P2 Track B — "+ Create Indicator" (UCT Intelligence). Same absent-prop ⇒
+  // absent-door rule, and additionally DARK behind `useCreateIndicatorFlag`
+  // (default off): with the flag off this surface is byte-identical to before.
+  onCreateIndicator = null,
   // ⭐ THE TIMEFRAME THE CHART IS ON, when the host knows it. Only ever used to SAY
   // something (a calculation timeframe that cannot draw on this chart, a Custom
   // visibility seeded from where the member is) — never to decide what is stored.
@@ -305,6 +311,12 @@ export default function ChartSettingsIndicators({
   // with the caret in search, rather than on the structure list.
   openAdd = false,
 }) {
+  // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
+  // AND the server-provided admin role. A member flipping localStorage from
+  // DevTools still sees exactly the old "+ New Formula".
+  const createIndicatorOn = useCreateIndicatorFlag()
+  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  const showCreateIndicator = !!(createIndicatorOn && isAdmin && onCreateIndicator)
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
@@ -3204,7 +3216,19 @@ export default function ChartSettingsIndicators({
             surface — search is the primary one — so it gets an outline and real
             ink and stops there. Filling it would put the loudest object on the
             panel next to the thing it must not outrank. */}
-        {onCreateFormula && (
+        {showCreateIndicator && (
+          <button
+            type="button"
+            className={styles.insNewFormula}
+            data-testid="settings-create-indicator"
+            onClick={() => onCreateIndicator()}
+            title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
+          >
+            <span className={styles.insNewFormulaPlus} aria-hidden="true">＋</span>
+            Create Indicator
+          </button>
+        )}
+        {onCreateFormula && !showCreateIndicator && (
           <button
             type="button"
             className={styles.insNewFormula}

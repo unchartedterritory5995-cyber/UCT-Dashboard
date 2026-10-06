@@ -130,12 +130,104 @@ export function otherSymbolRequestsOf(def) {
   return [...tickers].sort().map((ticker) => ({ ticker, spellings: recorded.get(ticker) || [] }))
 }
 
+// ─── ⭐⭐ P0 — A FORMULA THE MEMBER TYPED NAMES OUR STORE'S TICKER ──────────────
+//
+// Everything above is about a PINE spelling: which instrument TradingView means
+// by `"AMEX:SPY"` or bare `"SPY"`, which is a fact about two outside worlds. A
+// `sym('SPY', close)` a member typed in the FORMULA language has no such
+// question — the grammar's `sym` names our bar store's ticker (`parse.js::
+// TICKER_SHAPE`), the same key a `sym:` source, the bars route and the scan
+// lane's benchmark roster use. So a document that is not a Pine translation is
+// served exactly when that listing's bars for THIS chart's timeframe are in
+// hand, and refused BY NAME otherwise — never left to starve.
+//
+// ⚰️ BEFORE (audit B/C, reproduced 2026-10-05 on a92b96de2): such a document
+// saved, installed and computed ALL-NaN with no report — `otherSymbolsFor`
+// returned null unless the document was a Pine translation, and
+// `fetchableOtherSymbols` returned [] unless it carried the Pine spelling table,
+// so the chart never even fetched SPY. The scan door's own refusal told members
+// "charting against any symbol still works on the Formula tab"; it did not.
+
+/** The declaration a Pine translation carries (`nativeRegistry.
+ *  PINE_RECURRENCE_ORIGIN`; spelled here as `listingDeepen.js` does, because
+ *  that module imports this one). */
+const PINE_ORIGIN = 'pine'
+
+/** Is this document a Pine translation (the member door's spelling rules apply)? */
+export function isPineOriginDoc(def) {
+  return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_ORIGIN)
+}
+
+/** ⭐ P0 — the store tickers a FORMULA document (not a Pine translation) reads.
+ *  [] for a Pine document: its tickers are decided by its spellings above. */
+export function formulaOtherSymbols(def) {
+  if (!def || isPineOriginDoc(def)) return []
+  return [...new Set(symTickersOf(def).filter((t) => !BARE_AMBIGUOUS.has(t)).map(storeTickerOf))].sort()
+}
+
+/** Is a refusal row a bind that is still WAITING for its bars (the secondary
+ *  fetch has not answered yet) rather than a settled "no"? A surface says
+ *  nothing about a pending read; it names every other refusal. */
+export function otherSymbolPending(row) {
+  return !!(row && row.pending === true)
+}
+
+/**
+ * ⭐ P0 — decide, for ONE binding, which of a FORMULA document's other symbols
+ * are served. Same return shape and refusal codes as `resolveOtherSymbols`.
+ *
+ * @param {object} def  an installed definition that is not a Pine translation
+ * @param {object} ctx  `secondary` (Map storeTicker → `{bars, status}`), `framed`
+ */
+export function resolveFormulaSymbols(def, ctx = {}) {
+  const symbols = {}
+  const served = []
+  const refused = []
+  const secondary = ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null
+  for (const ticker of symTickersOf(def)) {
+    if (ctx.framed === true) {
+      refused.push({ ticker, code: OTHER_SYMBOL_REFUSAL.FRAMED, reason: `This indicator reads \`${ticker}\` `
+        + "on the chart's own timeframe, and it computes on a different calculation timeframe, so its "
+        + `\`sym('${ticker}', …)\` is not computed here` })
+      continue
+    }
+    // ⛔ A SPELLING THAT ALSO NAMES A MARKET INDEX OR COMMODITY ELSEWHERE
+    // (`BARE_AMBIGUOUS`). The Builder sheet's Pine tab saves a translated script
+    // as an ordinary formula and keeps no record that it was Pine (audit C-levels
+    // finding 2), so `sym('ADVN', …)` here may be a TradingView `"ADVN"` — NYSE
+    // breadth — and our store's listing under those letters would be the wrong
+    // instrument under the right name. Refused by name, never fetched.
+    if (BARE_AMBIGUOUS.has(ticker)) {
+      refused.push({ ticker, code: OTHER_SYMBOL_REFUSAL.BARE, reason: `This indicator reads \`${ticker}\`, `
+        + 'a spelling that also names a market index or commodity outside our bar store, so which instrument '
+        + 'it means cannot be settled here; it is not computed' })
+      continue
+    }
+    const key = storeTickerOf(ticker)
+    const entry = secondary ? secondary.get(key) : null
+    const bars = entry && Array.isArray(entry.bars) ? entry.bars : null
+    if (!bars || !bars.length) {
+      const status = entry && entry.status ? String(entry.status) : ''
+      const pending = !entry || status === 'loading'
+      refused.push({ ticker, code: OTHER_SYMBOL_REFUSAL.NO_BARS, pending,
+        reason: `This indicator reads \`${ticker}\` (\`sym('${ticker}', …)\`), and \`${key}\`'s bars for this `
+          + `timeframe are not in hand${status ? ` (${status})` : ''}, so every value that reads it is left blank` })
+      continue
+    }
+    symbols[ticker] = bars
+    served.push(ticker)
+  }
+  return { symbols, served, refused }
+}
+
 /** The tickers worth FETCHING for a document: those whose every recorded
  *  spelling could be served (a witnessed exchange, or the chart's own prefix) —
  *  so a chart never asks the bars route for `EURUSD` or `"SPY"` spelled bare,
  *  which the bind would refuse whatever arrived. Everything else is still
  *  decided (and named) by `resolveOtherSymbols`; this only saves the request. */
 export function fetchableOtherSymbols(def) {
+  // ⭐ P0 — a formula document reads our store's tickers: every one is fetched.
+  if (def && !isPineOriginDoc(def)) return formulaOtherSymbols(def)
   if (!def || !def.meta || !Array.isArray(def.meta.otherSymbols)) return []
   const out = []
   for (const { ticker, spellings } of otherSymbolRequestsOf(def)) {

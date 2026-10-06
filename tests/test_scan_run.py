@@ -62,6 +62,11 @@ DAVE_DEF_ID = "u_00000000000d"
 TREE = _op(">", _series("close"), _num(100))
 DEFINITION = _definition(TREE, def_id=DEF_ID)
 DEF_HASH = DEFINITION["compute"]["fn"]
+#: ⭐ OWNER DECISION A (2026-10-06): a definition SAVED through the store is a NEW
+#: native save, so P0 stamps it `meta.semantics: 2`, and every result of it is
+#: filed under the RESULT identity — the tree hash + `~s2`. `DEF_HASH` (the bare
+#: tree hash) is still the identity of the unsaved, semantics-1 `DEFINITION`.
+STORED_HASH = user_definitions.semantic_identity(DEF_HASH, 2)
 
 
 @pytest.fixture
@@ -535,7 +540,7 @@ def test_a_run_ANSWERS_with_the_sweeps_hash_hit_rows_and_a_CLOSED_receipt(store,
     from api.services.screener import scan_run
     out = _run(ALICE, DEF_ID, symbols=["NVDA", "INTC", "NOBARS"], tf=TF, as_of=SESSION)
     assert out["state"] == "done", out
-    assert out["def_hash"] == DEF_HASH
+    assert out["def_hash"] == STORED_HASH   # the stored, semantics-2 document
     assert out["def_id"] == DEF_ID and out["tier"] == scan_run.TIER == "on-demand"
     assert out["as_of"] == SESSION and out["tf"] == TF
     assert out["hits"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
@@ -555,8 +560,10 @@ def test_a_run_WRITES_NOTHING__the_rail(store, bars, defs, monkeypatch):
     # a write would have raised inside the worker and the job would read `refused`
     assert out["state"] == "done", out
     assert [h["symbol"] for h in out["hits"]] == ["NVDA"]
-    assert scan_store.coverage(DEF_HASH, TF, SESSION) is None
-    assert scan_store.hits(DEF_HASH, TF, SESSION) == []
+    # under EITHER identity — the run's own (`STORED_HASH`) and the bare one
+    for handle in (STORED_HASH, DEF_HASH):
+        assert scan_store.coverage(handle, TF, SESSION) is None
+        assert scan_store.hits(handle, TF, SESSION) == []
 
 
 def test_status_while_QUEUED_names_the_universe_and_position_but_NO_hash_yet(slow_worker):
@@ -1113,7 +1120,7 @@ def test_a_paid_member_gets_a_JOB_202_and_POLLS_it_to_the_CONTRACTS_shape(store,
     body = _poll(ALICE_USER, handed["job"])
     assert body["state"] == "done", body
     assert set(body) >= {"state", "def_hash", "as_of", "tier", "hits", "coverage"}
-    assert body["def_hash"] == DEF_HASH and body["tier"] == "on-demand"
+    assert body["def_hash"] == STORED_HASH and body["tier"] == "on-demand"
     assert body["as_of"] == SESSION and body["tf"] == TF
     assert body["hits"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
     cov = body["coverage"]
