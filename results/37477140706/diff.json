@@ -1,0 +1,60 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 3,
+    "fixed": 6,
+    "unchanged": 182,
+    "missing": 0,
+    "baseline": 188,
+    "current": 187,
+    "current_ran": 38394,
+    "new_flaky": 2,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 188 = unchanged 182 + fixed 6 + missing 0  |  current 187 = unchanged 182 + new 3 + new-but-flaky 2",
+  "invalid_because": [
+    "current: shards_success 18 of 19"
+  ],
+  "baseline_run_id": "37418135817",
+  "current_run_id": "37477140706",
+  "baseline_sha": "c6befe49cfa7e321ee3af7fa137037e528957019",
+  "current_sha": "8594b9313b1efd9277c352e36c35620b8a922e89",
+  "commit_range": "c6befe49cfa7e321ee3af7fa137037e528957019..8594b9313b1efd9277c352e36c35620b8a922e89",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_breadth_compat_index|test_dropping_it_is_explicit_and_then_a_second_universe_fits",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
