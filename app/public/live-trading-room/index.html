@@ -2,7 +2,8 @@
 <!-- Public, server-served landing page for the Uncharted Territory live trading room.
      Served as STATIC HTML by api/main.py (`live_trading_room_response`), NOT by the
      React SPA, so crawlers and link unfurlers read the real title, copy, OG tags and
-     JSON-LD without running any JavaScript. The only script is a small progressive
+     JSON-LD without running any JavaScript. Besides the Whop Pixel (async, in the
+     head), the only script is a small progressive
      enhancement for the "Talk to the team first" form: without it the form still
      opens (a details element) and posts natively, and the server redirects back to
      #call-sent or #call-error, which CSS :target shows.
@@ -245,6 +246,10 @@
     .gallery { display: grid; gap: 16px; margin-top: 22px; }
     @media (min-width: 900px) { .gallery { grid-template-columns: 1fr 1fr; } }
     .gallery .figure { margin: 0; }
+    /* The room images carry a drawn "See the room" button, so the whole image is the
+       same tracked Whop link the Join buttons use: a tap on it does something. */
+    .figure-link { display: block; border-radius: var(--radius); }
+    .figure-link:focus-visible { outline: 3px solid var(--text-bright); outline-offset: 3px; }
 
     .offer {
       margin-top: 56px; padding: 28px 22px; text-align: center;
@@ -253,6 +258,7 @@
     }
     .offer h2 { margin-bottom: 10px; }
     .offer p { margin: 0 auto 20px; max-width: 52ch; font-size: 18px; color: var(--text-bright); }
+    .offer .offer-deadline { margin-top: -8px; font-size: 16px; color: var(--gold); }
 
     .reviews { display: grid; gap: 12px; margin: 0; }
     @media (min-width: 760px) { .reviews { grid-template-columns: 1fr 1fr; } }
@@ -342,6 +348,14 @@
     }
     @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
   </style>
+  <!-- Whop Pixel (https://docs.whop.com/developer/ads/pixel), scoped to the
+       Uncharted Territory Whop company. The loader inserts t.whop.tw/s.js with
+       async=1, so it never blocks rendering. This page sends no CSP header. -->
+  <script>
+  !function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");
+  whop.setScope("biz_VFkuhplWXekHZf");
+  whop.track("page");
+  </script>
 </head>
 <body>
   <header class="wrap top">
@@ -408,11 +422,11 @@
       <p class="talk-msg err talk-target" id="call-unavailable" role="alert">Sorry, we could not send your request just now. Please try again later.</p>
       <p class="rating"><span class="stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>4.9 stars from 173 member reviews on Whop.</p>
       <div class="figure">
-        <img src="/live-trading-room/room-traders-1600.webp"
+        <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-traders-1600.webp"
              srcset="/live-trading-room/room-traders-800.webp 800w, /live-trading-room/room-traders-1600.webp 1600w"
              sizes="(max-width: 1120px) calc(100vw - 32px), 1080px"
              width="1600" height="800" fetchpriority="high"
-             alt="The people in the room: ChartMaster (swing ideas and workshops), Manrav (trade ideas and alerts), co-founders TSDR and Bracco, Jersace (trade ideas and alerts) and Alex Jones (options flow plus a team of three)." />
+             alt="The people in the room: ChartMaster (swing ideas and workshops), Manrav (trade ideas and alerts), co-founders TSDR and Bracco, Jersace (trade ideas and alerts) and Alex Jones (options flow plus a team of three). See the room on Whop." /></a>
       </div>
     </div>
 
@@ -440,11 +454,11 @@
       </ul>
       <p class="note">Every trader, contributor and member is helpful, easy to reach, and happy to teach.</p>
       <div class="figure">
-        <img src="/live-trading-room/room-discord-1600.webp"
+        <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-discord-1600.webp"
              srcset="/live-trading-room/room-discord-800.webp 800w, /live-trading-room/room-discord-1600.webp 1600w"
              sizes="(max-width: 1120px) calc(100vw - 32px), 1080px"
              width="1600" height="800" loading="lazy" decoding="async"
-             alt="Illustration of the Uncharted Territory Discord: zoom-links, main-chat, a channel for each trader, options-flow, workshops and sunday-scans." />
+             alt="Illustration of the Uncharted Territory Discord: zoom-links, main-chat, a channel for each trader, options-flow, workshops and sunday-scans. See the room on Whop." /></a>
       </div>
     </section>
 
@@ -463,18 +477,18 @@
       </ul>
       <div class="gallery">
         <div class="figure">
-          <img src="/live-trading-room/room-chartmaster-1600.webp"
+          <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-chartmaster-1600.webp"
                srcset="/live-trading-room/room-chartmaster-800.webp 800w, /live-trading-room/room-chartmaster-1600.webp 1600w"
                sizes="(max-width: 899px) calc(100vw - 32px), 520px"
                width="1600" height="800" loading="lazy" decoding="async"
-               alt="Learn the craft with ChartMaster: swing trade ideas, educational workshops, and always easy to reach with questions." />
+               alt="Learn the craft with ChartMaster: swing trade ideas, educational workshops, and always easy to reach with questions. See the room on Whop." /></a>
         </div>
         <div class="figure">
-          <img src="/live-trading-room/room-welcome-1600.webp"
+          <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-welcome-1600.webp"
                srcset="/live-trading-room/room-welcome-800.webp 800w, /live-trading-room/room-welcome-1600.webp 1600w"
                sizes="(max-width: 899px) calc(100vw - 32px), 520px"
                width="1600" height="800" loading="lazy" decoding="async"
-               alt="Welcome to the room: a free 1-on-1 onboarding call, pick the traders you click with, and ask anything in main-chat." />
+               alt="Welcome to the room: a free 1-on-1 onboarding call, pick the traders you click with, and ask anything in main-chat. See the room on Whop." /></a>
         </div>
       </div>
     </section>
@@ -482,6 +496,9 @@
     <div class="offer">
       <h2>Join the room</h2>
       <p>Use code <span class="code">JOINUCT</span> for a nice discount to join the group.</p>
+      <!-- NOV1-REMOVE: October offer deadline. Delete this whole comment-to-comment block on Nov 1. -->
+      <p class="offer-deadline">The October offer ends Oct 31, and the price goes up for new members on Nov 1.</p>
+      <!-- /NOV1-REMOVE -->
       <a class="btn" href="https://whop.com/c/uncharted/uct-site" rel="noopener">Join the live trading room <span aria-hidden="true">&rarr;</span></a>
       <br />
       <a class="talk-link" href="#talk" data-talk-open>Not sure yet? Talk to the team first</a>
@@ -498,11 +515,11 @@
         <figure class="review"><blockquote>&ldquo;A distinguished and unique community.&rdquo;</blockquote><figcaption><strong>MBA</strong>, Whop review</figcaption></figure>
       </div>
       <div class="figure">
-        <img src="/live-trading-room/room-reviews-1600.webp"
+        <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-reviews-1600.webp"
              srcset="/live-trading-room/room-reviews-800.webp 800w, /live-trading-room/room-reviews-1600.webp 1600w"
              sizes="(max-width: 1120px) calc(100vw - 32px), 1080px"
              width="1600" height="800" loading="lazy" decoding="async"
-             alt="Member reviews from Whop, rated 4.9 stars from 173 reviews." />
+             alt="Member reviews from Whop, rated 4.9 stars from 173 reviews. See the room on Whop." /></a>
       </div>
     </section>
 
@@ -546,6 +563,9 @@
     <div class="offer">
       <h2>See the room for yourself</h2>
       <p>Use code <span class="code">JOINUCT</span> for a nice discount to join the group.</p>
+      <!-- NOV1-REMOVE: October offer deadline. Delete this whole comment-to-comment block on Nov 1. -->
+      <p class="offer-deadline">The October offer ends Oct 31, and the price goes up for new members on Nov 1.</p>
+      <!-- /NOV1-REMOVE -->
       <a class="btn" href="https://whop.com/c/uncharted/uct-site" rel="noopener">See the room <span aria-hidden="true">&rarr;</span></a>
       <br />
       <a class="talk-link" href="#talk" data-talk-open>Not sure yet? Talk to the team first</a>

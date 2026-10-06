@@ -663,3 +663,57 @@ def test_v4_page_has_no_em_dash_and_no_dollar_sign():
     assert "\u2014" not in html and "&mdash;" not in html and "&#8212;" not in html, "an em dash appeared"
     assert "$" not in html, "a dollar sign appeared on the page"
     assert "\ufffd" not in html
+
+# -- 2026-10-05 owner-approved fixes: deadline, tappable images, pixel, contact --
+
+OCT_DEADLINE = "The October offer ends Oct 31, and the price goes up for new members on Nov 1."
+WHOP_BIZ = "biz_VFkuhplWXekHZf"
+CONTACT_EMAIL = "contact@uctintelligence.com"
+
+
+def test_both_offer_blocks_carry_the_october_deadline_inside_a_nov1_remove_block():
+    html = PAGE.read_text(encoding="utf-8")
+    offers = re.findall(r'<div class="offer">(.*?)</div>', html, flags=re.S)
+    assert len(offers) == 2, len(offers)
+    for block in offers:
+        m = re.search(r"<!-- NOV1-REMOVE:.*?-->(.*?)<!-- /NOV1-REMOVE -->", block, flags=re.S)
+        assert m, "the deadline is not inside a NOV1-REMOVE marker block"
+        assert OCT_DEADLINE in _norm(m.group(1))
+    assert html.count(OCT_DEADLINE) == 2
+    assert html.count("<!-- NOV1-REMOVE:") == 2 and html.count("<!-- /NOV1-REMOVE -->") == 2
+
+
+def test_every_room_image_with_a_drawn_button_is_the_whop_link():
+    html = PAGE.read_text(encoding="utf-8")
+    imgs = re.findall(r'<img src="/live-trading-room/(room-[a-z]+)-1600\.webp"', html)
+    assert sorted(imgs) == ["room-chartmaster", "room-discord", "room-reviews", "room-traders", "room-welcome"]
+    links = re.findall(r'<a class="figure-link" href="([^"]+)"[^>]*>\s*<img src="/live-trading-room/(room-[a-z]+)-1600\.webp".*?alt="([^"]+)"\s*/>\s*</a>',
+                       html, flags=re.S)
+    assert sorted(n for _, n, _ in links) == sorted(imgs), links
+    for href, name, alt in links:
+        assert href == WHOP, (name, href)
+        assert alt.endswith("See the room on Whop."), (name, alt)
+
+
+def _pixel_ok(page: Path):
+    p = _parsed(page)
+    inline = [body for a, body in p.scripts if not a.get("src") and "t.whop.tw" in body]
+    assert len(inline) == 1, f"Whop Pixel missing or duplicated on {page.name}"
+    body = inline[0]
+    assert "b.async=1" in body and 'u+"/s.js"' in body
+    assert f'whop.setScope("{WHOP_BIZ}")' in body and 'whop.track("page")' in body
+    html = page.read_text(encoding="utf-8")
+    assert html.index("t.whop.tw") < html.index("</head>"), "the pixel belongs in the head"
+
+
+def test_the_whop_pixel_is_on_the_room_terms_and_privacy_pages():
+    for page in (PAGE, TERMS_PAGE, PRIVACY_PAGE):
+        _pixel_ok(page)
+
+
+def test_terms_and_privacy_carry_the_business_name_and_the_contact_address():
+    for page in (TERMS_PAGE, PRIVACY_PAGE):
+        html = page.read_text(encoding="utf-8")
+        text = _visible_text(html)
+        assert f"Uncharted Territory. Questions or data requests: {CONTACT_EMAIL}" in text, page.name
+        assert f'href="mailto:{CONTACT_EMAIL}"' in html, page.name
