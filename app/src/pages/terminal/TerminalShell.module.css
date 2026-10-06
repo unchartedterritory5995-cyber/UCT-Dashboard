@@ -50,7 +50,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-width: 0;
-  gap: 2px;
+  gap: var(--space-xs);
 }
 
 .echo {
@@ -94,7 +94,7 @@
 
 .helpTable td,
 .helpTable th {
-  padding: 2px var(--space-sm) 2px 0;
+  padding: var(--space-xs) var(--space-sm) var(--space-xs) 0;
   text-align: left;
   vertical-align: top;
 }
@@ -397,6 +397,11 @@
   min-width: 0;
 }
 
+/* A link group's dot. `--dot` is the group's STORED colour (the /charts group hexes, pinned
+   equal by boardModel.test.js), so it is never rewritten — only drawn readably: the ring is the
+   stored colour, a hairline in the text colour sits outside it so a pale yellow or green still
+   has an edge on a light theme, and the letter is the stored colour pulled toward the text
+   colour (lighter on dark themes, darker on light ones). */
 .groupDot {
   display: inline-flex;
   align-items: center;
@@ -407,7 +412,8 @@
   border: 2px solid var(--dot, var(--border));
   border-radius: 50%;
   background: transparent;
-  color: var(--dot, var(--text-muted));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+  color: color-mix(in srgb, var(--dot, var(--text-muted)) 62%, var(--text));
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
@@ -424,7 +430,8 @@
   flex: 0 0 auto;
   border: 2px dashed var(--dot, var(--border));
   border-radius: 50%;
-  color: var(--dot, var(--text-muted));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+  color: color-mix(in srgb, var(--dot, var(--text-muted)) 62%, var(--text));
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
@@ -434,7 +441,7 @@
 .panelActions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-xs);
   flex: 0 0 auto;
 }
 
@@ -510,7 +517,7 @@
 .menuList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-xs);
   margin: 0;
   padding: 0;
   list-style: none;

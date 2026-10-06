@@ -13,7 +13,7 @@
 .clock {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   font-family: var(--font-mono);
   flex: 0 0 auto;
 }
@@ -57,8 +57,8 @@
 .chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px var(--space-xs);
+  gap: var(--space-xs);
+  padding: 0 var(--space-xs);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
@@ -70,6 +70,17 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   letter-spacing: 0.06em;
+}
+
+/* The active group's colour. Stored colours are the /charts group hexes (pale yellow and green
+   among them); a ring in the text colour keeps the dot visible on a light theme. */
+.groupSwatch {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--dot, var(--text-muted));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 35%, transparent);
 }
 
 .chipValue {
@@ -99,21 +110,21 @@
  * label, chip label text) via `isPhone` — matching the same
  * hide/abbreviate idiom the rest of TerminalShell's `.bar` uses. */
 .strip[data-phone='true'] {
-  gap: 4px;
+  gap: var(--space-xs);
 }
 .strip[data-phone='true'] .chip {
-  padding: 1px 4px;
-  gap: 2px;
+  padding: 0 var(--space-xs);
 }
 .strip[data-phone='true'] .chipLabel {
-  font-size: 9px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
 }
 
 /* A stale exposure reading (wire_status === 'stale'): dimmed and dated, like MarketBreadth's
  * wire stamp, so yesterday's number never reads as today's. */
 .regimeStale {
-  opacity: 0.6;
   border-style: dashed;
+  background: var(--bg-surface);
 }
 .regimeStale .chipValue { color: var(--text-muted); }
 .chipAsOf {

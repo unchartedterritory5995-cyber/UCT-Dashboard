@@ -1,0 +1,5 @@
+/* GP — the chart fills its panel, and never collapses below a readable chart height. */
+.chartPanel {
+  height: 100%;
+  min-height: 320px;
+}

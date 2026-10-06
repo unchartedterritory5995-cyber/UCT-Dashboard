@@ -72,6 +72,7 @@ export default function L0Strip({ layout, isPhone }) {
   const wireStale = breadth?.wire_status === 'stale' && expScore != null
 
   const activeChannel = activeChannelOf(layout)
+  const activeGroup = (layout?.channels || []).find((c) => c.id === activeChannel) || null
 
   const time = now.toLocaleTimeString('en-US', {
     timeZone: 'America/New_York',
@@ -116,8 +117,14 @@ export default function L0Strip({ layout, isPhone }) {
         )}
       </div>
 
-      <div className={styles.chip} data-testid="l0-channel-chip" title="Active channel">
-        <span className={styles.chipLabel}>CH</span>
+      {/* The active link GROUP (the word the panel headers and the link menu use — "CH" read as
+          nothing). Its dot carries the group's own colour, ringed so a pale one still reads on a
+          light theme; the letter is what the panel-header dots show. */}
+      <div className={styles.chip} data-testid="l0-channel-chip" role="group"
+        aria-label={`Active link group: ${activeGroup?.name || `Group ${activeChannel}`}`}
+        title={`Active link group: ${activeGroup?.name || `Group ${activeChannel}`}. Panels linked to it follow its ticker.`}>
+        <span className={styles.chipLabel}>{isPhone ? 'GRP' : 'GROUP'}</span>
+        <span className={styles.groupSwatch} style={{ '--dot': activeGroup?.color }} aria-hidden="true" />
         <span className={styles.chipValue}>{activeChannel}</span>
       </div>
 

@@ -1112,6 +1112,31 @@ export default function TerminalShell() {
   const menuPanelId = channelMenu?.panelId
   const menuPanel = menuPanelId != null ? layout.panels.find((p) => p.id === menuPanelId) || null : null
   const activeId = activeChannelOf(layout)
+  // The notice line. It renders in the page flow under the bar — EXCEPT while a sheet is open:
+  // a Sheet is a modal portal over the page, so a notice raised from inside one (a board saved,
+  // a group retargeted from Recents) used to land underneath it, unseen. While a sheet is open
+  // the same notice renders at the top of that sheet instead. One element, one place at a time.
+  const noticeEl = notice ? (
+        <div className={`${styles.notice} ${notice.kind === 'error' ? styles.noticeError : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'} data-testid="terminal-notice">
+          <span>{notice.text}</span>
+          {notice.suggestions?.length > 0 && (
+            <span className={styles.noticeSuggest}>
+              Did you mean
+              {notice.suggestions.map((c) => (
+                <button key={c} type="button" className={styles.chip}
+                  onClick={() => { runTyped(notice.sym ? `${notice.sym} ${c}` : c); if (!isPhone) inputRef.current?.focus() }}>{c}</button>
+              ))}
+            </span>
+          )}
+          {notice.actions?.map((a) => (
+            <button key={a.id} type="button" className={styles.chip} onClick={() => noticeAction(a)}
+              data-testid={`terminal-notice-${a.id}`}>{a.label}</button>
+          ))}
+          <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">
+            <UIcon name="x" size={14} gold={false} />
+          </button>
+        </div>
+  ) : null
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
       data-testid="terminal-shell">
@@ -1180,6 +1205,16 @@ export default function TerminalShell() {
               >{panelCommandText(p, syms) || p.code}</button>
             ))}
           </div>
+          {/* The phone's own way back from a close. The bar's "Undo close" is desktop-only (no room
+              beside the command line), and the close notice's Undo is gone once that notice is
+              dismissed or replaced — so while anything is on the undo stack, the panel switcher
+              carries it, as a short button on the 44px floor. */}
+          {layout.closed.length > 0 && (
+            <button type="button" className={styles.barBtn} onClick={onUndoClose}
+              data-testid="terminal-phone-undo-close"
+              aria-label={`Undo close: re-open ${layout.closed[0].panel.code}`}
+              title={`Re-open ${layout.closed[0].panel.code}`}>Undo</button>
+          )}
           <div className={styles.counts} role="group" aria-label="Panels">
             {PANEL_COUNTS.map((n) => (
               <button
@@ -1211,27 +1246,7 @@ export default function TerminalShell() {
           )}
         </div>
       )}
-      {notice && (
-        <div className={`${styles.notice} ${notice.kind === 'error' ? styles.noticeError : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'} data-testid="terminal-notice">
-          <span>{notice.text}</span>
-          {notice.suggestions?.length > 0 && (
-            <span className={styles.noticeSuggest}>
-              Did you mean
-              {notice.suggestions.map((c) => (
-                <button key={c} type="button" className={styles.chip}
-                  onClick={() => { runTyped(notice.sym ? `${notice.sym} ${c}` : c); if (!isPhone) inputRef.current?.focus() }}>{c}</button>
-              ))}
-            </span>
-          )}
-          {notice.actions?.map((a) => (
-            <button key={a.id} type="button" className={styles.chip} onClick={() => noticeAction(a)}
-              data-testid={`terminal-notice-${a.id}`}>{a.label}</button>
-          ))}
-          <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">
-            <UIcon name="x" size={14} gold={false} />
-          </button>
-        </div>
-      )}
+      {!sheet && noticeEl}
       <div className={styles.body}>
         {!isPhone && (
           <nav className={styles.rail} aria-label="Terminal functions">
@@ -1300,13 +1315,15 @@ export default function TerminalShell() {
             onClick: () => pickChannel(menuPanelId, c.id),
           })),
           { key: 'new', label: 'New group', icon: <UIcon name="plus" size={12} gold={false} />, onClick: () => newChannel(menuPanelId) },
-          { key: 'none', label: 'Not linked (keep this security)', icon: '·', onClick: () => pickChannel(menuPanelId, null) },
+          { key: 'none', label: 'Not linked (keep this security)', icon: <UIcon name="pin" size={12} gold={false} />, onClick: () => pickChannel(menuPanelId, null) },
         ] : []}
       />
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
+        {noticeEl}
         <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} auth={auth} />
       </Sheet>
       <Sheet open={sheet === 'boards'} onClose={() => { setSheet(null); setBoardsOpenToVersions(false) }} title="Boards">
+        {noticeEl}
         <BoardsMenu
           library={library}
           libraryWritable={libraryWritable}
@@ -1325,6 +1342,7 @@ export default function TerminalShell() {
         />
       </Sheet>
       <Sheet open={sheet === 'recents'} onClose={() => setSheet(null)} title="Recents">
+        {noticeEl}
         <RecentsMenu
           layout={layout}
           library={library}
