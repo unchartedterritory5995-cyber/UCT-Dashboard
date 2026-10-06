@@ -62,7 +62,7 @@ METHODOLOGY_FILES = {
     "acceptance.py": "8411a2c43cbf880d2c4a94261a550be0d0fe4fd0b0b75b04af10e26fd47e5009",
     "inputs.py": "fef130d963125832fa643b89c7602cc88d8aa49baa786694c2a0604f9bc7593d",
     "harvest_covers.py": "47d78b6d3630a13e2a0be8a5faad6e3a08002f6595ad6eb980d2fe04a7439d8f",
-    "harvest_text.py": "13da80ee509f178d4f5454cd2d80b59fa96df8cd0a01b381a7cf967147b182db",
+    "harvest_text.py": "89bda95914c4db121c16c24a051505bc1cf84fa020037c66fadc7c655a5ba05a",
     "reparse_prosp.py": "a45c4ac6b2d3815ff0e0ecb4864b3374ca696e2d1d353eb07eb4faba0f1b850a",
     "prices.py": "c33d890d7dadcc92ad2a9db323e0bfa9bceec5b5621e8a1ff4d1869080e362eb",
     "fetch.py": "8951ee34d292357922727fe880194f62ae9359c312431d164372bed299640cd0",

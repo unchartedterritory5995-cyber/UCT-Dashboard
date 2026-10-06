@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 import threading
@@ -122,10 +123,23 @@ def econ_one(cik, accn, form, fd, doc):
     return [(cik, accn, form, fd, json.dumps(res))]
 
 
+POST_ROOT: set | None = None      # accessions NEW to the sealed SEC metadata root (None: every accession is accepted)
+
+
+def _post_root(inputs_path: str) -> set:
+    p = os.path.join(os.path.dirname(os.path.abspath(inputs_path)), "sec_metadata.json")
+    return set(json.load(open(p)).get("post_root_accessions") or []) if os.path.exists(p) else set()
+
+
 def adr_one(cik, accn, form, fd, doc):
     b = get_head(filing_base(cik, accn) + "/" + doc, 150_000) if doc else None
     if b is None:
         return [(cik, accn, form, fd, "NO_FILE", None, None)]
+    # M3.1: an ACCEPTED accession keeps its accepted (M3) reading -- a fresh harvest reproduces the accepted evidence;
+    # the current parser and the 12(b) cover window read only accessions new to the sealed SEC root
+    if accn not in (POST_ROOT or ()):
+        v, st, snip = adr.parse_ratio(textcover.normalize(b), legacy=True)
+        return [(cik, accn, form, fd, st, v, snip[:400])]
     v, st, snip = adr.parse_ratio(textcover.normalize(b))
     if st == "NOT_FOUND" and len(b) >= 150_000:
         # M3.1: an inline-XBRL annual report's hidden header can fill the 150 KB head before the cover (SOGP 20-F
@@ -162,6 +176,8 @@ def prosp_one(cik, accn, form, fd, doc):
 
 
 def run(mode: str, inputs_path: str, out: str, workers: int, arg_path: str | None) -> dict:
+    global POST_ROOT
+    POST_ROOT = _post_root(inputs_path)
     inp = sqlite3.connect(inputs_path)
     db = sqlite3.connect(out, check_same_thread=False)
     db.executescript(DDL)
