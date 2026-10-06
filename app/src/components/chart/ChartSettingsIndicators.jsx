@@ -47,7 +47,7 @@
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys,
 } from './indicatorRegistry'
@@ -57,6 +57,7 @@ import {
 // second breakpoint authority beside `useMediaQuery`.
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { useCreateIndicatorFlag } from './builder/studio/createIndicatorFlag'
+import { AuthContext } from '../../context/AuthContext'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
@@ -310,9 +311,12 @@ export default function ChartSettingsIndicators({
   // with the caret in search, rather than on the structure list.
   openAdd = false,
 }) {
-  // ⭐ P2 Track B — dark until the owner opts this browser in (see the flag module).
+  // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
+  // AND the server-provided admin role. A member flipping localStorage from
+  // DevTools still sees exactly the old "+ New Formula".
   const createIndicatorOn = useCreateIndicatorFlag()
-  const showCreateIndicator = !!(createIndicatorOn && onCreateIndicator)
+  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  const showCreateIndicator = !!(createIndicatorOn && isAdmin && onCreateIndicator)
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.

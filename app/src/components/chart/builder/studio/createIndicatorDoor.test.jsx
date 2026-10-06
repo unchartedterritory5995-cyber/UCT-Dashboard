@@ -5,12 +5,17 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import ChartSettingsModal from '../../ChartSettingsModal'
+import { AuthContext } from '../../../../context/AuthContext'
 import { mergeChartSettings } from '../../chartDefaults'
 import { setCreateIndicatorFlag, resolveCreateIndicatorFlag, CREATE_INDICATOR_FLAG_KEY } from './createIndicatorFlag'
 
-function Host(props) {
+function Host({ role = 'admin', ...props }) {
   const [cs, setCs] = useState(() => mergeChartSettings({}))
-  return <ChartSettingsModal open settings={cs} onChange={setCs} onClose={() => {}} {...props} />
+  return (
+    <AuthContext.Provider value={{ user: { id: 1, role } }}>
+      <ChartSettingsModal open settings={cs} onChange={setCs} onClose={() => {}} {...props} />
+    </AuthContext.Provider>
+  )
 }
 const openAdd = () => {
   fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
@@ -38,6 +43,14 @@ describe('Create Indicator door', () => {
     expect(screen.queryByTestId('settings-new-formula')).toBeNull()
     fireEvent.click(btn)
     expect(open).toHaveBeenCalledTimes(1)
+  })
+
+  it('flag ON but a MEMBER account (server role): still exactly the old "+ New Formula"', () => {
+    act(() => { setCreateIndicatorFlag(true) })
+    render(<Host role="user" onCreateFormula={() => {}} onCreateIndicator={() => {}} />)
+    openAdd()
+    expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
+    expect(screen.getByTestId('settings-new-formula')).toBeTruthy()
   })
 
   it('flag ON but no door from the host: no button (absent prop ⇒ absent door)', () => {
