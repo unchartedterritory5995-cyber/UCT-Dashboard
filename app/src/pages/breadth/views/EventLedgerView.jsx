@@ -79,7 +79,7 @@ export default function EventLedgerView({
           {firedCount ? `${firedCount} event${firedCount > 1 ? 's' : ''} today` : 'No named event today'}
         </span>
         <span data-testid="events-basis"
-              style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
+              style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           {win.length} sessions · since {win[win.length - 1].date}
         </span>
       </div>
@@ -135,10 +135,10 @@ export default function EventLedgerView({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
                         flex: '0 0 auto' }}>
             <span style={{ font: '800 9px \'Instrument Sans\', sans-serif', letterSpacing: '1px',
-                           textTransform: 'uppercase', color: '#64748b', whiteSpace: 'nowrap' }}>
+                           textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {optionLabel('events', 'families', family)}
             </span>
-            <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+            <span style={{ flex: 1, height: 1, background: 'color-mix(in srgb, var(--text-heading) 6%, transparent)' }} />
             <span style={{ font: '700 9px \'Instrument Sans\', sans-serif',
                            color: firedHere ? accent : '#475569', whiteSpace: 'nowrap' }}>
               {firedHere ? `${firedHere} today` : `${list.length}`}
@@ -171,13 +171,13 @@ export default function EventLedgerView({
                  style={{ ...fillsRow(ROW_MIN_H, ROW_MAX_H),
                           padding: '0 8px 0 6px',
                           borderLeft: `2px solid ${e.firedToday ? accent : 'transparent'}`,
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: e.firedToday ? 'rgba(255,255,255,0.025)' : 'transparent',
+                          borderBottom: '1px solid color-mix(in srgb, var(--text-heading) 4%, transparent)',
+                          background: e.firedToday ? 'color-mix(in srgb, var(--text-heading) 2.5%, transparent)' : 'transparent',
                           opacity: e.unavailable ? 0.55 : 1 }}>
               <span style={{ width: 7, height: 7, borderRadius: 4,
                              opacity: e.firedToday ? colors.fillOpacity : 1,
                              background: e.firedToday ? accent : '#334155' }} />
-              <span style={{ font: '700 11px \'Instrument Sans\', sans-serif', color: '#e2e8f0',
+              <span style={{ font: '700 11px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.label}
@@ -190,13 +190,13 @@ export default function EventLedgerView({
                   note, because it is the claim's provenance and the note is only
                   its wording — and a column cannot be ellipsised away. */}
               <span style={{ font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
-                             color: '#64748b', textAlign: 'center',
-                             border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3,
+                             color: 'var(--text-muted)', textAlign: 'center',
+                             border: '1px solid color-mix(in srgb, var(--text-heading) 7%, transparent)', borderRadius: 3,
                              padding: '2px 0' }}>
                 {BASIS_CHIP[e.basis]}
               </span>
               <span className={styles.note}
-                    style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                    style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.note}

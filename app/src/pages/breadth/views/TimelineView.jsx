@@ -85,7 +85,7 @@ export default function TimelineView({
   if (!metrics?.length) {
     return (
       <div data-testid="timeline-refusal"
-           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
         {ALL_METRICS_HIDDEN}
       </div>
     )
@@ -105,7 +105,7 @@ export default function TimelineView({
          style={{ height: '100%', minHeight: 0, padding: '12px 18px', position: 'relative',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="timeline-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`${cols} session${cols === 1 ? '' : 's'} · ${days[0]?.date} → ${days[cols - 1]?.date}`}
         {' · each cell prints that session’s reading, tinted by its tier'}
@@ -120,7 +120,7 @@ export default function TimelineView({
         <div />
         {days.map((row, i) => (
           <div key={row.date ?? i}
-               style={{ font: '700 9px \'Instrument Sans\', sans-serif', color: '#64748b',
+               style={{ font: '700 9px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                         letterSpacing: '.3px', textAlign: 'center', fontVariantNumeric: 'tabular-nums',
                         overflow: 'hidden', whiteSpace: 'nowrap' }}>
             {dayLabel(row.date)}
@@ -160,7 +160,7 @@ export default function TimelineView({
                 <div {...drillProps(m, onDrill)}
                      className={isNotable ? signalStyles.pulse : undefined}
                      style={{ font: '700 9px \'Instrument Sans\', sans-serif', textTransform: 'uppercase',
-                              letterSpacing: '.3px', color: isSignal ? '#c9a84c' : '#94a3b8',
+                              letterSpacing: '.3px', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                               display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                               textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap', paddingRight: 4,

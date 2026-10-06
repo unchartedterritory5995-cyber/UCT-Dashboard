@@ -49,7 +49,7 @@ export default function MetersView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="meters-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`Marker = ${normBasis(rows.length)}`}
         {hasPrev ? ' · the faint mark is where it sat three sessions back' : ''}
@@ -59,18 +59,18 @@ export default function MetersView({
       <div data-testid="meters-scale" aria-hidden="true"
            style={{ display: 'grid', gridTemplateColumns: TEMPLATE, gap: 10,
                     flex: '0 0 auto', marginBottom: 4 }}>
-        <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: '#475569',
+        <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                       letterSpacing: '.5px', textAlign: 'right' }}>OVERSOLD</div>
         <div style={{ position: 'relative', height: 11 }}>
           {NORM_TICKS.map(t => (
             <span key={t}
                   style={{ position: 'absolute', left: `${t}%`,
                            transform: t === 0 ? 'none' : t === 100 ? 'translateX(-100%)' : 'translateX(-50%)',
-                           font: '700 8px \'Instrument Sans\', sans-serif', color: '#475569',
+                           font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                            fontVariantNumeric: 'tabular-nums' }}>{t}</span>
           ))}
         </div>
-        <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: '#475569',
+        <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                       letterSpacing: '.5px' }}>OVERBOUGHT</div>
       </div>
 
@@ -90,14 +90,14 @@ export default function MetersView({
                           alignItems: 'center', gap: 10, cursor: clickable ? 'pointer' : 'default',
                           ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
               <span style={{ font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
-                             textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8',
+                             textTransform: 'uppercase', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                              textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {isSignal ? <><UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
               </span>
               <div style={{ height: 14, borderRadius: 7, position: 'relative',
-                            background: 'rgba(148,163,184,0.10)',
-                            boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.12)' }}>
+                            background: 'color-mix(in srgb, var(--text-muted) 10%, transparent)',
+                            boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 12%, transparent)' }}>
                 {/* Zone tints, from the palette's own extremes — the semantic
                     the old hardcoded ramp carried, said in the palette's words. */}
                 <div aria-hidden="true"
@@ -109,7 +109,7 @@ export default function MetersView({
                 {[ZONE_LOW, 50, ZONE_HIGH].map(t => (
                   <div key={t} aria-hidden="true"
                        style={{ position: 'absolute', top: 2, bottom: 2, left: `${t}%`, width: 1,
-                                background: t === 50 ? 'rgba(226,232,240,0.24)' : 'rgba(148,163,184,0.18)' }} />
+                                background: t === 50 ? 'color-mix(in srgb, var(--text-heading) 24%, transparent)' : 'color-mix(in srgb, var(--text-muted) 18%, transparent)' }} />
                 ))}
                 {/* ⛔ A THIN BAR, NOT A HOLLOW BOX. The ghost was drawn as a
                     rounded outline and at this size it read as the character
@@ -133,7 +133,7 @@ export default function MetersView({
                                 transition: 'left .4s ease' }} />
                 )}
               </div>
-              <span style={{ font: '800 14px \'Instrument Sans\', sans-serif', color: '#e8eef6',
+              <span style={{ font: '800 14px \'Instrument Sans\', sans-serif', color: 'var(--text-bright)',
                              fontVariantNumeric: 'tabular-nums', overflow: 'hidden',
                              whiteSpace: 'nowrap' }}>
                 {m.getFmt(currentRow)}

@@ -51,7 +51,7 @@ export default function ScoreAttributionView({
   const { data, isLoading, error } = useSWR(attributionKey(date, rows.length), jsonFetcher)
 
   if (isLoading) {
-    return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#64748b' }}>Loading attribution…</div>
+    return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>Loading attribution…</div>
   }
   // ⛔ `data.ok === false` ALONE IS NOT THE GUARD. A non-ok body answers
   // `undefined` there, which is not `false`, so a malformed payload sailed
@@ -59,7 +59,7 @@ export default function ScoreAttributionView({
   // instead of the shape a healthy server happens to send.
   if (error || !data || data.ok === false || !Array.isArray(data.components)) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)' }}>
         <div data-testid="attribution-refusal">
           {error ? `Could not load attribution — ${error.message ?? 'network error'}`
                  : (data?.reason ?? data?.detail ?? 'No attribution for this session')}
@@ -92,7 +92,7 @@ export default function ScoreAttributionView({
             <SeekDate date={data.prev.date} styleKey="attribution" onSeek={onSeek} canSeek={canSeek} />
           </span>
         )}
-        <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
+        <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           {data.min_weight_met
             ? `renormalized over ${data.components.filter(c => c.present).length} of ${data.components.length} inputs`
             : 'below the minimum available weight — no score reported'}
@@ -110,7 +110,7 @@ export default function ScoreAttributionView({
                  style={{ display: 'flex', alignItems: 'center', gap: 10,
                           ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
               <div style={{ width: 150, flex: '0 0 150px', textAlign: 'right',
-                            font: '700 10px \'Instrument Sans\', sans-serif', color: '#94a3b8',
+                            font: '700 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.label}
               </div>
@@ -118,7 +118,7 @@ export default function ScoreAttributionView({
                   reading, so more of it is more of the thing being read. */}
               <div style={{ flex: 1, minWidth: 0, alignSelf: 'stretch', maxHeight: BAR_MAX_H,
                             margin: '3px 0', borderRadius: 3,
-                            background: 'rgba(255,255,255,0.04)', position: 'relative' }}>
+                            background: 'color-mix(in srgb, var(--text-heading) 4%, transparent)', position: 'relative' }}>
                 {c.present && (
                   <div style={{ width: `${fill}%`, height: '100%', borderRadius: 3,
                                 opacity: colors.fillOpacity,
@@ -126,7 +126,7 @@ export default function ScoreAttributionView({
                 )}
               </div>
               <div style={{ width: 130, flex: '0 0 130px', font: '700 10px \'Instrument Sans\', sans-serif',
-                            color: c.present ? '#e2e8f0' : '#64748b' }}>
+                            color: c.present ? 'var(--text-bright)' : 'var(--text-muted)' }}>
                 {c.present ? `${Number(c.points).toFixed(0)} / ${c.max_points}` : 'Not reported'}
                 {delta != null && (
                   <span data-testid={`attribution-delta-${c.key}`}
@@ -141,7 +141,7 @@ export default function ScoreAttributionView({
       </div>
 
       {dropped.length > 0 && (
-        <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+        <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                       marginTop: 10, flex: '0 0 auto' }}>
           {dropped.length} component{dropped.length > 1 ? 's' : ''} dropped from both sides of the ratio —
           an input that cannot be measured is not scored zero.

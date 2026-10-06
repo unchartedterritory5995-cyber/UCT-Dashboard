@@ -74,8 +74,8 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
          className={isNotable ? signalStyles.pulse : undefined}
          style={{ minHeight: 0, minWidth: 0, borderRadius: 12, padding: '4px 4px 2px',
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  background: isSignal ? 'rgba(201,168,76,.05)' : 'transparent',
-                  boxShadow: isSignal ? '0 0 0 1px rgba(201,168,76,.55)' : 'none' }}>
+                  background: isSignal ? 'color-mix(in srgb, var(--ut-gold) 5%, transparent)' : 'transparent',
+                  boxShadow: isSignal ? '0 0 0 1px color-mix(in srgb, var(--ut-gold) 55%, transparent)' : 'none' }}>
       <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"
            style={{ flex: '1 1 auto', minHeight: 0, width: '100%',
                     cursor: clickable ? 'pointer' : 'default' }}
@@ -112,7 +112,7 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
         )}
       </svg>
       <div style={{ font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
-                    textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8',
+                    textTransform: 'uppercase', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                     marginTop: 2, maxWidth: '100%', overflow: 'hidden',
                     textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '0 0 auto' }}>
         {isSignal ? <><UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{metric.label}
@@ -132,7 +132,7 @@ export default function RingsView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="rings-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`Arc = ${normBasis(rows.length)} · the number is today’s reading`}
       </div>
