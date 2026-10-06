@@ -225,10 +225,13 @@ def canonical(symbol: str) -> str:
     return (symbol or "").strip().upper().replace(".", "-")
 
 
-#: A route's `{sym}` once canonical: a root of 1-10 letters/digits and at most one
-#: class suffix (BRK-B, BF-A, HEI-A, UHAL-B). Digits are allowed in the root because
-#: the bar store's own pseudo-tickers (UCTA50) and a few listings carry them.
-_ROUTE_SYMBOL_RE = re.compile(r"^[A-Z0-9]{1,10}(?:-[A-Z0-9]{1,3})?$")
+#: A route's `{sym}` once canonical: a root of 1-10 letters/digits and up to two
+#: suffixes of 1-4 (BRK-B, HEI-A, UHAL-B, and the delisted registry's era keys such as
+#: ADSW-2020 and PSA.A.CL -> PSA-A-CL). Digits are allowed in the root because the bar
+#: store's own pseudo-tickers (UCTA50) and a few listings carry them.
+#: ⛔ `tests/test_terminal_route_symbols.py` holds every delisted-registry key to this
+#: shape, read from the registry files -- a key the rule refused would 400 a real chart.
+_ROUTE_SYMBOL_RE = re.compile(r"^[A-Z0-9]{1,10}(?:-[A-Z0-9]{1,4}){0,2}$")
 
 
 def route_symbol(raw) -> Optional[str]:
@@ -269,6 +272,30 @@ def ticker_path(ticker: str) -> str:
 
 def comparator_path(comparator: str) -> str:
     return require_route_symbol(comparator)
+
+
+def require_route_shape(raw) -> str:
+    """Refuse junk exactly as `require_route_symbol` does, but hand back the symbol in
+    the spelling the caller TYPED (upper-cased, trimmed) -- BRK.B stays BRK.B.
+
+    ⛔ FOR A ROUTE WHOSE STORE KEYS ON THE TYPED SPELLING. A persisted cache or a table
+    written under the dot form would turn a hit into a miss if the route canonicalized,
+    so these routes only gain the refusal. Use `sym_path` (canonical) only where the
+    store's spelling is known."""
+    require_route_symbol(raw)
+    return raw.strip().upper()
+
+
+def sym_shape(sym: str) -> str:
+    return require_route_shape(sym)
+
+
+def ticker_shape(ticker: str) -> str:
+    return require_route_shape(ticker)
+
+
+def symbol_shape(symbol: str) -> str:
+    return require_route_shape(symbol)
 
 
 def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:

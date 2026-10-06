@@ -370,3 +370,109 @@ def test_history_refuses_junk_before_any_lane(monkeypatch):
         assert c.get(f"/api/research/history/{s}").status_code == 400, s
     assert asked == []
     assert c.get("/api/research/history/NVDA").status_code == 200 and asked == ["NVDA"]
+
+
+# ── round 2: the rule never refuses a symbol the product holds ────────────────
+
+def _delisted_keys():
+    import os as _os
+    from api.services import delisted_registry as dr
+    keys = []
+    for path in (dr._BULK_PATH, dr._SEED_PATH):
+        if _os.path.exists(path):
+            keys += [r.get("key") or r.get("ticker") for r in dr._read_file(path)]
+    return [k for k in keys if k]
+
+
+def test_every_delisted_registry_key_is_a_route_symbol():
+    """A delisted era key (ADSW-2020, PSA.A.CL) refused by the rule would 400 a real chart."""
+    keys = _delisted_keys()
+    assert len(keys) > 1000, "the registry read found almost nothing -- the probe is broken"
+    assert "ADSW-2020" in keys
+    refused = sorted(k for k in keys if R.route_symbol(k) is None)
+    assert refused == []
+
+
+def test_every_cap_universe_symbol_is_a_route_symbol():
+    from api.services import cap_universe
+    syms = list(cap_universe.symbols())
+    assert len(syms) > 1000 and "NVDA" in syms
+    assert sorted(s for s in syms if R.route_symbol(s) is None) == []
+
+
+# ── round 2: shape-only routes refuse junk and keep the typed spelling ────────
+
+@pytest.mark.parametrize("raw,want", [("brk.b", "BRK.B"), (" BRK-B ", "BRK-B"), ("nvda", "NVDA")])
+def test_the_shape_rule_keeps_the_typed_spelling(raw, want):
+    assert R.require_route_shape(raw) == want
+
+
+def test_the_shape_rule_refuses_junk_like_the_route_rule():
+    from fastapi import HTTPException
+    for raw in ("<script>", "ABCDEFGHIJKLMNOPQRST", "  "):
+        with pytest.raises(HTTPException) as e:
+            R.require_route_shape(raw)
+        assert e.value.status_code == 400
+
+
+#: (router module, route path, path-param dependency). Every terminal-reached route
+#: that takes the symbol through one of the two rules, and which one. `_shape` routes
+#: key a store on the typed spelling, so they refuse junk only.
+_ROUTE_RULES = [
+    ("earnings_intel", "/api/earnings/call-recap/{ticker}", "ticker_shape"),
+    ("earnings_intel", "/api/earnings/transcript/{ticker}", "ticker_shape"),
+    ("earnings_intel", "/api/earnings/transcript-quarters/{ticker}", "ticker_shape"),
+    ("earnings_intel", "/api/earnings/timed-transcript/{ticker}", "ticker_shape"),
+    ("earnings_intel", "/api/earnings/sentiment/{ticker}", "ticker_shape"),
+    ("earnings", "/api/earnings-analysis/{sym}", "sym_shape"),
+    ("intelligence", "/api/confidence-scores/{symbol}", "symbol_shape"),
+    ("intelligence", "/api/leader-persistence/{symbol}", "symbol_shape"),
+    ("decision_record", "/api/decision-record/ticker/{ticker}", "ticker_shape"),
+    ("analyst_revisions", "/api/research/analyst-revisions/{ticker}", "ticker_shape"),
+    ("research", "/api/research/ownership/{sym}", "sym_path"),
+    ("fundamentals", "/api/earnings-intel/{ticker}", "ticker_path"),
+]
+
+
+@pytest.mark.parametrize("mod,path,dep", _ROUTE_RULES)
+def test_each_route_takes_its_symbol_through_its_rule(mod, path, dep):
+    import importlib
+    router = importlib.import_module(f"api.routers.{mod}").router
+    routes = [r for r in router.routes if getattr(r, "path", None) == path]
+    assert routes, f"{mod} has no route {path} -- the census is stale"
+    calls = {d.call.__name__ for r in routes for d in r.dependant.dependencies if d.call}
+    assert dep in calls, (path, sorted(calls))
+
+
+def test_the_census_sees_a_route_without_a_rule():
+    """Non-vacuity: a route known to take no symbol rule is seen as having none."""
+    from api.routers import fundamentals
+    r = [x for x in fundamentals.router.routes if getattr(x, "path", "") == "/api/fundamentals/earnings-table"]
+    assert r
+    names = {d.call.__name__ for x in r for d in x.dependant.dependencies if d.call}
+    assert not names & {"sym_path", "ticker_path", "sym_shape", "ticker_shape", "symbol_shape"}
+
+
+def test_shape_routes_refuse_junk_and_pass_the_typed_spelling(monkeypatch):
+    from api.routers import earnings_intel as ei, intelligence, decision_record as drr
+    from api.routers import analyst_revisions as arr
+    got = []
+    monkeypatch.setattr(ei, "get_sentiment", lambda s: got.append(s) or {"score": 1})
+    monkeypatch.setattr(intelligence, "_get_api", lambda: None)
+    monkeypatch.setattr(drr.decision_record, "is_enabled", lambda: True)
+    monkeypatch.setattr(drr.decision_record, "ticker_record", lambda t, **k: got.append(t) or {"ticker": t})
+    monkeypatch.setattr(arr.analyst_revisions, "is_enabled", lambda: True)
+    monkeypatch.setattr(arr.analyst_revisions, "revision_history", lambda t: got.append(t) or {"ticker": t})
+    c = _app(ei.router, intelligence.router, drr.router, arr.router)
+    paths = ["/api/earnings/sentiment/{s}", "/api/confidence-scores/{s}",
+             "/api/decision-record/ticker/{s}", "/api/research/analyst-revisions/{s}"]
+    for p in paths:
+        for s in JUNK:
+            r = c.get(p.replace("{s}", s))
+            assert r.status_code == 400, (p, s, r.status_code, r.text)
+            assert "ticker symbol" in r.json()["detail"]
+    assert got == []
+    for p in paths:
+        assert c.get(p.replace("{s}", "brk.b")).status_code == 200, p
+    assert got == ["BRK.B"] * 3                       # spelling kept, case upper
+    assert c.get("/api/confidence-scores/nvda").json()["symbol"] == "NVDA"   # no lowercase echo

@@ -17,6 +17,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import ticker_shape
 from api.services.research import analyst_revisions
 
 router = APIRouter(prefix="/api/research", tags=["analyst-revisions"])
@@ -37,7 +38,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/analyst-revisions/{ticker}", dependencies=[Depends(_armed)])
 def analyst_revision_history(
-    ticker: str = Path(..., min_length=1, max_length=16),
+    ticker: str = Depends(ticker_shape),
     _user: dict = Depends(require_paid),
 ):
     """`{ticker, status, window, observations, revisions, fields, source,

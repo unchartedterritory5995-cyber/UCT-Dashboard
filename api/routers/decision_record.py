@@ -24,6 +24,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import ticker_shape
 from api.services import decision_record
 
 router = APIRouter(prefix="/api/decision-record", tags=["decision-record-member"])
@@ -43,7 +44,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/ticker/{ticker}", dependencies=[Depends(_armed)])
 def ticker_decision_record(
-    ticker: str = Path(..., min_length=1, max_length=16),
+    ticker: str = Depends(ticker_shape),
     limit: int = Query(decision_record.DEFAULT_LIMIT, ge=1, le=decision_record.MAX_LIMIT),
     offset: int = Query(0, ge=0),
     _user: dict = Depends(require_paid),
