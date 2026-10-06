@@ -108,7 +108,7 @@ def test_backfill_one_composes_links_only_when_no_chapters_stored(edu_db, ledger
     desc = yt.calls[0][1]
     assert desc.startswith("Evening Update — full session replay.")
     assert "⏱️ Chapters:" not in desc
-    assert "https://whop.com/uncharted/uncharted" in desc
+    assert "https://whop.com/c/uncharted/yt-desk" in desc
     assert json.loads(open(ledger, encoding="utf-8").read())["YT1"]["status"] == "done"
 
 
