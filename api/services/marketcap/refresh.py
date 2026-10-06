@@ -551,6 +551,10 @@ class Refresh:
                 ip = st.path(v, "impact_rows.jsonl.gz")
                 if m["kind"] == "REFERENCE_HISTORICAL_CORRECTION" and not m.get("_unapproved") and os.path.exists(ip):
                     out.append(ip)
+        # explicit, approved identity corrections (history.py) named by id in the review config
+        from . import history as H
+        for cid in self.cfg.review.get("history_corrections") or []:
+            out.append(H.identity_correction_rows(self.root, cid))      # raises unless sealed AND approved
         return out
 
     def _price_authority(self, sp: dict, uni: str) -> dict:

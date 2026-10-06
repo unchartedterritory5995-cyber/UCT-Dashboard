@@ -130,3 +130,80 @@ def impact_rows(new_db: str, old_db: str, out_gz: str) -> int:
         for r in rows:
             f.write((json.dumps(list(r)) + "\n").encode())
     return len(rows)
+
+
+# ── IDENTITY_HISTORICAL_CORRECTION: an explicit, human-approved change of accepted history caused by an IDENTITY
+# decision (no reference / price / SEC input changed): e.g. a predecessor's accepted values after its SEC succession
+# boundary. Store <root>/history_corrections/<id>/ (write-once): impact_rows.jsonl.gz, evidence.json, manifest.json,
+# APPROVAL.json (human). Attached to a candidate only by explicit id (review.history_corrections).
+import hashlib as _hl
+import shutil as _sh
+import stat as _st
+from datetime import datetime as _dt, timezone as _tz
+
+
+def _hc_dir(root: str, cid: str) -> str:
+    if not cid or any(x in cid for x in ("/", "\\", "..")):
+        raise ValueError(f"bad history correction id {cid!r}")
+    return os.path.join(root, "history_corrections", cid)
+
+
+def _ro_write(path: str, body: bytes) -> None:
+    if os.path.exists(path):
+        raise FileExistsError(f"write-once: {path}")
+    with open(path, "wb") as f:
+        f.write(body)
+    os.chmod(path, _st.S_IREAD | _st.S_IRGRP | _st.S_IROTH)
+
+
+def propose_identity_correction(root: str, rows: list, evidence: dict, *, reason: str) -> dict:
+    """rows [[cik, d, old, new|None], ...] -> IDENTITY-CORRECTION-<sha16> (CANDIDATE)."""
+    lines = sorted(json.dumps([int(r[0]), int(r[1]), r[2], r[3]]) for r in rows)
+    body = ("\n".join(lines) + "\n").encode()
+    sha = _hl.sha256(body).hexdigest()
+    cid = f"IDENTITY-CORRECTION-{sha[:16]}"
+    d = _hc_dir(root, cid)
+    if os.path.exists(os.path.join(d, "manifest.json")):
+        return json.load(open(os.path.join(d, "manifest.json")))
+    os.makedirs(d, exist_ok=True)
+    gz = os.path.join(d, ".rows.tmp")
+    with open(gz, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as f:
+        f.write(body)
+    os.replace(gz, os.path.join(d, "impact_rows.jsonl.gz"))
+    os.chmod(os.path.join(d, "impact_rows.jsonl.gz"), _st.S_IREAD | _st.S_IRGRP | _st.S_IROTH)
+    _ro_write(os.path.join(d, "evidence.json"), json.dumps(evidence, indent=1, sort_keys=True, default=str).encode())
+    by = {}
+    for r in rows:
+        by.setdefault(int(r[0]), 0)
+        by[int(r[0])] += 1
+    m = {"correction_id": cid, "kind": "IDENTITY_HISTORICAL_CORRECTION", "status": "CANDIDATE", "reason": reason,
+         "rows": len(lines), "rows_sha256": sha, "by_cik": by,
+         "created_at": _dt.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    _ro_write(os.path.join(d, "manifest.json"), json.dumps(m, indent=1, sort_keys=True).encode())
+    return m
+
+
+def approve_identity_correction(root: str, cid: str, *, by: str, reason: str) -> dict:
+    d = _hc_dir(root, cid)
+    if not by or by.startswith("refresh:") or by.startswith("scheduler"):
+        raise PermissionError("history corrections are approved by a human, never by a refresh or the scheduler")
+    m = json.load(open(os.path.join(d, "manifest.json")))
+    rec = {"correction_id": cid, "approved_by": by, "reason": reason, "rows_sha256": m["rows_sha256"],
+           "approved_at": _dt.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    _ro_write(os.path.join(d, "APPROVAL.json"), json.dumps(rec, indent=1).encode())
+    return rec
+
+
+def identity_correction_rows(root: str, cid: str, *, require_approval: bool = True) -> str:
+    """The impact rows of an identity correction, verified against its seal (and its approval)."""
+    d = _hc_dir(root, cid)
+    m = json.load(open(os.path.join(d, "manifest.json")))
+    with gzip.open(os.path.join(d, "impact_rows.jsonl.gz"), "rb") as f:
+        if _hl.sha256(f.read()).hexdigest() != m["rows_sha256"]:
+            raise ValueError(f"{cid}: impact rows do not match the seal")
+    if require_approval:
+        if not os.path.exists(os.path.join(d, "APPROVAL.json")):
+            raise PermissionError(f"{cid} is an UNAPPROVED identity correction")
+        if json.load(open(os.path.join(d, "APPROVAL.json"))).get("rows_sha256") != m["rows_sha256"]:
+            raise ValueError(f"{cid}: approval does not match the sealed rows")
+    return os.path.join(d, "impact_rows.jsonl.gz")

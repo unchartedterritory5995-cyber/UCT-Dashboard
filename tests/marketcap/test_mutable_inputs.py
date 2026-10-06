@@ -145,3 +145,22 @@ def test_history_fails_on_any_accepted_value_removal(tmp_path):
         f.write(json.dumps([1, 20260928, 1.0e9, None]) + "\n")
     allowed, ciks, _ = H.load_allowances([str(ip)])
     assert not H.compare(cand, auth, allowed, ciks)["pass"]
+
+
+def test_identity_correction_authorizes_nothing_until_a_human_approves(tmp_path):
+    auth = make_build(str(tmp_path / "a.db"), "A", last_day=20260930)
+    cand = make_build(str(tmp_path / "c.db"), "C", last_day=20261001)
+    c = sqlite3.connect(cand)
+    c.execute("DELETE FROM cap_daily WHERE cik=3 AND d>=20260929")             # a predecessor's post-boundary days
+    c.commit(), c.close()
+    root = str(tmp_path / "root")
+    m = H.propose_identity_correction(root, [[3, 20260929, 1.01e11, None], [3, 20260930, 1.02e11, None]],
+                                      {"boundary": "8-K12B"}, reason="succession boundary")
+    with pytest.raises(PermissionError, match="UNAPPROVED"):
+        H.identity_correction_rows(root, m["correction_id"])
+    with pytest.raises(PermissionError, match="human"):
+        H.approve_identity_correction(root, m["correction_id"], by="scheduler", reason="x")
+    assert not H.compare(cand, auth)["pass"]
+    H.approve_identity_correction(root, m["correction_id"], by="owner", reason="reviewed")
+    allowed, ciks, _ = H.load_allowances([H.identity_correction_rows(root, m["correction_id"])])
+    assert H.compare(cand, auth, allowed, ciks)["pass"]
