@@ -897,6 +897,40 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
 
 # ─── admission ───────────────────────────────────────────────────────────────
 
+def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:
+    """The per-plot half of admission: ``([(address, fn)], {address: refusal})``,
+    or RAISE the first non-``withheld`` refusal (which refuses the whole
+    definition). It registers nothing (``admit_user_definition`` does).
+
+    ⭐ C45 — ONE WITHHELD PLOT DOES NOT TAKE ITS SIBLINGS DOWN. A Pine indicator
+    commonly carries a `plot(bar_index)` debugging row beside the signal a member
+    actually alerts on; refusing the whole document for it would end alerts that
+    are perfectly answerable. The withheld plot is NOT registered, its refusal is
+    kept under its address, and `arm_for_alert` raises it when THAT plot is the
+    one being armed. Every other gate still refuses the whole admission.
+
+    ⭐⭐ P1 — THE SERVER HALF OF THE SHARED EVALUABILITY GATE. The browser's
+    ``evaluability.js`` (lane ``alert``) is a PREFLIGHT of exactly this, held
+    equal to it case by case by ``tests/fixtures/ast/p1_evaluability_alert.json``
+    (``tests/test_p1_truth_core.py`` and ``p1.core.truth.test.js``)."""
+    plots = definition.get("plots") or []
+    keys = [p.get("key") if isinstance(p, dict) else p for p in plots]
+    keys = [str(k) for k in keys if k]
+    admissible: list = []
+    withheld: dict = {}
+    for plot_key in keys:
+        address = f"{def_id}.{plot_key}"
+        try:
+            fn = _make_value_fn(def_id, plot_key, definition)
+        except AdmissionRefused as exc:
+            if exc.gate != "withheld":
+                raise
+            withheld[address] = exc
+            continue
+        admissible.append((address, fn))
+    return admissible, withheld
+
+
 def admit_user_definition(user_id: Any, def_id: str,
                           version: Optional[int] = None, *,
                           bars: list) -> dict:
@@ -930,27 +964,10 @@ def admit_user_definition(user_id: Any, def_id: str,
     _gate_budget(definition, def_id)
     report = _gate_cross_lane(definition, def_id, bars)
 
-    plots = definition.get("plots") or []
-    keys = [p.get("key") if isinstance(p, dict) else p for p in plots]
-    keys = [str(k) for k in keys if k]
     addresses = []
-    # ⭐ C45 — ONE WITHHELD PLOT DOES NOT TAKE ITS SIBLINGS DOWN. A Pine indicator
-    # commonly carries a `plot(bar_index)` debugging row beside the signal a member
-    # actually alerts on; refusing the whole document for it would end alerts that
-    # are perfectly answerable. The withheld plot is NOT registered, its refusal is
-    # kept under its address, and `arm_for_alert` raises it when THAT plot is the
-    # one being armed. Every other gate still refuses the whole admission.
-    withheld: dict = {}
     with _REGISTRY_LOCK:
-        for plot_key in keys:
-            address = f"{def_id}.{plot_key}"
-            try:
-                fn = _make_value_fn(def_id, plot_key, definition)
-            except AdmissionRefused as exc:
-                if exc.gate != "withheld":
-                    raise
-                withheld[address] = exc
-                continue
+        admissible, withheld = plot_admissions(def_id, definition)
+        for address, fn in admissible:
             USER_FUNCS[scoped_key(user_id, address)] = fn
             addresses.append(address)
     admitted = {
