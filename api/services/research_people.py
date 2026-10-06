@@ -225,10 +225,11 @@ def people(sym: str, *, snapshot_fn: Optional[Callable[[str], dict]] = None) -> 
     # symbol" -- a vendor failure that was not one. The search index classifies the
     # symbol in memory; an unknown type is NOT a fund and reads the vendors as before.
     from api.services import ticker_search_index
-    if ticker_search_index.instrument_type(sym) == "etf":
-        why = f"{sym} is a fund; funds have no executives, proxy pay or Form 4 insiders"
-        na = {"state": "not_applicable", "rows": None, "reason": why, "as_of": _today()}
-        return {"ticker": sym, "not_applicable": "fund",
+    fund = ticker_search_index.fund_not_applicable(
+        sym, "funds have no executives, proxy pay or Form 4 insiders")
+    if fund:
+        na = {"state": "not_applicable", "rows": None, "reason": fund["reason"], "as_of": _today()}
+        return {"ticker": sym, "not_applicable": fund["not_applicable"],
                 "executives": {**na, "source": SRC_EXECS},
                 "compensation": {**na, "source": SRC_COMP, "year": None},
                 "insider_roles": {**na, "source": SRC_EDGAR}}
