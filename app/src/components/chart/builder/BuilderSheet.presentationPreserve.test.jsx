@@ -25,7 +25,7 @@ const H = vi.hoisted(() => ({ requests: [] }))
 
 function stubFetch() {
   H.requests = []
-  global.fetch = vi.fn(async (url, init = {}) => {
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
     const method = init.method || 'GET'
     H.requests.push({ url: String(url), method, body: init.body ?? null })
     if (method === 'GET') return { ok: true, status: 200, json: async () => ({ definitions: [] }) }
@@ -87,7 +87,7 @@ const sent = () => {
 }
 
 beforeEach(() => { vi.useFakeTimers(); stubFetch(); clearUserDefinitions() })
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); delete global.fetch; clearUserDefinitions() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); delete globalThis.fetch; clearUserDefinitions() })
 
 describe('⭐ P2 item 10/11 — presentation survives a maths edit', () => {
   it('ASKED edit plot 1 sma(close,5)→sma(close,9) · CLAIMED "only the maths changes" · DID keep colorMode, paints, marker, legend, lineStyle, precision, colorPacked byte-identical', async () => {
