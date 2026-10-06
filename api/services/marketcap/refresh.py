@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import gzip
 import json
 import os
 import shutil
@@ -345,6 +346,13 @@ class Refresh:
             {"source": "v5_security", **Q.universe_from_v5(su["db"], cur)})
         # ⭐ an issuer leaving today's universe keeps its prices / reference / SEC inputs (identity_ledger.py)
         res["universe"]["durable"] = IL.durable_universe(self._prev_identity(), cur, uni)
+        bound = self.cfg.policy.get("universe_ciks")
+        if bound:                             # PARITY HARNESS ONLY: the same pipeline over a named issuer set
+            u = json.loads(gzip.decompress(open(uni, "rb").read()))
+            keep = {str(int(c)) for c in bound}
+            u = {k: v for k, v in u.items() if k in keep}
+            open(uni, "wb").write(gzip.compress(json.dumps(u, sort_keys=True).encode(), mtime=0))
+            res["universe"]["bounded_to"] = len(u)
         res["prices"] = self._source_file("prices", "prices.db") or \
             {"source": "bars_db", **Q.prices_from_bars(S["prices"]["db"], uni, os.path.join(self.data, "prices.db"))}
         res["reference"] = self._source_file("reference", "ref.jsonl") or \
@@ -427,7 +435,9 @@ class Refresh:
                                                       "--out", os.path.join(self.data, "inputs.db")), "inputs.log"))
             self.stage("identity", self._identity)
             self.stage("acceptance", self._acceptance)
-            self.stage("evidence_seed", lambda: {"copied": Q.seed_evidence(prev, self.data) if prev else {}, "from": prev})
+            fresh = bool(self.cfg.policy.get("fresh_evidence"))   # FULL: every harvest re-derives (through the cache)
+            self.stage("evidence_seed", lambda: {"copied": Q.seed_evidence(prev, self.data) if prev and not fresh else {},
+                                                 "from": None if fresh else prev, "fresh_evidence": fresh})
             self.stage("lineage", lambda: self._lineage(sub))
             self.stage("predecessors", lambda: self._predecessors(cf, sub))
             self.stage("plan", lambda: self.cmd(mod("plan_harvests", "--data", self.data), "plan.log"))
