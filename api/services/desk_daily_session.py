@@ -7,6 +7,7 @@ education_service.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import date, datetime
@@ -79,18 +80,92 @@ def _route(topic: str | None) -> tuple[str, str, str]:
     allowlist for exactly this reason — routing needs the same, and normalizing
     `t` itself (not just `low`) also keeps the double space out of the published
     title + thumbnail eyebrow.
+
+    Pure: the title guard's verdict lives in `_route_checked`, whose caller
+    alerts ops.
     """
-    t = _WS.sub(" ", (topic or "")).strip()
+    return _route_checked(topic)[:3]
+
+
+# Em/en dashes in a hand-typed webinar name become a plain hyphen: no em dash
+# in any new public title (owner rule, 2026-10-05).
+_DASHES = re.compile(r"\s*[\u2014\u2013]\s*")
+
+
+def _known_sections() -> list[str]:
+    """Every canonical shelf the routing tables can produce, derived from them
+    (never a second hand-typed list)."""
+    return [sec for _kw, sec in _HOST_AWARE] + [sec for _kw, sec, _p, _e in _RULES]
+
+
+def _match_rules(t: str):
     low = t.lower()
     for kw, section in _HOST_AWARE:
         if kw in low:
-            return section, t, t.upper()
+            return ("host", section)
     for kw, section, prefix, eyebrow in _RULES:
         if kw in low:
-            return section, prefix, eyebrow
+            return ("rule", (section, prefix, eyebrow))
+    return None
+
+
+def _route_checked(topic: str | None) -> tuple[str, str, str, str | None]:
+    """`_route` plus the title guard's verdict: (section, prefix, eyebrow, problem).
+
+    `problem` is None when the route is safe to publish as-is, else a short
+    reason the caller sends to ops. A name that matches no rule, is no known
+    show (after the typo fold) and fails the spell check NEVER reaches a public
+    title: it routes to the default show (generic "Live Trading Session:
+    <date>"). That is how "LIVE TRAIDNG" should have shipped, instead of
+    verbatim on the title and the thumbnail.
+    """
+    from api.services import desk_title_guard as guard
+    t = _DASHES.sub(" - ", _WS.sub(" ", (topic or "")).strip())
     if not t:
-        return _DEFAULT_ROUTE
-    return t, t, t.upper()        # auto: the name IS the section + title + eyebrow
+        return _DEFAULT_ROUTE + (None,)
+    hit = _match_rules(t)
+    if hit and hit[0] == "host":
+        section = hit[1]
+        bad = guard.misspelled(t, proper_nouns_ok=True)
+        if bad:   # keep the shelf, drop the suspect host text
+            return (section, section, section.upper(),
+                    f"suspect words {bad} in a host-aware name; published as {section!r}")
+        return section, t, t.upper(), None
+    if hit:
+        return hit[1] + (None,)
+    folded = guard.fold(t, shows=_known_sections())
+    if folded and folded != t:
+        refold = _match_rules(folded)
+        if refold and refold[0] == "rule":
+            return refold[1] + (None,)
+        if refold and refold[0] == "host":
+            return refold[1], refold[1], refold[1].upper(), None
+        return folded, folded, folded.upper(), None
+    if folded:            # an allowlisted show, already in its canonical spelling
+        return t, t, t.upper(), None
+    bad = guard.misspelled(t)
+    if not bad:
+        return t, t, t.upper(), None   # auto: the name IS the section + title + eyebrow
+    return _DEFAULT_ROUTE + (
+        f"unrecognised webinar name {t!r} (suspect words {bad}); "
+        "published with the generic title",)
+
+
+def _alert_title_fallback(topic: str | None, problem: str, title: str) -> None:
+    """Ops alert when the title guard overrode a webinar name. Never raises."""
+    try:
+        from api.services import discord_notify
+        discord_notify._send_webhook({
+            "title": "Desk title guard: webinar name not published verbatim",
+            "description": (f"Zoom name: {str(topic or '')[:200]!r}\n"
+                            f"Published as: {title}\n"
+                            f"Why: {problem[:300]}\n"
+                            "Fix the Zoom webinar template name, or add the words to "
+                            "DESK_TITLE_EXTRA_WORDS / the show to DESK_KNOWN_SHOWS."),
+            "color": 0xE0A800,
+        }, url=_ops_webhook())
+    except Exception as e:  # noqa: BLE001
+        print(f"[desk-sessions] title-guard alert failed (non-fatal): {e}")
 
 
 # Shows whose recordings are uploaded PUBLIC on YouTube. Everything else is
@@ -146,9 +221,15 @@ def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> dateti
 # specific here would repeat the exact hallucination shape that got
 # DESK_CREATIVE_TITLES turned off for good (a title naming a ticker nobody
 # said). Links/copy: owner-supplied 2026-08-26.
+# The tracked Whop link (owner, 2026-10-05). The untracked legacy link is kept
+# ONLY so desk_footer_link_backfill can find it in already-published
+# descriptions; nothing new may emit it.
+JOIN_URL = "https://whop.com/c/uncharted/yt-desk"
+LEGACY_JOIN_URL = "https://whop.com/uncharted/uncharted"
+
 _LINKS_FOOTER = (
     "\n\n"
-    "🔗 Join Uncharted Territory: https://whop.com/uncharted/uncharted\n"
+    f"🔗 Join Uncharted Territory: {JOIN_URL}\n"
     "🌐 Website: https://uctintelligence.com\n\n"
     "For educational and informational purposes only — not investment advice or a "
     "recommendation to buy or sell any security. Trading involves substantial risk of loss."
@@ -212,7 +293,7 @@ def _session_date_text(started_at_iso: str | None, *, now: datetime | None = Non
 
 
 def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -> str:
-    # desk_creative.classic_title owns the "{show} — {date}" format — the
+    # desk_creative.classic_title owns the "{show}: {date}" format — the
     # safety net, the publish path and the creative fallback all derive from
     # that one owner (restating it here is the second-authority defect class).
     return desk_creative.classic_title(
@@ -262,14 +343,15 @@ def publish_new_sessions(client=None, *, now=None) -> list[dict]:
 
 
 def todays_session_exists(now: datetime | None = None) -> bool:
-    # Matched on the deterministic "— {date}" SUFFIX, not the whole title:
+    # Matched on the deterministic ": {date}" SUFFIX (or the legacy "— {date}"
+    # one, for a title shipped before the separator change), not the whole title:
     # creative titles (DESK_CREATIVE_TITLES) prepend a daily hook, and an
     # exact-equality check would false-alert the 18:00 safety net every day.
     # Both title styles end with the same suffix by construction.
     now = now or datetime.now(_ET)
-    expected_suffix = desk_creative.date_suffix(_session_date_text(None, now=now))
+    expected_suffixes = desk_creative.date_suffixes(_session_date_text(None, now=now))
     cat = _category()
-    return any(str(v.get("title") or "").endswith(expected_suffix)
+    return any(str(v.get("title") or "").endswith(expected_suffixes)
                and v.get("category") == cat
                for v in education_service.list_videos())
 
@@ -307,13 +389,84 @@ _DESK_VIDEOS_URL = "https://uctintelligence.com/desk?section=videos"
 _YT_THUMB = "https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
 
 
+# ---------------------------------------------------------------------------
+# Post-upload extras: series playlist + first comment. Every one is FAIL-SOFT:
+# an upload never fails, retries or re-uploads because of these.
+# ---------------------------------------------------------------------------
+
+FIRST_COMMENT_TEXT = ("Join the live trading room: https://whop.com/c/uncharted/yt-desk  "
+                      "Education only, not financial advice.")
+
+
+def _playlist_map() -> dict[str, str]:
+    """DESK_YT_PLAYLISTS as {normalized section: playlistId}. Unset, blank or
+    malformed JSON is an empty map (malformed is logged, never raised)."""
+    raw = (os.environ.get("DESK_YT_PLAYLISTS") or "").strip()
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError as e:
+        print(f"[desk-sessions] DESK_YT_PLAYLISTS is not valid JSON (ignored): {e}")
+        return {}
+    if not isinstance(data, dict):
+        print("[desk-sessions] DESK_YT_PLAYLISTS must be a JSON object (ignored)")
+        return {}
+    out: dict[str, str] = {}
+    for k, v in data.items():
+        key = _WS.sub(" ", str(k or "")).strip().casefold()
+        val = str(v or "").strip()
+        if key and val:
+            out[key] = val
+    return out
+
+
+def playlist_for_section(section: str | None) -> str | None:
+    """The playlist a routed section belongs to, or None (skip silently)."""
+    key = _WS.sub(" ", str(section or "")).strip().casefold()
+    return _playlist_map().get(key) if key else None
+
+
+def _add_to_series_playlist(youtube, video_id: str, section: str) -> bool:
+    """playlistItems.insert for the section's playlist. True iff added. Never raises."""
+    playlist_id = playlist_for_section(section)
+    if not playlist_id:
+        return False
+    try:
+        youtube.add_to_playlist(video_id, playlist_id)
+        return True
+    except Exception as e:  # noqa: BLE001 — fail-soft by contract
+        print(f"[desk-sessions] playlist add failed for {video_id} -> {playlist_id} "
+              f"(non-fatal): {e}")
+        return False
+
+
+def first_comment_enabled() -> bool:
+    return os.environ.get("DESK_YT_FIRST_COMMENT", "").strip().lower() in ("1", "true", "yes")
+
+
+def _post_first_comment(youtube, video_id: str) -> bool:
+    """commentThreads.insert of FIRST_COMMENT_TEXT under DESK_YT_FIRST_COMMENT.
+    True iff posted (the publish notice then asks a human to pin it, since the
+    Data API cannot). Never raises."""
+    if not first_comment_enabled():
+        return False
+    try:
+        youtube.post_comment(video_id, FIRST_COMMENT_TEXT)
+        return True
+    except Exception as e:  # noqa: BLE001 — fail-soft by contract
+        print(f"[desk-sessions] first comment failed for {video_id} (non-fatal): {e}")
+        return False
+
+
 def _alert_recipients() -> list[str]:
     raw = (os.environ.get("DESK_DAILY_SESSION_ALERT_EMAILS")
            or os.environ.get("ADMIN_EMAILS", ""))
     return [e.strip() for e in raw.split(",") if e.strip()]
 
 
-def _notify_published(title: str, video_id: str, section: str = "Videos") -> None:
+def _notify_published(title: str, video_id: str, section: str = "Videos", *,
+                      first_comment_posted: bool = False) -> None:
     """Announce a freshly-published video (Discord + email) when it posts to The
     Desk.
 
@@ -351,14 +504,19 @@ def _notify_published(title: str, video_id: str, section: str = "Videos") -> Non
     Gold embed with the video thumbnail + a Watch link to the website. Works for any
     show (Live Trading Session, Evening Update, …) —
     the header is the video's own title, the body names its section.
+    `first_comment_posted` adds a reminder to pin the first comment: the Data
+    API can post a comment but has no pin operation.
     Best-effort — never raises (must not break the processor)."""
     try:
         from api.services import discord_notify
+        pin_line = (f"\nFirst comment posted: pin it on YouTube "
+                    f"(https://studio.youtube.com/video/{video_id}/comments)."
+                    if first_comment_posted else "")
         discord_notify._send_webhook({
             "title": f"🎬 {title}",
             "url": _DESK_VIDEOS_URL,
             "description": f"Now live in **The Desk → Videos → {section}**.\n"
-                           f"[Watch ▶]({_DESK_VIDEOS_URL})",
+                           f"[Watch ▶]({_DESK_VIDEOS_URL})" + pin_line,
             "image": {"url": _YT_THUMB.format(vid=video_id)},
             "color": 0xC9A84C,  # brand gold
         }, url=_ops_webhook())   # ⭐ step 6 row 12 — OPS, resolved at CALL time
@@ -435,12 +593,13 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             print(f"[desk-sessions] skipping test recording: {topic!r}")
             desk_session_jobs.mark_skipped(uuid, f"test recording: {topic}")
             continue
-        section, title_prefix, eyebrow = _route(topic)
+        section, title_prefix, eyebrow, route_problem = _route_checked(topic)
         date_text = _session_date_text(job.get("start_time"))
         title = desk_creative.classic_title(title_prefix, date_text)
         vid = (job.get("youtube_id") or "").strip()
         tmp = None
         audio_key = None
+        comment_posted = False
         try:
             if not vid:
                 fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
@@ -468,6 +627,10 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 vid = youtube.upload(tmp, title, description=_compose_description(title_prefix),
                                      privacy=privacy_for_section(section))
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
+                if route_problem:   # once per upload, never per retry pass
+                    _alert_title_fallback(topic, route_problem, title)
+                _add_to_series_playlist(youtube, vid, section)        # fail-soft
+                comment_posted = _post_first_comment(youtube, vid)   # fail-soft
                 if desk_creative.titles_enabled() and " | " in title:
                     desk_creative.record_shipped_title(title, show=title_prefix)
                 audio_key = _maybe_extract_audio(tmp, vid)
@@ -548,7 +711,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
             if created_now:                 # alert once, only on a genuinely-new publish
-                _notify_published(title, vid, section)
+                _notify_published(title, vid, section, first_comment_posted=comment_posted)
                 try:  # seed the community Mentor Desk thread — NEVER fail publish over it
                     from api.services import community_seed
                     community_seed.seed_for_youtube_id(vid)

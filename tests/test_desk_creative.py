@@ -30,7 +30,7 @@ CTX = {
 SHOW = dict(section="Live Trading Sessions",
             title_prefix="Live Trading Session",
             date_text="August 19, 2026")
-CLASSIC = "Live Trading Session — August 19, 2026"
+CLASSIC = "Live Trading Session: August 19, 2026"
 
 
 def _slate(*hooks):
@@ -51,7 +51,7 @@ def _title(tmp_path, llm, ctx=CTX):
 
 def test_first_gate_passing_hook_ships_with_show_and_date(tmp_path):
     t = _title(tmp_path, _slate("MRNA rips 73%, everything else meh"))
-    assert t == "MRNA rips 73%, everything else meh | Live Trading Session — August 19, 2026"
+    assert t == "MRNA rips 73%, everything else meh | Live Trading Session: August 19, 2026"
 
 
 def test_llm_failure_falls_back_to_classic_title(tmp_path):
@@ -77,7 +77,8 @@ def test_hook_em_dash_is_scrubbed_but_date_separator_stays(tmp_path):
     t = _title(tmp_path, _slate("Tech stuck at the MAs — MU leads anyway"))
     hook = t.split(" | ")[0]
     assert "—" not in hook
-    assert t.count("—") == 1          # only the structural " — date" separator
+    assert "—" not in t               # the structural separator is ": " now, no em dash
+    assert t.endswith(": August 19, 2026")
 
 
 def test_corny_hook_is_cut_and_slate_walks_down(tmp_path):
@@ -394,9 +395,9 @@ def test_banned_style_steers_the_render_not_just_the_record(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_classic_title_and_suffix_share_one_owner():
-    assert dc.date_suffix("August 19, 2026") == "— August 19, 2026"
+    assert dc.date_suffix("August 19, 2026") == ": August 19, 2026"
     assert dc.classic_title("Evening Update", "August 19, 2026") == \
-        "Evening Update — August 19, 2026"
+        "Evening Update: August 19, 2026"
     assert dc.classic_title("Evening Update", "August 19, 2026").endswith(
         dc.date_suffix("August 19, 2026"))
 
@@ -414,6 +415,39 @@ def test_parse_session_title_classic_and_creative():
         ("Evening Update", "August 19, 2026")
     assert dc.parse_session_title("no structural separator") is None
     assert dc.parse_session_title("") is None
+
+
+def test_parse_session_title_reads_the_new_colon_separator():
+    assert dc.parse_session_title("Evening Update: August 19, 2026") == \
+        ("Evening Update", "August 19, 2026")
+    assert dc.parse_session_title(
+        "MRNA Rips, We Watch | Evening Update: August 19, 2026") == \
+        ("Evening Update", "August 19, 2026")
+
+
+def test_parse_session_title_splits_on_the_LAST_separator_of_either_kind():
+    # A new title whose hand-typed show carries an em dash splits on the colon;
+    # a legacy title whose show carries a colon splits on the em dash.
+    assert dc.parse_session_title("Show - Guest: October 5, 2026") == \
+        ("Show - Guest", "October 5, 2026")
+    assert dc.parse_session_title("Workshop: Basics — July 1, 2026") == \
+        ("Workshop: Basics", "July 1, 2026")
+
+
+def test_new_titles_carry_no_em_dash_but_both_suffixes_match():
+    t = dc.classic_title("Live Trading Session", "October 5, 2026")
+    assert "—" not in t
+    assert t.endswith(dc.date_suffixes("October 5, 2026"))
+    assert "Live Trading Session — October 5, 2026".endswith(
+        dc.date_suffixes("October 5, 2026"))
+
+
+def test_recall_title_round_trips_a_new_format_title(tmp_path):
+    hp = str(tmp_path / "th.json")
+    shipped = "MU Holds 767 | Live Trading Session: August 19, 2026"
+    dc.record_shipped_title(shipped, show="Live Trading Session", history_path=hp)
+    assert dc.recall_title("Live Trading Session", "August 19, 2026",
+                           history_path=hp) == shipped
 
 
 def test_render_cover_facts_reach_the_director(tmp_path):
