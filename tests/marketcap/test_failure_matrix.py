@@ -513,7 +513,7 @@ def test_history_gate_vs_the_current_authority(root, tmp_path, bump, ok):  # noq
     cand = make_build(str(tmp_path / "cand.db"), "MCAP_V1-20261002T050000Z", last_day=20261001, bump=bump)
     g = root["make"]("run-g")._history_gate(cand)
     assert g["pass"] is ok
-    assert (g["value"]["factor2_moves"] == []) is ok
+    assert ("VALUE_MOVED>=2x" not in g["value"]["failing"]) is ok
 
 
 def test_retention_never_drops_the_rollback_target_or_store_evidence(root):  # noqa: F811

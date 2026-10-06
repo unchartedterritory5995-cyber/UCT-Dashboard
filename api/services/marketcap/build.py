@@ -529,14 +529,20 @@ class Data:
     offering: sqlite3.Connection | None = None  # offering status evidence (offering_status.py, methodology M3)
 
 
+REREAD: set = set()        # M3.1: accessions an APPROVED historical correction re-reads with the current parser
+
+
 def load_ref(path: str) -> dict:
     out = {}
+    REREAD.clear()
     if not os.path.exists(path):
         return out
     for line in open(path, encoding="utf-8"):
         t, d, splits, events = json.loads(line)
         if not d:
             continue
+        for x in (d.get("correction_evidence") or {}).get("reread_accessions") or []:
+            REREAD.add(x)
         def dd(x):
             try:
                 return date.fromisoformat(x[:10]) if x else None
@@ -1152,7 +1158,9 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 continue
             fdate = date.fromisoformat(filings[accn]["filing_date"])
             titled[fdate] = titled.get(fdate, False) or ads_title(text)
-            v, st, snip = parse_ratio(text)
+            # M3.1: accepted evidence keeps its accepted (M3) reading; the current parser reads accessions NEW to the
+            # sealed SEC metadata root, and accepted ones only when an approved correction re-reads them (SOGP)
+            v, st, snip = parse_ratio(text, legacy=not (accn in getattr(D, "sec_new", ()) or accn in REREAD))
             if st == "OK":
                 is_adr = True
                 ratio_stmts.append(RatioStatement(fdate, v, accn, snip))
@@ -1171,23 +1179,49 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     pref = D.ref.get(primary, (None, []))[0]
     if pref is not None and primary in kept and pref.cik is not None and int(pref.cik) != int(cik):
         pref = None     # M3.1: a REASSIGNED symbol's current record describes the successor, never this predecessor (GORO)
-    diverge = bool(pref and pref.share_class_shares and pref.weighted_shares
-                   and abs(pref.share_class_shares / pref.weighted_shares - 1) > 0.05)
-    # ⛔ Massive's WEIGHTED figure is a stale period average (APH: 2.47B weighted vs 1.23B current after its 2024 2:1
-    # split): weighted vs share-class divergence flagged 207 single-class issuers as multi-class suspects (2026-10-01).
-    # The divergence counts only if Massive's CURRENT share-class figure also disagrees (> 5%) with OUR latest
-    # authoritative non-dimensional count -- equal means the total IS that one class. (Detection only, never a value.)
-    if diverge and pref.share_class_shares:
-        latest = max(((o.as_of, o.value) for k_, o, _m in obs if k_ == "COMMON"
-                      and o.source in (R.COVER_XBRL, R.BALANCE_SHEET_XBRL) and o.value > 0), default=None)
-        if latest and abs(latest[1] / pref.share_class_shares - 1) <= 0.05:
-            diverge = False
+    def _diverge_of(scs, ws):
+        dv = bool(scs and ws and abs(scs / ws - 1) > 0.05)
+        # ⛔ Massive's WEIGHTED figure is a stale period average (APH: 2.47B weighted vs 1.23B current after its 2024
+        # 2:1 split): weighted vs share-class divergence flagged 207 single-class issuers as multi-class suspects
+        # (2026-10-01). The divergence counts only if Massive's CURRENT share-class figure also disagrees (> 5%) with
+        # OUR latest authoritative non-dimensional count -- equal means the total IS that one class. (Detection only.)
+        if dv and scs:
+            latest = max(((o.as_of, o.value) for k_, o, _m in obs if k_ == "COMMON"
+                          and o.source in (R.COVER_XBRL, R.BALANCE_SHEET_XBRL) and o.value > 0), default=None)
+            if latest and abs(latest[1] / scs - 1) <= 0.05:
+                dv = False
+        return dv
+    # ⭐ M3.1 CURRENT-STATE EVIDENCE IS NOT HISTORICAL AUTHORITY (owner decision 2026-10-06). Massive's share fields
+    # describe the security AT THE PULL. The accepted reference's fields keep the accepted interpretation; a field
+    # value first seen in a later reference version speaks only from that version's PIT boundary (the session its
+    # pull was public for) FORWARD (`ref_current_history.json`, derived from the sealed lineage). TVGN 6.5M -> 15.7M
+    # (REF-APPEND-20261006) no longer re-holds 2024-04 .. 2026-09 as MULTI_CLASS.
+    segs = [(None, pref.share_class_shares, pref.weighted_shares)] if pref is not None else []
+    hist_ = (getattr(D, "ref_hist", None) or {}).get(primary) if pref is not None else None
+    if hist_:
+        segs = [(date.fromisoformat(b_) if b_ else None, s_, w_) for b_, s_, w_ in hist_]
+    seg_div = [(b_, _diverge_of(s_, w_)) for b_, s_, w_ in segs]
+    diverge = seg_div[-1][1] if seg_div else False
     # a RETAINED symbol is a second class only while it trades beside another listing (NXAT beside KWM: the accepted hold);
     # an earlier symbol of a renamed issuer (OLD until the rename, NEW after) is the same security, never a second class
     concurrent = [t for t in listings if t not in kept or any(
         o != t and bars[o][0][0] <= bars[t][0][-1] and bars[t][0][0] <= bars[o][0][-1] for o in listings)]
     multi_suspect = not is_adr and (len(concurrent) >= 2 or diverge)
+    ms_segs = [(b_, not is_adr and (len(concurrent) >= 2 or dv)) for b_, dv in seg_div]
+    ms_bounds = [b_ for i_, (b_, m_) in enumerate(ms_segs) if i_ and m_ != ms_segs[i_ - 1][1]]
 
+    def ms_at(d):
+        m_ = multi_suspect
+        for b_, v_ in ms_segs:
+            if b_ is None or b_ <= d:
+                m_ = v_
+        return m_
+
+    for b_ in ms_bounds:                    # a current-state boundary opens a regime (same classes) on that session
+        p_ = datetime.combine(b_, datetime.min.time(), ET).astimezone(timezone.utc)
+        i_ = max([j for j, r_ in enumerate(regimes) if r_[0] <= p_], default=None)
+        if i_ is not None and regimes[i_][0] != p_:
+            regimes.insert(i_ + 1, [p_, regimes[i_][1], regimes[i_][2]])
     # per regime: structure, component class states, capitalization
     all_days = sorted({d for t in listings for d in bars[t][0]})
     day_regime = {}
@@ -1229,10 +1263,11 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         if sandwiched:
             res = resolve({"COMMON": 1.0, "?": 1.0}, {}, None)
             st = Structure("UNRESOLVED", reason=R.MULTI_CLASS, note="common-only report between multi-class regimes")
-        if ks == frozenset({"COMMON"}) and multi_suspect:
+        if ks == frozenset({"COMMON"}) and (ms_at(rdays[0]) if ms_bounds else multi_suspect):
             st = Structure("UNRESOLVED", reason=R.MULTI_CLASS,
                            note=f"multi-class suspect ({len(listings)} equity tickers, share-class/total divergence={diverge}): "
-                                "per-class evidence required for this period")
+                                "per-class evidence required for this period"
+                                + (f" (current-state evidence from {ms_bounds[-1]})" if ms_bounds else ""))
         regime_ads = any(ads_at(d) for d in (rdays[0], rdays[-1])) or any(rdays[0] <= t_ <= rdays[-1] for t_ in ads_changes)
         if regime_ads and st.kind in ("MULTI_LISTED", "LISTED_PLUS_CONVERTIBLE"):
             # ⛔ an ADS over SEVERAL ordinary classes (BMA, CCM, FENG, TIGR, ZEPP ... priced every class at the ADS
@@ -1693,6 +1728,8 @@ def main(argv=None) -> int:
         return 2
     D.acc = Authority(P("acceptance.db"))
     D.prosp = sqlite3.connect(P("prosp.db")) if os.path.exists(P("prosp.db")) else None
+    D.ref_hist = json.load(open(P("ref_current_history.json"))) if os.path.exists(P("ref_current_history.json")) else {}
+    D.sec_new = set(json.load(open(P("sec_metadata.json"))).get("post_root_accessions") or [])         if os.path.exists(P("sec_metadata.json")) else set()
     D.splitev = sqlite3.connect(P("splitev.db")) if os.path.exists(P("splitev.db")) else None
     D.lineage = sqlite3.connect(P("lineage.db")) if os.path.exists(P("lineage.db")) else None
     D.identity = sqlite3.connect(f"file:{P('identity.db')}?mode=ro", uri=True) if os.path.exists(P("identity.db")) else None
@@ -1772,7 +1809,8 @@ def main(argv=None) -> int:
            "safety_bound_days": R.SAFETY_BOUND_DAYS, "built_at": datetime.now(timezone.utc).isoformat()}
     if not a.no_hash:
         for n in ("inputs.db", "covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prices.db", "ref.jsonl", "acceptance.db",
-                  "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db", "identity.db", "offering.db"):
+                  "prosp.db", "splitev.db", "lineage.db", "pred_inputs.db", "pred_covers.db", "pred_text.db", "pred_econ.db", "identity.db", "offering.db",
+                  "ref_current_history.json", "sec_metadata.json"):
             if os.path.exists(P(n)):
                 man[f"input_sha256:{n}"] = sha256(P(n))
                 if n in EVIDENCE_SET_DBS:

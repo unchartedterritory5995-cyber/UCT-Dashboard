@@ -21,7 +21,7 @@ import sqlite3
 import subprocess
 import sys
 
-from . import acquire as Q, price_authority as PA, publication as P, reference_authority as RA, refresh as RF
+from . import acquire as Q, history as H, price_authority as PA, publication as P, reference_authority as RA, refresh as RF
 
 
 def _link_inputs(src_data: str, dst_data: str, replace: str) -> None:
@@ -60,6 +60,19 @@ def impact(old_build: str, new_build: str, upto: int | None = None) -> dict:
             "added_historical_valued_days": [{"cik": k, "ticker": tick.get(k), "days": n, "from": a, "to": b} for k, n, a, b in added]}
 
 
+def _corrected_ciks(cand: dict, data: str, reference_version, price_version) -> set:
+    """The issuers a candidate declares it corrects (reference: its corrected tickers' CIKs)."""
+    if reference_version:
+        st_ciks = set()
+        ref = RA.load(os.path.join(data, "ref.jsonl"))
+        for t in cand.get("corrected_tickers") or []:
+            c = ((ref.get(t) or [None, {}])[1] or {}).get("cik")
+            if c:
+                st_ciks.add(int(c))
+        return st_ciks
+    return set(int(c) for c in (cand.get("corrected_ciks") or []))
+
+
 def run(root: str, accepted_run: str, out: str, *, reference_version: str | None = None,
         price_version: str | None = None) -> dict:
     if bool(reference_version) == bool(price_version):
@@ -75,6 +88,7 @@ def run(root: str, accepted_run: str, out: str, *, reference_version: str | None
     if reference_version:
         _link_inputs(acc.data, data, "ref.jsonl")
         cand = RA.materialize(RA.Store(root), reference_version, os.path.join(data, "ref.jsonl"), allow_candidate=True)
+        cand["corrected_tickers"] = RA.Store(root).manifest(reference_version).get("corrected_tickers") or []
     else:
         _link_inputs(acc.data, data, "prices.db")
         cand = PA.materialize(PA.Store(root), price_version, os.path.join(data, "prices.db"), allow_candidate=True)
@@ -96,12 +110,27 @@ def run(root: str, accepted_run: str, out: str, *, reference_version: str | None
     from .gates import evaluate
     v = evaluate(nb, os.path.join(out, "reports"), dark.cfg.review.get("adjudication_dir"))
     imp = impact(acc_build, nb)
-    hist_bad = [x for x in imp["affected_issuers"] if x["max_ratio"] >= 2 or x["min_ratio"] <= 0.5]
-    reint = RF.split_reinterpretations(nb, acc_build, imp["upto"])
-    imp["split_reinterpretations"] = reint
-    v["gates"]["HISTORY"] = {"pass": not hist_bad, "value": {"factor2_moves": hist_bad[:40], "split_reinterpretations": reint[:40]},
-                             "definition": "historical values vs the accepted build: no factor >= 2 move (a correction "
-                                           "candidate's split reinterpretations are LISTED -- they are what it proposes)"}
+    n_rows = H.impact_rows(nb, acc_build, os.path.join(out, "impact_rows.jsonl.gz"))
+    # HISTORY of a CANDIDATE: it may change exactly the issuers it corrects (their rows are what it proposes);
+    # any change to ANY other issuer -- a removal, a >= 2x move, a split reinterpretation -- fails the candidate
+    own = _corrected_ciks(cand, data, reference_version, price_version)
+    own_allowed = {}
+    import gzip as _gz
+    with _gz.open(os.path.join(out, "impact_rows.jsonl.gz"), "rt") as f:
+        for ln in f:
+            cik_, d_, _o, n_ = json.loads(ln)
+            if int(cik_) in own:
+                own_allowed[(int(cik_), int(d_))] = n_
+    hc = H.compare(nb, acc_build, own_allowed, own)
+    outside = [x for x in imp["affected_issuers"] if x["cik"] not in own]
+    imp["split_reinterpretations"] = hc["categories"]["SPLIT_INTERPRETATION_CHANGED"]["rows"]
+    imp["impact_rows"] = n_rows
+    imp["outside_corrected_issuers"] = outside
+    v["gates"]["HISTORY"] = {"pass": hc["pass"] and not outside,
+                             "value": {"corrected_ciks": sorted(own), "failing": hc["failing"], "outside": outside[:40],
+                                       "categories": hc["categories"]},
+                             "definition": "a correction changes only the issuers it corrects; nothing else moves, "
+                                           "disappears or is re-interpreted"}
     v["status"] = "PASS" if all(x["pass"] for x in v["gates"].values()) else "FAIL"
     v["failed"] = [k for k, x in v["gates"].items() if not x["pass"]]
     res = {"candidate": cand, "accepted_build": {"build_id": run_row["build_id"], "path": acc_build,

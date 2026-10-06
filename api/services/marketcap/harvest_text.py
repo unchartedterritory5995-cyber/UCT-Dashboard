@@ -127,6 +127,14 @@ def adr_one(cik, accn, form, fd, doc):
     if b is None:
         return [(cik, accn, form, fd, "NO_FILE", None, None)]
     v, st, snip = adr.parse_ratio(textcover.normalize(b))
+    if st == "NOT_FOUND" and len(b) >= 150_000:
+        # M3.1: an inline-XBRL annual report's hidden header can fill the 150 KB head before the cover (SOGP 20-F
+        # 2023..2026): read its 12(b) registration table from a 4 MB head -- only when the head found nothing
+        big = get_head(filing_base(cik, accn) + "/" + doc, 4_000_000)
+        if big is not None:
+            v2, st2, snip2 = adr.parse_cover_ratio(textcover.normalize(big))
+            if st2 != "NOT_FOUND":
+                v, st, snip = v2, st2, snip2
     return [(cik, accn, form, fd, st, v, snip[:400])]
 
 

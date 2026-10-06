@@ -44,8 +44,8 @@ EXTREME_STEP_SEMANTICS = SEMANTICS_VERSION
 SAFETY_BOUND_DAYS = 456
 
 METHODOLOGY_FILES = {
-    "build.py": "1652bc7c635aca631c4f08739af4edd77dc3c93bad7153d4607cdefb9b9959b2",
-    "adr.py": "30fedef57a1c6837e8fdce40aaa61f6fb2d1a4870d095d28c4e62f63e6fc3ddd",
+    "build.py": "ad15e175f1e817f2ce1e4d4e6aee33fe18f05330c7ed21c11c4cb7c545f52aab",
+    "adr.py": "86e2f49155abd4f4ff9120aa33149a592b5751441cb8c2a2b21f2f3573df3bde",
     "classecon.py": "69979a2e7a67737ce6f21e9b48ad1a73eb5812043de5192f0c813fcbc9a09886",
     "cover.py": "35de23bf13fe0311fe65141ef19e5ec37cd65afeed25e54410e51a2edd42b261",
     "engine.py": "c62a28193f24e7855d469926527cb2ad940bfc4e68e3ffbfaf3052b8669fe158",
@@ -62,7 +62,7 @@ METHODOLOGY_FILES = {
     "acceptance.py": "8411a2c43cbf880d2c4a94261a550be0d0fe4fd0b0b75b04af10e26fd47e5009",
     "inputs.py": "fef130d963125832fa643b89c7602cc88d8aa49baa786694c2a0604f9bc7593d",
     "harvest_covers.py": "47d78b6d3630a13e2a0be8a5faad6e3a08002f6595ad6eb980d2fe04a7439d8f",
-    "harvest_text.py": "fc78420c97d24c38894b7c5b89ccebab273c2d1418e824e579b277e870ff5998",
+    "harvest_text.py": "13da80ee509f178d4f5454cd2d80b59fa96df8cd0a01b381a7cf967147b182db",
     "reparse_prosp.py": "a45c4ac6b2d3815ff0e0ecb4864b3374ca696e2d1d353eb07eb4faba0f1b850a",
     "prices.py": "c33d890d7dadcc92ad2a9db323e0bfa9bceec5b5621e8a1ff4d1869080e362eb",
     "fetch.py": "8951ee34d292357922727fe880194f62ae9359c312431d164372bed299640cd0",

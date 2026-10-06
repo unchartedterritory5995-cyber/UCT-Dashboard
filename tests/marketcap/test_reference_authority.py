@@ -2,6 +2,7 @@
 pulls, divergences kept accepted, explicit human-approved REFERENCE_HISTORICAL_CORRECTION."""
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import stat
@@ -89,7 +90,20 @@ def test_correction_is_a_candidate_until_a_human_approves_it(st):
             RA.approve(st["s"], c["version_id"], by=who, reason="x", market_cap_gates="PASS")
     with pytest.raises(RA.ReferenceAuthorityError, match="did not PASS"):
         RA.approve(st["s"], c["version_id"], by="owner", reason="x", market_cap_gates="FAIL")
-    RA.approve(st["s"], c["version_id"], by="owner", reason="reviewed", market_cap_gates="PASS")
+    with pytest.raises(RA.ReferenceAuthorityError, match="impact run"):           # no impact run, no approval
+        RA.approve(st["s"], c["version_id"], by="owner", reason="reviewed", market_cap_gates="PASS")
+    imp = st["tmp"] / "impact"
+    imp.mkdir()
+    (imp / "impact.json").write_text(json.dumps({"candidate": {"reference_version": "REF-CORRECTION-other"},
+                                                 "gates": {"status": "PASS"}}))
+    with pytest.raises(RA.ReferenceAuthorityError, match="not this candidate"):    # another candidate's run
+        RA.approve(st["s"], c["version_id"], by="owner", reason="reviewed", market_cap_gates="PASS", impact_dir=str(imp))
+    (imp / "impact.json").write_text(json.dumps({"candidate": {"reference_version": c["version_id"]},
+                                                 "gates": {"status": "PASS"}}))
+    with gzip.open(imp / "impact_rows.jsonl.gz", "wt") as f:
+        f.write(json.dumps([1, 20030609, 2.0, 1.0]) + "\n")
+    rec_ = RA.approve(st["s"], c["version_id"], by="owner", reason="reviewed", market_cap_gates="PASS", impact_dir=str(imp))
+    assert os.path.exists(st["s"].path(c["version_id"], "impact_rows.jsonl.gz")) and rec_["impact_rows_sha256"]
     assert RA.materialize(st["s"], c["version_id"], str(st["tmp"] / "y.jsonl"))["kind"] == "REFERENCE_HISTORICAL_CORRECTION"
 
 

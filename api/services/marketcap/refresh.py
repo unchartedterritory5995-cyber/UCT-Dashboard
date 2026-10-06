@@ -43,6 +43,7 @@ from datetime import datetime, timezone
 
 from . import acquire as Q, identity_ledger as IL, methodology as M, price_authority as PA, publication as P, release_contract as C
 from . import reference_authority as RA
+from . import sec_authority as SA
 
 PY = sys.executable
 LEDGER_DDL = """
@@ -411,6 +412,8 @@ class Refresh:
         if str(self.cfg.raw.get("target", "")).startswith("r2") and (S.get("reference") or {}).get("kind") != "reference_authority":
             raise RuntimeError("production refreshes read the reference only through the reference authority")
         # the reference first: its split history is the price authority's basis evidence
+        if str(self.cfg.raw.get("target", "")).startswith("r2") and (S.get("sec_metadata") or {}).get("kind") != "sec_authority":
+            raise RuntimeError("production refreshes read SEC filing metadata only through the SEC metadata authority")
         if (S.get("reference") or {}).get("kind") == "reference_authority":
             res["reference"] = self._reference_authority(S["reference"], uni)
         else:
@@ -466,6 +469,16 @@ class Refresh:
             mat = RA.materialize(store, sr["pin_version"], out, allow_candidate=bool(sr.get("allow_candidate")))
             return {"source": "reference_authority", "pinned": True, **mat}
         parent = self.reference_parent(sr)
+        if sr.get("apply_correction"):
+            # an APPROVED historical correction of the authority's own reference becomes the parent of this append
+            # (explicit, per correction id; never the scheduler's choice). Its sealed impact rows are what HISTORY allows.
+            corr = sr["apply_correction"]
+            cm = store.manifest(corr)
+            if cm["kind"] != "REFERENCE_HISTORICAL_CORRECTION" or cm.get("_unapproved"):
+                raise RuntimeError(f"{corr} is not an APPROVED reference correction")
+            if parent not in RA.lineage(store, corr):
+                raise RuntimeError(f"{corr} does not descend from the authority's reference {parent}")
+            parent = corr
         pull = sr.get("pull") or {"kind": "massive"}
         pulled = os.path.join(self.data, "ref_pulled.jsonl")
         if pull.get("kind") == "file":
@@ -478,6 +491,67 @@ class Refresh:
         mat = RA.materialize(store, child["version_id"], out)
         return {"source": "reference_authority", "parent": parent, "pulled_at": pulled_at,
                 "merge": child.get("merge"), "unchanged": bool(child.get("unchanged")), **mat}
+
+    # ── the SEC FILING-METADATA AUTHORITY (sec_authority.py) ──────────────────────────────────────────────────────
+    def sec_parent(self, ss: dict) -> str:
+        """The SEC metadata version a refresh extends = the CURRENT authority's; before any authority (or an authority
+        built before the SEC authority: then it must be the build the root was sealed from), the sealed root."""
+        store = SA.Store(ss.get("store") or self.root)
+        cur = P.read_pointer(self.cfg.target())
+        if cur is None:
+            return ss["root_version"]
+        m = P.read_manifest(self.cfg.target(), cur["build_id"], cur["manifest_sha256"])
+        v = ((m.get("inputs") or {}).get("sec_authority") or {}).get("sec_version")
+        if v:
+            return v
+        if store.manifest(ss["root_version"], verify=False).get("provenance", {}).get("accepted_market_cap_build") == cur["build_id"]:
+            return ss["root_version"]
+        raise RuntimeError("the current authority names no SEC metadata version and is not the root's build: "
+                           "SEC metadata lineage is ambiguous")
+
+    def _sec_metadata(self, sec: dict) -> dict:
+        ss = (self.cfg.raw.get("sources") or {}).get("sec_metadata") or {}
+        if ss.get("kind") != "sec_authority":
+            return {"source": "fetched", "note": "no SEC metadata authority configured"}
+        store = SA.Store(ss.get("store") or self.root)
+        if ss.get("pin_version"):
+            return {"source": "sec_authority", "pinned": True, **SA.materialize(store, ss["pin_version"], self.data)}
+        from email.utils import parsedate_to_datetime
+        from .fetch import get_head
+        lm = (sec.get("submissions.zip") or {}).get("last_modified")
+        try:
+            t_ = datetime.fromisoformat(str(lm).replace("Z", "+00:00")) if lm else None
+        except ValueError:
+            t_ = parsedate_to_datetime(lm)
+        fetched_at = t_.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if t_ else now_iso()
+        parent = self.sec_parent(ss)
+        r = SA.apply(store, parent, self.data, fetched_at=fetched_at, fetch=None if ss.get("no_fetch") else get_head,
+                     provenance={"run_id": self.run_id, "submissions_last_modified": lm})
+        json.dump(r, open(os.path.join(self.rdir, "sec_metadata_report.json"), "w"), indent=1, default=str)
+        return {"source": "sec_authority", "parent": parent, "fetched_at": fetched_at,
+                **{k: v for k, v in r.items() if k != "divergence_sample"}}
+
+    def _attached_corrections(self) -> list[str]:
+        """impact_rows of every APPROVED historical correction in this candidate's input lineage that the current
+        authority's lineage does not already carry (the only historical changes HISTORY may authorize)."""
+        src = self.ledger.stage_done(self.run_id, "sources") or {}
+        cur = P.read_pointer(self.cfg.target())
+        am = (P.read_manifest(self.cfg.target(), cur["build_id"], cur["manifest_sha256"]).get("inputs") or {}) if cur else {}
+        out = []
+        ra = (src.get("reference") or {})
+        if ra.get("source") == "reference_authority":
+            st = RA.Store(((self.cfg.raw.get("sources") or {}).get("reference") or {}).get("store") or self.root)
+            mine = RA.lineage(st, ra["reference_version"])
+            av = (am.get("reference_authority") or {}).get("version")
+            theirs = set(RA.lineage(st, av)) if av else set()
+            for v in mine:
+                if v in theirs:
+                    continue
+                m = st.manifest(v)
+                ip = st.path(v, "impact_rows.jsonl.gz")
+                if m["kind"] == "REFERENCE_HISTORICAL_CORRECTION" and not m.get("_unapproved") and os.path.exists(ip):
+                    out.append(ip)
+        return out
 
     def _price_authority(self, sp: dict, uni: str) -> dict:
         store = PA.Store(sp.get("store") or self.root)
@@ -613,6 +687,8 @@ class Refresh:
                                                  "from": None if fresh else prev, "fresh_evidence": fresh})
             self.stage("lineage", lambda: self._lineage(sub))
             self.stage("predecessors", lambda: self._predecessors(cf, sub))
+            # ⭐ the sealed SEC filing metadata: accepted accessions keep their accepted acceptance instants
+            self.stage("sec_metadata", lambda: self._sec_metadata(sec))
             self.stage("plan", lambda: self.cmd(mod("plan_harvests", "--data", self.data), "plan.log"))
             self.stage("harvests", self._harvests)
             b1 = self.stage("build_1", lambda: {**self._build("build_1.log"), "stage": "build_1"})
@@ -831,53 +907,31 @@ class Refresh:
         return cur["build_id"], None
 
     def _history_gate(self, bpath) -> dict:
-        r = self._history_values_gate(bpath)
-        bid, ref = self._authority_build_db()
-        if bid is not None and ref is not None:
-            sr = split_reinterpretations(bpath, ref, r["value"]["authority_latest_session"])
-            r["value"]["split_reinterpretations"] = sr[:40]
-            r["value"]["split_reinterpretation_count"] = len(sr)
-            r["pass"] = r["pass"] and not sr
-            r["definition"] += "; no ACCEPTED historical split-evidence interpretation replaced"
-        return r
-
-    def _history_values_gate(self, bpath) -> dict:
-        """HISTORY: no ACCEPTED historical value (a day the current authority values, up to its latest valued session)
-        moves by a factor >= 2 (or <= 0.5) in the candidate. Found by the price-authority reproof: a split executed
-        after the root with no basis event moved KUST's entire 2008-2026 history x0.1 and no other gate saw it. Every
-        historical change is listed for review either way."""
+        """HISTORY (owner decision 4, 2026-10-06): the candidate vs the CURRENT authority -- ANY accepted valued day
+        removed (gap / hold / missing), any >= 2x move, any replaced accepted split interpretation FAILS, unless an
+        approved historical correction attached to this candidate lists exactly that change (history.py)."""
+        from . import history as H
+        d = "accepted history vs the current authority: no unapproved removal, >= 2x move or split reinterpretation"
         bid, ref = self._authority_build_db()
         if bid is None:
-            return {"pass": True, "value": {"note": "no current authority (first cutover is a human review)"},
-                    "definition": "historical values vs the current authority: no factor >= 2 move"}
+            return {"pass": True, "value": {"note": "no current authority (first cutover is a human review)"}, "definition": d}
         if ref is None:
             return {"pass": False, "value": {"authority": bid, "error": "the authority's build DB is not on this volume"},
-                    "definition": "historical values vs the current authority: no factor >= 2 move"}
-        c = sqlite3.connect(f"file:{bpath}?mode=ro", uri=True)
-        try:
-            c.execute("ATTACH DATABASE ? AS a", (f"file:{ref}?mode=ro",))
-            upto = c.execute("SELECT MAX(d) FROM a.cap_daily").fetchone()[0]
-            big = c.execute("SELECT n.cik, COUNT(*), MIN(n.d), MAX(n.d), MIN(n.cap/o.cap), MAX(n.cap/o.cap) FROM main.cap_daily n "
-                            "JOIN a.cap_daily o ON o.cik=n.cik AND o.d=n.d WHERE n.d<=? AND (n.cap/o.cap >= 2 OR n.cap/o.cap <= 0.5) "
-                            "GROUP BY n.cik ORDER BY COUNT(*) DESC", (upto,)).fetchall()
-            changed = c.execute("SELECT COUNT(*), COUNT(DISTINCT n.cik) FROM main.cap_daily n JOIN a.cap_daily o ON o.cik=n.cik "
-                                "AND o.d=n.d WHERE n.d<=? AND ABS(n.cap/o.cap-1) > 1e-9", (upto,)).fetchone()
-            removed = c.execute("SELECT COUNT(*) FROM a.cap_daily o WHERE NOT EXISTS (SELECT 1 FROM main.cap_daily n "
-                                "WHERE n.cik=o.cik AND n.d=o.d)").fetchone()[0]
-            added = c.execute("SELECT COUNT(*) FROM main.cap_daily n WHERE n.d<=? AND NOT EXISTS (SELECT 1 FROM a.cap_daily o "
-                              "WHERE o.cik=n.cik AND o.d=n.d)", (upto,)).fetchone()[0]
-            try:
-                tick = dict(c.execute("SELECT cik, primary_ticker FROM main.coverage"))
-            except sqlite3.OperationalError:        # labels only
-                tick = {}
-        finally:
-            c.close()
-        return {"pass": not big, "value": {"authority": bid, "authority_latest_session": upto,
-                                           "factor2_moves": [{"ticker": tick.get(k), "cik": k, "days": n, "from": lo, "to": hi,
-                                                              "min_ratio": a, "max_ratio": b} for k, n, lo, hi, a, b in big[:40]],
-                                           "changed_values": changed[0], "changed_issuers": changed[1],
-                                           "removed_valued_days": removed, "added_historical_valued_days": added},
-                "definition": "historical values vs the current authority: no factor >= 2 move (every change listed)"}
+                    "definition": d}
+        att = self._attached_corrections()
+        allowed, ciks, ids = H.load_allowances(att)
+        r = H.compare(bpath, ref, allowed, ciks)
+        json.dump(r, open(os.path.join(self.rdir, "history.json"), "w"), indent=1, default=str)
+        return {"pass": r["pass"], "value": {"authority": bid, "attached_corrections": ids, "failing": r["failing"],
+                                             "authority_latest_session": r["authority_latest_session"],
+                                             "categories": r["categories"]}, "definition": d}
+
+    def _sec_block(self) -> dict | None:
+        r = self.ledger.stage_done(self.run_id, "sec_metadata") or {}
+        if r.get("source") != "sec_authority":
+            return None
+        return {k: r.get(k) for k in ("sec_version", "kind", "parent", "lineage", "post_root_accessions", "sha256", "pinned",
+                                      "fetched_at")}
 
     def manifest_fields(self, bpath, build, src, sec) -> dict:
         sealed = self.ledger.stage_done(self.run_id, "seal")
@@ -908,6 +962,7 @@ class Refresh:
                          "dirty": bool(git("status", "--porcelain", "--", "api/services/marketcap"))},
                 "inputs": {"snapshot_id": snap, "files": files, "price_authority": {**price_block, "version": price_block["price_version"]} if price_block else None,
                            "reference_authority": {**ref_block, "version": ref_block["reference_version"]} if ref_block else None,
+                           "sec_authority": self._sec_block(),
                            "provenance": {"sources": src, "sec_bulk": {k: {x: v.get(x) for x in ("last_modified", "sha256", "bytes")}
                                                                       for k, v in sec.items()},
                                           "prosp_evidence_from": Q.PROSP_EVIDENCE_FROM, "run_id": self.run_id}},

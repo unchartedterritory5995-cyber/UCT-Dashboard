@@ -28,22 +28,37 @@ FRAC = {"one-half": 0.5, "one half": 0.5, "one-third": 1 / 3, "one-quarter": 0.2
 WORD = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
         "eleven": 11, "twelve": 12, "fifteen": 15, "twenty": 20, "twenty-five": 25, "thirty": 30, "forty": 40, "fifty": 50,
         "one hundred": 100, "a": 1, "an": 1}
+# M3.1 (SOGP 20-F 0001493152-26-019716: "each ADS represents two hundred (200) Class A ordinary shares"): N hundred
+WORD.update({f"{w} hundred": 100 * n for w, n in (("two", 2), ("three", 3), ("four", 4), ("five", 5), ("six", 6),
+                                                    ("seven", 7), ("eight", 8), ("nine", 9))})
 ADS = r"(?:american\s+depositary\s+shares?|american\s+depository\s+shares?|ADSs?|ADRs?|depositary\s+shares?)"
 SH = r"(?:ordinary\s+shares?|common\s+shares?|shares?\s+of\s+common\s+stock|shares?(?:\s+of\s+the\s+company)?|equity\s+shares?|class\s+a\s+ordinary\s+shares?)"
-NUMW = r"(one-half|one half|one-third|one-quarter|one-fourth|one-fifth|one-tenth|one-twentieth|one-fortieth|two-thirds|three-quarters|\d{1,3}(?:,\d{3})+|\d+(?:_\d+)?|one hundred|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|an?)"
+NUMW = r"(one-half|one half|one-third|one-quarter|one-fourth|one-fifth|one-tenth|one-twentieth|one-fortieth|two-thirds|three-quarters|\d{1,3}(?:,\d{3})+|\d+(?:_\d+)?|(?:one|two|three|four|five|six|seven|eight|nine)\s+hundred|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|an?)"
+# M3 (accepted) reading, kept EXACTLY for accepted evidence: no "N hundred" (other than one hundred), no numeral check
+NUMW_M3 = r"(one-half|one half|one-third|one-quarter|one-fourth|one-fifth|one-tenth|one-twentieth|one-fortieth|two-thirds|three-quarters|\d{1,3}(?:,\d{3})+|\d+(?:_\d+)?|one hundred|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|an?)"
 RX = [
     # "American Depositary Shares, each representing one-fifth of one ordinary share" / "each representing 5 ordinary shares"
-    re.compile(rf"{ADS}[^.;]{{0,60}}?(?:each\s+)?(?:representing|represents|represent|evidencing|equal\s+to)\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
+    re.compile(rf"{ADS}[^.;]{{0,60}}?(?:each\s+)?(?:representing|represents|represent|evidencing|equal\s+to)\s+{NUMW}(?:\s*\((\d+(?:_\d+)?)\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
     # "each ADS represents 5 ordinary shares"
-    re.compile(rf"each\s+{ADS}\s+(?:represents|representing|evidences)\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
+    re.compile(rf"each\s+{ADS}\s+(?:represents|representing|evidences)\s+{NUMW}(?:\s*\((\d+(?:_\d+)?)\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
     # "5 ordinary shares per ADS"
-    re.compile(rf"{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+{SH}\s+per\s+{ADS}", re.I),
+    re.compile(rf"{NUMW}(?:\s*\((\d+(?:_\d+)?)\))?\s+{SH}\s+per\s+{ADS}", re.I),
 ]
+
+
+def _rx(numw: str, cap: bool) -> tuple[list, re.Pattern]:
+    par = r"(?:\s*\((\d+(?:_\d+)?)\))?" if cap else r"(?:\s*\(\d+(?:_\d+)?\))?"
+    rx = [re.compile(rf"{ADS}[^.;]{{0,60}}?(?:each\s+)?(?:representing|represents|represent|evidencing|equal\s+to)\s+{numw}{par}\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
+          re.compile(rf"each\s+{ADS}\s+(?:represents|representing|evidences)\s+{numw}{par}\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
+          re.compile(rf"{numw}{par}\s+{SH}\s+per\s+{ADS}", re.I)]
+    inv = re.compile(rf"each\s+{numw}{par}\s+{ADS}\s*(?:representing|represents|represent|evidencing)\s+"
+                     rf"(?:one|an?|1)(?:\s*\(1\))?\s+{SH}", re.I)
+    return rx, inv
 
 
 # ⛔ INVERSE statements: "ADSs, each twenty (20) ADSs representing one (1) Common Share" (DDI) is 1/20 ordinary per
 # ADS. The forward rule read "ADSs representing one (1) Common Share" as 1:1 and DDI's cap came out 20x low.
-INVERSE = re.compile(rf"each\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+{ADS}\s*(?:representing|represents|represent|evidencing)\s+"
+INVERSE = re.compile(rf"each\s+{NUMW}(?:\s*\((\d+(?:_\d+)?)\))?\s+{ADS}\s*(?:representing|represents|represent|evidencing)\s+"
                      rf"(?:one|an?|1)(?:\s*\(1\))?\s+{SH}", re.I)
 
 
@@ -56,7 +71,7 @@ class RatioStatement:
 
 
 def _val(tok: str) -> float | None:
-    t = tok.lower().replace("_", ".").replace(",", "")
+    t = re.sub(r"\s+", " ", tok.lower()).replace("_", ".").replace(",", "")
     if t in FRAC:
         return FRAC[t]
     if t in WORD:
@@ -67,13 +82,31 @@ def _val(tok: str) -> float | None:
         return None
 
 
-def parse_ratio(text: str) -> tuple[float | None, str, str]:
-    """-> (ordinary shares per ADS, status, snippet). status OK | NOT_FOUND | CONFLICT."""
+RX_M3, INVERSE_M3 = _rx(NUMW_M3, False)
+
+
+def parse_ratio(text: str, legacy: bool = False) -> tuple[float | None, str, str]:
+    """-> (ordinary shares per ADS, status, snippet). status OK | NOT_FOUND | CONFLICT.
+    `legacy`: the ACCEPTED (M3) reading -- evidence accepted under it keeps it (M3.1: a parser improvement re-reads
+    accepted evidence only through an explicit historical correction)."""
+    if legacy:
+        return _parse_m3(text)
     t = for_matching(text)
     vals = {}
     inverse_spans = []
+    disagree = []
+
+    def agrees(m, v):
+        # M3.1: a number word with its numeral ("two hundred (200)") must state ONE value; otherwise fail closed
+        num = m.group(2)
+        if num is not None and _val(num) is not None and abs(_val(num) - v) > 1e-9:
+            disagree.append(t[max(0, m.start() - 20):m.end() + 20][:300])
+            return False
+        return True
     for m in INVERSE.finditer(t):
         v = _val(m.group(1))
+        if v is not None and not agrees(m, v):
+            continue
         if v and v > 1:
             inverse_spans.append((m.start(), m.end()))
             vals.setdefault(round(1 / v, 9), t[max(0, m.start() - 20):m.end() + 20][:300])
@@ -85,10 +118,61 @@ def parse_ratio(text: str) -> tuple[float | None, str, str]:
             v = _val(tok)
             if v is None or v <= 0:
                 continue
+            if not agrees(m, v):
+                continue
             seg = m.group(0).lower()
             frac_of_one = re.search(r"of\s+(?:one|an?)\s+", seg[seg.find(tok.lower()) + len(tok):][:12]) is not None
             if frac_of_one and v >= 1 and tok.lower() not in FRAC:
                 continue            # "one of one" style noise
+            vals.setdefault(round(v, 9), t[max(0, m.start() - 20):m.end() + 20][:300])
+    if disagree:
+        return None, "CONFLICT", "WORD_NUMERAL_DISAGREE: " + " || ".join(disagree[:3])
+    if not vals:
+        return None, "NOT_FOUND", ""
+    if len(vals) > 1:
+        return None, "CONFLICT", " || ".join(list(vals.values())[:3])
+    v, s = next(iter(vals.items()))
+    return v, "OK", s
+
+
+COVER_12B = re.compile(r"(?:registered|to\s+be\s+registered)\s+pursuant\s+to\s+section\s+12\s*\(\s*b\s*\)", re.I)
+COVER_WINDOW = 2500
+
+
+def parse_cover_ratio(text: str) -> tuple[float | None, str, str]:
+    """M3.1 (SOGP): the 12(b) REGISTRATION TABLE of the cover ("Title of each class ... American depositary shares,
+    each ADS represents two hundred (200) Class A ordinary shares") -- the ratio the filing registers AS OF its date.
+    Only the bounded window after the first 12(b) heading is read: the body of a 20-F also narrates superseded ratios
+    ("prior to the ratio change ... 20"), which a whole-document read reports as a CONFLICT."""
+    t = for_matching(text)
+    m = COVER_12B.search(t)
+    if not m:
+        return None, "NOT_FOUND", ""
+    v, st, snip = parse_ratio(t[m.end():m.end() + COVER_WINDOW])
+    return v, st, ("COVER_12B: " + snip) if snip else ""
+
+
+def _parse_m3(text: str) -> tuple[float | None, str, str]:
+    t = for_matching(text)
+    vals = {}
+    inverse_spans = []
+    for m in INVERSE_M3.finditer(t):
+        v = _val(m.group(1))
+        if v and v > 1:
+            inverse_spans.append((m.start(), m.end()))
+            vals.setdefault(round(1 / v, 9), t[max(0, m.start() - 20):m.end() + 20][:300])
+    for rx in RX_M3:
+        for m in rx.finditer(t):
+            if any(a <= m.start() < b or a < m.end() <= b for a, b in inverse_spans):
+                continue
+            tok = m.group(1)
+            v = _val(tok)
+            if v is None or v <= 0:
+                continue
+            seg = m.group(0).lower()
+            frac_of_one = re.search(r"of\s+(?:one|an?)\s+", seg[seg.find(tok.lower()) + len(tok):][:12]) is not None
+            if frac_of_one and v >= 1 and tok.lower() not in FRAC:
+                continue
             vals.setdefault(round(v, 9), t[max(0, m.start() - 20):m.end() + 20][:300])
     if not vals:
         return None, "NOT_FOUND", ""

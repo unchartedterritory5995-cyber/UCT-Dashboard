@@ -246,6 +246,7 @@ def append(store: Store, parent: str, pulled_path: str, *, pulled_at: str, prove
         import shutil
         shutil.rmtree(tmpd, ignore_errors=True)
     m = {"format": FORMAT, "version_id": vid, "kind": "APPEND", "parent": parent, "as_of": pulled_at[:10],
+         "pulled_at": pulled_at,
          "created_at": now_iso(), "files": {"ref.jsonl": s, "divergence.json": hashlib.sha256(dv).hexdigest()},
          "tickers": len(merged), "pulled_sha256": sha(pulled_path),
          "merge": {"added": len(rep["added"]), "added_tickers": rep["added"][:50],
@@ -291,7 +292,9 @@ def propose_correction(store: Store, parent: str, proposed_path: str, *, tickers
                             "status": "CANDIDATE", "provenance": {"proposed_sha256": sha(proposed_path)}, "code": _code()})
 
 
-def approve(store: Store, vid: str, *, by: str, reason: str, market_cap_gates: str) -> dict:
+def approve(store: Store, vid: str, *, by: str, reason: str, market_cap_gates: str, impact_dir: str | None = None) -> dict:
+    """A human approves a correction whose dark Market Cap impact run (correction_impact.py) PASSED. Its exact impact
+    rows are sealed WITH the approval: HISTORY authorizes those changes, and nothing else, in a later candidate."""
     m = store.manifest(vid)
     if m["kind"] != "REFERENCE_HISTORICAL_CORRECTION":
         raise ReferenceAuthorityError("only a REFERENCE_HISTORICAL_CORRECTION is approved")
@@ -299,9 +302,66 @@ def approve(store: Store, vid: str, *, by: str, reason: str, market_cap_gates: s
         raise ReferenceAuthorityError("a correction whose Market Cap release gates did not PASS cannot be approved")
     if not by or by.startswith("refresh:") or by.startswith("scheduler"):
         raise ReferenceAuthorityError("reference corrections are approved by a human, never by a refresh or the scheduler")
-    rec = {"version_id": vid, "approved_by": by, "reason": reason, "approved_at": now_iso(), "market_cap_gates": "PASS"}
+    if not impact_dir or not os.path.exists(os.path.join(impact_dir, "impact.json")):
+        raise ReferenceAuthorityError("approval needs the correction's impact run (impact.json + impact_rows.jsonl.gz)")
+    imp = json.load(open(os.path.join(impact_dir, "impact.json")))
+    if imp.get("candidate", {}).get("reference_version") != vid or imp.get("gates", {}).get("status") != "PASS":
+        raise ReferenceAuthorityError("the impact run is not this candidate's, or its gates did not PASS")
+    store.write_once(vid, "impact_rows.jsonl.gz", src=os.path.join(impact_dir, "impact_rows.jsonl.gz"))
+    store.write_once(vid, "impact.json", src=os.path.join(impact_dir, "impact.json"))
+    rec = {"version_id": vid, "approved_by": by, "reason": reason, "approved_at": now_iso(), "market_cap_gates": "PASS",
+           "impact_rows_sha256": sha(store.path(vid, "impact_rows.jsonl.gz")), "impact_sha256": sha(store.path(vid, "impact.json"))}
     store.write_once(vid, "APPROVAL.json", body=json.dumps(rec, indent=1).encode())
     return rec
+
+
+SHARE_FIELDS = ("share_class_shares_outstanding", "weighted_shares_outstanding")
+
+
+def boundary_session(m: dict) -> str | None:
+    """The first session a version's CURRENT-STATE fields may speak for: its pull is public for the 16:00 ET close of
+    the pull day if completed before 16:00 ET, else the next day. A ROOT is the accepted interpretation (None = all
+    history, exactly as accepted). A version recording only its date (no `pulled_at`) speaks from the NEXT day (late,
+    never early)."""
+    from datetime import date as _d, timedelta as _td
+    from zoneinfo import ZoneInfo
+    if m["kind"] == "ROOT":
+        return None
+    if m.get("pulled_at"):
+        t = datetime.fromisoformat(m["pulled_at"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/New_York"))
+        return (t.date() if t.hour < 16 else t.date() + _td(days=1)).isoformat()
+    return (_d.fromisoformat(m["as_of"]) + _td(days=1)).isoformat()
+
+
+def lineage(store: Store, vid: str) -> list[str]:
+    out = []
+    while vid:
+        out.append(vid)
+        vid = store.manifest(vid).get("parent")
+    return out[::-1]
+
+
+def current_history(store: Store, vid: str) -> dict:
+    """{ticker: [[from_session | None, share_class_shares, weighted_shares], ...]} for every ticker whose CURRENT share
+    fields changed along the sealed lineage ROOT -> ... -> vid (M3.1: current-state evidence is not historical
+    authority; each value speaks from the boundary of the version that first carried it). A correction carries its
+    parent's boundaries (its records' share fields are not a new observation of the present)."""
+    hist: dict = {}
+    for v in lineage(store, vid):
+        m = store.manifest(v)
+        if m["kind"] == "REFERENCE_HISTORICAL_CORRECTION":
+            continue
+        b = boundary_session(m)
+        for t, r in load(store.path(v, "ref.jsonl")).items():
+            if not _has(r):
+                continue
+            val = [(r[1] or {}).get(k) for k in SHARE_FIELDS]
+            h = hist.setdefault(t, [])
+            if not h:
+                h.append([b if m["kind"] != "ROOT" else None] + val)
+            elif h[-1][1:] != val:
+                h.append([b] + val)
+    return {t: h for t, h in sorted(hist.items()) if len(h) > 1}
 
 
 def materialize(store: Store, vid: str, out: str, *, allow_candidate: bool = False) -> dict:
@@ -312,7 +372,16 @@ def materialize(store: Store, vid: str, out: str, *, allow_candidate: bool = Fal
         b.write(a.read())
     if sha(out) != m["files"]["ref.jsonl"]:
         raise ReferenceAuthorityError(f"materialized reference {vid} does not match its seal")
-    return {"reference_version": vid, "kind": m["kind"], "parent": m.get("parent"), "as_of": m["as_of"],
+    # the derived current-state history (deterministic from the sealed lineage; absent for a ROOT = accepted M3)
+    hp = os.path.join(os.path.dirname(out), "ref_current_history.json")
+    ch = current_history(store, vid)
+    if os.path.exists(hp):
+        os.remove(hp)           # ⛔ never write through a hard link (correction-impact dirs link the accepted run's files)
+    if ch:
+        with open(hp, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(ch, f, sort_keys=True, separators=(",", ":"))
+    return {"reference_version": vid, "current_history_tickers": len(ch),
+            "current_history_sha256": sha(hp) if ch else None, "kind": m["kind"], "parent": m.get("parent"), "as_of": m["as_of"],
             "sha256": m["files"]["ref.jsonl"], "tickers": m["tickers"]}
 
 
@@ -325,6 +394,7 @@ def main(argv=None) -> int:
     s.add_argument("--proposed", required=True); s.add_argument("--tickers", required=True); s.add_argument("--reason", required=True)
     s = sub.add_parser("approve"); s.add_argument("--root", required=True); s.add_argument("--version", required=True)
     s.add_argument("--by", required=True); s.add_argument("--reason", required=True); s.add_argument("--market-cap-gates", required=True)
+    s.add_argument("--impact-dir", required=True)
     s = sub.add_parser("show"); s.add_argument("--root", required=True); s.add_argument("--version", required=True)
     a = ap.parse_args(argv)
     st = Store(a.root)
@@ -333,7 +403,7 @@ def main(argv=None) -> int:
     elif a.cmd == "propose-correction":
         r = propose_correction(st, a.parent, a.proposed, tickers=a.tickers.split(","), reason=a.reason)
     elif a.cmd == "approve":
-        r = approve(st, a.version, by=a.by, reason=a.reason, market_cap_gates=a.market_cap_gates)
+        r = approve(st, a.version, by=a.by, reason=a.reason, market_cap_gates=a.market_cap_gates, impact_dir=a.impact_dir)
     else:
         r = st.manifest(a.version)
     print(json.dumps(r, indent=1, default=str))
