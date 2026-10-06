@@ -61,13 +61,33 @@ describe('RatingsTab -- failed read vs genuine empty state', () => {
   it('renders the error state on a failed read, not "Ratings are unavailable"', async () => {
     await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
     expect(screen.getByTestId('ratings-error')).toHaveTextContent("Couldn't load ratings")
-    expect(screen.queryByText('Ratings are unavailable for this ticker.')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ratings-empty')).not.toBeInTheDocument()
   })
 
-  it('still renders the genuine empty state when the read succeeded with no rating', async () => {
-    await renderWith({ data: {}, isLoading: false, error: false, mutate: () => {} })
-    expect(screen.getByText('Ratings are unavailable for this ticker.')).toBeInTheDocument()
+  // tq-panels: the server ALWAYS sends the seven component keys (null when unmeasured),
+  // so the old `!Object.keys(comp).length` empty test could never fire. Use the real shape.
+  const BLANK = { sym: 'AAPL', composite: null, checkup: [],
+    components: { eps: null, rs: null, growth: null, value: null, smr: null, accdis: null, sponsorship: null } }
+
+  it('an all-blank rating whose legs all answered says there are no inputs on file', async () => {
+    await renderWith({ data: { ...BLANK, complete: true }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByTestId('ratings-empty').textContent)
+      .toBe('No rating inputs on file for AAPL — none of the seven components could be measured.')
+    expect(screen.queryByText('UCT Composite Rating')).toBeNull()
     expect(screen.queryByTestId('ratings-error')).not.toBeInTheDocument()
+  })
+
+  it('an all-blank rating with a failed leg says it could not read the inputs, with Retry', async () => {
+    await renderWith({ data: { ...BLANK, complete: false }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByTestId('ratings-error').textContent).toMatch(/^Couldn't read the inputs for AAPL's rating/)
+  })
+
+  it('a fund says not applicable to funds -- no composite', async () => {
+    await renderWith({ data: { sym: 'SPY', not_applicable: 'fund',
+      reason: 'SPY is a fund; the UCT Composite rates operating companies (earnings, growth, margins, sponsorship), which a fund does not have' },
+    isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByTestId('ratings-na').textContent).toMatch(/^Not applicable to funds — SPY is a fund; the UCT Composite rates operating companies/)
+    expect(screen.queryByText('UCT Composite Rating')).toBeNull()
   })
 
   it('Retry calls mutate', async () => {
