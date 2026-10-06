@@ -4,6 +4,8 @@
 // backend's portfolio_heat.py already returns to its four assistant-tool
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
+import UIcon from '../components/ui/UIcon'
+import { formatPercent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` -- a 402 answers JSON too. See
@@ -11,7 +13,8 @@ import styles from './PortfolioHeat.module.css'
 import fetcher from '../utils/jsonFetcher'
 
 // A null percentage renders "—", never a bare "%" (and never throws on .toFixed).
-export const pctText = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—')
+// The shared formatter owns the rounding and the missing-value glyph.
+export const pctText = (v) => formatPercent(v, { decimals: 1 })
 
 function CapBar({ label, valuePct, capPct }) {
   if (!Number.isFinite(valuePct)) {
@@ -24,7 +27,7 @@ function CapBar({ label, valuePct, capPct }) {
       <div className={styles.capLabel}>
         <span>{label}</span>
         <span className={over ? styles.capValueOver : styles.capValue}>
-          {valuePct.toFixed(1)}% <span className={styles.capOf}>/ {capPct.toFixed(1)}% cap</span>
+          {pctText(valuePct)} <span className={styles.capOf}>/ {pctText(capPct)} cap</span>
         </span>
       </div>
       <div className={styles.capTrack}>
@@ -123,7 +126,8 @@ export default function PortfolioHeat() {
         <div className={styles.flagsSection}>
           {concentration_flags.map(f => (
             <div key={f.sector} className={styles.flag}>
-              ⚠ {f.sector} is {f.risk_pct.toFixed(1)}% of your risk — over 40% concentration
+              <UIcon name="warning" size={14} gold={false} className={styles.flagIcon} />
+              {f.sector} is {pctText(f.risk_pct)} of your risk — over 40% concentration
             </div>
           ))}
         </div>
@@ -171,7 +175,7 @@ export default function PortfolioHeat() {
             {by_sector.map(s => (
               <div key={s.sector} className={styles.sectorRow}>
                 <span>{s.sector}</span>
-                <span>{s.risk_pct.toFixed(1)}%</span>
+                <span>{pctText(s.risk_pct)}</span>
               </div>
             ))}
           </div>
