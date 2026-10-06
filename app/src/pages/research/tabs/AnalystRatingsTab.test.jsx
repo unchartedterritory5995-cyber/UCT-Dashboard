@@ -102,7 +102,7 @@ describe('AnalystRatingsTab', () => {
     }))
     const { default: FreshTab } = await import('./AnalystRatingsTab')
     render(<FreshTab sym="ZZZ" />)
-    expect(screen.getByText('Analyst rating data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.getByTestId('analyst-ratings-empty').textContent).toBe('No analyst coverage on file for ZZZ.')
   })
 
   it('never populates a per-action price target (unverified field, owner decision 3)', async () => {
@@ -122,7 +122,7 @@ describe('AnalystRatingsTab', () => {
     const { default: FreshTab } = await import('./AnalystRatingsTab')
     render(<FreshTab sym="AAPL" />)
     expect(screen.getByTestId('analyst-ratings-error')).toHaveTextContent("Couldn't load analyst ratings")
-    expect(screen.queryByText('Analyst rating data is unavailable for this ticker.')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('analyst-ratings-empty')).not.toBeInTheDocument()
   })
 
   it('still renders the genuine empty state when the read succeeded with no coverage', async () => {
@@ -137,8 +137,23 @@ describe('AnalystRatingsTab', () => {
     }))
     const { default: FreshTab } = await import('./AnalystRatingsTab')
     render(<FreshTab sym="ZZZ" />)
-    expect(screen.getByText('Analyst rating data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.getByTestId('analyst-ratings-empty').textContent).toBe('No analyst coverage on file for ZZZ.')
     expect(screen.queryByTestId('analyst-ratings-error')).not.toBeInTheDocument()
+  })
+
+  // tq-panels: a PARTIAL outage (some legs failed) is stamped `outage` by the route and
+  // said in words; the sections that answered still render.
+  it('a partial outage says some data could not be read, and still shows what answered', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({
+      default: () => ({ data: { ...fullData, price_target: null, outage: true }, isLoading: false, error: false, mutate: () => {} }),
+    }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="AAPL" />)
+    expect(screen.getByTestId('analyst-ratings-partial').textContent)
+      .toMatch(/^Some of AAPL's analyst data could not be read right now; what is shown is what answered\./)
+    expect(screen.getByText('Analyst consensus')).toBeInTheDocument()
+    expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
   })
 
   it('Retry calls mutate', async () => {

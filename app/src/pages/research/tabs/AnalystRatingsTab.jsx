@@ -200,7 +200,16 @@ export default function AnalystRatingsTab({ sym }) {
         </section>
       )}
 
-      {empty && <div className={styles.fnote}>Analyst rating data is unavailable for this ticker.</div>}
+      {/* tq-panels: the route now 503s a TOTAL outage (the error branch above) and
+          stamps `outage` on a partial one, so "empty" here really is no coverage. */}
+      {e.outage && !empty && (
+        <div className={styles.fnote} data-testid="analyst-ratings-partial">
+          Some of {sym}'s analyst data could not be read right now; what is shown is what answered.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+        </div>
+      )}
+      {empty && <div className={styles.fnote} data-testid="analyst-ratings-empty">No analyst coverage on file for {sym}.</div>}
 
       <AnalystRevisions sym={sym} />
     </div>

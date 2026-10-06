@@ -30,6 +30,7 @@ calls this composer function, so none of this is a behavior change for them.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Optional
 
 from api.services import fmp_client
@@ -59,6 +60,33 @@ def _num(v):
         return None
 
 
+# tq-panels (ANR): a DEGRADED vendor answer with no usable row (cached_forbidden,
+# circuit_open) used to be read as a clean "no data" -- so a leg the vendor would
+# not serve counted as ANSWERED, and an outage cached as "no analyst coverage" for
+# 6h. The helpers below keep their (None / []) return contract, and note the
+# degradation on this thread-local; `_run_leg` (each leg runs on its own pool
+# thread) reads it back and counts an EMPTY degraded leg as not answered.
+_LEG_STATE = threading.local()
+
+
+def _note_degraded(result) -> None:
+    if getattr(result, "degraded", None) is not None:
+        _LEG_STATE.degraded = True
+
+
+def _run_leg(fn, symbol):
+    """(value, degraded) for one leg, on the calling (pool) thread."""
+    _LEG_STATE.degraded = False
+    value = fn(symbol)
+    return value, bool(getattr(_LEG_STATE, "degraded", False))
+
+
+def _leg_empty(value) -> bool:
+    if isinstance(value, dict) and "items" in value:
+        return not value.get("items")
+    return not value
+
+
 def _first(data):
     return data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
 
@@ -78,6 +106,7 @@ def _fmp_row(fn, ticker: str, **kwargs) -> Optional[dict]:
     except ProviderNotFound:
         return None
     if result.degraded is not None:
+        _note_degraded(result)
         return None
     return _first(result.value)
 
@@ -89,6 +118,7 @@ def _fmp_rows(fn, ticker: str, **kwargs) -> list:
     except ProviderNotFound:
         return []
     if result.degraded is not None:
+        _note_degraded(result)
         return []
     return result.value if isinstance(result.value, list) else []
 
@@ -120,6 +150,7 @@ def _fmp_row_with_meta(fn, ticker: str, **kwargs) -> tuple[Optional[dict], Optio
         return None, None
     row = _first(result.value) if result.value else None
     if row is None:
+        _note_degraded(result)
         return None, None
     meta = {
         "vendor": result.provenance.vendor,
@@ -150,6 +181,7 @@ def _fmp_rows_with_meta(fn, ticker: str, **kwargs) -> tuple[list, Optional[dict]
         return [], None
     rows = result.value if isinstance(result.value, list) else []
     if not rows:
+        _note_degraded(result)
         return [], None
     meta = {
         "vendor": result.provenance.vendor,
@@ -319,11 +351,15 @@ def get_analyst_grades(ticker: str, *, outage_out: Optional[dict] = None) -> Opt
     got: dict = {}
     with ThreadPoolExecutor(max_workers=len(legs),
                             thread_name_prefix="grades") as ex:
-        futures = [(name, on_fail, ex.submit(fn, fmp_symbol))
+        futures = [(name, on_fail, ex.submit(_run_leg, fn, fmp_symbol))
                    for name, fn, on_fail in legs]
         for name, on_fail, fut in futures:
             try:
-                got[name] = fut.result()
+                value, degraded = fut.result()
+                got[name] = value
+                if degraded and _leg_empty(value):
+                    # the vendor did not serve this leg -- not "found nothing"
+                    all_answered = False
             except Exception:
                 # Per-leg isolation is preserved exactly: one failing endpoint
                 # nulls only its own slice and flips all_answered, which is what
