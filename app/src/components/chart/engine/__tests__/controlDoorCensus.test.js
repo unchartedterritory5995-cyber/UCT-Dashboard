@@ -674,6 +674,13 @@ describe('the control-door census — how many doors, and whether an eighth exis
        '→ addInstance ON A CREATE ONLY, addressing the STORE\'s id (never the draft\'s). It ' +
        'then hands the minted instanceId to the info-value and alert doors, so the one ' +
        'instance it adds is the one every stored request names'],
+      ['app/src/components/chart/builder/studio/chartPreview.js',
+       '⭐ NEW AT P2 TRACK B (Create Indicator, slice 1) — the conversation\'s LIVE PREVIEW ' +
+       'on the member\'s REAL chart. addInstance is called against the STORED blob only to ' +
+       'SHAPE the one preview instance (declared defaults, placement) exactly as Save will ' +
+       'add it; the result is never written. The instance rides StockChart\'s csView read ' +
+       'view, every writer keeps using cs, and stripPreview removes it at the persist ' +
+       'writer. It names u_studio-preview, which the server can never mint'],
       ['app/src/components/chart/builder/editor/PreviewPane.jsx',
        '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
        'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +

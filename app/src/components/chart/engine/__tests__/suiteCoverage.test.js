@@ -182,6 +182,9 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart/__tests__',
   'src/components/chart/builder',
   'src/components/chart/builder/editor',
+  // P2 Track B (2026-10-06): Create Indicator — preview seam, panel, dark door.
+  // Run green (3 files / 19 tests) BEFORE this line was added.
+  'src/components/chart/builder/studio',
   // T3 (2026-09-12) — the member-pane path. Run green (11/11) BEFORE this
   // line was added, which is the order this rail asks for.
   'src/components/chart/builder/memberPane',
