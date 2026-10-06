@@ -120,6 +120,10 @@ import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
+// ⭐⭐ P0G — the definition semantics the store will give this save (owner
+// decisions A + C): the preview draws under them, and the copy installed after a
+// save carries the store's own answer (`row.semantics`).
+import { stampSemantics, withStoredSemantics } from '../engine/definitionSemantics'
 import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
@@ -401,6 +405,16 @@ function legacyDefinition({ defId, version, rev, source, ast, mode, readback, de
  * @param {object|null} placement `{target:'price'}` or `{target:'pane', pane:{…}}`
  * @param {number[]|null} levels one trailing `hlines` guide plot
  */
+/** ⭐ P0G — what `stampSemantics` needs to apply the store's rule to a draft:
+ *  the stored document being edited (null on a create) and the import dialect
+ *  this draft's maths came from (a Pine import is never stamped). */
+function semanticsContext(editing, telemetry) {
+  return {
+    prior: (editing && editing.prior) || null,
+    dialect: (telemetry && telemetry.dialect) || null,
+  }
+}
+
 export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
   readback = '', inputs = BUILDER_INPUTS,
   plots = null, scanPlot = null, placement = null, levels = null, paramManifest = null,
@@ -1342,7 +1356,9 @@ export default function BuilderSheet({
     )
     setParamCarryNote(null)
 
-    setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
+    // ⭐ P0G — `prior` is the stored document, so the preview can apply the
+    // store's semantics rule (a presentation edit inherits; new maths gets 2).
+    setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null })
     setName(String(def?.meta?.name || ''))
     setSource(restored[0].source)
     // ⭐ OPENING A SAVED FORMULA IS A LANE LIKE ANY OTHER. Found by enumerating
@@ -1480,7 +1496,7 @@ export default function BuilderSheet({
    *  beside its reason. */
   const previewDefinition = useMemo(() => (
     result && result.ok && result.ast && result.verdict && inputsValid
-      ? buildDefinition({
+      ? stampSemantics(buildDefinition({
         ...evaluatedDocArgs(result, memberInputs, paramManifest),
         // ⭐ THE PREVIEW DRAWS THE OBJECTS TOO. A preview that showed only the
         // columns would tell a member their import lost its lines, right up
@@ -1493,9 +1509,9 @@ export default function BuilderSheet({
         // This runs on EVERY keystroke, where `evaluateFormula` can answer a
         // null read-back; `save()` runs only past `canSave`.
         readback: result.readback || '',
-      })
+      }), semanticsContext(editing, importTelemetryRef.current))
       : null
-  ), [result, name, memberInputs, inputsValid])
+  ), [result, name, memberInputs, inputsValid, editing])
 
   // ⭐⭐ ONE AUTHORITY FOR "CAN THIS SAVE", AND THE HINT IS DERIVED FROM IT.
   //
@@ -1646,6 +1662,9 @@ export default function BuilderSheet({
     // first draft of this forgot colour, width, label and hidden.
     const plain = plotRows.length === 0 && target === 'pane' && levels.length === 0
       && isUntouchedRow(plot0)
+    // ⛔ P0G — SENT WITHOUT A SEMANTICS STAMP: the store decides it (a client
+    // value is discarded there) and answers with `row.semantics`, which the
+    // installed copy below carries.
     const doc = buildDefinition({
       // ⭐ THE FIVE FIELDS EVERY DOCUMENT TAKES FROM A SETTLED EVALUATION, from
       // the ONE assembly the live preview also asks — so the two cannot drift
@@ -1714,7 +1733,6 @@ export default function BuilderSheet({
     importTelemetryRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
-    if (editing && row.def_id) setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1 })
 
     // ── the definition the STORE holds, not the draft ────────────────────────
     //
@@ -1726,7 +1744,9 @@ export default function BuilderSheet({
     // field over. ⚠️ `compute.rev` is reconciled from the row for the same
     // reason: the store computes the authoritative rev and Task 11 recorded that
     // the blob's copy was left to lag it.
-    const storedDoc = {
+    // ⭐ P0G — WITH THE STORE'S SEMANTICS, never the draft's guess: the server
+    // decides (`decide_semantics`) and says so in `row.semantics`.
+    const storedDoc = withStoredSemantics({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -1734,6 +1754,9 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
+    }, row)
+    if (editing && row.def_id) {
+      setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1, prior: storedDoc })
     }
     const { installed, errors: installErrors } = installUserDefinitions([storedDoc])
     if (installErrors.length || installed.length !== 1) {

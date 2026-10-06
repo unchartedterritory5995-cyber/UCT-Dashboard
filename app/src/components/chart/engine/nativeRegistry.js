@@ -107,6 +107,11 @@ import { resolveLowerTf } from './lowerTf'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { chartScalarRefusal, CHART_SCALAR_GUARD } from './chartScalars'
+// ⭐⭐ P0G — the document's definition semantics (owner decisions A + C), read
+// off the store's own stamp (`meta.semantics`) and spread into every `interpret`
+// this registry runs for it. `{}` for every document saved before P0G and every
+// Pine translation, so their evaluation is the one it always was.
+import { semanticsOptsFor, semanticsOf } from './definitionSemantics'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -2528,6 +2533,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...listingOptsFor(def, ctx),
+            ...semanticsOptsFor(def),
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
@@ -2556,6 +2562,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         undefined, { tf: ctx && ctx.tf,
           newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
           ...listingOptsFor(def, ctx),
+          ...semanticsOptsFor(def),
           ...(other ? { symbols: other.symbols } : {}), crossMemo,
           chartClockSink: new Map() }))
       if (runsWhy) {
@@ -2595,6 +2602,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...listingOptsFor(def, ctx),
+      ...semanticsOptsFor(def),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2605,6 +2613,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...listingOptsFor(def, ctx),
+      ...semanticsOptsFor(def),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -3863,7 +3872,11 @@ export function registryGeneration() { return _generation }
  *  is an SWR list that revalidates, and a bump per poll would rebuild every
  *  registry-derived memo on the chart path each time the tab regained focus. */
 function installKey(def) {
-  return `${def.id}@${def.version}#${def.compute && def.compute.fn}`
+  // ⭐ P0G — a document whose STORED semantics differ from the installed copy's
+  // (the builder's local copy before the list refetches) is a different
+  // evaluation and must reinstall. Unchanged for semantics 1.
+  const sem = semanticsOf(def) === 1 ? '' : `~s${semanticsOf(def)}`
+  return `${def.id}@${def.version}#${def.compute && def.compute.fn}${sem}`
 }
 
 /**

@@ -803,7 +803,8 @@ def _conformance():
 ARM_CASE_ID = "arm"
 
 
-def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None) -> dict:
+def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None,
+                      opts: Optional[Mapping] = None) -> dict:
     """Run BOTH lanes over `tree` on `bars`, WITH `inputs`, and return `compare_lanes`' verdict.
 
     Separated from the gate so a test can read the numbers (`compared`,
@@ -822,7 +823,11 @@ def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None) -
     .case_inputs`), so the two can never be handed different ones.
     """
     conf = _conformance()
-    cases = [{"id": ARM_CASE_ID, "ast": tree, "inputs": dict(inputs or {})}]
+    # ⭐ P0G -- AND THE DEFINITION'S SEMANTICS, carried in the SAME case object
+    # (`ast_conformance.case_opts`), so a document stamped `meta.semantics: 2` is
+    # proven equal under the evaluation production runs, never under the legacy one.
+    cases = [{"id": ARM_CASE_ID, "ast": tree, "inputs": dict(inputs or {}),
+              **({"opts": dict(opts)} if opts else {})}]
     js = conf.run_js(cases, bars)
     py = conf.run_py(cases, bars)
     return conf.compare_lanes(js, py)
@@ -860,8 +865,10 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
         # cited for every other row's. What the knobs move is the VALUE, not
         # which names resolve — but a lane divergence that only appears at some
         # other knob setting is outside what this measurement covers.
+        from api.services import ast_interpret as _lane
         report = cross_lane_report(compute.get("ast"), bars,
-                                   _inputs_for(definition, None))
+                                   _inputs_for(definition, None),
+                                   _lane.semantics_opts_for(definition))
     except AdmissionRefused:
         raise
     except Exception as exc:

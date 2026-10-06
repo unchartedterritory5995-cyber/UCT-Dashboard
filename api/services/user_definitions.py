@@ -1404,11 +1404,77 @@ def _live_def_count(c: sqlite3.Connection, user_id: Any) -> int:
     ).fetchone()[0]
 
 
+# ─── P0G: definition semantics, stamped HERE and nowhere else ────────────────
+#
+# ⭐⭐ OWNER DECISIONS A + C (2026-10-05), ONE VERSION NUMBER. A NEW native save --
+# a create, or an edit whose maths moved, of a document that is not a Pine
+# translation -- is stored with `meta.semantics: 2`, and both lanes evaluate it
+# with `opts.semantics == 2` (`ast_interpret.semantics_opts_for` /
+# `definitionSemantics.js::semanticsOptsFor`): a comparison with an unknown
+# operand is unknown (A), and `rsi`/`atr`/`adx`/`plusDI`/`minusDI` hold across a
+# hole instead of restarting after it (C). Everything else is unchanged:
+#
+#   * a row saved before this keeps its semantics -- no migration -- and a
+#     PRESENTATION edit of it (same `ast_hash`, same `treesHash`) inherits them,
+#     because upgrading there would change its outputs without its maths moving;
+#   * a Pine translation is NEVER stamped (`meta.recurrenceOrigin == 'pine'`, or
+#     maths this save declares came from the Pine translator, `source_dialect ==
+#     'pine'` -- the Formula tab's Pine import): Pine compares `na` as false;
+#   * a share install copies the source row's stamp verbatim (it is a copy).
+#
+# ⛔ THE CLIENT CANNOT SET IT. Whatever `meta.semantics` a request carries is
+# discarded before anything is hashed or stored, and the store's decision is
+# written instead -- a member cannot opt a document into or out of a semantics
+# by editing JSON. ⛔ It rides OUTSIDE the trees, so `ast_hash`/`treesHash` and
+# every key they feed (`scan_hits`, `def_hash`, the forward record) are unmoved.
+# A semantics change coincides with a maths change, so `rev` bumps and the alert
+# migration runs exactly when it must.
+
+def _without_semantics(doc: Any) -> Any:
+    """`doc` with no `meta.semantics` (a COPY when one was present; never mutates)."""
+    if not isinstance(doc, dict):
+        return doc
+    meta = doc.get("meta")
+    if not isinstance(meta, dict) or "semantics" not in meta:
+        return doc
+    meta = {k: v for k, v in meta.items() if k != "semantics"}
+    return {**doc, "meta": meta}
+
+
+def _with_semantics(doc: dict, value: int) -> dict:
+    meta = doc.get("meta") if isinstance(doc.get("meta"), dict) else {}
+    return {**doc, "meta": {**meta, "semantics": value}}
+
+
+def decide_semantics(definition: Mapping[str, Any], prev_definition: Optional[Mapping[str, Any]],
+                     maths_moved: bool, *, source_dialect: Any = None,
+                     carried: Any = None, copy_of_stored: bool = False) -> Optional[int]:
+    """The `meta.semantics` this save stores, or None for "none" (semantics 1).
+
+    `carried` is the value the INCOMING document held before it was discarded;
+    it is read ONLY for a share install (`copy_of_stored`), whose document is a
+    copy of a row this store already decided."""
+    from api.services import ast_interpret
+    two = ast_interpret.SEMANTICS_UNKNOWN_PROPAGATES
+    if ast_interpret.is_pine_origin(definition):
+        return None
+    if copy_of_stored:
+        return two if (not isinstance(carried, bool) and carried == two) else None
+    if maths_moved:
+        if isinstance(source_dialect, str) and source_dialect.strip().lower() == "pine":
+            return None
+        return two
+    if prev_definition is not None and ast_interpret.semantics_for(prev_definition) == two:
+        return two
+    return None
+
+
 # ─── the write path ──────────────────────────────────────────────────────────
 
 def save(user_id: Any, def_id: str, definition: dict,
          limits: Any = None, *, role: Any = None,
          repaint_acknowledged: Any = None,
+         source_dialect: Any = None,
          _copy_of_stored: bool = False) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
@@ -1511,6 +1577,14 @@ def save(user_id: Any, def_id: str, definition: dict,
     stored, definition = normalize_graph_document(definition)
     compute = definition["compute"]
 
+    # ⭐ P0G -- THE CLIENT'S `meta.semantics` IS DISCARDED HERE, before anything is
+    # hashed, sized or stored; phase 1 writes the store's own decision
+    # (`decide_semantics`). Only a share install reads what was carried.
+    _carried_meta = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    carried_semantics = _carried_meta.get("semantics")
+    stored = _without_semantics(stored)
+    definition = _without_semantics(definition)
+
     # The hash comes off the tree BEFORE anything is written, so a tree this
     # lane cannot hash is refused rather than stored with a hash nobody can
     # reproduce. `assert_canonical` runs inside `ast_hash`.
@@ -1580,6 +1654,26 @@ def save(user_id: Any, def_id: str, definition: dict,
             entitlements.check_definition_count(
                 _live_def_count(c, user_id), limits)
 
+        # ⭐ P0G -- THE SEMANTICS THIS VERSION IS STORED UNDER, decided from the
+        # stored predecessor (see `decide_semantics`). "The maths moved" is the
+        # SAME two identities `rev_bumped` asks below, asked once here.
+        prev_doc = json.loads(prev["definition"]) if prev is not None else None
+        maths_moved = (prev is None or prev["ast_hash"] != new_hash
+                       or trees_identity(prev_doc) != new_trees)
+        semantics = decide_semantics(definition, prev_doc, maths_moved,
+                                     source_dialect=source_dialect,
+                                     carried=carried_semantics,
+                                     copy_of_stored=_copy_of_stored)
+        if semantics is not None:
+            blob = json.dumps(_with_semantics(stored, semantics), sort_keys=True,
+                              separators=(",", ":"), ensure_ascii=False)
+            size = len(blob.encode("utf-8"))
+            if size > MAX_DEFINITION_BYTES:
+                raise ValueError(
+                    f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
+                    "store names its caps rather than inheriting `user_preferences`', "
+                    "which has none")
+
         if prev is None:
             prev_version = prior_rev = None
             version, rev, rev_bumped = 1, FIRST_REV, False
@@ -1601,6 +1695,8 @@ def save(user_id: Any, def_id: str, definition: dict,
                     # for this column it heals toward MORE tags.
                     "requirements": _requirements_of(prev),
                     "appended": False,
+                    # ⭐ P0G -- the definition semantics the stored row carries.
+                    "semantics": semantics or 1,
                 }
             prev_version = prev["version"]
             prior_rev = prev["rev"]
@@ -1624,8 +1720,7 @@ def save(user_id: Any, def_id: str, definition: dict,
             # `last_value` and suppresses one cycle); the other direction fires a
             # member's alert on maths they replaced. Over-migrating is the safe
             # side of this asymmetry, and it is chosen deliberately.
-            rev_bumped = (prev["ast_hash"] != new_hash
-                          or trees_identity(json.loads(prev["definition"])) != new_trees)
+            rev_bumped = maths_moved
             rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
 
         # ⛔ P0/0P — NEW MATHS (a create, or an edit whose tree moved) must pass
@@ -1770,6 +1865,11 @@ def save(user_id: Any, def_id: str, definition: dict,
         "bindings_on_this_tree": bindings_on_this_tree,
         "ast_hash": new_hash, "repaint": json.loads(repaint),
         "requirements": json.loads(requirements), "appended": True,
+        # ⭐ P0G -- the definition semantics this version was STORED under. The
+        # builder installs its local copy with it (`definitionSemantics.js::
+        # withStoredSemantics`), so the member's chart and the alert lane cannot
+        # evaluate one document two ways while the list refetches.
+        "semantics": semantics or 1,
     }
 
 
