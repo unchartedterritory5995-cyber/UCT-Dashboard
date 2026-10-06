@@ -32,7 +32,7 @@
  * for the second. What is left is a line, the dashed reference it is measured
  * from, and the two numbers that bound the axis.
  */
-import { resolveViewColors } from './breadthViewShared'
+import useViewColors from './useViewColors'
 // ⭐ The panel table MOVED to `rotation.js` (framework-free) — The Read quotes a
 // panel's own `up`/`down` sentence, and a second copy of that copy is how the
 // strip and the card beneath it would end up naming opposite directions. The
@@ -89,7 +89,7 @@ const fmt = (v) => Number(v).toFixed(3)
 export default function RotationView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const lookback = Number(options.lookback ?? 20)
   // `win`, not `window`: a local named `window` shadows the global for the
   // whole function body.

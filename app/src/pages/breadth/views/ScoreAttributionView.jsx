@@ -6,7 +6,8 @@
  * from its weights alone.
  */
 import useSWR from 'swr'
-import { fillsRow, resolveViewColors } from './breadthViewShared'
+import { fillsRow } from './breadthViewShared'
+import useViewColors from './useViewColors'
 // ⛔ NOT an inline `fetch(url).then(r => r.json())`. A 401 from `require_paid`
 // or a 503 answers JSON too, and its `{detail}` body is a perfectly good object —
 // so `data.ok === false` is `undefined === false`, the refusal branch is skipped,
@@ -41,7 +42,7 @@ const BAR_MAX_H = 34
 export default function ScoreAttributionView({
   rows = [], currentRow, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const date = currentRow?.date
   // ⭐ The window the CLIENT loaded, not a fourth one nobody warms. `get_history`
   // caches per `days` value and startup warms only 90, so a hardcoded 400 here

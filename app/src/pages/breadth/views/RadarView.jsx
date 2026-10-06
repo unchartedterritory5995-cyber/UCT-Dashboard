@@ -46,7 +46,8 @@
  * identical reading at 12 — the one thing a radar exists to let you compare.
  */
 import { useLayoutEffect, useRef, useState } from 'react'
-import { NORM_TICKS, normBasis, resolveViewColors } from './breadthViewShared'
+import { NORM_TICKS, normBasis } from './breadthViewShared'
+import useViewColors from './useViewColors'
 
 // What the geometry uses before the first measurement, and forever in jsdom.
 // Roughly a full-width panel, so an unmeasured render is a plausible one.
@@ -99,6 +100,7 @@ function useBoxSize() {
 export default function RadarView({
   currentRow, prevRow, rows = [], metrics, normalize, onDrill, signalKey, notableKey, options = {},
 }) {
+  const colors = useViewColors(options.palette, options.intensity)
   const [plotRef, box] = useBoxSize()
 
   if (!currentRow || (metrics?.length ?? 0) < 3) {
@@ -111,7 +113,6 @@ export default function RadarView({
   }
   const MAX_SPOKES = options.maxSpokes ?? 14
   const asListed = options.spokeSelect === 'listed'
-  const colors = resolveViewColors(options.palette, options.intensity)
   const ext = (m) => Math.abs((normalize(m, currentRow) ?? 50) - 50)
   const capped = metrics.length > MAX_SPOKES
   let shown = metrics

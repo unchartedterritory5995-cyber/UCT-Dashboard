@@ -4,7 +4,8 @@
  * are the server's (`breadth_analogues.py`); this view ranks and reads them.
  */
 import useSWR from 'swr'
-import { resolveViewColors, medianOf } from './breadthViewShared'
+import { medianOf } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import SeekDate from './SeekDate'
 // ⭐ ONE AUTHOR FOR THE KEY. The Read reads this endpoint's answer OUT OF THE
 // SWR CACHE without fetching it, which only works if it asks for the exact
@@ -64,7 +65,7 @@ const CARD_MAX_H = 560
  * becomes live, with no other change.
  */
 export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const horizon = options.horizon ?? 'fwd_20d'
   const topN = Number(options.matches ?? 5)
 

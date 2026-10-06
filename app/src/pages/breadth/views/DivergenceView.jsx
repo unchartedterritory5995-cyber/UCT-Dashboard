@@ -3,7 +3,8 @@
  * sustained gaps shaded. Answers "is price outrunning the troops?", the
  * classic breadth read, which the table can only imply.
  */
-import { resolveViewColors, WIDEN_WINDOW_HINT } from './breadthViewShared'
+import { WIDEN_WINDOW_HINT } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 // Both series are z-scored against the loaded window, so the refusal below is a
@@ -36,7 +37,7 @@ export default function DivergenceView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
   const { hostRef, tipRef, show, hide } = useHoverReadout()
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const priceKey = options.price ?? 'sp500_close'
   const partKey = options.participation ?? 'pct_above_50sma'
   const minGap = Number(options.minGap ?? 5)

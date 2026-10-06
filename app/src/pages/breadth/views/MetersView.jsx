@@ -24,8 +24,9 @@
  * two end ZONES are tinted from `colors.tier`, which every palette owns.
  */
 import {
-  NORM_TICKS, drillProps, fillsRow, metricColor, normBasis, resolveViewColors, sortVisibleMetrics,
+  NORM_TICKS, drillProps, fillsRow, metricColor, normBasis, sortVisibleMetrics,
 } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -40,9 +41,9 @@ const ZONE_HIGH = 70
 export default function MetersView({
   currentRow, prevRow, rows = [], metrics, normalize, onDrill, signalKey, notableKey, options = {},
 }) {
+  const colors = useViewColors(options.palette, options.intensity)
   if (!currentRow || metrics.length === 0) return null
   const ordered = sortVisibleMetrics(metrics, options.sort ?? 'group', normalize, currentRow)
-  const colors = resolveViewColors(options.palette, options.intensity)
   const hasPrev = !!prevRow
 
   return (

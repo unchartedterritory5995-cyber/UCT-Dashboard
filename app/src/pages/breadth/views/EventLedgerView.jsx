@@ -3,7 +3,8 @@
  * happened. Every threshold is sourced (tier / formula / percentile) and shown,
  * so a reader can check the claim rather than trust it.
  */
-import { fillsRow, resolveViewColors } from './breadthViewShared'
+import { fillsRow } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import SeekDate from './SeekDate'
 import { scanEvents } from './breadthEvents'
 // The neutral fired accent, and the ruling behind it, live in a pure module so
@@ -53,7 +54,7 @@ function byFamily(events) {
 export default function EventLedgerView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const accent = firedAccent(colors)
   // `win`, not `window`: a local named `window` shadows the global for the whole
   // function body, so any later `window.matchMedia` / `window.addEventListener`

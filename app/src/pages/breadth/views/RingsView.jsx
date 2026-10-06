@@ -21,8 +21,9 @@
  * clipped one.
  */
 import {
-  NORM_TICKS, drillProps, metricColor, normBasis, resolveViewColors,
+  NORM_TICKS, drillProps, metricColor, normBasis,
 } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -124,8 +125,8 @@ function Ring({ metric, row, norm, onDrill, isSignal, isNotable, colors }) {
 export default function RingsView({
   currentRow, rows = [], metrics, normalize, onDrill, signalKey, notableKey, options = {},
 }) {
+  const colors = useViewColors(options.palette, options.intensity)
   if (!currentRow || metrics.length === 0) return null
-  const colors = resolveViewColors(options.palette, options.intensity)
   const cols = columnsFor(metrics.length)
   const gridRows = Math.ceil(metrics.length / cols)
   return (

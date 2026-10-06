@@ -4,7 +4,8 @@
  * where we are; momentum says which way we are going. No snapshot view can
  * show both, which is the whole reason this lens exists.
  */
-import { resolveViewColors, WIDEN_WINDOW_HINT, quadrantOf } from './breadthViewShared'
+import { WIDEN_WINDOW_HINT, quadrantOf } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 import { optionLabel } from './viewMetricConfig'
@@ -76,7 +77,7 @@ export default function RegimeClockView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
   const { hostRef, tipRef, show, hide } = useHoverReadout()
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const roc = Number(options.rocWindow ?? 20)
   const trailLen = Number(options.trail ?? 30)
   const levelKey = options.level ?? 'pct_above_50sma'

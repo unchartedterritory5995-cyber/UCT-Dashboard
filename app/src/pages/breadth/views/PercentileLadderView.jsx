@@ -5,8 +5,9 @@
  */
 import {
   ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, drillProps, fillsRow, medianOf,
-  metricValue, percentileRank, resolveViewColors,
+  metricValue, percentileRank,
 } from './breadthViewShared'
+import useViewColors from './useViewColors'
 // The marker's geometry — a pure module so this one stays a component module.
 import { MARKER_W, markerX } from './percentileLadder'
 
@@ -70,7 +71,7 @@ const bandDate = (e) => e.target?.closest?.('[data-seek-date]')?.getAttribute('d
 export default function PercentileLadderView({
   rows = [], rowIdx = 0, currentRow, metrics = [], onDrill, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   // ⭐ `rows.slice(rowIdx)` — the window AS OF THE CURSOR, never all loaded
   // rows. Scrubbing back a month must rank that day against the history it
   // could see, not against sessions that had not happened yet. (`BreadthViews`

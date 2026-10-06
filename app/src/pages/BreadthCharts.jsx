@@ -22,7 +22,12 @@ import { zoomWindowFrom, zoomValues } from './breadth/chartZoom'
 import { magnitudeGaps, describeGap } from './breadth/chartMagnitude'
 import { useV2Enabled } from './breadth/v2/flag'
 import BreadthChartsV2 from './breadth/v2/BreadthChartsV2'
+import { useThemeInk, CHROME_INK, SEMANTIC_INK, SIZE_INK, withAlpha, ensureContrast } from '../lib/theme'
 import styles from './BreadthCharts.module.css'
+
+// Follow-through-day rule ink — the violet V1 and V2 share, kept as a fixed accent
+// and nudged to 3:1 against whichever surface the member's theme puts behind it.
+const FTD_INK = '#a78bfa'
 
 const PREF_KEY = 'breadth_charts_state'
 const DEFAULT_SELECTED = ['breadth_score', 'pct_above_50sma']
@@ -267,13 +272,18 @@ function BreadthChartsV1() {
     })
   }
 
+  // Canvas inks + sizes resolved off the member's theme, re-resolved on a switch.
+  const ink = useThemeInk({ ...CHROME_INK, gold: SEMANTIC_INK.gold, ...SIZE_INK })
+
   const option = useMemo(() => {
     const { axisByKey, hasRight, leftUnit, rightUnits } = resolveAxes(selected)
+    const readable = c => ensureContrast(c, ink.surface)
+    const gridLine = withAlpha(ink.text, 0.07)
     const zoomed = zoomValues(zoom, dates)
     const span = spanDays(zoomed?.startValue ?? dates[0], zoomed?.endValue ?? dates[dates.length - 1])
     const boundary = tickBoundary(dates, span)
 
-    const colors = resolveColors(selected)
+    const colors = Object.fromEntries(Object.entries(resolveColors(selected)).map(([k, c]) => [k, readable(c)]))
 
     const series = selected.map(key => ({
       name: LABEL_MAP[key] ?? key,
@@ -320,11 +330,11 @@ function BreadthChartsV1() {
           animation: false,
           label: {
             formatter: p => p.data.label,
-            color: '#706b5e',
-            fontSize: 10,
+            color: ink.muted,
+            fontSize: ink.xs,
             position: 'insideEndTop',
           },
-          lineStyle: { color: '#4a4d3f', type: 'dashed', width: 1 },
+          lineStyle: { color: ink.borderAccent, type: 'dashed', width: 1 },
           data: onAxis.map(l => ({ yAxis: l.at, label: l.label })),
         },
       })
@@ -343,11 +353,11 @@ function BreadthChartsV1() {
             silent: true,
             symbol: ['none', 'none'],
             animation: false,
-            lineStyle: { color: '#a78bfa', type: 'dotted', width: 1, opacity: 0.7 },
+            lineStyle: { color: readable(FTD_INK), type: 'dotted', width: 1, opacity: 0.7 },
             label: {
               formatter: p => (p.data.showLabel ? 'FTD' : ''),
-              color: '#a78bfa',
-              fontSize: 10,
+              color: readable(FTD_INK),
+              fontSize: ink.xs,
               rotate: 0,
               position: 'insideEndTop',
             },
@@ -378,14 +388,14 @@ function BreadthChartsV1() {
             rotate: 0,
             align: 'right',
             distance: [4, 2],
-            color: '#c9a84c',
-            fontSize: 10,
+            color: ink.gold,
+            fontSize: ink.xs,
             fontWeight: 600,
-            backgroundColor: 'rgba(8,11,16,0.78)',
+            backgroundColor: withAlpha(ink.bg, 0.85),
             padding: [2, 5],
             borderRadius: 3,
           },
-          lineStyle: { color: '#c9a84c', type: 'dashed', width: 1, opacity: 0.65 },
+          lineStyle: { color: ink.gold, type: 'dashed', width: 1, opacity: 0.65 },
           data: [{ xAxis: rows[liveIndex].date }],
         },
       })
@@ -410,13 +420,13 @@ function BreadthChartsV1() {
           animation: false,
           data: MA_EXTREME_LINES.map(l => ({
             yAxis: l.yAxis,
-            lineStyle: { color: l.color, width: 1, type: 'dashed', opacity: l.opacity },
+            lineStyle: { color: readable(l.color), width: 1, type: 'dashed', opacity: l.opacity },
             label: {
               show: true,
               position: 'end',
               formatter: String(l.yAxis),
-              color: l.color,
-              fontSize: 10,
+              color: readable(l.color),
+              fontSize: ink.xs,
               fontWeight: 600,
               backgroundColor: 'transparent',
             },
@@ -425,11 +435,11 @@ function BreadthChartsV1() {
       })
     }
 
-    const axisNameStyle = { color: '#706b5e', fontSize: 10, padding: [0, 0, 4, 0] }
+    const axisNameStyle = { color: ink.muted, fontSize: ink.xs, padding: [0, 0, 4, 0] }
 
     return {
       backgroundColor: 'transparent',
-      textStyle: { color: '#e0dac8', fontFamily: CHART_FONT_FAMILY },
+      textStyle: { color: ink.text, fontFamily: CHART_FONT_FAMILY },
       animationDuration: painted ? 0 : 400,
       animationDurationUpdate: 0,
       // MetricReadout is the legend now. The component stays mounted but hidden,
@@ -442,10 +452,10 @@ function BreadthChartsV1() {
       },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross', crossStyle: { color: '#3a3d32' } },
-        backgroundColor: '#22251e',
-        borderColor: '#2e3127',
-        textStyle: { color: '#e0dac8', fontSize: 12 },
+        axisPointer: { type: 'cross', crossStyle: { color: ink.borderAccent } },
+        backgroundColor: ink.elevated,
+        borderColor: ink.border,
+        textStyle: { color: ink.text, fontSize: ink.base },
         formatter(params) {
           if (!params.length) return ''
           const date = params[0].axisValue
@@ -458,18 +468,18 @@ function BreadthChartsV1() {
                 : p.value[1]
               return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${p.seriesName}: <b>${val}</b>`
             })
-          return `<div style="font-size:11px;color:#706b5e;margin-bottom:4px">${formatTooltipDate(date)}</div>` + lines.join('<br/>')
+          return `<div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:4px">${formatTooltipDate(date)}</div>` + lines.join('<br/>')
         },
       },
       grid: { left: 64, right: hasRight ? 64 : 24, top: 24, bottom: 56 },
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        axisLine: { lineStyle: { color: '#2e3127' } },
-        axisTick: { lineStyle: { color: '#2e3127' } },
+        axisLine: { lineStyle: { color: ink.border } },
+        axisTick: { lineStyle: { color: ink.border } },
         axisLabel: {
-          color: '#706b5e',
-          fontSize: 11,
+          color: ink.muted,
+          fontSize: ink.sm,
           hideOverlap: true,
           // A-06: the format follows the visible span, and the year is never dropped.
           interval: boundary ?? 'auto',
@@ -484,10 +494,10 @@ function BreadthChartsV1() {
           nameTextStyle: axisNameStyle,
           scale: scaleForUnit(leftUnit),
           ...(extremesAxis === 0 ? EXTREMES_BAND : {}),
-          axisLine: { lineStyle: { color: '#2e3127' } },
+          axisLine: { lineStyle: { color: ink.border } },
           axisTick: { show: false },
-          axisLabel: { color: '#706b5e', fontSize: 11 },
-          splitLine: { lineStyle: { color: '#22251e' } },
+          axisLabel: { color: ink.muted, fontSize: ink.sm },
+          splitLine: { lineStyle: { color: gridLine } },
         },
         {
           type: 'value',
@@ -498,9 +508,9 @@ function BreadthChartsV1() {
           // share a compromised axis; framing to their union helps neither.
           scale: rightUnits.length === 1 && scaleForUnit(rightUnits[0]),
           ...(extremesAxis === 1 ? EXTREMES_BAND : {}),
-          axisLine: { lineStyle: { color: '#2e3127' } },
+          axisLine: { lineStyle: { color: ink.border } },
           axisTick: { show: false },
-          axisLabel: { color: '#706b5e', fontSize: 11 },
+          axisLabel: { color: ink.muted, fontSize: ink.sm },
           splitLine: { show: false },
         },
       ],
@@ -510,16 +520,16 @@ function BreadthChartsV1() {
           type: 'slider',
           bottom: 4,
           height: 22,
-          fillerColor: 'rgba(201,168,76,0.10)',
-          borderColor: '#2e3127',
-          handleStyle: { color: '#c9a84c' },
-          textStyle: { color: '#706b5e' },
+          fillerColor: withAlpha(ink.gold, 0.1),
+          borderColor: ink.border,
+          handleStyle: { color: ink.gold },
+          textStyle: { color: ink.muted },
           ...(zoomed ?? {}),
         },
       ],
       series,
     }
-  }, [selected, rows, notableExtremes, liveIndex, live.clock, showFtd, hidden, zoom, dates, painted])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock, showFtd, hidden, zoom, dates, painted, ink])
 
   // A-04 (D-029): a series flattened by a larger one on the same axis is named,
   // computed over the rows the member is looking at.

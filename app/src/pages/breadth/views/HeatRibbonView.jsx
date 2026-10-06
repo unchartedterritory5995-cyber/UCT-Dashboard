@@ -3,7 +3,8 @@
  * window, colored by that session's OWN tier. Answers "when did the regime
  * change?", which no snapshot view can.
  */
-import { ALL_METRICS_HIDDEN, drillProps, fillsRow, metricColor, resolveViewColors } from './breadthViewShared'
+import { ALL_METRICS_HIDDEN, drillProps, fillsRow, metricColor } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 
@@ -66,7 +67,7 @@ const ROW_GAP = 3
 export default function HeatRibbonView({
   rows = [], rowIdx = 0, metrics = [], onDrill, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const compact = options.density === 'compact'
   const { hostRef, tipRef, show, hide } = useHoverReadout()
 

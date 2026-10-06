@@ -19,8 +19,9 @@
  *     the number, rather than on the mass of paint beneath it.
  */
 import {
-  NORM_TICKS, drillProps, metricColor, normBasis, resolveViewColors, sortVisibleMetrics,
+  NORM_TICKS, drillProps, metricColor, normBasis, sortVisibleMetrics,
 } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -33,9 +34,9 @@ const COL_MIN_W = 34
 export default function EqualizerView({
   currentRow, rows = [], metrics, normalize, onDrill, signalKey, notableKey, options = {},
 }) {
+  const colors = useViewColors(options.palette, options.intensity)
   if (!currentRow || !metrics?.length) return null
   const ordered = sortVisibleMetrics(metrics, options.sort ?? 'board', normalize, currentRow)
-  const colors = resolveViewColors(options.palette, options.intensity)
 
   return (
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px 10px',

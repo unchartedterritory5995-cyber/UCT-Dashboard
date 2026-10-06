@@ -42,8 +42,9 @@ import { shouldSample } from './lttb'
 import { assignColours } from './stickyColours'
 import {
   shortOf, unitOf, CHART_GROUPS, LABEL_MAP, CHART_PRESETS, PRESET_GROUP_ORDER,
-  matchPreset, resolveLines,
+  matchPreset, resolveLines, MA_EXTREME_LINES,
 } from '../chartMetrics'
+import { useThemeInk, SIZE_INK, withAlpha, ensureContrast } from '../../../lib/theme'
 import { formatSessionTick } from '../chartTicks'
 import { ftdMarkers } from '../ftdMarkers'
 import { describeLoadError } from '../chartLoadError'
@@ -83,18 +84,35 @@ const RANGE_BY_ID = Object.fromEntries(RANGES.map(r => [r.id, r]))
 const EMPTY_SET = new Set()
 const finiteOrNull = v => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
-/** Canvas cannot read `var(--…)`. The app writes the theme family onto <html>; follow it. */
-function useDocTheme() {
-  const read = () => (typeof document === 'undefined' ? '' : document.documentElement.dataset.theme || '')
-  const [theme, setTheme] = useState(read)
-  useEffect(() => {
-    if (typeof MutationObserver === 'undefined') return undefined
-    const el = document.documentElement
-    const mo = new MutationObserver(() => setTheme(el.dataset.theme || ''))
-    mo.observe(el, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => mo.disconnect()
-  }, [])
-  return theme
+/**
+ * Canvas cannot read `var(--…)`, so the chart's chrome is the app's tokens RESOLVED,
+ * re-resolved whenever the member's theme changes — `data-theme` OR a catalog theme's
+ * inline tokens (lib/theme's shared observer). With no stylesheet (jsdom) every token
+ * is unset and the chrome falls back to the dark / light constants by `data-theme`.
+ */
+const CHROME_SPEC = {
+  muted: ['--text-muted', null], text: ['--text', null], heading: ['--text-heading', null],
+  elevated: ['--bg-elevated', null], borderAccent: ['--border-accent', null],
+  gold: ['--ut-gold', null], info: ['--info', null], surface: ['--bg-surface', null],
+  ...SIZE_INK,
+}
+function useChartChrome() {
+  const t = useThemeInk(CHROME_SPEC)
+  return useMemo(() => {
+    const light = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light'
+    const base = light ? LIGHT_CHROME : DEFAULT_CHROME
+    const sizes = { xs: t.xs, sm: t.sm, base: t.base }
+    if (!t.text) return { ...base, ...sizes, surface: light ? '#f4f5f6' : '#17181b' }
+    const surface = t.surface || (light ? '#f4f5f6' : '#17181b')
+    const readable = c => ensureContrast(c, surface)
+    return {
+      axis: t.muted, grid: withAlpha(t.text, 0.1), label: t.text, heading: t.heading || t.text,
+      tooltipBg: withAlpha(t.elevated || surface, 0.97), tooltipBorder: t.borderAccent || withAlpha(t.text, 0.2),
+      accent: t.gold || base.accent, info: t.info || base.info, ftd: readable(DEFAULT_CHROME.ftd),
+      extremeInks: MA_EXTREME_LINES.map(l => readable(l.color)),
+      ...sizes, surface,
+    }
+  }, [t])
 }
 
 /** The chart box's measured height — margins are derived from it in pixels. */
@@ -132,7 +150,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
   const { v22, v23 } = useDcFlags()
   const { prefs, setPref } = usePreferences()
   const isPhone = useIsPhone()
-  const docTheme = useDocTheme()
+  const chrome = useChartChrome()
   const pickerId = useId()
 
   // ⛔⛔ CONTROLLED VS UNCONTROLLED. A `keys` prop — every existing test, and any future
@@ -338,7 +356,6 @@ export default function BreadthChartsV2({ keys, from, to }) {
     return first && first !== s.dates[0] ? first : null
   }, [s.dates, s.reconstructed])
 
-  const chrome = docTheme === 'light' ? LIGHT_CHROME : DEFAULT_CHROME
   const boxRef = useRef(null)
   const heightPx = useHeight(boxRef)
 
@@ -346,11 +363,18 @@ export default function BreadthChartsV2({ keys, from, to }) {
   // last assignment is the input to the next, so a survivor is never repainted. Held as
   // state from the previous render (React's documented pattern), not a ref read in render.
   const [colourState, setColourState] = useState(() => ({ key: selectionKey, map: assignColours(selection) }))
-  let colours = colourState.map
+  let assigned = colourState.map
   if (colourState.key !== selectionKey) {
-    colours = assignColours(selection, colourState.map)
-    setColourState({ key: selectionKey, map: colours })
+    assigned = assignColours(selection, colourState.map)
+    setColourState({ key: selectionKey, map: assigned })
   }
+  // The sticky map stays the palette's own values; what is DRAWN is each entry nudged
+  // (only if it must be) to 3:1 against the live chart surface, so a palette tuned on
+  // the dark ground still reads on a light theme. Lines and swatches share it.
+  const colours = useMemo(
+    () => Object.fromEntries(Object.entries(assigned).map(([k, c]) => [k, ensureContrast(c, chrome.surface)])),
+    [assigned, chrome.surface],
+  )
 
   const option = useMemo(() => {
     if (!v22 || !merged.series || !merged.dates?.length) return null
