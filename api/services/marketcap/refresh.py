@@ -230,7 +230,7 @@ class Ledger:
 
     def last(self, states=None):
         q = "SELECT run_id FROM run" + (f" WHERE state IN ({','.join('?' * len(states))})" if states else "") + \
-            " ORDER BY started_at DESC LIMIT 1"
+            " ORDER BY started_at DESC, rowid DESC LIMIT 1"
         r = self.db.execute(q, tuple(states or ())).fetchone()
         return self.run(r[0]) if r else None
 
@@ -544,6 +544,48 @@ class Refresh:
               "last_success_at": (self.ledger.last(("ADVANCED", "PUBLISHED_NOT_ADVANCED")) or {}).get("finished_at"),
               "host": socket.gethostname()}
         self._write_status(hb)
+        try:
+            pr = self.prune()
+            if pr["removed_runs"] or pr["removed_cache"]:
+                self.ledger.event(self.run_id, "retention", pr)
+        except Exception as e:  # noqa: BLE001 -- retention never fails a run
+            self.ledger.event(self.run_id, "retention_failed", str(e)[:500])
+
+    # ── retention (measured 2026-10-06: a run keeps ~3.4 GB data + ~2.9 GB SEC bulk; the worker volume has ~77 GB) ──
+    def prune(self) -> dict:
+        """Remove the BULKY working files (runs/<id>/sec, runs/<id>/data) of every run that is NOT one of the last
+        `policy.retain_successful_runs` (2) successful runs, NOT the current authority's run, and NOT running; and every
+        price materialization cache except the newest two. Ledger rows, logs, validation reports and every sealed price
+        version are never touched. A successful run's data is the next refresh's evidence seed, so it is retained."""
+        keep_n = int(self.cfg.policy.get("retain_successful_runs", 2))
+        rows = self.ledger.db.execute("SELECT run_id, state, build_id FROM run ORDER BY started_at DESC, rowid DESC").fetchall()
+        keep = {r for r, s, _b in rows if s == "RUNNING"} | {self.run_id}
+        keep |= set([r for r, s, _b in rows if s in ("ADVANCED", "PUBLISHED_NOT_ADVANCED")][:keep_n])
+        try:
+            cur = P.read_pointer(self.cfg.target())
+        except Exception:  # noqa: BLE001 -- unreadable authority: keep everything
+            return {"removed_runs": [], "removed_cache": [], "skipped": "authority unreadable"}
+        if cur:
+            keep |= {r for r, _s, b in rows if b == cur["build_id"]}
+        runs_dir = os.path.join(self.root, "runs")
+        removed = []
+        for rid in sorted(os.listdir(runs_dir)) if os.path.isdir(runs_dir) else []:
+            if rid in keep or self.ledger.run(rid) is None:
+                continue                                    # unknown dirs (not this ledger's runs) are left alone
+            for sub in ("sec", "data"):
+                p = os.path.join(runs_dir, rid, sub)
+                if os.path.isdir(p):
+                    shutil.rmtree(p, onerror=lambda f, x, _e: (os.chmod(x, stat.S_IWRITE), f(x)))
+                    removed.append(f"{rid}/{sub}")
+        cache = os.path.join(self.root, "prices", "cache")
+        rc = []
+        if os.path.isdir(cache):
+            dbs = sorted((f for f in os.listdir(cache) if f.endswith(".db")),
+                         key=lambda f: os.path.getmtime(os.path.join(cache, f)), reverse=True)
+            for f in dbs[2:]:
+                os.remove(os.path.join(cache, f))
+                rc.append(f)
+        return {"removed_runs": removed, "removed_cache": rc, "kept": sorted(keep)}
 
     # ── stage bodies ──────────────────────────────────────────────────────────────────────────────────────────────────
     def _acceptance(self):

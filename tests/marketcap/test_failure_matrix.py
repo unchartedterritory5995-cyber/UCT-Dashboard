@@ -445,3 +445,29 @@ def test_scheduler_catch_up_after_a_restart(tmp_path, monkeypatch):
         assert SCH._owner["scheduler"].jobs[1]["trigger"] == "date"
     finally:
         SCH._reset_for_tests()
+
+
+# ── retention: bulky working files of old runs go; evidence seeds, the authority's run and price versions stay ─────
+def test_retention_keeps_the_seed_runs_and_the_authoritys_run(root):  # noqa: F811
+    policy(root, auto_advance=True)
+    make = with_data(root)
+    runs = []
+    for i in range(4):
+        root["state"]["px"] = f"s{i}".encode()
+        r = make(f"run-{i}")
+        os.makedirs(os.path.join(r.data), exist_ok=True)
+        open(os.path.join(r.data, "big.db"), "wb").write(b"x" * 10)
+        os.makedirs(os.path.join(r.rdir, "sec"), exist_ok=True)
+        runs.append(r.execute())
+    root["state"]["gates"] = "FAIL"
+    root["state"]["px"] = b"s-failed"
+    f = make("run-failed")
+    os.makedirs(f.data, exist_ok=True)
+    open(os.path.join(f.data, "big.db"), "wb").write(b"x")
+    f.execute()
+    present = lambda rid: os.path.isdir(os.path.join(root["root"], "runs", rid, "data"))
+    assert present("run-3") and present("run-2")                          # the last two successful runs (seeds)
+    assert not present("run-0") and not present("run-1")                  # older successful runs: bulky files gone
+    assert present("run-failed")                                          # the run doing the pruning keeps its own
+    assert os.path.isdir(os.path.join(root["root"], "runs", "run-0"))     # ...but the run record itself stays
+    assert authority(root) == runs[3]["build_id"]
