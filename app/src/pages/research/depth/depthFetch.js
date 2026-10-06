@@ -22,13 +22,21 @@ export function usePendingReask(isPending, mutate, key) {
   const n = useRef(0)
   const [spent, setSpent] = useState(false)
   const [round, setRound] = useState(0)
+  // `tick` advances after every re-ask settles. Without it the chain stopped after ONE re-ask
+  // whenever the server answered the same pending payload again: SWR keeps the old data
+  // reference for an equal answer, nothing re-rendered, and this effect never ran again.
+  const [tick, setTick] = useState(0)
   useEffect(() => { n.current = 0; setSpent(false) }, [key])
   useEffect(() => {
     if (!isPending) return undefined
     if (n.current >= PENDING_REASK_MAX) { setSpent(true); return undefined }
-    const t = setTimeout(() => { n.current += 1; mutate() }, PENDING_REASK_MS)
-    return () => clearTimeout(t)
-  }, [isPending, mutate, key, round])
+    let live = true
+    const t = setTimeout(() => {
+      n.current += 1
+      Promise.resolve(mutate()).catch(() => {}).finally(() => { if (live) setTick((x) => x + 1) })
+    }, PENDING_REASK_MS)
+    return () => { live = false; clearTimeout(t) }
+  }, [isPending, mutate, key, round, tick])
   const retry = useCallback(() => {
     n.current = 0; setSpent(false); setRound((r) => r + 1); mutate()
   }, [mutate])
