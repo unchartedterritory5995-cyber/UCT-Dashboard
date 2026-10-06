@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { TICKER_RE } from '../../components/provenance/AbsenceReceipt'
 import { BY_CODE } from './functions'
-import { boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
+import { FAVORITES_MAX, boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
 import TerminalVersions from './TerminalVersions'
 import styles from './TerminalShell.module.css'
 
@@ -32,6 +32,8 @@ export function BoardsMenu({
   const [presetError, setPresetError] = useState(null)
   const [shared, setShared] = useState(null)
   const [showVersions, setShowVersions] = useState(openToVersions)
+  // What the last Save said: the shell's notice line sits UNDER this sheet (round 3).
+  const [saved, setSaved] = useState(null)
 
   const copy = async (url, label) => {
     setShared({ url, label })
@@ -48,7 +50,7 @@ export function BoardsMenu({
       )}
       <form
         className={styles.menuForm}
-        onSubmit={(e) => { e.preventDefault(); if (name.trim()) onSave(name.trim()) }}
+        onSubmit={(e) => { e.preventDefault(); if (name.trim()) setSaved(onSave(name.trim()) || null) }}
       >
         <label className={styles.menuLabel} htmlFor="terminal-board-name">Save this board as</label>
         <div className={styles.menuInline}>
@@ -57,6 +59,10 @@ export function BoardsMenu({
           <button type="submit" className={styles.menuBtn} disabled={!libraryWritable || !name.trim()}
             data-testid="terminal-board-save">Save</button>
         </div>
+        {saved?.text && (
+          <p className={saved.kind === 'error' ? styles.menuWarn : styles.menuNote}
+            role={saved.kind === 'error' ? 'alert' : 'status'} data-testid="terminal-board-saved">{saved.text}</p>
+        )}
       </form>
       <button type="button" className={styles.menuBtn} onClick={() => copy(onShareCurrent(), 'this board')}
         data-testid="terminal-share-current">Copy a share link to this board</button>
@@ -132,15 +138,27 @@ export function BoardsMenu({
   )
 }
 
-export function RecentsMenu({ layout, library, functionRecents, onRun, onOpenBoard, onToggleFavorite }) {
+export function RecentsMenu({ layout, library, libraryWritable = true, functionRecents, onRun, onOpenBoard, onToggleFavorite }) {
   const saved = recentBoards(library, 6)
+  // Round 3: a star that cannot be set says why, in this sheet — it used to do nothing at all
+  // (a 17th favourite was dropped by the cap; an unreadable library is never written over).
+  const [favNote, setFavNote] = useState(null)
+  const star = (code) => {
+    const on = library.favorites.includes(code)
+    if (!on && library.favorites.length >= FAVORITES_MAX) {
+      setFavNote(`You have ${FAVORITES_MAX} favourites, the most there can be. Unstar one first.`)
+      return
+    }
+    setFavNote(null)
+    onToggleFavorite(code)
+  }
   const fnRow = (code) => (
     <li key={code} className={styles.menuRow}>
       <button type="button" className={styles.menuMainBtn} onClick={() => onRun(code)}>
         <span className={styles.code}>{code}</span>
         <span className={styles.menuLabel}>{BY_CODE[code]?.label || ''}</span>
       </button>
-      <button type="button" className={styles.menuBtn} onClick={() => onToggleFavorite(code)}
+      <button type="button" className={styles.menuBtn} onClick={() => star(code)} disabled={!libraryWritable}
         aria-pressed={library.favorites.includes(code)}
         aria-label={library.favorites.includes(code) ? `Unfavourite ${code}` : `Favourite ${code}`}
         data-testid={`terminal-fav-${code}`}>{library.favorites.includes(code) ? '★' : '☆'}</button>
@@ -150,6 +168,10 @@ export function RecentsMenu({ layout, library, functionRecents, onRun, onOpenBoa
   return (
     <div className={styles.menu} data-testid="terminal-recents-menu">
       <div className={styles.menuHead}>Favourites</div>
+      {!libraryWritable && (
+        <p className={styles.menuWarn} role="alert">Your saved boards could not be read, so favourites cannot be changed right now. Open Boards to restore an earlier version.</p>
+      )}
+      {favNote && <p className={styles.menuWarn} role="alert" data-testid="terminal-fav-note">{favNote}</p>}
       {library.favorites.length === 0 ? <p className={styles.menuNote}>Star a function to keep it here.</p>
         : <ul className={styles.menuList}>{library.favorites.filter((c) => BY_CODE[c]).map(fnRow)}</ul>}
 

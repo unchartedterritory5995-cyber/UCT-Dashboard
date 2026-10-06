@@ -639,7 +639,9 @@ export function setPreset(library, sym, boardId) {
 /** The board a bare `sym` opens: its own preset, else the any-ticker one, else null. */
 export function presetFor(library, sym) {
   const s = upperSym(sym)
-  const id = (s && library.presets[s]) || library.presets[PRESET_ANY]
+  // BRK.B and BRK-B are one security (round 3): a preset set for one spelling answers the other.
+  const key = s && Object.keys(library.presets).find((k) => k !== PRESET_ANY && symKey(k) === symKey(s))
+  const id = (key && library.presets[key]) || library.presets[PRESET_ANY]
   return id ? library.boards.find((b) => b.id === id) || null : null
 }
 

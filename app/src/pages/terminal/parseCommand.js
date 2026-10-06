@@ -160,11 +160,14 @@ export default function parseCommand(input, opts = {}) {
       expr: `${a}/${b}`, compareMode: compareMode(a, b) }
   }
 
-  const r = parseCore(raw)
-  if (r.ok && r.type === 'function') {
-    if (r.code === 'ASK' && r.sym && r.args.length) {
-      return { ok: true, type: 'ask', question: `$${r.sym} ${r.args.join(' ')}` }
+  const core = parseCore(raw)
+  if (core.ok && core.type === 'function') {
+    if (core.code === 'ASK' && core.sym && core.args.length) {
+      return { ok: true, type: 'ask', question: `$${core.sym} ${core.args.join(' ')}` }
     }
+    // Arguments are codes, timeframes and dates: one spelling (round 3). `nvda gp w` and
+    // `NVDA GP W` are one command — one panel title, one `?cmd=`, one history entry.
+    const r = { ...core, args: (core.args || []).map((a) => String(a).toUpperCase()) }
     if (r.code === 'CMP' && r.sym && r.args[0]) {
       // `NVDA CMP $AMD`: the `$` forces the comparator to be read as a ticker; it is not part of it.
       const other = String(r.args[0]).replace(/^\$/, '')
@@ -175,6 +178,7 @@ export default function parseCommand(input, opts = {}) {
     if (!forced && FIRST === r.code && r.sym == null && isTickerCollision(r.code)) return { ...r, collision: r.code }
     return r
   }
+  const r = core
   // A pasted ticker LIST (`NVDA AMD MSFT TSLA`) is not a question: say so, rather than spend
   // an AI Search on it. Upper-case only (see LIST_TICKER_RE); a `?` still means a question.
   if (!r.ok && !r.absent && tokens.length >= 3 && !raw.includes('?')
