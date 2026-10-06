@@ -2,6 +2,7 @@ import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 import HighlightThesis from '../../../utils/highlightThesis'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -27,7 +28,7 @@ export default function EventsPanel({ sym }) {
     const events = [...(data.events || [])].reverse()
     body = (
       <div data-testid="events">
-        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {data.reason}.</p>}
+        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {memberText(data.reason)}.</p>}
         {errs.length > 0 && (
           <p className={styles.error} data-testid="events-source-errors">
             Could not read: {errs.map(([k]) => KIND[k] || k).join(', ')}. Events from those sources are missing, not absent.
@@ -50,7 +51,7 @@ export default function EventsPanel({ sym }) {
                         <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{e.source}</td>
+                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{memberText(e.source)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -188,7 +188,7 @@ export default function ConsensusEstimates({ sym }) {
         <section className={styles.card} data-testid="ee-revisions">
           <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
           <SourceLine vendor="Yahoo Finance" activity="yfinance eps_trend / eps_revisions"
-                      detail="FMP does not publish estimate revisions on this plan" />
+                      detail="FMP does not publish estimate revisions" />
           <Revisions rows={revs} />
         </section>
       )}

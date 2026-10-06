@@ -2,6 +2,7 @@ import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
 // high/low and dispersion, and the firms acting on the stock by name.
@@ -32,7 +33,7 @@ export default function BrokerEstimatesPanel({ sym }) {
     body = (
       <div data-testid="broker-estimates">
         {data.state !== 'ok'
-          ? <p className={styles.note} data-testid="broker-state">{data.reason}.</p>
+          ? <p className={styles.note} data-testid="broker-state">{memberSentence(data.reason)}</p>
           : (
             <div className={styles.scroll}>
               <table className={styles.grid}>
@@ -55,7 +56,7 @@ export default function BrokerEstimatesPanel({ sym }) {
             </div>
           )}
         <p className={styles.muted} data-testid="broker-contributors">
-          Estimates by named analyst: unavailable — {data.contributors?.reason}.
+          Estimates by named analyst: unavailable — {memberText(data.contributors?.reason)}.
         </p>
         <div data-testid="broker-firms">
           <p className={styles.lede}>Firms acting on {s} (rating actions, not the estimates above):</p>
@@ -67,9 +68,9 @@ export default function BrokerEstimatesPanel({ sym }) {
                 ))}
               </ul>
             )
-            : <p className={styles.note}>{firms.reason || 'No rating actions on file.'}</p>}
+            : <p className={styles.note}>{memberSentence(firms.reason) || 'No rating actions on file.'}</p>}
         </div>
-        <p className={styles.muted}>Source: {data.source}; firms: {firms.source}.</p>
+        <p className={styles.muted}>Source: {memberText(data.source)}; firms: {memberText(firms.source)}.</p>
       </div>
     )
   }

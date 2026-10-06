@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
 // opening gap, the reacting session's close-to-close move and the 5-session
@@ -20,7 +21,7 @@ function Implied({ im, next }) {
     return <p className={styles.muted} data-testid="implied-pending">Implied move for the next print: being read from the option chain.</p>
   }
   if (im.state !== 'ok') {
-    return <p className={styles.muted} data-testid="implied-unavailable">Implied move: unavailable ({im.reason || 'no reading'}).</p>
+    return <p className={styles.muted} data-testid="implied-unavailable">Implied move: unavailable ({memberText(im.reason) || 'no reading'}).</p>
   }
   const read = im.read_at ? new Date(im.read_at * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
   return (
@@ -42,7 +43,7 @@ export default function EarningsReactionPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
   else if (!data) body = <div className={styles.note}>Loading the earnings reaction…</div>
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{data.reason}</div>
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason)}</div>
   else {
     const sum = data.summary || {}
     body = (
@@ -82,7 +83,7 @@ export default function EarningsReactionPanel({ sym }) {
           </p>
         )}
         <Implied im={data.implied_move} next={data.next_report_date} />
-        <p className={styles.muted}>Bars through {data.bars_through}. Source: {data.source}. History describes the past; it is not a forecast.</p>
+        <p className={styles.muted}>Bars through {data.bars_through}. Source: {memberText(data.source)}. History describes the past; it is not a forecast.</p>
       </div>
     )
   }

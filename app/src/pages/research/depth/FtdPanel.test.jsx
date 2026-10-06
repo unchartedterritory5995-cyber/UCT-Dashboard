@@ -47,6 +47,6 @@ describe('FtdPanel', () => {
     cleanup()
     body = { state: 'none_reported', reason: 'no fails reported for GME between 2026-08-17 and 2026-09-15', basis: 'b', source: 's' }
     renderTab()
-    expect((await screen.findByTestId('ftd-none')).textContent).toMatch(/no fails reported/)
+    expect((await screen.findByTestId('ftd-none')).textContent).toMatch(/^No fails reported/) // a server reason reads as a sentence
   })
 })

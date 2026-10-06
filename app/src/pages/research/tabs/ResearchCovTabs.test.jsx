@@ -54,7 +54,7 @@ describe('PeopleTab (COV-05)', () => {
   it('names the source and date, and shows unknowns as "unavailable", never blank', async () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="aapl" />)
-    expect((await screen.findByTestId('people-execs-source')).textContent).toContain(`Source: ${EXECS_SRC}, read 2026-10-02`)
+    expect((await screen.findByTestId('people-execs-source')).textContent).toContain('Source: FMP, read 2026-10-02') // vendor named, endpoint path is not member copy
     const perica = screen.getByTestId('exec-Adrian Perica').textContent
     expect(perica).toContain('unavailable')
     expect(perica).toContain('not in proxy table')
@@ -72,7 +72,11 @@ describe('PeopleTab (COV-05)', () => {
   it('a section that could not be read gives its reason, not an empty table', async () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="AAPL" />)
-    expect((await screen.findByTestId('people-roles-gap')).textContent).toMatch(/Unavailable: EDGAR Form 4 reading is switched off/)
+    const gap = (await screen.findByTestId('people-roles-gap')).textContent
+    expect(gap).toMatch(/EDGAR Form 4 reading is switched off/)
+    expect(gap).toMatch(/not a finding about AAPL/)
+    // the server switch name is internal detail, never member copy (quality pass 2026-10-05)
+    expect(gap).not.toMatch(/EDGAR_OWNERSHIP_ENABLED|on this server/)
   })
 
   it('a failed request is unavailable, not a finding', async () => {
@@ -104,7 +108,7 @@ describe('EstimateHistoryTab (COV-07)', () => {
     expect(screen.getByTestId('collecting-2027-03-27').textContent).toMatch(/a revision needs two/)
     expect(screen.queryByTestId('revision-2027-03-27')).toBeNull()
     expect(screen.getByTestId('esthist-failed').textContent).toContain('2026-09-30')
-    expect(screen.getByTestId('esthist-source').textContent).toContain(SRC)
+    expect(screen.getByTestId('esthist-source').textContent).toBe('Source: FMP, snapshotted daily by UCT.') // no endpoint path
   })
 
   it('no snapshot yet says why, never an empty table', async () => {
