@@ -19,13 +19,11 @@
 .btn:hover:not(:disabled) { border-color: var(--ut-gold); color: var(--text-bright); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* The slider itself (track, thumb, focus ring, touch floor) is ui/Slider; this only lays it out. */
 .range {
   flex: 1;
   min-width: 140px;
-  accent-color: var(--ut-gold);
-  cursor: pointer;
 }
-.range:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .ends {
   font: 600 var(--text-xs) var(--font-sans);

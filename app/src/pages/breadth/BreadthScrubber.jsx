@@ -19,6 +19,7 @@ import {
 import UIcon from '../../components/ui/UIcon'
 import styles from './BreadthScrubber.module.css'
 import Select from '../../components/ui/Select'
+import Slider from '../../components/ui/Slider'
 
 export default function BreadthScrubber({
   rows = [], rowIdx = 0, playing = false, onSeek, onStep, onPlayingChange,
@@ -94,14 +95,14 @@ export default function BreadthScrubber({
           view's own basis line, and a third and fourth date on this row would
           bury the one that moves. */}
       <span className={styles.ends}>oldest</span>
-      <input type="range" className={styles.range} data-testid="scrubber-range"
-             min={0} max={Math.max(0, last)} step={1}
-             value={Math.max(0, last - rowIdx)}
-             disabled={last < 1}
-             aria-label="Session"
-             aria-valuetext={sessionLabel}
-             title={sessionLabel}
-             onChange={(e) => onSeek?.(last - Number(e.target.value))} />
+      <Slider className={styles.range} data-testid="scrubber-range"
+              min={0} max={Math.max(0, last)} step={1}
+              value={Math.max(0, last - rowIdx)}
+              disabled={last < 1}
+              aria-label="Session"
+              aria-valuetext={sessionLabel}
+              title={sessionLabel}
+              onChange={(e) => onSeek?.(last - Number(e.target.value))} />
       <span className={styles.ends}>newest</span>
 
       {/* 🔴 CLAMPED, because the window can shrink under the cursor. Scrub deep
