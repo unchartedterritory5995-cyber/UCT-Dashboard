@@ -13,6 +13,7 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 // ⛔ Every summary shows its n; the implied move names its expiry, strike and marks.
 
 const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`)
+const eps = (v) => (Number.isFinite(Number(v)) ? `$${Number(v).toFixed(2)}` : '—')
 const tone = (v) => (v == null ? '' : v > 0 ? styles.up : v < 0 ? styles.down : '')
 const COLS = [['run_in_pct', 'Run-in (5d)'], ['gap_pct', 'Gap'], ['reaction_pct', 'Reaction'], ['drift_pct', 'Drift (5d)']]
 const SUMS = [['run_in', 'Run-in'], ['gap', 'Gap'], ['reaction', 'Reaction'], ['drift', 'Drift']]
@@ -66,7 +67,7 @@ export default function EarningsReactionPanel({ sym }) {
                       {k === 'drift_pct' && q.drift_state === 'pending' ? 'pending' : pct(q[k])}
                     </td>
                   ))}
-                  <td>{q.eps_actual == null ? '—' : `${q.eps_actual} vs ${q.eps_estimate ?? '—'}`}</td>
+                  <td>{q.eps_actual == null ? '—' : `${eps(q.eps_actual)} vs ${q.eps_estimate == null ? '—' : eps(q.eps_estimate)}`}</td>
                 </tr>
               ))}
             </tbody>

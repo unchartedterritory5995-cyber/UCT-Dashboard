@@ -24,7 +24,10 @@ export default function MentionSeriesPanel({ sym }) {
   else if (!data) body = <div className={styles.note}>Loading room attention…</div>
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason)}</div>
-  else {
+  else if (!data.summary?.days_measured) {
+    // state ok with nothing measured rendered "Last 0 measured days: — mentions a day"
+    body = <div className={styles.note} data-testid="mentions-none-measured">No days of #main-chat have been measured for {s} in this window yet.</div>
+  } else {
     const sm = data.summary || {}
     const recent = [...(data.points || [])].reverse().slice(0, 14)
     body = (
