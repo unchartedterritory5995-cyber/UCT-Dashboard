@@ -657,7 +657,8 @@ export default function TerminalShell() {
     save(next)
     const said = [
       ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
-      redirectedFrom && `${name} is already open elsewhere on this board; @${redirectedFrom} was redirected there instead of opening a second copy.`,
+      // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
+      redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
       echo,
     ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
@@ -998,7 +999,11 @@ export default function TerminalShell() {
   // V4: Alt+1..4 focuses that panel — from the command line too (declared inEditable) —
   // and Alt+[ / Alt+] step to the previous / next panel, wrapping around.
   const setFocusRef = useRef(null)
-  setFocusRef.current = (i) => { if (i < count) setFocus(i) }
+  setFocusRef.current = (i) => {
+    if (i < count) { setFocus(i); return }
+    // Round 3: Alt+3 on a two-panel board used to do nothing at all.
+    setNotice({ kind: 'info', text: `Panel ${i + 1} is not on screen: this board shows ${count}. Choose ${i + 1} panels to add it.` })
+  }
   const stepFocusRef = useRef(null)
   stepFocusRef.current = (d) => { if (count > 1) setFocus((focus + d + count) % count) }
   useEffect(() => registerShortcuts({
@@ -1212,7 +1217,7 @@ export default function TerminalShell() {
                     type="button"
                     className={`${styles.railItem} ${focusedCode === f.code ? styles.railItemOn : ''}`}
                     onClick={() => { runTyped(f.code); if (!isPhone) inputRef.current?.focus() }}
-                    title={f.label}
+                    title={(f.market ? f.market.leavesTerminal : f.ticker?.leavesTerminal) ? `${f.label} (opens a page outside the terminal)` : f.label}
                     data-testid={`terminal-rail-${f.code}`}
                   >
                     <span className={styles.code}>{f.code}</span>

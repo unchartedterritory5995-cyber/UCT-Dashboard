@@ -298,7 +298,7 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
       >
         {echo && (
           <>
-            <span className={styles.echoText}>{echo.text}</span>
+            <span className={styles.echoText} title={echo.text}>{echo.text}</span>
             {echo.shape && <span className={styles.echoShape} data-testid="terminal-arg-shape">{echo.shape}</span>}
           </>
         )}

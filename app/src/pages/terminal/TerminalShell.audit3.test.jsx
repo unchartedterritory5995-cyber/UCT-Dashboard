@@ -258,3 +258,51 @@ describe('phone: the panel switcher tells two panels of the same function apart'
     expect(screen.getByTestId('terminal-phone-switch-1')).toHaveTextContent('AMD DES')
   })
 })
+
+describe('copy: no internal names, and every dead end says what to do', () => {
+  it('a URL-owning panel redirect names the function, never its internal panel id', async () => {
+    store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'NVDA' }),
+      terminal_layout: panels([{ code: 'SCR', channel: null }, { code: 'DES', channel: 'A' }], 1) }
+    renderAt(['/terminal'])
+    await settle()
+    await type('@2 SCR')
+    expect(notice()).toMatch(/Stock screener is already open in panel 1; @2 was redirected there/)
+    expect(notice()).not.toMatch(/surface[A-Z]/)
+  })
+
+  it('Alt+3 on a two-panel board says the panel is not on screen, and how to add it', async () => {
+    store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'NVDA' }),
+      terminal_layout: panels([{ code: 'DES', channel: 'A' }, { code: 'GP', channel: 'A' }]) }
+    renderAt(['/terminal'])
+    await settle()
+    await act(async () => { fireEvent.keyDown(window, { code: 'Digit3', key: '3', altKey: true }) })
+    expect(notice()).toMatch(/Panel 3 is not on screen: this board shows 2\. Choose 3 panels to add it\./)
+    await act(async () => { fireEvent.keyDown(window, { code: 'Digit2', key: '2', altKey: true }) })
+    expect(screen.getByTestId('terminal-panel-1').dataset.focused).toBe('true')
+  })
+
+  it('a rail entry that leaves the terminal says so on hover', async () => {
+    renderAt(['/terminal'])
+    await settle()
+    expect(screen.getByTestId('terminal-rail-DASH').getAttribute('title')).toMatch(/opens a page outside the terminal/)
+    expect(screen.getByTestId('terminal-rail-RES').getAttribute('title')).toMatch(/opens a page outside the terminal/)
+    expect(screen.getByTestId('terminal-rail-GP').getAttribute('title')).not.toMatch(/outside/)
+    expect(screen.getByTestId('terminal-rail-CAL').getAttribute('title')).not.toMatch(/outside/)
+  })
+})
+
+describe('phone: the echo is never cut off where it warns', () => {
+  it('the full echo is on the element (title) and the phone stylesheet lets it wrap', async () => {
+    const fs = await import('node:fs')
+    const css = fs.readFileSync(`${process.cwd()}/src/pages/terminal/TerminalShell.module.css`, 'utf8')
+    const phone = css.slice(css.indexOf('@media (max-width: 640px)'))
+    const rule = /\.echoText\s*\{([^}]*)\}/.exec(phone)
+    expect(rule?.[1]).toMatch(/white-space:\s*normal/)
+    renderAt(['/terminal'])
+    await settle()
+    fireEvent.change(screen.getByTestId('terminal-command'), { target: { value: 'CAL FOO' } })
+    const text = screen.getByTestId('terminal-echo').querySelector('span')
+    expect(text.getAttribute('title')).toBe(text.textContent)
+    expect(text.textContent).toMatch(/Not applied: "FOO"/)
+  })
+})
