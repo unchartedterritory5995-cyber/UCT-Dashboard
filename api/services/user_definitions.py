@@ -496,6 +496,50 @@ def ast_hash(ast: Any) -> str:
         stable_stringify(ast).encode("utf-8")).hexdigest()
 
 
+# ─── RESULT IDENTITY: THE MATHS + THE SEMANTICS IT IS EVALUATED UNDER ────────
+#
+# ⭐⭐ P0 → OWNER DECISION A (2026-10-06). `ast_hash` names a TREE. A result —
+# a sweep hit, a coverage receipt, a forward-record row, a cached backtest — is
+# the answer of a tree evaluated under ONE definition semantics, and semantics 2
+# (`meta.semantics`, stamped by `save` and nowhere else) answers some trees
+# differently (unknown comparisons, the Wilder hold). So every SHARED or DURABLE
+# result is filed under `result_identity`, never under the bare tree hash:
+#
+#   semantics 1 (absent, Pine, anything not exactly 2)  ->  `sha256:<64 hex>`
+#   semantics 2                                          ->  `sha256:<64 hex>~s2`
+#
+# ⛔ SEMANTICS 1 IS BYTE-IDENTICAL TO THE OLD KEY, ON PURPOSE: every existing
+# `scan_hits` / `scan_coverage` / forward-record row stays where it is and keeps
+# meaning what it always meant. No migration, no recompute. A semantics-2 result
+# can never be read, written or deduped under a semantics-1 key, or vice versa.
+#
+# ⛔ THE SEMANTICS IS THE SERVER'S: `ast_interpret.semantics_for` over a STORED
+# document (whose `meta.semantics` the store wrote and a client cannot set).
+# The browser twin is `definitionSemantics.js::resultIdentity`, held equal by
+# `tests/fixtures/ast/semantics_result_identity.json`.
+
+#: The suffix a semantics-2 result identity carries. Never re-typed elsewhere.
+SEMANTICS_IDENTITY_SUFFIX = "~s2"
+#: Every legal result identity — a tree hash, optionally semantics-2 suffixed.
+RESULT_IDENTITY_RE = re.compile(r"^sha256:[0-9a-f]{64}(?:~s2)?$")
+
+
+def semantic_identity(tree_hash: str, semantics: int) -> str:
+    """`tree_hash` for semantics 1; `tree_hash + '~s2'` for semantics 2."""
+    from api.services import ast_interpret
+    two = ast_interpret.SEMANTICS_UNKNOWN_PROPAGATES
+    return f"{tree_hash}{SEMANTICS_IDENTITY_SUFFIX}" if semantics == two else tree_hash
+
+
+def result_identity(definition: Mapping[str, Any]) -> str:
+    """The identity every shared/durable result of this STORED definition is
+    filed under: the scan tree's hash + the definition's semantics."""
+    from api.services import ast_interpret
+    compute = definition.get("compute") if isinstance(definition, Mapping) else None
+    tree = compute.get("ast") if isinstance(compute, Mapping) else None
+    return semantic_identity(ast_hash(tree), ast_interpret.semantics_for(definition))
+
+
 # ─── definition v2: MANY TREES, ONE SCAN ─────────────────────────────────────
 #
 # ⭐ THE ADDITIVE HALF OF A DEFINITION'S IDENTITY. `compute.fn` stays

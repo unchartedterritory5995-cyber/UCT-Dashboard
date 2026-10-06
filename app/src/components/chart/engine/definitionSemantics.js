@@ -43,6 +43,25 @@ export function semanticsOf(def) {
     ? SEMANTICS_UNKNOWN_PROPAGATES : LEGACY_SEMANTICS
 }
 
+/**
+ * ⭐⭐ THE RESULT IDENTITY (owner decision A, 2026-10-06) — the key every shared /
+ * durable result of a definition is filed under on the server: the scan tree's
+ * hash, `~s2`-suffixed when the definition is semantics 2. Semantics 1 is the
+ * bare hash (every pre-existing key unchanged). Python twin:
+ * `user_definitions.py::result_identity`; both read
+ * `tests/fixtures/ast/semantics_result_identity.json`.
+ * ⛔ A browser asks the server for results BY this key; it never writes one.
+ */
+export const SEMANTICS_IDENTITY_SUFFIX = '~s2'
+export function semanticIdentity(treeHash, semantics) {
+  return semantics === SEMANTICS_UNKNOWN_PROPAGATES ? `${treeHash}${SEMANTICS_IDENTITY_SUFFIX}` : treeHash
+}
+export function resultIdentity(def) {
+  const tree = def && def.compute ? def.compute.ast : null
+  if (!tree) return null
+  return semanticIdentity(astHash(tree), semanticsOf(def))
+}
+
 /** The `interpret` opts that carry this document's semantics — `{}` for 1. */
 export function semanticsOptsFor(def) {
   return semanticsOf(def) === SEMANTICS_UNKNOWN_PROPAGATES

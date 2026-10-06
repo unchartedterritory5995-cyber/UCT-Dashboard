@@ -124,7 +124,7 @@ import { ImportBox } from './PineBox'
 // ⭐⭐ P0G — the definition semantics the store will give this save (owner
 // decisions A + C): the preview draws under them, and the copy installed after a
 // save carries the store's own answer (`row.semantics`).
-import { stampSemantics, withStoredSemantics } from '../engine/definitionSemantics'
+import { stampSemantics, withStoredSemantics, semanticIdentity, semanticsOf } from '../engine/definitionSemantics'
 import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
@@ -864,7 +864,9 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
       {/* ⛔ A ROW THE STORE NO LONGER HAS (deleted in another tab, or a list still
           loading) yields no hash, and `EvidenceTab` names that state itself rather
           than rendering an empty panel. Nothing is invented here. */}
-      <EvidenceTab defId={editing.defId} defHash={compute.fn || null} tf="D" />
+      {/* ⭐ the RESULT identity (tree hash + the stored semantics, owner decision A):
+          the receipt the server answers with carries it, and the tab compares. */}
+      <EvidenceTab defId={editing.defId} defHash={compute.fn ? semanticIdentity(compute.fn, semanticsOf(def)) : null} tf="D" />
     </>
   )
 }

@@ -1781,12 +1781,19 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # of bars cannot know, so a value that depends on it is withheld
             # (`ast_interpret.bar_index_mask`). False for every other document, and
             # `interpret` asks `is True` — their evaluation is the one it always was.
+            # ⭐⭐ …AND THE DEFINITION SEMANTICS (owner decision A, 2026-10-06), read
+            # by `semantics_for` — the function `lane_opts_for` (the alert lane's
+            # door) and `scan_definition.def_hash` read it with. A semantics-2
+            # screen is evaluated exactly as its chart and its alert are, and its
+            # answers are filed under `<hash>~s2`. `1` is identical to absent.
             column = ast_interpret.interpret(tree, bars, scalars=scalars,
                                              opts={"tf": tf_code,
                                                    "symbols": symbol_series,
                                                    "now": _eval_now,
                                                    "barIndexAbsolute":
-                                                       ast_interpret.bar_index_absolute_for(definition)})
+                                                       ast_interpret.bar_index_absolute_for(definition),
+                                                   "semantics":
+                                                       ast_interpret.semantics_for(definition)})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -2558,7 +2565,16 @@ def definitions_to_sweep() -> list:
         compute = definition.get("compute")
         if not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
             continue
-        handle = row.get("ast_hash")
+        # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
+        # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
+        # and a semantics-2 definition of the same tree into ONE sweep — whichever
+        # came first — and the other's answers were never computed under its own
+        # semantics. `result_identity` is the key the sweep files results under.
+        try:
+            handle = user_definitions.result_identity(definition)
+        except Exception:                                    # noqa: BLE001
+            # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
+            handle = ("unhashable", row.get("def_id"), row.get("version"))
         if handle in seen:
             continue
         seen.add(handle)
