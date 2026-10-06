@@ -21,7 +21,6 @@ import { setCreateIndicatorFlag } from '../../components/chart/builder/studio/cr
 import { scriptedReply } from '../createIndicator/scriptedConverse'
 
 const BLOCKED = []
-const KEYS = []
 const realFetch = window.fetch.bind(window)
 const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json' } })
 window.fetch = async (input, init) => {
@@ -39,11 +38,6 @@ window.fetch = async (input, init) => {
   }
   return realFetch(input, init)
 }
-// every keydown that reaches the document, and where focus was
-document.addEventListener('keydown', (e) => {
-  KEYS.push({ key: e.key, target: e.target && (e.target.dataset?.testid || e.target.tagName), defaultPrevented: e.defaultPrevented })
-}, true)
-
 const ITEMS = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'TSLA', 'GOOGL', 'AMD']
   .map((t, i) => ({ t, pct: -4 - i * 0.1 }))
 // ONE object for the life of the page — the board re-seeds on a new `drill`
@@ -54,8 +48,6 @@ function Harness() {
   useEffect(() => {
     window.__dfh = {
       blocked: () => BLOCKED.slice(),
-      keys: () => KEYS.slice(),
-      clearKeys: () => { KEYS.length = 0 },
       flag: (on) => setCreateIndicatorFlag(on),
       reopen: () => { setOpen(false); setTimeout(() => setOpen(true), 50) },
     }
