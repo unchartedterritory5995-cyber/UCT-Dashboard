@@ -1,0 +1,77 @@
+/* One state block for every terminal panel. App tokens only, so every app theme (dark, light,
+ * OLED and the catalog themes) colours it correctly. */
+
+.state {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  max-width: 60ch;
+  padding: var(--space-xs) 0 var(--space-xs) var(--space-md);
+  border-left: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: var(--lh-snug);
+}
+
+.state[data-kind='error'] {
+  border-left-color: var(--loss);
+}
+
+.state[data-kind='locked'] {
+  border-left-color: var(--accent);
+}
+
+.icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding-top: 1px;
+  color: var(--text-muted);
+}
+
+.state[data-kind='error'] .icon {
+  color: var(--loss);
+}
+
+.state[data-kind='locked'] .icon {
+  color: var(--accent);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--text-muted);
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.compact {
+  padding-block: 0;
+  font-size: var(--text-sm);
+}
+
+/* kbd has no app-wide style; inside a state block it reads as a typed command. */
+.state kbd {
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}

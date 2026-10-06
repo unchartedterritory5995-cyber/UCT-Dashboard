@@ -36,7 +36,7 @@
   gap: var(--space-xs);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg-base);
+  background: var(--bg);
   padding: 0 var(--space-xs) 0 var(--space-sm);
 }
 
@@ -78,13 +78,13 @@
 .echoShape {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  color: var(--text-faint, var(--text-muted));
+  color: var(--text-muted);
 }
 
 .echo_ok { color: var(--text); }
 .echo_ask { color: var(--accent); }
-.echo_warn { color: var(--warn, #f59e0b); }
-.echo_error { color: var(--danger, #f87171); }
+.echo_warn { color: var(--warn); }
+.echo_error { color: var(--loss); }
 
 .helpTable {
   width: 100%;
@@ -107,7 +107,7 @@
 
 .rowNum {
   min-width: 2ch;
-  color: var(--text-faint, var(--text-muted));
+  color: var(--text-muted);
   font-family: var(--font-mono);
   text-align: right;
 }
@@ -125,9 +125,9 @@
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--text-bright, var(--text));
+  color: var(--text-bright);
   font-family: var(--font-mono);
-  font-size: var(--text-md, 14px);
+  font-size: var(--text-md);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -181,7 +181,7 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: var(--z-dropdown, 50);
+  z-index: var(--z-dropdown);
   margin: 0;
   padding: var(--space-xs) 0;
   list-style: none;
@@ -219,11 +219,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-secondary, var(--text-muted));
+  color: var(--text-muted);
 }
 
 .suggestKind {
-  color: var(--text-faint, var(--text-muted));
+  color: var(--text-muted);
   font-size: var(--text-xs);
 }
 
@@ -241,12 +241,12 @@
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-md);
   border-bottom: 1px solid var(--border);
-  background: var(--info-bg, var(--bg-surface));
+  background: var(--info-bg);
   font-size: var(--text-sm);
 }
 
 .noticeError {
-  background: var(--warn-bg, var(--bg-surface));
+  background: var(--warn-bg);
 }
 
 .noticeSuggest {
@@ -258,6 +258,9 @@
 
 .chip,
 .noticeClose {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 26px;
   padding: 0 var(--space-sm);
   border: 1px solid var(--border);
@@ -269,6 +272,9 @@
 }
 
 .noticeClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-left: auto;
   border-radius: var(--radius-sm);
 }
@@ -301,7 +307,7 @@
   padding: var(--space-xs) var(--space-md);
   color: var(--text-muted);
   font-size: var(--text-xs);
-  letter-spacing: var(--ls-wide, 0.06em);
+  letter-spacing: var(--ls-wide);
   text-transform: uppercase;
 }
 
@@ -403,7 +409,7 @@
   background: transparent;
   color: var(--dot, var(--text-muted));
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   padding: 0;
@@ -420,7 +426,7 @@
   border-radius: 50%;
   color: var(--dot, var(--text-muted));
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -433,6 +439,9 @@
 }
 
 .panelAct {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 24px;
   min-height: 24px;
   padding: 0 var(--space-xs);
@@ -464,7 +473,7 @@
   margin-top: var(--space-sm);
   color: var(--text-muted);
   font-size: var(--text-xs);
-  letter-spacing: var(--ls-wide, 0.06em);
+  letter-spacing: var(--ls-wide);
   text-transform: uppercase;
 }
 
@@ -479,7 +488,7 @@
   color: var(--text);
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-sm);
-  background: var(--warn-bg, var(--bg-surface));
+  background: var(--warn-bg);
 }
 
 .menuForm,
@@ -568,7 +577,7 @@
   padding: 0 var(--space-sm);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--bg-base);
+  background: var(--bg);
   color: var(--text);
   font: inherit;
   font-size: var(--text-sm);
@@ -585,6 +594,9 @@
 }
 
 .menuBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   min-height: 30px;
   padding: 0 var(--space-sm);
@@ -595,6 +607,10 @@
   font: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
+}
+
+.favOn {
+  color: var(--accent);
 }
 
 .menuBtn:disabled {
@@ -608,7 +624,7 @@
   gap: var(--space-sm);
   min-height: 30px;
   font-size: var(--text-sm);
-  line-height: var(--lh-normal, 1.5);
+  line-height: var(--lh-normal);
 }
 
 .panelTitle {
@@ -642,34 +658,75 @@
   text-decoration: none;
 }
 
+/* ONE panel inset (visual audit finding 1): every panel's content sits `--panel-inset` in from
+   the frame, whatever component it embeds, so two panels side by side start their text at the
+   same x. The few panels that must fill the frame (the chart, the calendar's own layout) opt
+   out by name — FLUSH_PANELS in panels.jsx — and get `.panelBodyFlush`. Inset, gap, text size
+   and row height all come from the density variables (tokens.css; re-declared per density
+   below), so the density control changes the panel, not only text that happens to inherit. */
 .panelBody {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
   overflow: auto;
   position: relative;
+  padding: var(--panel-inset);
+  font-size: var(--panel-fs);
 }
 
+.panelBodyFlush {
+  padding: 0;
+}
+
+/* Shell-owned notes inside a panel (MOVE's own states); the body supplies the inset. */
 .panelEmpty {
-  padding: var(--space-lg);
   color: var(--text-muted);
 }
 
+/* A flush panel's own states still need breathing room. */
+.panelBodyFlush > .panelState,
+.popoutMissing {
+  padding: var(--panel-inset);
+}
+
+.panelState {
+  min-width: 0;
+}
+
+/* Help is also rendered inside a Sheet (the phone Functions list), which has no inset of its
+   own; inside a panel the body already supplies one. */
 .help {
   padding: var(--space-md);
 }
 
+.panelBody > .help {
+  padding: 0;
+}
+
+/* A typed command inside Help or a shell note (it had no style rule anywhere, so it rendered
+   the browser default). */
+.help kbd,
+.panelEmpty kbd {
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
 .helpSyntax {
   margin: 0 0 var(--space-md);
-  color: var(--text-secondary, var(--text));
-  line-height: var(--lh-normal, 1.5);
+  color: var(--text);
+  line-height: var(--lh-normal);
 }
 
 .helpGroup {
   margin: var(--space-md) 0 var(--space-xs);
   color: var(--text-muted);
   font-size: var(--text-xs);
-  letter-spacing: var(--ls-wide, 0.06em);
+  letter-spacing: var(--ls-wide);
   text-transform: uppercase;
 }
 
@@ -711,7 +768,7 @@
 }
 
 .helpScope {
-  color: var(--text-faint, var(--text-muted));
+  color: var(--text-muted);
   font-size: var(--text-xs);
 }
 
@@ -719,11 +776,11 @@
    `flag` renders neither class at all. Text suffix, matching this file's existing idiom
    (no pill/badge component exists in the terminal panels). */
 .helpFlagOn {
-  color: var(--color-success, #4ade80);
+  color: var(--gain);
 }
 
 .helpFlagOff {
-  color: var(--color-danger, #f87171);
+  color: var(--loss);
 }
 
 .helpAbsent {
@@ -732,22 +789,30 @@
 }
 
 /* ── lane T2: board DENSITY, desktop only (the touch tier's 44px floor is never undercut) ── */
+/* Density is four variables (tokens.css: --panel-inset, --panel-gap, --panel-fs, --panel-row-h),
+   re-declared here, so every panel component that sizes itself from them follows the control. */
 @media (min-width: 1025px) {
-  .shell[data-density='compact'] .panelHead {
-    min-height: 26px;
+  .shell[data-density='compact'] {
+    --panel-inset: var(--space-sm);
+    --panel-gap: var(--space-sm);
+    --panel-fs: var(--text-base);
+    --panel-row-h: 24px;
   }
 
-  .shell[data-density='compact'] .panelBody {
-    font-size: var(--text-sm);
+  .shell[data-density='dense'] {
+    --panel-inset: var(--space-xs);
+    --panel-gap: var(--space-xs);
+    --panel-fs: var(--text-sm);
+    --panel-row-h: 20px;
+  }
+
+  .shell[data-density='compact'] .panelHead {
+    min-height: 26px;
   }
 
   .shell[data-density='dense'] .panelHead {
     min-height: 22px;
     gap: var(--space-xs);
-  }
-
-  .shell[data-density='dense'] .panelBody {
-    font-size: var(--text-xs);
   }
 
   .shell[data-density='dense'] .railItem {
@@ -892,7 +957,7 @@
 
   .bar {
     flex-wrap: wrap;
-    row-gap: var(--space-xs, 4px);
+    row-gap: var(--space-xs);
   }
 
   .cmdBlock {
