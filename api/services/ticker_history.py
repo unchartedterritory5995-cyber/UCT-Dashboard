@@ -210,7 +210,9 @@ def catalysts_lane(sym: str, since: date) -> list[dict]:
                     (sym, since.isoformat())):
                 rows.append({"date": r["market_date"], "lane": "catalysts",
                              "rank": r["rank"], "tag": r["tag"],
-                             "text": (r["thesis_text"] or "").strip() or f"On the catalyst list ({r['tag'] or 'untagged'})",
+                             # a pre-L5 row stores the engine's failure sentence as the thesis
+                             "text": ("" if store.is_failed_writeup(r["thesis_text"]) else (r["thesis_text"] or "").strip())
+                                     or f"On the catalyst list ({r['tag'] or 'untagged'})",
                              "source": "catalysts", "as_of": r["market_date"],
                              "ref": f"/catalysts/history?date={r['market_date']}"})
     except sqlite3.Error as e:

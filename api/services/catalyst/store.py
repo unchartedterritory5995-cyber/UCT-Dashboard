@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import json
+import re
 import logging
 import os
 import sqlite3
@@ -765,6 +766,22 @@ def get_for_date(market_date: str, ranked_only: bool = True) -> list[dict]:
         return [_deserialize_row(dict(r)) for r in c.execute(sql, (market_date,)).fetchall()]
 
 
+# Rows written before L5 (2026-10-05) carry the engine's own failure sentence AS the
+# thesis. Every reader goes through _deserialize_row, so they are normalised here, once:
+# thesis_text None plus the thesis_status L5 writes. CATH, DPTH, EVTS and the research
+# tabs then say "no write-up" instead of showing the sentence as a catalyst, and the
+# skip-if-stable path (which reads the prior row) re-synthesises instead of reusing it.
+_LEGACY_FAILURE = re.compile(
+    r"^\s*Synthesis (temporarily unavailable|returned malformed output|paused)\b", re.I)
+_LEGACY_STATUS = {"temporarily unavailable": "failed",
+                  "returned malformed output": "malformed", "paused": "paused"}
+
+
+def is_failed_writeup(text) -> bool:
+    """True for a pre-L5 row whose thesis is the engine's own failure sentence. For readers
+    that select thesis_text directly instead of going through _deserialize_row."""
+    return bool(_LEGACY_FAILURE.match(text or ""))
+
 def _deserialize_row(row: dict) -> dict:
     """Parse JSON-text columns (rating_change) back into objects for API consumers.
     Best-effort: a malformed value becomes None rather than breaking the row."""
@@ -774,6 +791,11 @@ def _deserialize_row(row: dict) -> dict:
             row["rating_change"] = json.loads(rc)
         except Exception:
             row["rating_change"] = None
+    m = _LEGACY_FAILURE.match(row.get("thesis_text") or "")
+    if m:
+        row["thesis_text"] = None
+        if not row.get("thesis_status"):
+            row["thesis_status"] = _LEGACY_STATUS[m.group(1).lower()]
     return row
 
 
