@@ -136,7 +136,9 @@ GATE A — code + producer guard + runner (members dark)
 GATE B — MEMBER AUTHORITY SWITCH (separate owner approval)
 5. web: `BREADTH_EXCH_SYNC_ENABLED=1` (if not already), verify `/api/breadth-monitor/authority`
    (PUSH_SECRET) `exchange.available=true` and `latest_session`.
-6. web: `BREADTH_AUTHORITY_EXCH=v1` and `BREADTH_LIBRARY_UNIVERSES=us,nyse,nasdaq`. Verify
+6. web: `BREADTH_AUTHORITY_EXCH=v1` and `BREADTH_LIBRARY_UNIVERSES=us,nyse,nasdaq`; runner:
+   `BREADTH_EXCH_MEMBER_AUTHORITY_SINCE=<UTC timestamp of the switch>` (retention clause D/E: a dark
+   publication is not member authority — no retention clock runs before this is recorded). Verify
    `/api/breadth-symbols` (`NYSE:*`/`NASDAQ:*`), `/api/market-indicators` (`NYSE:MCO`…),
    `/api/bars/NYSE:MCO?tf=D`.
 

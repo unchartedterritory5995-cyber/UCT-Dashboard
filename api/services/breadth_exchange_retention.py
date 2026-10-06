@@ -81,12 +81,36 @@ def authority_history(store) -> list:
     return out
 
 
-def first_authoritative(session: str, history: list) -> Optional[dict]:
-    """The first non-rollback publication whose live span contains `session`."""
+def member_authority_since() -> Optional[str]:
+    """When NYSE/NASDAQ became MEMBER-authoritative ('YYYY-MM-DDTHH:MM:SSZ'), or None while members are dark.
+    Recorded at the Gate B cutover as BREADTH_EXCH_MEMBER_AUTHORITY_SINCE on the runner. ⛔ A dark publication
+    is NOT member authority: before this exists no session is member-authoritative and no clock runs."""
+    v = (os.environ.get("BREADTH_EXCH_MEMBER_AUTHORITY_SINCE") or "").strip()
+    return v or None
+
+
+def first_authoritative(session: str, history: list, since: Optional[str] = None) -> Optional[dict]:
+    """When `session` first became MEMBER-authoritative: the first non-rollback publication containing it,
+    but never earlier than the member cutover `since` (a session published dark before the cutover became
+    authoritative AT the cutover). None while members are dark."""
+    if not since:
+        return None
     for h in history:
         if not h["rollback_of"] and h["latest_session"] >= session:
-            return h
+            return dict(h, published_at=max(h["published_at"], since))
     return None
+
+
+def member_versions(session: str, history: list, since: Optional[str]) -> list:
+    """The publication versions that served `session` TO MEMBERS: the pointer in force at the cutover
+    (the last non-rollback publication at or before `since`) and every non-rollback one after it, each only
+    if it contains the session. [] while members are dark."""
+    if not since:
+        return []
+    live = [h for h in history if not h["rollback_of"]]
+    at_cutover = [h for h in live if h["published_at"] <= since][-1:]
+    after = [h for h in live if h["published_at"] > since]
+    return [h["version"] for h in at_cutover + after if h["latest_session"] >= session]
 
 
 def completed_sessions_since(day_iso: str, today_iso: str) -> int:
@@ -143,8 +167,7 @@ def build_evidence(archive_dir: str, tag: str, producer_root: str, store_db: str
         finally:
             c.close()
     sessions = sorted({o["date"] for o in owned} | {x["date"] for x in computed})
-    versions = {d: [h["version"] for h in history if not h["rollback_of"] and h["latest_session"] >= d]
-                for d in sessions}
+    versions = {d: member_versions(d, history, member_authority_since()) for d in sessions}
     return {"schema": EVIDENCE_SCHEMA, "policy": POLICY, "tag": tag, "producer": prod, "owned_sessions": owned,
             "inputs": ack["inputs"], "ack": json.loads(ack_bytes), "ack_sha256": _sha(ack_bytes),
             "archive_sums_sha256": _sha(sums_bytes), "archive_sums": sums_bytes.decode(),
@@ -213,7 +236,7 @@ def verify_evidence(archive_dir: str, tag: str) -> dict:
 
 # ── eligibility A–I ─────────────────────────────────────────────────────────────────────────────────
 def eligibility(archive_dir: str, tag: str, owned: list, history: list, today_iso: str, runner_state: str,
-                hold: bool, full_verify: bool = False) -> dict:
+                hold: bool, full_verify: bool = False, since: Optional[str] = "env") -> dict:
     """{clause: bool, ..., eligible: bool, why: [...]}. `owned` = every session the vintage owns (incl. a
     declared substitute's sessions). Cheap by default (A, C by file + SUMS identity); B is re-hashed only with
     `full_verify` (always at retirement)."""
@@ -229,7 +252,9 @@ def eligibility(archive_dir: str, tag: str, owned: list, history: list, today_is
             r["B_verified"], r["B_reason"] = False, e.reason
     else:
         r["B_verified"] = r["C_ack_valid"]                    # re-proven in full at retirement time
-    first = {d: first_authoritative(d, history) for d in owned}
+    since = member_authority_since() if since == "env" else since
+    r["member_authority_since"] = since
+    first = {d: first_authoritative(d, history, since) for d in owned}
     r["D_all_owned_authoritative"] = bool(owned) and all(first.values())
     if r["D_all_owned_authoritative"]:
         last = max(owned)
