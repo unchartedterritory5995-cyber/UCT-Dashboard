@@ -97,7 +97,16 @@ import sys as _uct_sys  # noqa: E402
 _uct_repo_root = _uct_os.path.dirname(_uct_os.path.dirname(_uct_os.path.abspath(__file__)))
 if _uct_repo_root not in _uct_sys.path:
     _uct_sys.path.insert(0, _uct_repo_root)
-import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
+# ⛔⛔ THE TEST CENSUS + TRIPWIRE ONLY WHEN THIS RUNS AS A TOOL OR UNDER PYTEST.
+# This module is ALSO a production library: `alert_user_series._conformance()`
+# imports it at alert-arm time (the cross-lane proof) inside the live web process.
+# An unconditional `import conftest` there redirects the data-root env vars to temp
+# sandboxes and arms the /data write tripwire in PRODUCTION — found 2026-10-06 when
+# a sandboxed server's bars reads began failing (`SharedDataRootWrite`) right after
+# a user-formula alert was armed. As a script (`python tools/ast_conformance.py`)
+# and under pytest (where the repo-root conftest is already loaded) nothing changes.
+if __name__ == "__main__" or "pytest" in _uct_sys.modules or "conftest" in _uct_sys.modules:
+    import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 
 import sys
 
