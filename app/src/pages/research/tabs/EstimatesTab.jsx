@@ -4,6 +4,7 @@ import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
@@ -34,7 +35,7 @@ export default function EstimatesTab({ sym }) {
   const { data, isLoading, error, mutate } = useEstimates(sym)
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading estimates…</div>
+    return <ResearchLoading label="Loading estimates" />
   }
 
   // TERM-088 -- a failed read is not an empty estimate set. Render the error

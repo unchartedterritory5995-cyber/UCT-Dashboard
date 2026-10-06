@@ -3,6 +3,7 @@ import Provenance from '../../../components/provenance/Provenance'
 import AbsenceReceipt from '../../../components/provenance/AbsenceReceipt'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../../../utils/highlightThesis'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
@@ -51,7 +52,7 @@ export default function CatalystsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useCatalystHistory(sym)
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading catalyst history…</div>
+    return <ResearchLoading label="Loading catalyst history" />
   }
 
   if (paywalled) {

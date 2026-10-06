@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
@@ -39,6 +40,7 @@ function Implied({ im, next }) {
 }
 
 export default function EarningsReactionPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
@@ -46,7 +48,7 @@ export default function EarningsReactionPanel({ sym }) {
 
   let body
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
-  else if (!data) body = <div className={styles.note}>Loading the earnings reaction…</div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the earnings reaction" />
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason)}</div>
   else {
@@ -93,8 +95,8 @@ export default function EarningsReactionPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="earnings-reaction-panel">
-      <h3 className={styles.panelTitle}>Earnings reaction (8 quarters)</h3>
+    <section className={chrome.panelClass} data-testid="earnings-reaction-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Earnings reaction (8 quarters)</h3>}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings-reaction read" />
       {body}
     </section>

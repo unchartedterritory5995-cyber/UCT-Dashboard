@@ -7,6 +7,7 @@ import { computeSessionStale } from '../../../components/provenance/sessionStale
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { parseEtTimestamp, ET_ZONE } from '../../../lib/marketClock/etTime'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // A8 News/Intelligence Slice 1 (owner-authorized narrow slice,
@@ -85,7 +86,7 @@ export default function NewsTab({ sym }) {
   const session = useMarketOpen()
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading news…</div>
+    return <ResearchLoading label="Loading news" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty news feed. Render the

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 
 // D-5 (Lane R) — tape + transcript replay of the latest earnings call.
@@ -58,6 +59,7 @@ function Tape({ bars, cursor, from, to }) {
 }
 
 export default function CallReplayPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/call-replay/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
@@ -94,7 +96,7 @@ export default function CallReplayPanel({ sym }) {
 
   let body
   if (error) body = <div className={styles.error} data-testid="replay-unavailable">Call replay is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
-  else if (!data) body = <div className={styles.note}>Loading the call…</div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the call" />
   else if (data.paywalled) body = <div className={styles.note}>Call replay requires a paid plan.</div>
   else if (data.state === 'no_timed_transcript') body = <p className={styles.note} data-testid="replay-none">{data.reason}</p>
   else {
@@ -150,8 +152,8 @@ export default function CallReplayPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="call-replay-panel">
-      <h3 className={styles.panelTitle}>Call replay: tape and transcript</h3>
+    <section className={chrome.panelClass} data-testid="call-replay-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Call replay: tape and transcript</h3>}
       {body}
     </section>
   )

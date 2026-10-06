@@ -1,4 +1,5 @@
 import useRatings from '../hooks/useRatings'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import UIcon from '../../../components/ui/UIcon'
 import { CoverageNote } from '../../../components/research-kit'
@@ -45,7 +46,7 @@ export default function RatingsTab({ sym }) {
   const { data, isLoading, error, mutate } = useRatings(sym)
 
   if (isLoading) {
-    return <div className={styles.fnote}>Computing UCT ratings…</div>
+    return <ResearchLoading label="Computing UCT ratings" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty rating. Render the

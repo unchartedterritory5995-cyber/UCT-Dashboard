@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
@@ -20,6 +21,7 @@ const big = (v) => {
 }
 
 export default function BrokerEstimatesPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
@@ -27,7 +29,7 @@ export default function BrokerEstimatesPanel({ sym }) {
 
   let body
   if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
-  else if (!data) body = <div className={styles.note}>Loading estimates…</div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading estimates" />
   else if (data.paywalled) body = <div className={styles.note}>Estimates require a paid plan.</div>
   else {
     const firms = data.firms || {}
@@ -76,8 +78,8 @@ export default function BrokerEstimatesPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="broker-panel">
-      <h3 className={styles.panelTitle}>Estimates by contributor</h3>
+    <section className={chrome.panelClass} data-testid="broker-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Estimates by contributor</h3>}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The estimate read" />
       {body}
     </section>

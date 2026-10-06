@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
@@ -16,13 +17,14 @@ const fmt = (n) => formatNumber(num(n))
 const usd = (n) => { const t = formatNumber(num(n), { decimals: 0, absent: null }); return t == null ? formatNumber(NaN) : `$${t}` }
 
 export default function FtdPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/ftd/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
 
   let body
   if (error) body = <div className={styles.error} data-testid="ftd-unavailable">Fails-to-deliver data is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
-  else if (!data) body = <div className={styles.note}>Loading fails to deliver…</div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading fails to deliver" />
   else if (data.paywalled) body = <div className={styles.note}>Fails to deliver requires a paid plan.</div>
   else if (data.state === 'not_ingested') body = <div className={styles.note} data-testid="ftd-not-ingested">{memberSentence(data.reason)}</div>
   else if (data.state === 'none_reported') body = <div className={styles.note} data-testid="ftd-none">{memberSentence(data.reason)}</div>
@@ -55,8 +57,8 @@ export default function FtdPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="ftd-panel">
-      <h3 className={styles.panelTitle}>Fails to deliver (SEC)</h3>
+    <section className={chrome.panelClass} data-testid="ftd-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Fails to deliver (SEC)</h3>}
       {body}
       {data && !data.paywalled && !error && (
         <p className={styles.muted} data-testid="ftd-basis">{data.basis} Source: {memberText(data.source)}.</p>

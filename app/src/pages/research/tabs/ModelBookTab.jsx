@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import useModelBookAppearances from '../hooks/useModelBookAppearances'
 import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // Packet H CP1 -- the "has this ticker ever been in the Model Book" tab.
@@ -18,7 +19,7 @@ export default function ModelBookTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useModelBookAppearances(sym)
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading Model Book history…</div>
+    return <ResearchLoading label="Loading Model Book history" />
   }
 
   // TERM-088 -- a failed read is not "never in the Model Book". Render the

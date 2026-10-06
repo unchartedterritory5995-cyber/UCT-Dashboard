@@ -5,6 +5,7 @@ import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 function fmtBig(v) {
@@ -160,7 +161,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const { data, isLoading, error, mutate } = useFinancials(sym)
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading financials…</div>
+    return <ResearchLoading label="Loading financials" />
   }
 
   // TERM-088 -- a failed read is not an empty statement history. Render the

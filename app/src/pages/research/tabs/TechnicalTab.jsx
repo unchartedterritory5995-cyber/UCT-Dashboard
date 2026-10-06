@@ -7,6 +7,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { ABSENT } from '../../../lib/presentation/presentationPrimitives'
 import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // Chart/Technical Intelligence Convergence (owner authorization, Phase B).
@@ -139,7 +140,7 @@ export default function TechnicalTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
-      {isLoading && !verdicts.length && <div className={styles.fnote}>Loading technical evidence…</div>}
+      {isLoading && !verdicts.length && <ResearchLoading label="Loading technical evidence" />}
 
       {scannerHint && hintMatched === false && (
         <div className={styles.entityNote} data-testid="scanner-hint-stale">

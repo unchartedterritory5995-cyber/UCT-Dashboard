@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
@@ -15,13 +16,14 @@ const num = (v) => (v == null ? '—' : String(v))
 const LABEL = { before_store: 'before the store', room_silent: 'room silent' }
 
 export default function MentionSeriesPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/mention-series/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
 
   let body
   if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
-  else if (!data) body = <div className={styles.note}>Loading room attention…</div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading room attention" />
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason)}</div>
   else if (!data.summary?.days_measured) {
@@ -58,8 +60,8 @@ export default function MentionSeriesPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="mentions-panel">
-      <h3 className={styles.panelTitle}>Room attention (#main-chat)</h3>
+    <section className={chrome.panelClass} data-testid="mentions-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Room attention (#main-chat)</h3>}
       {body}
     </section>
   )

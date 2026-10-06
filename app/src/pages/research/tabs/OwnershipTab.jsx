@@ -12,6 +12,7 @@ import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { pctUpTo } from '../researchFormat'
 import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 /** S8/S11 vertical slice (2026-09-03 A6/A7 pass): Float/shares-outstanding
@@ -174,7 +175,7 @@ export default function OwnershipTab({ sym }) {
   const { exhausted: reaskExhausted, retry: reaskRetry } = usePendingReask(edgarPending, mutate, sym)
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading ownership…</div>
+    return <ResearchLoading label="Loading ownership" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty ownership record.

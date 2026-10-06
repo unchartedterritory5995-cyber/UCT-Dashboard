@@ -2,6 +2,7 @@ import useResearchFlow from '../hooks/useResearchFlow'
 import Provenance from '../../../components/provenance/Provenance'
 import { formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // Research "Flow" tab (A13 Wave B). The roadmap's original directive asked for
@@ -54,7 +55,7 @@ export default function FlowTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
-      {isLoading && !data && <div className={styles.fnote}>Loading options-flow evidence…</div>}
+      {isLoading && !data && <ResearchLoading label="Loading options-flow evidence" />}
 
       {/* A failed read is said as a failure, with a retry -- never as "no qualifying flow". */}
       {!isLoading && error && (

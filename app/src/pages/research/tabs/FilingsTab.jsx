@@ -1,4 +1,5 @@
 import useFilings from '../../../hooks/useFilings'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 export default function FilingsTab({ sym }) {
@@ -19,7 +20,7 @@ export default function FilingsTab({ sym }) {
 
       <section className={styles.card}>
         <div className={styles.ct}>SEC filings (EDGAR)</div>
-        {isLoading && !filings.length && <div className={styles.fnote}>Loading filings…</div>}
+        {isLoading && !filings.length && <ResearchLoading label="Loading filings" />}
         {!!filings.length && (
           <div className={styles.rclist}>
             {filings.map((f, i) => (

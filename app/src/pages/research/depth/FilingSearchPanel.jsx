@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 
 // FT-058 / FT-059 / FT-060 — boolean, proximity, synonym and section-scoped
@@ -34,6 +35,7 @@ function Snippet({ text, marks }) {
 }
 
 export default function FilingSearchPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
   const [draft, setDraft] = useState('')
   const [section, setSection] = useState('')
@@ -90,8 +92,8 @@ export default function FilingSearchPanel({ sym }) {
   }
 
   return (
-    <section className={styles.panel} data-testid="filing-search">
-      <h3 className={styles.panelTitle}>Filing search</h3>
+    <section className={chrome.panelClass} data-testid="filing-search">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Filing search</h3>}
       <form className={styles.form} onSubmit={onSubmit} role="search">
         <input className={styles.input} aria-label="Search this company's filings" value={draft}
           placeholder='e.g. tariff NEAR/8 margin, "supply chain" -china, section:risk'

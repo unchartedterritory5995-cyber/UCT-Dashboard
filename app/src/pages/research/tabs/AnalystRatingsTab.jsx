@@ -10,6 +10,7 @@ import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import AnalystRevisions from './AnalystRevisions'
 
@@ -94,7 +95,7 @@ export default function AnalystRatingsTab({ sym }) {
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
 
   if (isLoading) {
-    return <div className={styles.fnote}>Loading analyst ratings…</div>
+    return <ResearchLoading label="Loading analyst ratings" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty analyst record.
