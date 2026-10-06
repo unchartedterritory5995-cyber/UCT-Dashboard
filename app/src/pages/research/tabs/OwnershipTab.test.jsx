@@ -33,7 +33,9 @@ describe('OwnershipTab', () => {
   it('shows an entity-unresolved note when Entity Master has not linked the symbol', () => {
     data.entity = { status: 'not_found', entityId: null }
     render(<OwnershipTab sym="AAPL" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    // Plain English for members, never the raw status enum (quality pass 2026-10-05).
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record')
+    expect(screen.getByTestId('entity-unresolved-note')).not.toHaveTextContent('not_found')
     data.entity = { status: 'resolved', entityId: 'em_aapl' }
   })
 })
