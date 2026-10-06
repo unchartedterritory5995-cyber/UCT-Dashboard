@@ -200,6 +200,12 @@ def test_a_v1_document_is_untouched(store):
     d = _inlined_equivalent()
     svc.save(USER, DEF_ID, d)
     stored = json.loads(svc._newest(_conn(), USER, DEF_ID)["definition"])
+    # ⭐ P0G -- the ONE addition the store makes to any new native save: its
+    # definition-semantics stamp (`user_definitions.decide_semantics`). Everything
+    # the client sent is otherwise byte-for-byte what was stored.
+    assert stored["meta"].pop("semantics") == 2
+    if not stored["meta"] and "meta" not in d:
+        del stored["meta"]
     assert stored == d
 
 

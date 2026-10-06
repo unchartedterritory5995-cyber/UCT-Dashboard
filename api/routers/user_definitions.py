@@ -188,8 +188,12 @@ def _save_or_400(user_id, def_id: str, definition: dict,
     caller that predates this track, present for BuilderSheet's own save path.
     """
     try:
+        # ⭐ P0G -- `source_dialect` is also the store's one fact about where THIS
+        # save's maths came from: Pine-translated maths is never stamped with
+        # definition semantics 2 (`svc.decide_semantics`).
         row = svc.save(user_id, def_id, definition, limits=limits, role=role,
-                       repaint_acknowledged=repaint_acknowledged)
+                       repaint_acknowledged=repaint_acknowledged,
+                       source_dialect=source_dialect)
     except svc.SaveRefused as exc:
         # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
         # is still the store's own sentence (so every client that renders
