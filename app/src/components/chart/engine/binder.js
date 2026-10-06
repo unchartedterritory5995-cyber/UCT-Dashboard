@@ -788,9 +788,12 @@ export function createBinder({ chart, LWC }) {
    *  chart's own price series (`ctx.priceSeries()`), i.e. the price pane.
    *  `barcolor` → one map `time → colour` over every instance, handed to the host
    *  (`ctx.setBarColours`), which owns the candles. Within one script the LATER
-   *  `barcolor` wins (RT6, captured: CAP round 4 P1/P2); two DIFFERENT scripts
-   *  that colour one bar differently are not resolved — no capture says which
-   *  instance TradingView shows — so that bar keeps its own colour (`conflicts`).
+   *  `barcolor` wins (RT6, captured: CAP round 4 P1/P2). ⭐ P2 OWNER POLICY (LOCKED):
+   *  two DIFFERENT instances that colour one bar differently resolve to the LATER
+   *  STORED INSTANCE (`instances` is the stored order, `cs.indicatorInstances`) —
+   *  deterministic, and a reorder flips the winner. No vendor capture says which
+   *  instance TradingView shows, so this is the owner's rule, not a fidelity claim;
+   *  `conflicts` now COUNTS the bars a later instance took from an earlier one.
    *
    *  ⛔ It never touches React: every write is a primitive's `setOptions` or one
    *  call to the host's capability, and the capability is called only when the
@@ -824,8 +827,8 @@ export function createBinder({ chart, LWC }) {
       // `docs/pine/vendor-harness/cap-round4/vw-bgcolor-barcolor-spy-1d-2026-10-02.png`):
       // on a bar where P1 (`#ffeb3b`) and the later P2 (`#000080`) both hold a
       // colour, TradingView paints P2. So a script's own paints resolve in source
-      // order here; two DIFFERENT scripts disagreeing on a bar keep the bar's own
-      // colour (`conflicts`) — no capture says which instance wins.
+      // order here. Across DIFFERENT instances the later stored instance wins
+      // (P2 owner policy — see the doc comment above).
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
@@ -864,10 +867,11 @@ export function createBinder({ chart, LWC }) {
           instOverrides.set(String(tt[j]), c)
         }
       })
+      // ⭐⭐ P2 — LATER STORED INSTANCE WINS. An instance's resolved colour for a
+      // bar REPLACES an earlier instance's; a disagreement is counted.
       for (const [k, c] of instOverrides) {
-        if (conflicts.has(k)) continue
         const had = overrides.get(k)
-        if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
+        if (had !== undefined && had !== c) conflicts.add(k)
         overrides.set(k, c)
       }
     }

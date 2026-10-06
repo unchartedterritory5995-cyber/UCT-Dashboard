@@ -301,7 +301,7 @@ describe('P1 intent — paint priority is deterministic', () => {
     expect(h.calls('attachPrimitive').length).toBe(n)
   })
 
-  it('P2 barcolor: within one definition the LATER paint wins; two definitions that disagree leave the bar its own colour (EXACT, unchanged)', () => {
+  it('P2 barcolor: within one definition the LATER paint wins; across definitions the LATER stored instance wins (P2 owner policy, superseding P1 "keep own colour") (EXACT)', () => {
     const red = { kind: 'barcolor', color: '#ff0000' }
     const blue = { kind: 'barcolor', color: '#0000ff' }
     const h = harness(new Map([['u_d', doc('u_d', SEM2, { paints: [red, blue] })]]), COND)
@@ -309,7 +309,7 @@ describe('P1 intent — paint priority is deterministic', () => {
     expect([...h.handed[0].values()]).toEqual(Array(4).fill('#0000ff'))
     const h2 = harness(new Map([['u_d', doc('u_d', SEM2, { paints: [red] })], ['u_e', doc('u_e', SEM2, { paints: [blue] })]]), COND)
     const res = h2.run([inst('u_d'), inst('u_e')])
-    expect(h2.handed).toEqual([]) // nothing to override: every bar keeps its own colour
-    expect(res).toBeTruthy()
+    expect([...h2.handed[0].values()]).toEqual(Array(4).fill('#0000ff')) // u_e is later: blue
+    expect(res.paints.conflicts).toBe(4)
   })
 })
