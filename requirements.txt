@@ -82,3 +82,4 @@ orjson>=3.11.0  # fast + NaN-safe bars serialization (api/services/bars_fetch, a
 json_repair
 pyotp>=2.9.0  # TOTP two-factor auth (api.services.totp_service)
 qrcode>=8.0  # 2FA enrollment QR (SVG factory, no PIL needed)
+jsonschema==4.26.0  # api/services/definition_conversation.py (P2 /converse) validates the model's patch envelope; missing => /converse 500 in prod (2026-10-06)

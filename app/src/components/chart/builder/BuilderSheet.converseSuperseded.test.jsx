@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
+import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula } from './FormulaField'
@@ -60,10 +61,13 @@ const flush = async () => { await act(async () => { for (let i = 0; i < 8; i += 
 beforeEach(() => { stubFetch(); clearUserDefinitions() })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); delete globalThis.fetch; clearUserDefinitions() })
 
+beforeEach(() => { setCreateIndicatorFlag(true) })
+afterEach(() => { setCreateIndicatorFlag(null) })
+
 describe('P2 — the sheet cannot silently revert a conversational save', () => {
   it('after the conversation saves the definition the sheet is editing, the sheet Save is disabled with a reason', async () => {
     render(
-      <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
+      <AuthContext.Provider value={{ user: { id: 7, role: 'admin' }, isPaid: true, loading: false }}>
         <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
           <BuilderSheet open onClose={() => {}} onSaved={() => {}} settings={{ indicatorInstances: [], indicators: {} }} onChange={() => {}} />
         </SWRConfig>
