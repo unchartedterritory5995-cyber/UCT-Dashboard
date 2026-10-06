@@ -1,5 +1,13 @@
 # UCT Terminal — Visual Design System (proposal)
 
+> **Owner ruling, 2026-10-06: the three directions below were NOT adopted.** After seeing
+> the prototype, the owner ruled that the terminal gets no looks of its own. It follows the
+> member's app theme (dark, light, oled and the catalog themes in
+> `app/src/styles/appThemes.js`) and uses the site's own font. So D-V1, D-V2, D-V3 and D-V5
+> are settled by that rule. The panel-frame, state-block, freshness and table ideas remain
+> useful, but every colour comes from the app tokens. The implementation follows
+> `visual-audit.md`, not §5's value sets.
+
 Status: **DRAFT for owner review** · Branch `terminal/visual-system` · 2026-10-06
 Companion: [`prototype.html`](./prototype.html) — open it locally in any browser; the buttons in
 its top bar switch the whole screen between the three directions in §5, and toggle the
