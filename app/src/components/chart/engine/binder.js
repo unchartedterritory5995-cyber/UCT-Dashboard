@@ -77,7 +77,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErrors } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
@@ -702,6 +702,11 @@ export function __resetPaneHeightAlerts() {
 export function createBinder({ chart, LWC }) {
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
   let held = []
+  // ⭐ P1 info value — WHY an instance's columns are missing, as of the last
+  // sync (`nativeRegistry.columnErrors` of what step 1 computed). Read-only for
+  // the header's info values, so a refused output says the chart's own reason
+  // instead of a blank; never consulted by the paint.
+  let lastColumnErrors = new Map()
 
   // ─── THE TWO MEMOS (spec §5: "columnar→object mapping reused, never
   //     re-allocated per update") ─────────────────────────────────────────────
@@ -1200,6 +1205,7 @@ export function createBinder({ chart, LWC }) {
     pruneClock('plots', null)
     pruneClock('objects', null)
     held = []
+    lastColumnErrors = new Map()
     for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
     stoppedIds.clear()
     computeMemo = new Map()
@@ -1721,6 +1727,8 @@ export function createBinder({ chart, LWC }) {
     // able to change which series get bound: an object program that refuses has
     // to cost its own pictures and nothing else.
     attempt(() => syncObjects(ctx, instances, bars, runCols))
+    lastColumnErrors = new Map()
+    for (const [id, c] of runCols) lastColumnErrors.set(id, c ? columnErrors(c) : null)
 
     // ── 2. Ask the pool what should happen ──
     // ⭐⭐ ONE CAPABILITY ANSWER PER INSTANCE, ASKED ONCE AND SHARED. The plan
@@ -2416,5 +2424,9 @@ export function createBinder({ chart, LWC }) {
    */
   function bindings() { return held.slice() }
 
-  return { sync, teardown: releaseAll, bindings }
+  /** The last sync's `columnErrors` for one instance: `{plotKey: {guard, message}}`,
+   *  `null` when its compute failed outright, `undefined` when it was not computed. */
+  function columnErrorsOf(instanceId) { return lastColumnErrors.get(instanceId) }
+
+  return { sync, teardown: releaseAll, bindings, columnErrorsOf }
 }
