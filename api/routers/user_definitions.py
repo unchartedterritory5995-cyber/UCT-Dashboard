@@ -32,7 +32,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -431,6 +431,11 @@ class ConverseIn(BaseModel):
     view: dict
     authoring: Optional[dict] = None
     snippets: Optional[list] = None
+    # ⭐ P2X (owner decision 1). OPTIONAL, OPAQUE, CLIENT-GENERATED: keys the
+    # per-conversation cost aggregate in `definition_conversation`. Typed `Any`
+    # on purpose -- a malformed id is IGNORED by the service, never a 422, so
+    # older clients (which omit it) and odd ones keep working unchanged.
+    conversationId: Optional[Any] = None
 
 
 @router.post("/converse")
@@ -450,9 +455,15 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid)):
     """
     _charge_propose(str(user["id"]))
     from api.services import definition_conversation
+    # ⭐ P2X owner decision 1: an ADMIN (the `require_admin` rule, role ==
+    # 'admin') gets the conversation's admin allowance
+    # (`definition_conversation.conversation_cap_usd`). Every other bound --
+    # the hourly window above, the per-turn call and op caps, the size caps and
+    # the global member budget -- is the same for everyone.
     return definition_conversation.converse(
         body.message, user_id=user["id"], view=body.view,
-        authoring=body.authoring, snippets=body.snippets)
+        authoring=body.authoring, snippets=body.snippets,
+        admin=(user.get("role") == "admin"), conversation_id=body.conversationId)
 
 
 @router.get("/library")

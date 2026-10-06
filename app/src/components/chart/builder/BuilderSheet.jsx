@@ -2206,9 +2206,17 @@ export default function BuilderSheet({
               editing={editing} disabled={saving}
               onSaved={(defId, version) => setConversationSaved({ defId, version })} />
           )}
+          {/* ⭐ P2X OWNER DECISION 4 (2026-10-06) — THE ONE-SHOT "Draft a formula"
+              IS RETIRED FROM THE INDICATOR MODES. The conversation above is the
+              canonical AI door for an indicator (patch, readback, save through the
+              same doors); two AI boxes in one sheet were two answers to one
+              question. It stays on the Conditions tab only, where it drafts a
+              SCREEN (`kind: 'scan'`) and is still that tab's only AI door — the
+              one remaining product caller of `POST /propose`. */}
+          {buildMode === 'picker' && (
           <ConciergeBox
             bars={bars}
-            kind={buildMode === 'picker' ? 'scan' : 'indicator'}
+            kind="scan"
             disabled={saving}
             replacedAt={replacedAt}
             onAccept={(proposal) => {
@@ -2224,6 +2232,7 @@ export default function BuilderSheet({
               }
             }}
           />
+          )}
 
           {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
               ⛔ A MODE, NOT A SECOND BUILDER. The picker's only output is the SAME

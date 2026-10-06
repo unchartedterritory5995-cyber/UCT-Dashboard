@@ -206,9 +206,11 @@ DOORS: dict[str, Door] = {
         gap="in-process windows, not the durable store this meter surface reads"),
     "api/services/definition_conversation.py": Door(
         "member", "POST /api/user-definitions/converse (require_paid)",
-        "SHARES the concierge's budget: the same 40/hour/member window + $0.75/member/day "
-        "ledger (in-process) + catalyst member budget; 2 calls max per turn, 0 HTTP "
-        "retries, input byte caps refused before any call",
+        "SHARES the concierge's budget: the same 40/hour/member window + the same "
+        "per-member daily $ ledger (in-process), capped at CONVERSE_USER_CAP_DAILY "
+        "(default = CONCIERGE_USER_CAP_DAILY, $0.75) or, for role admin, "
+        "CONVERSE_ADMIN_CAP_DAILY (default $10) + catalyst member budget; 2 calls max "
+        "per turn, 0 HTTP retries, input byte caps refused before any call",
         gap="in-process windows, not the durable store this meter surface reads"),
     "api/services/screener/nl_compile.py": Door(
         "member", "POST /api/screener/compile (SCREENER_NL_COMPILE_ENABLED, dark)",

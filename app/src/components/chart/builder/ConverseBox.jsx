@@ -60,7 +60,18 @@ function changeLine(c) {
   }
 }
 
-const opWords = (op) => `${op.op}${op.output ? ` on ${op.output}` : ''}`
+/** ⭐ P2X: a member reads a plain name for each patch op, never the wire id
+ *  (`request_alert`). The engine's machine code stays in brackets for support. */
+const OP_WORDS = Object.freeze({
+  create: 'create the indicator', rename_definition: 'rename', add_output: 'add a line',
+  remove_output: 'remove a line', rename_output: 'rename a line', set_output_tree: 'change the formula',
+  set_slot: 'change a number', add_clause: 'add a condition', remove_clause: 'remove a condition',
+  set_intent: 'set what it is for', set_placement: 'move it', set_style: 'change the style',
+  set_marker: 'add a marker', remove_marker: 'remove a marker', set_paint: 'add a colour',
+  remove_paint: 'remove a colour', request_info_value: 'header value request',
+  request_alert: 'alert request', cancel_request: 'cancel a request',
+})
+const opWords = (op) => `${OP_WORDS[op.op] || 'a change'}${op.output ? ` on ${op.output}` : ''}`
 
 /** One errors[] entry → a sentence that names the op. */
 function errorLine(e, ops) {

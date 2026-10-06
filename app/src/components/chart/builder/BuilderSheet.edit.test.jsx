@@ -566,10 +566,17 @@ describe('🔴 a formula may reference one of its own declared inputs', () => {
 // than by testing the two lanes I happened to have in hand — the same
 // enumerate-the-axes rule that this repo keeps relearning.
 describe('🔴 opening a saved formula marks a stale description', () => {
-  it('the note appears when a description was already typed', async () => {
+  // ⭐ P2X OWNER DECISION 4 (2026-10-06, deliberate rail move). The one-shot box
+  // lives on the CONDITIONS tab only; opening a saved formula lands in the formula
+  // mode, where the conversation is the AI door. A description typed on the
+  // Conditions tab therefore cannot sit, stale, beside the opened formula -- the
+  // box is gone, not merely marked.
+  it('a description typed on the Conditions tab cannot survive into the opened formula', async () => {
     H.rows = [storedRow()]
     mount()
     await flush(); await flush()
+    fireEvent.click(screen.getByRole('tab', { name: /conditions/i }))
+    await flush()
 
     fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
       { target: { value: 'stocks above the 200 day average' } })
@@ -578,9 +585,10 @@ describe('🔴 opening a saved formula marks a stale description', () => {
 
     await clickEdit()
 
-    expect(screen.getByTestId('concierge-stale'),
-      'the sheet opened a saved formula and never told the description it was stale')
-      .toBeTruthy()
+    expect(screen.queryByTestId('concierge-box'),
+      'the retired one-shot box is still beside an opened formula')
+      .toBeNull()
+    expect(screen.queryByDisplayValue('stocks above the 200 day average')).toBeNull()
   })
 
   it('⛔ THE CONTROL — with no description there is nothing to mark', async () => {
