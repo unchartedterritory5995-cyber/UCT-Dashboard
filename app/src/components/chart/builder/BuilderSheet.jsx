@@ -77,7 +77,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState } from 're
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
-import { SCHEMA_VERSION } from '../engine/defSchema'
+import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
@@ -128,6 +128,13 @@ import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
+import {
+  INTENTS, INTENT_LABELS, intentReadback, defaultIntentFor, signalPaintsFor, signalPaintsOf,
+  presentationVerdict, SIGNAL_MARKER_DEFAULT, SIGNAL_PAINT_DEFAULTS,
+} from './authoringIntent'
+import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueDoor'
+import { isTruthType } from '../engine/outputType'
+import { STATUS as GATE_STATUS } from '../engine/evaluability'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -260,6 +267,26 @@ const PLOT_STYLE_CHOICES = Object.freeze([
  *  sentence for. Every row — plot 1 included — carries its own, reset the
  *  moment ITS OWN evaluation changes (`handleEvaluated` / `handlePlotEvaluated`),
  *  exactly mirroring how the old single flag was invalidated on a new result. */
+/** ⭐ P1 — no SIGNAL presentation chosen. */
+const NO_SIGNAL_LOOK = Object.freeze({ marker: null, barcolor: null, bgcolor: null })
+const hasSignalLook = (look) => !!(look && (look.marker || look.barcolor || look.bgcolor))
+
+/**
+ * ⭐⭐ P1 — A SIGNAL PRESENTATION, APPLIED THROUGH THE ROWS `buildDefinition`
+ * ALREADY TAKES. The marker is the existing `style: 'markers'` + `marker` pair
+ * on the condition's OWN row (a glyph where it is true — `markerPrimitive`);
+ * candle / background colour are `paints[]` reading its column. No new shape,
+ * no new renderer, no second paint engine.
+ */
+export function applySignalLook(rows, key, look) {
+  if (!key || !hasSignalLook(look)) return { rows, paints: null }
+  const out = rows.map((r) => (r.key === key && look.marker
+    ? { ...r, style: 'markers', marker: { ...look.marker } }
+    : r))
+  const paints = signalPaintsFor(key, { barcolor: look.barcolor, bgcolor: look.bgcolor })
+  return { rows: out, paints: paints.length ? paints : null }
+}
+
 function newPlotRow(key) {
   return {
     key,
@@ -418,7 +445,7 @@ function semanticsContext(editing, telemetry) {
 export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
   readback = '', inputs = BUILDER_INPUTS,
   plots = null, scanPlot = null, placement = null, levels = null, paramManifest = null,
-  objects = null }) {
+  objects = null, paints = null }) {
   // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
   // scope below and the document's own `inputs` are the SAME array, because a
   // member-declared name that reached one and not the other would badge a
@@ -426,8 +453,13 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
   const declaredMember = Array.isArray(inputs) && inputs.length ? inputs : BUILDER_INPUTS
   const trimmed = String(name || '').trim()
   const short = chipName(trimmed)
+  // ⭐⭐ P1 — `paints[]` (bgcolor / barcolor), the schema's existing field
+  // (`defSchema.validatePaints`, drawn by `binder.syncPaints`). ⛔ OMITTED when
+  // there are none, so every document that paints nothing stays byte-identical;
+  // and a paint is a v2-body field, so its presence leaves the schema-1 path.
+  const paintList = Array.isArray(paints) && paints.length ? paints.map((p) => ({ ...p })) : null
 
-  if (plots === null && placement === null && levels === null) {
+  if (plots === null && placement === null && levels === null && paintList === null) {
     return legacyDefinition({
       defId, version, rev, source, ast, mode, readback,
       declared: declaredMember, trimmed, short, paramManifest,
@@ -580,6 +612,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     // empty `objects: {}` on every save would change every hash in the repo and
     // buy nothing. Same additive discipline as `paramManifest` above.
     ...(objects && Array.isArray(objects.ops) && objects.ops.length ? { objects } : {}),
+    // ⭐⭐ P1 — a paint reads a column of THIS document; one naming a key no row
+    // declares is dropped here rather than making the document unsaveable.
+    ...(paintList && paintList.some((p) => rows.some((r) => `column:${r.key}` === p.colorMode || !p.colorMode))
+      ? { paints: paintList.filter((p) => !p.colorMode || rows.some((r) => `column:${r.key}` === p.colorMode)) }
+      : {}),
     compute: {
       kind: 'ast', fn: astHash(scan.ast), rev, ast: scan.ast, source: scan.source,
       // ⭐ TRACK F (DEC-006) — additive, OMITTED for every non-Pine save. A
@@ -893,6 +930,17 @@ export default function BuilderSheet({
    * key is real.
    */
   const [scanIndex, setScanIndex] = useState(0)
+  /** ⭐⭐ P1 — AUTHORING INTENT (`authoringIntent.js`). Authoring metadata only:
+   *  it picks the read-back, the default presentation and the consumer asked for
+   *  after Save. ⛔ It never sets a type and is never stored (P1-DESIGN §3). */
+  const [intent, setIntent] = useState(INTENTS.PLOT)
+  /** The output the intent is about, when the member picked one (else derived). */
+  const [intentKey, setIntentKey] = useState(null)
+  /** SIGNAL's presentation on master's primitives: a marker on the condition's
+   *  own plot, and/or a candle / background paint reading its column. */
+  const [signalLook, setSignalLook] = useState(NO_SIGNAL_LOOK)
+  /** What happened to a VALUE intent's info-value request, said out loud. */
+  const [valueNote, setValueNote] = useState(null)
   /** `'pane'` | `'price'`. ⛔ THE DOCUMENT VALUE IS `'price'`; "Overlay on
    *  price" is the SELECT'S LABEL. Three consumers read `PLACEMENT_TARGETS`
    *  (`placement.js`, `instances.js`, `instanceControls.placementFor`) and a
@@ -1075,6 +1123,7 @@ export default function BuilderSheet({
   const resetPlots = useCallback(() => {
     setPlot0(newPlotRow('value')); setPlotRows([]); setScanIndex(0)
     setTarget('pane'); setLevelsText('')
+    setIntent(INTENTS.PLOT); setIntentKey(null); setSignalLook(NO_SIGNAL_LOOK); setValueNote(null)
   }, [])
 
   const addInput = useCallback(() => {
@@ -1305,6 +1354,9 @@ export default function BuilderSheet({
         width: (widthSpec && Number.isFinite(widthSpec.default))
           ? widthSpec.default : BUILDER_INPUTS[1].default,
         hidden: p.hidden === true,
+        // ⭐ P1 — the glyph a `markers` plot draws comes back with it; without
+        // this a reopen-and-save silently dropped every marker.
+        ...(p.style === 'markers' && p.marker && p.marker.shape ? { marker: { ...p.marker } } : {}),
         // ⭐ 2026-09-26 — a saved leftward displacement survives an edit-and-resave;
         // without this, reopening would quietly draw the plot late again.
         ...(Number.isInteger(p.displace) && p.displace < 0 ? { displace: p.displace } : {}),
@@ -1329,6 +1381,25 @@ export default function BuilderSheet({
     }
 
     const chromeKeySet = new Set(chromeInputsFor(restored).map((spec) => spec.key))
+    // ⭐⭐ P1 — INTENT IS RE-DERIVED, NEVER READ BACK (it is not stored): the
+    // primary output's derived type says SIGNAL or PLOT (P1-DESIGN §3). A
+    // SIGNAL's own presentation (its marker, the builder's paints on its
+    // column) moves from the row into the SIGNAL control that owns it, so a
+    // reopen-and-save writes the same document.
+    const reIntent = defaultIntentFor(def)
+    let reLook = NO_SIGNAL_LOOK
+    if (reIntent === INTENTS.SIGNAL) {
+      const sigKey = intentReadback(def, INTENTS.SIGNAL).selectedKey
+      const at = restored.findIndex((r) => r.key === sigKey)
+      const paintsBack = signalPaintsOf(def, sigKey)
+      const markerBack = at >= 0 && restored[at].marker ? restored[at].marker : null
+      reLook = { marker: markerBack, barcolor: paintsBack.barcolor, bgcolor: paintsBack.bgcolor }
+      if (markerBack) {
+        const { marker: _m, ...bare } = restored[at]
+        restored[at] = { ...bare, style: 'line' }
+      }
+    }
+    setIntent(reIntent); setIntentKey(null); setSignalLook(reLook); setValueNote(null)
     setPlot0(restored[0])
     setPlotRows(restored.slice(1))
     // The DOCUMENT names a key; the sheet holds the index it points at. An
@@ -1513,6 +1584,89 @@ export default function BuilderSheet({
       : null
   ), [result, name, memberInputs, inputsValid, editing])
 
+  /**
+   * ⭐⭐ P1 — THE ONE ASSEMBLY OF THE WHOLE DOCUMENT, for `save()` and for the
+   * typed read-back alike, so the read-back types EXACTLY the outputs Save
+   * stores (every row, not plot 1). `look` is a SIGNAL presentation already
+   * approved by the gate (`lookToApply`), or null.
+   *
+   * ⛔ With no look this is `save()`'s body verbatim: the same `plain` test and
+   * the same `buildDefinition` call, so every existing document is unchanged.
+   */
+  const documentFor = useCallback((evRows, { defId, version, name: docName, look = null }) => {
+    const touched = !!(look && look.key && hasSignalLook(look))
+    const sig = touched ? applySignalLook(evRows, look.key, look) : { rows: evRows, paints: null }
+    const plain = !touched && plotRows.length === 0 && target === 'pane' && levels.length === 0
+      && isUntouchedRow(plot0)
+    return buildDefinition({
+      ...evaluatedDocArgs(result, memberInputs, paramManifest),
+      objects: objectProgram,
+      defId,
+      version,
+      name: docName,
+      ...(plain ? {} : {
+        plots: sig.rows,
+        scanPlot: sig.rows[scanIndex] ? sig.rows[scanIndex].key : null,
+        placement: target === 'price' ? { target: 'price' } : null,
+        levels: levels.length ? levels : null,
+      }),
+      ...(sig.paints ? { paints: sig.paints } : {}),
+    })
+  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex])
+
+  /** Every row with its OWN settled evaluation, or null while any row has none. */
+  const evaluatedRows = useMemo(() => {
+    const evs = allRows.map((r, i) => (i === 0 ? result : r.result))
+    if (!evs.every((ev) => ev && ev.ok && ev.ast && ev.verdict)) return null
+    return allRows.map((r, i) => ({
+      ...r, source: evs[i].source, ast: evs[i].ast, mode: evs[i].verdict.mode, readback: evs[i].readback,
+    }))
+  }, [allRows, result])
+
+  /** The draft as Save would store it, BEFORE any SIGNAL presentation — what
+   *  the read-back types and the gate is asked about. */
+  const baseDraft = useMemo(() => {
+    if (!evaluatedRows || !inputsValid) return null
+    try {
+      return documentFor(evaluatedRows, { defId: PREVIEW_DEF_ID, version: 1, name: name.trim() || 'Preview' })
+    } catch { return null }
+  }, [evaluatedRows, inputsValid, documentFor, name])
+
+  /** ⭐⭐ P1 — THE TYPED READ-BACK, through the ONE gate, over EVERY output. */
+  const intentRead = useMemo(() => (baseDraft
+    ? intentReadback(baseDraft, intent, { ctx: { tf, symbol: sym }, requestedKey: intentKey })
+    : null), [baseDraft, intent, tf, sym, intentKey])
+
+  /** SIGNAL's presentation, applied only to a truth-typed output the gate
+   *  approved, and only when every channel asked for can be drawn as asked. */
+  const signalSelected = intentRead && intentRead.outputs.find((o) => o.selected)
+  const presentationCheck = useMemo(() => {
+    if (intent !== INTENTS.SIGNAL || !baseDraft || !signalSelected || !hasSignalLook(signalLook)) return null
+    return presentationVerdict(baseDraft, signalSelected.key, {
+      marker: signalLook.marker,
+      paints: signalPaintsFor(signalSelected.key, signalLook),
+    }, { tf, symbol: sym })
+  }, [intent, baseDraft, signalSelected, signalLook, tf, sym])
+  const lookToApply = (intent === INTENTS.SIGNAL && intentRead && !intentRead.blocking && signalSelected
+    && isTruthType(signalSelected.type) && hasSignalLook(signalLook)
+    && presentationCheck && presentationCheck.status !== GATE_STATUS.REFUSED)
+    ? { ...signalLook, key: signalSelected.key }
+    : null
+  /** The sentence that shuts Save under THIS intent, or null. */
+  const intentBlock = (intentRead && intentRead.blocking)
+    || (presentationCheck && presentationCheck.status === GATE_STATUS.REFUSED ? presentationCheck.reason : null)
+    || null
+
+  /** Choosing SIGNAL seeds its default presentation (a marker where it is
+   *  true) when nothing is chosen yet; it never converts a number. */
+  const chooseIntent = useCallback((next) => {
+    setIntent(next)
+    setValueNote(null)
+    if (next === INTENTS.SIGNAL) {
+      setSignalLook((look) => (hasSignalLook(look) ? look : { ...NO_SIGNAL_LOOK, marker: { ...SIGNAL_MARKER_DEFAULT } }))
+    }
+  }, [])
+
   // ⭐⭐ ONE AUTHORITY FOR "CAN THIS SAVE", AND THE HINT IS DERIVED FROM IT.
   //
   // ⚰️ A valid formula with an empty Name left Save greyed and said NOTHING —
@@ -1553,8 +1707,13 @@ export default function BuilderSheet({
       && plotRows.every((r, i) => plotKeyProblem(r.key, i + 1) === null
         && canSaveFormula(r.result, r.acknowledged))
       && !levelsProblem,
+    // ⭐⭐ P1 — THE INTENT CANNOT LIE. A SIGNAL whose output is a number, or a
+    // VALUE whose output the info-value lane refuses, does not save AS that —
+    // the refusal names itself in the typed read-back; switching to Plot (or
+    // comparing the number to something) is the member's explicit choice.
+    intent: !intentBlock,
   }), [result, plot0.acknowledged, name, saving, pending, inputsValid,
-    plotKeyProblem, plot0.key, plotRows, levelsProblem])
+    plotKeyProblem, plot0.key, plotRows, levelsProblem, intentBlock])
 
   // ⛔ `settled` DELIBERATELY DOES NOT GATE `canSave`. Adding it would change
   // WHEN the button is clickable — a real behavior change with its own,
@@ -1564,7 +1723,7 @@ export default function BuilderSheet({
   // surfaced ONLY as the `saveHint` message below: informational, additive,
   // and reverts to exactly today's gating the moment `pending` clears.
   const canSave = saveGates.formula && saveGates.named && saveGates.idle
-    && saveGates.inputs && saveGates.plots
+    && saveGates.inputs && saveGates.plots && saveGates.intent
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
@@ -1589,7 +1748,10 @@ export default function BuilderSheet({
         : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
           && saveGates.inputs && !saveGates.plots)
           ? 'Fix the plots above to save.'
-          : null
+          : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
+            && saveGates.inputs && saveGates.plots && !saveGates.intent)
+            ? 'This formula cannot be saved as what you chose it for — see "What is it for?" above.'
+            : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
@@ -1660,29 +1822,20 @@ export default function BuilderSheet({
     // depend on it not moving. `isUntouchedRow` is the whole test — a hand-written
     // subset of the fields silently discards whichever ones it forgets, and the
     // first draft of this forgot colour, width, label and hidden.
-    const plain = plotRows.length === 0 && target === 'pane' && levels.length === 0
-      && isUntouchedRow(plot0)
     // ⛔ P0G — SENT WITHOUT A SEMANTICS STAMP: the store decides it (a client
     // value is discarded there) and answers with `row.semantics`, which the
     // installed copy below carries.
-    const doc = buildDefinition({
-      // ⭐ THE FIVE FIELDS EVERY DOCUMENT TAKES FROM A SETTLED EVALUATION, from
-      // the ONE assembly the live preview also asks — so the two cannot drift
-      // apart the day a field moves. See `evaluatedDocArgs`.
-      ...evaluatedDocArgs(result, memberInputs, paramManifest),
-      objects: objectProgram,
+    // ⭐ P1 — `documentFor` is this body (the `plain` test, the five evaluated
+    // fields, the rows, the scan key the index becomes HERE), shared with the
+    // typed read-back so the read-back types exactly what is stored. `look` is
+    // the gate-approved SIGNAL presentation, or null.
+    const doc = documentFor(rows, {
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
-      ...(plain ? {} : {
-        plots: rows,
-        // The DOCUMENT names a key. This is the one moment the index the sheet
-        // held becomes one, so a rename can never have detached the two.
-        scanPlot: rows[scanIndex] ? rows[scanIndex].key : null,
-        placement: target === 'price' ? { target: 'price' } : null,
-        levels: levels.length ? levels : null,
-      }),
+      look: lookToApply,
     })
+    const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
     // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
     // (one formula is one series · the budget, naming the guard that fired · the
@@ -1780,11 +1933,32 @@ export default function BuilderSheet({
       // this very id, and `installUserDefinitions` above has just replaced the
       // definition it resolves through — so the existing binding redraws with the
       // new maths and adding a second instance would draw the same formula twice.
-      onChange(addInstance(settings, installed[0].id, engineRegistry))
+      const next = addInstance(settings, installed[0].id, engineRegistry)
+      // ⭐⭐ P1 — VALUE: ask the info-value slice for a reference to THIS
+      // instance's output (`{instanceId, plotKey, format}`), never a copy of
+      // the formula. Its answer is said, whatever it is.
+      if (valueKey) {
+        const instanceId = addedInstanceId(settings, next, installed[0].id)
+        const req = requestInfoValue(next, infoValueRefFor({ instanceId, plotKey: valueKey }))
+        onChange(req.settings)
+        setValueNote(req.added
+          ? 'Added to the chart, and its latest value is shown in the chart header.'
+          : `Added to the chart. ${req.reason}`)
+      } else {
+        onChange(next)
+      }
+    } else if (editing && valueKey && settings && onChange) {
+      // An EDIT's instance is already on the chart; the reference names it.
+      const inst = (settings.indicatorInstances || []).find((i) => i && i.defId === installed[0].id)
+      const req = requestInfoValue(settings, infoValueRefFor({ instanceId: inst ? inst.instanceId : null, plotKey: valueKey }))
+      if (req.settings !== settings) onChange(req.settings)
+      setValueNote(req.added
+        ? 'Its latest value is shown in the chart header.'
+        : req.reason)
     }
     onSaved?.(res.row)
-  }, [canSave, result, allRows, plot0, plotRows, scanIndex, target, levels,
-    memberInputs, name, onSaved, settings, onChange, editing])
+  }, [canSave, result, allRows, name, onSaved, settings, onChange, editing,
+    documentFor, lookToApply, intent, intentRead])
 
   // ⭐⭐ DELETE ASKS FIRST.
   //
@@ -2974,6 +3148,148 @@ export default function BuilderSheet({
                 </p>
               )}
             </div>
+          </section>
+
+          {/* ── ⭐⭐ P1 — WHAT IS IT FOR? (authoring intent) ───────────────────
+              Intent picks the wording, the default presentation and the
+              consumer asked for after Save. ⛔ It never sets a type: each output
+              below shows the type DERIVED from its own tree, and the gate's
+              verdict on the lane this intent asks it — every output, not plot 1. */}
+          <section className={styles.readbackWrap} aria-labelledby="uct-intent-head" data-testid="intent-section">
+            <h3 className={styles.sectionHead} id="uct-intent-head">What is it for?</h3>
+            <div role="radiogroup" aria-labelledby="uct-intent-head">
+              {[INTENTS.PLOT, INTENTS.SIGNAL, INTENTS.VALUE].map((it) => (
+                <label className={styles.plotToggle} key={it}>
+                  <input
+                    type="radio"
+                    name="uct-intent"
+                    value={it}
+                    checked={intent === it}
+                    data-testid={`intent-${it}`}
+                    onChange={() => chooseIntent(it)}
+                  />
+                  <span>{INTENT_LABELS[it]}</span>
+                </label>
+              ))}
+            </div>
+            {intentRead && intent !== INTENTS.PLOT && intentRead.outputs.length > 1 && (
+              <select
+                className={styles.plotStyle}
+                value={intentRead.selectedKey || ''}
+                aria-label={intent === INTENTS.SIGNAL ? 'Signal output' : 'Value output'}
+                data-testid="intent-output"
+                onChange={(e) => setIntentKey(e.target.value)}
+              >
+                {intentRead.outputs.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            )}
+            {intentRead && (
+              <ul className={styles.measured} data-testid="typed-readback">
+                {intentRead.outputs.map((o) => (
+                  <li key={o.key} data-testid={`typed-output-${o.key}`} data-type={o.type || 'untyped'}
+                    data-status={o.verdict.status}>
+                    <strong>{o.label}</strong>{` is ${o.words}`}
+                    {o.selected && (intent === INTENTS.SIGNAL ? ' — the signal' : ' — the value')}
+                    {o.verdict.status === GATE_STATUS.REFUSED && !o.verdict.pending && (
+                      <span role="alert">{` — not available: ${o.verdict.reason}`}</span>
+                    )}
+                    {o.verdict.status === GATE_STATUS.REFUSED && o.verdict.pending && ' — waiting for data'}
+                    {o.verdict.status === GATE_STATUS.DISCLOSED && ` — note: ${o.verdict.note}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {intentRead && (
+              <p className={styles.measured} data-testid="typed-status" data-status={intentRead.status}>
+                {intentRead.status === 'ok' && (intentRead.outputs.length === 1
+                  ? 'Its output can be computed here.'
+                  : `All ${intentRead.outputs.length} outputs can be computed here.`)}
+                {intentRead.status === 'partial' && (() => {
+                  const bad = intentRead.outputs.filter((o) => o.verdict.status === GATE_STATUS.REFUSED && !o.verdict.pending).length
+                  return `${intentRead.outputs.length - bad} of ${intentRead.outputs.length} outputs can be computed here; `
+                    + `${bad} cannot (said beside it above).`
+                })()}
+                {intentRead.status === 'refused' && 'None of its outputs can be computed here.'}
+              </p>
+            )}
+            {intentBlock && (
+              <p className={styles.inputProblem} role="alert" data-testid="intent-refusal">{intentBlock}</p>
+            )}
+            {intent === INTENTS.SIGNAL && signalSelected && isTruthType(signalSelected.type) && (
+              <div className={styles.placementRow} data-testid="signal-look">
+                <label className={styles.plotToggle}>
+                  <input
+                    type="checkbox"
+                    checked={!!signalLook.marker}
+                    data-testid="signal-marker"
+                    onChange={(e) => setSignalLook((l) => ({ ...l, marker: e.target.checked ? { ...SIGNAL_MARKER_DEFAULT } : null }))}
+                  />
+                  <span>Marker</span>
+                </label>
+                {signalLook.marker && (
+                  <>
+                    <select
+                      className={styles.plotStyle}
+                      aria-label="Marker shape"
+                      data-testid="signal-marker-shape"
+                      value={signalLook.marker.shape}
+                      onChange={(e) => setSignalLook((l) => ({ ...l, marker: { ...l.marker, shape: e.target.value } }))}
+                    >
+                      {MARKER_SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select
+                      className={styles.plotStyle}
+                      aria-label="Marker position"
+                      data-testid="signal-marker-position"
+                      value={signalLook.marker.position || 'aboveBar'}
+                      onChange={(e) => setSignalLook((l) => ({ ...l, marker: { ...l.marker, position: e.target.value } }))}
+                    >
+                      {MARKER_POSITIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </>
+                )}
+                <label className={styles.plotToggle}>
+                  <input
+                    type="checkbox"
+                    checked={!!signalLook.barcolor}
+                    data-testid="signal-barcolor"
+                    onChange={(e) => setSignalLook((l) => ({ ...l, barcolor: e.target.checked ? SIGNAL_PAINT_DEFAULTS.barcolor : null }))}
+                  />
+                  <span>Colour the candles</span>
+                </label>
+                {signalLook.barcolor && (
+                  <input className={styles.plotColor} type="color" aria-label="Candle colour" value={signalLook.barcolor}
+                    onChange={(e) => setSignalLook((l) => ({ ...l, barcolor: e.target.value }))} />
+                )}
+                <label className={styles.plotToggle}>
+                  <input
+                    type="checkbox"
+                    checked={!!signalLook.bgcolor}
+                    data-testid="signal-bgcolor"
+                    onChange={(e) => setSignalLook((l) => ({ ...l, bgcolor: e.target.checked ? SIGNAL_PAINT_DEFAULTS.bgcolor : null }))}
+                  />
+                  <span>Shade the background</span>
+                </label>
+                {signalLook.bgcolor && (
+                  <input className={styles.plotColor} type="color" aria-label="Background colour" value={signalLook.bgcolor}
+                    onChange={(e) => setSignalLook((l) => ({ ...l, bgcolor: e.target.value }))} />
+                )}
+                <p className={styles.measured} data-testid="signal-look-note">
+                  Drawn only where it is true. Where it is false — or not yet known — nothing is drawn.
+                </p>
+              </div>
+            )}
+            {intent === INTENTS.VALUE && !intentBlock && intentRead && (
+              <p className={styles.measured} data-testid="value-intent-note">
+                After saving, it is added to the chart and its latest value is requested for the chart header.
+                It stays {intentRead.outputs.find((o) => o.selected)?.words || 'what it is'}.
+              </p>
+            )}
+            {valueNote && (
+              <p className={styles.measured} role="status" data-testid="value-note">{valueNote}</p>
+            )}
           </section>
 
           {/* ── THE READ-BACK ────────────────────────────────────────────────
