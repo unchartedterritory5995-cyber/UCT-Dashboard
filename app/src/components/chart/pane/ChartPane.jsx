@@ -594,6 +594,13 @@ function ChartPane({
     setSettingsOpen(false)
     try { paneToolbarApi.current?.openFormulaBuilder?.() } catch { /* noop */ }
   }, [])
+  /** Chart Settings → Indicators → "+ Create Indicator" (P2 Track B). The modal
+   *  closes first — the studio docks beside the chart, and two surfaces holding
+   *  Escape would be the same hazard `openFormulaBuilder` describes. */
+  const openCreateIndicator = useCallback(() => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
+  }, [])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {
     try {
@@ -1061,6 +1068,7 @@ function ChartPane({
            (absent prop ⇒ absent door), and this is the handler that reaches the
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
+        onCreateIndicator={openCreateIndicator}
         chartFeatures={chartFeatures}
       />
     </div>
