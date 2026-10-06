@@ -147,7 +147,7 @@ export default function EarningsResearchModal({
   section = null, onSectionChange,
   onClose,
   onStepPrev = null, onStepNext = null, stepping = false,
-  onPollActuals = null, isTodayReporter = false, enrichReady = true,
+  onPollActuals = null, isTodayReporter = false, enrichReady = true, enrichFailed = false,
   nowMs,
 }) {
   // Click-triggered conditional rendering — the sanctioned useIsPhone case: the
@@ -411,6 +411,7 @@ export default function EarningsResearchModal({
           livePrice={liveQuote}
           stepping={stepping}
           enrichReady={enrichReady}
+          enrichFailed={enrichFailed}
         />
       </div>
 
