@@ -21,9 +21,9 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
   border-radius: 8px;
-  background: #0b0f14;
+  background: var(--bg);
   overflow: visible;
 }
 
@@ -32,22 +32,22 @@
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 .pick {
   height: 22px;
   max-width: 100%;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #0e131a;
-  color: #cbd5e1;
+  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
+  background: var(--bg);
+  color: var(--text-muted);
   font: 700 10px 'Instrument Sans', sans-serif;
   letter-spacing: 0.3px;
   padding: 0 4px;
   cursor: pointer;
 }
-.pick:hover { border-color: #c9a84c; color: #e8e8ea; }
+.pick:hover { border-color: var(--ut-gold); color: var(--text-bright); }
 
 .gearAnchor {
   margin-left: auto;
@@ -60,13 +60,13 @@
   height: 22px;
   padding: 0 6px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #0e131a;
-  color: #94a3b8;
+  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
+  background: var(--bg);
+  color: var(--text-muted);
   cursor: pointer;
 }
-.gear:hover { border-color: #c9a84c; color: #e8e8ea; }
-.gear[aria-expanded='true'] { border-color: #c9a84c; color: #c9a84c; }
+.gear:hover { border-color: var(--ut-gold); color: var(--text-bright); }
+.gear[aria-expanded='true'] { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 .gearPreset {
   font: 700 9px 'Instrument Sans', sans-serif;
@@ -107,9 +107,9 @@
   .pick,
   .gear {
     height: auto;
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
   }
-  .gear { min-width: var(--tap-min, 44px); justify-content: center; }
+  .gear { min-width: var(--tap-min); justify-content: center; }
 }
 
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------
@@ -122,10 +122,10 @@
 @media (max-width: 1024px) {
   .pick,
   .gear {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
   }
   .gear {
-    min-width: var(--tap-min, 44px);
+    min-width: var(--tap-min);
     justify-content: center;
   }
 }

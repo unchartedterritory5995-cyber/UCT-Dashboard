@@ -5,9 +5,9 @@
   align-items: center;
   gap: 4px;
   padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
   border-radius: 8px;
-  background: #0b0f14;
+  background: var(--bg);
 }
 
 .btn {
@@ -16,29 +16,29 @@
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  color: #94a3b8;
+  color: var(--text-muted);
   font: 700 10px 'Instrument Sans', sans-serif;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   cursor: pointer;
 }
-.btn:hover { color: #e8e8ea; }
+.btn:hover { color: var(--text-bright); }
 .btnActive {
-  background: #0e131a;
-  border-color: #c9a84c;
-  color: #e8e8ea;
+  background: var(--bg);
+  border-color: var(--ut-gold);
+  color: var(--text-bright);
 }
 
 .note {
   font: 600 10px 'Instrument Sans', sans-serif;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* The refused `?date=` — legible, muted, and carrying the reason. */
 .refusal {
   font: 600 10px 'Instrument Sans', sans-serif;
-  color: #94a3b8;
-  border-bottom: 1px dotted rgba(148, 163, 184, 0.5);
+  color: var(--text-muted);
+  border-bottom: 1px dotted color-mix(in srgb, var(--text-muted) 50%, transparent);
 }
 
 /* The day stepper's two arrows and its LATEST escape. On desktop they keep the
@@ -59,8 +59,8 @@
   .btn,
   .step,
   .latest {
-    min-height: var(--tap-min, 44px);
-    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -83,8 +83,8 @@
   .btn,
   .step,
   .latest {
-    min-height: var(--tap-min, 44px);
-    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
     display: inline-flex;
     align-items: center;
     justify-content: center;

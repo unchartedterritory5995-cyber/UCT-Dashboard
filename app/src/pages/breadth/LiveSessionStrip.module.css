@@ -9,10 +9,10 @@
   flex-wrap: wrap;
   margin: 0 0 10px;
   padding: 8px 14px;
-  border: 1px solid rgba(220, 187, 94, 0.28);
-  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 28%, transparent);
+  border-left: 2px solid var(--ut-gold);
   border-radius: var(--radius-md);
-  background: rgba(220, 187, 94, 0.055);
+  background: color-mix(in srgb, var(--ut-gold) 5.5%, transparent);
 }
 
 .stamp {
@@ -21,7 +21,7 @@
   gap: 7px;
   font: 600 12px 'Instrument Sans', sans-serif;
   letter-spacing: 0.4px;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -30,7 +30,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   animation: stripBeat 2.4s ease-out infinite;
   flex: none;
 }
@@ -52,21 +52,21 @@
 }
 
 .label {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.9px;
   color: var(--text-muted);
   font-weight: 600;
 }
 
 .value {
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 .since {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   letter-spacing: 0.3px;
   margin-left: auto;
@@ -74,9 +74,9 @@
 }
 
 @keyframes stripBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ut-gold) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 0%, transparent); }
 }
 
 /* On a phone the strip would push the table off the first screen, so it drops
@@ -129,8 +129,8 @@
      character wider than a normal session prints. The gap above is now 12px,
      which is what actually fixes it — the 40px here is unchanged. */
   .item svg { width: 40px; }
-  .label { font-size: 9px; letter-spacing: 0.6px; }
-  .value { font-size: 13px; }
+  .label { font-size: var(--text-xs); letter-spacing: 0.6px; }
+  .value { font-size: var(--text-md); }
 }
 
 @media (prefers-reduced-motion: reduce) {

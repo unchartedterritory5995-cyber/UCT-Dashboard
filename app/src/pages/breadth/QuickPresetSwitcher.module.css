@@ -3,9 +3,9 @@
    reach an inline style. The desktop values are the ones it already had. */
 .select {
   font: 600 11px 'Instrument Sans', sans-serif;
-  color: #cbd5e1;
-  background: #0e131a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 10%, transparent);
   border-radius: 6px;
   padding: 3px 6px;
   cursor: pointer;
@@ -14,8 +14,8 @@
 
 @media (max-width: 640px) {
   .select {
-    min-height: var(--tap-min, 44px);
-    font-size: 13px;
+    min-height: var(--tap-min);
+    font-size: var(--text-md);
   }
 }
 
@@ -28,6 +28,6 @@
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
   .select {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
   }
 }

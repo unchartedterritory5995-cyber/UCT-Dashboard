@@ -25,7 +25,7 @@
 
 .tab {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   padding: 5px 13px;
   border: none;
@@ -48,7 +48,7 @@
 
 .heading {
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text-heading);
   letter-spacing: 0.2px;
@@ -57,20 +57,20 @@
 
 .meta {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .empty {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text); font-weight: 500;
   padding: 24px 0;
 }
 
 .empty code {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   background: var(--bg-elevated);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
@@ -106,7 +106,7 @@
   /* Brand font, not mono — tabular-nums keeps the columns aligned. */
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: var(--text-md);
   white-space: nowrap;
   width: max-content;
 }
@@ -126,19 +126,19 @@
   letter-spacing: 0.2px;
   color: var(--text-bright);
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--header-line, var(--border));
-  border-right: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--header-line);
+  border-right: 1px solid color-mix(in srgb, var(--text-heading) 4%, transparent);
 }
 
 .colLabel {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text);
 }
 
 /* Hairline rule on each metric family's first column — the quiet successor to
    the retired colored group-header strip. Keeps families scannable. */
 .groupStart {
-  border-left: 1px solid rgba(255,255,255,0.14);
+  border-left: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
 }
 
 /* Date column — sticky left */
@@ -165,8 +165,8 @@
      sitting in the middle of its tile rather than hugging the right edge. */
   text-align: center;
   color: var(--text);
-  border-right: 1px solid rgba(255,255,255,0.03);
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-right: 1px solid color-mix(in srgb, var(--text-heading) 3%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 3%, transparent);
   font-variant-numeric: tabular-nums;
 }
 
@@ -179,7 +179,7 @@
   text-align: left;
   border-right: 1px solid var(--border);
   z-index: 1;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 .rowEven .dateCell { background: var(--bg); }
@@ -188,10 +188,10 @@
 
 .rowEven           { background: transparent; }
 
-.rowOdd            { background: rgba(255,255,255,0.018); }
+.rowOdd            { background: color-mix(in srgb, var(--text-heading) 1.8%, transparent); }
 
 .table tbody tr:hover td {
-  background: rgba(255,255,255,0.025);
+  background: color-mix(in srgb, var(--text-heading) 2.5%, transparent);
 }
 
 .table tbody tr:hover .dateCell {
@@ -222,7 +222,7 @@
 
 /* ── Individual column collapse ──────────────────────────────────────────────── */
 .colSubLabel {
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: 1px;
   color: var(--text-muted);
   margin-top: 2px;
@@ -236,7 +236,7 @@
 }
 
 .colLabelClickable:hover {
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .colLabelCollapsed {
@@ -261,7 +261,7 @@
   min-width: 18px;
   max-width: 18px;
   padding: 0;
-  border-right: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 /* ── MA Stack cell (SPY / QQQ combined) ──────────────────────────────────────── */
@@ -291,21 +291,21 @@
 }
 
 .maCheck {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--ut-green-bright, #4ade80);
+  color: var(--ut-green-bright);
   line-height: 1;
 }
 
 .maCross {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--loss, #f87171);
+  color: var(--loss);
   line-height: 1;
 }
 
 .maDash {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   line-height: 1;
 }
@@ -318,7 +318,7 @@
 
 .daysPill {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   padding: 4px 12px;
   border-radius: 20px;
   border: 1px solid var(--border-accent);
@@ -337,11 +337,11 @@
   font-weight: 800;
 }
 
-.sortIndicator { font-size: 9px; opacity: 0.8; }
+.sortIndicator { font-size: var(--text-xs); opacity: 0.8; }
 
 .exportBtn {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 3px 10px;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
@@ -361,7 +361,7 @@
   align-items: center;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 3px 10px;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
@@ -425,7 +425,7 @@
 
 .scoreLabel {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: 2px;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -439,16 +439,16 @@
   min-width: 44px;
 }
 
-.scoreGreen { color: var(--ut-green-bright, #4ade80); }
+.scoreGreen { color: var(--ut-green-bright); }
 
-.scoreRed   { color: var(--loss, #f87171); }
+.scoreRed   { color: var(--loss); }
 
-.scoreAmber { color: var(--ut-gold, #dcbb5e); }
+.scoreAmber { color: var(--ut-gold); }
 
 .scoreBar {
   width: 100px;
   height: 6px;
-  background: rgba(255,255,255,0.08);
+  background: color-mix(in srgb, var(--text-heading) 8%, transparent);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -468,7 +468,7 @@
 
 .scoreMetaItem {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
@@ -478,18 +478,18 @@
 }
 
 /* Row phase — left border color indicates market regime for that day */
-.phaseGreen  { border-left: 3px solid rgba(74, 222, 128, 0.5); }
+.phaseGreen  { border-left: 3px solid color-mix(in srgb, var(--gain) 50%, transparent); }
 
-.phaseRed    { border-left: 3px solid rgba(248, 113, 113, 0.5); }
+.phaseRed    { border-left: 3px solid color-mix(in srgb, var(--loss) 50%, transparent); }
 
-.phaseAmber  { border-left: 3px solid rgba(220, 187, 94, 0.3); }
+.phaseAmber  { border-left: 3px solid color-mix(in srgb, var(--ut-gold) 30%, transparent); }
 
 /* ── Drillable cells ─────────────────────────────────────────────────────── */
 .drillable {
   cursor: pointer;
   text-decoration: underline;
   text-decoration-style: dotted;
-  text-decoration-color: rgba(255,255,255,0.25);
+  text-decoration-color: color-mix(in srgb, var(--text-heading) 25%, transparent);
   text-underline-offset: 2px;
 }
 
@@ -498,14 +498,14 @@
    the ring off mouse clicks. An inset outline, because a table cell's outline
    is otherwise clipped by the sticky header and the scroll container. */
 .drillable:focus-visible {
-  outline: 2px solid var(--ut-gold, #dcbb5e);
+  outline: 2px solid var(--ut-gold);
   outline-offset: -2px;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .drillable:hover {
-  text-decoration-color: var(--ut-gold, #dcbb5e);
-  color: var(--ut-gold, #dcbb5e);
+  text-decoration-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 tbody tr { cursor: pointer; }
 
@@ -515,10 +515,10 @@ tbody tr { cursor: pointer; }
   justify-content: space-between;
   gap: 12px;
   font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--loss, #f87171);
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.25);
+  font-size: var(--text-md);
+  color: var(--loss);
+  background: color-mix(in srgb, var(--loss) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--loss) 25%, transparent);
   border-radius: var(--radius-md);
   padding: 10px 14px;
   margin-bottom: 12px;
@@ -528,18 +528,18 @@ tbody tr { cursor: pointer; }
 .errorRetryBtn {
   flex-shrink: 0;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 600;
-  color: var(--loss, #f87171);
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.4);
-  border-radius: var(--radius-sm, 4px);
+  color: var(--loss);
+  background: color-mix(in srgb, var(--loss) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--loss) 40%, transparent);
+  border-radius: var(--radius-sm);
   padding: 5px 10px;
   cursor: pointer;
   white-space: nowrap;
 }
 .errorRetryBtn:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.2);
+  background: color-mix(in srgb, var(--loss) 20%, transparent);
 }
 .errorRetryBtn:disabled {
   opacity: 0.6;
@@ -560,7 +560,7 @@ tbody tr { cursor: pointer; }
 .tmGroupHdr {
   position: absolute;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -594,13 +594,13 @@ tbody tr { cursor: pointer; }
 
 /* No-signal tile */
 .hmEmpty {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--text-heading) 4%, transparent);
 }
 
 /* Metric label inside tile */
 .tmLabel {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-bright);
   text-align: center;
@@ -614,7 +614,7 @@ tbody tr { cursor: pointer; }
 /* Metric value inside tile */
 .tmValue {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-bright);
   text-align: center;
@@ -637,7 +637,7 @@ tbody tr { cursor: pointer; }
   grid-template-columns: 1fr 1fr;
   gap: 2px 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-align: center;
 }
@@ -668,16 +668,16 @@ tbody tr { cursor: pointer; }
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(4px);
   z-index: 10;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 .tmNavBtn {
   font-family: var(--font-mono);
-  font-size: 13px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
+  font-size: var(--text-md);
+  background: color-mix(in srgb, var(--text-heading) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
   border-radius: var(--radius-sm);
-  color: var(--text, #e0e0e0);
+  color: var(--text);
   cursor: pointer;
   padding: 2px 10px;
   line-height: 1;
@@ -685,7 +685,7 @@ tbody tr { cursor: pointer; }
 }
 
 .tmNavBtn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.12);
+  background: color-mix(in srgb, var(--text-heading) 12%, transparent);
   color: var(--text-bright);
 }
 
@@ -696,8 +696,8 @@ tbody tr { cursor: pointer; }
 
 .tmNavDate {
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-muted, #999);
+  font-size: var(--text-base);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -706,12 +706,12 @@ tbody tr { cursor: pointer; }
 }
 
 .tmNavLatest {
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--ut-gold, #dcbb5e);
-  background: rgba(220, 187, 94,0.12);
-  border: 1px solid rgba(220, 187, 94,0.3);
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent);
   border-radius: var(--radius-sm);
   padding: 1px 5px;
 }
@@ -737,7 +737,7 @@ tbody tr { cursor: pointer; }
 
 .hmScoreLbl {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: 1.5px;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -745,14 +745,14 @@ tbody tr { cursor: pointer; }
 
 .hmScoreVal {
   font-family: var(--font-mono);
-  font-size: 22px;
+  font-size: var(--text-3xl);
   font-weight: 700;
   line-height: 1;
 }
 
 .hmScoreTier {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   opacity: 0.85;
@@ -767,17 +767,17 @@ tbody tr { cursor: pointer; }
 
 .hmScoreDate {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   margin-left: auto;
 }
 
 .hmScorePhase {
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--ut-gold, #dcbb5e);
-  background: rgba(220, 187, 94, 0.1);
-  border: 1px solid rgba(220, 187, 94, 0.25);
+  font-size: var(--text-xs);
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 25%, transparent);
   border-radius: var(--radius-sm);
   padding: 2px 8px;
   letter-spacing: 0.5px;
@@ -790,8 +790,9 @@ tbody tr { cursor: pointer; }
   position: fixed;
   z-index: 9999;
   pointer-events: none;
-  background: rgba(10, 10, 10, 0.96);
-  border: 1px solid var(--ut-gold, #dcbb5e);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  border: 1px solid var(--ut-gold);
   border-radius: var(--radius-md);
   padding: 8px 12px;
   display: flex;
@@ -802,25 +803,25 @@ tbody tr { cursor: pointer; }
 
 .hmTipDate {
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted, #888);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .hmTipLabel {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .hmTipValue {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-base);
   color: var(--text-bright);
 }
 
 /* ── Responsive ── */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   /* ⛔ `PageHeader`'s full-bleed negative margin reads `--page-pad-top`/
      `--page-pad-x` off THIS element (see PageHeader.module.css's header
      comment) — changing `padding` here without also moving those two custom
@@ -843,7 +844,7 @@ tbody tr { cursor: pointer; }
     align-items: flex-start;
     gap: 8px;
   }
-  .heading { font-size: 18px; letter-spacing: 2px; }
+  .heading { font-size: var(--text-2xl); letter-spacing: 2px; }
   /* 6 tabs don't fit stretched — scroll them as a chip strip. */
   .tabs {
     width: 100%;
@@ -879,30 +880,30 @@ tbody tr { cursor: pointer; }
     top: 0;
     bottom: 0;
     width: 24px;
-    background: linear-gradient(to left, var(--bg-surface, #111), transparent);
+    background: linear-gradient(to left, var(--bg-surface), transparent);
     pointer-events: none;
     z-index: 2;
   }
   .th {
-    font-size: 10px;
+    font-size: var(--text-xs);
     padding: 4px 6px;
   }
   .td {
-    font-size: 10px;
+    font-size: var(--text-xs);
     padding: 4px 6px;
   }
   .dateCol {
     min-width: 72px;
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .dateCell {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .colCollapsedLabel {
     font-size: 6px;
   }
   .colLabel {
-    font-size: 9px;
+    font-size: var(--text-xs);
   }
   /* Score summary bar */
   .scoreSummary {
@@ -911,7 +912,7 @@ tbody tr { cursor: pointer; }
     flex-wrap: wrap;
   }
   .scoreValue {
-    font-size: 22px;
+    font-size: var(--text-3xl);
   }
   .scoreMeta {
     gap: 10px;
@@ -919,7 +920,7 @@ tbody tr { cursor: pointer; }
   }
   /* Days pills */
   .daysPills { gap: 2px; }
-  .daysPill { font-size: 9px; padding: 2px 7px; }
+  .daysPill { font-size: var(--text-xs); padding: 2px 7px; }
   /* Drill modal responsive */
   .drillDialog {
     width: min(600px, calc(100vw - 24px));
@@ -936,7 +937,7 @@ tbody tr { cursor: pointer; }
     width: 100%;
     max-height: 40vh;
     border-right: none;
-    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-bottom: 1px solid var(--border);
   }
   .drillChartBar {
     flex-wrap: wrap;
@@ -972,7 +973,7 @@ tbody tr { cursor: pointer; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: var(--text-2xl);
   }
   .copyBtn,
   .drillViewBtn,
@@ -988,7 +989,7 @@ tbody tr { cursor: pointer; }
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-    font-size: 11px;
+    font-size: var(--text-sm);
     padding: 0 12px;
   }
   /* Chart timeframe tabs — scroll as a strip rather than clip/overlap, ≥44px. */
@@ -1005,7 +1006,7 @@ tbody tr { cursor: pointer; }
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--text-base);
     padding: 0 12px;
   }
 }
@@ -1028,7 +1029,7 @@ tbody tr { cursor: pointer; }
 
 .analoguesTitle {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--text-xl);
   font-weight: 700;
   color: var(--text-bright);
   letter-spacing: 1.5px;
@@ -1038,15 +1039,15 @@ tbody tr { cursor: pointer; }
 
 .analoguesSub {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .analoguesNarrative {
   font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--text-secondary, #b0b0b0);
-  background: rgba(220, 187, 94, 0.08);
+  font-size: var(--text-md);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
   border-left: 3px solid var(--ut-gold);
   padding: 10px 14px;
   margin-bottom: 18px;
@@ -1061,8 +1062,8 @@ tbody tr { cursor: pointer; }
 }
 
 .analogueCard {
-  background: var(--bg-elevated, #141414);
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px 16px;
   display: flex;
@@ -1083,7 +1084,7 @@ tbody tr { cursor: pointer; }
 
 .analogueDate {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-bright);
   letter-spacing: 0.5px;
@@ -1091,10 +1092,10 @@ tbody tr { cursor: pointer; }
 
 .analogueSim {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--ut-gold);
-  background: rgba(220, 187, 94, 0.12);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
 }
@@ -1110,14 +1111,14 @@ tbody tr { cursor: pointer; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(255,255,255,0.03);
+  background: color-mix(in srgb, var(--text-heading) 3%, transparent);
   border-radius: var(--radius-sm);
   padding: 6px 4px;
 }
 
 .analogueFwdLabel {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--text-muted);
@@ -1127,17 +1128,17 @@ tbody tr { cursor: pointer; }
 
 .analogueFwdVal {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--text-muted);
 }
 
 .analogueGreen {
-  color: var(--ut-green-bright, #4ade80);
+  color: var(--ut-green-bright);
 }
 
 .analogueRed {
-  color: var(--loss, #f87171);
+  color: var(--loss);
 }
 
 /* Metrics comparison grid */
@@ -1145,7 +1146,7 @@ tbody tr { cursor: pointer; }
   display: flex;
   flex-direction: column;
   gap: 1px;
-  background: rgba(255,255,255,0.03);
+  background: color-mix(in srgb, var(--text-heading) 3%, transparent);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -1154,16 +1155,16 @@ tbody tr { cursor: pointer; }
   display: flex;
   align-items: center;
   padding: 4px 8px;
-  background: var(--bg-elevated, #141414);
+  background: var(--bg-elevated);
 }
 
 .analogueMetricRow:nth-child(even) {
-  background: rgba(255,255,255,0.02);
+  background: color-mix(in srgb, var(--text-heading) 2%, transparent);
 }
 
 .analogueMetricLabel {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   flex: 1;
   letter-spacing: 0.3px;
@@ -1171,7 +1172,7 @@ tbody tr { cursor: pointer; }
 
 .analogueMetricVal {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-bright);
   min-width: 52px;
@@ -1180,7 +1181,7 @@ tbody tr { cursor: pointer; }
 
 .analogueMetricNow {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   min-width: 64px;
   text-align: right;
@@ -1189,7 +1190,7 @@ tbody tr { cursor: pointer; }
 
 .analoguesEmpty {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text-muted);
   padding: 40px 0;
   text-align: center;
@@ -1197,7 +1198,7 @@ tbody tr { cursor: pointer; }
 
 .analoguesFooter {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   opacity: 0.5;
   margin-top: 20px;
@@ -1205,7 +1206,7 @@ tbody tr { cursor: pointer; }
   text-align: center;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .analoguesGrid {
     grid-template-columns: 1fr;
   }
@@ -1224,18 +1225,18 @@ tbody tr { cursor: pointer; }
    row rendered every cell neutral while the row below it was fully coloured.
    Liveness is carried by the date cell and a hairline instead. */
 .liveRow td {
-  border-top: 1px solid rgba(220, 187, 94, 0.30);
+  border-top: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent);
   border-bottom-color: var(--accent);
 }
 
 .liveRow .dateCell {
-  background: rgba(220, 187, 94, 0.09);
-  box-shadow: inset 2px 0 0 var(--ut-gold, #dcbb5e);
-  color: var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 9%, transparent);
+  box-shadow: inset 2px 0 0 var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 .table tbody tr.liveRow:hover .dateCell {
-  background: rgba(220, 187, 94, 0.14);
+  background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
 }
 
 .liveStamp {
@@ -1251,16 +1252,16 @@ tbody tr { cursor: pointer; }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #dcbb5e);
-  box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.55);
+  background: var(--ut-gold);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 55%, transparent);
   animation: liveBeat 2.4s ease-out infinite;
   flex: none;
 }
 
 @keyframes liveBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ut-gold) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 0%, transparent); }
 }
 
 /* (Reconstructed-row date styling removed 2026-09-01 — owner wanted every
@@ -1273,7 +1274,7 @@ tbody tr { cursor: pointer; }
 .skeletonRow .dateCell { opacity: 0.6; }
 
 .skelDot {
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   opacity: 0.35;
 }
 
@@ -1290,7 +1291,7 @@ tbody tr { cursor: pointer; }
 .liveRow .liveApprox::after {
   content: '≈';
   margin-left: 3px;
-  font-size: 9px;
+  font-size: var(--text-xs);
   opacity: 0.5;
   vertical-align: super;
 }
@@ -1322,7 +1323,7 @@ tbody tr { cursor: pointer; }
    base rules can't out-cascade it (source order decides). */
 @media (max-width: 1024px) {
   .hdrBtn {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     display: inline-flex;
     align-items: center;
   }
