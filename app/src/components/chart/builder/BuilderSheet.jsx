@@ -130,9 +130,12 @@ import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
 import {
   INTENTS, INTENT_LABELS, intentReadback, defaultIntentFor, signalPaintsFor, signalPaintsOf,
-  presentationVerdict, SIGNAL_MARKER_DEFAULT, SIGNAL_PAINT_DEFAULTS,
+  presentationVerdict, SIGNAL_MARKER_DEFAULT, SIGNAL_PAINT_DEFAULTS, NO_PAINT,
 } from './authoringIntent'
 import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueDoor'
+import {
+  preservePresentation, restorableRowFields, rowCarriesPresentation, builderOwnedPaintIndexes,
+} from './presentationPreserve'
 import { isTruthType } from '../engine/outputType'
 import { STATUS as GATE_STATUS } from '../engine/evaluability'
 import styles from './BuilderSheet.module.css'
@@ -317,6 +320,10 @@ function isUntouchedRow(row) {
     && String(row.label || '').trim() === ''
     && row.color === BUILDER_INPUTS[0].default
     && row.width === BUILDER_INPUTS[1].default
+    // ⭐ P2 — a row carrying presentation the legacy body cannot hold (a colour
+    // mode, an opacity, a fill, a marker) is not the untouched default either;
+    // the schema-1 document would silently drop it.
+    && !rowCarriesPresentation(row)
 }
 
 /**
@@ -459,7 +466,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
   // and a paint is a v2-body field, so its presence leaves the schema-1 path.
   const paintList = Array.isArray(paints) && paints.length ? paints.map((p) => ({ ...p })) : null
 
-  if (plots === null && placement === null && levels === null && paintList === null) {
+  // ⭐ P2 — an OBJECT PROGRAM is a v2-body field too: `legacyDefinition` has no
+  // slot for it, so a single plain row carrying one used to be saved WITHOUT it.
+  const hasObjects = !!(objects && Array.isArray(objects.ops) && objects.ops.length)
+  if (plots === null && placement === null && levels === null && paintList === null && !hasObjects) {
     return legacyDefinition({
       defId, version, rev, source, ast, mode, readback,
       declared: declaredMember, trimmed, short, paramManifest,
@@ -1357,6 +1367,11 @@ export default function BuilderSheet({
         // ⭐ P1 — the glyph a `markers` plot draws comes back with it; without
         // this a reopen-and-save silently dropped every marker.
         ...(p.style === 'markers' && p.marker && p.marker.shape ? { marker: { ...p.marker } } : {}),
+        // ⭐⭐ P2 — AND THE REST OF THE PRESENTATION THE ROW MODEL CAN HOLD (a
+        // colour mode with its colours, a numeric opacity, a fill). Restored INTO
+        // the row so the member's own controls stay the authority over it;
+        // what the row cannot hold is carried by `preservePresentation` at save.
+        ...restorableRowFields(p),
         // ⭐ 2026-09-26 — a saved leftward displacement survives an edit-and-resave;
         // without this, reopening would quietly draw the plot late again.
         ...(Number.isInteger(p.displace) && p.displace < 0 ? { displace: p.displace } : {}),
@@ -1598,7 +1613,7 @@ export default function BuilderSheet({
     const sig = touched ? applySignalLook(evRows, look.key, look) : { rows: evRows, paints: null }
     const plain = !touched && plotRows.length === 0 && target === 'pane' && levels.length === 0
       && isUntouchedRow(plot0)
-    return buildDefinition({
+    const built = buildDefinition({
       ...evaluatedDocArgs(result, memberInputs, paramManifest),
       objects: objectProgram,
       defId,
@@ -1612,7 +1627,19 @@ export default function BuilderSheet({
       }),
       ...(sig.paints ? { paints: sig.paints } : {}),
     })
-  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex])
+    // ⭐⭐ P2 — AN EDIT KEEPS THE PRESENTATION THIS SHEET CANNOT EXPRESS (a Pine
+    // import's computed colours and paints, a custom legend, a line style…):
+    // carried from the stored document unless this document already says
+    // something there. The builder's OWN signal paints (moved into the SIGNAL
+    // control on reopen) are its to re-emit or drop, so they are not carried.
+    const prior = editing && editing.prior
+    if (!prior) return built
+    const sigKey = defaultIntentFor(prior) === INTENTS.SIGNAL
+      ? intentReadback(prior, INTENTS.SIGNAL).selectedKey : null
+    return preservePresentation(built, prior, {
+      ownedPaints: builderOwnedPaintIndexes(prior, sigKey, NO_PAINT),
+    }).doc
+  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing])
 
   /** Every row with its OWN settled evaluation, or null while any row has none. */
   const evaluatedRows = useMemo(() => {

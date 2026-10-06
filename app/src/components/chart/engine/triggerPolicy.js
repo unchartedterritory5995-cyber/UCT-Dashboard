@@ -135,3 +135,44 @@ export function outputTypeForAddress(getDefinition, address) {
   if (!def) return null
   return { def, key: m[2], type: outputTypeOf(def, m[2]).type }
 }
+
+/**
+ * ⭐⭐ P2 OWNER POLICY 6 — WHEN AN ARMED POLICY NOTIFIES, bar by bar: the
+ * browser statement of what the server's 60-second closed-bar cycle does
+ * (`indicator_alert_evaluator._run_one_cycle` + the fired log's episode key +
+ * `record_evaluation`'s re-arm). Pure; it evaluates nothing — `column` is the
+ * output's own {0, 1, null} column (null/NaN = UNKNOWN). The alert is armed
+ * before bar 0. `tests/fixtures/ast/p2_is_true_episodes.json` holds this and
+ * the server's real cycle to the same answers.
+ *
+ *   is_true        fires ONCE per true episode. Arming opens the first episode;
+ *                  only an observed KNOWN FALSE re-arms; an UNKNOWN bar neither
+ *                  fires nor re-arms (T→U→T: one fire; T→U→F→T: two).
+ *   becomes_true   a known F then a known T on consecutive bars (P0 no-edge:
+ *                  U→T, F→U→T do not fire).
+ *   becomes_false  a known T then a known F on consecutive bars.
+ *
+ * @returns {boolean[]} one entry per bar
+ */
+export function policyFires(policy, column) {
+  if (!TABLE[policy]) throw new Error(`${JSON.stringify(policy)} is not a trigger policy`)
+  const known = (v) => typeof v === 'number' && Number.isFinite(v)
+  const truth = (v) => v > TRUTH_DECODER
+  const out = []
+  let armed = true
+  let prev = null
+  for (const v of Array.isArray(column) ? column : []) {
+    if (!known(v)) { out.push(false); prev = null; continue }
+    let fire = false
+    if (policy === TRIGGER_POLICIES.IS_TRUE) {
+      if (truth(v)) { fire = armed; armed = false } else armed = true
+    } else if (policy === TRIGGER_POLICIES.BECOMES_TRUE) {
+      fire = prev !== null && !truth(prev) && truth(v)
+    } else {
+      fire = prev !== null && truth(prev) && !truth(v)
+    }
+    out.push(fire)
+    prev = v
+  }
+  return out
+}

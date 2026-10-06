@@ -1,5 +1,5 @@
 {
-  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser.",
+  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused).",
   "cases": [
     {
       "name": "plain close > 100 :: value",
@@ -628,13 +628,7 @@
         }
       },
       "plotKey": "a",
-      "expect": {
-        "status": "refused",
-        "gate": "scalar",
-        "codes": [
-          "market_cap"
-        ]
-      }
+      "expect": {"status": "supported", "gate": null, "codes": []}
     },
     {
       "name": "multi plain + scalar :: b",
@@ -833,13 +827,7 @@
         }
       },
       "plotKey": "b",
-      "expect": {
-        "status": "refused",
-        "gate": "scalar",
-        "codes": [
-          "rs_rank"
-        ]
-      }
+      "expect": {"status": "supported", "gate": null, "codes": []}
     },
     {
       "name": "v2 claim, plot c has no tree :: a",

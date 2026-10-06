@@ -2039,7 +2039,7 @@ function validateFills(plots, errors) {
  * nothing to draw is refused: a `kind` this renderer does not know, no colour at
  * all, or a column no plot declares — each would register and draw nothing.
  */
-const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
+export const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
 function validatePaints(paints, columnKeys, errors) {
   if (paints === undefined) return
   if (!Array.isArray(paints)) {

@@ -156,6 +156,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -165,6 +166,8 @@ import time
 from typing import Any, Mapping, Optional
 
 from api.services import compute_graph
+
+_log = logging.getLogger(__name__)
 
 # ─── caps ────────────────────────────────────────────────────────────────────
 
@@ -1032,7 +1035,7 @@ def lint_verdict(definition: dict) -> dict:
 
 #: The closed set of gates a `SaveRefused` names. Branch on the gate, never on
 #: the prose.
-SAVE_GATES = ("tree", "budget", "repaint", "repaint-ack")
+SAVE_GATES = ("tree", "budget", "repaint", "repaint-ack", "presentation")
 
 
 class SaveRefused(ValueError):
@@ -1041,15 +1044,23 @@ class SaveRefused(ValueError):
     reads the structure off it for a 422."""
 
     def __init__(self, gate: str, message: str, *, plot: Optional[str] = None,
-                 mode: Optional[str] = None, guard: Optional[str] = None) -> None:
+                 mode: Optional[str] = None, guard: Optional[str] = None,
+                 errors: Optional[list] = None) -> None:
         if gate not in SAVE_GATES:
             raise AssertionError(f"unknown save gate {gate!r}")
         super().__init__(message)
         self.gate, self.plot, self.mode, self.guard = gate, plot, mode, guard
+        # ⭐ P2 -- the `presentation` gate's structured list ({path, code,
+        # message}); absent from `as_dict` for every other gate, so their 422
+        # bodies are byte-identical to before.
+        self.errors = errors
 
     def as_dict(self) -> dict:
-        return {"gate": self.gate, "plot": self.plot, "mode": self.mode,
-                "guard": self.guard}
+        out = {"gate": self.gate, "plot": self.plot, "mode": self.mode,
+               "guard": self.guard}
+        if self.errors is not None:
+            out["errors"] = self.errors
+        return out
 
 
 def _lanes(definition: dict) -> list:
@@ -1606,6 +1617,15 @@ def save(user_id: Any, def_id: str, definition: dict,
     # why it is placed here rather than behind a `if trees` branch.
     validate_v2(definition)
 
+    # ⭐ P2 -- PRESENTATION IS VALIDATED HERE TOO, by the browser's own primitives
+    # (`presentation_schema`, mirroring `defSchema.js`): paints, markers, plot
+    # styles and colour modes. Measured outside the lock; ENFORCED in phase 1
+    # against the stored predecessor, so a legacy row whose stored presentation
+    # today's rule would refuse still saves while that entry is unchanged.
+    from api.services import presentation_schema
+    presentation_found = (presentation_schema.presentation_errors(definition)
+                          if not _copy_of_stored else [])
+
     # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
     # materialised working copy from here up; persisting it would write the
     # inlining this representation exists to avoid — and the 64 KB cap two lines
@@ -1658,6 +1678,25 @@ def save(user_id: Any, def_id: str, definition: dict,
         # stored predecessor (see `decide_semantics`). "The maths moved" is the
         # SAME two identities `rev_bumped` asks below, asked once here.
         prev_doc = json.loads(prev["definition"]) if prev is not None else None
+        if presentation_found:
+            refused_p, kept_p = presentation_schema.new_presentation_errors(
+                definition, prev_doc)
+            if kept_p:
+                # RECORDED, NOT ENFORCED, NOT MIGRATED: the stored row already
+                # carried this entry and this save does not change it.
+                _log.warning(
+                    "[user-definitions] %s keeps stored presentation today's rule "
+                    "refuses (unchanged, not enforced): %s", def_id,
+                    "; ".join(f"{e['path']} [{e['code']}]" for e in kept_p))
+            if refused_p:
+                raise SaveRefused(
+                    "presentation",
+                    "presentation the chart cannot draw as written: "
+                    + "; ".join(e["message"] for e in refused_p)
+                    + ". Nothing was saved.",
+                    guard=f"presentation:{refused_p[0]['code']}",
+                    errors=[{k: e[k] for k in ("path", "code", "message")}
+                            for e in refused_p])
         maths_moved = (prev is None or prev["ast_hash"] != new_hash
                        or trees_identity(prev_doc) != new_trees)
         semantics = decide_semantics(definition, prev_doc, maths_moved,

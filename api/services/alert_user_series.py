@@ -897,6 +897,13 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
 
 # ─── admission ───────────────────────────────────────────────────────────────
 
+#: ⭐ P2 OWNER POLICY 7 — the gates that refuse ONE PLOT and leave its siblings
+#: admissible. `withheld` since C45; `scalar` since P2 (evaluability is per
+#: output: a scalar-reading plot stays refused, a valid SERIES/CONDITION sibling
+#: of it is not taken down). Mirrored by `evaluability.js` ALERT_PER_PLOT_GATES.
+PER_PLOT_GATES = frozenset({"withheld", "scalar"})
+
+
 def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:
     """The per-plot half of admission: ``([(address, fn)], {address: refusal})``,
     or RAISE the first non-``withheld`` refusal (which refuses the whole
@@ -907,7 +914,8 @@ def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:
     actually alerts on; refusing the whole document for it would end alerts that
     are perfectly answerable. The withheld plot is NOT registered, its refusal is
     kept under its address, and `arm_for_alert` raises it when THAT plot is the
-    one being armed. Every other gate still refuses the whole admission.
+    one being armed. ⭐ P2: a `scalar` refusal is per plot too (`PER_PLOT_GATES`).
+    Every other gate still refuses the whole admission.
 
     ⭐⭐ P1 — THE SERVER HALF OF THE SHARED EVALUABILITY GATE. The browser's
     ``evaluability.js`` (lane ``alert``) is a PREFLIGHT of exactly this, held
@@ -923,7 +931,7 @@ def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:
         try:
             fn = _make_value_fn(def_id, plot_key, definition)
         except AdmissionRefused as exc:
-            if exc.gate != "withheld":
+            if exc.gate not in PER_PLOT_GATES:
                 raise
             withheld[address] = exc
             continue

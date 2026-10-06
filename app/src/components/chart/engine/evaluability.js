@@ -213,6 +213,10 @@ function alertPlotRefusal(compute, key) {
   return null
 }
 
+/** The alert lane's gates that refuse ONE plot, not the definition
+ *  (`alert_user_series.PER_PLOT_GATES`). */
+const ALERT_PER_PLOT_GATES = new Set(['withheld', 'scalar'])
+
 const ALERT_SENTENCE = {
   lane: 'This output is not a formula, and the alert lane admits only formulas.',
   plot: 'This document declares several plots and carries no tree for this one, so the alert lane '
@@ -235,11 +239,14 @@ function alertAnswer(def, key, base) {
   }
   const keys = (Array.isArray(def.plots) ? def.plots : [])
     .map((p) => (isObj(p) ? p.key : p)).filter(Boolean).map(String)
-  // ⛔ THE SERVER ADMITS A DEFINITION WHOLE: a `plot` or `scalar` refusal on ANY
-  // plot refuses every plot (only `withheld` is kept per plot — C45).
+  // ⛔ THE SERVER ADMITS A DEFINITION WHOLE ON A `plot` REFUSAL: a document that
+  // declares several plots and carries no tree for one refuses every plot.
+  // ⭐ P2 OWNER POLICY 7 — `scalar` IS PER OUTPUT, like `withheld` (C45): a
+  // scalar-reading plot stays refused, its valid SERIES/CONDITION siblings are
+  // admitted. Mirrors `alert_user_series.PER_PLOT_GATES`.
   for (const k of keys) {
     const r = alertPlotRefusal(compute, k)
-    if (r && r.gate !== 'withheld') {
+    if (r && !ALERT_PER_PLOT_GATES.has(r.gate)) {
       return answer(base, { status: STATUS.REFUSED, authority: 'server', final: true, gate: r.gate,
         guard: `alert:${r.gate}`, codes: r.codes,
         reason: k === key ? ALERT_SENTENCE[r.gate]
