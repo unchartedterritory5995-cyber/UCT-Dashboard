@@ -1,0 +1,996 @@
+{
+  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused).",
+  "cases": [
+    {
+      "name": "plain close > 100 :: value",
+      "definition": {
+        "id": "u_000000000001",
+        "name": "u_000000000001",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000001",
+          "source": "close > 100",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "numeric rsi :: value",
+      "definition": {
+        "id": "u_000000000002",
+        "name": "u_000000000002",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000002",
+          "source": "rsi(close, 14)",
+          "ast": {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 14
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "scalar market_cap > 1e9 :: value",
+      "definition": {
+        "id": "u_000000000003",
+        "name": "u_000000000003",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000003",
+          "source": "market_cap > 1e9",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "market_cap"
+              },
+              {
+                "type": "num",
+                "value": 1000000000
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "scalar",
+        "codes": [
+          "market_cap"
+        ]
+      }
+    },
+    {
+      "name": "bool scalar is_etf :: value",
+      "definition": {
+        "id": "u_000000000004",
+        "name": "u_000000000004",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000004",
+          "source": "is_etf",
+          "ast": {
+            "type": "series",
+            "name": "is_etf"
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "scalar",
+        "codes": [
+          "is_etf"
+        ]
+      }
+    },
+    {
+      "name": "sym SPY ratio :: value",
+      "definition": {
+        "id": "u_000000000005",
+        "name": "u_000000000005",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000005",
+          "source": "close / sym('SPY', close)",
+          "ast": {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "sym",
+                "value": "SPY",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "other-symbol:unsupplied"
+        ]
+      }
+    },
+    {
+      "name": "ltf read :: value",
+      "definition": {
+        "id": "u_000000000006",
+        "name": "u_000000000006",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000006",
+          "source": "ltf(close, '60') > close",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "ltf",
+                "value": "60",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "lower-tf:unsupplied"
+        ]
+      }
+    },
+    {
+      "name": "sym + ltf :: value",
+      "definition": {
+        "id": "u_000000000007",
+        "name": "u_000000000007",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000007",
+          "source": "ltf(close, '60') > sym('SPY', close)",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "ltf",
+                "value": "60",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "sym",
+                "value": "SPY",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "other-symbol:unsupplied",
+          "lower-tf:unsupplied"
+        ]
+      }
+    },
+    {
+      "name": "pine sym :: value",
+      "definition": {
+        "id": "u_000000000008",
+        "name": "u_000000000008",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000008",
+          "source": "close / sym('SPY', close)",
+          "ast": {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "sym",
+                "value": "SPY",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "recurrenceOrigin": "pine"
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "other-symbol:unsupplied"
+        ]
+      }
+    },
+    {
+      "name": "semantics 2 plain :: value",
+      "definition": {
+        "id": "u_000000000009",
+        "name": "u_000000000009",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_000000000009",
+          "source": "close > sma(close, 5)",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 5
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "semantics": 2
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "multi plain + sym :: a",
+      "definition": {
+        "id": "u_00000000000a",
+        "name": "u_00000000000a",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000a",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 100
+                }
+              ]
+            },
+            "b": {
+              "type": "op",
+              "name": "/",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "sym",
+                  "value": "SPY",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "a",
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
+    },
+    {
+      "name": "multi plain + sym :: b",
+      "definition": {
+        "id": "u_00000000000a",
+        "name": "u_00000000000a",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000a",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 100
+                }
+              ]
+            },
+            "b": {
+              "type": "op",
+              "name": "/",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "sym",
+                  "value": "SPY",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "b",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "other-symbol:unsupplied"
+        ]
+      }
+    },
+    {
+      "name": "multi plain + scalar :: a",
+      "definition": {
+        "id": "u_00000000000b",
+        "name": "u_00000000000b",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000b",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 100
+                }
+              ]
+            },
+            "b": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "market_cap"
+                },
+                {
+                  "type": "num",
+                  "value": 1000000000
+                }
+              ]
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "a",
+      "expect": {"status": "supported", "gate": null, "codes": []}
+    },
+    {
+      "name": "multi plain + scalar :: b",
+      "definition": {
+        "id": "u_00000000000b",
+        "name": "u_00000000000b",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000b",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 100
+                }
+              ]
+            },
+            "b": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "market_cap"
+                },
+                {
+                  "type": "num",
+                  "value": 1000000000
+                }
+              ]
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "b",
+      "expect": {
+        "status": "refused",
+        "gate": "scalar",
+        "codes": [
+          "market_cap"
+        ]
+      }
+    },
+    {
+      "name": "multi scalar + plain :: a",
+      "definition": {
+        "id": "u_00000000000c",
+        "name": "u_00000000000c",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000c",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 80
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "rs_rank"
+                },
+                {
+                  "type": "num",
+                  "value": 80
+                }
+              ]
+            },
+            "b": {
+              "type": "series",
+              "name": "close"
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "a",
+      "expect": {
+        "status": "refused",
+        "gate": "scalar",
+        "codes": [
+          "rs_rank"
+        ]
+      }
+    },
+    {
+      "name": "multi scalar + plain :: b",
+      "definition": {
+        "id": "u_00000000000c",
+        "name": "u_00000000000c",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000c",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 80
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "rs_rank"
+                },
+                {
+                  "type": "num",
+                  "value": 80
+                }
+              ]
+            },
+            "b": {
+              "type": "series",
+              "name": "close"
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "b",
+      "expect": {"status": "supported", "gate": null, "codes": []}
+    },
+    {
+      "name": "v2 claim, plot c has no tree :: a",
+      "definition": {
+        "id": "u_00000000000d",
+        "name": "u_00000000000d",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          },
+          {
+            "key": "c",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000d",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 100
+                }
+              ]
+            },
+            "b": {
+              "type": "series",
+              "name": "close"
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "a",
+      "expect": {
+        "status": "refused",
+        "gate": "plot",
+        "codes": []
+      }
+    },
+    {
+      "name": "v2 claim, plot c has no tree :: c",
+      "definition": {
+        "id": "u_00000000000d",
+        "name": "u_00000000000d",
+        "version": 1,
+        "plots": [
+          {
+            "key": "a",
+            "style": "line"
+          },
+          {
+            "key": "b",
+            "style": "line"
+          },
+          {
+            "key": "c",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000000d",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          },
+          "trees": {
+            "a": {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 100
+                }
+              ]
+            },
+            "b": {
+              "type": "series",
+              "name": "close"
+            }
+          },
+          "scanPlot": "a"
+        }
+      },
+      "plotKey": "c",
+      "expect": {
+        "status": "refused",
+        "gate": "plot",
+        "codes": []
+      }
+    },
+    {
+      "name": "runtime document :: value",
+      "definition": {
+        "id": "u_00000000000e",
+        "name": "rt",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "runtime",
+          "fn": "runtime:x",
+          "rev": 1,
+          "source": "//@version=5",
+          "outputs": {
+            "value": 0
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "lane",
+        "codes": []
+      }
+    }
+  ]
+}

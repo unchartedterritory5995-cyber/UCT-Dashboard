@@ -1064,6 +1064,20 @@ function validateMeta(meta, def, errors) {
   if (meta.freshness !== undefined) {
     checkVocabulary(meta.freshness, FRESHNESS_MODES, [], 'meta.freshness', 'freshness mode', errors)
   }
+  // ⭐⭐ P0G — `semantics` IS A BEHAVIOURAL meta field, not a document one: it
+  // decides how the trees evaluate (`definitionSemantics.js`), so it is CHECKED,
+  // not ignored-and-preserved. Absent (1) or exactly 2 — the only version the
+  // store stamps (`user_definitions.decide_semantics`) — and never on a Pine
+  // translation, whose comparisons keep Pine's `na`-is-false rule. Anything else
+  // is a document no store wrote, refused by name rather than read as 1.
+  if (meta.semantics !== undefined) {
+    if (meta.semantics !== 2) {
+      errors.push(`meta.semantics: expected 2 (or absent), got ${fmt(meta.semantics)}`)
+    } else if (meta.recurrenceOrigin === 'pine') {
+      errors.push('meta.semantics: a Pine translation keeps Pine semantics and carries no '
+        + 'definition-semantics stamp')
+    }
+  }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
   // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
   // resolves to nothing renders the string "RSI(undefined)" in the readout.
@@ -2025,7 +2039,7 @@ function validateFills(plots, errors) {
  * nothing to draw is refused: a `kind` this renderer does not know, no colour at
  * all, or a column no plot declares — each would register and draw nothing.
  */
-const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
+export const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
 function validatePaints(paints, columnKeys, errors) {
   if (paints === undefined) return
   if (!Array.isArray(paints)) {

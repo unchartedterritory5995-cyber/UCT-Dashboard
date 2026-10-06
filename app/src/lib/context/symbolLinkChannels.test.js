@@ -156,6 +156,10 @@ const HAND_TYPED_BASELINE = [
   // in page state only. Not a member deep link, and it cannot ship — railed by
   // testing/addToChart/addToChartHarnessAbsent.test.js.
   'testing/addToChart/addToChartHarness.jsx',
+  // The dev-only Create Indicator harness (`create-indicator-harness.html`), the
+  // same shape: `?sym=&tf=&w=` choose the fixture ChartWidget, in page state only.
+  // Railed out of the bundle by testing/createIndicator/createIndicatorHarnessAbsent.test.js.
+  'testing/createIndicator/createIndicatorHarness.jsx',
 ]
 
 describe('S4 CP2 — the deep-link ruling has a derived rail behind it', () => {
