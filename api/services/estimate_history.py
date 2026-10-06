@@ -217,7 +217,14 @@ def history(sym: str, *, today: Optional[date] = None, register: bool = True) ->
             "FROM estimate_snapshot WHERE symbol=? ORDER BY period_end, snap_date", (sym,)).fetchall()
         runs = c.execute("SELECT snap_date, status, detail FROM estimate_run WHERE symbol=? ORDER BY snap_date",
                          (sym,)).fetchall()
-    base = {"ticker": sym, "source": SOURCE, "tracked": tracked_ok}
+    # The consensus is in the company's REPORTING currency (TSM: TWD), and FMP's
+    # estimate rows do not say so. Cache-only: whatever reporting_currency.read()
+    # already holds (EE/FA put it there). This route makes no vendor call, so an
+    # uncached symbol is None, and None renders with no label, never a guess.
+    from api.services.research import reporting_currency
+    base = {"ticker": sym, "source": SOURCE, "tracked": tracked_ok,
+            "currency": reporting_currency.peek(sym),
+            "currency_source": reporting_currency.SOURCE + " (cached read; none when not yet read)"}
     gaps = [{"snap_date": d, "status": s, "detail": det} for d, s, det in runs if s == "error"]
     if not snaps:
         reason = ("not tracked: the daily snapshot universe is full" if not tracked_ok else

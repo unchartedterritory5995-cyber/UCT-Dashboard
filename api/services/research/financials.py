@@ -198,6 +198,11 @@ def _build_financials(sym):
     out = {
         "sym": sym,
         "entity": entity,
+        # yfinance statement frames are in the company's REPORTING currency
+        # (Yahoo `financialCurrency`: TSM -> "TWD", TM -> "JPY"), not dollars, so the
+        # grids' revenue / EPS carry it. Read off the same `.info` call the balance
+        # card already uses; None = not known. Nothing is converted.
+        "currency": fund.get("reporting_currency"),
         "annual": annual,
         "quarterly": quarterly,
         "balance": {

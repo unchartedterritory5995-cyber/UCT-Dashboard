@@ -60,11 +60,33 @@ def from_statement_rows(rows: Any) -> Optional[str]:
     return None
 
 
+def _key(sym: str) -> str:
+    return f"reporting_currency::v1::{sym}"
+
+
+def peek(sym: str) -> Optional[str]:
+    """The currency `read()` already cached for `sym`, or None. NEVER calls a vendor.
+
+    For request paths built to make no vendor call (estimate history): a symbol
+    nobody has opened EE/FA for in the last day is simply unknown, and unknown
+    renders with no label rather than a guess. Never raises."""
+    sym = (sym or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        hit = _cache().get(_key(sym))
+    except Exception:  # noqa: BLE001 -- a cache fault is "unknown", never a guess
+        return None
+    if not isinstance(hit, (list, tuple)) or len(hit) != 2 or hit[0] != "ok":
+        return None
+    return normalize(hit[1])
+
+
 def read(sym: str, timeout: int = 10) -> tuple[str, Optional[str]]:
     sym = (sym or "").upper().strip()
     if not sym:
         return "ok", None
-    ck = f"reporting_currency::v1::{sym}"
+    ck = _key(sym)
     hit = _cache().get(ck)
     if hit is not None:
         return tuple(hit)  # type: ignore[return-value]

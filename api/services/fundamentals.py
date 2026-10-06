@@ -50,12 +50,21 @@ _REPORTED_AMOUNTS = ("total_revenue", "ebitda", "free_cash_flow", "total_cash", 
 
 def _currency_guard(result: dict, info: dict) -> dict:
     """Withhold ratios that mix currencies; relabel reporting-currency amounts.
-    Mutates and returns `result`. A no-op when either currency is unknown or
-    both are the same."""
+    Mutates and returns `result`. Amounts are relabelled whenever the reporting
+    currency is known and not USD (a JPY filer listed in JPY is still not "$");
+    ratios are withheld only when both currencies are known and differ."""
     rep = str(info.get("financialCurrency") or "").strip().upper() or None
     trade = str(info.get("currency") or "").strip().upper() or None
     result["reporting_currency"] = rep
     result["trading_currency"] = trade
+    if rep and rep != "USD":
+        # Statement amounts are in `rep` whatever the trading currency is (or
+        # whether Yahoo stated it): never "$" on them.
+        for k in _REPORTED_AMOUNTS:
+            v = result.get(k)
+            if isinstance(v, str) and "$" in v:
+                # "$4.44T" -> "TWD 4.44T"; "$-82.64B" -> "CNY -82.64B".
+                result[k] = v.replace("$", f"{rep} ", 1)
     if not rep or not trade or rep == trade:
         return result
     why = (f"not shown: Yahoo divides the {trade} price by figures reported in {rep}, "
@@ -65,11 +74,6 @@ def _currency_guard(result: dict, info: dict) -> dict:
         if result.get(k) is not None:
             withheld[k] = why
         result[k] = None
-    for k in _REPORTED_AMOUNTS:
-        v = result.get(k)
-        if isinstance(v, str) and "$" in v:
-            # "$4.44T" -> "TWD 4.44T"; "$-82.64B" -> "CNY -82.64B".
-            result[k] = v.replace("$", f"{rep} ", 1)
     result["currency_withheld"] = withheld
     return result
 
