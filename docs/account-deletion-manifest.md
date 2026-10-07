@@ -49,12 +49,14 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**89 tables** (86 direct by `user_id`, 1 direct by another member key, 2 indirect).
+**91 tables** (86 direct by `user_id`, 1 direct by another member key, 4 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
 | `j2_option_legs` | `strategy_id` → `j2_option_strategies.user_id` | **Indirect** | join delete through `j2_option_strategies`, run before the direct deletes |
 | `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | join delete through `j2_broker_accounts`, run before the direct deletes |
+| `j2_template_gallery_reports` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
+| `j2_template_gallery_uses` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_settings` | `user_id` | Direct | `DELETE FROM j2_settings WHERE user_id = ?` |
 | `j2_positions` | `user_id` | Direct | `DELETE FROM j2_positions WHERE user_id = ?` |
 | `j2_trades` | `user_id` | Direct | `DELETE FROM j2_trades WHERE user_id = ?` |
