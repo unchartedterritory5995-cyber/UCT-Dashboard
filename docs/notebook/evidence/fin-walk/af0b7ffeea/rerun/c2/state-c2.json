@@ -1,0 +1,22 @@
+{
+ "report_day": "2026-10-12",
+ "data_dir": "C:\\data-fin-walk-r\\c2",
+ "c2_email": "q1c2m5725898@local.dev",
+ "amd_note": "93ad867b272f400aa9bb1ef81c3c0735",
+ "amd_plan": {
+  "target": 514.9285732025626,
+  "entry": 341.2805375709756,
+  "stop": 167.6325019393886
+ },
+ "amd_embed": "70918741-9fce-4a40-b9e7-571e3aa2d1b5",
+ "amd_tag": "VCP",
+ "amd_pos": "295cd469-3393-4f50-b76f-7ebcf46aaac2",
+ "nvda_pos": "fbbc8ed8-86c8-4f06-889e-aefcded9146b",
+ "ibm_note": "d23d22b5936b49b7ace5e82800c4a6f5",
+ "ibm_v1": "78d80a2c272b4ff283bd1c5c2b392e37",
+ "ibm_pos": "c1ef72bc-a3a5-409b-bae8-884cd826c24d",
+ "ibm_trade": "38908ad6-71f4-47db-b0f3-7307164a1ccf",
+ "amd_trade": "e64fb66a-f244-42e8-8878-39869a648a26",
+ "prep_note": "985b68ad21b945f48aa85a2cbd715a6d",
+ "tip": "af0b7ffeea"
+}

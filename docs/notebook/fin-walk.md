@@ -1,259 +1,203 @@
-# Notebook waves 12-15: the acceptance walk (PRE-FINAL pass on `8852a2a8c0`)
+# Notebook waves 12-15: the acceptance walk (CONFIRMATION run on `af0b7ffeea`)
 
-Lane WALK, branch `feat/notebook-fin-walk`. This is the pre-final pass on the landing tip
-`8852a2a8c0` (`origin/feat/notebook-w14-land`, merged INTO this branch; the frontend was rebuilt
-from it). Two fix branches were not in that tip yet (lane VOICE's request-body conversion, lane
-KEYS' keyboard focus work), so a shorter confirmation run on the final tip still has to follow.
+Lane WALK, branch `feat/notebook-fin-walk`. This is the confirmation run on the final landing
+tip `af0b7ffeea` (`origin/feat/notebook-w14-land`, merged INTO this branch; the frontend was
+rebuilt from it). It supersedes the pre-final pass on `8852a2a8c0` (evidence kept under
+`evidence/fin-walk/8852a2a8c0/`) and the old-tip baseline
+(`evidence/fin-walk/PRE-FIX-baseline-72715e8001/`).
 
-An earlier capture on the old tip `72715e8001` is kept as a before picture in
-`docs/notebook/evidence/fin-walk/PRE-FIX-baseline-72715e8001/README.md`.
+**Verdict: no blocking product failure found. Two minor product findings and one unsettled item
+remain (section 2). Every product failure reported from the pre-final pass that could be
+re-checked is fixed.**
 
-## How it was run
+## 1. How it was run
 
-Tool: `tools/notebook_fin_walk.py` (core, configurations 1 and 3),
-`tools/notebook_fin_walk_features.py` (configuration 2), `tools/notebook_fin_walk_live.py` (the
-live-on-merge steps and the unpaid account). Real Chromium through Playwright, viewports
-1280x800, 820x1180 and 390x844 (the last two with touch). One sandbox boot per configuration
-through `scripts/hub_sandbox_boot.py`, port 8132, an empty data dir each time, admin
-`hubtest@local.dev`, every walk account comped and checked paid before any step (the walk
-aborts otherwise).
+Tools: `tools/notebook_fin_walk.py`, `tools/notebook_fin_walk_features.py`,
+`tools/notebook_fin_walk_live.py`. Real Chromium through Playwright at 1280x800, 820x1180 and
+390x844 (the last two with touch). One sandbox boot per configuration through
+`scripts/hub_sandbox_boot.py`, port 8132, an empty data dir, admin `hubtest@local.dev`, every
+walk account comped and checked paid first. Every step records console errors, page errors,
+responses of 400 or more with their URL, the request and response of every write, sideways
+scroll on the app's inner scroller and the document, controls under 44 px on touch widths, the
+error boundary, and a screenshot. Raw files were committed before this summary.
 
-Every step records console errors, page errors, every response of 400 or more with its URL,
-the request and response of every write, sideways scroll (the app's inner scroller and the
-document), controls under 44 px on touch widths, whether the error boundary rendered, and a
-screenshot. Raw files were committed before this summary was written.
+| run | switches | raw evidence | steps | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|---|
+| c1 | only what production has armed, plus the live-on-merge steps and an unpaid account | `evidence/fin-walk/af0b7ffeea/c1/` | 142 | 139 | 2 | 1 | 0 |
+| c2 | c1 plus all 17 wave 11-14 switches | `.../c2/` | 200 | 177 | 8 | 8 | 7 |
+| c3 | visual playbook, setups board, review drafts ON; fingerprint, chart plan, plan grading OFF | `.../c3/` | 17 | 2 | 0 | 15 | 0 |
+| c2 re-run | the chart plan, trade and earnings prep path, after one walker ordering fix | `.../rerun/c2/` | 18 | 16 | 2 | 0 | 0 |
 
-| configuration | switches | raw evidence | steps | sandbox integrity (first line) |
-|---|---|---|---|---|
-| c1 | only what the ledger says production has armed | `evidence/fin-walk/8852a2a8c0/c1/` | 137 | `SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed` |
-| c2 | c1 plus all 17 wave 11-14 switches (and meaning search, for its tour only) | `.../c2/` | 197 | the same line, CLEAN at all four |
-| c3 | visual playbook, setups board, review drafts ON; fingerprint, chart plan, plan grading OFF | `.../c3-run1/` (first run, a walker defect in one step), `.../rerun/c3/` | 14 + 15 | the same line, CLEAN at all four, both runs |
-| c1 re-run | the 1280 live steps again after three walker fixes | `.../rerun/c1/` | 16 | the same line, CLEAN at all four |
+Of the 12 FAIL rows, 2 are product findings (c1: a skip link, and the chart drag, which is
+unsettled) and 10 are walker defects, each explained in section 4.
 
-Across all runs on this tip: **0 page errors, 0 error-boundary renders, 0 sideways scroll at any
-width.** The port was free and my sandbox data dirs were removed after the last run.
+Snapshot rail, first line of every boot (four boots): `SANDBOX INTEGRITY: CLEAN -- pre-boot
+(baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db
+files hashed`. Port 8132 was free and the sandbox data dirs were removed after the last run.
 
-Trades are not a wave 12-15 surface and the sample seeds none, so positions and closes go
-through the member's own API routes; everything wave 12-15 adds is driven through the page.
-The two overnight jobs (find similar, passed setups) and one awareness scan were run in a child
-process against the sandbox's own data, the way lane 13X did.
+Across all four runs: **0 page errors, 0 error-boundary renders, 0 sideways scroll at any
+width, and no unexpected failed request.** The only responses of 400 or more were: the sandbox's
+broker-sync and bars pre-warm 503s, `GET /api/auth/me` 401 on the signed-out share page, 404s for
+a note the walk had just deleted while its page was open, and the fingerprint freeze route's 404
+before a save lands (by design, retried).
 
-## PRODUCT failures (each judged from the product's own answer)
+## 2. PRODUCT findings on `af0b7ffeea`
 
-### P1. Phone: the "Delete this note?" button sits under the floating voice orb (flags off)
-- Where: c1, 390. `c1/walk.json`, feature `note CRUD`, step `crud (driver exception)`;
-  screenshot `c1/shots/c1-390-note-CRUD-crud-driver-exception-.png`.
-- Steps: at 390 px open a note, More note actions, Delete. The confirm sheet's red Delete button
-  is at the bottom right, and the voice orb is drawn on top of it. The browser reports the orb's
-  `<circle r="46">` takes the tap at the button's centre. The same walk deletes fine at 820 and 1280.
-- Suspect: the confirm sheet in `app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx`
-  (the `Delete this note?` dialog) against `app/src/components/voice/FloatingOrb.jsx` (the orb
-  does not move away or sit below an open sheet). Also seen on the old tip. IMPORTANT on a phone.
+### F1. "Skip to folder navigation" goes nowhere (MINOR, accessibility)
+- Where: c1, 1280, `live: skip links`, on Research Home and on All notes.
+- Steps: load `/journal/notebook`, press Tab from the top. Three skip links are reached: "Skip
+  to main content", "Skip to notes list", "Skip to folder navigation". Use each with Enter and
+  read `document.activeElement`. The first lands on `main#main-content`, the second inside
+  `#notebook-pane`. For the third, `#notebook-folder-nav` is not in the page (`target_exists:
+  false`) and focus does not move.
+- Not ruled out: the folder panel was in its default state; if the link is meant to open a
+  collapsed panel first, it did not within 400 ms.
+- Suspect `app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx` (the skip link near
+  line 1325 and where `notebook-folder-nav` is rendered).
 
-### P2. `GET /api/voice/cost` still answers 500 on Settings, Compass and Voice
-- Where: c1 at all three widths, c2, and the c1 re-run.
-- Request: `GET /api/voice/cost`. Response: `500 Internal Server Error`. Server log
-  (`c1/sandbox-c1.log`): `sqlite3.OperationalError: no such column: seconds_used`,
-  `api/services/voice_cost_service.py:95` (`get_monthly_cost_summary`), called from
-  `api/routers/voice.py:651`.
-- The Voice telemetry tile itself renders its tool-call numbers; the cost read is what fails. The
-  brief says this is fixed in production code paths; it is not fixed on `8852a2a8c0` (it may be
-  on the VOICE branch not merged yet). IMPORTANT until confirmed.
+### F2. A few touch controls are still under 44 px (MINOR)
+`c1/walk.json`, 820 and 390: the "All" filter button is 38 x 44; one checkbox input is 20 x 20;
+in the import wizard the destination row ("Daily, Imported from Files ...") is 37 px tall.
+The chart block toolbar and the Reporting soon link are now at least 44 x 44 (confirmed).
 
-### P3. The resurfacing explainer never showed
-- Where: c2. Feature `tour: note-resurfaces` at 1280, 820 and 390 (FAIL, check "the explainer
-  shows when the resurfacing sheet first renders"), and feature `note resurfacing` at 1280, where
-  the sheet was opened from the real notice (`explainer: 0`).
-- Steps: member with the sample, Get started hidden, one tour offer declined with Not now. A
-  stop is crossed, the notice is opened from Settings, Compass and Voice, Voice Insights Inbox,
-  "Open what you wrote". The "What you wrote then" sheet opens correctly, but no explainer card
-  appears in it, on the first open or later.
-- Not yet known: whether declining an offer earlier in the session is what suppresses it. Lane
-  W14-Q2 saw it on a member who had declined nothing. Suspect
-  `components/notebook/onboarding/GenericTourEngine.jsx` (the "shown once per member" read near
-  line 156) or the registry gate. MINOR to IMPORTANT.
+### F3. Dragging a chart block with the pointer did not move it (UNSETTLED)
+- Where: c1, 1280, `live: chart block`, step "dragging the chart moves it below the paragraphs".
+- Steps: a note with a chart then two paragraphs. Pointer down on the chart's body, 30 moves over
+  about 0.7 s to below the second paragraph, pointer up. The stored order stayed
+  `[widgetEmbed, paragraph, paragraph]`, in this run and in two earlier ones.
+- Clicking the chart selects it and Delete removes it (PASS), and on touch widths Block actions
+  moves and removes it (PASS). So the block is movable; whether a mouse drag works for a member
+  was not shown either way by a synthetic pointer. Needs one check by hand.
 
-### P4. Earnings prep note: the member's own closed trade is not in it
-- Where: c2, 1280, feature `earnings prep`, step "the prep note prints the member's own trade
-  result as the right percent".
-- Seeded: AMD long, entry 341.28, exit 514.93 the same day, so +50.9%. The prep note for AMD was
-  built after the trade closed. The note holds 14 percent figures, all from the earnings history
-  and the expected move; none is the trade's, and no line names a trade.
-- The check wanted "+50.9%". The product's answer is that the trade is absent, not that it is
-  mis-printed, so the percent fix itself could not be confirmed. The walk kept only the first 700
-  characters of the note, so which section should have listed it is not in evidence (the tool now
-  keeps 6000). Suspect `api/services/journal_two/earnings_prep.py` (the member's trades section).
-  IMPORTANT if the trade is meant to be listed.
+## 3. What was confirmed fixed since the pre-final pass
 
-### P5. Touch widths: several controls are under 44 px wide
-| where | control | size | evidence |
-|---|---|---|---|
-| chart block toolbar in a note (flags off, 820 and 390) | Hide toolbar, Chart settings, Remove embed | 34 x 44 | `c1/walk.json`, `editor menus` |
-| same | Half | 39 x 44 | same |
-| same | Sync | 43 x 44 | same |
-| Reporting soon list (820 and 390) | the symbol link ("AMD research") | 41 x 44 | `c2/walk.json`, `layout`, `Research Home` |
-| a note's filter row (820 and 390) | All | 37 x 44 | `c1/walk.json` |
+| pre-final finding | on `af0b7ffeea` | evidence |
+|---|---|---|
+| P1 phone: Delete confirm under the voice orb | FIXED. At 390 the Delete button is the top element at its centre (84 x 44) and the note is deleted; same at 820 and 1280 | `c1`, `note CRUD`, `confirm_button` |
+| P2 `GET /api/voice/cost` 500 | FIXED. No failed request; the tile shows "MONTH-TO-DATE $0.00, PROJECTED MONTH $0.00, DAILY RATE $0.00/day, REALTIME MINUTES 0" at all three widths | `c1`, `live: voice telemetry tile` |
+| P3 resurfacing explainer never showed | It shows on the first open of the sheet from a real notice. The pre-final failure was the walk reading too early | `c2`, `tour: note-resurfaces` |
+| P4 earnings prep and the member's trade | FIXED. Built after the AMD trade (341.28 to 514.93) was closed, the note prints "+50.9%". Built before the close it truthfully says "You have no closed trades in AMD" and lists the open position | `rerun/c2` and `c2`, `earnings prep` |
+| P5 chart toolbar and Reporting soon link under 44 px | FIXED (see F2 for what is left) | `c1`, `c2` layout |
+| P6 Formulas tour opened on step 2 | FIXED. Opens on step 1 at all three widths | `c2`, `tour: formulas-rollups` |
+| P7 honesty with a prerequisite off | FIXED. Draft says "Plan grading is switched off, so this draft has no discipline record."; the board says "Drawing a plan on a chart is switched off, so no new setup can be added here yet." | `c3` |
+| P8 empty sample folders left behind | FIXED. After Remove it the folder list is only the member's own "Daily" | `c2`, `remove sample`, `folders_after` |
+| P9 Example card promised a match | The Example card no longer has a "Find more like" button. Its replacement sentence was not read by the walk | `c2`, `find similar` |
+| the default-account 500 on a first Journal page | Not seen: 3 new members, no 5xx | `c1`, `live: first Journal page` |
 
-Suspect `components/notebook/WidgetEmbedView.module.css` (the always-visible toolbar's buttons)
-and `components/notebook/ReportingSoon.jsx`. MINOR. The old tip's 22 px Edit control on the entry
-context card is no longer flagged.
-
-### P6. Formulas tour opens on "Step 2 of 5"
-- c2, all three widths. Replay opens on the member's most recent note. Step 1 points at a control
-  that exists only on a note with no properties; the steps about a formula need a note that has
-  one. No single note can show both, so the tour shows 4 of 5 and starts on step 2.
-  Suspect `onboarding/tours/b1Formulas.steps.js`. MINOR, known from `wave14-w14-q2.md`.
-
-### P7. Honesty gaps when a prerequisite is off (c3)
-No error, no failed request, no boundary in any c3 step. Two messages are less than honest:
-- Review drafts without plan grading: the draft simply has no discipline part and says nothing
-  about it, while the box on Home and in Insights still promises "the discipline record".
-  `rerun/c3/walk.json`, `review drafts without plan grading`.
-- Setups board without chart plan: the board works and lists the sample's cards with their
-  Example label, and its empty line says "Draw an entry line on a chart in a plan note", which
-  points at the chart plan panel that is switched off. `rerun/c3/walk.json`.
-- Visual playbook without fingerprint: no door anywhere (its door is the fingerprint panel). The
-  trade page's before and after renders and says "No frozen plan for this trade, so only the
-  fills are drawn". Fine.
-MINOR. Suspect `lib/reviewDrafts.js` copy and `components/notebook/SetupsBoard.jsx` copy.
-
-### P8. Small leftovers after "Remove it"
-One click removed all ten sample notes (message: "The sample notes are in Trash. You can restore
-them from there."). Nothing of the sample was left on Research Home, the notes list, the notes
-search API, passed setups, the setups board, the visual playbook or the Notebook export. Two
-EMPTY folders stay in the sidebar: "Sample notebook" and "Capability examples".
-`c2/walk.json`, `remove sample`, `folders_left`. MINOR.
-
-### P9. "Find more like this" on an Example card promises a match that cannot come
-The MSFT example card's sheet says "No matches yet ... so this one is matched tonight". The
-overnight run then reported `templates: 0` with the two tagged sample charts present, so sample
-charts are (correctly) left out of matching, and the sentence is not true for them.
-`c2/walk.json`, `overnight jobs` and `find similar`. MINOR. Suspect `components/notebook/SimilarNames.jsx`.
-
-## Per-feature table
+## 4. Per-feature table (final)
 
 PASS, FAIL-PRODUCT, FAIL-INSTRUMENT, NOT RUN. Widths in px.
 
-### Configuration 1: switches as production has them (flags off for waves 12-15)
+### Configuration 1 (switches as production has them)
 
 | feature | 1280 | 820 | 390 | note |
 |---|---|---|---|---|
-| auth payload: every wave switch OFF | PASS | PASS | PASS | |
+| every wave switch OFF in the auth payload | PASS | PASS | PASS | |
 | first run: welcome, no wave surface | PASS | PASS | PASS | |
-| create a note, type, reload, search | PASS | PASS | PASS | |
-| delete the note | PASS | PASS | FAIL-PRODUCT (P1) | |
-| slash menu, chart toolbar, property types, template picker: no wave entry | PASS | PASS | PASS | |
-| no wave surface on Research Home, Open Positions, closed trades, trade page, position page, Insights (and `?ins=discipline`, `?ins=reviews`), `/journal-2-0/playbook`, `/journal/notebook/setups`, research workspace, Help, navigation | PASS | PASS | PASS | 14 pages per width |
-| sample notebook: exactly the five wave-8 notes | PASS | n/a | n/a | |
-| new member's first Journal page: no 5xx | PASS | PASS | PASS | the old tip's default-account race did not recur |
+| create a note, type, reload, search, delete | PASS | PASS | PASS | |
+| no wave entry in the slash menu, chart toolbar, property types, template picker | PASS | PASS | PASS | |
+| no wave surface on 14 pages (Research Home, positions, trades, trade and position pages, Insights and its links, playbook and setups routes, research workspace, Help, navigation) | PASS | PASS | PASS | |
+| sample: exactly the five wave-8 notes | PASS | | | |
+| a new member's first Journal page: no 5xx | PASS | PASS | PASS | |
 | Today button | PASS | PASS | PASS | |
-| built-in templates listed (33) | PASS | PASS | PASS | first run's FAIL was the walker looking for the walkthrough in the picker |
-| walkthrough toggle in a template-made note | PASS | not re-run | not re-run | `rerun/c1` |
-| Trade Plan template: properties created once, first note's values kept | PASS | PASS | PASS | |
-| click a chart in a note selects it; Delete removes it | PASS | FAIL-INSTRUMENT | FAIL-INSTRUMENT | on touch the walk tapped; touch widths use Block actions |
-| Block actions button and a toolbar that is always there | n/a | PASS | PASS | toolbar buttons under 44 px wide (P5) |
-| drag a chart to move it | FAIL-INSTRUMENT | n/a | n/a | a synthetic mouse drag did not move it, twice; not proven either way |
-| the two Log Trade dialogs open on the first click | PASS | PASS | PASS | about 0.4 s each |
-| upload limits answer with a sentence | PASS | PASS | PASS | see below |
-| note import wizard, two Markdown files | PASS | PASS | PASS | "Imported 2 notes." |
-| share a note, public page signed out | PASS | FAIL-INSTRUMENT | FAIL-INSTRUMENT | first run used a wrong URL; `/share/n/<token>` passes at 1280 in `rerun/c1` |
-| keyboard skip links | NOT RUN (instrument) | n/a | n/a | Tab reaches three skip links; whether using one moves the tab order was not read correctly in either run |
-| Settings voice telemetry tile | FAIL-PRODUCT (P2) | FAIL-PRODUCT | FAIL-PRODUCT | |
-| UNPAID account: 7 Notebook and Journal pages go to `/subscribe`; 8 routes answer without a 500 | PASS | n/a | PASS | |
+| built-in templates (33) and the walkthrough toggle in a template-made note | PASS | PASS | PASS | |
+| Trade Plan template: properties once, existing values kept | PASS | PASS | PASS | |
+| click a chart selects it; Delete removes it | PASS | n/a | n/a | |
+| chart toolbar is one Tab stop | PASS | n/a | n/a | 11 controls, 1 tabbable |
+| editor toolbar is one Tab stop | NOT RUN (instrument) | | | the walk's selector matched the chart toolbar twice |
+| drag a chart block | UNSETTLED (F3) | n/a | n/a | |
+| Block actions: Move up, Remove block; toolbar controls at least 44 x 44 | n/a | PASS | PASS | |
+| the two Log Trade dialogs on the first click | PASS | PASS | PASS | |
+| upload limits answer with a sentence (image, CSV, attachment) | PASS | PASS | PASS | 413 each, request and response in `api_writes` |
+| import wizard: two files become notes; a second import adds none | PASS | PASS | PASS | "Will create 0, update 0, unchanged 2" |
+| share a note, public page signed out | PASS | PASS | PASS | |
+| skip links | FAIL-PRODUCT (F1) | n/a | n/a | two of three work |
+| "Search Notebook" from the command palette | PASS | n/a | n/a | focus lands in the search box |
+| keyboard move between Journal and Notebook pages: focus in the page content | PASS | n/a | n/a | Notebook, Insights, Trades |
+| Settings voice telemetry tile | PASS | PASS | PASS | |
+| UNPAID account: 7 pages go to `/subscribe`; 8 routes answer with no 500 | PASS | n/a | PASS | |
 
-Upload limits, request and response (`c1/walk.json`, `api_writes`):
-`POST /api/j2/trades/{id}/attachments`, 6 MB image: `413 {"detail": "Image must be < 5 MB"}`.
-`POST /api/j2/trades/import/preview`, 11 MB CSV: `413 {"detail": "File exceeds 10 MB limit"}`.
-`POST /api/j2/notes/{id}/attachments`, 60 MB file: `413`, "File is larger than the 25 MB limit. ...".
-
-### Configuration 2: everything on, a fresh empty account
+### Configuration 2 (everything on, a fresh empty account)
 
 | feature | 1280 | 820 | 390 | note |
 |---|---|---|---|---|
-| first run: welcome, capability preview, sample promotion, Get started list | PASS | PASS | PASS | |
-| Add a sample notebook (5 practice notes, 5 examples) | PASS | | | |
-| sample examples on their own screens: AAPL plan (3 levels, R:R 2.50R), visual playbook cards with Example labels, MSFT on the setups board, NVDA notice inside the note and an empty inbox, TSLA cited excerpt, GOOGL passed setup, AMZN prep draft and its Open door | PASS (8 of 8) | | | |
-| Get started: three steps tick on real actions, survive a reload; Hide stays hidden | PASS | | | |
-| one-time offer; no second offer after a reload | PASS | | | |
-| Help: Walkthroughs (base + 19), What's new | PASS | | | |
+| first run: welcome, preview, sample promotion, Get started | PASS | PASS | PASS | |
+| add the sample; its 8 example checks (AAPL plan with three levels, role buttons and Arm alert shown; Example labels on playbook cards and board cards; NVDA notice in the note only; TSLA excerpt; GOOGL passed setup; AMZN draft and its Open door) | PASS | | | role buttons and Arm alert were seen, not pressed, on the sample plan |
+| Get started ticks on real actions, survives a reload, Hide stays hidden | PASS | | | |
+| one-time offer; Help Walkthroughs and What's new | PASS | | | |
 | template gallery: browse, insert, publish for review, admin queue | PASS | | | |
-| formulas (R-multiple = 2) | PASS | PASS (layout) | PASS (layout) | |
-| chart plan: insert, draw three levels and roles, sizing, alert at the stop | PASS | PASS (layout) | PASS (layout) | new member sees "No max risk per trade is set"; "6 sh" once it is set |
-| entry context card (position and trade page) | PASS | PASS | PASS | |
-| entry context: write why, save, still there after a reload | FAIL-INSTRUMENT | | | the text is on the card after the reload; the walk looked for an old marker |
-| thesis chips on Open Positions rows | FAIL-INSTRUMENT | | | chips no longer come from a sample note (by design); the walk had no position on the member's own thesis. NOT verified on this tip |
-| setups board | PASS | PASS | PASS | |
-| find similar before an overnight run: honest "No matches yet" | PASS | | | see P9 |
-| find similar after an overnight run | FAIL-INSTRUMENT | | | the walk's template was a sample chart, which is no longer matched. NOT verified on this tip |
-| transcript passage capture, cited | PASS | PASS (layout) | PASS (layout) | |
+| formulas | PASS | PASS | PASS | |
+| chart plan: insert, draw, roles, sizing, alert | PASS | PASS | PASS | 820 and 390 by layout pass |
+| entry context card; "why" saved and still there after a reload | PASS | PASS | PASS | the tool's FAIL row is a walker defect: the text is on the card after the reload |
+| thesis chips on Open Positions rows (the member's own thesis) | PASS | PASS | PASS | present at all three widths once the awareness scan had projected the note; the tool's earlier FAIL row looked before that scan |
+| setups board (IBM, AMD, and the two Example cards) | PASS | PASS | PASS | |
+| find similar with a member's own tagged chart, after an overnight run | PASS | | | CRWD, "100 match" |
+| find similar on an Example card | FAIL-INSTRUMENT | | | the button is gone from Example cards; the walk waited for it |
+| transcript passage capture | PASS | PASS | PASS | |
 | passed setups: listed, add, scored, remove | PASS | PASS | PASS | |
-| resurfacing: notices in the inbox; "What you wrote then" opens at the version that first named the stop | PASS | | | |
-| resurfacing explainer | FAIL-PRODUCT (P3) | FAIL-PRODUCT | FAIL-PRODUCT | |
-| plan grading: planned trade (four checks), Unplanned chip and badge, Discipline tab | PASS | PASS | PASS | |
-| technical fingerprint, visual playbook, trade before and after | PASS | PASS | PASS | |
-| My Playbook from Insights | PASS | PASS | PASS | |
-| earnings prep: Reporting soon, one-click note with its sources | PASS | PASS | PASS | symbol link 41 px wide on touch (P5) |
-| earnings prep: the member's trade percent | FAIL-PRODUCT (P4) | | | |
+| passed setups: five rows and Show all | NOT RUN | | | the member had two passed names |
+| resurfacing: notices, "What you wrote then", the explainer on first open | PASS | | | later opens: explainer not shown again, as designed |
+| plan grading, Unplanned chip, Discipline tab | PASS | PASS | PASS | |
+| technical fingerprint, visual playbook, before and after | PASS | PASS | PASS | |
+| My Playbook | PASS | PASS | PASS | |
+| earnings prep: Reporting soon, one-click note, the trade's percent | PASS | PASS | PASS | percent confirmed in `rerun/c2` |
 | review drafts: daily, weekly, monthly | PASS | PASS | PASS | |
-| layout pass over 18 pages: no sideways scroll, no boundary | PASS | PASS except P5 | PASS except P5 | |
-| remove the sample in one click; nothing left in lists, search, stats, export | PASS | | | search-box check FAIL-INSTRUMENT; two empty folders stay (P8) |
-| writing help, Ask, AI actions, meaning search itself, dictation, the Compass quote in a draft | NOT RUN, NO KEY | | | |
+| layout pass over 19 pages: no sideways scroll, no boundary, no small control in a wave surface | PASS | PASS | PASS | |
+| remove the sample in one click; nothing left in lists, search, stats, export, folders | PASS | | | |
+| a member's own folder named "Sample notebook" survives removal | NOT RUN | | | the folder API refused a second folder of that name while the sample's existed (400) |
+| writing help, Ask, AI actions, meaning search itself, dictation, the Compass quote, the morning briefing read aloud | NOT RUN, NO KEY | | | |
 
-### Tours (Replay from Help; opens, first card, Back, Next, Escape, tap floor, keyboard reach, focus trap, axe on the card)
+### Tours (Replay from Help; shown / declared steps)
 
-Shown / declared steps. Every row passed every card check at every width unless noted.
+All 19 open on step 1 at all three widths, with Back, Next, Escape, tap floor, keyboard reach,
+focus trap and the card's accessibility scan passing.
 
 | tour | 1280 | 820 | 390 | note |
 |---|---|---|---|---|
-| writing-help | 4/4 | 4/4 | 4/4 | |
-| image-docx-import | 2/5 | 3/5 | 5/5 | the other steps are phone-only by design |
-| publish-share | 4/4 | 4/4 | 4/4 | |
-| task-reminders | 3/3 | 3/3 | 3/3 | |
+| writing-help, publish-share, review-drafts, ta-fingerprint, chart-plan-replay | 4/4 | 4/4 | 4/4 | |
+| task-reminders, meaning-search, passed-setups | 3/3 | 3/3 | 3/3 | |
 | template-gallery | 4/4 | 4/4 | 4/4 | |
-| meaning-search | 3/3 | 3/3 | 3/3 | |
-| formulas-rollups | 4/5, starts on step 2 | same | same | FAIL-PRODUCT (P6) |
-| plan-grading | 5/5 | 5/5 | 5/5 | |
-| entry-context | 2/4 | 2/4 | 2/4 | the "why" steps had no anchor on the newest trade's card |
-| review-drafts | 4/4 | 4/4 | 4/4 | |
-| my-playbook | 5/5 | 5/5 | 5/5 | |
-| chart-plan-basics | 6/6 | 6/6 | 6/6 | |
-| chart-plan-replay | 3/4 | 4/4 | 4/4 | `context` skipped at 1280 |
-| ta-fingerprint | 4/4 | 4/4 | 4/4 | |
-| visual-playbook | 6/6 | 6/6 | 6/6 | |
-| setups-board | 5/5 | 5/5 | 5/5 | |
+| plan-grading, my-playbook, transcript-capture | 5/5 | 5/5 | 5/5 | |
+| chart-plan-basics, visual-playbook | 6/6 | 6/6 | 6/6 | |
+| image-docx-import | 2/5 | 3/5 | 5/5 | the other steps are phone-only by design |
+| formulas-rollups | 4/5 | 4/5 | 4/5 | `rollup` anchor off screen; FAIL-INSTRUMENT on the walk's step-count check |
+| entry-context | 2/4 | 2/4 | 2/4 | `why` and `save` had no anchor on the newest trade's card |
+| setups-board | 4/5 | 4/5 | 4/5 | `templates` skipped |
 | earnings-prep | 3/4 | 3/4 | 3/4 | the Create step is gone once the prep note exists |
-| transcript-capture | 5/5 | 5/5 | 5/5 | the walk typed /transcript, as the card asks |
-| passed-setups | 3/3 | 3/3 | 3/3 | |
-| note-resurfaces (explainer) | FAIL-PRODUCT (P3) | same | same | |
+| note-resurfaces (explainer) | PASS on first open | | | |
 
-Of the 19 steps earlier walks never displayed, 14 now show with seeded data. Still not shown:
-formulas `add-first` (P6), entry-context `why` and `save`, earnings-prep `prep`.
-
-### Configuration 3: a dependent without its prerequisite
+### Configuration 3 (a dependent without its prerequisite)
 
 | check | 1280 | 820 | 390 | what the page said |
 |---|---|---|---|---|
-| visual playbook without fingerprint | PASS | FAIL-INSTRUMENT | FAIL-INSTRUMENT | no door; before and after says "No frozen plan for this trade, so only the fills are drawn" |
-| setups board without chart plan | PASS | PASS | PASS | lists the Example cards; see P7 |
-| review drafts without plan grading | PASS | PASS | PASS | drafts a note with no discipline part and no word about it; see P7 |
+| visual playbook without fingerprint | PASS | PASS | PASS | no door; before and after: "No frozen plan for this trade, so only the fills are drawn." |
+| setups board without chart plan | PASS | PASS | PASS | "Drawing a plan on a chart is switched off, so no new setup can be added here yet." |
+| review drafts without plan grading | PASS | PASS | PASS | "Plan grading is switched off, so this draft has no discipline record." |
 
-## Other things recorded
+### The 10 FAIL rows that are walker defects
 
-- Failed requests that are not defects: `POST /api/j2/broker/sync` 503 and bars pre-warm 503s (no
-  broker, no vendor key in a sandbox); `GET /api/auth/me` 401 on the signed-out share page; 404s
-  for a note the walk had just deleted while its page was still open; the fingerprint freeze
-  route's 404 before a save lands (by design, retried).
-- A plan drawn in one sitting has no saved version naming its stop, so its notice opens the note
-  itself with no "What you wrote then" sheet. By design (`note_levels.py`).
-- The sandbox serves real bars for real tickers (the fallback needs no key).
+c2: thesis chips (looked before the scan), find similar on an Example card (button removed),
+earnings percent (the step ran before the close; passed in the re-run), formulas tour x3 (the
+walk's count of declared steps against the card's), "why" save (wrong marker; the text
+persisted), the same-name folder (creation refused). Re-run c2: the same chips timing, and the
+AMZN draft door (that partial run had no sample).
 
-## Not covered, or not settled
+## 5. Asked for and not walked
 
-- Thesis chips, find similar with a match, the "why" save marker, skip links, drag: instrument
-  gaps on this pass. The tool is corrected for the first three; skip links and drag still need a
-  correct read.
-- Tours at three widths ran on one member; the offer and checklist flows ran at 1280 only.
-- The published-note page's stripped formatting, the bar replay dialog, the thesis chip sheet on
-  touch and the Positions phone card were not walked beyond the layout pass.
-- Model-backed steps: NOT RUN, NO KEY.
-- The final-tip confirmation run.
+- The confirm button as the top element at 390 for: bulk trash, folder delete, saved view delete
+  (also from Research Home and beside an open note), version restore, gallery unpublish. Only
+  the note Delete and the sample's Remove it were walked.
+- The sample chart plan's role buttons and Arm alert pressed (they were seen, not pressed).
+- The Example card's "never matched" sentence; five passed-setup rows and Show all; the editor
+  toolbar's single Tab stop; a member's same-name folder surviving removal.
+- The published-note page's stripped formatting; the thesis chip sheet on touch; the Positions
+  phone card, beyond the layout pass.
+
+## 6. Not verifiable here
+
+- Anything behind a model key: writing help, Ask, AI actions, meaning search, dictation and
+  voice notes, the Compass quote in a review draft, "read me the morning briefing".
+- Real devices: this is Chromium with a touch viewport, not Safari or a phone.
+- Screen readers: announcements were not listened to; only roles, focus and the card scan.
+- Live vendors and the real scheduler: overnight jobs and the awareness scan were run by hand in
+  a child process against the sandbox's data.

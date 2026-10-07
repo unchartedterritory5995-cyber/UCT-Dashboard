@@ -824,7 +824,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    "PASS" if want in ntext else "FAIL", seeded_entry=e_, seeded_exit=t_, expected=want, percents_in_note=pcts[:20],
                    trade_lines=[ln.strip()[:160] for ln in ntext.splitlines() if "%" in ln and ("AMD" in ln or "trade" in ln.lower())][:6])
         S["prep_note"] = made
-    run("earnings", earnings)
+    # run AFTER the trade is closed (steps execute in source order): see below, after "grading"
 
     # ── transcript passage capture ──────────────────────────────────────────────────────
     def transcript():
@@ -1013,6 +1013,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "plan grading", "a trade with no plan is labelled Unplanned in the trades table and on its page",
                "PASS" if chip and badge else "FAIL", chip_in_table=chip, badge_on_page=badge)
     run("grading", grading)
+    run("earnings", earnings)   # the prep note is a frozen snapshot: built only after the AMD trade is closed
 
     def discipline():
         C.goto(pg, base, "/journal/insights?ins=discipline")
