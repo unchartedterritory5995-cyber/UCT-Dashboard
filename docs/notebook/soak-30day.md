@@ -13,7 +13,31 @@ and heartbeat only, never on speed · **D-9C4** exposure = distinct notes edited
 write path · **D-9C5** KEEP on a soak-only log, or a non-KEEP ruled in writing · **D-9C7** study
 participants join the cohort with consent.
 
-⛔ **Today the organic population is 0** (the live Q1 log, rows 2026-09-25 15:00–19:00 ET:
+> ✅ **Live state, read 2026-10-07. The soak is running; this file is still the plan, not the result.**
+> - **It began 2026-09-26 18:48 UTC** and the nightly roll-up has run since. The last line of
+>   `C:\Users\Patrick\uct-q1-observe\nb_soak.run.log` (2026-10-06 23:30 UTC) reads: "soak INCONCLUSIVE · day 10.2/30
+>   (+4.19 unobserved) · organic 2/5 · edit-days 712/100 · active 3/20 · reasons 6 · alerts 3 ·
+>   drift 0". So: day 10 of 30, two of the five real members the floor needs, three of the
+>   twenty active members, and the verdict is INCONCLUSIVE because of the cohort, not because
+>   of any loss.
+> - **The watcher was blind from 2026-10-03 to 2026-10-07.** The last row before the gap in
+>   `C:\Users\Patrick\uct-q1-observe\soak-observation-log.md` is `2026-10-03 01:02 ET`; the next is `2026-10-07 01:00 ET`.
+>   Cause: the signed-in browser profile the watcher uses lived inside a git worktree
+>   (`notebook-primary-platform`), and that worktree was removed by a cleanup on 2026-10-03, the
+>   profile with it (the removed worktree is archived under `uct-backups`). Every run after that had no profile to sign in with. Those 4.19 days are
+>   counted as unobserved and the window was extended by the same amount (the dashboard's window
+>   now ends 2026-10-30 23:28 UTC).
+> - **The owner signed a new profile in on 2026-10-06**, at
+>   `C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent`, outside every worktree so no worktree cleanup can
+>   take it again. `nb_observe.cmd` and `canary_sunday.cmd` both point at it.
+> - **First clean row after the gap: `2026-10-07 07:00 ET`, `OK`** (same log; the catch-up rows
+>   for 01:00, 03:00 and 05:00 that morning also read `OK`).
+> - Still open: no Sunday verdict exists for 2026-09-27 or 2026-10-04 (the dashboard says so),
+>   and one fork on 2026-09-27 has not been attributed.
+> ⚰️ The paragraph below was true on 2026-09-25, before the soak opened, and is struck as a
+> description of today. Its rule still holds: a soak with too small a cohort is INCONCLUSIVE.
+
+⛔ ~~**Today the organic population is 0**~~ (the live Q1 log, rows 2026-09-25 15:00–19:00 ET:
 `organic 0 · synthetic 1 · rig/owner 1`). A soak that opens with no cohort is **INCONCLUSIVE
 from day one** and stays so until the floor in §6 is met — "zero data loss" over nobody is not
 evidence, and `nb_soak.py` never prints PASS by default.

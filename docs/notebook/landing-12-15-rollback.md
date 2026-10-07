@@ -238,6 +238,13 @@ the untouched pre-landing tree (`C1-cas-on-the-landing-tip.log` and
 `C2-cas-on-the-pre-landing-base.log`: `3 failed, 5 passed` on each). They are reported to the
 controller as a red that exists today on this box, not triaged by this lane.
 
+Triaged on 2026-10-07: a defect in the test, not in the product. The test looked for the append
+doors' read by a typed SQL string that wave 10 L14 (#260) changed, so its window never opened.
+The lock was intact throughout. Fixed in `4c9520c606`; the file now reads `13 passed` on the
+landing tip and on the pre-landing tree, and a 120-append concurrent probe lost nothing on
+either (logs `D0` to `D4` in the same folder). The `185 passed, 3 failed` above was not re-run
+on tree A after the fix.
+
 **Tree B: the landing reverted whole** (the pre-landing tree, what a plain `git revert` gives).
 
 | Run on tree B | Totals line |
