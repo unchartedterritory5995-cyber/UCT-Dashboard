@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 // TERM-049 -- the History tab. Asserted on RENDERED TEXT:
 //   * every row shows its lane, its date and its SOURCE;
@@ -19,9 +19,9 @@ const BODY = {
   ],
 }
 
-async function renderWith(data, isLoading = false) {
+async function renderWith(data, isLoading = false, mutate = () => {}) {
   vi.resetModules()
-  vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => ({ data, isLoading }) }))
+  vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => ({ data, isLoading, mutate }) }))
   const { default: Tab } = await import('./HistoryTab')
   return render(<Tab sym="nvda" />)
 }
@@ -61,6 +61,13 @@ describe('HistoryTab', () => {
     await renderWith({ ok: false, httpStatus: 500, body: null })
     expect(screen.getByTestId('history-unavailable').textContent).toMatch(/does not mean nothing happened/)
     expect(screen.queryByTestId('history-empty')).toBeNull()
+  })
+
+  it('a failed read offers Retry, and Retry reads again (2026-10-07: it had none)', async () => {
+    const mutate = vi.fn()
+    await renderWith({ ok: false, httpStatus: 503, body: null }, false, mutate)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalledTimes(1)
   })
 
   it('a 402 is the paid gate, not "History is unavailable"', async () => {
