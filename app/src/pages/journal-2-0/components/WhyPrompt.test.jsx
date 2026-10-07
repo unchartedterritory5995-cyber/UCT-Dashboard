@@ -99,7 +99,7 @@ describe('reading and saving the note', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(calls).toHaveLength(1)
     expect(calls[0].url).toBe('/api/j2/entry-context/why')
-    expect(calls[0].body).toEqual({ symbol: 'NVDA', entryDay: '2026-10-02', text: 'Updated reason' })
+    expect(calls[0].body).toEqual({ symbol: 'NVDA', entryDay: '2026-10-02', text: 'Updated reason', baseUpdatedAt: 'x' })
   })
 
   it('shows the server sentence on a failed save and stays editing', async () => {
@@ -120,5 +120,131 @@ describe('reading and saving the note', () => {
   it('renders nothing without a symbol/entryDay key (nothing to attach the note to)', () => {
     const { container } = render(<WhyPrompt symbol={null} entryDay={null} why={null} onSaved={() => {}} />)
     expect(container.firstChild).toBeNull()
+  })
+})
+
+// ── fin-data I5: the why note is compare-and-set; a stale save keeps the member's words ────
+describe('a why changed somewhere else (409) never costs the member their typed words', () => {
+  const KEY = { symbol: 'NVDA', entryDay: '2026-10-02' }
+  const conflict = (current) => json({
+    detail: {
+      code: 'why_changed',
+      message: 'This note was changed somewhere else since you opened it. Your words were not saved and are still here. Save again to replace the other version, or cancel to keep it.',
+      current,
+    },
+  }, 409)
+
+  function recordingFetch(responses) {
+    const calls = []
+    global.fetch = vi.fn(async (url, init) => {
+      calls.push(JSON.parse(init.body))
+      return responses[Math.min(calls.length - 1, responses.length - 1)]
+    })
+    return calls
+  }
+
+  it('every save sends the base it read: the stored updatedAt, or null when there was no why', async () => {
+    const calls = recordingFetch([json({ context: { ...KEY, why: { text: 'a', updatedAt: 't1' } } })])
+    const { unmount } = render(<WhyPrompt {...KEY} why={null} whyMaxChars={500} onSaved={() => {}} />)
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), 'a')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls).toHaveLength(1))
+    expect(calls[0]).toEqual({ ...KEY, text: 'a', baseUpdatedAt: null })
+    expect('baseUpdatedAt' in calls[0]).toBe(true)
+    unmount()
+
+    const calls2 = recordingFetch([json({ context: { ...KEY, why: { text: 'b', updatedAt: 't2' } } })])
+    render(<WhyPrompt {...KEY} why={{ text: 'old', updatedAt: 't1' }} whyMaxChars={500} onSaved={() => {}} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls2).toHaveLength(1))
+    expect(calls2[0].baseUpdatedAt).toBe('t1')
+  })
+
+  it('on a 409 it stays editing with the typed words, says so, and shows the other version', async () => {
+    recordingFetch([conflict({ text: 'What the other tab saved', updatedAt: 't2' })])
+    const onSaved = vi.fn()
+    render(<WhyPrompt {...KEY} why={{ text: 'old', updatedAt: 't1' }} whyMaxChars={500} onSaved={onSaved} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const textarea = screen.getByLabelText('Why did you take it?')
+    await userEvent.clear(textarea)
+    await userEvent.type(textarea, 'My careful reasoning')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/changed somewhere else/)
+    expect(alert.textContent).toMatch(/still here/)
+    expect(screen.getByTestId('why-prompt-editing')).toBeTruthy()
+    expect(screen.getByLabelText('Why did you take it?').value).toBe('My careful reasoning')
+    expect(screen.getByTestId('why-prompt-theirs').textContent).toMatch(/What the other tab saved/)
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('Save again after a 409 replaces the other version on purpose, on the base the refusal named', async () => {
+    const calls = recordingFetch([
+      conflict({ text: 'theirs', updatedAt: 't2' }),
+      json({ context: { ...KEY, why: { text: 'mine', updatedAt: 't3' } } }),
+    ])
+    const onSaved = vi.fn()
+    render(<WhyPrompt {...KEY} why={{ text: 'old', updatedAt: 't1' }} whyMaxChars={500} onSaved={onSaved} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const textarea = screen.getByLabelText('Why did you take it?')
+    await userEvent.clear(textarea)
+    await userEvent.type(textarea, 'mine')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('alert')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    expect(calls.map((c) => c.baseUpdatedAt)).toEqual(['t1', 't2'])
+    expect(calls[1].text).toBe('mine')
+    expect(screen.getByTestId('why-prompt-saved').textContent).toMatch(/mine/)
+  })
+
+  it('cancelling after a 409 keeps the other version and shows it, with no second write', async () => {
+    const calls = recordingFetch([conflict({ text: 'theirs', updatedAt: 't2' })])
+    const onSaved = vi.fn()
+    render(<WhyPrompt {...KEY} why={{ text: 'old', updatedAt: 't1' }} whyMaxChars={500} onSaved={onSaved} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), ' plus mine')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('alert')
+    await userEvent.click(screen.getByRole('button', { name: 'Keep the other version' }))
+    expect(calls).toHaveLength(1)
+    expect(screen.getByTestId('why-prompt-saved').textContent).toMatch(/theirs/)
+    expect(onSaved).toHaveBeenCalledTimes(1) // the parent refetches the stored version
+  })
+
+  it('a 409 where the other side CLEARED the note says it is now empty and still keeps the words', async () => {
+    recordingFetch([conflict(null)])
+    render(<WhyPrompt {...KEY} why={{ text: 'old', updatedAt: 't1' }} whyMaxChars={500} onSaved={() => {}} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), ' more')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('alert')
+    expect(screen.getByLabelText('Why did you take it?').value).toBe('old more')
+    expect(screen.getByTestId('why-prompt-theirs').textContent).toMatch(/empty/i)
+  })
+
+  it('the base is taken when editing starts: a refetch landing mid-edit never moves it', async () => {
+    const calls = recordingFetch([conflict({ text: 'theirs', updatedAt: 't2' })])
+    const { rerender } = render(
+      <WhyPrompt {...KEY} why={{ text: 'old', updatedAt: 't1' }} whyMaxChars={500} onSaved={() => {}} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), ' mine')
+    // The parent refetched: another tab's save arrives as a new prop while this one is typing.
+    rerender(<WhyPrompt {...KEY} why={{ text: 'theirs', updatedAt: 't2' }} whyMaxChars={500} onSaved={() => {}} />)
+    expect(screen.getByLabelText('Why did you take it?').value).toBe('old mine')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls).toHaveLength(1))
+    expect(calls[0].baseUpdatedAt).toBe('t1') // still the version the typed words were based on
+  })
+
+  it('the other 409 (no context to attach to) is still a plain message, not a conflict', async () => {
+    recordingFetch([json({ detail: 'No market context was captured for this entry, so there is nothing to attach the note to.' }, 409)])
+    render(<WhyPrompt {...KEY} why={null} whyMaxChars={500} onSaved={() => {}} />)
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), 'x')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect((await screen.findByRole('alert')).textContent).toMatch(/No market context/)
+    expect(screen.queryByTestId('why-prompt-theirs')).toBeNull()
   })
 })

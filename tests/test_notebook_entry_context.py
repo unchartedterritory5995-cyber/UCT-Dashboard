@@ -617,3 +617,127 @@ def test_the_manual_add_freezes_after_the_write_and_a_hook_failure_never_fails_t
     c = _db()
     assert c.execute("SELECT COUNT(*) FROM j2_positions WHERE user_id = 'm1'").fetchone()[0] == 2
     c.close()
+
+
+# ── fin-data I5: the why note is compare-and-set, and it leaves with the member's export ────
+#
+# Two tabs (or a phone and a desktop) editing the same "why" overwrote each other silently:
+# the write was a plain UPDATE. The base is the `updatedAt` the editor read; a write whose
+# base is no longer the stored one is refused and the stored words are left alone.
+
+def _frozen(conn):
+    ectx.freeze("u1", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn,
+                capture_day=TODAY)
+
+
+def _stored_why(conn):
+    r = conn.execute("SELECT why_text, why_updated_at FROM j2_entry_context WHERE user_id = 'u1'"
+                     " AND symbol = 'NVDA'").fetchone()
+    return r["why_text"], r["why_updated_at"]
+
+
+def test_a_why_save_on_the_base_it_read_lands(conn, src):
+    _frozen(conn)
+    first = ectx.set_why("u1", "NVDA", TODAY, "first words", conn=conn, base_updated_at=None)
+    assert first["why"]["text"] == "first words"
+    second = ectx.set_why("u1", "NVDA", TODAY, "second words", conn=conn,
+                          base_updated_at=first["why"]["updatedAt"])
+    assert second["why"]["text"] == "second words"
+
+
+def test_two_editors_on_one_why_the_second_is_refused_and_the_first_words_stay(conn, src):
+    _frozen(conn)
+    seen = ectx.set_why("u1", "NVDA", TODAY, "what both tabs loaded", conn=conn)["why"]
+
+    tab_a = ectx.set_why("u1", "NVDA", TODAY, "tab A's words", conn=conn, base_updated_at=seen["updatedAt"])
+    with pytest.raises(ectx.WhyConflict) as e:
+        ectx.set_why("u1", "NVDA", TODAY, "tab B's words", conn=conn, base_updated_at=seen["updatedAt"])
+
+    assert _stored_why(conn) == ("tab A's words", tab_a["why"]["updatedAt"])
+    # The refusal carries what is stored now, so the client can show it beside the typed words.
+    assert e.value.current == {"text": "tab A's words", "updatedAt": tab_a["why"]["updatedAt"]}
+
+
+def test_a_first_why_written_from_two_tabs_at_once_keeps_only_the_first(conn, src):
+    """Both tabs loaded "no why yet" (base None)."""
+    _frozen(conn)
+    ectx.set_why("u1", "NVDA", TODAY, "tab A's first words", conn=conn, base_updated_at=None)
+    with pytest.raises(ectx.WhyConflict):
+        ectx.set_why("u1", "NVDA", TODAY, "tab B's first words", conn=conn, base_updated_at=None)
+    assert _stored_why(conn)[0] == "tab A's first words"
+
+
+def test_a_cleared_why_refuses_an_edit_based_on_the_old_text(conn, src):
+    _frozen(conn)
+    seen = ectx.set_why("u1", "NVDA", TODAY, "old words", conn=conn)["why"]
+    ectx.set_why("u1", "NVDA", TODAY, "", conn=conn, base_updated_at=seen["updatedAt"])
+    with pytest.raises(ectx.WhyConflict) as e:
+        ectx.set_why("u1", "NVDA", TODAY, "old words, edited", conn=conn, base_updated_at=seen["updatedAt"])
+    assert e.value.current is None and _stored_why(conn) == (None, None)
+
+
+def test_a_stale_base_never_reads_as_no_context(conn, src):
+    """Two different refusals: nothing to attach a note to (None), and a stale base (raises)."""
+    _frozen(conn)
+    assert ectx.set_why("u1", "AMD", TODAY, "x", conn=conn, base_updated_at=None) is None
+    ectx.set_why("u1", "NVDA", TODAY, "words", conn=conn)
+    with pytest.raises(ectx.WhyConflict):
+        ectx.set_why("u1", "NVDA", TODAY, "y", conn=conn, base_updated_at="2020-01-01T00:00:00+00:00")
+
+
+def test_a_bundle_that_sends_no_base_still_saves_as_it_did(conn, src):
+    """The sibling note door's rule (`PUT /notes/{id}`): an absent base is the bundle from
+    before this check. It is not refused, so a deploy never strands an open tab."""
+    _frozen(conn)
+    ectx.set_why("u1", "NVDA", TODAY, "one", conn=conn)
+    assert ectx.set_why("u1", "NVDA", TODAY, "two", conn=conn)["why"]["text"] == "two"
+
+
+def test_the_why_route_answers_409_with_the_stored_words_on_a_stale_base(client, on):
+    as_user(client.app_, "m1")
+    url = "/api/j2/entry-context/why"
+    key = {"symbol": "NVDA", "entryDay": TODAY}
+    ectx.freeze("m1", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", capture_day=TODAY)
+
+    a = client.put(url, json={**key, "text": "tab A", "baseUpdatedAt": None})
+    assert a.status_code == 200
+    stamp = a.json()["context"]["why"]["updatedAt"]
+
+    b = client.put(url, json={**key, "text": "tab B", "baseUpdatedAt": None})
+    assert b.status_code == 409
+    detail = b.json()["detail"]
+    assert detail["code"] == "why_changed"
+    assert detail["current"] == {"text": "tab A", "updatedAt": stamp}
+    assert "your" in detail["message"].lower()
+
+    # Saving again on the base the refusal handed back is the member's deliberate choice.
+    again = client.put(url, json={**key, "text": "tab B", "baseUpdatedAt": stamp})
+    assert again.status_code == 200 and again.json()["context"]["why"]["text"] == "tab B"
+    # The "no context" 409 keeps its own, different shape.
+    none = client.put(url, json={"symbol": "AMD", "entryDay": "2026-10-01", "text": "x", "baseUpdatedAt": None})
+    assert none.status_code == 409 and isinstance(none.json()["detail"], str)
+    # A base that is not text is a bad request, never a silent last-write-wins.
+    assert client.put(url, json={**key, "text": "z", "baseUpdatedAt": 7}).status_code == 422
+
+
+def test_why_for_trades_reads_by_the_same_key_and_creates_nothing(conn, src):
+    _frozen(conn)
+    ectx.set_why("u1", "NVDA", TODAY, "Tight flag at the 21EMA", conn=conn)
+    nvda = _trade(conn, symbol="NVDA")
+    amd = _trade(conn, symbol="AMD")
+    other = _trade(conn, uid="u2", symbol="NVDA")
+    rows = [dict(r) for r in conn.execute("SELECT id, symbol, entry_date AS entryDate, user_id FROM j2_trades")]
+    mine = [r for r in rows if r["user_id"] == "u1"]
+    got = ectx.why_for_trades("u1", mine, conn=conn)
+    assert set(got) == {nvda} and got[nvda]["text"] == "Tight flag at the 21EMA"
+    assert amd not in got
+    assert ectx.why_for_trades("u2", [r for r in rows if r["id"] == other], conn=conn) == {}
+
+    bare = sqlite3.connect(":memory:")
+    bare.row_factory = sqlite3.Row
+    try:
+        assert ectx.why_for_trades("u1", mine, conn=bare) == {}
+        assert bare.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()[0] == 0, \
+            "an export created the entry-context table for a member who never used it"
+    finally:
+        bare.close()

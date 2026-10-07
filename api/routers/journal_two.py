@@ -682,6 +682,12 @@ _EXPORT_CSV_HEADERS = [
 ]
 
 
+#: fin-data I5: the member's "why did you take it" note (13E, `j2_entry_context.why_text`) and
+#: when it was last saved. These two columns follow the stable set, and ONLY when at least one
+#: exported trade has a why: a member who never wrote one gets the file exactly as it was.
+_EXPORT_WHY_HEADERS = ["entryWhy", "entryWhyUpdatedAt"]
+
+
 def _split_export_datetime(iso: Any) -> tuple[str, str]:
     """(date, time-of-day) for a stored ISO timestamp, matching the trading-day
     spine convention: a date-only entry (bare date OR exact UTC midnight) →
@@ -734,6 +740,15 @@ def export_trades(
         user["id"], account_id=account_id, spec=spec,
     )
 
+    # fin-data I5: the words a member wrote about WHY they took a trade are their data, and
+    # they were in no export. They ride next to their own trade here. Read by the same
+    # (symbol, entry day) key the card uses; read-only; not gated on the entry-context switch
+    # (turning a feature off must not hide a member's words from their own export); and
+    # absent entirely -- no column, no key -- when none of the exported trades has one.
+    whys = entry_context_service.why_for_trades(user["id"], trades)
+    if whys:
+        trades = [{**t, "entryWhy": whys.get(str(t.get("id")))} for t in trades]
+
     date_str = datetime.now().strftime("%Y-%m-%d")
     filename = f"uct-journal-trades-{date_str}.{fmt}"
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
@@ -749,10 +764,11 @@ def export_trades(
     # quote / newline automatically (no fragile hand-rolled joining).
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(_EXPORT_CSV_HEADERS)
+    writer.writerow(_EXPORT_CSV_HEADERS + (_EXPORT_WHY_HEADERS if whys else []))
     for t in trades:
         entry_date, entry_time = _split_export_datetime(t.get("entryDate"))
         exit_date, exit_time = _split_export_datetime(t.get("exitDate"))
+        why = t.get("entryWhy") or {}
         writer.writerow([
             _export_cell(t.get("symbol")),
             _export_cell(t.get("side")),
@@ -769,7 +785,7 @@ def export_trades(
             ";".join(t.get("mistakeTags") or []),
             ";".join(t.get("emotionTags") or []),
             _export_cell(t.get("source")),
-        ])
+        ] + ([_export_cell(why.get("text")), _export_cell(why.get("updatedAt"))] if whys else []))
     return Response(content=buf.getvalue(), media_type="text/csv", headers=headers)
 
 

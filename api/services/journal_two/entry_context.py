@@ -256,6 +256,22 @@ class EntryContextRequestError(ValueError):
     """A request the caller must fix (a bad symbol, day or note)."""
 
 
+class WhyConflict(Exception):
+    """The why note changed since the caller read it (fin-data I5). `current` is what is
+    stored now -- `{"text", "updatedAt"}`, or None when it was cleared -- so the client can
+    show it beside the words the member typed, which it must keep."""
+
+    def __init__(self, current: dict | None):
+        super().__init__("the why note changed since it was read")
+        self.current = current
+
+
+#: `set_why(base_updated_at=...)` was not passed: the caller is a bundle from before the
+#: compare-and-set, and saves as it always did. A distinct object, because None is a real
+#: base ("there was no why when I read it").
+NO_BASE: Any = object()
+
+
 def clean_symbol(symbol: Any) -> str:
     s = symbol.strip().upper() if isinstance(symbol, str) else ""
     if not s or len(s) > 16 or not all(c.isalnum() or c in ".-/" for c in s):
@@ -473,8 +489,7 @@ def _serialize(row: sqlite3.Row | None) -> dict | None:
         fields = json.loads(row["context"])
     except (TypeError, ValueError):
         fields = {}
-    why = ({"text": row["why_text"], "updatedAt": row["why_updated_at"]}
-           if row["why_text"] else None)
+    why = _why_of(row)
     return {
         "symbol": row["symbol"],
         "entryDay": row["entry_day_et"],
@@ -655,27 +670,86 @@ def forget(user_id: str, symbol: str, entry_day: str, *, conn: sqlite3.Connectio
         return cur.rowcount > 0
 
 
+def _why_of(row: sqlite3.Row) -> dict | None:
+    return ({"text": row["why_text"], "updatedAt": row["why_updated_at"]} if row["why_text"] else None)
+
+
 def set_why(user_id: str, symbol: str, entry_day: str, text: Any,
-            conn: sqlite3.Connection | None = None) -> dict | None:
+            conn: sqlite3.Connection | None = None, *, base_updated_at: Any = NO_BASE) -> dict | None:
     """Set (or, with an empty text, clear) the member's "why did you take it" note.
 
     Writes ONLY the two why columns; the frozen context is untouched. None when the key has
-    no captured context (there is nothing to attach the note to)."""
+    no captured context (there is nothing to attach the note to).
+
+    ⛔ COMPARE-AND-SET (fin-data I5). `base_updated_at` is the why's `updatedAt` as the caller
+    read it (None = "there was no why"). The UPDATE carries it in its own WHERE clause, so the
+    compare and the write are ONE statement: two tabs on the same base cannot both land. A
+    write whose base is no longer the stored one raises `WhyConflict` and changes nothing.
+    Not passing a base at all is the bundle from before this check, which saves as it did --
+    the same rule as the note door (`PUT /notes/{id}`: "Absent = legacy last-writer-wins")."""
     if text is not None and not isinstance(text, str):
         raise EntryContextRequestError("The note is text.")
+    if base_updated_at is not NO_BASE and base_updated_at is not None and not isinstance(base_updated_at, str):
+        raise EntryContextRequestError("The base is the note's last-saved time, as text.")
     clean = (text or "").strip()
     if len(clean) > WHY_MAX_CHARS:
         raise EntryContextRequestError(f"The note is at most {WHY_MAX_CHARS} characters.")
     sym, day = clean_symbol(symbol), clean_day(entry_day)
+    sql = ("UPDATE j2_entry_context SET why_text = ?, why_updated_at = ?"
+           " WHERE user_id = ? AND symbol = ? AND entry_day_et = ?")
+    params: list[Any] = [clean or None, _now_iso() if clean else None, str(user_id), sym, day]
+    if base_updated_at is not NO_BASE:
+        sql += " AND why_updated_at IS ?"      # IS, so a NULL base matches a NULL column
+        params.append(base_updated_at or None)
     with _Conn(conn) as c:
-        cur = c.execute(
-            "UPDATE j2_entry_context SET why_text = ?, why_updated_at = ?"
-            " WHERE user_id = ? AND symbol = ? AND entry_day_et = ?",
-            (clean or None, _now_iso() if clean else None, str(user_id), sym, day))
+        cur = c.execute(sql, params)
         c.commit()
-        if cur.rowcount == 0:
+        row = _row(c, user_id, sym, day)
+        if row is None:
             return None
-        return _serialize(_row(c, user_id, sym, day))
+        if cur.rowcount == 0:
+            raise WhyConflict(_why_of(row))
+        return _serialize(row)
+
+
+def why_for_trades(user_id: str, trades: Iterable[dict],
+                   conn: sqlite3.Connection | None = None) -> dict[str, dict]:
+    """``{trade id: {"text", "updatedAt"}}`` for every trade (as the journal serialises them:
+    ``id``, ``symbol``, ``entryDate``) whose entry has a why note. For the member's export.
+
+    The same key as `contexts_for_trades`. Two differences, both on purpose:
+      * NOT gated on the flag. These are the member's own words; switching the feature off
+        must not hide them from the member's own export.
+      * READ-ONLY, table included. A member who never had a context has no table to read,
+        and an export must not create one (flags off stays byte-for-byte: no write at all)."""
+    keyed: dict[str, tuple[str, str]] = {}
+    for t in trades:
+        try:
+            sym = clean_symbol(t.get("symbol"))
+        except EntryContextRequestError:
+            continue
+        day = entry_day_for(t.get("entryDate"))
+        if day:
+            keyed[str(t.get("id"))] = (sym, day)
+    if not keyed:
+        return {}
+    owned = conn is None
+    if owned:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+    try:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'j2_entry_context'"
+                        ).fetchone() is None:
+            return {}
+        found: dict[tuple[str, str], dict] = {}
+        for r in conn.execute(
+                "SELECT symbol, entry_day_et, why_text, why_updated_at FROM j2_entry_context"
+                " WHERE user_id = ? AND why_text IS NOT NULL AND why_text != ''", (str(user_id),)):
+            found[(r[0], r[1])] = {"text": r[2], "updatedAt": r[3]}
+        return {tid: found[k] for tid, k in keyed.items() if k in found}
+    finally:
+        if owned:
+            conn.close()
 
 
 def list_contexts(user_id: str, *, since: str | None = None, until: str | None = None,
