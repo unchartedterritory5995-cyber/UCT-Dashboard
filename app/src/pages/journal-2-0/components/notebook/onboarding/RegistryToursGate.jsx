@@ -14,14 +14,14 @@
 // navigation state), the offer (TourOfferGate.jsx), the checklist, or the resurfacing
 // notice's passive explainer, each through `openRegistryTour` or the navigation state.
 import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
 import { getTourEntry, tourLive } from './tourRegistry'
 import {
   REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
-  takePendingRegistryTourOpenAny,
+  stripTourState, takePendingRegistryTourOpenAny,
 } from './tourRegistryControl'
 
 /** This gate's own boundary: a failed chunk (or a throw while it renders) renders
@@ -62,6 +62,7 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
 
   function RegistryToursGate({ tours = [] }) {
     const location = useLocation()
+    const navigate = useNavigate()
     const [wantedId, setWantedId] = useState(() => {
       const pending = takePendingRegistryTourOpenAny()
       return pending && tours.some((t) => t.id === pending) ? pending : null
@@ -79,7 +80,16 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
 
     useEffect(() => {
       const fromState = location.state?.startRegistryTourId
-      if (fromState && tours.some((t) => t.id === fromState)) setWantedId((cur) => cur ?? fromState)
+      if (!fromState) return
+      if (tours.some((t) => t.id === fromState)) setWantedId((cur) => cur ?? fromState)
+      // ⛔ The request is SPENT the moment it is read. Left on the history entry, Back onto
+      // this page opened the tour again (and the tour pushed forward again: a trap), and a
+      // reload replayed it. Same entry, same URL, the request removed, anything else kept.
+      navigate(
+        { pathname: location.pathname, search: location.search, hash: location.hash },
+        { replace: true, state: stripTourState(location.state) },
+      )
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.state, tours])
 
     const wantedRef = useRef(wantedId)

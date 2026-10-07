@@ -43,7 +43,7 @@ import { anchorFor } from './tourAnchorVisibility'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { cardIsTopmost, dialogHost } from './tourLayers'
-import { carryRegistryTourOpen } from './tourRegistryControl'
+import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 
@@ -69,11 +69,6 @@ function presentFrom(steps, from, dir) {
   return -1
 }
 
-function stripTourState(state) {
-  if (!state || typeof state !== 'object') return state ?? null
-  const { startRegistryTourId: _ignored, ...rest } = state
-  return Object.keys(rest).length ? rest : null
-}
 
 export default function GenericTourEngine({
   entry, onClose, startWaitMs = START_WAIT_MS, stepWaitMs = STEP_WAIT_MS,
