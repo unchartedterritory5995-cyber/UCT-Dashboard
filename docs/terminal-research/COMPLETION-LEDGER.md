@@ -67,9 +67,9 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `X-09` | `OPTIONS_UNIVERSE_LOG_ENABLED` armed on terminal-next-monitor | `live` | Measured 2026-10-03 02:39Z (key names only): flag=1, `MASSIVE_API_KEY` + `DATA_SYNC_*` present. ⚠️ The first run's receipt and its `complete:true` manifest are still unread. Every session before arming is lost permanently (Massive sells no chain history). ⚠️ The service runs master's `api/services/options_universe_log.py`. This branch adds the front-straddle summary columns (`front_expiration`, `front_dte`, `front_strike`, `front_straddle`; commit `f92239a2d9`) that BRK-10 reads. They reach the monitor only after X-01, so until then each night's summary lacks them. The full contracts file is still stored, so `resummarize()` can backfill those nights after the merge. |
 | `X-10` | Reconcile `CLAUDE.md`'s 3-agent cap with D-013 (cap 6) | `building (integrator)` | `CLAUDE.md:1927`, `:2263`. A records lane does not edit `CLAUDE.md`. |
 | `X-11` | Five terminal-grade properties re-walked **on `/terminal`** | `building (Lane T1)` | The 2026-09-24 "5/5 PASS" ran on `/charts` and `/screener`, not the shell. This is V22 below. |
-| `X-12` | `/calendar` retirement (RM-L16, CX-8) | `owner-blocked (retire vs permanent coexistence)` | D-006 places the calendar inside the Terminal but does not choose. If retire: MG-7 at 0 GAP, nav graduation, MG-8 re-census, then the countdown. |
-| `X-13` | MG-8 consumer re-census at countdown | `owner-blocked (X-12 first)` | The live instance is fixed (`api/services/journal_two/db.py:2302-2309`). The gate is unrun because no countdown has started. |
-| `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)` | Pre-registered 2026-09-30, not started. It tests the breadth drill, not the shell. |
+| `X-12` | `/calendar` retirement (RM-L16, CX-8) | `moot (decided 2026-10-07: /calendar coexists permanently as a URL)` | D-006 places the calendar inside the Terminal but does not choose. If retire: MG-7 at 0 GAP, nav graduation, MG-8 re-census, then the countdown. ➜ 2026-10-07: P-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `X-13` | MG-8 consumer re-census at countdown | `moot (no countdown; X-12 decided)` | The live instance is fixed (`api/services/journal_two/db.py:2302-2309`). The gate is unrun because no countdown has started. ➜ 2026-10-07: P-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)` | Pre-registered 2026-09-30, not started. It tests the breadth drill, not the shell. ➜ 2026-10-07: decided: keep the pre-registered trial. Owner action C2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `X-15` | RM-N10 bars p95, clause 2 | `building (Lane P)` | Instrument fixed (`tools/bars_warmth_gate.py:115` `MIN_NOWAIT_N`). Needs one valid RTH run with n ≥ `MIN_NOWAIT_N`. |
 | `X-16` | Ledger hygiene: `IMPLIED_ENRICHMENT_CUTOVER`, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE`, `WIRE_SURFACE_LINE_ENABLED` | `dark` | BUILT on `lane/p-platform` (branch-only): a `knobs` section in `docs/feature_flags.json` holds all three (`IMPLIED_ENRICHMENT_CUTOVER` pending, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE` armed at its 0.05 default, `WIRE_SURFACE_LINE_ENABLED` dark, repo morning-wire), held to the AST scan by `tests/test_flag_ledger_knobs.py`. Flipping `IMPLIED_ENRICHMENT_CUTOVER` is the owner's call. |
 | `X-17` | Settings "Free Plan" copy contradicts D-010 (U-COPY-01) | `building (Lane P)` | `app/src/pages/Settings.jsx:2035-2046` still lists free-tier pages. Product copy, not this lane. |
@@ -78,37 +78,37 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 
 | id | item | state | note |
 |---|---|---|---|
-| `OD-D-001` | D-001 desk-first vs member-first | `owner-blocked (one word: close it)` | Stale "Pending". OI-07 calls it ruled, and D-007/D-010 imply a member product. |
+| `OD-D-001` | D-001 desk-first vs member-first | `moot (decided 2026-10-07: members first)` | Stale "Pending". OI-07 calls it ruled, and D-007/D-010 imply a member product. ➜ 2026-10-07: P-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `OD-D-002` | D-002 licensing exposure | `moot (closed by D-011, 2026-10-02)` | ADR-0015 holds; a new source still gets its own read. |
-| `OD-D-003` | D-003 decisiveness posture (one shape vs desk/stranger) | `owner-blocked (choose a, b or c)` | Renderer accepts a `posture` value either way. |
-| `OD-SEAT` | Seat model (CARD 23 vs CARD 25 disagree) | `owner-blocked (one word)` | |
-| `OD-OI04` | OI-04: are Bullflow, UW, Polygon-direct and TheFly still paid? | `owner-blocked (one sentence)` | |
-| `OD-NEWS` | News feed (P-δ) and market-intelligence feed (U15): curated vs browsable | `owner-blocked (choose)` | |
-| `OD-U16` | Desktop wrapper, plugins, scripting, marketplace (U16) | `owner-blocked (in scope at all?)` | Explore-only; there is no ruling. |
-| `OD-CORP` | Corp-actions D5 producer job vs the CARD 5 exclusion (`10-roadmap/backlog.md:2032`) | `owner-blocked (revisit the CARD 5 exclusion)` | Buildable once the exclusion is lifted. |
-| `OD-FIGI` | Entity OpenFIGI fallback | `owner-blocked (approve a new external source)` | |
+| `OD-D-003` | D-003 decisiveness posture (one shape vs desk/stranger) | `moot (decided 2026-10-07: one decisive shape for everyone, with its receipt)` | Renderer accepts a `posture` value either way. ➜ 2026-10-07: P-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `OD-SEAT` | Seat model (CARD 23 vs CARD 25 disagree) | `moot (decided 2026-10-07: one person per subscription)` | ➜ 2026-10-07: P-3; owner action C3 (one Terms sentence) (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `OD-OI04` | OI-04: are Bullflow, UW, Polygon-direct and TheFly still paid? | `owner-blocked (one sentence)` | ➜ 2026-10-07: decided: the default stands (no calls in 30 days ⇒ retired). Owner action C1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `OD-NEWS` | News feed (P-δ) and market-intelligence feed (U15): curated vs browsable | `moot (decided 2026-10-07: curated first, browsable one click away)` | ➜ 2026-10-07: P-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `OD-U16` | Desktop wrapper, plugins, scripting, marketplace (U16) | `moot (decided 2026-10-07: out of scope this programme)` | Explore-only; there is no ruling. ➜ 2026-10-07: P-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `OD-CORP` | Corp-actions D5 producer job vs the CARD 5 exclusion (`10-roadmap/backlog.md:2032`) | `moot (decided 2026-10-07: CARD 5 exclusion kept)` | Buildable once the exclusion is lifted. ➜ 2026-10-07: P-7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `OD-FIGI` | Entity OpenFIGI fallback | `moot (decided 2026-10-07: declined)` | ➜ 2026-10-07: P-8 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 
 ## 3. Backlog — TERM-001..TERM-093
 
 | id | item | state | note |
 |---|---|---|---|
 | `TERM-001` | Board-size bound (16) | `dark` | Branch-only (`app/src/pages/charts/boardBound.js:21`, `e509700b25`). |
-| `TERM-002` | Second OPRA connection | `owner-blocked (buy it: $75/mo per Massive 2026-09-30)` | Licensing settled by D-011. |
+| `TERM-002` | Second OPRA connection | `live (purchased 2026-10-04)` | Licensing settled by D-011. ➜ 2026-10-07: I-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-003` | Confluence Radar extend/delete | `moot (ships as Options Flow tab 8; ledger G9 corrected 2026-09-27)` | `app/src/pages/OptionsFlow.jsx:114`. |
 | `TERM-004` | One earnings-date authority | `building (Lane P)` | OQ-14 decided 2026-10-02 (branch-only `555457ae33`). Remainder TERM-004b: engine adapter + parity test (31% disagree), needs a uct-intelligence session; delegated by D-014. |
-| `TERM-005` | Second screener universe | `owner-blocked (purchase a second whole-market universe; LIC-06)` | |
+| `TERM-005` | Second screener universe | `moot (decided 2026-10-07: no purchase)` | ➜ 2026-10-07: I-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-006` | Freshness authority in time units | `dark` | Branch-only (`app/src/components/provenance/freshnessAge.js:285`, `5bf1d08fd2`). |
-| `TERM-007` | Quiet measurement window | `owner-blocked (declare a ≥104-min single-pod no-deploy window over the 09:30 open + a heavy job)` | Both prior windows started after the open. |
-| `TERM-008` | Cloudflare rule / cache key | `owner-blocked (a read with Cloudflare credentials)` | The authenticated `/api/flow/data` read is agent-doable with the smoke account; the rule read is not. |
+| `TERM-007` | Quiet measurement window | `owner-blocked (post the declared window: Wed 2026-10-14 09:00–11:00 ET, then every Wednesday)` | Both prior windows started after the open. ➜ 2026-10-07: T-4; owner action B1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `TERM-008` | Cloudflare rule / cache key | `owner-blocked (a read with Cloudflare credentials)` | The authenticated `/api/flow/data` read is agent-doable with the smoke account; the rule read is not. ➜ 2026-10-07: decided: read it, then Browser Cache TTL → Respect Existing Headers. T-5; owner action B2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-009` | Community call record | `live` | `api/services/community_call_record.py:33`. |
 | `TERM-010` | First run = UCT Default | `live` | `app/src/pages/charts/ChartsWorkspace.jsx:2216`. |
-| `TERM-011` | Ops channel split | `dark` | Steps 1–7 on master, inert (`api/services/alert_routing.py:114`). Owner creates the ops channel and sets `DISCORD_OPS_WEBHOOK_URL` + `OPS_ALERT_EMAIL_TO`. Step 8 needs fallback = 0 over a weekly cycle. |
+| `TERM-011` | Ops channel split | `dark` | Steps 1–7 on master, inert (`api/services/alert_routing.py:114`). Owner creates the ops channel and sets `DISCORD_OPS_WEBHOOK_URL` + `OPS_ALERT_EMAIL_TO`. Step 8 needs fallback = 0 over a weekly cycle. ➜ 2026-10-07: decided: yes, `#uct-ops`. T-8; owner action B3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-012` | p95 gate measurable | `live` | `tools/bars_warmth_audit.py:73`. |
-| `TERM-013` | Drop-counter reader | `dark` | `BARS_RAIL_PAGE_ENABLED` dark (`api/services/bars_rail_monitor.py:88`). Owner reads the digest verdicts. |
-| `TERM-014` | RSS slope + memory attribution | `dark` | BUILT on `lane/p-platform` (branch-only), dark behind `RSS_SERIES_ENABLED` (pending, web + terminal-next-monitor): `api/services/rss_series.py` retains each 60 s `[mem]` sample with a per-subsystem census (cache entries, threads per prefix); `tools/rss_slope_report.py` = OBS-3 slope (>= 40 samples in ONE deployment, `deployments_sampled`), OBS-4 PAGE (RSS > 3,500 MB / threads > 200, exit 3), attribution ranked by growth; monitor job `memory` weekdays 09:20 ET. OBS-5 retention 400 rows / 90 d, declared. The READING needs TERM-007's quiet window (owner). |
+| `TERM-013` | Drop-counter reader | `dark` | `BARS_RAIL_PAGE_ENABLED` dark (`api/services/bars_rail_monitor.py:88`). Owner reads the digest verdicts. ➜ 2026-10-07: decided: arm (integrator). I-3; owner action A3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `TERM-014` | RSS slope + memory attribution | `dark` | BUILT on `lane/p-platform` (branch-only), dark behind `RSS_SERIES_ENABLED` (pending, web + terminal-next-monitor): `api/services/rss_series.py` retains each 60 s `[mem]` sample with a per-subsystem census (cache entries, threads per prefix); `tools/rss_slope_report.py` = OBS-3 slope (>= 40 samples in ONE deployment, `deployments_sampled`), OBS-4 PAGE (RSS > 3,500 MB / threads > 200, exit 3), attribution ranked by growth; monitor job `memory` weekdays 09:20 ET. OBS-5 retention 400 rows / 90 d, declared. The READING needs TERM-007's quiet window (owner). ➜ 2026-10-07: decided: arm on web + terminal-next-monitor (integrator). I-2; owner action A2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-015` | Cadence heartbeat roll-up | `live` | `api/terminal_next_monitor_main.py:208`. |
 | `TERM-016` | Durable alert cooldowns | `live` | `api/services/chart_health_alerts.py:130`. |
-| `TERM-017` | Loop-lag distribution | `owner-blocked (TERM-007 window)` | Histogram built (`api/event_loop_watchdog.py:221`). |
+| `TERM-017` | Loop-lag distribution | `owner-blocked (TERM-007 window)` | Histogram built (`api/event_loop_watchdog.py:221`). ➜ 2026-10-07: decided: read from the 2026-10-14 window. T-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-018` | Every guard can fire | `building (Lane P)` | CI live (`.github/workflows/term018-guards.yml`). 22 `declared_unobserved` guards remain to observe. |
 | `TERM-019` | Provenance set + adoption rail | `live` | `app/src/components/provenance/panelAdoption.ratchet.test.js`; adoption is a shrink-only ratchet. |
 | `TERM-020` | Canonical resolver (CP3) | `live` | `api/services/canonical/resolver.py:453`; caller `api/routers/breadth_monitor.py:1061`. |
@@ -116,7 +116,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-022` | Massive adapter + retirement queue | `live` | `api/services/massive_adapter.py:63`. Partner-file ack is moot (fully open since 9/29). |
 | `TERM-023` | Entity master member path | `live` | `api/services/entity_master/member_resolve.py:50`; armed 10-02 (this branch's ledger). |
 | `TERM-024` | Panel declares a need | `live` | `app/src/lib/panelContract.js:126`. |
-| `TERM-025` | Seven more trigger types | `owner-blocked (per-type CP4/FLIP ruling for the 7 shadow types)` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). |
+| `TERM-025` | Seven more trigger types | `owner-blocked (set each type's flip when its shadow log meets ADR-0036 over ≥10 sessions)` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). ➜ 2026-10-07: T-11; owner action A8 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-026` | Auditor denominator | `live` | `api/auth_surface_check.py:393`. |
 | `TERM-027` | Header inside error boundary | `live` | `app/src/pages/charts/WidgetHost.jsx:315`. |
 | `TERM-028` | Honest blank for futures | `moot (futures removed 2026-07-27; BTC/VIX on yfinance is D-004)` | |
@@ -133,10 +133,10 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-039` | Feature status at point of use | `live` | `api/services/feature_status.py:118`. |
 | `TERM-040` | Warm cold-pack shards | `moot (no server cache; shared-stall diagnosis instead)` | |
 | `TERM-041` | Published regime vocabulary | `live` | `api/routers/regime.py:73`. |
-| `TERM-042` | Re-source the EOD breadth row | `owner-blocked (set BREADTH_EOD_SOURCE=server after N clean shadow sessions)` | Armed in `shadow` (`api/services/breadth_eod_source.py:102`). |
-| `TERM-043` | Figure-to-source-page link | `owner-blocked (rule: may statements be served from the SEC PIT store?)` | `FUNDAMENTALS_PIT_ENABLED` is armed, so the "dark store" premise is stale. |
+| `TERM-042` | Re-source the EOD breadth row | `owner-blocked (set BREADTH_EOD_SOURCE=server when parity.switch.ready — the bar is 10 clean sessions)` | Armed in `shadow` (`api/services/breadth_eod_source.py:102`). ➜ 2026-10-07: T-12, built `6d2e692bd`; owner action A7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `TERM-043` | Figure-to-source-page link | `building (decided 2026-10-07: link only, from the PIT store; follow-up build)` | `FUNDAMENTALS_PIT_ENABLED` is armed, so the "dark store" premise is stale. ➜ 2026-10-07: T-13 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-044` | Span-anchored recap citation | `live` | `app/src/components/calendar/CallRecapSection.jsx:202`. |
-| `TERM-045` | EDGAR Form 4 / 13F | `owner-blocked (CUSIP master-file terms for the 13F join; a new source under ADR-0015)` | Form 4 live (`api/routers/research.py:267`). |
+| `TERM-045` | EDGAR Form 4 / 13F | `building (decided 2026-10-07: 13F join via the SEC Official List of Section 13(f) Securities; no purchase)` | Form 4 live (`api/routers/research.py:267`). ➜ 2026-10-07: T-14 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-046` | Short-interest history | `live` | `SHORT_INTEREST_SOURCE=finviz` armed (`api/services/short_interest.py:99`). |
 | `TERM-047` | CoverageLine on result surfaces | `building (Lane S)` | Backend receipts for 3 no-counts surfaces + plain `/api/screener/scan`, then retire the shim. |
 | `TERM-048` | Watchlist alerts onto S7 | `live` | `api/services/alert_taxonomy/watchlist_price_alerts.py:80`. |
@@ -146,13 +146,13 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-052` | Three personalization publications | `live` | `app/src/components/chart/chartCeilings.js`. |
 | `TERM-053` | Close six dependency-less routes | `live` | `api/open_reads_gate.py:480`. |
 | `TERM-054` | Emit `id:` on streams | `live` | `api/routers/stream.py:91`. |
-| `TERM-055` | Adjustment as labelled policy | `building (Lane P)` | Raw/unadjusted parallel view + an intraday split detector (`app/src/components/chart/AdjustmentLabel.jsx:20`). |
+| `TERM-055` | Adjustment as labelled policy | `building (Lane P)` | Raw/unadjusted parallel view + an intraday split detector (`app/src/components/chart/AdjustmentLabel.jsx:20`). ➜ 2026-10-07: decided: `RAW_PRICE_VIEW_ENABLED` armed (integrator). I-1; owner action A1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-056` | Command-string interchange | `building (Notebook)` | Note-address half in the Notebook editor (`api/services/address_space.py:387`). |
 | `TERM-057` | "Why isn't X here" receipt | `live` | `app/src/components/provenance/AbsenceReceipt.jsx:7`. |
 | `TERM-058` | Authoring-time live match count | `live` | `api/routers/screener.py:258`. |
 | `TERM-059` | Label stale / proxied values | `dark` | NAAIM live (`app/src/pages/breadth/naaimAge.js`). BUILT on `lane/p-platform` (branch-only): AAII's four columns state their survey as-of (`breadth/sentimentAge.js`, weekly, undated labelled); CBOE P/C and CNN F/G label a print a heal CARRIED, because `breadth_self_heal` now stamps `<key>_asof` with the source session (a chain of carries names the original). Rails `sentimentAge.test.jsx`, `test_breadth_self_heal.py`. Not labelled, stated: a reconstructed pre-collector row's forward-filled daily value has no date; the H8 proxies (Macrotrends/Barchart/YCharts) have no consumer in `app/src`. |
 | `TERM-060` | Machine-checkable citation pointer | `live` | `api/services/canonical/claims.py:149`. |
-| `TERM-061` | Skill file, whitelist, MCP | `owner-blocked (rule to publish the skill file; MCP also needs RATE_LIMIT_POLICY at enforce)` | `api/services/skill_whitelist.py:52`. |
+| `TERM-061` | Skill file, whitelist, MCP | `dark (decided 2026-10-07: publish after RATE_LIMIT_POLICY=enforce; no MCP)` | `api/services/skill_whitelist.py:52`. ➜ 2026-10-07: T-16 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-062` | Publish cooldowns | `live` | `api/services/alert_taxonomy/cooldowns.py`. |
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
 | `TERM-064` | One ticker resolver | `dark` | Resolver live. BUILT on `lane/p-platform` (branch-only): tweet ingest delegates (`CASHTAG_POST` context, so `$BRK.B` books BRK-B, not BRK); the frontend's free-text extractors (`floor2/Composer.jsx`, `AiSearchWidget.jsx`) delegate to `app/src/lib/tickerResolver.js`, the cashtag tier byte-equal to Python, one parity case file run on both sides. `tickerMention.js` (structured chips) and `parseSymbols` (a list splitter) resolve nothing from prose, so stay. |
@@ -169,10 +169,10 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-075` | Unify taxonomies, primary vs mentioned | `live` | `api/services/a8_taxonomy.py:150`. |
 | `TERM-076` | Device-local vs cross-device | `live` | `app/src/pages/settings/DeviceSyncCard.jsx`. |
 | `TERM-077` | Copy-or-link at import | `live` | `api/services/watchlist_origin.py:29`. |
-| `TERM-078` | AI meters + population cap | `dark` | Meters live; `AI_POPULATION_CAP_MODE` dark (`api/services/ai_population_cap.py:11`). Shadow week, then enforce. |
+| `TERM-078` | AI meters + population cap | `dark` | Meters live; `AI_POPULATION_CAP_MODE` dark (`api/services/ai_population_cap.py:11`). Shadow week, then enforce. ➜ 2026-10-07: decided: shadow now, enforce after 5 clean days. T-17; owner action A5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-079` | Typed context channels | `live` | `app/src/lib/context/contextChannels.jsx:71`. |
-| `TERM-080` | Per-route rate limits | `dark` | `RATE_LIMIT_POLICY` dark (`api/rate_limit_policy.py`). Shadow week, then enforce. |
-| `TERM-081` | Entitlements toolkit + paywall-all | `dark` | OI-12 paywall-all is branch-only (`app/src/constants/freePages.js:21`). The second toolkit's licensing blocker is cleared by D-011 (`api/services/entitlements.py:254`). |
+| `TERM-080` | Per-route rate limits | `dark` | `RATE_LIMIT_POLICY` dark (`api/rate_limit_policy.py`). Shadow week, then enforce. ➜ 2026-10-07: decided: shadow now, enforce after 5 clean days. T-18; owner action A4 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `TERM-081` | Entitlements toolkit + paywall-all | `dark` | OI-12 paywall-all is branch-only (`app/src/constants/freePages.js:21`). The second toolkit's licensing blocker is cleared by D-011 (`api/services/entitlements.py:254`). ➜ 2026-10-07: decided: second toolkit MOOT (one paid tier). T-19 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-082` | Widen serve_stale | `dark` | `/api/breadth-monitor` (census rank 5) BUILT on `lane/p-platform` (branch-only): bounded `ServeStale` slot per (days,end,anchor), 1,500 s = 5x the body TTL, 16 keys, `Server-Timing` `desc="stale-swr"`; a generation sentinel under the `breadth_history_` prefix every writer already deletes means a collector push is never answered with the pre-push body, and a build straddling a write is never remembered (`tests/test_breadth_monitor_serve_stale.py`). Remainder: the post-deploy p95 read, after deploy. |
 | `TERM-083` | Backup rail + restore rehearsal | `live` | `api/services/store_backup.py`. |
 | `TERM-084` | ICS token TTL / rotation | `live` | `api/services/ics_export_token.py:73`. |
@@ -191,11 +191,11 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | id | item | state | note |
 |---|---|---|---|
 | `BRK-01` | Pre-trade options analysis | `building (Lane O)` | Chain, surface and expiry payoff live (`api/routers/options_chain.py:85`). Backtest dark (`OPTIONS_BACKTEST_ENABLED`, branch-only). Remainders are the FT-001/011/012/014/015/018 rows. |
-| `BRK-02` | Screen universe + expressiveness | `owner-blocked (purchase a second universe; TERM-005)` | Logic built dark (`SCREENER_LOGIC_ENABLED`, `api/services/screener/logic.py:38`). |
+| `BRK-02` | Screen universe + expressiveness | `moot (decided 2026-10-07: no second universe)` | Logic built dark (`SCREENER_LOGIC_ENABLED`, `api/services/screener/logic.py:38`). ➜ 2026-10-07: I-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `BRK-03` | Alert authoring grammar | `building (Lane S)` | A typed alert grammar (FT-029); today's grammar is the screener's. |
 | `BRK-04` | Mobile push alert channel | `dark` | D-012. `WEB_PUSH_ENABLED` pending, branch-only (`api/services/web_push.py:101`). Owner: `tools/gen_vapid_keys.py` + 3 VAPID vars on web. |
 | `BRK-05` | Config-as-citation | `dark` | `SCREENER_NL_COMPILE_ENABLED` (+LOGIC), branch-only (`api/routers/screener_nl.py:44`). |
-| `BRK-06` | Programmatic egress | `owner-blocked (rule to publish skill.md / MCP; TERM-061)` | Personal API armed; exports dark (`DATA_EXPORTS_ENABLED`). |
+| `BRK-06` | Programmatic egress | `dark (decided 2026-10-07: publish after RATE_LIMIT_POLICY=enforce; no MCP)` | Personal API armed; exports dark (`DATA_EXPORTS_ENABLED`). ➜ 2026-10-07: T-16 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `BRK-07` | Per-surface status disclosure | `live` | `app/src/pages/Support.jsx:1316` (TERM-039). FT-046 is separate. |
 | `BRK-08` | Dealer vocabulary with a base rate | `building (Lane O)` | Vocabulary built dark (`api/routers/options_analytics.py:77`); the base rate (how often levels held) is not computed. |
 | `BRK-09` | Transcript / filing retrieval depth | `building (Lane S)` | Boolean/NEAR/synonym operators over transcripts (filings have them, dark). A transcript backfill also needs FMP storage / AI-processing rights read (licensing settled for FMP by D-011). |
@@ -207,16 +207,16 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 |---|---|---|---|
 | `COV-01` | Seasonality | `live` | `api/routers/seasonality.py:59`; armed 10-02. |
 | `COV-02` | Options screening | `dark` | `OPTIONS_SCREENER_ENABLED`, branch-only (`api/routers/options_screener.py:55`). Ranks at ≥10/20 logged sessions. |
-| `COV-03` | IV percentile / unusual volume | `owner-blocked (set OPTIONS_SCREENER_TAPE_URL on terminal-next-monitor)` | `PUSH_SECRET` is now there (measured 2026-10-03); the tape URL is not. IV ranks also need ≥20 sessions. |
+| `COV-03` | IV percentile / unusual volume | `owner-blocked (set OPTIONS_SCREENER_TAPE_URL on terminal-next-monitor)` | `PUSH_SECRET` is now there (measured 2026-10-03); the tape URL is not. IV ranks also need ≥20 sessions. ➜ 2026-10-07: decided: set the tape URL. S-11; owner action A6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `COV-04` | Filing blackline | `live` | `api/routers/filing_blackline.py:42`; armed 10-02. |
 | `COV-05` | People / executive intelligence | `dark` | `RESEARCH_PEOPLE_ENABLED`, branch-only (`api/routers/research_cov.py:67`). No board/bio source yet (D-008 asks for it). |
 | `COV-06` | Version history on user artefacts | `live` | `api/services/artifact_versions.py:81` (all four kinds). |
-| `COV-07` | Broker estimates + consensus drift | `owner-blocked (upgrade the FMP plan or add a vendor for named-analyst EPS)` | Drift built dark (`ESTIMATE_HISTORY_ENABLED`, accumulating from 2026-10-02). NG-15 retracted (D-008). |
-| `COV-08` | Depth of book / L2 / T&S | `owner-blocked (buy a depth-of-book / Level II feed)` | In scope by D-008. |
+| `COV-07` | Broker estimates + consensus drift | `moot (decided 2026-10-07: no FMP upgrade now; drift accrues from our snapshots)` | Drift built dark (`ESTIMATE_HISTORY_ENABLED`, accumulating from 2026-10-02). NG-15 retracted (D-008). ➜ 2026-10-07: S-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `COV-08` | Depth of book / L2 / T&S | `moot (decided 2026-10-07: no L2 purchase)` | In scope by D-008. ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `COV-09` | SEC filings feed (re-id DL-036) | `dark` | `FILINGS_FEED_ENABLED` pending, branch-only (`api/services/filings_feed.py:1`). |
 | `COV-10` | Monitor groups / list subscriptions | `dark` | List-subscribe armed (`CHARTS_LIST_SUBSCRIBE_ENABLED`); the theme and saved-screen sources were already built under it (`api/routers/charts_list_sources.py`, cov-10.md §7; the audit's "remain" was stale). More than 4 groups built dark (lane/r-research-depth): `CHARTS_EXTRA_GROUPS_ENABLED` pending adds groups E-H through one authority, `app/src/pages/charts/colorGroups.js`; off = A-D unchanged, and a saved E-H while off is kept, not linked, and labelled. Handoff to Lane T2 (V10): the terminal rail still reads literal `COLORS`/`COLOR_HEX` in WidgetHeader/PeriodSortPanel (railed equal to colorGroups.js); retarget it, then delete them. Community lists stay on /watchlists via TERM-077. |
 | `COV-11` | Indicator templates object | `building (Lane R)` | Same as FT-070; coordinate with the indicator programme. |
-| `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `owner-blocked (FMP key holder probes /stable/senate-trades and /stable/house-trades; counsel reads the eFD/House restriction before any fallback)` | |
+| `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `moot (decided 2026-10-07: not pursued, no scraping fallback)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 
 ## 6. Feature register — FT-001..FT-080
 
@@ -255,19 +255,19 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `FT-031` | Three alert kinds | `live` | `api/services/alert_conditions.py:44`. |
 | `FT-032` | Alert on the position drawing | `building (Lane S)` | Line-drawing alerts live; `alertKindFor` returns null for the position drawing. |
 | `FT-033` | Outbound webhook alerts | `dark` | `ALERT_WEBHOOKS_ENABLED`. |
-| `FT-034` | Six trigger source types | `owner-blocked (per-type CP4/FLIP ruling; TERM-025)` | A rating-change type is agent-buildable (Lane S) once ruled. |
+| `FT-034` | Six trigger source types | `owner-blocked (as TERM-025)` | A rating-change type is agent-buildable (Lane S) once ruled. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-035` | Per-alert lifecycle | `building (Lane S)` | Expiry dark (`ALERT_LIFECYCLE_ENABLED`). Remind needs per-channel read-state; reverse waits on the price_level flip. |
 | `FT-036` | Routing rule + suspend | `building (Lane S)` | Dark (`ALERT_ROUTING_RULE_ENABLED`); apply it to the TERM-048 bridge `_deliver_via_s7`. |
-| `FT-037` | Four channels incl. SMS / push | `owner-blocked (Twilio or similar + 10DLC registration)` | Email/in-app live; push dark (BRK-04). |
-| `FT-038` | Push topics + Telegram bot | `owner-blocked (create a BotFather bot and supply the token)` | Chat-linking is agent-buildable afterwards. |
+| `FT-037` | Four channels incl. SMS / push | `moot (decided 2026-10-07: no SMS; email, in-app and push cover it)` | Email/in-app live; push dark (BRK-04). ➜ 2026-10-07: S-3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `FT-038` | Push topics + Telegram bot | `moot (decided 2026-10-07: no Telegram)` | Chat-linking is agent-buildable afterwards. ➜ 2026-10-07: S-4 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-039` | Option-stance fit score | `dark` | `OPTIONS_STANCE_ENABLED`; iv_regime blank under 20 sessions. |
-| `FT-040` | MCP + skill.md | `owner-blocked (rule to publish; TERM-061)` | |
+| `FT-040` | MCP + skill.md | `dark (decided 2026-10-07: skill.md after RATE_LIMIT_POLICY=enforce; no MCP)` | ➜ 2026-10-07: T-16 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-041` | Excel export + API | `dark` | `DATA_EXPORTS_ENABLED`. |
 | `FT-042` | Metered CSV / Excel | `dark` | `DATA_EXPORTS_ENABLED` (a protective cap, NG-06). |
 | `FT-043` | Chart data CSV | `dark` | `DATA_EXPORTS_ENABLED`. |
 | `FT-044` | Competitor's own "no API" | `moot (describes SpotGamma's absence; nothing to build)` | |
 | `FT-045` | Beta pills + today / working-on | `live` | `app/src/components/featureStatus/FeatureStatusStrip.jsx`. |
-| `FT-046` | Per-surface how-to checklist | `owner-blocked (approve the copy in the owner's voice)` | Mechanism built dark (lane/r-research-depth): `HOW_TO_CHECKLISTS_ENABLED` pending; registry `app/src/components/howTo/howToChecklists.js` + `HowToChecklist.jsx` on Research > Depth and /screener. All 8 entries ship `draft-awaiting-owner-voice` and render nothing even when armed; the owner rewrites or approves each (status `approved` + `approved_by` + `approved_on`), then arms. |
+| `FT-046` | Per-surface how-to checklist | `owner-blocked (approve the copy in the owner's voice)` | Mechanism built dark (lane/r-research-depth): `HOW_TO_CHECKLISTS_ENABLED` pending; registry `app/src/components/howTo/howToChecklists.js` + `HowToChecklist.jsx` on Research > Depth and /screener. All 8 entries ship `draft-awaiting-owner-voice` and render nothing even when armed; the owner rewrites or approves each (status `approved` + `approved_by` + `approved_on`), then arms. ➜ 2026-10-07: decided: arm the flag; copy approval stays the owner's. F-4; owner actions A9, C5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-047` | Named dealer vocabulary | `dark` | `OPTIONS_POSITIONING_VOCAB_ENABLED`. |
 | `FT-048` | HIRO | `live` | `api/gex_router.py:12` (different shape). |
 | `FT-049` | TRACE heatmaps | `building (Lane O)` | Gamma heatmap dark (`OPTIONS_GEX_HEATMAP_ENABLED`); delta-pressure / charm, projection and 1-min refresh missing. |
@@ -288,19 +288,19 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `FT-064` | EVTS staged events | `dark` | `EVENTS_TIMELINE_ENABLED`. |
 | `FT-065` | Seasonals tab | `live` | Via COV-01. |
 | `FT-066` | 15-year seasonality | `live` | ~31-year daily window. |
-| `FT-067` | Congressional trackers | `owner-blocked (as COV-12)` | |
-| `FT-068` | Insider / 13F / FEC / SI / FTD datasets | `owner-blocked (an api.data.gov key + an issuer-to-committee mapping for FEC)` | Insider, 13F and SI live; FTD dark (`FTD_DATASET_ENABLED`, needs `ftd_ingest` to have run). |
+| `FT-067` | Congressional trackers | `moot (as COV-12)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `FT-068` | Insider / 13F / FEC / SI / FTD datasets | `moot (decided 2026-10-07: no FEC key)` | Insider, 13F and SI live; FTD dark (`FTD_DATASET_ENABLED`, needs `ftd_ingest` to have run). ➜ 2026-10-07: S-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-069` | MNRS history + copy / link | `live` | `api/services/artifact_versions.py:97`. |
 | `FT-070` | Indicator templates | `building (Lane R)` | Coordinate with the indicator programme. |
-| `FT-071` | Broker estimates + drift | `owner-blocked (as COV-07: named-analyst tier)` | Built dark (`BROKER_ESTIMATES_ENABLED`); should read COV-07's snapshot instead of a second FMP call. |
+| `FT-071` | Broker estimates + drift | `moot (as COV-07)` | Built dark (`BROKER_ESTIMATES_ENABLED`); should read COV-07's snapshot instead of a second FMP call. ➜ 2026-10-07: S-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-072` | Option / Spread Hacker | `building (Lane O)` | Dark (`OPTIONS_SCREENER_ENABLED`); a saved Spread Book is missing. |
 | `FT-073` | Per-strategy option screeners | `building (Lane O)` | 5 of 9 (dark); butterflies, multi-leg, block trades, by-expiration remain. |
-| `FT-074` | Unusual options volume report | `owner-blocked (as COV-03: OPTIONS_SCREENER_TAPE_URL)` | |
+| `FT-074` | Unusual options volume report | `owner-blocked (as COV-03: OPTIONS_SCREENER_TAPE_URL)` | ➜ 2026-10-07: decided: as COV-03. Owner action A6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-075` | Sizzle Index | `building (Lane O)` | The 5-day window variant. |
 | `FT-076` | MGMT surface | `dark` | `RESEARCH_PEOPLE_ENABLED`; bios/board need a source (D-008). |
-| `FT-077` | Level II / T&S | `owner-blocked (as COV-08: buy an L2 feed)` | |
-| `FT-078` | Candlestick pattern detection | `owner-blocked (a go to re-surface the toggle, given the 9/7 Pattern-Lab pause)` | Overlay mounted (`app/src/components/StockChart.jsx:19753`), but the toolbar toggle is dead code (`app/src/components/chart/ChartToolbar.jsx:1431`, `{false && …}`). |
-| `FT-079` | Chart-pattern auto-labelling | `owner-blocked (same toggle as FT-078)` | Fibonacci patterns would be agent-buildable afterwards. |
+| `FT-077` | Level II / T&S | `moot (as COV-08)` | ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `FT-078` | Candlestick pattern detection | `moot (decided 2026-10-07: toggle stays off; Pattern-Lab pause stands)` | Overlay mounted (`app/src/components/StockChart.jsx:19753`), but the toolbar toggle is dead code (`app/src/components/chart/ChartToolbar.jsx:1431`, `{false && …}`). ➜ 2026-10-07: F-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `FT-079` | Chart-pattern auto-labelling | `moot (as FT-078)` | Fibonacci patterns would be agent-buildable afterwards. ➜ 2026-10-07: F-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-080` | Social-sentiment overlay | `dark` | `MENTION_SERIES_ENABLED`. Polarity needs the owner to reverse the "no message text kept" rule (`buzz_store.py:3`). |
 
 ## 7. Untracked promises (scope audit §2; no TERM / RM / FT / COV / BRK row before this file)
@@ -345,17 +345,17 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `AC-11` | Save-time fork: frozen list / re-runnable definition / standing alert (UC-4) | `building (Lane S)` | |
 | `D-1` | Three-state earnings-date status with timestamps | `dark` | `EARNINGS_DATE_STATUS_ENABLED` pending, branch-only (`api/services/earnings_date_status.py`, `calendar_date_integrity.classify_entry`, `GET /api/calendar/date-status`). estimated → confirmed (a provider gave a session; the "confirmed only" reading) → reported, each with its field basis. "Company-signaled" is returned unavailable: no provider we hold carries it. Recording runs in every calendar build (history cannot be back-filled); the flag gates the read surface. |
 | `D-2` | "First confirmed" timestamp on `calendar_date_history` | `dark` | Same flag. `first_confirmed_at` / `first_estimated_at` / `prev_status` / `moved_at` added in place; a move reads "estimate revised" vs "confirmed date changed". Timestamps are first seen by UCT, not the company's announcement time. Accumulating from merge. |
-| `D-3` | Index-rebalance dates on the calendar | `owner-blocked (a dated source for Russell and Nasdaq-100 rebalances; ADR-0015)` | Built dark: `INDEX_REBALANCE_EVENTS_ENABLED` pending (`api/services/index_rebalance_calendar.py`, `GET /api/calendar/index-events`). S&P 500 quarterly (third Friday Mar/Jun/Sep/Dec) is RULE-DERIVED and labelled so, holiday-checked (flagged, never moved). No paid provider returns rebalance dates. |
+| `D-3` | Index-rebalance dates on the calendar | `moot (decided 2026-10-07: S&P rule-derived only; others "not tracked")` | Built dark: `INDEX_REBALANCE_EVENTS_ENABLED` pending (`api/services/index_rebalance_calendar.py`, `GET /api/calendar/index-events`). S&P 500 quarterly (third Friday Mar/Jun/Sep/Dec) is RULE-DERIVED and labelled so, holiday-checked (flagged, never moved). No paid provider returns rebalance dates. ➜ 2026-10-07: S-8 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `D-4` | Transcript chapters / jump to Q&A + an "AI-generated, not reviewed" recap label | `dark` | `TRANSCRIPT_CHAPTERS_ENABLED` pending, branch-only (`api/services/transcript_chapters.py`). `/api/earnings/transcript` carries a chapter tree (Prepared remarks / Q&A, speaker runs, one chapter per outside questioner; containment railed); the boundary is the chip's `prepared_remarks_end`, and an unstated boundary gives no Q&A chapter, said in words. `/api/earnings/call-recap` carries `review_status: ai_unreviewed`, rendered "AI-generated · not reviewed". No new route. |
-| `D-5` | Tape + transcript replay | `owner-blocked (confirm or buy an earningscall.biz EARNINGS_AUDIO_API_KEY for coverage beyond AAPL/MSFT)` | Built dark: `CALL_REPLAY_ENABLED` pending (`api/services/call_replay.py`, `GET /api/research/call-replay/{sym}`, Research > Depth). Timed-transcript word timings sit on Massive 1-minute bars only through the listed call start (time + zone) plus the recording offset; otherwise `unaligned`, with no tape. Not yet reached by a /terminal code (handoff to Lane T1 V1b: `RESEARCH_DEPTH_AWAITING_CODE_KEYS`). |
-| `D-6` | Story versioning and retraction | `owner-blocked (retraction needs a removal/correction feed: a new vendor)` | Versioning built dark: `NEWS_STORY_VERSIONS_ENABLED` pending (`api/services/news_versions.py`; `news/store.py` upsert into `news_item_versions`; Research > Depth > News desk "Edited N×" + `GET /api/research/news-desk/story/{id}/versions`). Versions accrue only from arming. No paid source sends a retraction field, so the payload states retraction is not tracked and never infers it from absence. Not yet reached by a /terminal code (Lane T1 V1b). |
+| `D-5` | Tape + transcript replay | `owner-blocked (confirm or buy an earningscall.biz EARNINGS_AUDIO_API_KEY for coverage beyond AAPL/MSFT)` | Built dark: `CALL_REPLAY_ENABLED` pending (`api/services/call_replay.py`, `GET /api/research/call-replay/{sym}`, Research > Depth). Timed-transcript word timings sit on Massive 1-minute bars only through the listed call start (time + zone) plus the recording offset; otherwise `unaligned`, with no tape. Not yet reached by a /terminal code (handoff to Lane T1 V1b: `RESEARCH_DEPTH_AWAITING_CODE_KEYS`). ➜ 2026-10-07: decided: use the key only if already held, buy nothing. S-9; owner action C4 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `D-6` | Story versioning and retraction | `moot (decided 2026-10-07: no retraction feed)` | Versioning built dark: `NEWS_STORY_VERSIONS_ENABLED` pending (`api/services/news_versions.py`; `news/store.py` upsert into `news_item_versions`; Research > Depth > News desk "Edited N×" + `GET /api/research/news-desk/story/{id}/versions`). Versions accrue only from arming. No paid source sends a retraction field, so the payload states retraction is not tracked and never infers it from absence. Not yet reached by a /terminal code (Lane T1 V1b). ➜ 2026-10-07: S-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `D-7` | Coarse news importance label | `dark` | `NEWS_IMPORTANCE_LABEL_ENABLED` pending, branch-only (`api/services/news_importance.py`). High / Normal / Low on the News desk from store category, subject-vs-related and distinct outlets per event; every label carries its rule, and the rule table is published. No model. Not yet reached by a /terminal code (Lane T1 V1b). |
 | `D-8` | Read / unread on news | `dark` | `NEWS_READ_STATE_ENABLED` pending, branch-only (`api/services/news_read_state.py`, `POST /api/research/news-desk/read`). Per member, server-side in `calendar_seen` (`company_news`), idempotent, owner-scoped, unknown ids refused. Covers the News desk; the legacy Research News tab (FMP pass-through, no store ids) is unchanged. |
 | `D-9` | Personalization UC-1: consumers of `/api/member/interest` | `building (Lane R)` | First consumer built dark: `MEMBER_INTEREST_LINE_ENABLED` pending (`app/src/pages/research/notices/ResearchNotices.jsx`): "Already on your radar" from the route's own `because[]`, presence only (a failed source folds to empty, so it never says "not on your watchlist"). Remainder: the other UC-1 consumers (Breadth drill, Screener rows, Wire Top-5). |
 | `D-10` | Personalization UC-3: explain list order | `dark` | `CALENDAR_ORDER_EXPLAIN_ENABLED` pending, client-only. "Why this order" on /calendar Feed and Week: the rule, each boosted name with its sources and weights (`importance.js::boostParts`, the same function `impEff` adds), and a reversible boost-off switch (per browser). |
 | `D-11` | Entity UC-1: "formerly / now trades as" notice | `dark` | `ENTITY_RENAME_NOTICE_ENABLED` pending, branch-only (`api/services/entity_rename_notice.py`, `GET /api/research/rename-notice/{sym}`). Reads only Entity Master dated aliases (renames from Massive ticker-change events via D5); shown under the Research header with a link. A reused ticker's old holder is named as itself, never joined to the new one. States ok / not_in_store / store_unavailable. |
 | `D-12` | Canonical UC-5: show when two computations of one metric disagree | `dark` | `METRIC_DISAGREEMENT_ENABLED` pending, branch-only (`api/services/metric_disagreement.py`, `GET /api/research/metric-disagreement/{sym}`). Research snapshot vs Screener nightly row for market cap, trailing P/E, P/S, P/B, beta, current ratio: both values, the gap, a declared per-metric tolerance, each side's as-of; agree / disagree / cannot_compare. Shown only when something disagrees. Unit-mismatched pairs (D/E, average volume) are not compared; the breadth example sits under the BREADTH_AUTHORITY seam. |
-| `D-13` | FDA / PDUFA dates on the events calendar | `owner-blocked (a PDUFA date source; a new source under ADR-0015)` | |
+| `D-13` | FDA / PDUFA dates on the events calendar | `moot (decided 2026-10-07: no PDUFA source purchase)` | ➜ 2026-10-07: S-7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `dark` | BUILT on `lane/p-platform` (branch-only): `api/services/store_retention.py` registers 15 stores (member flag, rule, pruned tables, sweep); `disk_watchdog` prints each top consumer's retention or `UNDECLARED`; `may_prune` fails closed and guards `artifact_versions._prune` and the RSS series prune. Declared for the first time: AI Search's per-user caps (100 threads / 200 saved) delete MEMBER rows. Rail `tests/test_store_retention.py`. |
 | `ENT-UC2` | Watchlist rows keyed by entity id | `dark` | BUILT on `lane/p-platform` (branch-only), dark behind `WATCHLIST_ENTITY_KEYS_ENABLED` (pending): a row added through `watchlist_service` is keyed ONCE to its entity in a side store (`api/services/watchlist_entity_keys.py`, never auth.db), and member-list reads carry `entity_id` / `display_sym` / `entity_marker` (renamed / delisted); `sym` never rewritten. The PRD acceptance test passes against the real service (`tests/test_watchlist_entity_keys.py`, incl. a reissued ticker not capturing the old row). Arming needs the Entity Master seeded on web; rendering `display_sym` on the Watchlists page is not built. |
 | `CAP-A12` | Merge the two drag-and-drop libraries | `building (Lane P)` | |
@@ -369,6 +369,15 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 ## 8. What only the owner can do — the 43 `owner-blocked` rows, grouped
 
 This replaces the 2026-09-26 table in `OWNER-ACTIONS.md`. Each line names the action; the row ids are in brackets.
+
+> ➜ **2026-10-07: every decision below was made under the owner's delegation:**
+> `12-decisions/2026-10-07-owner-delegated-decisions.md`. Purchases were mostly declined
+> (TERM-002 was already bought, on 2026-10-04), and every "rule on one question" is ruled. After
+> that sweep the row recount reads **owner-blocked 12** (was 43): live 77 · dark 69 · building 85
+> · moot 36. What is left is a list of acts (Railway variables, a window post, a Cloudflare read,
+> a Discord channel, a billing check, copy approval, Ravi's Phase A, a device pass), and §8 of the
+> decisions record gives each one as an exact command or sentence. The grouped list below is the
+> before-state.
 
 **Buy, or obtain a key or account**
 - Second OPRA connection, $75/mo (TERM-002).

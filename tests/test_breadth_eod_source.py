@@ -381,6 +381,7 @@ def test_a_server_rows_list_is_never_read_back_as_the_universe(env, monkeypatch)
     assert eod._collector_universe_before(nxt) == (sorted(env.tickers), env.prior)
 
 
+
 # ── 5. the job ──────────────────────────────────────────────────────────────
 
 def test_todays_session_waits_for_the_evening(env):
@@ -440,3 +441,41 @@ def test_the_admin_status_route_serves_admins_only(env, monkeypatch):
     r = c.get("/api/admin/breadth-eod-source")
     assert r.status_code == 200 and r.json()["mode"] == "collector"
     assert "parity" in r.json()
+# ── 5. the switch bar (decided 2026-10-07, owner-delegated) ───────────────────
+
+def _rec(day, status="graded", passes=True, fields=True):
+    report = {"fields": ({"stage2_count": {"pass": passes}, "pct_above_50sma": {"pass": True}}
+                         if fields else {})}
+    return {"date": day, "status": status, "reason": None, "report": report}
+
+
+def test_the_switch_bar_is_ten_consecutive_clean_sessions():
+    assert eod.SWITCH_CLEAN_SESSIONS == 10
+    recs = [_rec(f"2026-10-{d:02d}") for d in range(20, 10, -1)]   # 10, newest first
+    s = eod.switch_readiness(recs)
+    assert s["ready"] is True and s["consecutive_clean"] == 10 and s["broken_by"] is None
+    assert "BREADTH_EOD_SOURCE=server" in s["sentence"]
+    nine = eod.switch_readiness(recs[:9])
+    assert nine["ready"] is False and nine["consecutive_clean"] == 9
+    assert nine["sentence"] == "Not yet: 9 of 10 consecutive clean sessions."
+
+
+def test_a_failed_or_ungraded_session_BREAKS_the_run_it_is_never_skipped():
+    clean = [_rec(f"2026-10-{d:02d}") for d in range(30, 18, -1)]   # 12 clean
+    failed = clean[:3] + [_rec("2026-10-27", passes=False)] + clean[3:]
+    s = eod.switch_readiness(failed)
+    assert s["ready"] is False and s["consecutive_clean"] == 3
+    assert s["broken_by"]["date"] == "2026-10-27" and s["broken_by"]["reason"] == "a metric failed"
+    gap = clean[:2] + [_rec("2026-10-28", status="insufficient_coverage")] + clean[2:]
+    g = eod.switch_readiness(gap)
+    assert g["consecutive_clean"] == 2 and g["broken_by"]["status"] == "insufficient_coverage"
+    # a graded session that graded NOTHING proved nothing
+    empty = [_rec("2026-10-31", fields=False)] + clean
+    assert eod.switch_readiness(empty)["consecutive_clean"] == 0
+
+
+def test_the_parity_report_carries_the_switch_reading(env, monkeypatch):
+    monkeypatch.setattr(eod, "shadow_records", lambda limit=60: [_rec("2026-10-02")])
+    rep = eod.parity_report()
+    assert rep["switch"]["required_consecutive_clean"] == 10
+    assert rep["switch"]["consecutive_clean"] == 1 and rep["switch"]["ready"] is False

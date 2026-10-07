@@ -59,6 +59,12 @@ round); the dark leftovers under light were the stylesheet's white text, now fix
 
 ## Left, and why
 
+> ➜ **Decided 2026-10-07 (owner-delegated), `12-decisions/2026-10-07-owner-delegated-decisions.md`:**
+> the earnings research modal follows the theme (I-5, built by tf9-theme). Menus stay dark on every
+> theme (I-6, the 2026-07-30 ruling stands). The Breadth treemap tiles already follow the theme
+> (V-5): `pages/breadth/heatTiles.contrast.test.js` rails it on all 21 themes, so that entry was
+> stale.
+
 - **Owner decision — the earnings research modal is a dark theme island**
   (`EarningsResearchModal.module.css`): it pins every themed token to its dark value, so it
   stays dark on a light theme. It was a deliberate fix (its `--menu-*` shell is
