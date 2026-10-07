@@ -184,5 +184,19 @@
   line-height: var(--lh-normal);
 }
 
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+/* Number text uses the ink tokens: --gain/--loss also colour fills and miss 4.5:1 as text
+   on several themes (terminal a11y audit 2026-10-06, rail pages/terminal/a11y/terminalContrast). */
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
+
+/* Touch tier (phone + tablet): finger targets (rail pages/terminal/a11y/terminalA11yStatic). */
+@media (max-width: 1024px) {
+  .chip,
+  .rowBtn {
+    min-height: var(--tap-min);
+  }
+
+  .chip {
+    min-width: var(--tap-min);
+  }
+}
