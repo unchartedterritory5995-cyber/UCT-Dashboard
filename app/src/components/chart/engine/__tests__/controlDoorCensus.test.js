@@ -797,6 +797,20 @@ describe('the control-door census — how many doors, and whether an eighth exis
        + 'state, a spread `WORKSPACE_FALLBACK`, a `fetch` that refuses non-GET '
        + 'preference/layout writes). Dev-server only (`add-to-chart-harness.html`), '
        + 'railed by `addToChartHarnessAbsent.test.js`.'],
+      ['app/src/testing/marketcap/marketCapHarness.jsx',
+       '⭐ THE MARKET CAP AUTHORITY LIVE HARNESS — a dev-only probe, ledgered for the '
+       + 'reason its siblings are (it landed on the Market Cap branch before this census '
+       + 'reached it; the merge made the case red, and the remedy is this row). It uses '
+       + 'door eight for three things on its own seeded Market Cap instance: under '
+       + '`?ma=<period>` it seeds ONE Moving Average whose Source is that instance '
+       + '(`addInstance` then `setInstanceInput` → `@inst:…::value`), the write the MA\'s '
+       + 'Source picker makes, so the derived series is measured on the authority-served '
+       + 'column; and its probe controls hide that instance (`setInstanceHidden`) and move '
+       + 'its pane (`setInstancePanePosition`) to prove the column survives both. ⛔ IT WRITES NOTHING: '
+       + 'ChartWidget opts in page state, a spread `WORKSPACE_FALLBACK`, every /api/* '
+       + 'answered from local files and every non-GET preference/layout write refused. '
+       + 'Dev-server only (`marketcap-harness.html`), railed by '
+       + '`marketCapHarnessAbsent.test.js`.'],
       ['app/src/components/chart/discoveryCatalog.js',
        '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
        + 'rather than a ninth door. A catalogue result becomes a chart series by '

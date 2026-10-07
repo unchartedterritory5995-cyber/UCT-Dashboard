@@ -1130,6 +1130,19 @@
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
     },
+    "MCAP_PIT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Market Cap V1 (PIT share state) member API (api/routers/marketcap_pit.py): GET /api/marketcap/pit/{ticker}, /api/marketcap/pit/{ticker}/latest and /api/marketcap/pit-status, all behind require_bars_access (the chart-data gate). SERVICE: web. Unset/0: every route is the FastAPI 404 to every caller including admins (a router dependency, so it answers before auth and parameter validation). Dark until a HUMAN cutover review accepts a published, verified build and an AUTHORITY pointer exists (docs/marketcap/PRODUCTION-LIFECYCLE.md); arming before that answers 503 market_cap_unavailable. Rollback = unset (published artifacts are left in place); finer levers: MCAP_PIT_PIN or `publication.rollback`."
+    },
+    "MCAP_PIT_REFRESH": {
+      "status": "dark",
+      "where": [],
+      "exposure": "internal",
+      "default": "0",
+      "values": ["0", "1"],
+      "note": "Worker-only. 1 = start the Market Cap V1 refresh scheduler (api/services/marketcap/schedule.py, called from api/worker_main.py only): one full rebuild Tue-Sat 01:15 ET in a child process, automated release gates, private immutable publication. Registers nothing unless MCAP_PIT_ROOT (default /data/marketcap_v1) holds a provisioned refresh.json; single owner by an OS lock on the volume. Never set yet: provisioning the worker volume (seed evidence, SEC cache, frozen review inputs) is a deployment that awaits owner authorization. Stop without a deploy: refresh hold --root ROOT. Rollback = unset."
+    },
     "ECON_ENABLED": {
       "status": "dark",
       "where": [],
