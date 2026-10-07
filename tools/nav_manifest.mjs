@@ -207,10 +207,11 @@ const EXCLUDED = [
   [/^\/(admin|alert-tester)/, 'admin-only'],
   [/^\/settings$/, 'pinned to the sidebar bottom, not in NAV_ITEMS'],
   [/:/, 'detail route reached from a list, never a sidebar entry'],
-  // TERMINAL-NEXT (2026-10-02): the cohort-gated shell. Its sidebar door is the
-  // UCT Terminal entry itself — `/calendar` redirects an admitted member into it, and
-  // the shell redirects everyone else back — so it is reached, just not by its own row.
-  [/^\/terminal(\/calendar)?$/, 'UCT Terminal shell, entered through /calendar (cohort-gated)'],
+  // TERMINAL-NEXT GRADUATED (2026-10-07): the UCT Terminal entry is `/terminal` itself
+  // (`/terminal/calendar` is under it). The classic `/calendar` is that entry's
+  // `alsoActive` path: it redirects an admitted member into the shell, and the shell sends
+  // a member the cohort does not admit back to it -- reached, just not by its own row.
+  [/^\/calendar(\/mystocks)?$/, 'classic calendar + its My Stocks hub, the alsoActive path of the UCT Terminal entry'],
 ]
 const excludedBy = (p) => (EXCLUDED.find(([rx]) => rx.test(p)) || [])[1] || null
 

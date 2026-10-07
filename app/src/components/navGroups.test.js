@@ -47,7 +47,7 @@ test('navigableTargets() is exactly one `to` per group — no free-tier Wire tab
   // tier, so four groups give four targets.
   expect(navigableTargets()).toEqual(NAV_GROUPS.map((g) => g.routes[0]))
   expect(navigableTargets().sort()).toEqual(
-    ['/calendar', '/dashboard', '/journal', '/model-book'].sort(),
+    ['/terminal', '/dashboard', '/journal', '/model-book'].sort(),
   )
   expect(navigableTargets()).not.toContain('/morning-wire')
 })

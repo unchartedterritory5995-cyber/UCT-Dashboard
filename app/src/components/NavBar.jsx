@@ -18,12 +18,13 @@ const fetcher = (url) =>
 // with comments so the two read together.
 export const NAV_ITEMS = [
   // HOME
-  // ⭐ TERMINAL-NEXT: the entry stays `/calendar` while the shell is cohort-gated. For a
-  // member the `terminal-next` cohort admits, `/calendar` REDIRECTS into the shell's Calendar
-  // section (App.jsx `CalendarRoute`), so this entry lands them in `/terminal`; for everyone
-  // else it is today's page. `/terminal` becomes the literal `to` at graduation, when
-  // `viewportLockedRoutes.test.js` gets the new route's measurement it requires.
-  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/terminal'] },
+  // ⭐ TERMINAL-NEXT GRADUATED (2026-10-07): the entry is the shell itself. A member the
+  // `terminal-next` cohort does NOT admit (kill switch off) is sent from `/terminal` back to
+  // `/calendar` by the shell's own gate (pages/terminal/TerminalRoutes.jsx `TerminalRoute`),
+  // and an admitted member's old `/calendar` links still redirect into the shell
+  // (`CalendarRoute`), so the entry stays lit on `/calendar` too. The route's measurement
+  // (viewportLockedRoutes.test.js) is docs/notebook/proof/f5-r2-routes/routes-nav-terminal-*.json.
+  { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   // MARKETS
