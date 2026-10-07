@@ -24,7 +24,7 @@ other lanes own (`components/chart/**`, `StockChart`, Options Flow, Journal 2.0,
 | UCT20 monthly heatmap | near-black green/red cell fills | `color-mix` tints of `--gain` / `--loss` |
 | FuturesStrip sparklines | fixed rgba greens/reds | `--gain` / `--loss` / `--text-muted` via `style` |
 | FundamentalSnapshot scores, grades, signs, checkup | the five score hexes, `#3cb868`/`#e74c3c` | `--score-*`, `--grade-*`, `--gain`, `--loss` |
-| Score ramp on a light theme | five bright hexes tuned for dark (middle steps under 3:1 on white) | `[data-theme="light"]` variant derived from that theme's `--gain`/`--warn`/`--loss`; pinned in the earnings-modal island with the `--grade-*` aliases |
+| Score ramp on a light theme | five bright hexes tuned for dark (middle steps under 3:1 on white) | `[data-theme="light"]` variant derived from that theme's `--gain`/`--warn`/`--loss` (the earnings-modal island that once pinned it is gone — see below) |
 | About panel (TickerPopup) | a fixed dark card (`#181610` gradient, cream text) | every ink a token |
 | TickerPopup flow chips, dark-pool toggle | fixed gold/grey/bull-bear hexes | tokens |
 | COT pane | symbol search and phone sheet typed **white** text on the light surface | `--text-bright`; active sheet row uses on-fill `--bg` |
@@ -57,7 +57,7 @@ round); the dark leftovers under light were the stylesheet's white text, now fix
   the light block — safe today because every use carries a fallback, which the check now
   understands (a token whose every use has a fallback is "guarded").
 
-## Left, and why
+## Decided 2026-10-07 — the earnings research modal follows the theme (`terminal/fn9-theme`)
 
 > ➜ **Decided 2026-10-07 (owner-delegated), `12-decisions/2026-10-07-owner-delegated-decisions.md`:**
 > the earnings research modal follows the theme (I-5, built by tf9-theme). Menus stay dark on every
@@ -72,6 +72,30 @@ round); the dark leftovers under light were the stylesheet's white text, now fix
   before the island). Under the new ruling it should follow the theme; that means changing
   the shell off `--menu-*` and deleting the island, and `styles/themeIslands.test.js`
   currently requires at least one island to exist. Recorded as debt.
+The owner ruled that the modal follows the member's app theme like every terminal panel. Done:
+
+- `EarningsResearchModal.module.css`: the island block (every themed token pinned to its dark
+  `:root` value) is deleted. The shell moved off the always-dark `--menu-*` tokens onto the
+  surface ramp (`--bg-surface`, `--bg-elevated`, `--border`, `--text-*`, `--shadow-modal`);
+  `SectionTabs.module.css` likewise. The always-dark `--menu-*` menus app-wide are unchanged.
+- Inside the modal scope the research kit's `--glass-*` are re-pointed to the theme's own
+  surfaces (`var(--bg-elevated)` …) — references, not literals, and NOT an island — because
+  tokens.css ships no light `--glass-*` set (spec §3.2).
+- The themeColours ledger's last DEBT entry (this module, 49 literals) is cleared: 0 literals.
+- Text contrast is measured across all 21 themes with the terminal contrast reader, over the
+  stylesheet set DERIVED from the modal's imports (research, research-kit via the barrel's named
+  exports, the research tabs, the terminal kit, Sheet). Fixes: the score ramp's ends read through
+  the text inks (`--success-ink` / `--danger-ink`) in RatingCrown, StatTile and ResearchPage; the
+  StatementPanels expand icon lost its .55 dimming. Six `reachableContrast` baseline entries struck.
+- Charts inside the modal already re-resolve through `lib/theme` (`useThemeVersion` in the
+  research-kit ECharts host); the island had made them disagree with their dark surroundings on a
+  light page. Now pinned by a render test that flips the theme under the lollipop chart.
+- Rails: `components/research/EarningsResearchModal.followsTheme.test.jsx` (replaces the island
+  test) and `styles/themeIslands.test.js`, which now allows zero islands and runs its discovery,
+  pinning, mutation and drift checks against a complete fixture island built from tokens.css, so
+  none of them passes over an empty set.
+
+## Left, and why
 - **Owner decision — Breadth treemap tiles** (`heatmapMetrics.js`, `TreemapView.jsx`) are
   opaque dark tier fills carrying their own white ink: legible on any page, but dark on a
   light one. Translucent `--heat-*` tiles with theme text would follow the theme. Debt.

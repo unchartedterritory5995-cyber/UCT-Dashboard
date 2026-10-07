@@ -50,6 +50,12 @@ describe('OwnershipTab — the two ownership figures are distinguishable', () =>
     expect(screen.queryAllByText('Institutional ownership')).toHaveLength(1)
   })
 
+  it('13F values are US dollars, and the label says so (owner decision 2026-10-07)', () => {
+    render(<OwnershipTab sym="ATROB" />)
+    expect(screen.getByText('Total invested (USD)')).toBeInTheDocument()
+    expect(screen.getByText('Total invested (USD)').parentElement).toHaveTextContent('$13.6')
+  })
+
   it('the 13F block still carries the quarter it belongs to', () => {
     render(<OwnershipTab sym="ATROB" />)
     // Without the quarter, "Held by 13F filers" is an undated claim.

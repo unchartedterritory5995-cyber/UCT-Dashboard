@@ -22,7 +22,7 @@ vi.mock('../../../components/research-kit', () => ({
   },
 }))
 
-let finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+let finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
 vi.mock('../hooks/useFinancials', () => ({
   default: () => ({ data: finData, isLoading: false }),
 }))
@@ -61,16 +61,16 @@ describe('financial trends read forwards in time', () => {
   })
 
   it('does NOT draw a trend from a single point', () => {
-    finData = { quarterly: [QUARTERLY[0]], annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: [QUARTERLY[0]], annual: [], balance: {}, metrics: {}, currency: 'USD' }
     render(<FinancialsTab sym="AAPL" />)
     expect(captured).toEqual([])
-    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
   })
 
   it('survives missing quarterly data entirely', () => {
-    finData = { quarterly: null, annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: null, annual: [], balance: {}, metrics: {}, currency: 'USD' }
     expect(() => render(<FinancialsTab sym="AAPL" />)).not.toThrow()
-    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
   })
 })
 
@@ -82,14 +82,14 @@ describe('quarterly / annual basis toggle', () => {
   ]
 
   it('defaults to quarterly', () => {
-    finData = { quarterly: QUARTERLY, annual: ANNUAL, balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: ANNUAL, balance: {}, metrics: {}, currency: 'USD' }
     render(<FinancialsTab sym="AAPL" />)
     const rev = captured.find(p => p.label === 'Revenue ($B)')
     expect(rev.periods).toEqual(['Q4 2025', 'Q1 2026', 'Q2 2026'])
   })
 
   it('switching to annual charts the ANNUAL series, still oldest-first', () => {
-    finData = { quarterly: QUARTERLY, annual: ANNUAL, balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: ANNUAL, balance: {}, metrics: {}, currency: 'USD' }
     render(<FinancialsTab sym="AAPL" />)
     captured.length = 0
     fireEvent.click(screen.getByRole('button', { name: /^Annual$/i }))
@@ -100,7 +100,7 @@ describe('quarterly / annual basis toggle', () => {
 
   it('hides the toggle when only ONE basis has data', () => {
     // Offering a switch to an empty chart is worse than not offering it.
-    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
     render(<FinancialsTab sym="AAPL" />)
     expect(screen.queryByRole('button', { name: /^Annual$/i })).toBeNull()
   })
@@ -113,7 +113,7 @@ describe('the calendar-vs-fiscal label clash', () => {
     // September-fiscal company the SAME quarter — identical revenue — renders
     // as "Q3 2026" above and "Q2 2026" below. Two names for one quarter is a
     // correctness problem, not a layout one.
-    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
     captured.length = 0
     render(<FinancialsTab sym="AAPL" showGrids={false} />)
     expect(captured).toEqual([])            // no trend charts from this tab
@@ -121,7 +121,7 @@ describe('the calendar-vs-fiscal label clash', () => {
   })
 
   it('still renders them by default for standalone callers', () => {
-    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
     render(<FinancialsTab sym="AAPL" />)
     expect(document.body.textContent).toMatch(/revenue, EPS & margins/i)
   })

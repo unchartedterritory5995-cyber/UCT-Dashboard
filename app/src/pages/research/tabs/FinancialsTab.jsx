@@ -4,7 +4,7 @@ import { MetricTrendChart, SeriesChart } from '../../../components/research-kit'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import {
   formatCompactTerminal, formatCurrencyIn, formatNumber, formatPercent,
-  isForeignCurrency, normalizeCurrencyCode, relabelDollarText, reportingCurrencyNote,
+  isForeignCurrency, isKnownCurrency, normalizeCurrencyCode, relabelDollarText, reportingCurrencyNote,
 } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import { themeInk } from '../themeInk'
@@ -15,8 +15,11 @@ const fmtBig = (v) => formatCompactTerminal(v, { money: true })
 // yfinance statement frames are in the company's REPORTING currency (Yahoo
 // `financialCurrency`, carried as `currency`): TSM's revenue is Taiwan dollars, and
 // "$" on it was the defect. A non-USD amount carries its ISO code ("TWD 1.06T");
-// USD and unknown render exactly as before. Nothing is converted.
-const fmtBigIn = (v, ccy) => relabelDollarText(fmtBig(v), ccy)
+// known USD renders "$"; an UNKNOWN currency renders no symbol and the tab says
+// "Currency not reported." (owner decision 2026-10-07 -- never a guessed "$").
+// Nothing is converted.
+const UNKNOWN_CCY = { unknown: 'none' }
+const fmtBigIn = (v, ccy) => relabelDollarText(fmtBig(v), ccy, UNKNOWN_CCY)
 const fmtMargin = (v) => formatPercent(v, { decimals: 1 })
 function fmtVal(v, suffix = '') { return v == null ? '—' : `${v}${suffix}` }
 
@@ -126,15 +129,15 @@ function TrendPair({ quarterly, annual, ccy }) {
         <MetricTrendChart
           periods={periods}
           values={list.map(r => B(r.revenue))}
-          label={isForeignCurrency(ccy) ? `Revenue (${normalizeCurrencyCode(ccy)} B)` : 'Revenue ($B)'}
-          valueFormatter={(v) => (v == null ? '—' : `${formatCurrencyIn(v, ccy, { decimals: 1 })}B`)}
+          label={isForeignCurrency(ccy) ? `Revenue (${normalizeCurrencyCode(ccy)} B)` : isKnownCurrency(ccy) ? 'Revenue ($B)' : 'Revenue (B)'}
+          valueFormatter={(v) => (v == null ? '—' : `${formatCurrencyIn(v, ccy, { decimals: 1, ...UNKNOWN_CCY })}B`)}
           ariaLabel="Revenue by period"
         />
         <MetricTrendChart
           periods={periods}
           values={list.map(r => r.eps)}
           label={isForeignCurrency(ccy) ? `EPS (${normalizeCurrencyCode(ccy)})` : 'EPS'}
-          valueFormatter={(v) => formatCurrencyIn(v, ccy)}
+          valueFormatter={(v) => formatCurrencyIn(v, ccy, UNKNOWN_CCY)}
           ariaLabel="Earnings per share by period"
         />
       </div>
@@ -184,7 +187,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const met = fin.metrics || {}
   const hasGrids = (fin.quarterly?.length || fin.annual?.length)
   const ccy = fin.currency ?? null
-  const ccyNote = reportingCurrencyNote(ccy)
+  const ccyNote = reportingCurrencyNote(ccy, UNKNOWN_CCY)
   // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
   // say that instead of a generic "unavailable" that reads like a gap.
   if (!hasGrids && fin.not_applicable) {
@@ -217,7 +220,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           supersede them with 24 quarters instead of 5. Standalone callers keep
           them until the label source is fixed. */}
       {showGrids && hasGrids && ccyNote && (
-        <div className={styles.fnote} data-testid="financials-currency" data-currency={normalizeCurrencyCode(ccy)}>{ccyNote}</div>
+        <div className={styles.fnote} data-testid="financials-currency" data-currency={normalizeCurrencyCode(ccy) ?? 'unknown'}>{ccyNote}</div>
       )}
       {showGrids && <TrendPair quarterly={fin.quarterly} annual={fin.annual} ccy={ccy} />}
       {showGrids && <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} ccy={ccy} />}

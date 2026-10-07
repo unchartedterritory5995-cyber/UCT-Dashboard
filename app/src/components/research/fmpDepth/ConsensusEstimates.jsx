@@ -21,7 +21,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
 import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import SourceLine from './SourceLine'
-import { fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
+import { UNKNOWN_CCY, fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
 import { formatNumber, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 import styles from './FmpDepth.module.css'
 
@@ -70,8 +70,9 @@ function ConsensusTable({ rows, basis, ccy }) {
 // Yahoo's tables for a foreign filer: revenue is in the reporting currency, but
 // the CURRENCY OF ITS EPS IS NOT STATED and is not consistent (measured
 // 2026-10-06: TSM/TM per-ADR US dollars, BABA yuan, NVO kroner). So EPS is shown
-// as a bare number, never "$", and revenue carries the reporting currency.
-const yahooEps = (rc) => (isForeignCurrency(rc) ? (v) => formatNumber(v, { decimals: 2 }) : fmtEps)
+// as a bare number, never "$", and revenue carries the reporting currency. With the
+// reporting currency itself unknown, fmtEps is bare too (UNKNOWN_CCY).
+const yahooEps = (rc) => (isForeignCurrency(rc) ? (v) => formatNumber(v, { decimals: 2 }) : (v) => fmtEps(v, rc))
 
 function YahooForward({ rows, rc }) {
   const eps = yahooEps(rc)
@@ -189,7 +190,9 @@ export default function ConsensusEstimates({ sym }) {
   const rc = data.reporting_currency ?? ccy
   const yahooNote = isForeignCurrency(rc)
     ? `Revenue in ${rc}, the company's reporting currency. Yahoo Finance does not state the currency of these EPS figures, so they carry no symbol.`
-    : null
+    : reportingCurrencyNote(rc, UNKNOWN_CCY)
+  // Unknown reporting currency: the consensus cells carry no symbol, and the card says why.
+  const consensusNote = reportingCurrencyNote(ccy, UNKNOWN_CCY)
   // tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). With
   // nothing usable from either vendor, say that -- not "Neither FMP nor Yahoo holds...".
   if (data.not_applicable && !fmpOk && !fwd.length && !revs.length) {
@@ -213,8 +216,8 @@ export default function ConsensusEstimates({ sym }) {
           </div>
           <SourceLine vendor="FMP" activity={c.source || 'FMP /stable/analyst-estimates'} fetchedAt={c.fetched_at}
                       detail="Consensus mean, range and analyst count per fiscal period" />
-          {reportingCurrencyNote(ccy) && (
-            <p className={styles.note} data-testid="ee-currency" data-currency={ccy}>{reportingCurrencyNote(ccy)}</p>
+          {consensusNote && (
+            <p className={styles.note} data-testid="ee-currency" data-currency={ccy ?? 'unknown'}>{consensusNote}</p>
           )}
           <ConsensusTable rows={rows} basis={shown} ccy={ccy} />
           {rows.length >= 2 && (
@@ -251,7 +254,8 @@ export default function ConsensusEstimates({ sym }) {
           <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
           <SourceLine vendor="Yahoo Finance" activity="yfinance eps_trend / eps_revisions"
                       detail="FMP does not publish estimate revisions" />
-          {yahooNote && <p className={styles.note} data-testid="ee-revisions-currency">EPS revisions from Yahoo Finance carry no currency symbol: Yahoo does not state it for this company.</p>}
+          {isForeignCurrency(rc) && <p className={styles.note} data-testid="ee-revisions-currency">EPS revisions from Yahoo Finance carry no currency symbol: Yahoo does not state it for this company.</p>}
+          {!isForeignCurrency(rc) && yahooNote && <p className={styles.note} data-testid="ee-revisions-currency">{yahooNote}</p>}
           <Revisions rows={revs} rc={rc} />
         </section>
       )}

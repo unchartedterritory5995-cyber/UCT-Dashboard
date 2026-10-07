@@ -24,11 +24,15 @@ import UIcon from '../../ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { FETCH_FAILED, sectionFetcher } from './sectionFetch'
 import { EXPANDED_HEIGHT, PANEL_HEIGHT, PANEL_SPECS, panelSeries, spanLabel } from './statementSeries'
-import { isForeignCurrency, relabelDollarText, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
+import { isForeignCurrency, isKnownCurrency, relabelDollarText, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 
 /** The panel's axis/tooltip formatter in the statements' own currency: FMP
- *  reports TSM in TWD, and "$" on those bars misstates them. USD/unknown: as is. */
-const inCurrency = (fmt, ccy) => (isForeignCurrency(ccy) ? (v) => relabelDollarText(fmt(v), ccy) : fmt)
+ *  reports TSM in TWD, and "$" on those bars misstates them. Known USD: as is.
+ *  UNKNOWN (the payload states no currency): no symbol at all, and the grid
+ *  says "Currency not reported." — never a guessed "$" (owner decision 2026-10-07). */
+const UNKNOWN_CCY = { unknown: 'none' }
+const inCurrency = (fmt, ccy) => (isForeignCurrency(ccy) || !isKnownCurrency(ccy)
+  ? (v) => relabelDollarText(fmt(v), ccy, UNKNOWN_CCY) : fmt)
 import styles from './StatementPanels.module.css'
 import Checkbox from '../../ui/Checkbox'
 
@@ -146,7 +150,7 @@ export default function StatementPanels({ sym }) {
   // shift has to follow the bars, not the toggle.
   const dataPeriod = data?.period === 'annual' ? 'annual' : 'quarter'
   const currency = data?.currency ?? null
-  const currencyNote = reportingCurrencyNote(currency)
+  const currencyNote = reportingCurrencyNote(currency, UNKNOWN_CCY)
 
   const onKeyDown = useCallback((e) => {
     // Keys from the pop-out bubble here through the React tree even though
