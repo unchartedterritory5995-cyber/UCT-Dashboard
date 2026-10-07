@@ -448,9 +448,72 @@ def _flow_counts(sym: str, source: str) -> dict[str, int]:
         mine.set()
 
 
+#: The flow family's per-session COUNT route (flow_router `get_flow_ticker_day_counts`): a SQL
+#: GROUP BY on flow-worker, a few KB, instead of shipping the ticker's whole `CreatedDate` column
+#: (~390K rows / ~4 MB decoded for NVDA) to count lines here. Web deploys from `production` and
+#: flow-worker ships only after hours, so web can be ahead of it: a 404 from this route means
+#: "flow-worker predates it" and the lane reads the tape the old way.
+DAY_COUNTS_PATH = "/api/flow/ticker/{sym}/day-counts"
+#: The memo/in-flight key's partition for the day-counts read, which covers BOTH partitions.
+FLOW_ALL = "all"
+
+
+class _RouteMissing(LookupError):
+    """The flow side answered 404 for a route this module prefers: it predates it."""
+
+
+def _flow_day_counts_read(sym: str) -> dict[str, int]:
+    """Prints per session for one ticker across both partitions, from the count route.
+
+    COUNTS ONLY: every key must be an ISO date and every value a non-negative int -- an answer
+    carrying anything else is refused, so no paid column can ride through this module. As a
+    side effect the answer's tape span primes `_flow_coverage`'s memo (one hop, not three)."""
+    r = _flow_request(DAY_COUNTS_PATH.format(sym=sym), {"source": FLOW_ALL})
+    if r.status_code == 404:
+        raise _RouteMissing(r.status_code)
+    if r.status_code != 200:
+        raise LaneUnreadable(f"flow day counts answered HTTP {r.status_code}")
+    try:
+        body = r.json() or {}
+    except ValueError as e:
+        raise LaneUnreadable(f"flow day counts answered a non-JSON body: {e}") from e
+    days = body.get("days")
+    if not isinstance(days, dict):
+        raise LaneUnreadable("flow day counts answered without a `days` map")
+    per_day: dict[str, int] = {}
+    for k, v in days.items():
+        try:
+            iso = date.fromisoformat(k).isoformat()
+        except (TypeError, ValueError):
+            raise LaneUnreadable(f"flow day counts answered a non-date key {k!r}") from None
+        if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+            raise LaneUnreadable(f"flow day counts answered a non-count value for {iso}")
+        per_day[iso] = v
+    tape = body.get("tape") or {}
+    if isinstance(tape, dict) and tape.get("ok") is not False:
+        first, last = tape.get("first"), tape.get("last")
+        span = (first, last) if (first and last) else (None, None)
+        _FLOW_COVERAGE_MEMO["span"] = (time.monotonic(), span, _flow_request)
+    return per_day
+
+
 def _flow_counts_read(sym: str, source: str) -> dict[str, int]:
-    """Prints per session for one ticker in one partition, asking for `CreatedDate` and nothing
-    else. A non-200 RAISES: an unreachable or refusing tape is not a ticker with no prints."""
+    """Prints per session for one ticker. `source=FLOW_ALL` asks the count route (both
+    partitions in one cheap read); a flow side that predates it (404) is read the old way --
+    the tape's `CreatedDate` column, `stocks` then `indexes` -- so web can deploy first."""
+    if source == FLOW_ALL:
+        try:
+            return _flow_day_counts_read(sym)
+        except _RouteMissing:
+            logger.info("[ticker-history] flow day-counts route missing (404); reading the tape")
+            return _flow_tape_counts(sym, "stocks") or _flow_tape_counts(sym, "indexes")
+    return _flow_tape_counts(sym, source)
+
+
+def _flow_tape_counts(sym: str, source: str) -> dict[str, int]:
+    """FALLBACK: prints per session for one ticker in one partition, read off the tape asking
+    for `CreatedDate` and nothing else. A non-200 RAISES: an unreachable or refusing tape is not
+    a ticker with no prints."""
     import csv
     r = _flow_request(f"/api/flow/ticker/{sym}", {"source": source, "cols": "CreatedDate"})
     if r.status_code != 200:
@@ -474,16 +537,18 @@ def _flow_counts_read(sym: str, source: str) -> dict[str, int]:
 def flow_lane(sym: str, since: date) -> list[dict]:
     """COUNTS ONLY: options prints per session, and a link to the Options Flow page.
 
-    The tape files index/ETF symbols under `source=indexes` and everything else under `stocks`;
-    asking the wrong one is a 200 with no rows. So: `stocks`, then `indexes` only if `stocks`
-    held nothing (the signature indicator's rule, `routers/signature._fetch_flow_by_date`).
+    One read of the flow side's per-session COUNT route, across both partitions (the tape files
+    index/ETF symbols under `source=indexes` and everything else under `stocks`, by the root's
+    classification at write time). Against a flow side that predates the route (404) it falls
+    back to the old read: the tape's `CreatedDate` column, `stocks`, then `indexes` only if
+    `stocks` held nothing (the signature indicator's rule, `routers/signature._fetch_flow_by_date`).
 
     The tape is asked in the OCC root spelling, because that is the only one its writers can
     produce: `Symbol` is the root parsed out of the option ticker by `massive_processor.parse_occ`
     (`OCC_PATTERN` root `[A-Z]+`) and `build_gap_fill_csv.parse_occ` -- BRK.B's options are
     `O:BRKB...`, so its prints are filed under BRKB, never BRK.B or BRK-B."""
     sym = _occ_root(sym)
-    per_day = _flow_counts(sym, "stocks") or _flow_counts(sym, "indexes")
+    per_day = _flow_counts(sym, FLOW_ALL)
     lo = since.isoformat()
     return [{"date": d, "lane": "flow", "prints": n,
              "text": f"{n:,} options print{'s' if n != 1 else ''} on the tape",
@@ -738,6 +803,20 @@ def _flow_dates(source: str) -> list[str]:
     return [iso for iso in (_mdy_to_iso(d) for d in (r.json() or {}).get("dates") or []) if iso]
 
 
+def _flow_tape_span() -> Optional[tuple[Optional[str], Optional[str]]]:
+    """(first, last) session from the flow side's `/api/flow/tape-span` (one ~ms read instead of
+    two DISTINCT date scans). None when the flow side predates the route (404) -- the caller
+    then asks `/dates` twice, the old way. Any other non-200 raises: the lane is unavailable."""
+    r = _flow_request("/api/flow/tape-span", {})
+    if r.status_code == 404:
+        return None
+    if r.status_code != 200:
+        raise LaneUnreadable(f"flow tape span answered HTTP {r.status_code}")
+    body = r.json() or {}
+    first, last = body.get("first"), body.get("last")
+    return (first, last) if (first and last) else (None, None)
+
+
 #: The tape's span is the same for every ticker and only ever gains a session, so one answer
 #: serves every HIS open for this long (two cross-service reads saved per open; a cold
 #: `/api/flow/dates` is ~3 s on the worker, flow_db.get_available_dates). At worst the
@@ -754,8 +833,10 @@ def _flow_coverage() -> tuple[Optional[str], Optional[str]]:
     hit = _FLOW_COVERAGE_MEMO.get("span")
     if hit is not None and hit[2] is reader and time.monotonic() - hit[0] < _FLOW_COVERAGE_TTL_S:
         return hit[1]
-    held = sorted(set(_flow_dates("stocks")) | set(_flow_dates("indexes")))
-    span = (held[0], held[-1]) if held else (None, None)
+    span = _flow_tape_span()
+    if span is None:                        # a flow side that predates /tape-span
+        held = sorted(set(_flow_dates("stocks")) | set(_flow_dates("indexes")))
+        span = (held[0], held[-1]) if held else (None, None)
     _FLOW_COVERAGE_MEMO["span"] = (time.monotonic(), span, reader)
     return span
 

@@ -2,7 +2,8 @@
 entity ids across renames, dark route.
 
 Every store is REAL and seeded in a tmp dir: the flow lane is read through the REAL
-`/api/flow/ticker` and `/api/flow/dates` routes (flow_router, `require_flow_user`, the
+`/api/flow/ticker/{sym}/day-counts` route (and, for an older flow side, `/api/flow/ticker` and
+`/api/flow/dates`) (flow_router, `require_flow_user`, the
 PUSH_SECRET bearer) over a real FlowDB; the setup lane over a real SQLite file with the
 engine's `setup_triggers` schema at the Brain Pack's install path; renames through the
 real Entity Master store, written by `apply_event`.
@@ -297,19 +298,64 @@ def test_flow_lane_falls_back_to_the_index_partition(stores):
     assert [(r["date"], r["prints"]) for r in flow] == [(D2, 2)]
 
 
-def test_flow_lane_is_counts_only_and_asks_for_one_column(stores):
-    """The tape holds premium, side, strike and expiry; the lane must never carry them. It
-    asks for `CreatedDate` alone, and refuses a tape that answers with more."""
+class _Gone:
+    """What a flow side that predates a route answers: FastAPI's 404."""
+    status_code = 404
+    text = '{"detail":"Not Found"}'
+
+    def json(self):
+        return {"detail": "Not Found"}
+
+
+NEW_FLOW_ROUTES = ("/day-counts", "/api/flow/tape-span")
+
+
+def _legacy_flow_side(monkeypatch):
+    """Point HIS at a flow-worker that predates the count + span routes (web deploys first)."""
+    real = th._flow_request
+
+    def old_side(path, params):
+        if path.endswith(NEW_FLOW_ROUTES):
+            FLOW_REQUESTS[0].append((path, dict(params)))
+            return _Gone()
+        return real(path, params)
+    monkeypatch.setattr(th, "_flow_request", old_side)
+
+
+def test_flow_lane_reads_ONE_count_route_not_the_tape(stores):
+    """The lane asks flow-worker for counts (a GROUP BY there), never the ticker's tape."""
     out = th.history("NVDA", days=30)
-    blob = json.dumps(_lane(out, "flow"))
-    for paid in ("987654", "Premium", "CALL", "Strike", "150", "12/18/2026", "SWEEP"):
-        assert paid not in blob
-    tape_reads = [p for p, q in FLOW_REQUESTS[0] if p.startswith("/api/flow/ticker/")]
-    assert tape_reads and all(q["cols"] == "CreatedDate" for p, q in FLOW_REQUESTS[0]
-                              if p.startswith("/api/flow/ticker/"))
+    assert [(r["date"], r["prints"]) for r in _lane(out, "flow")] == [(D2, 1), (D1, 3)]
+    reads = [(p, q) for p, q in FLOW_REQUESTS[0] if p.startswith("/api/flow/")]
+    assert reads == [("/api/flow/ticker/NVDA/day-counts", {"source": "all"})], reads
+
+
+def test_flow_lane_is_counts_only_and_asks_for_one_column(stores, monkeypatch):
+    """The tape holds premium, side, strike and expiry; the lane must never carry them. The
+    count route answers counts alone; against an older flow side the fallback asks the tape for
+    `CreatedDate` alone, and refuses a tape that answers with more."""
+    for legacy in (False, True):
+        if legacy:
+            _legacy_flow_side(monkeypatch)
+            th._FLOW_MEMO.clear()
+            th._LANE_PARKED.clear()
+        FLOW_REQUESTS[0][:] = []
+        out = th.history("NVDA", days=30)
+        assert [(r["date"], r["prints"]) for r in _lane(out, "flow")] == [(D2, 1), (D1, 3)], legacy
+        blob = json.dumps(_lane(out, "flow"))
+        for paid in ("987654", "Premium", "CALL", "Strike", "150", "12/18/2026", "SWEEP"):
+            assert paid not in blob
+        tape_reads = [q for p, q in FLOW_REQUESTS[0]
+                      if p.startswith("/api/flow/ticker/") and not p.endswith("/day-counts")]
+        if legacy:
+            assert tape_reads and all(q["cols"] == "CreatedDate" for q in tape_reads)
+        else:
+            assert tape_reads == []                       # never the tape when counts exist
+    th._FLOW_MEMO.clear()
 
 
 def test_a_tape_that_ignores_the_projection_is_unavailable(stores, monkeypatch):
+    _legacy_flow_side(monkeypatch)
     real = th._flow_request
 
     def wide(path, params):
@@ -318,6 +364,53 @@ def test_a_tape_that_ignores_the_projection_is_unavailable(stores, monkeypatch):
     out = th.history("NVDA", days=30)
     assert out["lanes"]["flow"] == {"status": "unavailable", "count": None}
     assert "987654" not in json.dumps(out)
+
+
+@pytest.mark.parametrize("days", [
+    {"2026-01-05": {"Premium": 987654}},      # a nested row, not a count
+    {"2026-01-05": "3"},                       # a string, not a count
+    {"2026-01-05": -1},
+    {"1/5/2026": 3},                           # the tape's spelling, not the route's
+    [["2026-01-05", 3]],                       # not a map at all
+])
+def test_a_count_route_answering_more_than_counts_is_unavailable(monkeypatch, days):
+    class _R:
+        status_code = 200
+
+        def json(self):
+            return {"days": days, "tape": {"first": "2026-01-02", "last": "2026-01-05"}}
+    th._FLOW_MEMO.clear()
+    monkeypatch.setattr(th, "_flow_request", lambda p, q: _R())
+    with pytest.raises(th.LaneUnreadable):
+        th._flow_counts("ZZBAD", th.FLOW_ALL)
+    th._FLOW_MEMO.clear()
+
+
+def test_a_count_route_error_is_unavailable_not_a_fallback(monkeypatch):
+    """Only a 404 (the route does not exist yet) falls back. A 500/503 is the lane failing --
+    re-reading the whole tape behind a failing worker would only make it fail slower."""
+    calls = []
+
+    class _R:
+        status_code = 503
+    th._FLOW_MEMO.clear()
+    monkeypatch.setattr(th, "_flow_request", lambda p, q: calls.append(p) or _R())
+    with pytest.raises(th.LaneUnreadable):
+        th._flow_counts("ZZ503", th.FLOW_ALL)
+    assert calls == ["/api/flow/ticker/ZZ503/day-counts"]
+    th._FLOW_MEMO.clear()
+
+
+def test_an_older_flow_side_is_read_the_old_way(stores, monkeypatch):
+    """web deploys before flow-worker: a 404 from the count route reads the tape, stocks then
+    indexes, and the span from `/dates` -- the same answers, just slower."""
+    _legacy_flow_side(monkeypatch)
+    for sym, want in (("NVDA", [(D2, 1), (D1, 3)]), ("SPY", [(D2, 2)])):
+        out = th.history(sym, days=30)
+        assert [(r["date"], r["prints"]) for r in _lane(out, "flow")] == want, sym
+        assert (out["lanes"]["flow"]["covers_from"], out["lanes"]["flow"]["covers_to"]) == (OLD, D2)
+    paths = [p for p, _ in FLOW_REQUESTS[0]]
+    assert "/api/flow/ticker/SPY" in paths and paths.count("/api/flow/dates") == 2
 
 
 def test_flow_lane_without_the_internal_credential_is_unavailable(stores, monkeypatch):
@@ -547,8 +640,8 @@ def test_a_failed_flow_read_is_not_waited_out_twice(monkeypatch):
     monkeypatch.setattr(th, "_flow_request", _req)
     for _ in range(3):
         with pytest.raises(TimeoutError):
-            th._flow_counts("ZZFL", "stocks")
-    assert calls == ["stocks"]
+            th._flow_counts("ZZFL", th.FLOW_ALL)
+    assert calls == [th.FLOW_ALL]
     th._FLOW_MEMO.clear()
 
 
@@ -568,7 +661,9 @@ def _fast_lanes_slow_tape(monkeypatch, gate, tape_calls):
 
     class _R:
         status_code = 200
-        text = "CreatedDate\n1/5/2026\n1/5/2026\n"
+
+        def json(self):
+            return {"days": {"2026-01-05": 2}, "tape": {"first": "2026-01-02", "last": "2026-01-05"}}
 
     lock = _th.Lock()
 
@@ -597,12 +692,12 @@ def test_a_slow_tape_answers_pending_and_the_next_ask_has_the_counts(monkeypatch
     assert out["lanes"]["wire"]["status"] == "ok"           # the other lanes answered
     gate.set()                                              # the tape answers ...
     deadline = _t.monotonic() + 5
-    while ("ZZPD", "stocks") not in th._FLOW_MEMO and _t.monotonic() < deadline:
+    while ("ZZPD", th.FLOW_ALL) not in th._FLOW_MEMO and _t.monotonic() < deadline:
         _t.sleep(0.02)
     again = th.history("ZZPD", days=3650)                   # ... and the re-ask has it
     assert again["lanes"]["flow"]["status"] == "ok"
     assert [(r["date"], r["prints"]) for r in again["timeline"] if r["lane"] == "flow"] == [("2026-01-05", 2)]
-    assert [c for c in calls if c[0].startswith("/api/flow/ticker/")] == [("/api/flow/ticker/ZZPD", "stocks")]
+    assert [c for c in calls if c[0].startswith("/api/flow/ticker/")] == [("/api/flow/ticker/ZZPD/day-counts", "all")]
     th._FLOW_MEMO.clear()
 
 
@@ -617,7 +712,7 @@ def test_asks_during_a_running_read_join_it_instead_of_reading_again(monkeypatch
     monkeypatch.setattr(th, "LANE_WAIT_S", 10.0)
     assert th.history("ZZJN", days=3650)["lanes"]["flow"]["status"] == "ok"
     tape = [c for c in calls if c[0].startswith("/api/flow/ticker/")]
-    assert tape == [("/api/flow/ticker/ZZJN", "stocks")], tape
+    assert tape == [("/api/flow/ticker/ZZJN/day-counts", "all")], tape
     th._FLOW_MEMO.clear()
 
 
@@ -627,8 +722,32 @@ def test_a_fast_tape_is_answered_in_the_same_response(stores):
     assert lane["status"] == "ok" and lane["count"] == 2
 
 
-def test_the_tape_span_is_read_once_for_every_ticker(stores):
+def test_the_tape_span_rides_the_count_read(stores):
+    """The count route carries the tape's span, so an open costs ONE flow-side read: no
+    `/dates` scans (~3 s each on the worker), no separate span read."""
+    for sym in ("NVDA", "AMD", "SPY"):
+        lane = th.history(sym, days=30)["lanes"]["flow"]
+        assert (lane["covers_from"], lane["covers_to"]) == (OLD, D2), sym
+    paths = [p for p, q in FLOW_REQUESTS[0]]
+    assert paths == [f"/api/flow/ticker/{s}/day-counts" for s in ("NVDA", "AMD", "SPY")], paths
+
+
+def test_a_stale_span_is_refreshed_from_the_span_route_not_dates(stores):
+    """Counts are memoised longer than the span; when only the span is stale it is re-read
+    from `/api/flow/tape-span` (a ~ms read), never from the two `/dates` scans."""
+    th.history("NVDA", days=30)
+    th._FLOW_COVERAGE_MEMO.clear()
+    th._LANE_PARKED.clear()
+    th._LANE_INFLIGHT.clear()
+    lane = th.history("NVDA", days=30)["lanes"]["flow"]
+    assert (lane["covers_from"], lane["covers_to"]) == (OLD, D2)
+    paths = [p for p, q in FLOW_REQUESTS[0]]
+    assert paths == ["/api/flow/ticker/NVDA/day-counts", "/api/flow/tape-span"], paths
+
+
+def test_the_tape_span_is_read_once_for_every_ticker_on_an_older_flow_side(stores, monkeypatch):
     """`/api/flow/dates` is the same answer for every ticker; HIS asks for it once, not per open."""
+    _legacy_flow_side(monkeypatch)
     th.history("NVDA", days=30)
     th.history("AMD", days=30)
     th.history("SPY", days=30)
@@ -704,7 +823,7 @@ def test_flow_asks_the_tape_in_the_occ_root_spelling(stores, monkeypatch):
         flow = _lane(th.history(s, days=30), "flow")
         assert [(r["date"], r["prints"]) for r in flow] == [(D2, 1), (D1, 2)], s
     asked = {p for p, _ in FLOW_REQUESTS[0] if p.startswith("/api/flow/ticker/")}
-    assert asked == {"/api/flow/ticker/BRKB"}
+    assert asked == {"/api/flow/ticker/BRKB/day-counts"}
     th._FLOW_MEMO.clear()
 
 

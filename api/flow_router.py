@@ -80,6 +80,7 @@ import time
 import threading
 import subprocess
 import logging
+import sqlite3
 
 # ~19.5k rows of [ticker, asset_type] is ~600 KB of JSON; 8 MB is generous
 # headroom without being an unbounded write into a single-process pod.
@@ -603,6 +604,123 @@ def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = "",
         content=gzipped, media_type="text/csv",
         headers={"Content-Encoding": "gzip", "Cache-Control": "no-store"},
     )
+
+
+# ── Per-ticker per-session COUNTS (the terminal's HIS flow lane) ─────────────
+# HIS (api/services/ticker_history.py) wants ONE number per session: how many prints the tape
+# holds for a ticker. Before this route it read `/ticker/{sym}?cols=CreatedDate` -- the ticker's
+# WHOLE tape (~1.5 MB gzipped for NVDA, every row materialised, gzipped and shipped across the
+# private network) only to count lines. Here the count is a GROUP BY in SQLite.
+#
+# ⛔ THE PLAN IS PART OF THE CONTRACT. `Symbol = ?` must drive the read:
+#   * source=all  -> `idx_flow_symbol_created (Symbol, CreatedDate)` COVERS the query: no table
+#                    row is touched (the Discord card's `_symbol_session_counts` read, measured
+#                    157 ms for NVDA in the pod 2026-09-25).
+#   * source=X    -> `+source` takes source OUT of index selection, so the planner can never pick
+#                    a (source, CreatedDate, ...) index and walk the whole partition; it seeks the
+#                    symbol's slice and checks source per row (one row lookup each).
+# A symbol lives in one partition at a time (massive_processor.is_index_source), but the
+# classification has changed under some names (2026-07-09: DRAM, SPCX), so `source` stays exact.
+# BOUNDED: a progress handler stops the read at FLOW_DAY_COUNTS_BUDGET_S and answers 503 -- a
+# slow read is never a quiet tape, and a cold disk can never hold a threadpool slot forever.
+_DAY_COUNTS_BUDGET_S = float(os.environ.get("FLOW_DAY_COUNTS_BUDGET_S", "8") or 8)
+_DAY_COUNTS_SQL_ALL = ("SELECT CreatedDate, COUNT(*) FROM flow WHERE Symbol = ? "
+                       "GROUP BY CreatedDate")
+_DAY_COUNTS_SQL_SRC = ("SELECT CreatedDate, COUNT(*) FROM flow WHERE Symbol = ? AND +source = ? "
+                       "GROUP BY CreatedDate")
+
+
+class DayCountsTimeout(RuntimeError):
+    """The per-day count read ran past its budget and was interrupted."""
+
+
+def _mdy_iso(mdy: str):
+    d = db._parse_date_mdy(mdy)          # a datetime (midnight); the wire carries the date
+    if not d:
+        return None
+    return (d.date() if hasattr(d, "date") else d).isoformat()
+
+
+def symbol_day_counts(sym: str, source: str = "all", budget_s: float | None = None) -> dict:
+    """{ISO date: prints} for ONE symbol, in one partition or both (`source='all'`)."""
+    budget = _DAY_COUNTS_BUDGET_S if budget_s is None else budget_s
+    deadline = time.monotonic() + budget
+    if source == "all":
+        sql, args = _DAY_COUNTS_SQL_ALL, (sym,)
+    else:
+        sql, args = _DAY_COUNTS_SQL_SRC, (sym, source)
+    with db._conn() as conn:
+        conn.set_progress_handler(lambda: 1 if time.monotonic() > deadline else 0, 20000)
+        try:
+            raw = conn.execute(sql, args).fetchall()
+        except sqlite3.OperationalError as e:
+            if "interrupt" in str(e).lower():
+                raise DayCountsTimeout(f"day counts for {sym} ran past {budget:.1f}s") from e
+            raise
+        finally:
+            conn.set_progress_handler(None, 0)
+    out: dict = {}
+    for mdy, n in raw:
+        iso = _mdy_iso(mdy) if mdy else None
+        if iso:
+            out[iso] = out.get(iso, 0) + int(n)
+    return out
+
+
+def _tape_span() -> dict:
+    """First and last session the tape holds across BOTH partitions (ISO), off the cached
+    loose-index date walk (`_market_dates`, 60 s per DB file). HIS's coverage rides this so it
+    no longer needs two `/dates` reads. None on any failure -- the counts still answer."""
+    try:
+        held = sorted({iso for src in ("stocks", "indexes") for iso in
+                       (_mdy_iso(d) for d in _market_dates(src)) if iso})
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow] day-counts tape span unavailable: %s", e)
+        return {"first": None, "last": None, "ok": False}
+    return {"first": held[0] if held else None, "last": held[-1] if held else None, "ok": True}
+
+
+@flow_router.get("/ticker/{symbol}/day-counts")
+def get_flow_ticker_day_counts(symbol: str, source: str = "all",
+                               _auth: dict = Depends(require_flow_user)):
+    """Prints per session for ONE ticker -- counts only, no premium/side/strike ever.
+
+    `source` = `stocks` | `indexes` | `all` (default; both partitions, the covering read). Any
+    other value is a 400, never a quietly different partition. Answers
+    `{"symbol", "source", "days": {ISO: prints}, "sessions", "prints", "tape": {first, last}}`.
+    A read past the budget is a 503 (the caller says `unavailable`, never "no prints")."""
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return JSONResponse({"error": "symbol required"}, status_code=400)
+    src = (source or "all").strip().lower()
+    if src not in ("all", "stocks", "indexes"):
+        return JSONResponse({"error": f"unknown source {source!r}"}, status_code=400)
+    t0 = time.monotonic()
+    try:
+        days = symbol_day_counts(sym, src)
+    except DayCountsTimeout as e:
+        log.warning("[flow] %s", e)
+        return JSONResponse({"error": str(e)}, status_code=503,
+                            headers={"Cache-Control": "no-store", "Retry-After": "30"})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": str(e)}, status_code=500)
+    ms = (time.monotonic() - t0) * 1000
+    return JSONResponse(
+        {"symbol": sym, "source": src, "days": dict(sorted(days.items())),
+         "sessions": len(days), "prints": sum(days.values()), "tape": _tape_span()},
+        headers={"Cache-Control": "no-store", "Server-Timing": f"daycounts;dur={ms:.0f}"})
+
+
+@flow_router.get("/tape-span")
+def get_flow_tape_span(_auth: dict = Depends(require_flow_user)):
+    """First and last session the tape holds across both partitions (ISO). The same answer as
+    the union of `/dates?source=stocks` and `/dates?source=indexes`, from the loose-index walk
+    (`_market_dates`, ~2 ms) instead of two DISTINCT scans (~3 s each on a warm worker)."""
+    span = _tape_span()
+    if not span.get("ok"):
+        return JSONResponse({"error": "tape span unavailable"}, status_code=503)
+    return JSONResponse({"first": span["first"], "last": span["last"]},
+                        headers={"Cache-Control": "no-store"})
 
 
 # ── Search deep-dive: the DERIVED product, not the raw ticker tape ──────────
