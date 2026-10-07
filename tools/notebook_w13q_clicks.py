@@ -1002,6 +1002,14 @@ def journal_chord(m: Meter, letter: str, label: str, url_glob: str) -> bool:
         return False
 
 
+def palette_command(m: Meter, query: str, name_re: str, label: str) -> None:
+    """Keys mode, lane KEYS3: run a Notebook command from the command palette, as Q1 and Q4
+    already do. Ctrl+K (one keystroke), the command's words (content, not counted), Enter."""
+    m.key("Control+k", "open the command palette")
+    m.type(query, "palette query")
+    pick_option(m, name_re, label)
+
+
 def caret_at_top(pg) -> None:
     """SETUP for a keyboard run that starts 'working in the note' when the note holds a chart:
     the caret goes in the first paragraph. A click in the middle of the editor can land on the
@@ -2091,7 +2099,12 @@ def q22_visual_playbook(cx: Ctx, pg, m: Meter, width: str) -> dict:
         raise Inconclusive("no 'Visual playbook' under the tagged chart")
     if m.mode == "keys":
         caret_at_top(pg)                   # the member is working in the note, above its chart
-    m.press(door, "Visual playbook")
+        # Lane KEYS3: the chart's door is 9 Tab stops below the caret. The command palette's
+        # "Visual playbook" opens the same sheet (lib/notebookDoors.js), and the sheet lands
+        # focus on this chart's own shortcut.
+        palette_command(m, "visual playbook", r"^Visual playbook$", "Visual playbook")
+    else:
+        m.press(door, "Visual playbook")
     book = pg.locator('[data-testid="visual-playbook"]')
     try:
         book.wait_for(state="visible", timeout=30000)
