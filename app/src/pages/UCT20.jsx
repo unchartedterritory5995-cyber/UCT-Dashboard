@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
-import { useInTerminalPanel, usePanelFreshness } from '../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelRows } from '../components/terminal'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
@@ -15,7 +15,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
-import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
+import { formatPercent, formatPercentAsSent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 import { useThemeInk, SEMANTIC_INK } from '../lib/theme'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
@@ -177,8 +177,8 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
 
   const chartPriceLines = useMemo(() => {
     const lines = []
-    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry $${posData.entry_price.toFixed(2)}` })
-    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop $${posData.stop_price.toFixed(2)}` })
+    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry ${formatCurrency(posData.entry_price)}` })
+    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop ${formatCurrency(posData.stop_price)}` })
     return lines
   }, [posData, ink])
 
@@ -506,6 +506,15 @@ export default function UCT20() {
     })
   }, [ranked, sort, posMap])
 
+  // Row <GO>: the number a member types is the RANK this list prints in its # column, so the
+  // numbered rows follow rank order whatever the sort; the board list follows the rows as shown.
+  const rankRows = useMemo(() => allTickers.map(sym => `$${sym}`), [allTickers])
+  usePanelRows(rankRows)
+  const shownSyms = useMemo(
+    () => sortedRows.map(({ item }) => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
+    [sortedRows])
+  usePanelList(shownSyms.length ? { syms: shownSyms, label: 'UCT 20' } : null)
+
   const toggleSort = useCallback(key => {
     setSort(prev => nextUct20Sort(prev, key))   // desc → asc → reset
   }, [])
@@ -559,6 +568,7 @@ export default function UCT20() {
         <button className={styles.methodBtn} onClick={copyTickers} disabled={!stocks.length}>
           {copied ? 'Copied' : 'Copy tickers'}
         </button>
+        <BoardFromList syms={shownSyms} label="UCT 20" testId="uct20-board" />
         <button className={styles.methodBtn} onClick={() => setShowMethodology(true)}>
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           How it&rsquo;s built
@@ -622,7 +632,7 @@ export default function UCT20() {
                   className={`${styles.ctxItem} ${exposure.score >= 70 ? styles.gain : exposure.score >= 50 ? styles.ctxAmber : styles.loss}`}
                   title={exposure.note || 'Recommended market exposure from the UCT regime model'}
                 >
-                  UCT EXPOSURE {exposure.score}%
+                  UCT EXPOSURE {formatPercentAsSent(exposure.score)}
                 </span>
               )}
               {sectorMix.length > 0 && (

@@ -46,7 +46,7 @@ import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
 import { useInTerminalPanel, PanelState } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
-import { formatNumber } from '../lib/presentation/presentationPrimitives'
+import { formatNumber, formatNumberMax, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -319,17 +319,17 @@ function fmtPct(v) {
   if (v === null || v === undefined) return '—'
   return formatNumber(Number(v), { decimals: 1, grouping: false })
 }
-function fmtPrice(v) {
+export function fmtPrice(v) {
   if (v === null || v === undefined) return '—'
-  return Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 })
+  return formatNumberMax(Number(v), { maxDecimals: 2 })
 }
 function fmtBool(v) {
   if (v === null || v === undefined) return '—'
   return v === 1 ? '✓' : '✗'
 }
-function fmtInt(v) {
+export function fmtInt(v) {
   if (v === null || v === undefined) return '—'
-  return Number(v).toLocaleString('en-US')
+  return formatNumber(Number(v))
 }
 
 function fmtCell(col, val) {
@@ -399,7 +399,7 @@ function AnalogueCard({ analogue, refMetrics }) {
     <div className={styles.analogueCard}>
       <div className={styles.analogueCardHeader}>
         <span className={styles.analogueDate}>{date}</span>
-        <span className={styles.analogueSim}>{similarity}% match</span>
+        <span className={styles.analogueSim}>{formatPercentAsSent(similarity)} match</span>
       </div>
 
       {/* Forward SPY returns */}
@@ -416,7 +416,7 @@ function AnalogueCard({ analogue, refMetrics }) {
             <div key={k} className={styles.analogueFwdItem}>
               <span className={styles.analogueFwdLabel}>{label}</span>
               <span className={`${styles.analogueFwdVal} ${val >= 0 ? styles.analogueGreen : styles.analogueRed}`}>
-                {val > 0 ? '+' : ''}{val}%
+                {val > 0 ? '+' : ''}{formatPercentAsSent(val)}
               </span>
             </div>
           )
@@ -431,7 +431,7 @@ function AnalogueCard({ analogue, refMetrics }) {
           if (then == null) return null
           const fmtV = v => {
             if (v == null) return '--'
-            if (key === 'sp500_close') return Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
+            if (key === 'sp500_close') return formatNumberMax(Number(v), { maxDecimals: 0 })
             return formatNumber(Number(v), { decimals: key === 'ratio_5day' ? 2 : key === 'vix' ? 1 : 0, grouping: false })
           }
           return (
@@ -465,7 +465,7 @@ function BreadthAnalogues() {
     const fwd20 = top.forward_returns?.fwd_20d
     if (fwd20 == null) return null
     const dir = fwd20 >= 0 ? 'gained' : 'lost'
-    return `Last time breadth looked like this was ${top.date} — SPY ${dir} ${Math.abs(fwd20)}% over the next month`
+    return `Last time breadth looked like this was ${top.date} — SPY ${dir} ${formatPercentAsSent(Math.abs(fwd20))} over the next month`
   }, [analogues])
 
   if (isLoading) {
@@ -1133,7 +1133,7 @@ export default function Breadth() {
                     : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
                 : isLoading ? 'Loading…' : 'No data')
             : (grid.count > 0
-                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                ? `${formatNumber(grid.count)} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
                 : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')}
         </span>
         {activeTab === 'breadth' && (

@@ -6,6 +6,7 @@ import { signedPct } from '../researchFormat'
 import rp from '../ResearchPage.module.css'
 import styles from './SeasonalityTab.module.css'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
 
 // COV-01 (roadmap RM-L11) — how this stock has done by calendar month and by weekday,
 // from our own daily bars. DARK behind SEASONALITY_ENABLED.
@@ -32,7 +33,7 @@ function Table({ caption, rows, nLabel, thinNote }) {
             <th scope="row">{r.label}{r.thin ? <span className={styles.thinMark} title={thinNote}> *</span> : null}</th>
             <td className={tone(r.avg_pct)}>{pct(r.avg_pct)}</td>
             <td className={tone(r.median_pct)}>{pct(r.median_pct)}</td>
-            <td>{r.pct_up == null ? '—' : `${r.pct_up}%`}</td>
+            <td>{formatPercentAsSent(r.pct_up)}</td>
             <td>{r.n}</td>
           </tr>
         ))}

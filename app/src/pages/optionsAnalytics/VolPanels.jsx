@@ -3,7 +3,7 @@ import useDarkSection from './useDarkSection'
 import { OffLine } from './OffNotice'
 import FailedRead from './FailedRead'
 import styles from './optionsAnalytics.module.css'
-import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { formatNumber, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import { volPts } from './optionsFormat'
 import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
@@ -18,6 +18,13 @@ import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminal
 const enc = encodeURIComponent
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
+
+// The rank / percentile header and the volume strip, through the shared formatter (completeness
+// audit 2026-10-07, column f). Same text as the old `Math.round(v)%` / `toLocaleString()` for
+// every value the server sends; a missing one is the em dash, never "0%" or "NaN".
+export const ivRankText = (v) => formatPercent(v == null ? NaN : Number(v), { decimals: 0 })
+export const wholeText = (v) => formatNumber(v == null ? NaN : Number(v), { decimals: 0, grouping: false })
+export const countText = (v) => formatNumber(v == null ? NaN : Number(v))
 
 // A hover title cannot be read on a touch screen, so a note that explains how a
 // number is measured is ALSO a tap-to-open line. The title stays for desktop.
@@ -55,8 +62,8 @@ export function IvRankBadge({ sym, fallback = null }) {
   }
   return (
     <span data-testid="iv-rank-badge" title={title}>
-      IV rank <b>{Math.round(data.iv_rank)}%</b> {data.rank_word}
-      <span className={styles.muted}> · pctl {Math.round(data.iv_percentile)} · {data.window_sessions} sessions</span>
+      IV rank <b>{ivRankText(data.iv_rank)}</b> {data.rank_word}
+      <span className={styles.muted}> · pctl {wholeText(data.iv_percentile)} · {data.window_sessions} sessions</span>
       {' '}<TapNote text={title} testid="iv-rank-note" />
     </span>
   )
@@ -91,7 +98,7 @@ export function OptionMonitorStrip({ sym }) {
           : <span className={styles.muted}>{e.note}</span>}
       </span>
       <span title={v.note || ''}>
-        Vol C/P <b>{v.call_volume == null ? '—' : v.call_volume.toLocaleString()}</b>/<b>{v.put_volume == null ? '—' : v.put_volume.toLocaleString()}</b>
+        Vol C/P <b>{countText(v.call_volume)}</b>/<b>{countText(v.put_volume)}</b>
         {v.put_call_ratio != null ? <span className={styles.muted}> · P/C {v.put_call_ratio}</span> : null}
         {volumeScope(v) ? <span className={styles.muted} data-testid="option-monitor-scope"> ({volumeScope(v)})</span> : null}
       </span>

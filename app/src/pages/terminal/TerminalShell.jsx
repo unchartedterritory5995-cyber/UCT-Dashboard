@@ -274,7 +274,10 @@ export function Panel({
     openBoard: (req) => onBoard?.(req),
     codes: boardCodes || [],
     pageSize: BOARD_PAGE,
-  } : null), [onList, onBoard, owner, boardCodes])
+    // An embedded list's numbered rows (`usePanelRows`): the same focused-only `onRows` the
+    // command panels get as a prop, so row <GO> reaches page/tab lists that are never forked.
+    publishRows: rowsProp,
+  } : null), [onList, onBoard, owner, boardCodes, rowsProp])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (

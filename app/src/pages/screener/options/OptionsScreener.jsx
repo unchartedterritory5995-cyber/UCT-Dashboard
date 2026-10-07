@@ -4,9 +4,9 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { OffLine } from '../../optionsAnalytics/OffNotice'
 import FailedRead from '../../optionsAnalytics/FailedRead'
-import { useInTerminalPanel } from '../../../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelSymbolRows } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
-import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import { num } from '../../optionsAnalytics/optionsFormat'
@@ -37,7 +37,12 @@ const FIELDS = [
 
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
-const int = (v) => (v == null ? '—' : Math.round(Number(v)).toLocaleString('en-US'))
+const int = (v) => (v == null ? '—' : formatNumber(Math.round(Number(v))))
+
+// Row <GO> (completeness audit 2026-10-07, column g): each view's rows, in table order, load
+// their UNDERLYING (`$SYM`) into the linked group; the underlyings are the list a "Board of"
+// opens. A view with no table on screen publishes nothing.
+const underlyings = (rows) => (Array.isArray(rows) ? rows.map((r) => r.underlying) : [])
 
 export function screenUrl(preset, filters) {
   const q = new URLSearchParams()
@@ -68,6 +73,7 @@ function Screen() {
   const { data, error, mutate } = useSWR(url, sectionFetcher, { revalidateOnFocus: false })
 
   const presets = data?.presets || {}
+  const shownSyms = usePanelSymbolRows(!error && data?.status === 'ok' ? underlyings(data.rows) : [], 'OSCR screen')
   return (
     <div data-testid="opts-screen">
       <div className={styles.chips} role="group" aria-label="Preset screens">
@@ -104,6 +110,7 @@ function Screen() {
           <p className={styles.facts} data-testid="opts-session">
             {int(data.matched)} contracts matched · showing {int(data.shown)} · session {data.session} (end-of-day snapshot)
           </p>
+          <BoardFromList syms={shownSyms} label="OSCR screen" testId="oscr-board" />
           {!data.rows?.length ? (
             <p className={styles.note} data-testid="opts-none">No contract in the {data.session} snapshot passed these filters.</p>
           ) : (
@@ -138,6 +145,8 @@ function Screen() {
 
 function Volume() {
   const { data, error, mutate } = useSWR('/api/options-screener/unusual-volume', sectionFetcher, { revalidateOnFocus: false })
+  const volRows = !error && data?.status === 'ok' ? (data.ranked.length ? data.ranked : data.not_ranked) : []
+  const volSyms = usePanelSymbolRows(underlyings(volRows), 'OSCR unusual volume')
   if (error) return <ReadFailed error={error} what="unusual-volume ranking" retry={mutate} />
   if (!data) return <p className={styles.note}>Loading the unusual-volume ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
@@ -154,6 +163,7 @@ function Volume() {
       <p className={styles.facts} data-testid="opts-vol-source">
         {data.volume_rule}{data.fallback_note ? ` ${data.fallback_note}` : ''}
       </p>
+      <BoardFromList syms={volSyms} label="OSCR unusual volume" testId="oscr-vol-board" />
       <div className={styles.scroll}>
         <table className={styles.grid} aria-label="Option volume ranking">
           <thead><tr><th scope="col">Session</th><th scope="col">Underlying</th><th scope="col">Volume</th><th scope="col">Calls</th><th scope="col">Puts</th><th scope="col">Own average</th><th scope="col">Ratio</th></tr></thead>
@@ -179,6 +189,7 @@ function Volume() {
 
 function Iv() {
   const { data, error, mutate } = useSWR('/api/options-screener/iv-percentile', sectionFetcher, { revalidateOnFocus: false })
+  const ivSyms = usePanelSymbolRows(!error && data?.status === 'ok' ? underlyings(data.ranked) : [], 'OSCR IV percentile')
   if (error) return <ReadFailed error={error} what="IV percentile ranking" retry={mutate} />
   if (!data) return <p className={styles.note}>Loading the IV percentile ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
@@ -190,6 +201,7 @@ function Iv() {
         {data.ranked.length === 0 && data.available_on ? ` · the percentile becomes available on ${data.available_on} if every session from here is logged` : ''}
       </p>
       {data.note && <p className={styles.note} data-testid="opts-iv-note">{data.note}</p>}
+      <BoardFromList syms={ivSyms} label="OSCR IV percentile" testId="oscr-iv-board" />
       {data.ranked.length > 0 && (
         <div className={styles.scroll}>
           <table className={styles.grid} aria-label="IV percentile ranking">
