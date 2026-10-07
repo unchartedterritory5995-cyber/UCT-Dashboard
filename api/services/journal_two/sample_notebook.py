@@ -54,7 +54,7 @@ from __future__ import annotations
 import copy
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -309,6 +309,85 @@ def active_ids(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[
             conn.close()
 
 
+#: How long before its first note the seed can have made its folder. The folder and the first
+#: note are written back to back in one import call, so this is slack for a slow write, not a
+#: window a member can act in.
+FOLDER_LEAD = timedelta(seconds=2)
+
+
+def _when(raw: Any) -> datetime | None:
+    try:
+        at = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+
+
+def _sample_folders(user_id: str, conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """The folders the seed MADE for this member, deepest first.
+
+    ⛔ NEVER BY NAME, AND NEVER FROM THE PREFERENCE (fin walk P8, and fin-data M3). A folder
+    row carries no marker of its own, a member can name a folder anything, and a client can
+    write the preference. What is durable is the notes' own marker: a folder is the sample's
+    when it was made WHILE the sample's notes were being written, that is between the first
+    marked note (less `FOLDER_LEAD`) and the last. So:
+      * a folder the member made earlier and the seed only reused is not the sample's;
+      * a folder the member made later, whatever its name, is not the sample's;
+      * a folder a sample note was moved INTO is not the sample's;
+      * a sample folder the member emptied by moving its notes out still is."""
+    marks = [_when(r[0]) for r in conn.execute(
+        "SELECT created_at FROM j2_notes WHERE user_id = ? AND import_source = ?",
+        (user_id, sample_marker.SAMPLE_SOURCE))]
+    marks = [m for m in marks if m is not None]
+    if not marks:
+        return []
+    first, last = min(marks) - FOLDER_LEAD, max(marks)
+    rows = conn.execute(
+        "SELECT id, name, parent_id, created_at FROM j2_note_folders WHERE user_id = ?", (user_id,)).fetchall()
+    parent = {r["id"]: r["parent_id"] or "" for r in rows}
+
+    def depth(fid: str) -> int:
+        n, seen = 0, set()
+        while fid and fid in parent and fid not in seen:
+            seen.add(fid)
+            fid, n = parent[fid], n + 1
+        return n
+
+    made = [r for r in rows if (at := _when(r["created_at"])) is not None and first <= at <= last]
+    return sorted(made, key=lambda r: -depth(r["id"]))
+
+
+def _remove_folders(user_id: str, conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
+    """Delete each folder the seed made that holds nothing of the member's. Returns
+    (removed, kept).
+
+    A folder is KEPT, and nothing in it is moved, when it holds a note that is not a sample
+    note (live, archived or in Trash: all of them are the member's), or a folder that is
+    still there. Deepest first, so an emptied child goes before its parent is looked at.
+    A deleted folder's sample notes are in Trash already; the Notebook's own folder delete
+    moves them up one level, so a restore from Trash still works."""
+    removed: list[dict] = []
+    kept: list[dict] = []
+    for f in _sample_folders(user_id, conn):
+        mine = conn.execute(
+            "SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND folder_id = ? AND " + sample_marker.not_sample_sql(),
+            (user_id, f["id"])).fetchone()[0]
+        inner = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_folders WHERE user_id = ? AND parent_id = ?",
+            (user_id, f["id"])).fetchone()[0]
+        if mine:
+            kept.append({"id": f["id"], "name": f["name"], "memberNotes": mine, "sentence": (
+                f'The folder "{f["name"]}" has {mine} note{"" if mine == 1 else "s"} of yours in it, '
+                "so it was kept.")})
+        elif inner:
+            kept.append({"id": f["id"], "name": f["name"], "memberNotes": 0, "sentence": (
+                f'The folder "{f["name"]}" still holds a folder that was kept, so it was kept too.')})
+        elif notes.delete_folder(user_id, f["id"], conn=conn):
+            removed.append({"id": f["id"], "name": f["name"]})
+    conn.commit()
+    return removed, kept
+
+
 def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     """Trash exactly the sample notes that are not in Trash already, and (W14-E) undo every
     non-note row a capability example wrote -- a passed setup, a resurfacing insight --
@@ -329,7 +408,11 @@ def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str,
         # gone. Matching no longer picks a sample, so this only finds links frozen before that
         # rule; it is done here as well as on read so removal alone is enough.
         examples_removed["planLinksForgotten"] = plan_grading.forget_sample_links(conn, user_id)
+        # fin walk P8: the folders the seed made go too, unless the member put something of
+        # their own in one. Last, so every sample note is in Trash before a folder is judged.
+        folders_removed, folders_kept = _remove_folders(user_id, conn)
     finally:
         if owned:
             conn.close()
-    return {"trashed": trashed, "examplesRemoved": examples_removed}
+    return {"trashed": trashed, "examplesRemoved": examples_removed,
+            "foldersRemoved": folders_removed, "foldersKept": folders_kept}
