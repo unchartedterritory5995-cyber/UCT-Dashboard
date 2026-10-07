@@ -54,8 +54,8 @@ const SPARK = {
 const SYM_IDX = { QQQ: 0, SPY: 1, IWM: 2, DIA: 0, BTC: 1, VIX: 2 }
 
 // Colors per direction — the theme's own up/down tokens (--gain / --loss; --text-muted for
-// flat), alpha'd with color-mix. They go through `style`, not SVG presentation attributes:
-// an attribute cannot resolve var(--…), a style property can, and it follows a theme switch.
+// flat), alpha'd with color-mix. They are set through `style` (a CSS property, where var() and
+// color-mix() are plain CSS) rather than SVG presentation attributes, and follow a theme switch.
 const mix = (tok, pct) => `color-mix(in srgb, var(${tok}) ${pct}%, transparent)`
 const sparkInk = (tok, dim, bright, glow) => ({ dim: mix(tok, dim), bright: mix(tok, bright), fill: `var(${tok})`, glow: mix(tok, glow) })
 const SPARK_COLOR = {
