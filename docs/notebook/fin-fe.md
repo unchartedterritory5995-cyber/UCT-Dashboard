@@ -68,21 +68,62 @@ slower outside market hours, and a bare `time.sleep` never lets Playwright deliv
 | Skip links | `70a29c9c72` (13Q-3) | `wave13-13q3.md` | `a11y/focusFlows.test.jsx`, `a11y/skipLinkUntappable.test.js` | intended and tested |
 | Ctrl+Alt+B, Shift+Arrow | `64127beacb` (13Q-5) | `wave13-13q5.md` | `lib/bulkActionsShortcut.test.js`, `NotebookTab.bulk.test.jsx` | intended and tested |
 | Create response seeds the note cache | `fb2079c44d` | `wave13-q1check.md` | `NoteEditorPage.wave13q1check.test.jsx` | intended and tested |
-| Click on an embed body no longer selects the block | `0d11a14787` (13H-2) | `wave13-13h2.md` | `lib/widgetEmbedNode.test.js` | intended for live charts; **a regression for static images** |
+| Click on an embed body no longer selects the block | `0d11a14787` (13H-2) | `wave13-13h2.md` | `lib/widgetEmbedNode.test.js` | **a regression, fixed in round 2 (`33bbd56750`)** |
 
 **Trade Plan.** It is idempotent: the second pick creates nothing. It can only list and create. It
 reuses the member's own definition of the same name and type, and when the name is used for another
 type it makes "Stop (number)" instead. A member's existing rows are byte-for-byte unchanged.
 
-**Embed click.** Measured in a real browser (`C_observations.json`): a click on the chart body
-selects nothing. A click on the caption selects the block. A block with no caption had no surface
-of its own that a click selects, other than the fingerprint panel, which is a dark feature. The
-keyboard still works: one arrow press selects the block, then copy, cut and paste, Backspace and
-undo all behaved. The toolbar's Remove button still deletes by mouse. Dragging a block by mouse was
-not measured. The rule also covers archived images, which have no gesture to protect, so a click on
-an archived chart image no longer selects it. `lib/widgetEmbedNode.finFe.test.js` asserts the old
-behaviour and fails on this branch; it is written with `it.fails` so the suite stays green and
-turns red when the behaviour is restored. Suggested fix, not made here: mark only a live body.
+**Embed click (round 2, controller ruling: fix before landing).** Commit `0d11a14787` stopped every
+mousedown on a block's body from reaching the editor. Its reason was Draw mode: the editor's
+click-to-select refocuses the editor on mouseup, and the embed reads that focus as "done drawing",
+so Draw mode ended after the first mark. The stop was unconditional, so with every flag off a click
+on an archived image, or on a chart with no caption, no longer selected the block.
+
+Fix (`33bbd56750`): the embed marks its body `data-widget-embed-body="draw"` only while Draw mode is
+on, and the stop applies only to that. Out of Draw mode the body is the editor's to select, as
+before the wave. Buttons, selects and inputs inside the block keep their own clicks. The `it.fails`
+record is now a passing test, with the control cases beside it (`lib/widgetEmbedNode.finFe.test.js`,
+7 tests; three mutations each went red).
+
+Real browser, every wave flag OFF, `tools/notebook_fin_fe_select_walk.py`, evidence
+`docs/notebook/evidence/fin-fe/select-walk-run3-33bbd56750/` (11 rows PASS, integrity CLEAN, port
+free). Two blocks with no caption, a live chart and an archived image:
+
+| | 1280 px, mouse | 390 px, touch |
+|---|---|---|
+| Archived image: click or tap selects | yes | yes |
+| Archived image: then Delete, then undo | removed, restored | removed, restored |
+| Archived image: drag by the body / long-press | moved above the first paragraph | long-press selects it; no menu opens |
+| Live chart: click or tap selects | yes | **no** (see below) |
+| Live chart: then Delete, then undo | removed, restored | not reached |
+| Live chart: drag by the body / long-press | moved above the first paragraph | long-press selects nothing |
+| Draw mode on, two clicks on the chart | Draw mode stays on, block not selected | not run |
+| Click on a toolbar button | acts on the button, block not selected | not run |
+
+Mouse drag, not measured in round 1: pressing on the body and dragging onto the first paragraph
+moves the block there, for both kinds (`dragstart`, `dragover`, `drop`, `dragend` all seen).
+
+**Open, and older than this branch: a live chart on a phone.** A tap on a live chart is cancelled by
+the chart library itself (`touchend` is `defaultPrevented`), so no `mousedown` is ever produced and
+the editor's click-to-select is never asked. `stopEvent` is not consulted at all, so this fix cannot
+change it and 13H-2 did not cause it. I did not run a pre-wave build to measure it there; the
+statement rests on the recorded event list. On a phone the block is still reachable by the keyboard
+path, the block handle and the toolbar's Remove button. It needs a ruling of its own.
+
+Not exercised in the browser: a button INSIDE the body (the walk's control button was the toolbar's
+"Hide toolbar", outside it). The unit control covers a button, a select and an input inside the body.
+
+Runs 1 and 2 of the selection walk are kept. Their failed rows were the instrument: run 1 dropped
+the block where it already was; run 2 read a selection the drag test had left behind.
+
+## The basics tour (wave 8): no history trap
+
+Checked for the I1 defect. It does not have it. The basics tour never navigates, and it removes
+`state.startTour` from the history entry with a replace when it reads it (`NotebookTour.jsx:156-159`).
+New rail `onboarding/NotebookTour.back.test.jsx`, real tour over real history entries: the request
+is spent when read and other state is kept; one Back returns to Help; Forward does not reopen the
+tour; a reload does not replay it. It passed on first run, so nothing was changed.
 
 ## Bytes
 
@@ -102,8 +143,13 @@ removed one. `CompassReview` and `EODRecap` are not on the Notebook's first-open
 - "Replay modal without Escape" (lane A11Y).
 - Template pick busy state, the thesis-chip poll, `draftDailyReview` and the daily template (the
   last is in lane DATA's file).
-- The base tour (`NotebookTourGate`) was not checked for the same Back-button trap.
 - A gate file that fails to load in `Layout` is not possible today (it is eager).
+
+## Tests, round 2
+
+`npx vitest run <14 named files> --maxWorkers=2` (every test that touches the embed view or node,
+plus the tour navigation rails): Test Files 1 failed, 13 passed; Tests 1 failed, 197 passed. The one
+failure is the same date-expired parking note described below.
 
 ## Tests
 
