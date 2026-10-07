@@ -25,7 +25,8 @@
   resize: vertical;
   background: var(--bg-base, #1a1a1a);
   color: var(--text, #e8e6e1);
-  border: 1px solid var(--border, #2a2a2e);
+  /* --field-edge: an input's border has to be 3:1 against the page (--border is 1.2:1). */
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-md, 8px);
   padding: 8px 10px;
   font: inherit;
@@ -63,7 +64,7 @@
   text-decoration: underline;
 }
 
-.error { color: var(--loss, #ef4444); font-size: 12px; margin: 8px 0 0; }
+.error { color: var(--danger-ink); font-size: 12px; margin: 8px 0 0; }
 
 /* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
 @media (max-width: 1024px) {

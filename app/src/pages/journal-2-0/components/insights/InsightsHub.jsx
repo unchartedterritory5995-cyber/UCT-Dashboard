@@ -235,7 +235,7 @@ function ReviewDraftsSection({ accountId }) {
         </button>
       </div>
       {error && (
-        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 12, marginTop: 10 }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 12, marginTop: 10 }}>{error}</p>
       )}
     </div>
   )

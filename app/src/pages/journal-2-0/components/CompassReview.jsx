@@ -104,7 +104,7 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
         </div>
       </header>
       {draftError && (
-        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 11, margin: '0 0 8px' }}>
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 11, margin: '0 0 8px' }}>
           {draftError}
         </p>
       )}
