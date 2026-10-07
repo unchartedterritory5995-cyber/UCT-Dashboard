@@ -139,13 +139,31 @@ def test_the_json_ld_is_valid_and_the_faq_matches_the_visible_faq():
         assert q["acceptedAnswer"]["text"] in html, f"FAQ answer not visible: {q['name']}"
 
 
+SOCIAL_LINKS = [
+    "https://x.com/TSDR_Trading",
+    "https://www.instagram.com/tsdr_trading",
+    "https://youtube.com/@unchartedtrtyy",
+    "https://facebook.com/unchartedterritoryy",
+]
+
+
+def test_the_footer_social_row_links_the_approved_accounts_with_labels():
+    html = PAGE.read_text(encoding="utf-8")
+    foot = html[html.index("<footer"):html.index("</footer>")]
+    row = re.findall(r'<a href="(https://[^"]+)" rel="noopener" aria-label="([^"]+)">([^<]+)</a>', foot)
+    assert [h for h, _, _ in row] == SOCIAL_LINKS, row
+    assert all(label.strip() and text.strip() for _, label, text in row), row
+    main = html[html.index("<main"):html.index("</main>")]
+    assert not any(link in main for link in SOCIAL_LINKS), "a social link left the footer"
+
+
 def test_every_cta_goes_to_the_whop_link_and_there_are_no_prices():
     p = _parsed()
     external = [a["href"] for t, a in p.tags if t == "a" and a.get("href", "").startswith("http")]
     assert external, "no outbound CTA found -- the check is pointed at nothing"
-    # The only outbound link is the Whop CTA. The footer's Terms and Privacy
-    # are the room's own pages (Privacy moved off Whop's policy 2026-10-04).
-    assert set(external) == {WHOP}, f"unexpected outbound links: {sorted(set(external))}"
+    # The outbound links are the Whop CTA and the footer's social row. The
+    # footer's Terms and Privacy are the room's own pages.
+    assert set(external) == {WHOP, *SOCIAL_LINKS}, f"unexpected outbound links: {sorted(set(external))}"
     ctas = [a["href"] for t, a in p.tags if t == "a" and "btn" in (a.get("class") or "").split()]
     assert ctas and set(ctas) == {WHOP}, f"a CTA button points somewhere else: {ctas}"
     text = re.sub(r"<script.*?</script>|<style.*?</style>", "", PAGE.read_text(encoding="utf-8"), flags=re.S)
@@ -267,10 +285,11 @@ def test_the_terms_page_has_no_prices_and_no_em_dashes():
 
 PRIVACY_BULLETS = [
     "Uncharted Territory runs a live trading room on Discord, sold through Whop.",
-    "When you ask us to contact you (for example through a form on Facebook or Instagram), we collect what you send: your name, email, phone number and your answers to the form's questions.",
+    'When you ask us to contact you (for example through the "Talk to the team first" form on this site, or a form on Facebook or Instagram), we collect what you send: your name, email, phone number and your answers to the form\'s questions.',
     "We use it only to contact you about the live trading room, by phone, text, email or direct message, and to answer your questions.",
     "We don't sell your information or share it with anyone else for their own marketing.",
     "Purchases and memberships are handled by Whop, under Whop's Privacy Policy. Our emails are sent with Kit, and every email has an unsubscribe link.",
+    "This site uses the Whop Pixel and Cloudflare Web Analytics to measure visits and sign-ups.",
     "To have your information deleted or to stop hearing from us, reply to any message from us or reach us in the Discord, and we'll take care of it.",
 ]
 

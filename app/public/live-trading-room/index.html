@@ -352,6 +352,9 @@
     footer nav { display: flex; flex-wrap: wrap; gap: 0 18px; }
     footer nav a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; color: var(--text-muted); }
     footer nav a:hover { color: var(--text-bright); }
+    footer .social { margin-bottom: 6px; }
+    footer .social a { justify-content: center; }
+    footer .social-label { display: inline-flex; align-items: center; min-height: 44px; }
 
     @media (max-width: 420px) {
       .brand span { font-size: 11px; letter-spacing: 2px; }
@@ -591,6 +594,13 @@
 
   <footer class="wrap">
     <p>Education only, not financial advice. Trading carries real risk of loss.</p>
+    <nav class="social" aria-label="Uncharted Territory on social media">
+      <span class="social-label">Follow along:</span>
+      <a href="https://x.com/TSDR_Trading" rel="noopener" aria-label="TSDR Trading on X">X</a>
+      <a href="https://www.instagram.com/tsdr_trading" rel="noopener" aria-label="TSDR Trading on Instagram">Instagram</a>
+      <a href="https://youtube.com/@unchartedtrtyy" rel="noopener" aria-label="Uncharted Territory on YouTube">YouTube</a>
+      <a href="https://facebook.com/unchartedterritoryy" rel="noopener" aria-label="Uncharted Territory on Facebook">Facebook</a>
+    </nav>
     <nav aria-label="Footer">
       <a href="/live-trading-room/terms">Terms</a>
       <a href="/live-trading-room/privacy">Privacy</a>
