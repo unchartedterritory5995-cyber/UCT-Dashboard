@@ -386,6 +386,31 @@ describe('runImport', () => {
     expect(calls.filter((c) => c.url === '/api/j2/notes/n1' && c.method === 'PUT')).toHaveLength(1)
   })
 
+  it('names the reason the server gave when a file is refused for its size (413), not a bare status', async () => {
+    // The upload doors cap the body while it is read and answer 413 with a
+    // sentence a member can act on. "Upload failed (HTTP 413)" told them nothing.
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+      }
+      if (url.includes('/attachments')) {
+        return new Response(JSON.stringify({ detail: 'File must be < 25 MB' }), { status: 413 })
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [],
+               bodyJson: doc([img('import-ref://big.pdf')]), bodyPlain: 'x',
+               media: [{ ref: 'big.pdf', kind: 'file', name: 'big.pdf',
+                         vfile: { bytes: async () => new Uint8Array([1]), path: 'big.pdf' } }],
+               links: [] }],
+      onProgress: () => {},
+    })
+    expect(summary.failures).toEqual([{ name: 'big.pdf', reason: 'File must be < 25 MB' }])
+  })
+
   it('uploads media with a MIME type derived from the file name (server enforces a MIME allowlist)', async () => {
     let capturedFile = null
     vi.stubGlobal('fetch', vi.fn(async (url, opts) => {

@@ -242,7 +242,15 @@ async function uploadMediaItem(noteId, item) {
   const fd = new FormData()
   fd.append('file', new Blob([bytes], { type: mimeForName(mimeSource) }), filename)
   const res = await fetchWithRetry(endpoint, { method: 'POST', credentials: 'include', body: fd })
-  if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`)
+  if (!res.ok) {
+    // A refusal the member can act on arrives as the server's own sentence: a file
+    // over its size cap is a 413 "File must be < 25 MB", a type that is not allowed
+    // a 400 that names the type. Say that. A 5xx detail is plumbing, so it keeps
+    // the bare status.
+    const refusal = res.status < 500 ? await res.json().catch(() => null) : null
+    const said = typeof refusal?.detail === 'string' ? refusal.detail : null
+    throw new Error(said || `Upload failed (HTTP ${res.status})`)
+  }
   const data = await res.json()
   return data.url
 }
