@@ -94,12 +94,15 @@ export default function PortfolioHeat() {
   }
 
   if (data.ok === false) {
+    // A computation the server could not finish is a failed read, with the same Retry and (in a
+    // terminal panel) the same PanelState as a failed request (completeness audit 2026-10-07).
+    const why = data.reason ? `Portfolio risk could not be computed: ${data.reason}.` : 'Portfolio risk could not be computed right now.'
+    const retry = <button type="button" onClick={() => mutate()}>Retry</button>
+    if (inPanel) return <div className={pageCls}><PanelState kind="error" role="status" title={why} action={retry} /></div>
     return (
       <div className={pageCls}>
         {heading}
-        <p className={styles.loading} role="status">
-          {data.reason ? `Portfolio risk could not be computed: ${data.reason}.` : 'Portfolio risk could not be computed right now.'}
-        </p>
+        <p className={styles.loading} role="status">{why}{' '}{retry}</p>
       </div>
     )
   }
