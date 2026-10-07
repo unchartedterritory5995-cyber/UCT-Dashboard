@@ -3637,6 +3637,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception(f"rollout seed failed: {e}")
 
+    # ⭐ UCT TERMINAL GRADUATION (owner decision 2026-10-05, re-confirmed 2026-10-07):
+    # every EXISTING member joins the Terminal-Next cohort ONCE per volume. New
+    # signups are enrolled at signup; this is the one-shot for everyone before.
+    # On a daemon thread so it can never hold up a boot; the marker in DATA_DIR is
+    # written only after the write succeeds (same shape as `.logo_hires_v1`). The
+    # writer is `rollout.seed_cohort_all_members` -- the one `tools/rollout_cohort.py
+    # seed-all` uses -- reached through `rollout_gate`, the one place that names
+    # the cohort. A single INSERT ... SELECT, so it is bounded by one statement.
+    try:
+        import threading as _tn_th
+
+        def _terminal_next_seed():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import rollout_gate as _rg
+                _added = _rg.seed_existing_members_into_terminal_next()
+                if _added is None:
+                    _log.info("[startup] terminal seed: already ran (marker present)")
+                else:
+                    _log.info("[startup] terminal seed: enrolled existing members "
+                              "(%d new tag rows)", _added)
+            except Exception:
+                _log.exception("[startup] terminal seed failed; no marker written, "
+                               "the next boot retries")
+
+        _tn_th.Thread(target=_terminal_next_seed, name="terminal-next-seed",
+                      daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
+
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
     # `if not ingest_enabled(): return` guard and only when this process holds
