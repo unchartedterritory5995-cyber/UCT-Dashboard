@@ -358,6 +358,19 @@ describe('degradation', () => {
       screen.getByText(/Year ends 2025-08-28 .* placed on 3 filed year-end dates/)).toBeInTheDocument())
   })
 
+  // TERM-033: a failed read used to render "No earnings history is available for X", the
+  // NVDA-shaped lie (a claim about the company made out of a 502).
+  it('a FAILED read is an error with a Retry, never "no earnings history"', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }))
+    render(<DockEarnings sym="FAILX" />)
+    expect((await screen.findByRole('alert')).textContent).toMatch(/could not be loaded for FAILX/)
+    expect(screen.queryByText(/No earnings history/)).toBeNull()
+    mockApi()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('renders nothing but a notice without a symbol', () => {
     mockApi()
     render(<DockEarnings sym={null} />)

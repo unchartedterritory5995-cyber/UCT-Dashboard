@@ -102,6 +102,28 @@ describe('useLiveBreadth', () => {
     const { result } = renderHook(() => useLiveBreadth(), { wrapper })
     await waitFor(() => expect(result.current.row).toBeNull())
   })
+
+  // TERM-033: the failure is an ERROR, not a `null` answer stored over the live row.
+  it('a failed read is reported as an error, not as an answer', async () => {
+    mockFetch({}, false)
+    const { result } = renderHook(() => useLiveBreadth(), { wrapper })
+    await waitFor(() => expect(result.current.error).toBeTruthy())
+    expect(result.current.row).toBeNull()
+    expect(result.current.meta).toBeNull()
+  })
+
+  it('a failed refresh keeps the last live row instead of wiping it', async () => {
+    const cache = new Map([['/api/breadth-monitor/live', { data: payload() }]])
+    const seeded = ({ children }) =>
+      createElement(SWRConfig, { value: { provider: () => cache, dedupingInterval: 0, shouldRetryOnError: false } },
+        children)
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }))
+    const { result } = renderHook(() => useLiveBreadth(), { wrapper: seeded })
+    expect(result.current.row?.pct_above_50sma).toBe(66.3)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(result.current.row?.pct_above_50sma).toBe(66.3)
+  })
 })
 
 describe('useLiveBreadth polling cadence', () => {

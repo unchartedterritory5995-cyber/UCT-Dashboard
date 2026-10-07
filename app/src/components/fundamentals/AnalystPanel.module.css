@@ -1,6 +1,8 @@
 /* app/src/components/fundamentals/AnalystPanel.module.css — real design tokens, no emoji */
 .root { height: 100%; overflow: auto; padding: 8px 10px; font-family: var(--font-sans); font-size: var(--text-base, 12px); color: var(--text); }
 .hint { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--text-muted); font-size: var(--text-sm, 11px); }
+/* TERM-033: Retry beside a failed read. */
+.retry { margin-left: 8px; min-height: var(--tap-min, 44px); padding: 0 10px; font-size: inherit; color: var(--text-bright); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
 .block { margin-bottom: 12px; }
 .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
 .rating { font-weight: 700; color: var(--text-heading); font-size: var(--text-md, 13px); }

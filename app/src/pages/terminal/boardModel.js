@@ -423,6 +423,21 @@ export function movePanel(layout, i, d) {
   return { ok: true, to, layout: { ...layout, focus: to, panels } }
 }
 
+/** Move visible panel `from` to slot `to` (a drag-and-drop or "Move to panel N"): the panel is
+ *  taken out and re-inserted, so the ones between shift by one. Focus follows the moved panel.
+ *  Parked panels (beyond `count`) never move. Refused when either slot is off the board or the
+ *  two are the same. */
+export function reorderPanel(layout, from, to) {
+  const n = layout.count
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= n || to >= n || from === to) {
+    return { layout, ok: false }
+  }
+  const visible = layout.panels.slice(0, n)
+  const [moved] = visible.splice(from, 1)
+  visible.splice(to, 0, moved)
+  return { ok: true, to, layout: { ...layout, focus: to, panels: [...visible, ...layout.panels.slice(n)] } }
+}
+
 /** The channel a one-key re-link moves panel `i` to: the board's channels in order, then
  *  "not linked" (null), then round again. `undefined` when the panel follows no security. */
 export function nextLinkChannel(layout, i) {

@@ -46,7 +46,7 @@ in the panel, no new route".
 | 4 | **Index/theme contribution**: which names are driving a group's move (`MOV`/`IMOV`) | Bloomberg `MOV`/`IMOV` (06 §movers; best-of-breed A1 mechanism) | Theme holdings exist (`theme_db`) but `weight_pct` is written as `0.0` (`theme_performance.py`); no index weights in the estate | 4 | 2 | 8 | Deferred: an equal-weight contribution is honest for UCT's equal-weight themes but **not** for SPY/QQQ, and index weights would need a new source |
 | 5 | **Earnings implied-move calibration**: has the option market over- or under-priced this name's last N earnings moves | Market Chameleon "overestimated 77 % of the time in the last 13 quarters" (`desk-tools/market-chameleon.md` obs. 2) | `ERX` (`EarningsReactionPanel`) already shows 8 quarters of reaction, gap and drift **and** the next print's implied move. What is missing is the **historical** implied move per past print: UCT's own options log began 2026-09-30 (`OptionsHistoryPanel.jsx` header) | 4 | 2 | 8 | Deferred until the options log covers enough quarters. Reconstructing past implied moves from historical chains is a bulk Massive backfill, a job of its own |
 | 6 | **Short-interest history** | Bloomberg `SI`; UW short interest + FTD (UW dossier) | Current value only, single-sourced to Finviz (ledger D8). `FTD` panel exists | 3 | 3 | 9 | **Owned by the backlog** (`FB-A7-02`, FINRA bi-monthly floor) — not built here |
-| 7 | **Movers lenses in the terminal** (`MOST`/`LVI`/`OVI`/`HILO`: one tape, several hypotheses) | Bloomberg 06 §movers | Movers sidebar (single gap threshold), `/api/volume-scan`, NH/NL. No terminal code opens a movers list | 3 | 4 | 12 | Next candidate for this lane; needs a design pass on which lenses UCT can source honestly |
+| 7 | **Movers lenses in the terminal** (`MOST`/`LVI`/`OVI`/`HILO`: one tape, several hypotheses) | Bloomberg 06 §movers | Movers sidebar (single gap threshold), `/api/volume-scan`, NH/NL. No terminal code opens a movers list | 3 | 4 | 12 | **BUILT: `MOST`** (fn2-movers, §5) |
 | 8 | **Price alert from a chart level** | TradingView `Alt+click` (best-of-breed A2) | **Exists** on the chart (ledger I3: price, line and trendline alerts with five delivery channels) | – | – | – | Not a gap. The chart panel (`GP`) embeds the same chart |
 | 9 | **Scan-to-board** (screen results → a board of panels) | Bloomberg launchpad monitors | Screener + boards exist separately | 3 | 3 | 9 | Board work is the `fn-daily` lane; not built here |
 
@@ -79,5 +79,39 @@ variant is a one-line change. The shell already refuses a flagged code whose key
   four earnings per name, around 2027-Q1 for most names. Until then any calibration figure would be
   built on n≈0. Revisit then. `ERX` is the natural home (a block inside it, not a new code).
 * **#6 short-interest history**: `FB-A7-02`, the backlog lane.
-* **#7 movers lenses**: the next build in this lane.
+* **#7 movers lenses**: built as `MOST` (§5).
 * **#9 scan-to-board**: the `fn-daily` lane (boards).
+
+## 5. `MOST` — the movers lenses (#7, branch `terminal/fn2-movers`)
+
+Bloomberg 06 §5 warns against copying the rack (thirteen mover codes nobody visits), so this is
+**one code with lenses**, not `MOST` + `LVI` + `MOV`:
+
+| Typed | Shows |
+|---|---|
+| `MOST` | every mover, biggest move either way first |
+| `MOST UP` · `MOST DOWN` | gainers · losers |
+| `MOST RVOL` | unusual volume: the names the Volume Surge scanner has lit right now |
+
+Columns: symbol, last, % change, volume, volume vs average, and a **Why** link that opens the
+catalyst board's story inline (with `SYM MOVE` one click further). Sortable on every column
+(through the DataGrid seed), filterable by lens, minimum price and minimum volume. Clicking a
+row, or typing its number, **loads that name into the linked group** and keeps every panel's
+function (the shell's Shift+Enter path), so a chart following the group switches to it.
+
+**Sources, all existing and cached, no new route or vendor call:** `/api/movers` (the Movers
+sidebar's ≥3% gappers list, serve-stale behind a 30 s TTL), `/api/catalysts/today` (the catalyst
+board: tag, thesis, today's volume ÷ 30-day average), `/api/volume-scan/live` (the in-memory
+Volume Surge accumulator: volume so far ÷ usual by this time of day, and the `lit` flag), and the
+shared live-price store (one 2 s poll of every panel's names). A failed side source is named on
+screen; a failed movers read is an error with a retry, never an empty tape.
+
+**The session is said, never implied.** The badge reads Live only in the regular session; it
+reads Pre-market (last = the pre-market print, % against yesterday's close, thin-volume caution),
+After hours (% is the regular session; an After hours column shows the move since 4:00 PM) or
+Last session (not a live list) otherwise.
+
+**Not built, and why:** a true market-wide most-active-by-volume list. No cached source ranks
+the whole tape by shares traded; the Volume column sorts what the three lists hold, which is
+labelled as what it is rather than presented as the market's most active. `MOV`-style index
+contribution stays deferred for the reason in #4.

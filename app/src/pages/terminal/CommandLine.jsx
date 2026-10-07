@@ -15,8 +15,10 @@
 // Sources 1-3 are ordered by the PUBLISHED ranking (ranking.js / grammar.js RANKING_ORDER),
 // personalised by the member's own server-side command counts (`stats`).
 //
-// ⛔ History is a per-viewer convenience, so it lives in localStorage, every access wrapped:
-// private windows and blocked storage throw, and the command line must work without it.
+// History (↑/↓ and the recent-commands list) is the MEMBER's: the shell passes it in from
+// `useCommandHistory` (commandHistory.js, a server preference, per member). Rendered without a
+// `history` prop, the command line falls back to this browser's own copy (localStorage, every
+// access wrapped: private windows and blocked storage throw, and it must work without it).
 //
 // A11y: a real combobox (`aria-activedescendant` names the highlighted option), and the echo
 // is announced from a polite region updated only once typing PAUSES — never per keystroke.
@@ -30,26 +32,12 @@ import { BY_CODE, editDistance } from './functions'
 import { BOARD_ADDRESS_RE, findBoard } from './boardModel'
 import styles from './TerminalShell.module.css'
 import Input from '../../components/ui/Input'
+import { pushHistory, readHistory } from './commandHistory'
 
-export const HISTORY_KEY = 'uct.terminal.history'
-export const HISTORY_MAX = 50
+// The history helpers live in commandHistory.js; re-exported so existing importers keep one source.
+export { HISTORY_KEY, HISTORY_MAX, pushHistory, readHistory } from './commandHistory'
 /** How long typing must pause before the echo is announced to a screen reader. */
 export const ECHO_ANNOUNCE_MS = 700
-
-export function readHistory() {
-  try {
-    const v = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || '[]')
-    return Array.isArray(v) ? v.filter((s) => typeof s === 'string') : []
-  } catch { return [] }
-}
-
-export function pushHistory(text) {
-  const t = String(text || '').trim()
-  if (!t) return readHistory()
-  const next = [t, ...readHistory().filter((h) => h !== t)].slice(0, HISTORY_MAX)
-  try { window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next)) } catch { /* storage off */ }
-  return next
-}
 
 /** The command line's own keys, as HELP and the keyboard sheet print them. These are the
  *  input's `onKeyDown` below, not registry bindings (they only mean something while the
@@ -224,7 +212,12 @@ function searchTickers(q) {
 
 export default function CommandLine({
   onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {}, boards = null, recentTickers = [],
+  history = null, onHistory = null,
 }) {
+  // The member's history when the shell passes it (useCommandHistory); this browser's otherwise.
+  const historyRef = useRef(history)
+  historyRef.current = history
+  const getHistory = () => (Array.isArray(historyRef.current) ? historyRef.current : readHistory())
   const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
   const [text, setText] = useState('')
   const [tickers, setTickers] = useState([])
@@ -295,14 +288,15 @@ export default function CommandLine({
   const suggestions = useMemo(() => {
     if (!text.trim()) {
       // ↓ on an empty line: the recent commands, newest first.
-      return recall ? readHistory().slice(0, 8).map((h) => ({ kind: 'history', value: h, label: 'earlier command' })) : []
+      return recall ? getHistory().slice(0, 8).map((h) => ({ kind: 'history', value: h, label: 'earlier command' })) : []
     }
     const boardRows = boardSuggestions(text, boards)
     if (boardRows.length) return boardRows
     const candidates = tickerSlot ? withRecentTickers(last, tickers, recentTickers) : tickers
     const ranked = registrySuggestions(text, { aliases, tickers: candidates, stats, limit: 8, recent: recentTickers })
-    return [...ranked, ...historyMatches(text, readHistory()), ...addresses].slice(0, 10)
-  }, [text, aliases, tickers, stats, addresses, recall, boards, recentTickers, tickerSlot, last])
+    return [...ranked, ...historyMatches(text, getHistory()), ...addresses].slice(0, 10)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `history` re-reads getHistory
+  }, [text, aliases, tickers, stats, addresses, recall, boards, recentTickers, tickerSlot, last, history])
 
   // The interpreted-parse echo: what Enter will do, BEFORE Enter (one parser, same answer).
   const echo = useMemo(() => {
@@ -338,7 +332,8 @@ export default function CommandLine({
   const submit = (value, opts) => {
     const v = String(value ?? text).trim()
     if (!v) return
-    pushHistory(v)
+    if (typeof onHistory === 'function') onHistory(v)
+    else pushHistory(v)
     historyIdx.current = -1
     draftRef.current = ''
     setText('')
@@ -364,7 +359,7 @@ export default function CommandLine({
       if (showing) { setActive((i) => Math.min(suggestions.length - 1, i + 1)); return }
       if (historyIdx.current < 0) {
         // ↓ on an empty line opens the recent-commands list (nothing to walk forward to).
-        if (!text.trim() && readHistory().length) { setRecall(true); setOpen(true); setActive(0) }
+        if (!text.trim() && getHistory().length) { setRecall(true); setOpen(true); setActive(0) }
         return
       }
       // ↓ walks history FORWARD after ↑ — back to the newest entry, then to what was typed.
@@ -376,7 +371,7 @@ export default function CommandLine({
       if (showing && active >= 0) { setActive((i) => i - 1); return }
       if (historyIdx.current < 0) {
         draftRef.current = text
-        walkRef.current = historyWalk(text, readHistory())
+        walkRef.current = historyWalk(text, getHistory())
       }
       const h = walkRef.current
       if (!h.length) return

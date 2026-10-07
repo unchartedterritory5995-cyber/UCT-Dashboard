@@ -14,8 +14,12 @@ import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from './ScannerResults.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which the table
+// read as "Loading…" forever. A failure with nothing to stand on now says so and points at the
+// footer's Refresh; SWR keeps the last good scan through a failed 30 s poll. 402 stays absent.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 // Backend `as_of` (ISO, ET-clock offset) → "1:26 PM" in market (ET) time.
 function fmtScanTime(iso) {
@@ -179,7 +183,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
 
   const url = SCAN_ENDPOINTS[scanKey] || null
   // Live all day: poll every 30s (the server recomputes at most ~once/min).
-  const { data, mutate, isValidating } = useMobileSWR(url, fetcher, {
+  const { data, error, mutate, isValidating } = useMobileSWR(url, fetcher, {
     refreshInterval: 30_000,
     dedupingInterval: 15_000,
     revalidateOnFocus: false,
@@ -198,7 +202,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // Distinguish "still building the reference" from "genuinely no qualifiers".
   const emptyCopy = SCAN_EMPTY_TEXT[scanKey] || { building: 'Building…', none: 'No matches yet today.' }
   const scanEmptyText = !data
-    ? 'Loading…'
+    ? (error ? 'This scan could not be loaded. Use Refresh below to try again.' : 'Loading…')
     : data.status === 'computing'
       ? emptyCopy.building
       : emptyCopy.none

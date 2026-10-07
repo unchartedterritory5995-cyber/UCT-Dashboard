@@ -22,6 +22,7 @@ import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/ta
 import Input from '../ui/Input'
 import Textarea from '../ui/Textarea'
 import { ASC, DESC, nextSort, sortCaretFor } from '../../lib/presentation/dataGrid'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -119,13 +120,16 @@ function safeParseSignals(raw) {
   try { return JSON.parse(raw) || {} } catch { return {} }
 }
 
-// $55M / $1.2M / $940K
+// $55M / $1.2M / $940K. TERM-066: the K/M/B/T decision lives in lib/presentation
+// (formatCompact), on this tile's own ladder (K is Math.round, not toFixed(0)), so it is
+// byte-identical to the hand-written version it replaced.
+const PREMIUM_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 'round' },
+]
 function fmtPremium(v) {
-  const n = Math.abs(Number(v) || 0)
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `$${Math.round(n / 1e3)}K`
-  return `$${Math.round(n)}`
+  return formatCompact(Math.abs(Number(v) || 0), { tiers: PREMIUM_TIERS, prefix: '$' })
 }
 
 // PRE-MOVE: a Catalyst-Hunter-confirmed catalyst whose stock hasn't reacted yet.

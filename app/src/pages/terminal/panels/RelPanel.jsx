@@ -46,6 +46,14 @@ const W = 560
 const H = 220
 const PAD = 30
 
+/** Pure: decimals for the two axis labels, enough that the top and bottom never read the same.
+ *  A ratio spanning 0.27 to 0.30 at one decimal printed "0.3" twice. */
+export function axisDecimals(hi, lo) {
+  const span = Math.abs(hi - lo)
+  if (!Number.isFinite(span) || span <= 0) return 1
+  return Math.max(1, Math.min(4, Math.ceil(-Math.log10(span)) + 1))
+}
+
 function LineChart({ lines, height = H, zero = true, label, testId, extra = null, classes }) {
   const all = lines.flatMap((l) => l.values).filter((v) => v != null)
   if (all.length < 2) return null
@@ -61,8 +69,8 @@ function LineChart({ lines, height = H, zero = true, label, testId, extra = null
     <div className={styles.chartBox}>
       <svg className={styles.chart} viewBox={`0 0 ${W} ${height}`} role="img" aria-label={label} data-testid={testId}>
         {zero && <line className={styles.zeroLine} x1={PAD} x2={W - PAD} y1={py(0)} y2={py(0)} />}
-        <text className={styles.axisText} x={2} y={py(hi) + 4}>{formatNumber(hi, { decimals: 1 })}</text>
-        <text className={styles.axisText} x={2} y={py(lo)}>{formatNumber(lo, { decimals: 1 })}</text>
+        <text className={styles.axisText} x={2} y={py(hi) + 4}>{formatNumber(hi, { decimals: axisDecimals(hi, lo) })}</text>
+        <text className={styles.axisText} x={2} y={py(lo)}>{formatNumber(lo, { decimals: axisDecimals(hi, lo) })}</text>
         {lines.map((l, i) => (
           <polyline key={l.key} className={`${l.className || styles.line} ${classes?.[i] || ''}`} points={pts(l.values)} />
         ))}

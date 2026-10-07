@@ -10,6 +10,7 @@
  * YoY or the estimate state.
  */
 import { fmtDateShort, fmtEps, growthCell, shortLabel } from './earningsRows'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 /**
  * Revenue at strip width: ONE decimal, not two.
@@ -19,16 +20,20 @@ import { fmtDateShort, fmtEps, growthCell, shortLabel } from './earningsRows'
  * ("$41.4…") at every width. The second decimal carries nothing at a glance,
  * and losing it is what lets the value column be fixed instead of clipped.
  */
+const STRIP_SALES_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 1 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 'round' },
+  { at: 1e3, suffix: 'K', decimals: 'round' },
+]
 export function stripSales(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
   const a = Math.abs(n)
   const sign = n < 0 ? '−' : ''
-  if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(1)}T`
-  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${sign}$${Math.round(a / 1e6)}M`
-  if (a >= 1e3) return `${sign}$${Math.round(a / 1e3)}K`
-  return `${sign}$${Math.round(a)}`
+  // TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact) on this strip's
+  // own ladder (M and K are Math.round, passed as 'round'); the U+2212 sign stays this file's.
+  return `${sign}${formatCompact(a, { tiers: STRIP_SALES_TIERS, prefix: '$' })}`
 }
 
 /**

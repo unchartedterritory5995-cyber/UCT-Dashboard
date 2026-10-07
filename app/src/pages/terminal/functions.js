@@ -219,6 +219,12 @@ export const FUNCTIONS = [
   { code: 'CORR', label: 'Correlation matrix (daily returns)', group: 'Security',
     ticker: { panel: 'Corr', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(9)] },
     market: { panel: 'Corr', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(10)] } },
+
+  // ── movers (feature-gaps-2026-10-06 #7): one tape, several lenses (Bloomberg 06 §5), never a
+  // rack of codes. Market-only: it has no security of its own, so it never follows a group; a
+  // row CLICK loads that name into the linked group instead (panels/MoversPanel.jsx).
+  { code: 'MOST', label: 'Market movers (gainers, losers, unusual volume)', group: 'Market',
+    market: { panel: 'Movers', args: [{ kind: 'moversLens', prop: 'lens' }] } },
 ]
 
 /** `n` comparator-ticker argument slots (`with0` … `with{n-1}`), for the comparison codes. */

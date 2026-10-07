@@ -17,6 +17,7 @@ import styles from '../TerminalShell.module.css'
 /** The bindings a terminal user has, read from the declarations (never retyped). */
 export const HELP_SHORTCUT_IDS = ['terminal.focus', 'palette.toggle', 'terminal.panel1', 'terminal.panel2',
   'terminal.panel3', 'terminal.panel4', 'terminal.panelPrev', 'terminal.panelNext',
+  'terminal.count1', 'terminal.count2', 'terminal.count3', 'terminal.count4',
   'terminal.panelMoveLeft', 'terminal.panelMoveRight', 'terminal.panelMaximise', 'terminal.panelClose',
   'terminal.panelUndoClose', 'terminal.panelDuplicate', 'terminal.panelLink', 'terminal.boards',
   'terminal.recents', 'terminal.keys']

@@ -1,7 +1,14 @@
 import { useMemo } from 'react'
 import useSWR from 'swr'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = url => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). The old `null` was stored as the new answer,
+// so ONE failed 60 s poll pulled the live row off the Dashboard, the Breadth table and the
+// terminal's breadth surface, and (refreshIntervalFor(null)) backed the poll off to 15 minutes.
+// Now SWR keeps the last live row, stamped with its own as-of clock, and keeps polling at 60 s;
+// `error` carries the failure. On a failed FIRST read there is no live row and the stored daily
+// history stands on its own, which is the honest fallback for a provisional overlay.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 /** "2:47 PM" in ET. A moment in the session reads as provisional; a date does
  *  not. Lives here so the three surfaces that show it can't drift apart. */
