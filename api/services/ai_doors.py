@@ -215,10 +215,11 @@ DOORS: dict[str, Door] = {
         gap="in-process windows, not the durable store this meter surface reads"),
     "api/services/uct_agent/turn.py": Door(
         "operator", "POST /api/agent/turn (require_paid + require_admin: ADMIN-ONLY while UCT Agent "
-        "is dark, 2026-10-07); web_research tool via the shared Perplexity client",
+        "is dark, 2026-10-07); opt-in research via the shared Perplexity client",
         "UCT_AGENT_DAILY_CAP 300/member/ET day (daily_counters scope uct_agent_turn, durable) + "
         "ai_population_cap 'uct_agent'; narrative_cost_guard surface 'uct_agent' records spend; "
-        "<= 3 model calls and <= 2 research calls per turn, 0 HTTP retries",
+        "<= 2 model calls and <= 1 research call per turn (research only when the model declares "
+        "it on an answer), 0 HTTP retries",
         pop_cap="api/routers/uct_agent.py"),
     "api/services/screener/nl_compile.py": Door(
         "member", "POST /api/screener/compile (SCREENER_NL_COMPILE_ENABLED, dark)",
