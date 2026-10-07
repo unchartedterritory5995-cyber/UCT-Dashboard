@@ -33,6 +33,13 @@ The verdict is PASS only when every difference in every case is explained EXACTL
 entries; anything else, including a named element showing up in a case it is not allowed in,
 reads DIFFERS. The list is not a tolerance: it has no patterns and no wildcards.
 
+SAME TREE, SAME VERDICT. Each capture is taken once the page has settled (three equal readings
+250 ms apart), never after a fixed wait alone, and a page that never settles refuses the run.
+The evidence file carries a fingerprint of each pass's captures, so two runs on one tree can be
+compared. This was added after a run on 2026-10-06 (b17f4a3e13) reported one difference on a
+tree that held two; the cause of that reading was never established, and a fixed 1.5 s wait on
+a loaded box was the one part of the instrument that could vary between runs.
+
 WHAT THIS TOOL CANNOT SEE. No case has a tour card on screen (0 of 40: the surfaces are
 rendered at rest, and a tour needs a click or an eligible first visit the capture does not
 make). A change to tour markup is therefore invisible here. The real-browser tours walk covers it.
@@ -53,7 +60,7 @@ KEEP_CURRENT = ("/__fixtures__/", "/a11y/fixtures.jsx", "/a11y/surface.js", "/a1
 MUTATION = ("app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js",
             "  if (!checklistEnabled(flag)) return false\n", "")
 
-# The accepted differences. ONE entry. Adding one is a controller ruling, never a tool-side fix.
+# The accepted differences. TWO entries. Adding one is a controller ruling, never a tool-side fix.
 #   element   the exact normalised markup HEAD has and BASE does not (an insertion, whole element)
 #   surface   the only capture surface it may appear on
 #   needs     the capability that must be ON in the case's flag set (read from the capture's own
@@ -70,6 +77,18 @@ EXPECTED = (
                   "empty at rest, that Add and Remove fill so a screen reader hears the result. "
                   "It exists only while the passed-setups capability is on. Accepted by the "
                   "controller as an intended accessibility change.",
+    },
+    {
+        "name": "Active setups door (lane NAV)",
+        "element": '<a class="btn btn-ghost _setupsLink_" title="Your open chart plans, closest to '
+                   'their entry first" href="/journal/notebook/setups" data-discover="true">Active setups</a>',
+        "surface": "notebook home",
+        "needs": "notebook_setups_board_enabled",
+        "commit": "6b7e037c9f",
+        "accepted": "2026-10-07",
+        "reason": "The active setups board had no door (BETA-HANDOFF 1b: no menu link to it yet). "
+                  "The NAV lane added one link on Research Home, rendered only while the setups "
+                  "board capability is on. Accepted by the controller as intended.",
     },
 )
 FLAGS_KEY = "__flagsets__"          # the capture writes its flag sets under this key
@@ -115,6 +134,25 @@ const norm = (html) => html
   .replace(/\buig[0-9]+\b/g, 'uig')   // UIcon's gradient id: a module counter of MOUNT order (UIcon.jsx), so a lazily mounted box renumbers every later icon without changing markup
   .replace(/\b(_[A-Za-z][A-Za-z0-9-]*_)[a-z0-9]{5,8}\b/g, '$1')
 const wait = (ms) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
+// A capture is taken when the page has SETTLED, never after a fixed time alone. The surfaces
+// load parts of themselves on demand, so on a loaded box a fixed wait can photograph a page
+// that is still arriving, and the same tree can then read differently from one run to the
+// next. After the first wait the page is re-read every 250 ms until three readings in a row
+// are equal (at most 8 s more). A page that never settles is recorded by name in UNSETTLED and
+// the run is refused: an unsettled capture is not evidence of anything.
+const UNSETTLED = []
+async function settled(key, ms) {
+  await wait(ms)
+  let last = norm(document.body.innerHTML), same = 0
+  for (let i = 0; i < 32 && same < 2; i += 1) {
+    await wait(250)
+    const now = norm(document.body.innerHTML)
+    same = now === last ? same + 1 : 0
+    last = now
+  }
+  if (same < 2) UNSETTLED.push(key)
+  return last
+}
 const OUT = {}
 
 beforeEach(() => { __resetNotebookFlags() })
@@ -144,22 +182,20 @@ for (const [fname, flags] of Object.entries(FLAGSETS)) {
       await wait(400)
       const q = screen.queryByRole('button', { name: 'How do I get started with the Notebook?' })
       if (q) fireEvent.click(q)
-      await wait(200)
-      OUT[key('help')] = norm(document.body.innerHTML)
+      OUT[key('help')] = await settled(key('help'), 200)
     }, 30000)
     for (const [surface, route] of [['notebook home', '/journal/notebook'], ['notes list', '/journal/notebook?view=all'],
       ['open note', '/journal/notebook?note=n1'], ['layout', '/dashboard']]) {
       it(key(surface), async () => {
         setup()
         render(shell(route))
-        await wait(1500)
-        OUT[key(surface)] = norm(document.body.innerHTML)
+        OUT[key(surface)] = await settled(key(surface), 1500)
       }, 30000)
     }
   }
 }
 
-it('write', () => { fs.writeFileSync(process.env.W14_PARITY_OUT, JSON.stringify({ ...OUT, __flagsets__: FLAGSETS }, null, 1)) })
+it('write', () => { fs.writeFileSync(process.env.W14_PARITY_OUT, JSON.stringify({ ...OUT, __flagsets__: FLAGSETS, __unsettled__: UNSETTLED }, null, 1)) })
 """
 
 
@@ -251,29 +287,50 @@ def judge(case, head, base, flagsets, expected=EXPECTED):
 
 
 def self_check():
-    """The judge must accept the one named difference where it is allowed and nothing else."""
-    e = EXPECTED[0]
-    on = {"caps on": {e["needs"]: True}, "caps off": {e["needs"]: False}, "absent": {}}
+    """The judge must accept each named difference where it is allowed, and nothing else."""
     base = '<main><section><p>or add one above.</p></section><div>next</div></main>'
-    head = base.replace("</p></section>", "</p>" + e["element"] + "</section>")
-    home_on, home_off = f"{e['surface']} | caps on | fresh member", f"{e['surface']} | caps off | fresh member"
-    cases = [
-        ("the named element, capability on: accepted", home_on, head, base, "expected"),
-        ("identical output", home_on, base, base, "identical"),
-        ("the SAME element in a capabilities-off case", home_off, head, base, "differs"),
-        ("the same element where the flag set does not name the capability", f"{e['surface']} | absent | x", head, base, "differs"),
-        ("the same element on another surface", "notes list | caps on | fresh member", head, base, "differs"),
-        ("any other difference", home_on, base.replace("next", "next!"), base, "differs"),
-        ("the named element PLUS another difference", home_on, head.replace("next", "next!"), base, "differs"),
-        ("the named element twice", home_on, head.replace(e["element"], e["element"] * 2), base, "differs"),
-        ("the element with text in it", home_on, head.replace('status=""></p>', 'status="">Saved</p>'), base, "differs"),
-        ("the element with one attribute changed", home_on, head.replace('role="status"', 'role="alert"'), base, "differs"),
-        ("the element REMOVED rather than added", home_on, base, head, "differs"),
-        ("a case name the tool cannot parse", "notebook home", head, base, "differs"),
-    ]
+    put = lambda html, el: html.replace("</p></section>", "</p>" + el + "</section>", 1)
+    cases = []
+    for e in EXPECTED:
+        flags = {"caps on": {e["needs"]: True}, "caps off": {e["needs"]: False}, "absent": {}}
+        head = put(base, e["element"])
+        on, off = f"{e['surface']} | caps on | fresh member", f"{e['surface']} | caps off | fresh member"
+        tag_end = e["element"].index(">")
+        n = e["name"]
+        cases += [
+            (f"[{n}] the named element, capability on: accepted", on, head, base, flags, "expected"),
+            (f"[{n}] identical output", on, base, base, flags, "identical"),
+            (f"[{n}] the SAME element in a capabilities-off case", off, head, base, flags, "differs"),
+            (f"[{n}] the flag set does not name the capability", f"{e['surface']} | absent | x", head, base, flags, "differs"),
+            (f"[{n}] the same element on another surface", "notes list | caps on | fresh member", head, base, flags, "differs"),
+            (f"[{n}] any other difference", on, base.replace("next", "next!"), base, flags, "differs"),
+            (f"[{n}] the named element PLUS another difference", on, head.replace("next", "next!"), base, flags, "differs"),
+            (f"[{n}] the named element twice", on, head.replace(e["element"], e["element"] * 2), base, flags, "differs"),
+            (f"[{n}] the element with its text changed", on,
+             head.replace(e["element"], e["element"][:tag_end + 1] + "x" + e["element"][tag_end + 1:]), base, flags, "differs"),
+            (f"[{n}] the element with one attribute changed", on,
+             head.replace(e["element"], e["element"].replace('class="', 'class="x ', 1)), base, flags, "differs"),
+            (f"[{n}] the element REMOVED rather than added", on, base, head, flags, "differs"),
+            (f"[{n}] a case name the tool cannot parse", e["surface"], head, base, flags, "differs"),
+        ]
+    if len(EXPECTED) >= 2:
+        a, b = EXPECTED[0], EXPECTED[1]
+        if a["surface"] == b["surface"] and a["needs"] != b["needs"]:
+            both = put(put(base, a["element"]), b["element"])
+            case = f"{a['surface']} | set | fresh member"
+            cases += [
+                ("both named elements, both capabilities on: accepted", case, both, base,
+                 {"set": {a["needs"]: True, b["needs"]: True}}, "expected"),
+                ("both named elements, only the first capability on", case, both, base,
+                 {"set": {a["needs"]: True, b["needs"]: False}}, "differs"),
+                ("both named elements, only the second capability on", case, both, base,
+                 {"set": {a["needs"]: False, b["needs"]: True}}, "differs"),
+                ("both named elements plus another difference", case, both.replace("next", "next!"), base,
+                 {"set": {a["needs"]: True, b["needs"]: True}}, "differs"),
+            ]
     bad = []
-    for label, case, h, b, want in cases:
-        got = judge(case, h, b, on)[0]
+    for label, case, h, b, flags, want in cases:
+        got = judge(case, h, b, flags)[0]
         print(f"  {'ok  ' if got == want else 'FAIL'} {label}: {got}")
         if got != want:
             bad.append(label)
@@ -313,6 +370,11 @@ def main():
     assert after == before, f"RESTORE FAILED: git status changed\n{before}\n---\n{after}"
     flagsets = a.pop(FLAGS_KEY, None)
     b.pop(FLAGS_KEY, None)
+    unsettled = sorted(set(a.pop("__unsettled__", []) + b.pop("__unsettled__", [])))
+    if unsettled:
+        raise SystemExit("these captures never settled, so the run is not evidence:\n  " + "\n  ".join(unsettled))
+    digest = lambda d: __import__("hashlib").sha256(
+        json.dumps(d, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
     if not isinstance(flagsets, dict) or not flagsets:
         raise SystemExit("the capture wrote no flag sets; an expected difference cannot be judged")
     verdicts = {k: judge(k, a[k], b.get(k, ""), flagsets) for k in a}
@@ -321,7 +383,9 @@ def main():
     differ = [k for k in a if verdicts[k][0] == "differs"]
     lines = [f"== flags-off render parity{' (MUTATION: wave-14 switch removed from tourLive)' if mutate else ''}",
              f"base {BASE} vs HEAD {git('rev-parse', '--short=10', 'HEAD').decode().strip()}",
-             f"pass A {ta}", f"pass B {tb}", f"swapped {len(saved)} source files to the base blob; restored, git status unchanged",
+             f"pass A {ta}", f"pass B {tb}",
+             f"capture fingerprints (same tree, same fingerprints): A {digest(a)} | B {digest(b)}",
+             f"swapped {len(saved)} source files to the base blob; restored, git status unchanged",
              f"{len(same)} identical | {len(explained)} differ only by a named expected difference | "
              f"{len(differ)} differ ({len(a)} cases)"]
     for k in explained:
