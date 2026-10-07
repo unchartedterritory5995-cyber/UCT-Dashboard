@@ -4,6 +4,7 @@ import styles from '../ResearchPage.module.css'
 import UIcon from '../../../components/ui/UIcon'
 import { CoverageNote } from '../../../components/research-kit'
 import { ABSENT } from '../../../lib/presentation/presentationPrimitives'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 const NUM_COMPONENTS = [
   ['eps', 'EPS Strength'],
@@ -44,6 +45,11 @@ function checkTier(s) {
 
 export default function RatingsTab({ sym }) {
   const { data, isLoading, error, mutate } = useRatings(sym)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // UCT computes the composite itself; its one concrete as-of is the price leg's last bar.
+  usePanelFreshness(data && !error && !data.not_applicable
+    ? { source: 'UCT ratings (computed from fundamentals, ownership and price)', age: { dataClass: 'end_of_day', asOfDate: data.price_as_of || null } }
+    : null)
 
   if (isLoading) {
     return <ResearchLoading label="Computing UCT ratings" />

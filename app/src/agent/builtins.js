@@ -2,10 +2,12 @@
 // line here (its own register function) — nothing in the orchestrator, planner,
 // runtime, prompt or server changes. See agent/README.md.
 import { registerChartCapabilities } from './capabilities/chart'
+import { registerWorkspaceCapabilities } from './capabilities/workspace'
 
 let done = false
 export function registerBuiltins() {
   if (done) return
   done = true
   registerChartCapabilities()
+  registerWorkspaceCapabilities()
 }

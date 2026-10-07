@@ -43,7 +43,7 @@
   padding: 3px 10px;
   border-radius: var(--radius-md);
 }
-.historyLink:hover { color: var(--ut-gold, #dcbb5e); border-color: var(--ut-gold, #dcbb5e); }
+.historyLink:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
 .refreshBtn {
   background: none;
   border: 1px solid var(--border);
@@ -54,7 +54,7 @@
   cursor: pointer;
   font-family: var(--font-sans);
 }
-.refreshBtn:hover { background: var(--bg-hover, rgba(255,255,255,0.03)); }
+.refreshBtn:hover { background: var(--bg-hover, color-mix(in srgb, var(--text-heading) 3%, transparent)); }
 .refreshBtn:disabled { opacity: 0.4; cursor: wait; }
 
 .empty {
@@ -66,7 +66,7 @@
   line-height: 1.7;
 }
 .emptyLink {
-  color: var(--gold, #dcbb5e);
+  color: var(--ut-gold);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -103,14 +103,14 @@
   user-select: none;
 }
 .sortableHeader:hover { color: var(--ut-cream); }
-.sortActive { color: var(--ut-gold, #dcbb5e); }
+.sortActive { color: var(--ut-gold); }
 .table td {
   padding: 10px;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 .table tr:last-child td { border-bottom: none; }
-.table tr:hover { background: var(--bg-hover, rgba(255,255,255,0.02)); }
+.table tr:hover { background: var(--bg-hover, color-mix(in srgb, var(--text-heading) 2%, transparent)); }
 
 .colSym     { width: 118px; white-space: nowrap; }
 
@@ -177,8 +177,8 @@
 }
 .citationsBtn:hover {
   opacity: 1;
-  border-color: var(--ut-gold, #dcbb5e);
-  color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 .citationsPop {
   position: absolute;
@@ -204,7 +204,7 @@
   align-items: center;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   font-size: 10px;
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -231,8 +231,8 @@
 /* TERM-050: each source row is S8's <Provenance> around the link. */
 .citationRow { display: flex; align-items: center; }
 .citationLink:hover {
-  background: rgba(220, 187, 94, 0.08);
-  color: var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
+  color: var(--ut-gold);
 }
 
 .ticker {
@@ -262,7 +262,7 @@
   line-height: 1.2;
   cursor: pointer;
 }
-.dateNavBtn:hover:not(:disabled) { color: var(--ut-gold, #dcbb5e); border-color: var(--ut-gold, #dcbb5e); }
+.dateNavBtn:hover:not(:disabled) { color: var(--ut-gold); border-color: var(--ut-gold); }
 .dateNavBtn:disabled { opacity: 0.3; cursor: default; }
 .dateInput {
   background: var(--bg-surface);
@@ -275,26 +275,26 @@
   color-scheme: dark;
   cursor: pointer;
 }
-.dateInput:focus { outline: none; border-color: var(--ut-gold, #dcbb5e); }
+.dateInput:focus { outline: none; border-color: var(--ut-gold); }
 .dateLiveTag {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--gain, #4ade80);
+  color: var(--gain);
   padding: 0 4px;
 }
 .dateLiveBtn {
-  background: rgba(220, 187, 94, 0.12);
-  border: 1px solid rgba(220, 187, 94, 0.35);
-  color: var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
+  color: var(--ut-gold);
   border-radius: var(--radius-md);
   padding: 3px 10px;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }
-.dateLiveBtn:hover { background: rgba(220, 187, 94, 0.2); }
+.dateLiveBtn:hover { background: color-mix(in srgb, var(--ut-gold) 20%, transparent); }
 
 .sectorBanners {
   display: flex;
@@ -307,8 +307,8 @@
   align-items: flex-start;
   gap: 12px;
   padding: 10px 12px;
-  background: rgba(220, 187, 94, 0.06);
-  border-left: 3px solid var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 6%, transparent);
+  border-left: 3px solid var(--ut-gold);
   border-radius: var(--radius-sm);
   font-size: 12px;
   line-height: 1.5;
@@ -320,7 +320,7 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   padding-top: 2px;
   white-space: nowrap;
 }
@@ -342,7 +342,7 @@
   font-family: var(--font-sans);
   transition: opacity 0.15s, border-color 0.15s;
 }
-.chipBtn:hover { border-color: rgba(255,255,255,0.2); }
+.chipBtn:hover { border-color: color-mix(in srgb, var(--text-heading) 20%, transparent); }
 .chipDim { opacity: 0.35; }
 
 /* Sort-by-%-change toggle (compact rail only — the table headers that carry
@@ -358,20 +358,20 @@
   white-space: nowrap;
   font-family: var(--font-mono);
 }
-.sortPctBtn:hover { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
+.sortPctBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 .sortPctActive {
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   border-color: var(--accent);
-  background: rgba(220, 187, 94, 0.1);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
   opacity: 1;
 }
 
 .rowMine {
-  background: rgba(220, 187, 94, 0.05);
-  box-shadow: inset 3px 0 0 var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 5%, transparent);
+  box-shadow: inset 3px 0 0 var(--ut-gold);
 }
 .star {
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   font-size: 11px;
   margin-right: 4px;
 }
@@ -384,11 +384,11 @@
   font-weight: 600;
   letter-spacing: 0.5px;
 }
-.tagCatalyst { background: rgba(56, 132, 255, 0.12); color: var(--info); }
-.tagEarnings { background: rgba(74, 222, 128, 0.12); color: var(--gain); }
-.tagGapper   { background: rgba(251, 191, 36, 0.12); color: var(--warn); }
-.tagNews     { background: rgba(180, 180, 180, 0.12); color: var(--text-bright); }
-.tagDefault  { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+.tagCatalyst { background: color-mix(in srgb, var(--info) 12%, transparent); color: var(--info); }
+.tagEarnings { background: color-mix(in srgb, var(--gain) 12%, transparent); color: var(--gain); }
+.tagGapper   { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); }
+.tagNews     { background: color-mix(in srgb, var(--text-muted) 12%, transparent); color: var(--text-bright); }
+.tagDefault  { background: color-mix(in srgb, var(--text-heading) 6%, transparent); color: var(--text-muted); }
 
 /* Quiet "new today" dot beside the ticker (replaces the per-row NEW badge). */
 .newDot {
@@ -396,8 +396,8 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
+  background: var(--gain);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--gain) 80%, transparent);
 }
 
 /* PRE-MOVE: confirmed catalyst not yet moving. Gold to read as "watch this",
@@ -413,9 +413,9 @@
   text-transform: uppercase;
   text-align: center;
   vertical-align: middle;
-  background: rgba(220, 187, 94, 0.16);
+  background: color-mix(in srgb, var(--ut-gold) 16%, transparent);
   color: var(--accent);
-  border: 1px solid rgba(220, 187, 94, 0.45);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
 }
 
 /* Analyst rating-change chip — recent upgrade/downgrade context (display-only) */
@@ -430,26 +430,26 @@
   vertical-align: middle;
 }
 .ratingUp {
-  background: rgba(74, 222, 128, 0.14);
+  background: color-mix(in srgb, var(--gain) 14%, transparent);
   color: var(--ut-green-bright);
-  border: 1px solid rgba(74, 222, 128, 0.40);
+  border: 1px solid color-mix(in srgb, var(--gain) 40%, transparent);
 }
 .ratingDown {
-  background: rgba(248, 113, 113, 0.14);
+  background: color-mix(in srgb, var(--loss) 14%, transparent);
   color: var(--ut-red-bright);
-  border: 1px solid rgba(248, 113, 113, 0.40);
+  border: 1px solid color-mix(in srgb, var(--loss) 40%, transparent);
 }
 .ratingFlat {
-  background: rgba(160, 160, 160, 0.14);
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
   color: var(--text-muted);
-  border: 1px solid rgba(160, 160, 160, 0.35);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
 }
 
 /* ── Per-row owner NOTE (✎) — free text that steers the curator ───────── */
 .noteBtnHas {
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   border-color: var(--accent);
-  background: rgba(220, 187, 94, 0.12);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
 }
 .noteEditor {
   margin-top: 6px;
@@ -466,13 +466,13 @@
   line-height: 1.45;
   font-family: inherit;
   color: var(--text-primary, #e8e8e8);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(220, 187, 94, 0.40);
+  background: color-mix(in srgb, var(--text-heading) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 40%, transparent);
 }
 .noteInput:focus {
   outline: none;
   border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 .noteActions {
   display: flex;
@@ -488,13 +488,13 @@
 }
 .noteSave {
   color: var(--bg);
-  background: var(--ut-gold, #dcbb5e);
-  border: 1px solid var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
+  border: 1px solid var(--ut-gold);
 }
 .noteCancel {
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid rgba(160, 160, 160, 0.35);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
 }
 .noteSaved {
   margin-top: 6px;
@@ -503,9 +503,9 @@
   font-size: 11px;
   line-height: 1.45;
   font-style: italic;
-  color: var(--ut-gold, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
-  border-left: 2px solid rgba(220, 187, 94, 0.55);
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--ut-gold) 55%, transparent);
 }
 
 /* Flow chip — unusual options-flow conviction (net sweep/block premium). */
@@ -522,19 +522,19 @@
   vertical-align: middle;
 }
 .flowBull {
-  background: rgba(74, 222, 128, 0.14);
+  background: color-mix(in srgb, var(--gain) 14%, transparent);
   color: var(--ut-green-bright);
-  border: 1px solid rgba(74, 222, 128, 0.40);
+  border: 1px solid color-mix(in srgb, var(--gain) 40%, transparent);
 }
 .flowBear {
-  background: rgba(248, 113, 113, 0.14);
+  background: color-mix(in srgb, var(--loss) 14%, transparent);
   color: var(--ut-red-bright);
-  border: 1px solid rgba(248, 113, 113, 0.40);
+  border: 1px solid color-mix(in srgb, var(--loss) 40%, transparent);
 }
 .flowFlat {
-  background: rgba(160, 160, 160, 0.14);
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
   color: var(--text-muted);
-  border: 1px solid rgba(160, 160, 160, 0.35);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
 }
 
 /* Edge chip — the firm's historical win-rate for this candidate's setup (Brain). */
@@ -549,9 +549,9 @@
   font-weight: 700;
   letter-spacing: 0.3px;
   vertical-align: middle;
-  background: rgba(220, 187, 94, 0.14);
-  color: var(--ut-gold, #dcbb5e);
-  border: 1px solid rgba(220, 187, 94, 0.42);
+  background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
+  color: var(--ut-gold);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 42%, transparent);
 }
 
 /* TERM-090: the EP flag's base rate, beside the chip. Plain muted text, not a
@@ -577,15 +577,15 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  background: rgba(220, 187, 94, 0.12);
-  border: 1px solid rgba(220, 187, 94, 0.28);
-  color: var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 28%, transparent);
+  color: var(--ut-gold);
   vertical-align: -2.5px;
 }
 .leadGrade {
   margin-left: 6px;
   padding-left: 6px;
-  border-left: 1px solid rgba(220, 187, 94, 0.35);
+  border-left: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
   font-weight: 800;
   font-size: 10px;
   line-height: 1;
@@ -670,8 +670,8 @@
    inline left-margins they carry when trailing the thesis text. */
 .thesisActions .citationsWrap,
 .thesisActions .feedbackWrap { margin-left: 0; }
-.fbGoodActive { opacity: 1; filter: drop-shadow(0 0 3px rgba(74,222,128,0.7)); }
-.fbBadActive  { opacity: 1; filter: drop-shadow(0 0 3px rgba(248,113,113,0.7)); }
+.fbGoodActive { opacity: 1; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gain) 70%, transparent)); }
+.fbBadActive  { opacity: 1; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--loss) 70%, transparent)); }
 
 .footer {
   margin-top: 12px;
@@ -711,7 +711,7 @@
 .tile.compact::before { opacity: 0.6; }
 .compact .title {
   color: var(--accent);
-  text-shadow: 0 0 14px rgba(220, 187, 94, 0.32);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--ut-gold) 32%, transparent);
 }
 .compact .table tr { border-color: var(--accent); }
 .compact .header { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }

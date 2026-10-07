@@ -51,7 +51,7 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
   // the hooks above so hook order is unconditional — rules-of-hooks.)
   if (brandMark) {
     return (
-      <span className={`${styles.wrap}${rc}${tc}`} style={{ width: px, height: px, background: '#12141a' }} aria-label={`${s || 'UCT'} logo`}>
+      <span className={`${styles.wrap}${rc}${tc}`} style={{ width: px, height: px, background: 'var(--bg-elevated)' }} aria-label={`${s || 'UCT'} logo`}>
         {/* scale(1.35) fills the circle: the compass PNG carries transparent margin, so
             even at padding 0 it renders small — the transform enlarges the visible mark. */}
         <img className={styles.imgFill} style={{ opacity: 1, objectFit: 'contain', transform: 'scale(1.35)' }}

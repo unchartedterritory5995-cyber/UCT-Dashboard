@@ -137,7 +137,9 @@ def stores(tmp_path, monkeypatch):
     monkeypatch.setenv(th.LANES2_ENV, "1")
     # The flow lane's wait budget is a production latency knob; on a loaded test box the
     # in-process tape can take longer than it, and these rails are about the ANSWER.
-    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 60.0)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 60.0)
+    th._LANE_PARKED.clear()
+    th._LANE_INFLIGHT.clear()
     FLOW_REQUESTS[:] = []
     seen[:] = []
     FLOW_REQUESTS.append(seen)        # one list per test, read by the projection rail
@@ -584,7 +586,7 @@ def test_a_slow_tape_answers_pending_and_the_next_ask_has_the_counts(monkeypatch
     import time as _t
     gate, calls = _th.Event(), []
     _fast_lanes_slow_tape(monkeypatch, gate, calls)
-    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 0.2)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 0.2)
     t0 = _t.monotonic()
     out = th.history("ZZPD", days=3650)
     took = _t.monotonic() - t0
@@ -608,11 +610,11 @@ def test_asks_during_a_running_read_join_it_instead_of_reading_again(monkeypatch
     import threading as _th
     gate, calls = _th.Event(), []
     _fast_lanes_slow_tape(monkeypatch, gate, calls)
-    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 0.05)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 0.05)
     for _ in range(3):                                      # the panel re-asking while it reads
         assert th.history("ZZJN", days=3650)["lanes"]["flow"]["status"] == "pending"
     gate.set()
-    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 10.0)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 10.0)
     assert th.history("ZZJN", days=3650)["lanes"]["flow"]["status"] == "ok"
     tape = [c for c in calls if c[0].startswith("/api/flow/ticker/")]
     assert tape == [("/api/flow/ticker/ZZJN", "stocks")], tape
@@ -752,3 +754,142 @@ def test_the_route_hands_the_lanes_the_canonical_spelling(monkeypatch, stores):
     for s in DUAL:
         assert c.get(f"/api/research/history/{s}").status_code == 200
     assert asked == ["BRK-B"] * 3
+
+
+# ── fn5: live HIS was still 3.2-6.2 s with flow memoised: EVERY lane gets the budget ──
+
+def _stub_lanes(monkeypatch, slow_name, gate, reads):
+    """Every lane answers at once except `slow_name`, which blocks until `gate` is set."""
+    import threading as _th
+    lock = _th.Lock()
+    monkeypatch.setattr(th, "_entity_eras", lambda s: ({"status": "unresolved"}, [(s, None, None)]))
+
+    def slow(sym, since, *a):
+        with lock:
+            reads.append(sym)
+        assert gate.wait(10), "test gate never opened"
+        return [{"date": "2026-01-05", "lane": slow_name, "text": "late row", "source": "x",
+                 "as_of": "2026-01-05", "ref": "x"}]
+    fns = {n: (lambda *a: []) for n in th.LANES}
+    fns[slow_name] = slow
+    monkeypatch.setattr(th, "_LANE_FNS", fns)
+    monkeypatch.setattr(th, "_COVERAGE_FNS", {n: (lambda *a: ("2026-01-01", None)) for n in th.LANES})
+    monkeypatch.setenv(th.LANES2_ENV, "1")
+    th._LANE_PARKED.clear()
+    th._LANE_INFLIGHT.clear()
+
+
+@pytest.mark.parametrize("slow_name", ["wire", "room", "setups"])
+def test_any_slow_lane_answers_pending_and_the_re_ask_has_its_rows(monkeypatch, slow_name):
+    import threading as _th
+    import time as _t
+    gate, reads = _th.Event(), []
+    _stub_lanes(monkeypatch, slow_name, gate, reads)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 0.2)
+    sym = f"ZZ{slow_name[:2].upper()}"
+    t0 = _t.monotonic()
+    out = th.history(sym, days=3650, user_id="u1")
+    assert _t.monotonic() - t0 < 2.0, "the response waited on the slow lane"
+    assert out["lanes"][slow_name] == {"status": "pending", "count": None, "retry_after_s": 2}
+    assert all(out["lanes"][n]["status"] == "ok" for n in out["lanes"] if n != slow_name)
+    assert not [r for r in out["timeline"] if r["lane"] == slow_name]
+    th.history(sym, days=3650, user_id="u1")                   # a re-ask while it still reads
+    gate.set()
+    deadline = _t.monotonic() + 5
+    while not th._LANE_PARKED and _t.monotonic() < deadline:
+        _t.sleep(0.02)
+    again = th.history(sym, days=3650, user_id="u1")
+    assert again["lanes"][slow_name]["status"] == "ok"
+    assert [r["text"] for r in again["timeline"] if r["lane"] == slow_name] == ["late row"]
+    assert reads == [sym], reads                                # ONE read, joined and parked
+    assert not th._LANE_PARKED and not th._LANE_INFLIGHT        # used once, then gone
+
+
+def test_a_lane_answered_in_budget_is_never_served_again_from_a_park(monkeypatch):
+    """A fast answer is used by its own request and parked for nobody: the next ask re-reads."""
+    import threading as _th
+    gate, reads = _th.Event(), []
+    gate.set()
+    _stub_lanes(monkeypatch, "wire", gate, reads)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 5.0)
+    th.history("ZZFA", days=3650)
+    th.history("ZZFA", days=3650)
+    assert reads == ["ZZFA", "ZZFA"]
+    assert not th._LANE_PARKED
+
+
+def test_every_lane_is_timed_and_a_slow_read_logs_each_one(monkeypatch, caplog):
+    import threading as _th
+    gate, reads = _th.Event(), []
+    _stub_lanes(monkeypatch, "catalysts", gate, reads)
+    monkeypatch.setattr(th, "LANE_WAIT_S", 0.1)
+    monkeypatch.setattr(th, "SLOW_HISTORY_LOG_S", 0.05)
+    with caplog.at_level("WARNING", logger=th.logger.name):
+        out = th.history("ZZTM", days=3650)
+    gate.set()
+    names = [n for n, _ms, _st in out["_timing"]]
+    assert names[0] == "entity" and names[-1] == "total"
+    assert set(names) >= set(out["lanes"])
+    assert dict((n, st) for n, _ms, st in out["_timing"])["catalysts"] == "pending"
+    line = [r.getMessage() for r in caplog.records if "slow ZZTM" in r.getMessage()]
+    assert line and all(f"{n}=" in line[0] for n in out["lanes"]), line
+    header = th.server_timing(out["_timing"])
+    assert 'his-catalysts;dur=' in header and 'desc="pending"' in header and "his-total;dur=" in header
+
+
+def test_the_route_sends_per_lane_server_timing_and_keeps_it_out_of_the_body(monkeypatch, stores):
+    monkeypatch.setenv(th.ENABLED_ENV, "1")
+    monkeypatch.setattr("api.routers.ticker_history.is_paid_user", lambda u: u.get("plan") == "pro")
+    r = _client(PAID).get("/api/research/history/NVDA?days=30")
+    assert r.status_code == 200
+    st = r.headers.get("server-timing", "")
+    for lane in r.json()["lanes"]:
+        assert f"his-{lane};dur=" in st, st
+    assert "_timing" not in r.json()
+
+
+def test_an_archived_wire_is_parsed_once_and_re_read_when_rewritten(stores, monkeypatch):
+    import os as _os
+    import time as _t
+    from api.services import wire_archive
+    th._WIRE_DOC_MEMO.clear()
+    real, reads = wire_archive.read, []
+    monkeypatch.setattr(wire_archive, "read", lambda ymd: (reads.append(ymd), real(ymd))[1])
+    first = _lane(th.history("NVDA", days=30), "wire")
+    assert sorted(reads) == sorted([D1, D2])
+    reads.clear()
+    assert _lane(th.history("AMD", days=30), "wire") == [] and reads == []   # memo, not the disk
+    assert _lane(th.history("NVDA", days=30), "wire") == first
+    wire_archive.record({"date": D2, "rundown_html": "<p>$NVDA NVDA NVDA again.</p>"})
+    p = wire_archive.path_for(D2)
+    _os.utime(p, ns=(_t.time_ns(), _t.time_ns() + 10_000_000))
+    again = {r["date"]: r["mentions"] for r in _lane(th.history("NVDA", days=30), "wire")}
+    assert reads == [D2] and again[D2] == 3
+    th._WIRE_DOC_MEMO.clear()
+
+
+def test_the_journal_is_read_once_per_lane_run(stores, monkeypatch):
+    from api.services.journal_two import positions, trades
+    calls = []
+    real_t, real_p = trades.list_trades_for_user, positions.list_open_positions
+    monkeypatch.setattr(trades, "list_trades_for_user",
+                        lambda uid, *a, **k: (calls.append("t"), real_t(uid, *a, **k))[1])
+    monkeypatch.setattr(positions, "list_open_positions",
+                        lambda uid, *a, **k: (calls.append("p"), real_p(uid, *a, **k))[1])
+    uid = _journal_member()
+    out = th.history("NVDA", days=30, user_id=uid)
+    assert out["lanes"]["journal"]["status"] == "ok"
+    assert calls == ["t", "p"], calls                       # lane + coverage, one read
+    th.history("NVDA", days=30, user_id=uid)
+    assert calls == ["t", "p", "t", "p"]                    # never shared ACROSS requests
+
+
+def test_the_setup_ledger_is_read_through_its_symbol_index(stores):
+    import contextlib as _cl
+    import inspect
+    with _cl.closing(th._engine_ro()) as c:
+        plan = " ".join(str(tuple(r)) for r in c.execute(
+            "EXPLAIN QUERY PLAN SELECT trigger_date FROM setup_triggers WHERE symbol IN (?) "
+            "AND (trigger_date >= ? OR substr(resolved_at, 1, 10) >= ?)", ("NVDA", "2026-01-01", "2026-01-01")))
+    assert "USING INDEX" in plan and "SCAN setup_triggers" not in plan, plan
+    assert "UPPER(symbol)" not in inspect.getsource(th.setups_lane)

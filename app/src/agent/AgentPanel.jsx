@@ -50,7 +50,7 @@ function Item({ it, agent }) {
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice}
-                  onClick={() => (c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label))}>{c.label}</button>
+                  onClick={() => (c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
               ))}
             </div>
           )}

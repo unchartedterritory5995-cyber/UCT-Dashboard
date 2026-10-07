@@ -17,14 +17,14 @@
   padding: 6px 10px;
   font-size: 12px;
   color: var(--text, #e8e6df);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--text-heading) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   border-radius: var(--radius-md);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold);
 }
 
 .input::placeholder { color: var(--text-muted, #8b8678); }
@@ -43,13 +43,13 @@
   font-size: 13px;
   line-height: 1;
   color: var(--text, #e8e6df);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--text-heading) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
 
-.navBtn:hover:not(:disabled) { border-color: var(--ut-gold, #dcbb5e); }
+.navBtn:hover:not(:disabled) { border-color: var(--ut-gold); }
 .navBtn:disabled { opacity: 0.35; cursor: default; }
 
 .filterToggle {
@@ -66,9 +66,9 @@
 /* The stepped-to hit. Every match is marked; exactly one is the cursor, so it
    must be separable at a glance from the others. */
 .kwActive {
-  background: var(--ut-gold, #dcbb5e) !important;
+  background: var(--ut-gold) !important;
   color: var(--bg) !important;
-  box-shadow: 0 0 0 2px rgba(220, 187, 94, 0.35);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ut-gold) 35%, transparent);
   border-radius: 2px;
 }
 
@@ -86,12 +86,12 @@
 }
 
 @keyframes sourceFlash {
-  0%, 25% { background: rgba(220, 187, 94, 0.22); }
+  0%, 25% { background: color-mix(in srgb, var(--ut-gold) 22%, transparent); }
   100%    { background: transparent; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :global([data-flash="true"]) { animation: none; outline: 2px solid var(--ut-gold, #dcbb5e); }
+  :global([data-flash="true"]) { animation: none; outline: 2px solid var(--ut-gold); }
 }
 
 .quarterSelect {
@@ -100,12 +100,12 @@
   padding: 4px 8px;
   font-size: 11px;
   color: var(--text, #e8e6df);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--text-heading) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
-.quarterSelect:focus { outline: none; border-color: var(--ut-gold, #dcbb5e); }
+.quarterSelect:focus { outline: none; border-color: var(--ut-gold); }
 
 /* TERM-033: Retry beside "Earlier quarters could not be listed." */
 .quarterRetry {
@@ -114,7 +114,7 @@
   font-size: 11px;
   color: var(--text, #e8e6df);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
@@ -123,11 +123,11 @@
   min-height: var(--tap-min, 44px);
   padding: 0 10px;
   font-size: 11px;
-  color: var(--ut-gold, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
-  border: 1px solid rgba(220, 187, 94, 0.3);
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
 }
-.jumpChip:hover { background: rgba(220, 187, 94, 0.16); }
+.jumpChip:hover { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); }

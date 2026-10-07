@@ -133,7 +133,7 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, on
   const asOf = perf.data?.live_as_of || perf.data?.generated_at || null
   const closed = !market.isOpen && !market.isPremarket && !market.isExtended
   usePanelFreshness(asOf && theme
-    ? { freshnessClass: closed ? 'end_of_day' : 'real_time', asOf, sessionState: sessionModel(market) }
+    ? { source: 'UCT theme tracker (Massive prices)', freshnessClass: closed ? 'end_of_day' : 'real_time', asOf, sessionState: sessionModel(market) }
     : null)
 
   const load = (s) => onRun?.(`$${s}`, { keepFunction: true })

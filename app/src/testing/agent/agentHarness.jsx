@@ -33,7 +33,11 @@ if (THEME.startsWith('uct:') && APP_THEME_BY_ID[THEME.slice(4)]) applyAppTheme(r
 else root.dataset.theme = THEME === 'light' ? 'light' : THEME === 'oled' ? 'oled' : 'dark'
 
 // ── fixture board ──
-const widgets = NCHARTS === 1
+const BOARD = params.get('board') || ''
+const widgets = BOARD === 'gap'
+  // half the board empty, so widget.add has somewhere to land without resizing anything
+  ? [{ id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: 'D' } }]
+  : NCHARTS === 1
   ? [
       { id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 18, h: 20, opts: { tf: 'D' } },
       { id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: {} },

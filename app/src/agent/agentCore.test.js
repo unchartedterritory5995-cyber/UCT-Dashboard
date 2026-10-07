@@ -52,7 +52,7 @@ describe('capability registry', () => {
   it('chart capabilities are registered through the seam, none indicator-owned', () => {
     const names = allCapabilityNames()
     expect(names).toEqual(expect.arrayContaining(['chart.setType', 'chart.setTimeframe', 'chart.setSymbol', 'chart.setSession',
-      'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState']))
+      'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'chart.setScale']))
     for (const n of names) expect(n).not.toMatch(/^(indicator|pane)\./)
   })
   it('the manifest is metadata only, gated by surface', () => {
@@ -148,6 +148,28 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
     expect(p.plans[0].after.cs.extendedHoursShading).toBe(false)
     expect(p.plans[0].after.cs.sessionView).toBe(p.plans[0].before.cs.sessionView)
   })
+  it('chart.setScale writes exactly the keys the A/L/% toggle writes, with receipt + undo', async () => {
+    const host = makeHost([{ ref: 'c1' }])
+    const p = plan(host, [op('chart.setScale', { scale: 'log' })])
+    expect(p.ok).toBe(true)
+    expect(p.lines).toEqual(['Changed scale to Logarithmic'])
+    expect(p.plans[0].after.cs.logScale).toBe(true)
+    expect(p.plans[0].after.cs.percentScale).toBe(false)
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(true)
+    expect(plan(host, [op('chart.setScale', { scale: 'log' })]).noops).toEqual(['Already on a logarithmic scale'])
+    const pct = plan(host, [op('chart.setScale', { scale: 'percent' })])
+    expect(pct.plans[0].after.cs).toMatchObject({ percentScale: true, logScale: false })
+    expect((await undoEntry(host, res.undo)).ok).toBe(true)
+    expect(host.raw('c1').stored).toBeNull()
+  })
+  it('chart.setScale refuses a non-percent scale while Compare forces percent (no false receipt)', () => {
+    const host = makeHost([{ ref: 'c1', stored: { comparisonSymbols: [{ sym: 'QQQ', enabled: true }] } }])
+    const p = plan(host, [op('chart.setScale', { scale: 'log' })])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/Compare overlays/)
+    expect(plan(host, [op('chart.setScale', { scale: 'percent' })]).ok).toBe(true)
+  })
   it('symbol change carries the linked-widget count into the receipt', () => {
     const p = plan(makeHost([{ ref: 'c1', linkedCount: 2 }]), [op('chart.setSymbol', { symbol: 'nvda' })])
     expect(p.lines).toEqual(['Changed symbol to NVDA (and 2 linked widgets)'])
@@ -200,8 +222,8 @@ describe('policy', () => {
 
 describe('fast path (capability-contributed phrases)', () => {
   it('parses obvious commands into the SAME registry ops', () => {
-    expect(fastParse('bars')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setType', args: { type: 'bars' } }] })
-    expect(fastParse('5m')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: '5' } }] })
+    expect(fastParse('bars')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setType', args: { type: 'bars' } }], target: null })
+    expect(fastParse('5m')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: '5' } }], target: null })
     expect(fastParse('Daily').ops[0].args).toEqual({ timeframe: 'D' })
     expect(fastParse('hide volume').ops[0]).toEqual({ action: 'volume.setState', args: { state: 'hidden' } })
     expect(fastParse('switch to weekly and candles').ops.map(o => o.action)).toEqual(['chart.setTimeframe', 'chart.setType'])
@@ -214,10 +236,26 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('just apply the first two')).toEqual({ kind: 'subset', count: 2 })
     expect(fastParse('never mind')).toEqual({ kind: 'dismiss' })
   })
+  it('target qualifiers are stripped and returned as a HINT (the parser never resolves a target)', () => {
+    expect(fastParse('make the left chart weekly')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: 'W' } }], target: { position: 'left' } })
+    expect(fastParse('change the right chart to bars').target).toEqual({ position: 'right' })
+    expect(fastParse('switch the right chart to extended hours').ops[0]).toEqual({ action: 'chart.setSession', args: { mode: 'extended' } })
+    expect(fastParse('hide volume on both charts')).toEqual({ kind: 'ops', ops: [{ action: 'volume.setState', args: { state: 'hidden' } }], target: { all: true } })
+    expect(fastParse('make all charts weekly').target).toEqual({ all: true })
+    expect(fastParse('put NVDA on the left')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setSymbol', args: { symbol: 'NVDA' } }], target: { position: 'left' } })
+    expect(fastParse('change symbol to tsla').ops[0]).toEqual({ action: 'chart.setSymbol', args: { symbol: 'TSLA' } })
+    expect(fastParse('top-left chart daily').target).toEqual({ position: 'top-left' })
+    expect(fastParse('log scale').ops[0]).toEqual({ action: 'chart.setScale', args: { scale: 'log' } })
+    expect(fastParse('make the left chart linear')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setScale', args: { scale: 'linear' } }], target: { position: 'left' } })
+    expect(fastParse('percent scale').ops[0].args).toEqual({ scale: 'percent' })
+    expect(fastParse('weekly').target).toBeNull()
+  })
   it('all-or-nothing: any unrecognised clause goes to the model', () => {
     expect(fastParse('bars and make it look like TradingView')).toBeNull()
     expect(fastParse('what is an EMA?')).toBeNull()
     expect(fastParse('show volume profile')).toBeNull()
+    expect(fastParse('make the left chart look like TradingView')).toBeNull()
+    expect(fastParse('show me apple')).toBeNull()
     expect(fastParse('add RSI 21')).toBeNull()
   })
 })
@@ -261,7 +299,7 @@ describe('EXTENSIBILITY: example.setSomething', () => {
       expect(manifestFor(CTX).map(c => c.name)).toContain('example.setSomething')
       expect(buildContext(host, CTX).context.examples).toEqual([{ ref: 'e1', level: 'low' }])
       // fast path
-      expect(fastParse('example high')).toEqual({ kind: 'ops', ops: [{ action: 'example.setSomething', args: { level: 'high' } }] })
+      expect(fastParse('example high')).toEqual({ kind: 'ops', ops: [{ action: 'example.setSomething', args: { level: 'high' } }], target: null })
       // plan + policy (its metadata says confirm → always a proposal)
       const ops = [{ action: 'example.setSomething', target: 'ex1', args: { level: 'high' } }]
       expect(await prepareOps(ops)).toEqual({})
@@ -279,5 +317,76 @@ describe('EXTENSIBILITY: example.setSomething', () => {
       off.forEach(f => f())
     }
     expect(manifestFor(CTX).map(c => c.name)).not.toContain('example.setSomething')
+  })
+})
+
+// ── widget.add (workspace target kind) over the REAL widget source ───────────
+import { buildWidgetSource } from './host'
+import { planPlacement } from '../pages/charts/placement/place'
+
+function makeBoard(widgets) {
+  const state = { widgets: widgets.map(w => ({ ...w })) }
+  let n = 0
+  const widgetOps = {
+    layout: () => state,
+    // what handleAddWidget does when the type fits in empty space
+    add: (type) => {
+      const plan = planPlacement(state.widgets, type)
+      state.widgets = [...state.widgets, { id: `w-${type}-${++n}`, type, ...plan.place }]
+    },
+    remove: (id) => { state.widgets = state.widgets.filter(w => w.id !== id) },
+  }
+  const host = { widgets: buildWidgetSource({ widgetOps, getWidgets: () => state.widgets }) }
+  return { host, state }
+}
+const wsPlan = (host, ops) => planOps(collectTargets(host, ['workspace']), ops, {}, CTX)
+const addOp = (type) => ({ action: 'widget.add', target: 'workspace', args: { type } })
+
+describe('widget.add', () => {
+  it('is discovered through the manifest and the workspace context', () => {
+    expect(manifestFor(CTX).map(c => c.name)).toContain('widget.add')
+    const { host } = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }])
+    const { context, refMap } = buildContext(host, CTX)
+    expect(context.workspace[0]).toMatchObject({ ref: 'w1', widgetCount: 1, widgetLimit: 16 })
+    expect(refMap.w1).toEqual({ kind: 'workspace', ref: 'workspace' })
+  })
+  it('adds into empty space through the board writer, ACKs the new widget, and Undo closes exactly it', async () => {
+    const { host, state } = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }])
+    const p = wsPlan(host, [addOp('watchlist')])
+    expect(p.ok).toBe(true)
+    expect(p.lines).toEqual(['Added a Watchlist'])
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(true)
+    expect(state.widgets.map(w => w.type)).toEqual(['chart', 'watchlist'])
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(true)
+    expect(state.widgets.map(w => w.id)).toEqual(['c'])
+  })
+  it('refuses when there is no empty space (never resizes other widgets), and when the board is full', () => {
+    const full = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 24, h: 20 }])
+    const p = wsPlan(full.host, [addOp('watchlist')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/no empty space/)
+    const sixteen = makeBoard(Array.from({ length: 16 }, (_, i) => ({ id: `x${i}`, type: 'chart', x: (i % 4) * 6, y: Math.floor(i / 4) * 5, w: 6, h: 5 })))
+    expect(wsPlan(sixteen.host, [addOp('watchlist')]).refusals[0].reason).toMatch(/most it holds/)
+  })
+  it('one widget per turn', () => {
+    const { host } = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 6, h: 20 }])
+    const p = wsPlan(host, [addOp('watchlist'), addOp('news')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/one widget at a time/)
+  })
+  it('stale undo: a board changed by hand after the add is never overwritten', async () => {
+    const { host, state } = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }])
+    const res = await commitPlan(host, wsPlan(host, [addOp('watchlist')]))
+    state.widgets = state.widgets.map(w => (w.id === 'c' ? { ...w, w: 10 } : w))   // member resized the chart
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(false)
+    expect(state.widgets).toHaveLength(2)
+  })
+  it('fast path: "add a watchlist" / "add another chart" → widget.add, ambiguous phrasing → model', () => {
+    expect(fastParse('add a watchlist').ops[0]).toEqual({ action: 'widget.add', args: { type: 'watchlist' } })
+    expect(fastParse('add another chart').ops[0]).toEqual({ action: 'widget.add', args: { type: 'chart' } })
+    expect(fastParse('add a watchlist with my tech stocks')).toBeNull()
   })
 })

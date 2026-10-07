@@ -14,9 +14,9 @@ const fetcher = url => fetch(url).then(r => r.json())
 function scoreColor(s) {
   if (s == null) return 'var(--text-muted)'
   if (s >= 81)  return 'var(--gain)'
-  if (s >= 66)  return '#7dcea0'
+  if (s >= 66)  return 'var(--score-strong)'
   if (s >= 50)  return 'var(--warn)'
-  if (s >= 31)  return '#e67e22'
+  if (s >= 31)  return 'var(--score-weak)'
   return 'var(--loss)'
 }
 

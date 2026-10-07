@@ -6,8 +6,8 @@
 
 .menu {
   position: fixed;
-  background: #1e1e22;
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--menu-bg);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
   border-radius: var(--radius-lg);
   padding: 6px 0;
   min-width: 200px;
@@ -19,9 +19,9 @@
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   padding: 6px 14px 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
   letter-spacing: 1px;
 }
 
@@ -38,11 +38,11 @@
   cursor: pointer;
 }
 
-.item:hover { background: rgba(255,255,255,0.06); }
+.item:hover { background: color-mix(in srgb, var(--text-heading) 6%, transparent); }
 
 .tagSection {
   padding: 6px 14px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 .tagLabel {
@@ -66,7 +66,7 @@
 }
 
 .swatch:hover { transform: scale(1.2); }
-.swatchActive { border-color: #fff; box-shadow: 0 0 4px rgba(255,255,255,0.3); }
+.swatchActive { border-color: var(--text-heading); box-shadow: 0 0 4px color-mix(in srgb, var(--text-heading) 30%, transparent); }
 
 .listPicker {
   padding: 4px 8px;
@@ -88,7 +88,7 @@
   border-radius: 3px;
 }
 
-.listOption:hover { background: rgba(255,255,255,0.06); }
+.listOption:hover { background: color-mix(in srgb, var(--text-heading) 6%, transparent); }
 
 .noLists {
   font-family: var(--font-sans);
@@ -99,18 +99,18 @@
 
 .compareSection {
   padding: 6px 14px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 .alertSection {
   padding: 6px 14px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 /* ── Send chart to note (Wave R R-2e) ── */
 .sendNoteSection {
   padding: 6px 14px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -126,7 +126,7 @@
   width: 100%;
   padding: 5px 8px;
   background: none;
-  border: 1px solid rgba(255,255,255,0.10);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 10%, transparent);
   color: var(--ut-cream, #e8e0d0);
   font-family: var(--font-sans);
   font-size: 11px;
@@ -134,7 +134,7 @@
   cursor: pointer;
   border-radius: 3px;
 }
-.sendNoteTarget:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+.sendNoteTarget:hover:not(:disabled) { background: color-mix(in srgb, var(--text-heading) 6%, transparent); }
 .sendNoteTarget:disabled { cursor: default; opacity: 0.6; }
 /* The result sentence. A PERMANENT role="status" container whose TEXT toggles —
    a transient mount-with-text is silent to screen readers, which is how
@@ -142,7 +142,7 @@
 .sendNoteStatus {
   font-family: var(--font-sans);
   font-size: 10px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold);
   padding: 2px 0 0;
   min-height: 12px;
 }
@@ -158,22 +158,22 @@
   font-family: var(--font-sans);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: color-mix(in srgb, var(--text-heading) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 10%, transparent);
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   outline: none;
 }
 
 .alertInput { width: 70px; }
-.alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold, #dcbb5e); }
+.alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold); }
 
 .alertSet {
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: var(--bg);
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   border: none;
   border-radius: var(--radius-sm);
   padding: 5px 8px;
@@ -239,18 +239,18 @@
 /* inline "New list" creation inside the picker */
 .newListRow {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 8px 4px; border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 6px 8px 4px; border-top: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
   margin-top: 4px;
 }
 .newListInput {
   flex: 1; min-width: 0;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent); border: 1px solid color-mix(in srgb, var(--text-heading) 10%, transparent);
   border-radius: 5px; padding: 4px 7px; color: inherit;
   font-size: 12px; font-family: inherit;
 }
 .newListInput:focus { outline: none; border-color: var(--accent); }
 .newListBtn {
-  border: 1px solid rgba(220, 187, 94,0.35); background: rgba(220, 187, 94,0.12);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent); background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
   color: var(--accent); border-radius: 5px; padding: 4px 9px; cursor: pointer;
   font-size: 12px; font-family: inherit;
 }

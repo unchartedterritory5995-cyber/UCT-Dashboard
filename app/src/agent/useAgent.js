@@ -16,7 +16,7 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fastParse } from './fastPath'
+import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
@@ -177,7 +177,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: 'apply', member: `${p.member} → ${label}`, voice: p.voice })
   }, [execute, push])
 
-  const send = useCallback(async (raw, { voice = false } = {}) => {
+  const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
     if (!text || busy) return
     push({ role: 'member', text, voice })
@@ -189,11 +189,25 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: t, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
         return
       }
-      const fast = fastParse(text)
+      // A choice clicked under the MODEL's own question answers that question:
+      // it goes back to the model (which has the conversation), never through the
+      // fast path, which would act on the bare label ("Hide volume") out of context.
+      const fast = answering ? null : fastParse(text)
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
       if (fast?.kind === 'dismiss' && pendingRef.current) return dismiss({ member: text })
+      // "do it" / "just the first two" with NOTHING pending never goes to the
+      // model: after a reload or a chat switch the history still shows the old
+      // proposal, and the model would REGENERATE and apply it. Approval only ever
+      // executes a stored, re-validated plan.
+      if (fast?.kind === 'confirm' || fast?.kind === 'subset' || fast?.kind === 'dismiss') {
+        const t = fast.kind === 'dismiss' ? 'Nothing is waiting — nothing changed.'
+          : "There is no proposal waiting to apply. Tell me what you'd like to change."
+        push({ role: 'agent', text: t })
+        record({ member: text, outcome: t, telemetry: { path: 'fast', voice } })
+        return
+      }
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length === 1) {
         const kind = getTargetKind(kindsOf(fast.ops)[0])
         const charts = kind ? kind.list(host) : []
@@ -203,13 +217,28 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: t, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
-        if (charts.length > 1) {
+        // "both / all" → one op set per target; the multi-target policy makes it
+        // a proposal. A position hint narrows by the positions the kind
+        // publishes; anything still ambiguous asks. A lone target needs no hint.
+        if (fast.target?.all && charts.length > 1) {
+          return await execute(charts.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
+            { path: 'fast', mode: 'apply', member: text, voice })
+        }
+        let candidates = charts
+        let ask = `Which ${kind.name}?`
+        if (fast.target?.position && charts.length > 1) {
+          const hit = matchPosition(charts, fast.target.position)
+          if (hit.length) candidates = hit
+          else ask = `I don't see a ${fast.target.position} ${kind.name}. Which one?`
+        }
+        const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
+        if (candidates.length > 1 || unmatchedHint) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice }
-          push({ role: 'question', text: `Which ${kind.name}?`, choices: charts.map(c => ({ ref: c.ref, label: c.label })), local: true })
+          push({ role: 'question', text: ask, choices: candidates.map(c => ({ ref: c.ref, label: c.label })), local: true })
           record({ member: text, outcome: 'Asked which target.', telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
-        return await execute(fast.ops.map(o => ({ ...o, target: charts[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
+        return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
       }
 
       // ── model path ──

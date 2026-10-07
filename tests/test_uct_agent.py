@@ -38,9 +38,9 @@ def caller_of(*resps):
     return caller
 
 
-def env(disposition, ops=(), reply="", question=None, cat=None):
+def env(disposition, ops=(), reply="", question=None, cat=None, research=None):
     return {"disposition": disposition, "reply": reply, "question": question,
-            "ops": list(ops), "unsupported_category": cat}
+            "ops": list(ops), "unsupported_category": cat, "research": research}
 
 
 CTX = {"surface": "charts", "charts": [{"ref": "c1", "label": "Chart (SPY)", "symbol": "SPY"}]}
@@ -130,13 +130,16 @@ def test_an_op_naming_a_capability_not_in_the_manifest_is_dropped():
     assert out["envelope"]["ops"] == [OP]
 
 
-def test_the_call_uses_structured_output_a_strict_read_tool_and_no_forced_tool():
+def test_the_call_uses_structured_output_and_attaches_NO_tool():
+    """⚰️ research used to ride every call as a tool; Haiku called it on every
+    turn. The model call carries no tools at all now -- research is declared
+    in the envelope and honoured only for an answer."""
     c = caller_of(_resp(env("answer", reply="An EMA weights recent prices more.")))
     turn.run_turn(message="ema vs sma?", context=CTX, history=[], capabilities=CAPS, caller=c)
     kw = c.calls[0]
     assert kw["output_config"]["format"]["type"] == "json_schema"
-    assert kw["tool_choice"] == {"type": "auto"}
-    assert kw["tools"][0]["name"] == "web_research" and kw["tools"][0]["strict"] is True
+    assert "tools" not in kw and "tool_choice" not in kw
+    assert "research" in kw["output_config"]["format"]["schema"]["required"]
     assert "<member_request>ema vs sma?</member_request>" in kw["messages"][-1]["content"]
 
 
@@ -186,30 +189,84 @@ def test_empty_and_overlong_messages_never_call_the_model():
     assert c.calls == []
 
 
-# ── research is a bounded READ loop ─────────────────────────────────────────
+# ── research is OPT-IN, intent-driven, and never on the command path ────────
 
-def test_research_runs_then_answers_with_citations(monkeypatch):
+TWO_CHARTS = {"surface": "charts", "charts": [
+    {"ref": "c1", "label": "Left chart (SPY)", "position": "left", "symbol": "SPY"},
+    {"ref": "c2", "label": "Right chart (SPY)", "position": "right", "symbol": "SPY"}]}
+
+
+@pytest.fixture
+def no_research(monkeypatch):
+    calls = []
+
+    def must_not_research(q, r):
+        calls.append((q, r))
+        raise AssertionError(f"research was called for {q!r}")
+    monkeypatch.setattr(turn, "_research", must_not_research)
+    return calls
+
+
+def test_DO_change_the_left_chart_to_bars_makes_zero_research_calls(no_research):
+    op = {"action": "chart.setType", "target": "c1", "args": {"type": "bars"}}
+    c = caller_of(_resp(env("apply", ops=[op])))
+    out = turn.run_turn(message="change the left chart to bars", context=TWO_CHARTS, history=[],
+                        capabilities=CAPS, caller=c)
+    assert out["envelope"]["disposition"] == "apply" and out["envelope"]["ops"] == [op]
+    assert out["usage"]["research_calls"] == 0 and len(c.calls) == 1 and no_research == []
+
+
+def test_PROPOSE_make_the_right_chart_cleaner_makes_zero_research_calls_even_if_asked(no_research):
+    """Structural, not prompt-only: a research request on a non-answer is ignored."""
+    op = {"action": "volume.setState", "target": "c2", "args": {"state": "hidden"}}
+    c = caller_of(_resp(env("propose", ops=[op], reply="Less clutter.",
+                            research={"query": "clean chart styles", "recency": "any"})))
+    out = turn.run_turn(message="make the right chart look cleaner", context=TWO_CHARTS, history=[],
+                        capabilities=CAPS, caller=c)
+    assert out["envelope"]["disposition"] == "propose" and out["envelope"]["ops"] == [op]
+    assert out["usage"]["research_calls"] == 0 and len(c.calls) == 1 and no_research == []
+    assert "research" not in out["envelope"]             # never reaches the browser
+
+
+def test_TALK_evergreen_ema_vs_sma_makes_zero_research_calls(no_research):
+    c = caller_of(_resp(env("answer", reply="An EMA weights recent closes more; an SMA weights all equally.")))
+    out = turn.run_turn(message="What's the difference between an EMA and an SMA?", context=TWO_CHARTS,
+                        history=[], capabilities=CAPS, caller=c)
+    assert out["envelope"]["disposition"] == "answer" and out["envelope"]["ops"] == []
+    assert out["usage"]["research_calls"] == 0 and len(c.calls) == 1 and no_research == []
+
+
+def test_TALK_current_question_researches_once_then_answers_with_zero_mutation(monkeypatch):
     seen = []
-    monkeypatch.setattr(turn, "_research", lambda q, r: seen.append((q, r)) or {"answer": "Margins up 2pts", "citations": ["https://x"]})
-    c = caller_of(_resp(tool=("web_research", {"query": "NVDA margins", "recency": "week"})),
-                  _resp(env("answer", reply="Gross margin expanded.")))
-    out = turn.run_turn(message="what did NVDA say about margins?", context=CTX, history=[], caller=c)
-    assert seen == [("NVDA margins", "week")]
+    monkeypatch.setattr(turn, "_research", lambda q, r: seen.append((q, r))
+                        or {"answer": "NVDA up 3% on a data-center order report.", "citations": ["https://x"]})
+    c = caller_of(
+        _resp(env("answer", reply="Checking.", research={"query": "why is NVDA stock moving today", "recency": "day"})),
+        _resp(env("answer", reply="NVDA is up about 3% today after a report of a large data-center order.")))
+    out = turn.run_turn(message="Why is NVDA moving today?", context=TWO_CHARTS, history=[],
+                        capabilities=CAPS, caller=c)
+    assert seen == [("why is NVDA stock moving today", "day")]
     assert out["usage"]["research_calls"] == 1 and out["usage"]["citations"] == ["https://x"]
-    assert c.calls[1]["messages"][-1]["content"][0]["type"] == "tool_result"
+    assert out["envelope"]["disposition"] == "answer" and out["envelope"]["ops"] == []
+    assert "data-center order" in out["envelope"]["reply"]
+    second = c.calls[1]["messages"]
+    assert second[-2] == {"role": "assistant", "content": json.dumps(env("answer", reply="Checking.",
+                          research={"query": "why is NVDA stock moving today", "recency": "day"}))}
+    assert "<research_results>" in second[-1]["content"]
+    assert "tools" not in c.calls[1]
 
 
-def test_research_has_a_hard_ceiling(monkeypatch):
+def test_research_has_a_hard_ceiling_of_one(monkeypatch):
     monkeypatch.setattr(turn, "_research", lambda q, r: {"answer": "a", "citations": []})
-    t = ("web_research", {"query": "q", "recency": "any"})
-    c = caller_of(_resp(tool=t), _resp(tool=t), _resp(env("answer", reply="done")))
-    out = turn.run_turn(message="dig", context=CTX, history=[], caller=c)
-    assert out["usage"]["research_calls"] == 2
-    assert c.calls[2]["tool_choice"] == {"type": "none"}
+    ask = env("answer", reply="x", research={"query": "q", "recency": "any"})
+    c = caller_of(_resp(ask), _resp(ask))
+    out = turn.run_turn(message="dig", context=CTX, history=[], capabilities=CAPS, caller=c)
+    assert out["usage"]["research_calls"] == 1 and len(c.calls) == 2
+    assert out["envelope"]["disposition"] == "answer"
 
 
 def test_history_alternates_and_carries_what_uct_actually_did():
-    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars"},
+    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars", "data": {"kind": "applied"}},
             {"role": "member", "text": "why?"}, {"role": "agent", "text": "Because."}]
     msgs = turn.history_messages(rows)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
@@ -306,3 +363,20 @@ def test_a_store_failure_is_a_sentence_and_gives_the_charge_back(make_client, mo
     r = make_client(ADMIN).post("/api/agent/turn", json={"message": "hi", "context": CTX})
     assert r.status_code == 500 and r.json()["detail"] == rx.FAILED
     assert daily_counters.value("2026-10-07", rx.SCOPE, ADMIN["id"]) == 0
+
+
+def test_a_proposal_in_history_never_reads_as_executed():
+    rows = [{"role": "member", "text": "make it cleaner"},
+            {"role": "outcome", "text": "Proposed: Hid Volume", "data": {"kind": "proposed"}},
+            {"role": "member", "text": "why?"}, {"role": "agent", "text": "Less clutter."}]
+    msgs = turn.history_messages(rows)
+    assert "executed" not in msgs[1]["content"].replace("NOT executed", "")
+    assert msgs[1]["content"].startswith("[UCT proposed -- NOT executed")
+
+
+def test_taste_requests_propose_rather_than_clarify_in_the_prompt():
+    """Production 2026-10-07: without this line Haiku answered "make the right
+    chart look cleaner" with a clarify whose bare choices ("Hide volume") lost
+    the target; the accepted behaviour is a proposal the member can adjust."""
+    p = turn.system_prompt(turn.validate_manifest(CAPS))
+    assert "Never clarify a matter of taste or judgment" in p

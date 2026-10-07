@@ -10,6 +10,10 @@
 // A chart's ref is its persisted widget id (+ "~tabId" for an extra chart tab).
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 
+import { planPlacement } from '../pages/charts/placement/place'
+import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
+import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
+
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
 function positionWord(w, all) {
@@ -66,9 +70,40 @@ export function buildChartSource({ chartApiById, getWidgets }) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel }) {
+/**
+ * The board, read EXACTLY as handleAddWidget reads it (layoutRef's widgets for
+ * placement, boardWidgetCount for the bound) and written ONLY through the
+ * workspace's own handlers (`widgetOps.add` = handleAddWidget, `widgetOps.remove`
+ * = handleRemoveWidget). `fits[type]` is planPlacement's own verdict: true when
+ * the type lands in empty space without resizing anything.
+ */
+export function buildWidgetSource({ widgetOps, getWidgets }) {
+  return {
+    snapshot() {
+      const layout = widgetOps.layout() || { widgets: [] }
+      const all = layout.widgets || []
+      const visible = getWidgets() || []
+      const count = boardWidgetCount(layout) ?? 0
+      const fits = {}
+      for (const t of WORKSPACE_MENU_TYPES) {
+        try { fits[t] = !(planPlacement(all, t).mutations || []).length } catch { fits[t] = false }
+      }
+      return {
+        ref: 'workspace', label: 'Workspace',
+        widgets: all.map(w => ({ id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h })),
+        visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
+        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits,
+      }
+    },
+    add: (type) => widgetOps.add(type),
+    remove: (id) => widgetOps.remove(id),
+  }
+}
+
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps }) {
   return {
     charts: buildChartSource({ chartApiById, getWidgets }),
+    ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
   }
 }

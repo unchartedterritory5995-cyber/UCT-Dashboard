@@ -9,6 +9,7 @@ import {
   summaryFacts, excludedText, notRunText, ivText,
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import useDarkSection from '../../optionsAnalytics/useDarkSection'
 import Select from '../../../components/ui/Select'
 
@@ -89,6 +90,9 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
   })
   const st = poll.data
   const spread = Boolean(choices.find(([k]) => k === kind)?.[2])
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // Nothing to source until a run has finished; the inputs are the member's own.
+  usePanelFreshness(st?.state === 'done' ? { source: 'Massive options history, simulated by UCT' } : null)
 
   async function onSimulate() {
     setBusy(true)

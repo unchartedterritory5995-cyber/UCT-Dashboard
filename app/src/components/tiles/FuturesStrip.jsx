@@ -53,11 +53,15 @@ const SPARK = {
 }
 const SYM_IDX = { QQQ: 0, SPY: 1, IWM: 2, DIA: 0, BTC: 1, VIX: 2 }
 
-// Colors per direction — hardcoded for reliable SVG attribute support
+// Colors per direction — the theme's own up/down tokens (--gain / --loss; --text-muted for
+// flat), alpha'd with color-mix. They are set through `style` (a CSS property, where var() and
+// color-mix() are plain CSS) rather than SVG presentation attributes, and follow a theme switch.
+const mix = (tok, pct) => `color-mix(in srgb, var(${tok}) ${pct}%, transparent)`
+const sparkInk = (tok, dim, bright, glow) => ({ dim: mix(tok, dim), bright: mix(tok, bright), fill: `var(${tok})`, glow: mix(tok, glow) })
 const SPARK_COLOR = {
-  pos: { dim: 'rgba(0,210,85,0.06)',  bright: 'rgba(0,210,85,0.28)',  fill: 'rgba(0,210,85,1)',  glow: 'rgba(0,210,85,0.22)'  },
-  neg: { dim: 'rgba(230,60,60,0.06)', bright: 'rgba(230,60,60,0.28)', fill: 'rgba(230,60,60,1)', glow: 'rgba(230,60,60,0.22)' },
-  neu: { dim: 'rgba(160,160,160,0.05)', bright: 'rgba(160,160,160,0.22)', fill: 'rgba(160,160,160,1)', glow: 'rgba(160,160,160,0.16)' },
+  pos: sparkInk('--gain', 6, 28, 22),
+  neg: sparkInk('--loss', 6, 28, 22),
+  neu: sparkInk('--text-muted', 5, 22, 16),
 }
 
 function Sparkline({ sym, css }) {
@@ -81,13 +85,13 @@ function Sparkline({ sym, css }) {
       <defs>
         {/* Horizontal stroke gradient: dim left → bright right */}
         <linearGradient id={`${id}-sg`} x1="0" y1="0" x2="100" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.dim}    />
-          <stop offset="100%" stopColor={c.bright}  />
+          <stop offset="0%"   style={{ stopColor: c.dim }}    />
+          <stop offset="100%" style={{ stopColor: c.bright }}  />
         </linearGradient>
         {/* Vertical fog fill: color top → transparent bottom */}
         <linearGradient id={`${id}-fg`} x1="0" y1="0" x2="0" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={c.fill} stopOpacity="0.13" />
-          <stop offset="100%" stopColor={c.fill} stopOpacity="0"    />
+          <stop offset="0%"   style={{ stopColor: c.fill, stopOpacity: 0.13 }} />
+          <stop offset="100%" style={{ stopColor: c.fill, stopOpacity: 0 }}    />
         </linearGradient>
         {/* Glow blur filter — contained within SVG bounds */}
         <filter id={`${id}-glow`} x="-5%" y="-60%" width="110%" height="220%">
@@ -106,7 +110,7 @@ function Sparkline({ sym, css }) {
       <polyline
         points={pts}
         fill="none"
-        stroke={c.glow}
+        style={{ stroke: c.glow }}
         strokeWidth="3.5"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -125,7 +129,7 @@ function Sparkline({ sym, css }) {
       />
 
       {/* Last-point marker */}
-      <circle cx={lx} cy={ly} r="1.8" fill={c.bright} opacity="0.55" />
+      <circle cx={lx} cy={ly} r="1.8" style={{ fill: c.bright }} opacity="0.55" />
     </svg>
   )
 }

@@ -12,11 +12,11 @@ vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({
 import AgentPanel from './AgentPanel'
 
 function makeHost(defs) {
-  const st = new Map(defs.map(d => [d.ref, { stored: null, tf: d.tf || 'D', symbol: d.symbol || 'SPY', label: d.label || 'Chart (SPY)' }]))
+  const st = new Map(defs.map(d => [d.ref, { stored: null, tf: d.tf || 'D', symbol: d.symbol || 'SPY', label: d.label || 'Chart (SPY)', position: d.position || null }]))
   const commits = []
   const read = (ref) => {
     const s = st.get(ref)
-    return s ? { ref, label: s.label, symbol: s.symbol, tf: s.tf, stored: s.stored, cs: mergeChartSettings(s.stored || {}), linkedCount: 0 } : null
+    return s ? { ref, label: s.label, position: s.position, symbol: s.symbol, tf: s.tf, stored: s.stored, cs: mergeChartSettings(s.stored || {}), linkedCount: 0 } : null
   }
   return {
     commits, raw: (r) => st.get(r), manual: (r, p) => Object.assign(st.get(r), p),
@@ -182,6 +182,72 @@ describe('UCT Agent panel', () => {
     type('add RSI 21')
     await screen.findByText(/can't add indicators yet/)
     expect(host.commits).toHaveLength(0)
+  })
+
+  it('"do it" with NO pending proposal never reaches the model (no regenerated plan)', async () => {
+    const host = makeHost([{ ref: 'w1' }])
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('do it')
+    await screen.findByText(/no proposal waiting/)
+    expect(turnBodies).toHaveLength(0)
+    expect(host.commits).toHaveLength(0)
+  })
+
+  it('a failed model turn changes nothing and the conversation continues', async () => {
+    const host = makeHost([{ ref: 'w1' }])
+    globalThis.fetch.mockImplementationOnce(async () => new Response('boom', { status: 500 }))
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('make the chart look cleaner')
+    await screen.findByText(/couldn't complete that request. No changes were made/)
+    expect(host.commits).toHaveLength(0)
+    type('bars')
+    await screen.findByText(/Changed chart to Bars/)
+  })
+
+  it('fast path resolves a NAMED target: "make the left chart weekly" changes only the left chart, no model', async () => {
+    const host = makeHost([{ ref: 'w1', label: 'Left chart (SPY)', position: 'left' }, { ref: 'w2', label: 'Right chart (SPY)', position: 'right' }])
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('make the left chart weekly')
+    await screen.findByText(/Switched timeframe to Weekly/)
+    expect(host.raw('w1').tf).toBe('W')
+    expect(host.raw('w2').tf).toBe('D')
+    expect(turnBodies).toHaveLength(0)
+  })
+
+  it('fast path "both charts" is a multi-target plan → a PROPOSAL, nothing changes until approved', async () => {
+    const host = makeHost([{ ref: 'w1', label: 'Left chart (SPY)', position: 'left' }, { ref: 'w2', label: 'Right chart (SPY)', position: 'right' }])
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('hide volume on both charts')
+    await screen.findByTestId('agent-proposal')
+    expect(host.commits).toHaveLength(0)
+    type('do it')
+    await screen.findByTestId('agent-receipt')
+    expect(host.raw('w1').stored.volume.visible).toBe(false)
+    expect(host.raw('w2').stored.volume.visible).toBe(false)
+    expect(turnBodies).toHaveLength(0)
+  })
+
+  it('a position that matches nothing ASKS rather than guessing', async () => {
+    const host = makeHost([{ ref: 'w1', label: 'Left chart (SPY)', position: 'left' }, { ref: 'w2', label: 'Right chart (SPY)', position: 'right' }])
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('make the bottom chart weekly')
+    await screen.findByText(/I don't see a bottom chart/)
+    expect(host.commits).toHaveLength(0)
+  })
+
+  it("a choice under the MODEL's question goes back to the model, never through the fast path", async () => {
+    const host = makeHost([{ ref: 'w1', label: 'Left chart (SPY)', position: 'left' }, { ref: 'w2', label: 'Right chart (SPY)', position: 'right' }])
+    turns.push(env('clarify', [], '', { text: 'What would make it cleaner?', choices: ['Hide volume', 'Switch to line'] }))
+    turns.push(env('apply', [{ action: 'volume.setState', target: 'c2', args: { state: 'hidden' } }]))
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('make the right chart look cleaner')
+    await screen.findByText('Hide volume')
+    fireEvent.click(screen.getByText('Hide volume'))
+    await screen.findByText(/Hid Volume/)
+    expect(turnBodies).toHaveLength(2)                 // the choice went to the model
+    expect(turnBodies[1].message).toBe('Hide volume')
+    expect(host.raw('w2').stored.volume.visible).toBe(false)
+    expect(host.raw('w1').stored).toBeNull()
   })
 
   it('keys typed in the panel never reach chart shortcuts', () => {
