@@ -31,7 +31,9 @@
  */
 import { useCallback, useLayoutEffect, useRef } from 'react'
 
-const CONTROLS = 'button, a[href], input, select, textarea'
+// `[data-grid-cell]`: a cell that is a control without being one of these elements (the Trades
+// table's symbol cell is a <td> that opens its trade on Enter, and keeps its cell role).
+const CONTROLS = 'button, a[href], input, select, textarea, [data-grid-cell]'
 const isText = (el) => el.tagName === 'TEXTAREA'
   || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes(el.type))
 

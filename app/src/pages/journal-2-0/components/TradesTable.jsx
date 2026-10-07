@@ -16,6 +16,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { useGridSort } from '../../../lib/presentation/dataGrid'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { usePlanStatuses } from '../hooks/usePlanGrade'
+import useGridRoving from '../lib/useGridRoving'
 import styles from './TradesTable.module.css'
 
 export function buildTradesColumns() {
@@ -215,6 +216,7 @@ function TradeCard({ trade, onRowAction, reviewedIds, planStatuses }) {
       type="button"
       className={styles.card}
       data-testid="trade-card"
+      data-trade-row=""
       onClick={onRowAction ? () => onRowAction('open', trade) : undefined}
     >
       <div className={styles.cardHead}>
@@ -255,6 +257,11 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
     isNumeric: isNumericSortKey,
     tiebreak: tradesTiebreak,
   })
+  // Lane KEYS3 (Q6): the trades are ONE Tab stop, in the table and in the phone cards. Every
+  // row used to be two stops (its symbol cell and its Setup select), so the sixth trade was
+  // eleven Tabs down. Down and Up move trade to trade, Home and End go to the ends, Right and
+  // Left reach the row's Setup select (the same hook as the Notebook's notes list).
+  const tradesGrid = useGridRoving({ rowSelector: '[data-trade-row]' })
 
   if (sorted.length === 0) {
     return (
@@ -272,7 +279,8 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
 
   if (isPhone) {
     return (
-      <div className={styles.cardList} tabIndex={-1} data-route-landing="" aria-label="Trades">
+      <div className={styles.cardList} tabIndex={-1} data-route-landing="" aria-label="Trades"
+        ref={tradesGrid.ref} onKeyDown={tradesGrid.onKeyDown} onFocus={tradesGrid.onFocus}>
         {sorted.map((t) => (
           <TradeCard key={t.id} trade={t} onRowAction={onRowAction} reviewedIds={reviewedIds} planStatuses={planStatuses} />
         ))}
@@ -312,9 +320,10 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
         </thead>
         {/* Where keyboard focus lands after a move to this page (lib/routeFocus.jsx): the next
             Tab is the first trade, not the column headers. Focusable by script only. */}
-        <tbody tabIndex={-1} data-route-landing="" aria-label="Trades">
+        <tbody tabIndex={-1} data-route-landing="" aria-label="Trades"
+          ref={tradesGrid.ref} onKeyDown={tradesGrid.onKeyDown} onFocus={tradesGrid.onFocus}>
           {sorted.map((t) => (
-            <tr key={t.id} className={styles.row}>
+            <tr key={t.id} className={styles.row} data-trade-row="">
               {visibleColumns.map((c) => (
                 <td
                   key={c.key}
@@ -338,6 +347,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
                   // (no keyboard path to activate it at all).
                   {...(onRowAction && c.key === 'symbol' ? {
                     tabIndex: 0,
+                    'data-grid-cell': '',
                     onKeyDown: (e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()

@@ -239,7 +239,7 @@ TREE_PLAN_JS = """h => {
 # list's current stop and how many rows and how many controls along the target is from it.
 GRID_PLAN_JS = """h => {
   if (!h || !h.hasAttribute || !h.hasAttribute('data-grid-roving')) return null;
-  const rowOf = e => e.closest('[data-note-row]') || e.closest('tr');
+  const rowOf = e => e.closest('[data-note-row]') || e.closest('[data-trade-row]') || e.closest('tr');
   let root = h.parentElement;
   while (root && root !== document.body && !root.querySelector('[data-grid-roving][tabindex="0"]')) root = root.parentElement;
   if (!root) return null;
@@ -249,7 +249,9 @@ GRID_PLAN_JS = """h => {
   const rows = []; for (const c of cells) { const r = rowOf(c); if (!rows.includes(r)) rows.push(r); }
   const col = e => cells.filter(c => rowOf(c) === rowOf(e)).indexOf(e);
   window.__w13qRovingStop = stop;
-  return {rows: rows.indexOf(rowOf(h)) - rows.indexOf(rowOf(stop)), from_col: col(stop), to_col: col(h)}; }"""
+  const at = rows.indexOf(rowOf(h));
+  return {rows: at - rows.indexOf(rowOf(stop)), from_col: col(stop), to_col: col(h),
+          first: at === 0, last: at === rows.length - 1}; }"""
 
 
 class Meter:
@@ -315,13 +317,20 @@ class Meter:
             # A list of rows that is one stop: Tab to the stop, Down / Up by row (the control
             # kept), then Right / Left along the row. Every key real and counted.
             self.tab_to("el === window.__w13qRovingStop", f"the list holding {label}")
-            for _ in range(abs(grid["rows"])):
-                self.key("ArrowDown" if grid["rows"] > 0 else "ArrowUp", f"row towards {label}")
+            # Lane KEYS3: Home / End when the row is the first / last and more than one row
+            # away (the list's own keys, lib/useGridRoving.js), as the tree and toolbar walks do.
+            if grid.get("last") and abs(grid["rows"]) > 1:
+                self.key("End", f"last row of the list: {label}")
+            elif grid.get("first") and abs(grid["rows"]) > 1:
+                self.key("Home", f"first row of the list: {label}")
+            else:
+                for _ in range(abs(grid["rows"])):
+                    self.key("ArrowDown" if grid["rows"] > 0 else "ArrowUp", f"row towards {label}")
             # after the row moves the column is the stop's own, clamped to the row
             for _ in range(8):
                 if self.pg.evaluate("h => h === document.activeElement", handle):
                     break
-                at = self.pg.evaluate("""h => { const rowOf = e => e.closest('[data-note-row]') || e.closest('tr');
+                at = self.pg.evaluate("""h => { const rowOf = e => e.closest('[data-note-row]') || e.closest('[data-trade-row]') || e.closest('tr');
                     const a = document.activeElement; const cs = Array.from(rowOf(h).querySelectorAll('[data-grid-roving]'));
                     return cs.indexOf(a) - cs.indexOf(h) }""", handle)
                 self.key("ArrowLeft" if at > 0 else "ArrowRight", f"along the row towards {label}")

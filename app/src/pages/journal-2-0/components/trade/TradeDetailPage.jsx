@@ -572,7 +572,10 @@ export default function TradeDetailPage() {
 
       {/* ── 1. Outcome header ─────────────────────────────────────────── */}
       <header className={styles.identityRow}>
-        <h1 className={styles.sym}>{trade.symbol}</h1>
+        {/* Lane KEYS3 (Q6): where keyboard focus lands after a move to this page
+            (lib/routeFocus.jsx). The page's actions are the next stops; the back link and
+            Previous / Next are behind it. Focusable by script only. */}
+        <h1 className={styles.sym} tabIndex={-1} data-route-landing="">{trade.symbol}</h1>
         <span className={`${styles.sideBadge} ${isLong ? styles.long : styles.short}`}>
           {(trade.side || '').toUpperCase()}
         </span>

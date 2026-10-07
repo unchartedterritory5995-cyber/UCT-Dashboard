@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ContextPopover from '../../../components/mobile/ContextPopover'
 import { targetsFor } from '../lib/captureTargets'
 import { sendCaptureToJournal } from '../lib/sendToJournal'
@@ -37,6 +37,33 @@ export default function CaptureMenu({
     if (open) setComment('')
   }, [open])
 
+  // Lane KEYS3 (Q6): on the touch tier this menu is a sheet, and a sheet takes focus for
+  // itself. The default destination was then behind Close and the comment box. Once the
+  // sheet HAS taken focus, it goes on to the first destination; never to the comment box (on
+  // a phone that raises the keyboard). A member already somewhere in the sheet keeps their
+  // place, and the anchored (wide) menu is not touched: it focuses its own comment box.
+  const wrapRef = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    let raf = 0
+    let tries = 0
+    const tick = () => {
+      const wrap = wrapRef.current
+      const sheet = wrap?.closest('[data-sheet-panel]')
+      if (wrap && !sheet) return                         // the anchored menu
+      const at = document.activeElement
+      if (sheet && at === sheet) {
+        wrap.querySelector('button:not([disabled])')?.focus()
+        return
+      }
+      if (sheet && sheet.contains(at)) return            // the member moved first
+      tries += 1
+      if (tries < 30) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [open])
+
   if (!open) return null
 
   // Pure preview build (no bars-warm side effect) — only used to evaluate
@@ -62,7 +89,7 @@ export default function CaptureMenu({
 
   return (
     <ContextPopover open={open} onClose={onClose} anchor={anchor} title="Send to Notebook" width={260}>
-      <div className={styles.wrap}>
+      <div className={styles.wrap} ref={wrapRef}>
         <textarea
           className={styles.comment}
           value={comment}
