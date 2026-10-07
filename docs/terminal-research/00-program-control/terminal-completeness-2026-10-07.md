@@ -32,7 +32,7 @@ rows) · **h** phone (works as the single visible panel).
 | CAL | Calendar | pass | pass | pass | pass | fixed (loading label) | pass | pass (URL-owning) | pass |
 | MYST | door /calendar/mystocks | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | ERN | Calendar (earnings modal) | pass | pass | pass | blocked(EarningsResearchModal.module.css debt — tf7-themedebt) | pass | pass | pass | pass |
-| DES | OverviewPanel → OverviewTab | pass | open (no loading state; "—" for loading/empty) | pass | pass | pass | open (raw P/E, beta, 52w floats) | pass | pass |
+| DES | OverviewPanel → OverviewTab | pass | open (no loading state; "—" for loading/empty) | pass | pass | pass | fixed (fn8: two-place P/E, beta, 52w; % yield) | pass | pass |
 | GP | ChartPanel → StockChart | pass | fixed (adapter test) | blocked(chart lane owns the as-of) | pass | pass | pass | pass | pass |
 | CN | NewsTab | pass | fixed (402 = paid gate, not "Couldn't load") | pass | pass | pass | pass | pass | pass |
 | CATS | CatalystsTab | pass | pass | pass | pass | pass | pass | pass | pass |
@@ -51,7 +51,7 @@ rows) · **h** phone (works as the single visible panel).
 | MB (mkt) | door /model-book | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | DR | DecisionRecordTab | pass | fixed (Unavailable had no Retry) | pass | pass | pass | pass | pass | pass |
 | HIS | HistoryTab | pass | fixed (unavailable had no Retry) | pass | pass | pass | pass | pass | pass |
-| SEAS | SeasonalityTab | pass | open (Retry does not reset the re-ask counter; double fetch) | pass | pass | pass | open (raw `% up`) | pass | pass |
+| SEAS | SeasonalityTab | pass | open (Retry does not reset the re-ask counter; double fetch) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
 | CF | FilingsTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FEED | FilingsFeedTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FIL | FilingChangesTab | pass | pass | pass | pass | pass | pass | pass | pass |
@@ -63,46 +63,46 @@ rows) · **h** phone (works as the single visible panel).
 | DPTH | DepthPanel → DepthTab | pass | fixed (adapter test) · open (no panel enabled → blank) | pass | pass | pass | pass | pass | pass |
 | EVTS | EventsPanel | pass | pass | pass | pass | pass | pass | pass | pass |
 | FSRC | FilingSearchPanel | pass | pass | pass | pass | pass | pass | pass | pass |
-| ERX | EarningsReactionPanel | pass | fixed (failed read + Retry test; empty quarters; blank reason) | pass | pass | pass | open (raw `pct_up%`) | pass | pass |
+| ERX | EarningsReactionPanel | pass | fixed (failed read + Retry test; empty quarters; blank reason) | pass | pass | pass | fixed (fn8: "% up" was "—%" when absent) | pass | pass |
 | FTD | FtdPanel | pass | fixed (failed read + Retry test; blank reason) | pass | pass | pass | pass | pass | pass |
-| ATTN | MentionSeriesPanel | pass | fixed (failed read + Retry test; blank reason) | pass | pass | pass | open (raw `%`) | pass | pass |
+| ATTN | MentionSeriesPanel | pass | fixed (failed read + Retry test; blank reason) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
 | BRKE | BrokerEstimatesPanel | pass | fixed (failed read + Retry test; empty periods / actions) | pass | pass | pass | fixed (low–high unlabelled for foreign currency) | pass | pass |
 | OMON | OptionsChainTab | pass | fixed (Retry refetched expirations, not the chain) | pass | pass | pass | pass | pass | pass |
 | OVS | OptionsChainTab (vol surface) | pass | fixed (as OMON) | pass | pass | pass | pass | pass | pass |
 | IVH | IvHistoryPanel | pass | open (no Retry: `useDarkSection` exposes no mutate) | pass | pass | pass | pass | pass | pass |
-| VOL | VolPanels › VolStatsPanel | pass | open (no Retry, as IVH) | pass | pass | pass | open (raw `toLocaleString`, `%`) | pass | pass |
-| POS | PositioningPanel | pass | open (no Retry; empty levels draw an empty list) | pass | pass | pass | open (hand-made `±$`) | pass | pass |
-| OHIS | OptionsHistoryPanel | pass | open (no Retry) | pass | pass | pass | open (hand-made `$` straddle) | pass | pass |
-| OBT | BacktestPanel | pass | open (poll error has no Retry; catalog failure silent) | pass | pass | pass | open (`optionBacktest.money`) | pass | pass |
-| OSCR | OptionsScreener | pass | fixed (ok with 0 rows drew a header-only table) · open (no Retry) | pass | pass | pass | pass | open (publishes no list) | pass |
+| VOL | VolPanels › VolStatsPanel | pass | open (no Retry, as IVH) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
+| POS | PositioningPanel | pass | open (no Retry; empty levels draw an empty list) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
+| OHIS | OptionsHistoryPanel | pass | open (no Retry) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
+| OBT | BacktestPanel | pass | open (poll error has no Retry; catalog failure silent) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
+| OSCR | OptionsScreener | pass | fixed (ok with 0 rows drew a header-only table) · open (no Retry) | pass | pass | pass | pass | fixed (fn8: publishes rows + list) | pass |
 | FLOW (sec) | FlowTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FLOW (mkt) | door /options-flow | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | GEX | doors /options-flow?view=gex | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | TIDE | MarketTidePanel | pass | open (no Retry; two loading lines standalone) | pass | pass | pass | pass | pass | pass |
-| STRS | StrategyScreensPanel | pass | fixed (results loading was a header over nothing) · open (no Retry) | pass | pass | pass | open (`perContract`, block premium) | pass | pass |
+| STRS | StrategyScreensPanel | pass | fixed (results loading was a header over nothing) · open (no Retry) | pass | pass | pass | fixed (fn8: shared primitives) | pass | pass |
 | LIVE | door /live-massive | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | DP | door /dark-pool | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| FREC | FlowScoreboard | pass | pass | pass | pass | pass | open (hand-made `$` strike) | open (publishes no list) | pass |
-| WIRE | MorningWire | pass | fixed (owner note save said "Saved" on failure) | pass | pass | pass | pass | open (catalyst rail publishes no list) | pass |
-| BRD | Breadth | pass | fixed (Daily tab: failed read read "No session recorded yet") · open (Monitor grid swallows its errors) | pass | blocked(heatmapMetrics.js / TreemapView.jsx debt — tf7-themedebt) | pass | open (raw `%`, `toLocaleString`) | pass | fixed (Daily is the phone default) |
+| FREC | FlowScoreboard | pass | pass | pass | pass | pass | fixed (fn8: shared primitives) | fixed (fn8: publishes rows + list) | pass |
+| WIRE | MorningWire | pass | fixed (owner note save said "Saved" on failure) | pass | pass | pass | pass | fixed (fn8: publishes rows + list) | pass |
+| BRD | Breadth | pass | fixed (Daily tab: failed read read "No session recorded yet") · open (Monitor grid swallows its errors) | pass | blocked(heatmapMetrics.js / TreemapView.jsx debt — tf7-themedebt) | pass | fixed (fn8: shared primitives) | pass | fixed (Daily is the phone default) |
 | SCR | Screener | pass | pass | pass | pass | pass | pass | pass (usePanelList) | pass |
-| U20 | UCT20 | pass | fixed (holdings read failure blanked DAYS / SINCE ADD silently) | pass | pass | pass | open (hand-made `Entry $`, exposure `%`) | open (publishes no list) | pass |
+| U20 | UCT20 | pass | fixed (holdings read failure blanked DAYS / SINCE ADD silently) | pass | pass | pass | fixed (fn8: shared primitives) | fixed (fn8: publishes rows + list) | pass |
 | DASH | door /dashboard | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | CHRT | door /charts | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | PMKT | door /post-market | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| CATH | CatalystsHistory | pass | pass | pass | pass | pass | pass | open (publishes no list) | pass |
+| CATH | CatalystsHistory | pass | pass | pass | pass | pass | pass | fixed (fn8: publishes rows + list) | pass |
 | SETL | door /setup-library | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | FORM | door /formulas/reference | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | DESK | door /desk | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | JRNL | door /journal | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | NB | door /journal/notebook | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| RISK | PortfolioHeat | pass | fixed (ok:false had no Retry / PanelState) | pass | pass | pass | open (raw `%`) | open (positions publish no list) | pass |
+| RISK | PortfolioHeat | pass | fixed (ok:false had no Retry / PanelState) | pass | pass | pass | fixed (fn8: shared primitives) | fixed (fn8: publishes rows + list) | pass |
 | COMM | door /community | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | EXP | door /settings?section=legal | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | HELP | HelpPanel | pass | pass (no read) | pass (exempt: shell text) | pass | pass | n/a | pass (onRows) | pass |
 | RRG | RrgPanel | pass | fixed (every name failing read "Not enough common history") | pass | pass | pass | pass | pass (onRows) | pass |
-| REL | RelPanel | pass | fixed (no shared session was an error with "retry") | pass | pass | pass | pass | open (publishes no rows; overlap tf7-ux BOARD) | pass |
-| CORR | CorrPanel | pass | pass | pass | pass | pass | pass | open (publishes no rows; overlap tf7-ux BOARD) | pass |
+| REL | RelPanel | pass | fixed (no shared session was an error with "retry") | pass | pass | pass | pass | fixed (fn8: publishes rows + list) | pass |
+| CORR | CorrPanel | pass | pass | pass | pass | pass | pass | fixed (fn8: publishes rows + list) | pass |
 | MOST | MoversPanel | pass | pass | pass | pass | pass | pass (owner-of-UX: tf7-ux) | pass (onRows + BoardFromList) | pass |
 | IMOV | ImovPanel | pass | pass | pass | pass | pass | pass | pass (onRows) | pass |
 
@@ -120,8 +120,8 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 | c provenance (2 of the passes are reasoned exemptions: HELP, RSCH) | 56 | — | 1 (GP) | — | — |
 | d theme | 55 | — | 2 (ERN, BRD → tf7-themedebt) | — | — |
 | e a11y | 56 | 1 (CAL) | — | — | — |
-| f numbers / currency | 36 | 2 (BRKE, PPL) | 1 (RSCH) | 4 (FA, EE, ANR, OWN) | 13 |
-| g linking | 49 | — | — | — | 8 |
+| f numbers / currency | 36 | 15 (BRKE, PPL; fn8: VOL, POS, OHIS, OBT, STRS, FREC, U20, BRD, RISK, ERX, ATTN, SEAS, DES) | 1 (RSCH) | 4 (FA, EE, ANR, OWN — awaiting the owner) | — |
+| g linking | 49 | 8 (fn8: REL, CORR, U20, FREC, CATH, RISK, OSCR, WIRE) | — | — | — |
 | h phone | 56 | 1 (BRD) | — | — | — |
 
 ## Fixed on this branch (each with a test)
@@ -158,7 +158,8 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 - ERN / BRD colour debt: `EarningsResearchModal.module.css`, `breadth/heatmapMetrics.js`,
   `breadth/views/TreemapView.jsx` — tf7-themedebt's ledger.
 
-**Owner decisions**
+**Owner decisions** — awaiting the owner; deliberately left as they are (re-checked unchanged on
+`terminal/fn8-fmtrows`, 2026-10-07).
 - FA / EE: `depthFormat.fmtMoney` prints "$" when the payload carries no currency (deliberate:
   "USD or unknown renders $ exactly as before"); EstimateHistory chose the opposite ("never a guessed
   $"). One rule should win.
@@ -173,11 +174,45 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 - EE "FMP did not answer" when FMP answered with zero rows; TRAN recap error renders below the
   transcript; SEAS Retry does not reset its re-ask counter (and the fetcher reads twice); DPTH blank
   when no depth panel is enabled; BRD Monitor grid swallows `/dates` and block failures.
-- Raw number formatting (listed in the f column): VOL, POS, OHIS, OBT, STRS, FREC, U20, BRD, RISK,
-  ERX, ATTN, SEAS, DES — mechanical moves onto `presentationPrimitives`.
-- (g) list panels that publish neither `onRows` nor `usePanelList`: REL, CORR, U20, FREC, CATH, RISK,
-  OSCR, WIRE's catalyst rail. **Overlap:** tf7-ux owns BOARD / scan-to-board UX — adding REL/CORR to
-  `COMMAND_PANELS` is theirs to sequence.
+- ~~Raw number formatting (listed in the f column): VOL, POS, OHIS, OBT, STRS, FREC, U20, BRD, RISK,
+  ERX, ATTN, SEAS, DES~~ — **closed on `terminal/fn8-fmtrows`** (below).
+- ~~(g) list panels that publish neither `onRows` nor `usePanelList`: REL, CORR, U20, FREC, CATH, RISK,
+  OSCR, WIRE's catalyst rail~~ — **closed on `terminal/fn8-fmtrows`** (below). REL/CORR were NOT added
+  to `COMMAND_PANELS` (tf7-ux's to sequence); they publish through the same context hook as the
+  embedded pages.
+
+## Closed on `terminal/fn8-fmtrows` (lane tf8-fmtrows, from 862866d47)
+
+**(g) rows + lists.** `components/terminal/terminalPanel.js` gains `usePanelRows(rows)` — the
+embedded-component twin of the `onRows` prop (pages/tabs are never forked to take props) — and
+`usePanelSymbolRows(syms, label)`, which publishes one `$SYM` row per visible row (repeats kept: row N
+is the Nth row on screen) and the de-duplicated names through `usePanelList`. The shell's panel list
+API carries `publishRows`, the same focused-only `onRows` the command panels get, so only the focused
+panel's rows are addressable and focusing a panel re-publishes them. Each of REL, CORR (table/matrix
+rows), U20 (rank order, matching its `#` column; the board list follows the sort), FREC (the honest
+tape), CATH (the day's rows), RISK (open positions), OSCR (the view on screen, by underlying) and WIRE
+(the catalyst rail's visible rows; CatalystTable is a no-op outside a panel) publishes, renders the
+shared "Board of" control, and has a `*.rows.test.jsx`; `TerminalShell.embeddedRows.test.jsx` proves
+row <GO> and `BOARD` reach an embedded list (and that an unfocused list is not addressable).
+
+**(f) numbers.** Two primitives extended (defaults unchanged byte for byte): `formatCurrency({grouping})`
+for money totals and `formatPercentAsSent` for a percent the server already rounded. VOL/POS/OHIS/STRS
+through `optionsFormat` (`pctNum`, `signedPct`, `count`, `dollars`, `signedPremium`; `MarketTidePanel.money`
+is `signedPremium`); OBT `money`; U20 entry/stop titles and exposure; BRD price/int/close/count,
+analogue match and forward returns; ERX "% up" and realized vol; ATTN share of room; SEAS "% up"; DES
+key stats; FREC strike (`formatNumber` ungrouped + `currencyPrefix`); RISK percents. Oracle tests
+(`pages/terminal/panelFormat.oracle.test.jsx`, `FlowScoreboard.rows.test.jsx`,
+`PortfolioHeat.rows.test.jsx`) run each old body against its replacement over sampled ranges.
+**Deliberate edge changes, all pinned:** a missing value is one em dash (was "—%", "$—", "null%",
+"NaN", or a false "0" / "0%"); a value that rounds to zero has no minus ("-0.00%", "-$0" gone); a
+currency sign sits inside the minus ("-$125", was "$-125"); grouped whole-dollar halves round away
+from zero; the signed premium's sub-$1K negative halves round as the terminal ladder does; a FREC
+strike with more than three decimals caps at three; DES P/E, beta and 52-week levels always print two
+places (the range grouped) and the dividend yield prints two places. The census baseline
+(magnitude-suffix only) did not move: none of these files carried a K/M/B/T suffix by hand.
+
+**Owner decisions — unchanged, awaiting the owner:** FA/EE "$" on an unknown currency, ANR price
+targets and OWN Yahoo holder values in "$" were deliberately not touched.
 
 ## Overlaps with concurrent lanes
 
