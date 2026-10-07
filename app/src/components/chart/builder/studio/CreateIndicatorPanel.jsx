@@ -336,9 +336,8 @@ export default function CreateIndicatorPanel({
                   className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' ? styles.msgQuiet : ''}`}>
                   {/* ⭐ SLICE 2 — a change says so; an answer never does. */}
                   {t.updated && <span className={styles.updated} data-testid="create-indicator-updated">Updated preview</span>}
-                  {t.updated && t.reply && <span className={styles.lead}>{t.reply}</span>}
                   {(t.lines || []).map((l, i) => (
-                    <span key={i} className={i === 0 && !(t.updated && t.reply) ? styles.lead : undefined}>{l}</span>
+                    <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (

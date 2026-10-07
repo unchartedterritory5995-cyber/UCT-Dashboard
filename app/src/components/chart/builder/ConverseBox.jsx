@@ -187,15 +187,16 @@ export default function ConverseBox({
     }
     setPartial(null)
     commit(out.state)
-    // ⭐ P3: the model's reply rides on the entry as SECONDARY text; the lines (the
-    // deterministic readback) stay the authority on what the indicator is.
+    // ⭐ P3: a CLARIFY's reply rides beside its questions. ⛔ P3S: a CHANGE carries
+    // none -- the deterministic readback of the result is the whole entry (the model
+    // once claimed "Its name still says 'EMA 20'" beside a readback of EMA 50).
     const reply = typeof extra.reply === 'string' ? extra.reply.trim() : ''
     if (result.status === 'question') {
       say({ role: 'uct', kind: 'question', questions: out.state.questions, reply, lines: out.readback.questions })
       return
     }
     const disclosed = (result.changes || []).map(changeLine).filter(Boolean)
-    say({ role: 'uct', kind: extra.kind || 'readback', updated: true, reply, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
+    say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
   const send = useCallback(async (text) => {
@@ -232,7 +233,7 @@ export default function ConverseBox({
         return
       }
       if (gaps.length) say({ role: 'uct', kind: 'gaps', lines: gaps })
-      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true, reply: turn.reply } : { reply: turn.reply })
+      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
     } finally {
       setBusy(false)
     }
