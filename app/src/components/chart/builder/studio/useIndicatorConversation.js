@@ -184,8 +184,11 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       commit(out.state)
       setAcked(false)
       setChangeSeq((n) => n + 1)
+      // ⛔ UNDER A CHANGE, ONLY THE ENGINE SPEAKS. The model's `reply` is not shown
+      // here: measured in production, it described the result wrongly ("the name
+      // still says EMA 20" over a definition the naming rule had made EMA 50).
+      // What changed is read back from the RESULTING definition, nothing else.
       say({ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-        reply: turn.reply || '',
         lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] })
       return true
     } finally {

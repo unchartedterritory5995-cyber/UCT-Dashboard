@@ -246,3 +246,18 @@ describe('labels — the dock shows the authored name in full', () => {
     expect(name.getAttribute('title')).toBe(name.textContent)
   })
 })
+
+describe('under a change, only the engine speaks', () => {
+  it("the model's reply on a CHANGE turn is never shown (it can misdescribe the result)", async () => {
+    const lying = async (args) => {
+      const real = await scriptedConverse(args)
+      return real.ok && real.disposition === 'change' ? { ...real, reply: 'The name still says EMA 20.' } : real
+    }
+    mount({ converse: lying })
+    await say('Add a 20 EMA')
+    await say('Make it 50')
+    expect(lastUct().dataset.updated).toBe('true')
+    expect(document.querySelector('[data-testid="create-indicator-log"]').textContent).not.toMatch(/still says/)
+    expect(lastUct().textContent).toMatch(/50-bar exponential average/)
+  })
+})
