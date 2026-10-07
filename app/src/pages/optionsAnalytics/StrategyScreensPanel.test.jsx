@@ -47,6 +47,15 @@ describe('StrategyScreensPanel (FT-072/073)', () => {
     expect(screen.getByTestId('strategy-screens').textContent).toContain('25.0%')
   })
 
+  it('while a strategy's results are read it says so, never a header over an empty body', async () => {
+    vi.stubGlobal('fetch', vi.fn((u) => (u.includes('/strategies')
+      ? Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve(CATALOG) })
+      : new Promise(() => {}))))
+    mount()
+    expect((await screen.findByTestId('strategy-loading')).textContent).toBe('Loading the screen…')
+    expect(screen.queryByTestId('strategy-basis')).toBeNull()
+  })
+
   it('a failed screen says it is not "nothing matched"', async () => {
     stub({ '/strategies': [200, CATALOG], '/strategy/': [503, { detail: 'x' }] })
     mount()

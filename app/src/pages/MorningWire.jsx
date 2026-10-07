@@ -322,7 +322,10 @@ export default function MorningWire() {
         const note = (ta?.value || '').trim()
         if (status) status.textContent = 'Saving…'
         try {
-          await post({ segment_key: seg, note })
+          // A rejected save (non-2xx) used to fall through to "Saved" and close the panel, so the
+          // owner's note was lost without a word (completeness audit 2026-10-07).
+          const r = await post({ segment_key: seg, note })
+          if (!r.ok) throw new Error(String(r.status))
           hydrated[seg] = { ...(hydrated[seg] || {}), note }
           if (status) status.textContent = 'Saved'
           paint()
