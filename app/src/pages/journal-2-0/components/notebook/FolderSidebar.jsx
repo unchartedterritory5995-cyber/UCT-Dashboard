@@ -33,6 +33,7 @@ import { useSearchUsedTelemetry } from '../../lib/searchTelemetry'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import useTreeRoving from '../../lib/useTreeRoving'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -200,6 +201,8 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   const [expanded, setExpanded] = useState(true)
   // Wave 6 item 7: Ctrl/Cmd+click opens the note beside (desktop split view).
   const openRow = useOpenFromList(onOpenNote)
+  // Lane KEYS round 4: the notes of this section are ONE Tab stop, with Down and Up between them.
+  const rows = useToolbarRoving({ orientation: 'vertical' })
   if (!notes.length) return null
   return (
     <div className={styles.section}>
@@ -218,21 +221,25 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
           {label}
         </span>
       </div>
-      {expanded && notes.map((note) => (
-        <div key={note.id} className={styles.rowWrap}>
-          <span className={styles.disclosureSpacer} aria-hidden="true" />
-          <button
-            type="button"
-            className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
-            onClick={(e) => openRow(note, e)}
-            title={note.title?.trim() || 'Untitled'}
-            data-note-card-id={note.id}
-          >
-            <NoteIcon />
-            <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
-          </button>
+      {expanded && (
+        <div role="group" aria-label={label} ref={rows.ref} onKeyDown={rows.onKeyDown} onFocus={rows.onFocus}>
+          {notes.map((note) => (
+            <div key={note.id} className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
+                onClick={(e) => openRow(note, e)}
+                title={note.title?.trim() || 'Untitled'}
+                data-note-card-id={note.id}
+              >
+                <NoteIcon />
+                <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   )
 }

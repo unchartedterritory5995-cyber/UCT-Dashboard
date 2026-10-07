@@ -133,6 +133,18 @@ describe('the folder panel is a tree', () => {
     expect(screen.getByText('Delete folder "Plans"?')).toBeInTheDocument()
   })
 
+  // The fixture holds one recent note, so this pins the wiring (a named group, one stop). Down
+  // and Up between rows are tested on the hook (lib/useToolbarRoving.test.jsx, "vertical").
+  it('the Recents list is a named group with one Tab stop', async () => {
+    renderSidebar()
+    await tree()
+    const list = await screen.findByRole('group', { name: 'Recents' })
+    const rows = within(list).getAllByRole('button')
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.filter((b) => b.tabIndex === 0)).toHaveLength(1)
+    expect(rows[0].hasAttribute('data-roving-item')).toBe(true)
+  })
+
   it('"+ New folder" is outside the tree and is its own Tab stop', async () => {
     renderSidebar()
     const t = await tree()
