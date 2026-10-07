@@ -2804,10 +2804,19 @@ export default function ChartsWorkspace() {
   const setAgentOpen = useCallback((v) => { setAgentOpenState(v); writeLocal(AGENT_OPEN_KEY, v ? '1' : '0') }, [])
   // ⚠️ Hooks live ABOVE the phone early-return; the ref is filled below it.
   const agentWidgetsRef = useRef([])
+  // widget.add / its undo go through the SAME handlers the Widgets menu and a
+  // widget's ✕ use — read through a ref so the host never holds a stale closure.
+  const agentWidgetOpsRef = useRef(null)
+  agentWidgetOpsRef.current = { add: (t) => handleAddWidget(t), remove: handleRemoveWidget }
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
     widgetLabel: (t) => WIDGET_LABELS[t] || t,
+    widgetOps: {
+      layout: () => layoutRef.current,
+      add: (t) => agentWidgetOpsRef.current.add(t),
+      remove: (id) => agentWidgetOpsRef.current.remove(id),
+    },
   }), [])
 
   if (isMobile) {

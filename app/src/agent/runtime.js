@@ -39,7 +39,7 @@ export async function commitPlan(host, plan) {
     const kind = getTargetKind(p.kind)
     const snap = kind.read(host, p.ref)
     if (kind.landed(snap, p.patch)) {
-      landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: p.lines, before: p.snap, patch: p.patch, afterFp: kind.fingerprint(snap) })
+      landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: p.lines, before: p.snap, after: snap, patch: p.patch, afterFp: kind.fingerprint(snap) })
     } else {
       failed.push({ ref: p.ref, label: p.snap.label, reason: 'did not take effect' })
     }

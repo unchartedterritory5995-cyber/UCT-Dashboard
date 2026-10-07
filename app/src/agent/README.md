@@ -25,7 +25,8 @@ member text ─► fastPath (capability phrases) ─┐
 | `fastPath.js` | control words + capability-contributed phrases | no |
 | `useAgent.js` / `AgentPanel.jsx` | conversation + UI | no |
 | `api/services/uct_agent/turn.py` | model call; schema + action list built from the manifest | no |
-| `capabilities/chart.js` | the chart target kind, context, 8 chart capabilities | charts only |
+| `capabilities/chart.js` | the chart target kind, context, 9 chart capabilities | charts only |
+| `capabilities/workspace.js` | the workspace target kind, widget context, `widget.add` | widgets only |
 | `builtins.js` | which capability modules load | one line per module |
 | `host.js` | the Charts workspace's binding (chart adapters + visible board) | workspace wiring |
 
@@ -85,3 +86,20 @@ no change.
   behind each writer remain the authority.
 - Indicators are owned by Indicator Intelligence; this registry has no
   `indicator.*` or pane capabilities until that project exposes them.
+
+## Decisions recorded
+
+- **`widget.add` adds one widget per turn, only into empty space.** When
+  placement would resize other widgets the product shows its own ghost preview
+  and waits for the member; the Agent refuses and points to Widgets ▾ rather than
+  moving widgets the member did not mention. Undo closes exactly the added widget
+  through `handleRemoveWidget` (the manual ✕ path).
+- **`widget.remove` is not shipped.** Its undo would have to re-insert the exact
+  widget (id, geometry, opts); the product has no canonical writer for that —
+  re-adding mints a new id and re-places it. Smallest future fix: a workspace
+  "restore widget" operation (insert a given widget object verbatim, through
+  setLayout + scheduleSave, honouring the board bound) that the manual product can
+  also use (e.g. an "undo close" toast), then register remove with it.
+- **`chart.setScale`** relies on StockChart clearing its local A/L/% override
+  when the STORED scale changes (railed in `mobileScaleAndVolume.test.jsx`), and
+  refuses non-percent while Compare overlays force percent.
