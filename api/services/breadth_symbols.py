@@ -20,6 +20,8 @@ The registry here is the SINGLE SOURCE OF TRUTH consumed by:
 """
 from __future__ import annotations
 
+import re
+
 import logging
 import math
 import threading
@@ -1257,7 +1259,9 @@ def library_search(q: str, limit: int = 40, published_only: bool = False) -> lis
                             or is_published(hit["universe"], hit["metric"])):
         scored.append((0, hit))
 
-    toks = _tokens(raw)
+    # ⭐ "A/D" IS ONE WORD TO A TRADER, two single letters to the tokeniser — and "A" + "D"
+    # match nearly every row. Read it as the phrase it abbreviates (mirrored in breadthLibrary.js).
+    toks = _tokens(re.sub(r"\bA\s*/\s*D\b", " ADVANCE DECLINE ", raw, flags=re.I))
     label_to_id = {_bu.label(u).upper(): u for u in _bu.UNIVERSE_IDS}
     want_universes = {label_to_id[t] for t in toks if t in label_to_id}
     rest = [_QUERY_SYNONYMS.get(t, t) for t in toks

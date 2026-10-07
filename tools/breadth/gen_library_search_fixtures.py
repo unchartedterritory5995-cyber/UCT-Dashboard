@@ -35,6 +35,7 @@ QUERIES = [
     # ⭐ finishing pass (2026-10-07): the trader spellings `_QUERY_SYNONYMS` exists for
     "percent above 50-day", "pct above 200", "50 dma", "20 sma", "advancers", "decliners",
     "advancing issues", "NYSE advancing", "stage 2", "up 25%", "new 20-day highs",
+    "a/d", "A/D line", "NYSE a/d",
 ]
 
 

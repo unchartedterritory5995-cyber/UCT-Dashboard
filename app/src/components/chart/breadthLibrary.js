@@ -120,7 +120,9 @@ export function searchLibrary(rows, q, { limit = 40, metricOrder } = {}) {
   const exact = idx.bySymbol.get(raw.toUpperCase())
   if (exact !== undefined) scored.push([0, exact])
 
-  const toks = tokens(raw)
+  // ⭐ "A/D" is one word to a trader and two single letters to the tokeniser — read it as the
+  // phrase it abbreviates. Mirrors `breadth_symbols.library_search`.
+  const toks = tokens(raw.replace(/\bA\s*\/\s*D\b/gi, ' ADVANCE DECLINE '))
   const wantUni = new Set()
   const rest = []
   for (const t of toks) {

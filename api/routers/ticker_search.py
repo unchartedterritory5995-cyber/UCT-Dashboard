@@ -366,7 +366,13 @@ def ticker_search(
             for rec in _mi_disc.search(qq, limit=limit, include_breadth=False):
                 row = {"ticker": rec["symbol"], "name": rec["display"],
                        "type": "indicator", "exchange": "UCT", "entity_id": None,
-                       "indicator": True, "group_label": rec["family_label"]}
+                       "indicator": True, "group_label": rec["family_label"],
+                       # ⭐ (2026-10-07) what the client needs to file a SERIES row as the
+                       # breadth-like result it is — readable name, hover methodology — rather
+                       # than a bare `NYSE:MCO` ticker headline beside the browsed row.
+                       "family": rec.get("family"), "universe": rec.get("universe"),
+                       "methodology": rec.get("methodology"),
+                       "history_start": rec.get("history_start")}
                 # ⛔⛔ A PRODUCT IS NOT A TICKER, AND SAYING SO HERE IS WHAT KEEPS IT
                 # OUT OF THE SYMBOL SEARCH. `AAII:SURVEY` names three canonical
                 # series; it has no bars of its own, so a member who typed it into
