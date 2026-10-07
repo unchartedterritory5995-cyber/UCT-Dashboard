@@ -11,13 +11,17 @@ import {
   ROW_RULE, TICKER_COLLISIONS,
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
+import { COMMAND_LINE_KEYS } from '../CommandLine'
 import styles from '../TerminalShell.module.css'
 
 /** The bindings a terminal user has, read from the declarations (never retyped). */
-export const HELP_SHORTCUT_IDS = ['terminal.focus', 'terminal.panel1', 'terminal.panel2',
-  'terminal.panel3', 'terminal.panel4', 'terminal.panelPrev', 'terminal.panelNext', 'palette.toggle']
+export const HELP_SHORTCUT_IDS = ['terminal.focus', 'palette.toggle', 'terminal.panel1', 'terminal.panel2',
+  'terminal.panel3', 'terminal.panel4', 'terminal.panelPrev', 'terminal.panelNext',
+  'terminal.panelMoveLeft', 'terminal.panelMoveRight', 'terminal.panelMaximise', 'terminal.panelClose',
+  'terminal.panelUndoClose', 'terminal.panelDuplicate', 'terminal.panelLink', 'terminal.boards',
+  'terminal.recents', 'terminal.keys']
 
-const CODE_LABEL = { BracketLeft: '[', BracketRight: ']' }
+const CODE_LABEL = { BracketLeft: '[', BracketRight: ']', Slash: '/' }
 
 /** Pure: a declaration's chord as the keys a member presses. */
 export function chordLabel(d) {
@@ -45,6 +49,31 @@ function flagFor(f) {
   return f.market?.flag || f.ticker?.flag || null
 }
 
+/** The keyboard sheet: every terminal binding (from the registry's own declarations) and the
+ *  command line's keys. HELP prints it; Alt+/ shows the same element over the board. */
+export function KeysTable() {
+  const keys = HELP_SHORTCUT_IDS.map((id) => SHORTCUTS.find((d) => d.id === id)).filter(Boolean)
+  return (
+    <>
+      <table className={styles.helpTable} data-testid="terminal-help-keys">
+        <tbody>
+          {keys.map((d) => (
+            <tr key={d.id}><td><kbd>{chordLabel(d)}</kbd></td><td>{d.why.split('. ')[0]}.</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 className={styles.helpGroup}>In the command line</h3>
+      <table className={styles.helpTable} data-testid="terminal-help-cmdkeys">
+        <tbody>
+          {COMMAND_LINE_KEYS.map((k) => (
+            <tr key={k.keys}><td><kbd>{k.keys}</kbd></td><td>{k.does}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )
+}
+
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
   const focus = focusCode && BY_CODE[focusCode] ? focusCode : null
@@ -52,7 +81,6 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
   // The numbered order = the order rendered (grouped), so "3" opens the row labelled 3.
   const ordered = useMemo(() => FUNCTION_GROUPS.flatMap((g) => rows.filter((f) => f.group === g)), [rows])
   useEffect(() => { onRows?.(ordered.map((f) => f.code)) }, [onRows, ordered])
-  const keys = HELP_SHORTCUT_IDS.map((id) => SHORTCUTS.find((d) => d.id === id)).filter(Boolean)
   // Quality pass 2026-10-05: until the sign-in payload has ARRIVED every flag reads false, so
   // every gated code flashed "not enabled" for a moment on open. While it is still loading (or
   // the first read failed transiently) HELP shows no marker at all, never a guess.
@@ -84,13 +112,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
             <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
           </button>
           <h3 className={styles.helpGroup}>Keys</h3>
-          <table className={styles.helpTable} data-testid="terminal-help-keys">
-            <tbody>
-              {keys.map((d) => (
-                <tr key={d.id}><td><kbd>{chordLabel(d)}</kbd></td><td>{d.why.split('. ')[0]}.</td></tr>
-              ))}
-            </tbody>
-          </table>
+          <KeysTable />
           <h3 className={styles.helpGroup}>Addresses</h3>
           <table className={styles.helpTable} data-testid="terminal-help-addresses">
             <tbody>

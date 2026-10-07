@@ -51,6 +51,66 @@ export function pushHistory(text) {
   return next
 }
 
+/** The command line's own keys, as HELP and the keyboard sheet print them. These are the
+ *  input's `onKeyDown` below, not registry bindings (they only mean something while the
+ *  command line has focus); CommandLine.test.jsx drives every one of them. */
+export const COMMAND_LINE_KEYS = Object.freeze([
+  { keys: 'Enter', does: 'Run the line (GO). On a highlighted suggestion, fill it in first.' },
+  { keys: 'Shift+Enter', does: 'On a bare ticker: load it into the focused panel\'s group and keep every panel\'s function.' },
+  { keys: 'Tab', does: 'Accept the top (or highlighted) suggestion.' },
+  { keys: '↑ / ↓', does: 'Walk earlier commands. With text typed, only the ones that contain it.' },
+  { keys: '↓ on an empty line', does: 'Show your recent commands.' },
+  { keys: 'Esc', does: 'Close the list, then clear the line.' },
+])
+
+/** Pure: the history entries ↑ walks for what is typed. Typed text narrows the walk to the
+ *  entries that CONTAIN it (newest first); when none does, or nothing is typed, it is the whole
+ *  history, so ↑ never does nothing on a line that simply has no earlier match. */
+export function historyWalk(text, history) {
+  const h = Array.isArray(history) ? history : []
+  const q = String(text || '').trim().toUpperCase()
+  if (!q) return h
+  const m = h.filter((x) => { const u = x.toUpperCase(); return u !== q && u.includes(q) })
+  return m.length ? m : h
+}
+
+/** Pure: earlier commands that match what is typed, for the suggestion list. The letters must
+ *  appear in order (`nvgp` finds `NVDA GP W`); a prefix match outranks a substring, which
+ *  outranks a scattered match, and recency breaks ties. Two characters at least. */
+export function historyMatches(text, history, limit = 2) {
+  const q = String(text || '').trim().toUpperCase()
+  if (q.length < 2 || !Array.isArray(history)) return []
+  const scored = []
+  history.forEach((entry, i) => {
+    const u = String(entry).toUpperCase()
+    if (u === q) return
+    let tier = u.startsWith(q) ? 0 : u.includes(q) ? 1 : -1
+    if (tier < 0) {
+      const letters = q.replace(/\s+/g, '')
+      let at = 0
+      for (const ch of u) { if (ch === letters[at]) at += 1; if (at === letters.length) break }
+      if (at < letters.length) return
+      tier = 2
+    }
+    scored.push({ entry, tier, i })
+  })
+  scored.sort((a, b) => a.tier - b.tier || a.i - b.i)
+  return scored.slice(0, limit).map(({ entry }) => ({ kind: 'history', value: entry, label: 'earlier command' }))
+}
+
+/** Pure: the member's boards for a `B:` token, matched on the slug or the name, instantly
+ *  (the library is already in memory: no request). */
+export function boardSuggestions(text, boards, limit = 6) {
+  const raw = String(text || '').trim()
+  const m = raw.match(/^B:(\S*)$/i)
+  if (!m || !Array.isArray(boards)) return []
+  const q = m[1].toLowerCase()
+  return boards
+    .filter((b) => b?.slug && (!q || b.slug.toLowerCase().startsWith(q) || String(b.name || '').toLowerCase().includes(q)))
+    .slice(0, limit)
+    .map((b) => ({ kind: 'board', value: `B:${b.slug}`, label: b.name || '' }))
+}
+
 /** Pure: is the token being completed in a TICKER SLOT — the first token, a `$` token, or the
  *  token right after a code that takes a security (`GP NV…`)? */
 export function inTickerSlot(text) {
@@ -63,7 +123,7 @@ export function inTickerSlot(text) {
 /** Pure: ranked suggestions for what is typed. The token being completed is the LAST one;
  *  in first position a code competes with aliases and tickers, later codes complete (and
  *  tickers too, in a ticker slot). A `$` token is a ticker: no codes, no aliases. */
-export function registrySuggestions(text, { aliases = {}, tickers = [], stats = {}, limit = 6, nowSec } = {}) {
+export function registrySuggestions(text, { aliases = {}, tickers = [], stats = {}, limit = 6, nowSec, recent = [] } = {}) {
   const tokens = String(text || '').trimStart().split(/\s+/)
   const last = tokens[tokens.length - 1] || ''
   if (!last) return []
@@ -73,13 +133,30 @@ export function registrySuggestions(text, { aliases = {}, tickers = [], stats = 
     aliases: first && !forced ? aliases : {},
     tickers: inTickerSlot(text) ? tickers : [],
     codes: !forced,
-    stats, limit, nowSec,
+    stats, limit, nowSec, recent,
   })
+}
+
+/** Pure: the ticker candidates for a token — the search's rows first (they carry the company
+ *  name), then any RECENTLY VIEWED ticker the token is a prefix of that the search has not
+ *  answered (yet): those are there on the first keystroke, before any request returns. */
+export function withRecentTickers(token, searchRows, recent) {
+  const t = String(token || '').toUpperCase().replace(/^\$/, '')
+  const rows = Array.isArray(searchRows) ? searchRows : []
+  if (!t || !Array.isArray(recent)) return rows
+  const have = new Set(rows.map((r) => String(r.value || '').toUpperCase()))
+  const extra = recent
+    .map((s) => String(s || '').toUpperCase())
+    .filter((s) => s && s.startsWith(t) && !have.has(s))
+    .map((s) => ({ value: s, label: 'recently viewed' }))
+  return [...rows, ...extra]
 }
 
 /** Pure: replace the last token with a picked suggestion. A `$` the member typed is KEPT on a
  *  ticker (it is what tells the parser "ticker, not code" — `$CF` must stay `$CF`). */
 export function acceptSuggestion(text, s) {
+  // An earlier command is a whole line: it replaces the line, it is not a token.
+  if (s?.kind === 'history') return String(s.value)
   const parts = String(text || '').trimStart().split(/\s+/)
   const last = parts[parts.length - 1] || ''
   const keepDollar = last.startsWith('$') && s.kind === 'ticker'
@@ -145,7 +222,9 @@ function searchTickers(q) {
   return promise
 }
 
-export default function CommandLine({ onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {}, boards = null }) {
+export default function CommandLine({
+  onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {}, boards = null, recentTickers = [],
+}) {
   const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
   const [text, setText] = useState('')
   const [tickers, setTickers] = useState([])
@@ -154,8 +233,10 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
   const [announce, setAnnounce] = useState('')
   const [active, setActive] = useState(-1)
   const [open, setOpen] = useState(false)
+  const [recall, setRecall] = useState(false)          // ↓ on an empty line: the recent-commands list
   const historyIdx = useRef(-1)
   const draftRef = useRef('')                          // what was typed before ↑ walked history
+  const walkRef = useRef([])                           // the entries this ↑/↓ walk steps through
   const localRef = useRef(null)
   const ref = externalRef || localRef
   const listId = useId()
@@ -173,7 +254,8 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
     const ac = new AbortController()
     const t = setTimeout(() => {
       if (/^[A-Za-z]:\S*$/.test(q)) {
-        if (!addressSpaceEnabled || q.length < 3) return
+        // `B:` is the shell's own board address, completed from memory (boardSuggestions).
+        if (/^B:/i.test(q) || !addressSpaceEnabled || q.length < 3) return
         jsonFetcher(`/api/address/search?q=${encodeURIComponent(q.slice(2))}`, { signal: ac.signal })
           .then((d) => setAddresses((Array.isArray(d?.results) ? d.results : []).slice(0, 6).map((r) => ({
             kind: 'address', value: r.address, label: `${r.kind_label || 'Saved'} · ${r.name || ''}`,
@@ -211,9 +293,16 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
   }, [parsedSym])
 
   const suggestions = useMemo(() => {
-    const ranked = registrySuggestions(text, { aliases, tickers, stats, limit: 8 })
-    return [...ranked, ...addresses].slice(0, 10)
-  }, [text, aliases, tickers, stats, addresses])
+    if (!text.trim()) {
+      // ↓ on an empty line: the recent commands, newest first.
+      return recall ? readHistory().slice(0, 8).map((h) => ({ kind: 'history', value: h, label: 'earlier command' })) : []
+    }
+    const boardRows = boardSuggestions(text, boards)
+    if (boardRows.length) return boardRows
+    const candidates = tickerSlot ? withRecentTickers(last, tickers, recentTickers) : tickers
+    const ranked = registrySuggestions(text, { aliases, tickers: candidates, stats, limit: 8, recent: recentTickers })
+    return [...ranked, ...historyMatches(text, readHistory()), ...addresses].slice(0, 10)
+  }, [text, aliases, tickers, stats, addresses, recall, boards, recentTickers, tickerSlot, last])
 
   // The interpreted-parse echo: what Enter will do, BEFORE Enter (one parser, same answer).
   const echo = useMemo(() => {
@@ -242,10 +331,11 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
   const accept = (s) => {
     setText(acceptSuggestion(text, s))
     setActive(-1)
+    setRecall(false)
     ref.current?.focus()
   }
 
-  const submit = (value) => {
+  const submit = (value, opts) => {
     const v = String(value ?? text).trim()
     if (!v) return
     pushHistory(v)
@@ -253,13 +343,17 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
     draftRef.current = ''
     setText('')
     setOpen(false)
+    setRecall(false)
     setActive(-1)
-    onSubmit?.(v)
+    if (opts) onSubmit?.(v, opts)
+    else onSubmit?.(v)
   }
 
   const onKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
+      // Shift+Enter runs the line AS TYPED, telling the shell to keep the panels' functions.
+      if (e.shiftKey) { submit(undefined, { keepFunction: true }); return }
       if (showing && active >= 0) { accept(suggestions[active]); return }
       submit()
     } else if (e.key === 'Tab' && showing) {
@@ -268,23 +362,31 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
       if (showing) { setActive((i) => Math.min(suggestions.length - 1, i + 1)); return }
+      if (historyIdx.current < 0) {
+        // ↓ on an empty line opens the recent-commands list (nothing to walk forward to).
+        if (!text.trim() && readHistory().length) { setRecall(true); setOpen(true); setActive(0) }
+        return
+      }
       // ↓ walks history FORWARD after ↑ — back to the newest entry, then to what was typed.
-      if (historyIdx.current < 0) return
       historyIdx.current -= 1
-      setText(historyIdx.current < 0 ? draftRef.current : (readHistory()[historyIdx.current] ?? ''))
+      setText(historyIdx.current < 0 ? draftRef.current : (walkRef.current[historyIdx.current] ?? ''))
       setOpen(false)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       if (showing && active >= 0) { setActive((i) => i - 1); return }
-      const h = readHistory()
+      if (historyIdx.current < 0) {
+        draftRef.current = text
+        walkRef.current = historyWalk(text, readHistory())
+      }
+      const h = walkRef.current
       if (!h.length) return
-      if (historyIdx.current < 0) draftRef.current = text
       historyIdx.current = Math.min(h.length - 1, historyIdx.current + 1)
       setText(h[historyIdx.current])
+      setRecall(false)
       setOpen(false)
     } else if (e.key === 'Escape') {
       // First Esc closes the list; Esc on a line with no list open clears the line.
-      if (showing) { setOpen(false); setActive(-1); return }
+      if (showing) { setOpen(false); setRecall(false); setActive(-1); return }
       if (text) { setText(''); setActive(-1); historyIdx.current = -1; draftRef.current = '' }
     }
   }
@@ -311,7 +413,7 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
           ref={ref}
           className={styles.cmdInput}
           value={text}
-          onChange={(e) => { setText(e.target.value); setOpen(true); setActive(-1); historyIdx.current = -1 }}
+          onChange={(e) => { setText(e.target.value); setOpen(true); setRecall(false); setActive(-1); historyIdx.current = -1 }}
           onKeyDown={onKeyDown}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}

@@ -68,7 +68,7 @@ export const RANKING_ORDER = Object.freeze([
   { key: 'symbol', label: 'Exact ticker' },
   { key: 'prefix', label: 'Prefix match' },
   { key: 'fuzzy', label: 'Close spelling' },
-  { key: 'frecency', label: 'Your most-used (tie-break)' },
+  { key: 'frecency', label: 'Your most-used codes, and tickers you viewed lately (tie-break)' },
   { key: 'popular', label: 'Widely traded ticker, then A-Z (tie-break)' },
 ])
 
