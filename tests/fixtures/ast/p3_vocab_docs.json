@@ -1,0 +1,519 @@
+{
+ "_": "P3 vocab — documents conversation saves for set_levels / set_style.lineStyle / set_fill. JS: p3.vocab.truth.test.js builds them; Python: tests/test_p3_truth_vocab.py saves them through user_definitions.save.",
+ "docs": {
+  "levels": {
+   "schemaVersion": 1,
+   "id": "u_00000000p3v1",
+   "version": 1,
+   "compute": {
+    "kind": "ast",
+    "fn": "sha256:1c11f25fae2ac009e67b22871a4d162a562511f845090eb657fbcea0e646476d",
+    "rev": 1,
+    "ast": {
+     "type": "call",
+     "name": "rsi",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 14
+      }
+     ]
+    },
+    "source": "rsi(close, 14)"
+   },
+   "meta": {
+    "name": "My RSI",
+    "shortName": "My RSI",
+    "category": "Custom",
+    "description": "the 14-bar RSI of close",
+    "tags": [
+     "custom"
+    ],
+    "tier": "premium",
+    "repaint": "non-repainting",
+    "freshness": "live"
+   },
+   "placement": {
+    "target": "pane",
+    "pane": {
+     "height": 0.15
+    }
+   },
+   "inputs": [
+    {
+     "key": "color",
+     "type": "color",
+     "label": "Color",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "lineWidth",
+     "type": "int",
+     "label": "Line width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    }
+   ],
+   "plots": [
+    {
+     "key": "value",
+     "label": "My RSI",
+     "style": "line",
+     "color": "$color",
+     "width": "$lineWidth",
+     "role": "primary",
+     "legend": {
+      "decimals": 2
+     }
+    },
+    {
+     "key": "levels",
+     "label": "Levels",
+     "style": "hlines",
+     "levels": [
+      70,
+      30
+     ],
+     "color": "rgba(255,255,255,0.12)",
+     "width": 1,
+     "lineStyle": "largeDashed",
+     "role": "context"
+    }
+   ]
+  },
+  "dashed": {
+   "schemaVersion": 1,
+   "id": "u_00000000p3v1",
+   "version": 1,
+   "compute": {
+    "kind": "ast",
+    "fn": "sha256:f48b38127c287839d78ae24d1feab4eb8fe26c25a9167389cb6d1163b394e1c3",
+    "rev": 1,
+    "ast": {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 10
+      }
+     ]
+    },
+    "source": "ema(close, 10)",
+    "trees": {
+     "fast": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 10
+       }
+      ]
+     },
+     "slow": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 30
+       }
+      ]
+     }
+    },
+    "treesHash": "sha256:15a069f41dd9e7d7653456cd7b77289a51db6c0e59b93685a576ef4ce7721e01",
+    "scanPlot": "fast",
+    "sources": {
+     "fast": "ema(close, 10)",
+     "slow": "ema(close, 30)"
+    }
+   },
+   "meta": {
+    "name": "Two EMAs",
+    "shortName": "Two EMAs",
+    "category": "Custom",
+    "description": "the 10-bar exponential average of close",
+    "tags": [
+     "custom"
+    ],
+    "tier": "premium",
+    "repaint": "non-repainting",
+    "freshness": "live"
+   },
+   "placement": {
+    "target": "pane",
+    "pane": {
+     "height": 0.15
+    }
+   },
+   "inputs": [
+    {
+     "key": "color",
+     "type": "color",
+     "label": "Color",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "lineWidth",
+     "type": "int",
+     "label": "Line width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    },
+    {
+     "key": "slowColor",
+     "type": "color",
+     "label": "slow colour",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "slowWidth",
+     "type": "int",
+     "label": "slow width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    }
+   ],
+   "plots": [
+    {
+     "key": "fast",
+     "label": "Two EMAs",
+     "style": "line",
+     "color": "$color",
+     "width": "$lineWidth",
+     "role": "primary",
+     "legend": {
+      "decimals": 2
+     }
+    },
+    {
+     "key": "slow",
+     "label": "slow",
+     "style": "line",
+     "color": "$slowColor",
+     "width": "$slowWidth",
+     "role": "secondary",
+     "legend": {
+      "decimals": 2
+     },
+     "lineStyle": "dashed"
+    }
+   ]
+  },
+  "filled": {
+   "schemaVersion": 1,
+   "id": "u_00000000p3v1",
+   "version": 1,
+   "compute": {
+    "kind": "ast",
+    "fn": "sha256:f48b38127c287839d78ae24d1feab4eb8fe26c25a9167389cb6d1163b394e1c3",
+    "rev": 1,
+    "ast": {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 10
+      }
+     ]
+    },
+    "source": "ema(close, 10)",
+    "trees": {
+     "fast": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 10
+       }
+      ]
+     },
+     "slow": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 30
+       }
+      ]
+     }
+    },
+    "treesHash": "sha256:15a069f41dd9e7d7653456cd7b77289a51db6c0e59b93685a576ef4ce7721e01",
+    "scanPlot": "fast",
+    "sources": {
+     "fast": "ema(close, 10)",
+     "slow": "ema(close, 30)"
+    }
+   },
+   "meta": {
+    "name": "Two EMAs",
+    "shortName": "Two EMAs",
+    "category": "Custom",
+    "description": "the 10-bar exponential average of close",
+    "tags": [
+     "custom"
+    ],
+    "tier": "premium",
+    "repaint": "non-repainting",
+    "freshness": "live"
+   },
+   "placement": {
+    "target": "pane",
+    "pane": {
+     "height": 0.15
+    }
+   },
+   "inputs": [
+    {
+     "key": "color",
+     "type": "color",
+     "label": "Color",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "lineWidth",
+     "type": "int",
+     "label": "Line width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    },
+    {
+     "key": "slowColor",
+     "type": "color",
+     "label": "slow colour",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "slowWidth",
+     "type": "int",
+     "label": "slow width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    }
+   ],
+   "plots": [
+    {
+     "key": "fast",
+     "label": "Two EMAs",
+     "style": "line",
+     "color": "$color",
+     "width": "$lineWidth",
+     "role": "primary",
+     "legend": {
+      "decimals": 2
+     },
+     "fill": {
+      "with": "slow"
+     },
+     "fillColor": "#26a69a",
+     "fillOpacity": 0.2
+    },
+    {
+     "key": "slow",
+     "label": "slow",
+     "style": "line",
+     "color": "$slowColor",
+     "width": "$slowWidth",
+     "role": "secondary",
+     "legend": {
+      "decimals": 2
+     }
+    }
+   ]
+  },
+  "all": {
+   "schemaVersion": 1,
+   "id": "u_00000000p3v1",
+   "version": 2,
+   "compute": {
+    "kind": "ast",
+    "fn": "sha256:f48b38127c287839d78ae24d1feab4eb8fe26c25a9167389cb6d1163b394e1c3",
+    "rev": 1,
+    "ast": {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 10
+      }
+     ]
+    },
+    "source": "ema(close, 10)",
+    "trees": {
+     "fast": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 10
+       }
+      ]
+     },
+     "slow": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 30
+       }
+      ]
+     }
+    },
+    "treesHash": "sha256:15a069f41dd9e7d7653456cd7b77289a51db6c0e59b93685a576ef4ce7721e01",
+    "scanPlot": "fast",
+    "sources": {
+     "fast": "ema(close, 10)",
+     "slow": "ema(close, 30)"
+    }
+   },
+   "meta": {
+    "name": "Two EMAs",
+    "shortName": "Two EMAs",
+    "category": "Custom",
+    "description": "the 10-bar exponential average of close",
+    "tags": [
+     "custom"
+    ],
+    "tier": "premium",
+    "repaint": "non-repainting",
+    "freshness": "live"
+   },
+   "placement": {
+    "target": "pane",
+    "pane": {
+     "height": 0.15
+    }
+   },
+   "inputs": [
+    {
+     "key": "color",
+     "type": "color",
+     "label": "Color",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "lineWidth",
+     "type": "int",
+     "label": "Line width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    },
+    {
+     "key": "slowColor",
+     "type": "color",
+     "label": "slow colour",
+     "default": "#c9a84c"
+    },
+    {
+     "key": "slowWidth",
+     "type": "int",
+     "label": "slow width",
+     "default": 1,
+     "min": 1,
+     "max": 4,
+     "step": 1
+    }
+   ],
+   "plots": [
+    {
+     "key": "fast",
+     "label": "Two EMAs",
+     "style": "line",
+     "color": "$color",
+     "width": "$lineWidth",
+     "role": "primary",
+     "legend": {
+      "decimals": 2
+     },
+     "fill": {
+      "with": "slow"
+     },
+     "fillColor": "rgba(38, 166, 154, 0.3)"
+    },
+    {
+     "key": "slow",
+     "label": "slow",
+     "style": "line",
+     "color": "$slowColor",
+     "width": "$slowWidth",
+     "role": "secondary",
+     "legend": {
+      "decimals": 2
+     },
+     "lineStyle": "dotted"
+    },
+    {
+     "key": "levels",
+     "label": "Levels",
+     "style": "hlines",
+     "levels": [
+      0
+     ],
+     "color": "rgba(255,255,255,0.12)",
+     "width": 1,
+     "lineStyle": "largeDashed",
+     "role": "context"
+    }
+   ]
+  }
+ }
+}

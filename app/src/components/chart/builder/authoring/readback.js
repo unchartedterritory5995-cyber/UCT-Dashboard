@@ -54,7 +54,44 @@ export function presentationLines(def) {
     if (own) out.push(`${what} ${paint.colorUp} where ${key} is true (nothing where it is false or unknown)`)
     else out.push(`an imported ${paint.kind} paint${key ? ` reading ${key}` : ''} (kept as imported)`)
   }
+  out.push(...vocabularyLines(def))
   out.push(def.placement && def.placement.target === 'price' ? 'drawn on the price chart' : 'drawn in its own pane')
+  return out
+}
+
+// ─── ⭐ P3 — line style, fills and levels ─────────────────────────────────────
+// Kept in one helper, additive to the lines above, so the wording of each is
+// decided in one place and read off the RESULTING definition only.
+
+const LINE_STYLE_WORDS = Object.freeze({ dashed: 'dashed', dotted: 'dotted', largeDashed: 'long-dashed' })
+const LINE_DRAWN = Object.freeze(['line', 'stepline', 'area', 'baseline'])
+
+/** Deterministic presentation lines for a plot's line style, a band between two
+ *  plots, and the definition's horizontal levels. */
+export function vocabularyLines(def) {
+  const out = []
+  const plots = (def && def.plots) || []
+  const labelOf = (key) => {
+    const p = plots.find((x) => x && x.key === key)
+    return (p && (p.label || p.key)) || key
+  }
+  for (const p of plots) {
+    if (!p || p.style === 'hlines') continue
+    const label = p.label || p.key
+    if (!p.hidden && LINE_STYLE_WORDS[p.lineStyle] && LINE_DRAWN.includes(p.style || 'line')) {
+      out.push(`${label}: drawn ${LINE_STYLE_WORDS[p.lineStyle]}`)
+    }
+    if (p.fill && typeof p.fill.with === 'string') {
+      const colour = typeof p.fillColor === 'string' ? `, colour ${p.fillColor}` : ''
+      const opacity = Number.isFinite(p.fillOpacity) ? `, ${Math.round(p.fillOpacity * 100)}% opaque` : ''
+      const how = p.fill.colorMode ? ' (its colour follows an imported rule)' : (colour || opacity ? '' : ' in its own colour')
+      out.push(`area between ${label} and ${labelOf(p.fill.with)} shaded${how}${colour}${opacity}`)
+    }
+  }
+  const guide = plots.find((p) => p && p.style === 'hlines' && Array.isArray(p.levels) && p.levels.length)
+  if (guide) {
+    out.push(`horizontal ${guide.levels.length === 1 ? 'line' : 'lines'} at ${guide.levels.join(', ')}`)
+  }
   return out
 }
 
