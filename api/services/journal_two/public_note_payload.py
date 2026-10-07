@@ -51,8 +51,12 @@ import re
 from typing import Any, Iterable, Mapping
 from urllib.parse import urlsplit
 
-from fastapi import HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+# ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
+# `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
+# `reduce` on a first boot. So this file is in the schema layer's import closure, and every
+# process that only opens the database (the test session fixture, the deploy gate, a worker)
+# imports it. The four response helpers below import fastapi where they use it.
+# Rail: tests/test_j2_db_import_closure.py.
 
 # ── The public-response contract ─────────────────────────────────────────────────────────
 #
@@ -84,16 +88,19 @@ PUBLIC_IMAGE_HEADERS: dict[str, str] = {**PUBLIC_HEADERS, "Content-Security-Poli
 NOT_FOUND_DETAIL = "Not found"
 
 
-def not_found() -> HTTPException:
+def not_found() -> "HTTPException":
     """`raise not_found()` -- the one 404 every public miss and the flag-off path share."""
+    from fastapi import HTTPException
     return HTTPException(status_code=404, detail=NOT_FOUND_DETAIL, headers=dict(PUBLIC_HEADERS))
 
 
-def public_json(content: Any) -> JSONResponse:
+def public_json(content: Any) -> "JSONResponse":
+    from fastapi.responses import JSONResponse
     return JSONResponse(content=content, headers=dict(PUBLIC_HEADERS))
 
 
-def public_file(path: Any) -> FileResponse:
+def public_file(path: Any) -> "FileResponse":
+    from fastapi.responses import FileResponse
     return FileResponse(str(path), headers=dict(PUBLIC_IMAGE_HEADERS))
 
 
@@ -108,6 +115,7 @@ def enforce_rate(limit: str, scope: str, key: str, sentence: str, *, public: boo
         return
     from limits import parse
     if not limiter.limiter.hit(parse(limit), scope, key):
+        from fastapi import HTTPException
         raise HTTPException(status_code=429, detail=sentence,
                             headers=dict(PUBLIC_HEADERS) if public else None)
 
