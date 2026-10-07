@@ -84,7 +84,7 @@
 .echo_ok { color: var(--text); }
 .echo_ask { color: var(--accent); }
 .echo_warn { color: var(--warn); }
-.echo_error { color: var(--loss); }
+.echo_error { color: var(--danger-ink); }
 
 .helpTable {
   width: 100%;
@@ -837,11 +837,11 @@
    `flag` renders neither class at all. Text suffix, matching this file's existing idiom
    (no pill/badge component exists in the terminal panels). */
 .helpFlagOn {
-  color: var(--gain);
+  color: var(--success-ink);
 }
 
 .helpFlagOff {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .helpAbsent {

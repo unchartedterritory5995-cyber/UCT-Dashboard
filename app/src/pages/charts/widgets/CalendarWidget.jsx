@@ -35,6 +35,7 @@ import {
 } from './calendarWidgetSettings'
 import styles from './CalendarWidget.module.css'
 import { nextSort } from '../../../lib/presentation/dataGrid'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-065: a section header click asks the DataGrid seed which way the sort
 // turns (same column flips, a new column starts descending). The ▾/▴ caret
@@ -94,10 +95,14 @@ function imLookup(imMap, sym) {
   return imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
 }
 // Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
-function fmtRev(m) {
+// TERM-066: the B suffix comes from lib/presentation (formatCompact). The input is already
+// in MILLIONS, so the one tier divides by a thousand of them. Exported for the frozen-oracle
+// test (widgetFormatters.term066.test.js).
+const REV_MILLIONS_TIERS = [{ at: 1e3, suffix: 'B', decimals: 1 }]
+export function fmtRev(m) {
   const n = Number(m)
   if (!Number.isFinite(n)) return '—'
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}B`
+  if (n >= 1000) return formatCompact(n, { tiers: REV_MILLIONS_TIERS, prefix: '$' })
   if (n >= 10) return `$${Math.round(n)}M`
   return `$${n.toFixed(1)}M`
 }

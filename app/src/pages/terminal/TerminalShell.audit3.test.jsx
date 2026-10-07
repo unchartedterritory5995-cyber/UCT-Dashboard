@@ -174,6 +174,27 @@ describe('undo close never hides a panel in silence', () => {
     expect(notice()).toMatch(/Re-opened GP in panel 2\./)
     expect(notice()).not.toMatch(/moved off/)
   })
+
+  it('a11y (audit 2026-10-06): closing from the panel\'s own button lands focus on Undo, not <body>', async () => {
+    store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'NVDA' }),
+      terminal_layout: panels([{ code: 'DES', channel: 'A' }, { code: 'GP', channel: 'A' }]) }
+    renderAt(['/terminal'])
+    await settle()
+    // the polite live region is mounted BEFORE anything is said (an inserted one is not announced)
+    const announce = screen.getByTestId('terminal-notice-announce')
+    expect(announce.getAttribute('role')).toBe('status')
+    expect(announce.textContent).toBe('')
+    const close = screen.getByTestId('terminal-close-1')
+    close.focus()
+    expect(document.activeElement).toBe(close)
+    await act(async () => { fireEvent.click(close) })
+    // the button that had focus is gone; the rAF hand-off puts it on the notice's Undo
+    await act(async () => { await new Promise((r) => requestAnimationFrame(() => r())) })
+    expect(document.activeElement).toBe(screen.getByTestId('terminal-notice-undo-close'))
+    // …and the same, already-mounted region now carries what happened
+    expect(screen.getByTestId('terminal-notice-announce')).toBe(announce)
+    expect(announce.textContent).toBe('Closed GP.')
+  })
 })
 
 describe('recents and favourites say when they cannot do what was asked', () => {

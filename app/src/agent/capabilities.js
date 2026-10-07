@@ -1,0 +1,142 @@
+// ── UCT Agent CAPABILITY REGISTRY (uct.agent.capabilities/1) ────────────────
+//
+// THE extension seam. UCT Agent knows nothing about any feature except what is
+// REGISTERED here. A feature becomes Agent-operable by registering:
+//
+//   registerTargetKind(kind)        what a target of this kind IS: how to read
+//                                   its state, commit a change through the
+//                                   feature's OWN canonical writer, verify the
+//                                   change landed, and describe it compactly
+//   registerContextProvider(p)      what the model is told about current targets
+//   registerCapability(cap)         one operation: manifest (id, summary, args
+//                                   schema, hints, risk, availability) + pure
+//                                   check / apply / describe (+ optional async
+//                                   prepare for lookups)
+//
+// The orchestrator (useAgent), planner (executor) and runtime iterate the
+// registry; the server builds the model's schema and action list from the
+// MANIFEST the browser sends — the manifests of capabilities AVAILABLE to this
+// member on this surface right now. No central prompt or orchestration code
+// changes when a capability is added. See agent/README.md.
+//
+// ⛔ Registration is not discovery of arbitrary code: a capability exists only
+// if a developer registered it with a deterministic writer. The model can only
+// name registered, available capabilities, and every op is re-validated here.
+
+export const CAPABILITY_CONTRACT = 'uct.agent.capabilities/1'
+
+const CAPS = new Map()
+const KINDS = new Map()
+const PROVIDERS = new Map()
+
+const NAME = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/
+const RISKS = new Set(['local', 'confirm'])
+
+/** Throws on a malformed registration — a broken capability never reaches a member. */
+export function registerCapability(cap) {
+  if (!cap || !NAME.test(cap.name || '')) throw new Error(`capability name invalid: ${cap && cap.name}`)
+  if (!cap.summary || typeof cap.summary !== 'string') throw new Error(`${cap.name}: summary required`)
+  if (!cap.target || typeof cap.target !== 'string') throw new Error(`${cap.name}: target kind required`)
+  if (!RISKS.has(cap.risk || 'local')) throw new Error(`${cap.name}: risk must be local|confirm`)
+  const a = cap.args
+  if (!a || a.type !== 'object' || a.additionalProperties !== false
+      || JSON.stringify([...(a.required || [])].sort()) !== JSON.stringify(Object.keys(a.properties || {}).sort())) {
+    throw new Error(`${cap.name}: args must be a closed object whose properties are all required`)
+  }
+  for (const fn of ['check', 'apply', 'describe']) {
+    if (typeof cap[fn] !== 'function') throw new Error(`${cap.name}: ${fn}() required`)
+  }
+  CAPS.set(cap.name, { risk: 'local', reversible: true, domain: cap.name.split('.')[0], ...cap })
+  return () => CAPS.delete(cap.name)
+}
+
+/**
+ * kind = {
+ *   name,
+ *   list(host)            -> [snapshot]         snapshot.ref is stable; .label human
+ *   read(host, ref)       -> snapshot | null
+ *   stateOf(snapshot)     -> state               the value capabilities transform
+ *   patch(before, after)  -> patch | null        what to write (null = unchanged)
+ *   commit(host, ref, patch)                     through the feature's own writer
+ *   landed(snapshot, patch) -> boolean           read-back ACK
+ *   undoPatch(item)       -> patch               restore `before`
+ *   fingerprint(snapshot) -> string              revision for freshness / stale undo
+ * }
+ */
+export function registerTargetKind(kind) {
+  for (const fn of ['list', 'read', 'stateOf', 'patch', 'commit', 'landed', 'undoPatch', 'fingerprint']) {
+    if (typeof kind[fn] !== 'function') throw new Error(`target kind ${kind.name}: ${fn}() required`)
+  }
+  KINDS.set(kind.name, kind)
+  return () => KINDS.delete(kind.name)
+}
+
+/** provider = { key, kind?, build(host, refFor) -> JSON-able context section } */
+export function registerContextProvider(p) {
+  if (!p || !p.key || typeof p.build !== 'function') throw new Error('context provider needs key + build()')
+  PROVIDERS.set(p.key, p)
+  return () => PROVIDERS.delete(p.key)
+}
+
+export const getCapability = (name) => CAPS.get(name) || null
+export const getTargetKind = (name) => KINDS.get(name) || null
+export const allCapabilityNames = () => [...CAPS.keys()]
+
+/** Capabilities this member may use on this surface now (gates, entitlements, flags). */
+export function availableCapabilities(ctx = {}) {
+  return [...CAPS.values()].filter(c => {
+    if (!KINDS.has(c.target)) return false
+    if (c.surfaces && ctx.surface && !c.surfaces.includes(ctx.surface)) return false
+    try { return c.available ? !!c.available(ctx) : true } catch { return false }
+  })
+}
+
+/** The model-facing manifest: metadata only, no code. */
+export function manifestFor(ctx = {}) {
+  return availableCapabilities(ctx).map(c => ({
+    name: c.name, domain: c.domain, target: c.target, summary: c.summary,
+    hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false,
+  }))
+}
+
+/** Build every registered provider's context section. Short refs ("c1") map to real refs. */
+export function buildContext(host, ctx = {}) {
+  const refMap = {}
+  const counters = {}
+  const refFor = (kind, realRef) => {
+    const prefix = kind[0]
+    counters[prefix] = (counters[prefix] || 0) + 1
+    const short = `${prefix}${counters[prefix]}`
+    refMap[short] = { kind, ref: realRef }
+    return short
+  }
+  const sections = { surface: ctx.surface || null }
+  for (const p of PROVIDERS.values()) {
+    try { sections[p.key] = p.build(host, refFor) } catch { /* a broken provider drops out, never breaks the turn */ }
+  }
+  return { context: sections, refMap }
+}
+
+/**
+ * Shape-check args against the capability's own JSON schema (closed object,
+ * required keys, enums, primitive types). Every caller passes this gate.
+ */
+export function shapeError(name, args, ctx) {
+  const c = CAPS.get(name)
+  if (!c || (ctx && !availableCapabilities(ctx).includes(c))) return `UCT Agent can't “${name}” here.`
+  const sch = c.args
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return 'That action is missing its details.'
+  for (const k of Object.keys(args)) if (!(k in sch.properties)) return `Unexpected detail “${k}”.`
+  for (const k of sch.required) if (!(k in args)) return `Missing “${k}”.`
+  for (const [k, p] of Object.entries(sch.properties)) {
+    const v = args[k]
+    const types = Array.isArray(p.type) ? p.type : [p.type]
+    const ok = types.some(t => (t === 'null' ? v === null
+      : t === 'integer' ? Number.isInteger(v)
+        : t === 'array' ? Array.isArray(v)
+          : typeof v === t))
+    if (!ok) return `“${k}” has the wrong kind of value.`
+    if (p.enum && v !== null && !p.enum.includes(v)) return `“${v}” isn't an option for ${k}.`
+  }
+  return null
+}

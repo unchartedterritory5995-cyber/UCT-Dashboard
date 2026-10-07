@@ -54,6 +54,7 @@ function rafObserveElementRect(instance, cb) {
 }
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import CompanyLogo from '../components/CompanyLogo'
 import RowSpark from '../components/mobile/RowSpark'
 import useLongPress from '../components/mobile/useLongPress'
@@ -254,14 +255,18 @@ function fmtEarn(iso) {
   return m ? `${+m[2]}/${+m[3]}` : '—'
 }
 // Dollar volume (price × volume) → compact "$1.2B" / "$482M" / "$12K".
-function fmtDolVol(v) {
+// TERM-066: the K/M/B/T suffix comes from lib/presentation (formatCompact) on this column's
+// own ladder. Exported for the frozen-oracle test (Watchlists.term066.test.js).
+const DOLVOL_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 1 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+export function fmtDolVol(v) {
   if (v == null || !Number.isFinite(v)) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(1)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`
-  return `$${v.toFixed(0)}`
+  if (Math.abs(v) < 1e3) return `$${v.toFixed(0)}`
+  return formatCompact(v, { tiers: DOLVOL_TIERS, prefix: '$' })
 }
 // IPO / first-trade date (YYYYMMDD int, or ISO string) → compact M/D/YY.
 function fmtIpo(ymd) {
@@ -314,12 +319,19 @@ function changePctClass(val) {
   return ''
 }
 
-function fmtVol(v) {
+// TERM-066: the K/M/B suffix comes from lib/presentation (formatCompact). K keeps a decimal
+// below 100K and drops it from there up, so the ladder is chosen by size. Exported for the
+// frozen-oracle test (Watchlists.term066.test.js).
+const VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const VOL_TIERS_FINE_K = [{ at: 1e3, suffix: 'K', decimals: 1 }]
+export function fmtVol(v) {
   if (v == null || !Number.isFinite(v)) return '—'
-  if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B'
-  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
-  if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K'
-  return String(v)
+  if (v < 1e3) return String(v)
+  return formatCompact(v, { tiers: v >= 1e5 ? VOL_TIERS : VOL_TIERS_FINE_K })
 }
 
 // Flash a quick bold (+ optional up/down background tint) whenever a cell's value

@@ -237,9 +237,9 @@ FAMILIES: dict[str, Family] = {
     "ai": Family(
         TIER_COSTLY,
         "Model-backed answers (AI search, flow explain, indicator vision, stock "
-        "brief, transcript summaries): each call can spend tokens.",
+        "brief, transcript summaries, UCT Agent): each call can spend tokens.",
         ("/api/ai-search", "/api/flow-explain", "/api/indicator-vision",
-         "/api/stock-brief", "/api/transcripts"),
+         "/api/stock-brief", "/api/transcripts", "/api/agent"),
     ),
     "voice": Family(
         TIER_STANDARD,

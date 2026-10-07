@@ -14,6 +14,20 @@ export function weekdays(n, start = '2025-01-02') {
   return out
 }
 
+/** `n` consecutive FRIDAYS from the first one on/after `start` -- the key a weekly bar carries
+ *  (the equity store stamps a week by its ISO Friday, and `closesFromBars(_, {weekly})` re-keys
+ *  every weekly bar to it, so a weekly fixture must hold ONE date per week). */
+export function fridays(n, start = '2025-01-03') {
+  const out = []
+  const d = new Date(`${start}T12:00:00Z`)
+  while (d.getUTCDay() !== 5) d.setUTCDate(d.getUTCDate() + 1)
+  while (out.length < n) {
+    out.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 7)
+  }
+  return out
+}
+
 /** `[{d, c}]` where close[i] = close[i-1] × (1 + step(i)). */
 export function series(dates, step, start = 100) {
   let c = start
