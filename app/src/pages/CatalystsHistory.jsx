@@ -13,7 +13,7 @@ import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
-import { useInTerminalPanel } from '../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
 import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
@@ -80,6 +80,11 @@ export default function CatalystsHistory() {
     { revalidateOnFocus: false }
   )
   const rows = data?.rows || []
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error ? { source: 'UCT catalyst engine', age: { asOfDate: date } } : null)
+  // Row <GO>: each catalyst row, in order, loads its name (`$SYM`); the day's names are the list
+  // a "Board of" opens. A failed read publishes nothing (no list is on screen).
+  const daySyms = usePanelSymbolRows(error && !data ? [] : rows.map((r) => r.ticker), `CATH ${date}`)
 
   // Quick-jump links
   const quickJumps = [
@@ -129,6 +134,7 @@ export default function CatalystsHistory() {
         <div className={styles.tileHeader}>
           <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date || 'pick a date'}</span>
           <span className={styles.tileMeta}>{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
+          <BoardFromList syms={daySyms} label={`CATH ${date}`} testId="cath-board" />
         </div>
 
         {!date ? (
@@ -148,16 +154,16 @@ export default function CatalystsHistory() {
           </div>
         ) : (
           <div className={styles.tableWrap}>
-            <table className={styles.table}>
+            <table className={styles.table} aria-label={`Catalysts for ${date}`}>
               <thead>
                 <tr>
-                  <th className={styles.colSym}>Sym</th>
-                  <th className={styles.colPrice}>Price</th>
-                  <th className={styles.colGap}>% Change</th>
-                  <th className={styles.colVol}>Vol×</th>
-                  <th className={styles.colTag}>Tag</th>
-                  <th className={styles.colThesis}>Catalyst</th>
-                  <th className={styles.colWhen}>Catalyst Time</th>
+                  <th scope="col" className={styles.colSym}>Sym</th>
+                  <th scope="col" className={styles.colPrice}>Price</th>
+                  <th scope="col" className={styles.colGap}>% Change</th>
+                  <th scope="col" className={styles.colVol}>Vol×</th>
+                  <th scope="col" className={styles.colTag}>Tag</th>
+                  <th scope="col" className={styles.colThesis}>Catalyst</th>
+                  <th scope="col" className={styles.colWhen}>Catalyst Time</th>
                 </tr>
               </thead>
               <tbody>

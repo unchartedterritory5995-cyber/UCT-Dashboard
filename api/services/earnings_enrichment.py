@@ -520,7 +520,8 @@ def _resolve_spot(sym: str, chain, yf_ticker) -> tuple[Optional[float], str]:
     return spot, rail
 
 
-def get_implied_move(sym: str, earnings_date: Optional[str] = None) -> Optional[dict]:
+def get_implied_move(sym: str, earnings_date: Optional[str] = None,
+                     timing: Optional[str] = None) -> Optional[dict]:
     """Implied move from front-week ATM call+put straddle.
 
     SPOT is read off the chain response itself (`_resolve_spot`), so it is
@@ -535,6 +536,9 @@ def get_implied_move(sym: str, earnings_date: Optional[str] = None) -> Optional[
         sym: ticker
         earnings_date: ISO date of earnings; pick first option expiry on/after.
                        If None, use front expiry.
+        timing: 'amc' (after the close) needs the first expiry STRICTLY after the
+                date -- a same-day expiry settles before the print
+                (`implied_move.reports_after_close`, accuracy audit 2026-10-06).
 
     Returns: {pct, dollar, expiry, strike, spot, call_mark, put_mark} or None.
     """
@@ -556,13 +560,16 @@ def get_implied_move(sym: str, earnings_date: Optional[str] = None) -> Optional[
             except (ValueError, TypeError):
                 target_date = None
 
+        from api.services.implied_move import reports_after_close
+        after_close = reports_after_close(timing)
         chosen = None
         for exp in expiries:
             try:
                 exp_d = _dt.datetime.strptime(exp, "%Y-%m-%d").date()
             except ValueError:
                 continue
-            if target_date is None or exp_d >= target_date:
+            if (target_date is None or exp_d > target_date
+                    or (exp_d == target_date and not after_close)):
                 chosen = exp
                 break
         if chosen is None:
@@ -691,8 +698,24 @@ def get_key_quotes(sym: str) -> Optional[list]:
 
 # ─── Convenience: run all enrichers in parallel ───────────────────────────────
 
-def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optional[str] = None) -> dict:
+def _implied_for_report(sym: str, earnings_date: Optional[str],
+                        timing: Optional[str]) -> Optional[dict]:
+    """The implied move for the report, with its session resolved: the caller's
+    own timing when it has one (the earnings row's bucket), else
+    `implied_move.report_timing` (engine weekly calendar, then Finnhub `hour`).
+    Unknown timing keeps the on-or-after rule -- the documented default."""
+    if not timing and earnings_date:
+        from api.services.implied_move import report_timing
+        timing = report_timing(sym, earnings_date)
+    return get_implied_move(sym, earnings_date, timing=timing)
+
+
+def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optional[str] = None,
+                             timing: Optional[str] = None) -> dict:
     """Run all enrichment helpers in parallel; merge into a single dict.
+
+    `timing` is the report's session ('bmo'/'amc') when the caller knows it;
+    see `_implied_for_report`.
 
     Returns dict with keys present (None or value) for each enrichment field.
     Never raises — each helper is wrapped.
@@ -704,7 +727,7 @@ def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optiona
         "hist_moves":       lambda: get_historical_earnings_moves(sym, av_quarters),
         "revisions":        lambda: get_estimate_revisions(sym),
         "beat_surprises":   lambda: extract_beat_surprises(av_quarters),
-        "implied_move":     lambda: get_implied_move(sym, earnings_date),
+        "implied_move":     lambda: _implied_for_report(sym, earnings_date, timing),
         "key_quotes":       lambda: get_key_quotes(sym),
     }
     with ThreadPoolExecutor(max_workers=6, thread_name_prefix="earnings-enrich") as pool:

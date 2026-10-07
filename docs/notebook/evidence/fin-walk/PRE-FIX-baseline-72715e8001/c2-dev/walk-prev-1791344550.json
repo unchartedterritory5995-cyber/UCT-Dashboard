@@ -1,0 +1,635 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:52+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "template gallery",
+   "step": "browse: the gallery opens from the template picker",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:55+00:00",
+   "opened": true,
+   "picks": [
+    "Weekly Review",
+    "Trade Review",
+    "Earnings Prep",
+    "Setup Checklist",
+    "Trade Plan",
+    "Pre-Market Plan"
+   ],
+   "regions": {
+    "UCT picks": 1,
+    "Community": 0
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?view=all",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:25:53.995173+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"2624d0db-8990-4ea2-ade6-0504ede8ed95\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T03:25:53.790Z\"}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-template-gallery-browse-the-gallery-opens-from-the-template-picker.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "template gallery",
+   "step": "insert: use a UCT pick and make a note from it",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:56+00:00",
+   "pick": "Weekly Review",
+   "added_to_your_templates": true,
+   "note": "27e4dbcc05cc42c0a09466ff7a2df8ab",
+   "note_body_chars": 1875,
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=27e4dbcc05cc42c0a09466ff7a2df8ab",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/template-gallery/46da9741bf4b41a2bb56dea58b1b6e2e/use",
+     "status": 200,
+     "request": "",
+     "response": "{\"template\":{\"id\":\"f9f659a9cfe4417d9411d1e79b8d6593\",\"name\":\"Weekly Review\",\"title\":\"Weekly Review\",\"createdAt\":\"2026-10-07T03:25:56.066756+00:00\",\"updatedAt\":\"2026-10-07T03:25:56.066756+00:00\"},\"properties\":{\"added\":[],\"existing\":[],\"skipped\":[]}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Weekly Review\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades / wins / losses: —\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Net R: —\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Best trade & why: —\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Worst trade & why: —\"}]}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Three strongest patterns\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Three biggest leaks\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]}]},{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},",
+     "response": "{\"note\":{\"id\":\"27e4dbcc05cc42c0a09466ff7a2df8ab\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Weekly Review\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades / wins / losses: —\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Net R: —\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Best trade & why: —\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Worst trade & why: —\"}]}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Three strongest patterns\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Three biggest leaks\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]},{\"type\":\"list"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/27e4dbcc05cc42c0a09466ff7a2df8ab/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-template-gallery-insert-use-a-UCT-pick-and-make-a-note-from-it.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "template gallery",
+   "step": "publish for review: submitted, pending, not listed yet",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:26:01+00:00",
+   "template_api": 200,
+   "sent": true,
+   "submission": {
+    "id": "846b98faaa9443b6b19e0045aed3f93b",
+    "status": "pending",
+    "title": "Fin walk plan 43556"
+   },
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?view=all",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:25:57.790266+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/template-gallery",
+     "status": 200,
+     "request": "{\"templateId\":\"3ff6c9a7a9374a2a84f3cf467e722be2\",\"title\":\"Fin walk plan 43556\",\"description\":\"A weekly plan layout.\",\"category\":\"trade_plan\"}",
+     "response": "{\"template\":{\"id\":\"846b98faaa9443b6b19e0045aed3f93b\",\"title\":\"Fin walk plan 43556\",\"description\":\"A weekly plan layout.\",\"category\":\"trade_plan\",\"author\":\"q1c2m\",\"firm\":false,\"featured\":false,\"usedBy\":0,\"listedAt\":null,\"updatedAt\":\"2026-10-07T03:26:01.330559+00:00\",\"mine\":true,\"preview\":[{\"kind\":\"text\",\"text\":\"Watching the leaders into earnings.\"}],\"propertyCount\":0,\"status\":\"pending\",\"hidden\":false,\"reviewNote\":\"\",\"createdAt\":\"2026-10-07T03:26:01.330559+00:00\"}}"
+    }
+   ],
+   "screenshot": "c2-1280-template-gallery-publish-for-review-submitted-pending-not-listed-yet.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "template gallery",
+   "step": "the admin review queue holds the submission",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:26:01+00:00",
+   "queue_status": 200,
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "formulas",
+   "step": "a formula property (R-multiple from four numbers) computes on the note",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:26:16+00:00",
+   "property_types": [
+    "Text",
+    "Number",
+    "Select",
+    "Multi-select",
+    "Date",
+    "Checkbox",
+    "URL",
+    "Relation",
+    "Formula",
+    "Rollup"
+   ],
+   "starters": [
+    "Choose…",
+    "R-multiple",
+    "Risk per share",
+    "Position size",
+    "Percent gain"
+   ],
+   "formula": "({Exit} - {Entry}) / ({Entry} - {Stop})",
+   "row_text": "R-multiple 2Edit",
+   "stored": {
+    "type": "formula",
+    "value": 2.0,
+    "formula": null
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:26:02.677071+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":292}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/property-defs",
+     "status": 200,
+     "request": "{\"name\":\"Entry\",\"type\":\"number\"}",
+     "response": "{\"propertyDef\":{\"id\":\"ab7d1529916747ec8b5ebcc0e44d348d\",\"name\":\"Entry\",\"type\":\"number\",\"options\":null,\"sortOrder\":0,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T03:26:06.526911+00:00\",\"updatedAt\":\"2026-10-07T03:26:06.526911+00:00\"}}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d",
+     "status": 200,
+     "request": "{\"properties\":{\"ab7d1529916747ec8b5ebcc0e44d348d\":100}}",
+     "response": "{\"note\":{\"id\":\"748efd006f294d6cbbd5330bcb86353d\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Formula walk\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Breakout over the pivot.\"}]}]},\"bodyPlain\":\"Breakout over the pivot.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-07T03:26:01.888724+00:00\",\"updatedAt\":\"2026-10-07T03:26:07.279602+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{\"ab7d1529916747ec8b5ebcc0e44d348d\":100}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/property-defs",
+     "status": 200,
+     "request": "{\"name\":\"Stop\",\"type\":\"number\"}",
+     "response": "{\"propertyDef\":{\"id\":\"9a974f402446487daf3ad2cb470a990f\",\"name\":\"Stop\",\"type\":\"number\",\"options\":null,\"sortOrder\":1,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T03:26:12.437495+00:00\",\"updatedAt\":\"2026-10-07T03:26:12.437495+00:00\"}}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d",
+     "status": 200,
+     "request": "{\"properties\":{\"9a974f402446487daf3ad2cb470a990f\":95}}",
+     "response": "{\"note\":{\"id\":\"748efd006f294d6cbbd5330bcb86353d\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Formula walk\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Breakout over the pivot.\"}]}]},\"bodyPlain\":\"Breakout over the pivot.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-07T03:26:01.888724+00:00\",\"updatedAt\":\"2026-10-07T03:26:12.569533+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{\"ab7d1529916747ec8b5ebcc0e44d348d\":100,\"9a974f402446487daf3ad2cb470a990f\":95}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/property-defs",
+     "status": 200,
+     "request": "{\"name\":\"Target\",\"type\":\"number\"}",
+     "response": "{\"propertyDef\":{\"id\":\"1428f57e1d624f989137a94f3ecf1aac\",\"name\":\"Target\",\"type\":\"number\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T03:26:13.224331+00:00\",\"updatedAt\":\"2026-10-07T03:26:13.224331+00:00\"}}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d",
+     "status": 200,
+     "request": "{\"properties\":{\"1428f57e1d624f989137a94f3ecf1aac\":115}}",
+     "response": "{\"note\":{\"id\":\"748efd006f294d6cbbd5330bcb86353d\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Formula walk\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Breakout over the pivot.\"}]}]},\"bodyPlain\":\"Breakout over the pivot.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-07T03:26:01.888724+00:00\",\"updatedAt\":\"2026-10-07T03:26:13.349826+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{\"ab7d1529916747ec8b5ebcc0e44d348d\":100,\"9a974f402446487daf3ad2cb470a990f\":95,\"1428f57e1d624f989137a94f3ecf1aac\":115}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/property-defs",
+     "status": 200,
+     "request": "{\"name\":\"Exit\",\"type\":\"number\"}",
+     "response": "{\"propertyDef\":{\"id\":\"3da4b6f28fec4f89b1e2911cd40358bc\",\"name\":\"Exit\",\"type\":\"number\",\"options\":null,\"sortOrder\":3,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T03:26:13.969746+00:00\",\"updatedAt\":\"2026-10-07T03:26:13.969746+00:00\"}}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d",
+     "status": 200,
+     "request": "{\"properties\":{\"3da4b6f28fec4f89b1e2911cd40358bc\":110}}",
+     "response": "{\"note\":{\"id\":\"748efd006f294d6cbbd5330bcb86353d\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Formula walk\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Breakout over the pivot.\"}]}]},\"bodyPlain\":\"Breakout over the pivot.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-07T03:26:01.888724+00:00\",\"updatedAt\":\"2026-10-07T03:26:14.102261+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{\"ab7d1529916747ec8b5ebcc0e44d348d\":100,\"9a974f402446487daf3ad2cb470a990f\":95,\"1428f57e1d624f989137a94f3ecf1aac\":115,\"3da4b6f28fec4f89b1e2911cd40358bc\":110}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/property-defs",
+     "status": 200,
+     "request": "{\"name\":\"R-multiple\",\"type\":\"formula\",\"config\":{\"expression\":\"({@3da4b6f28fec4f89b1e2911cd40358bc} - {@ab7d1529916747ec8b5ebcc0e44d348d}) / ({@ab7d1529916747ec8b5ebcc0e44d348d} - {@9a974f402446487daf3ad2cb470a990f})\"}}",
+     "response": "{\"propertyDef\":{\"id\":\"df69154ae63549acb44c67b69e326576\",\"name\":\"R-multiple\",\"type\":\"formula\",\"options\":null,\"sortOrder\":4,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T03:26:14.790939+00:00\",\"updatedAt\":\"2026-10-07T03:26:14.790939+00:00\",\"config\":{\"expression\":\"({@3da4b6f28fec4f89b1e2911cd40358bc} - {@ab7d1529916747ec8b5ebcc0e44d348d}) / ({@ab7d1529916747ec8b5ebcc0e44d348d} - {@9a974f402446487daf3ad2cb470a990f})\"},\"computed\":true}}"
+    }
+   ],
+   "screenshot": "c2-1280-formulas-a-formula-property-R-multiple-from-four-numbers-computes-on-the-note.png"
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ]
+  }
+ },
+ "config": "c2",
+ "tree": "72715e8001b0ee3273363fb2fb83a91c6f8b3563",
+ "started": "2026-10-07T03:25:50+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "INCOMPLETE (run did not finish)",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/note-templates",
+   "status": 200,
+   "request": "{\"noteId\": \"f26de5b674214006af6dfac7bbc2d6b5\", \"name\": \"Fin walk plan 43556\"}",
+   "response": "{\"template\": {\"id\": \"3ff6c9a7a9374a2a84f3cf467e722be2\", \"name\": \"Fin walk plan 43556\", \"title\": \"My first note\", \"createdAt\": \"2026-10-07T03:25:56.905092+00:00\", \"updatedAt\": \"2026-10-07T03:25:56.905092+00:00\"}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Formula walk\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Breakout over the pivot.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"748efd006f294d6cbbd5330bcb86353d\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"folderId\": null, \"title\": \"Formula walk\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Breakout over the pivot.\"}]}]}, \"bodyPlain\": \"Breakout over the pivot.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-07T03:26:01.888724+00:00\", \"updatedAt\": \"2026-10-07T03:26:01.888724+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  }
+ ]
+}

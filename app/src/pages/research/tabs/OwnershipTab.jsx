@@ -155,7 +155,7 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
 }
 
 export default function OwnershipTab({ sym }) {
-  const { data, isLoading, error, mutate } = useOwnership(sym)
+  const { data, isLoading, error, paywalled, mutate } = useOwnership(sym)
   const session = useMarketOpen()
   const edgarPending = !error && data?.insider_source?.state === 'pending'
   const { exhausted: reaskExhausted, retry: reaskRetry } = usePendingReask(edgarPending, mutate, sym)
@@ -167,6 +167,9 @@ export default function OwnershipTab({ sym }) {
   // TERM-088 -- a failed read is not a genuinely empty ownership record.
   // Render the error distinctly so a backend hiccup never reads as "no
   // ownership data exists".
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="ownership-paywalled">Ownership requires a paid plan.</div>
+  }
   if (error) {
     return (
       <div className={styles.fnote} data-testid="ownership-error">
@@ -229,8 +232,8 @@ export default function OwnershipTab({ sym }) {
 
           {!!inst.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid}>
-                <thead><tr><th>Holder</th><th>Shares</th><th>% Out</th><th>Value</th><th>Reported</th></tr></thead>
+              <table className={styles.fgrid} aria-label="Institutional ownership">
+                <thead><tr><th scope="col">Holder</th><th scope="col">Shares</th><th scope="col">% Out</th><th scope="col">Value</th><th scope="col">Reported</th></tr></thead>
                 <tbody>
                   {inst.holders.map((h, i) => (
                     <tr key={`${h.holder}-${i}`}>
@@ -303,8 +306,8 @@ export default function OwnershipTab({ sym }) {
 
           {!!tf.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid}>
-                <thead><tr><th>Top holder</th><th>Shares</th><th>Δ Shares</th><th>% Own</th><th>Value</th></tr></thead>
+              <table className={styles.fgrid} aria-label={`Form 13F top holders, ${tf.quarter}`}>
+                <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value</th></tr></thead>
                 <tbody>
                   {tf.holders.map((h, i) => (
                     <tr key={`${h.name}-${i}`}>

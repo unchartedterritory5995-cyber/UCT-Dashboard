@@ -450,6 +450,13 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         # the same rule.
         if isinstance(node, dict) and node.get("type") == "num":
             value = node.get("value")
+            # ⭐ P3S — an INTEGRAL float is that integer, as it already is for
+            # `lint.js` (`Number.isInteger(21.0)`: JSON has one number type), the
+            # interpreter (`float(v).is_integer()`) and `_usable_window_bound`
+            # below. A model's `21.0` was unanalysable HERE only, so `ema(close,
+            # 21.0)` was badged "repaints" and the turn paid a repair.
+            if isinstance(value, float) and value == value and value.is_integer():
+                value = int(value)
             if isinstance(value, bool) or not isinstance(value, int):
                 return UNKNOWN
             return times * value

@@ -21,31 +21,43 @@ from freezing -- the sample's fabricated context. The plan note stays, unlinked:
 the chart plan, the drawn levels and the frozen fingerprint, and it tells the member how to get
 a grade (link one of their own trades). `tests/test_sample_notebook_trade_exclusion.py` is the
 rail: seeding writes no row to any trade-side table, and every trade consumer reads the same
-for a seeded member as for an empty one. `remove()` still knows how to delete a recorded trade
-and entry context, for any preference written by the earlier version on a dev box.
+for a seeded member as for an empty one. `remove()` deletes no trade and no entry context at all (fin-data
+M4): there is none to delete, and the ids it used to act on came from a preference a client can write.
 
 ONE REAL DOOR PER PIECE, NEVER RAW SQL THAT SKIPS AN INVARIANT:
   * the plan / setup notes `notes.import_confirm`        -- the sample notebook's own door
   * the thesis property    `notes.update_note({"properties": ...})` -- the editor's own door
   * the chart-block index  `chart_blocks.catch_up`       -- pure projection of the note body
   * the level index        `note_levels.project_note`     -- pure projection of the note body
-                                                             (the thesis chip reads its stop)
-  * the passed setup       `passed_setups.add_manual`     -- the member's own "I passed on
-                                                             this" door; scores from bars.db,
-                                                             zero vendor or model calls
+                                                             (shown on the note's own page)
+  * the passed setup       `passed_setups.add_example`    -- a row marked as the sample's own,
+                                                             scored like any pass from bars.db;
+                                                             zero vendor or model calls. Never
+                                                             `add_manual`, which answers a row
+                                                             the member already has
 
 R6 (no live paid model or vendor call on sample data): every number below is written once,
 by hand, here. Nothing in this module calls an LLM, fetches a quote, or reads an earnings
 calendar. `tech_fingerprint.compute` and `entry_context.build_context` are never imported.
-Reading real bars.db rows through `passed_setups.add_manual` is the one exception, and it is
+Reading real bars.db rows through `passed_setups.add_example` is the one exception, and it is
 not a vendor call either -- that module's own docstring states "Zero model calls, zero
 vendor calls" (it reads only what the app's own background prewarm already cached); a cold
 cache answers with the labelled `no_bars`/`pending` states the capability already renders
 for a real member, never a crash and never an invented number.
 
-SIX SYMBOLS, ONE EACH, ON PURPOSE. Thesis chips and resurfacing read "the most recently
-updated note that names this symbol" -- two notes on the same ticker would make one example
-silently answer for the other. The setups board and passed setups read different
+⛔⛔ AN EXAMPLE IS READ AS A NOTE, NEVER AS A FACT ABOUT THE MEMBER (fin-data I3). These notes
+name real tickers and real-looking levels, and a note is also data: a plan a trade is graded
+against, "what you wrote before a loss", "a symbol you have research on", a stop on a chip.
+Before this rule the example NVDA thesis froze itself as the plan of a real NVDA trade (the
+trade stopped being Unplanned, the plan rate rose), the six tickers became "symbols you have
+research on" for the stop alert, and its stop sat on a real NVDA position's chip. Every note
+written here carries `import_source = sample_marker.SAMPLE_SOURCE`, and every reader that
+turns a note into a statistic, a grade, an alert or a chip leaves those out through that one
+module. The example still shows as itself: its own note, its card on the setups board and in
+the visual playbook. Rail and ledger: `tests/test_sample_never_feeds_real_numbers.py`.
+
+SIX SYMBOLS, ONE EACH, ON PURPOSE. Readers that pick "the most recently updated note that
+names this symbol" would let two notes on the same ticker answer for each other. The setups board and passed setups read different
 populations too (the untraded AAPL plan also shows on the setups board, truthfully: a drawn
 entry and stop with no linked trade is exactly what that board watches). Picking six real, highly-liquid large-caps removes the
 ambiguity a shared or invented symbol would create, while keeping every WRITE here static.
@@ -79,11 +91,10 @@ from typing import Any
 
 from api.services.journal_two import (
     chart_blocks,
-    entry_context,
     note_levels,
     note_properties,
     passed_setups,
-    trades as trades_service,
+    sample_marker,
 )
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two.timeutil import ET, compute_trading_day_et
@@ -101,7 +112,7 @@ SYM_EARNINGS = "AMZN"    # earnings prep (cosmetic ticker only; no calendar row 
 
 EXAMPLES_FOLDER_PATH = ("Sample notebook", "Capability examples")
 
-IMPORT_SOURCE = "sample"
+IMPORT_SOURCE = sample_marker.SAMPLE_SOURCE   # the ONE durable marker: j2_notes.import_source
 KEY_PREFIX = "sample-example:"
 
 #: The example resurfacing notice, shown ONLY inside the thesis note (a callout), worded the
@@ -206,13 +217,30 @@ def _chart_embed(*, embed_id: str, symbol: str, as_of_day: str, annotations: lis
     return {"type": "widgetEmbed", "attrs": attrs}
 
 
+def _drawn_levels(embed_id: str, as_of_day: str, **levels: float) -> list[dict]:
+    """Plan levels in the shape the PRODUCT writes when a member draws them on a chart.
+
+    ⛔ THE DRAWN SHAPE, NOT A SHORTHAND. A level a member draws and gives a role is
+    `{id, type, role, points: [{time, price}]}` (`lib/chartPlan.js` `withPlanRole`: the line's
+    anchor `points[0].price` IS the level, and a top-level `price` is deleted whenever a role
+    is set, because `plan_extract` reads `price` first and a copy would go stale). The example
+    used to store `{role, type, price}`. The server reads either, so every server test was
+    green -- and in the browser the role buttons did nothing (they address a level by `id`),
+    "Arm alert at this level" refused (`anchorsForDrawing` needs `points[0].price`), and no
+    line was drawn (the overlay draws from `points`). An example must be what the feature
+    itself would have written, or it teaches the wrong thing.
+
+    Each id is unique across every example (`<embed id>-<role>`); the anchor time is the
+    instant the chart block is frozen at (`params.to`).
+    Rail: tests/test_sample_notebook_examples.py reads this through `chart_plan`'s own reader."""
+    to = _unix_seconds_et_close(date.fromisoformat(as_of_day))
+    return [{"id": f"{embed_id}-{role}", "type": "horizontal", "role": role,
+             "points": [{"time": to, "price": float(price)}]} for role, price in levels.items()]
+
+
 def _plan_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float, stop: float,
                     target: float, shares: float, setup_tag: str, fingerprint: dict) -> dict:
-    annotations = [
-        {"role": "entry", "type": "horizontal", "price": entry},
-        {"role": "stop", "type": "horizontal", "price": stop},
-        {"role": "target", "type": "horizontal", "price": target},
-    ]
+    annotations = _drawn_levels("ex-plan", as_of_day, entry=entry, stop=stop, target=target)
     return {"type": "doc", "content": [
         _p(("Example", [{"type": "bold"}]), " -- a plan written BEFORE a trade. "
            f"{symbol} is a real ticker; the numbers are hand-written for this example, not "
@@ -233,10 +261,7 @@ def _plan_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float,
 
 def _active_setup_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float,
                             stop: float, setup_tag: str) -> dict:
-    annotations = [
-        {"role": "entry", "type": "horizontal", "price": entry},
-        {"role": "stop", "type": "horizontal", "price": stop},
-    ]
+    annotations = _drawn_levels("ex-setup", as_of_day, entry=entry, stop=stop)
     return {"type": "doc", "content": [
         _p(("Example", [{"type": "bold"}]), " -- a plan that has not been traded yet. "
            "Notes like this one, with a drawn entry and stop and no linked trade, are what "
@@ -253,15 +278,16 @@ def _active_setup_note_body(symbol: str, as_of_day: str, captured_at: str, entry
 def _thesis_note_body(symbol: str, stop: float) -> dict:
     return {"type": "doc", "content": [
         _p(("Example", [{"type": "bold"}]), f" -- a thesis on {symbol}, with a status and a "
-           "stop written in the note's own words. Thesis chips read the status and the "
-           "stop from here; resurfacing watches the stop."),
+           "stop written in the note's own words. In a note of your own, thesis chips read the "
+           "status and the stop from here, and resurfacing watches the stop."),
         _h(2, "The thesis"),
         _p("Leadership names that held up best through the last pullback make new highs first."),
         _p(f"Stop: {stop:.2f}"),
-        _p("A Watchlist or Open Positions row for this symbol shows a small chip with the "
-           "status above and this stop. When a level one of your own notes names is touched, "
-           "a resurfacing notice arrives in the Voice Insights Inbox (Settings > Compass). "
-           "This example does not send one; this is what it would say:"),
+        _p("When you write a thesis like this yourself, the Watchlist or Open Positions row "
+           "for its symbol shows a small chip with the status and the stop, and when a level "
+           "your note names is touched, a resurfacing notice arrives in the Voice Insights "
+           "Inbox (Settings > Compass). This example does neither, so it can never be mistaken "
+           "for your own research; this is what a notice would say:"),
         _callout(_p((RESURFACE_HEADLINE, [{"type": "bold"}])), _p(RESURFACE_BODY)),
     ]}
 
@@ -384,8 +410,11 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
     # -- passed setups --------------------------------------------------------------------------
     try:
         saved_on = _iso(today - timedelta(days=20))
-        out = passed_setups.add_manual(user_id, SYM_PASSED, saved_on, conn=conn)
-        result["passedSetupId"] = out["item"]["id"]
+        # ⛔ `add_example`, never `add_manual` (fin-data I4): the member's door answers an
+        # existing row, and the sample must only ever record -- and later remove -- a row it
+        # made. None means the member already has their own pass on this name and day.
+        made = passed_setups.add_example(user_id, SYM_PASSED, saved_on, conn=conn)
+        result["passedSetupId"] = made["id"] if made else None
     except Exception as e:  # noqa: BLE001
         log.warning("[sample_examples] passed-setups example failed", exc_info=True)
         errors["passedSetups"] = str(e)
@@ -464,30 +493,20 @@ def remove(user_id: str, recorded: dict[str, Any], conn: sqlite3.Connection) -> 
     five base notes -- restorable, consistent with how this whole feature already treats
     "removed".
 
-    `seed()` no longer writes a trade or an entry context. The two branches below that delete
-    them stay ONLY for a preference recorded by the earlier version (dev boxes; it never
-    shipped): with today's preference both ids are None and both branches are skipped."""
-    out = {"tradeDeleted": False, "entryContextDeleted": False, "passedSetupDismissed": False,
-          "insightDismissed": False}
-    trade_id = recorded.get("tradeId")
-    if trade_id:
-        try:
-            out["tradeDeleted"] = trades_service.delete_trade(user_id, trade_id, conn=conn)
-        except Exception:  # noqa: BLE001 -- one piece failing must not block the rest
-            log.warning("[sample_examples] could not delete the example trade", exc_info=True)
-    ectx = recorded.get("entryContext")
-    if isinstance(ectx, dict) and ectx.get("symbol") and ectx.get("entryDay"):
-        try:
-            out["entryContextDeleted"] = entry_context.forget(
-                user_id, ectx["symbol"], ectx["entryDay"], conn=conn)
-        except Exception:  # noqa: BLE001
-            log.warning("[sample_examples] could not forget the example entry context", exc_info=True)
-    passed_id = recorded.get("passedSetupId")
-    if passed_id:
-        try:
-            out["passedSetupDismissed"] = passed_setups.dismiss(user_id, passed_id, conn=conn)
-        except Exception:  # noqa: BLE001
-            log.warning("[sample_examples] could not dismiss the example passed setup", exc_info=True)
+    ⛔ NO TRADE AND NO ENTRY CONTEXT IS EVER DELETED HERE (fin-data M4). `seed()` writes
+    neither, and no shipped build ever did. This function used to hard-delete whatever trade
+    id and entry-context key `recorded` named, "for a preference recorded by the earlier
+    version" -- but `recorded` comes from a preference a client can write, so that was a
+    member's real trade deleted on the strength of one JSON value. `recorded["tradeId"]` and
+    `recorded["entryContext"]` are not read."""
+    out = {"passedSetupDismissed": False, "insightDismissed": False}
+    # ⛔ By the row's own marker, never by `recorded["passedSetupId"]` (fin-data I4): that id
+    # comes from a preference a client can write, and before this rule it could be the id of a
+    # pass the MEMBER made. Only rows the sample itself inserted carry the marker.
+    try:
+        out["passedSetupDismissed"] = passed_setups.dismiss_examples(user_id, conn=conn) > 0
+    except Exception:  # noqa: BLE001
+        log.warning("[sample_examples] could not dismiss the example passed setup", exc_info=True)
     insight_id = recorded.get("insightId")
     if insight_id:
         try:

@@ -65,7 +65,7 @@ from datetime import date, datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import Any, Callable
 
-from api.services.journal_two import chart_blocks
+from api.services.journal_two import chart_blocks, sample_marker
 from api.services.journal_two import tech_fingerprint as tfp
 from api.services.notebook_flags import flag_on
 
@@ -324,6 +324,9 @@ def templates_for(conn: sqlite3.Connection, user_id: str) -> list[dict]:
     """The member's tagged chart blocks with a frozen fingerprint, newest day first, at most
     `MAX_TEMPLATES` (the plan's bound). Read from the index only."""
     blocks = chart_blocks.list_blocks(user_id, conn, limit=chart_blocks.LIST_LIMIT)
+    # ⛔ Never a sample chart (fin-data I3): the example plan's hand-written fingerprint is not
+    # a setup the member traded, and it must not spend one of their template slots either.
+    blocks = sample_marker.without_sample_notes(conn, user_id, blocks)
     return [b for b in blocks if b.get("setupTag") and b.get("fingerprint")][:MAX_TEMPLATES]
 
 
@@ -441,6 +444,14 @@ def install_scheduler_hook(scheduler: Any, cron_trigger: Any, tz: Any) -> bool:
 
 # ── the request path: READS ONLY ───────────────────────────────────────────────────────────────
 
+#: An example chart's answer (fin walk P9). `templates_for` leaves sample charts out of the
+#: nightly run by design, so "pending" ("this one is matched tonight") is false for one.
+STATUS_EXAMPLE = "example"
+NEVER_MATCHED_EXAMPLE = {
+    "reason": "sample_example",
+    "sentence": "This chart is an example, so it is never matched. Tag a chart of your own to find names like it.",
+}
+
 def _latest_as_of(conn: sqlite3.Connection, user_id: str, note_id: str, embed_key: str) -> str | None:
     r = conn.execute("SELECT MAX(as_of) FROM j2_similar_matches WHERE user_id = ? AND note_id = ?"
                      " AND embed_key = ?", (user_id, note_id, embed_key)).fetchone()
@@ -468,6 +479,14 @@ def read_matches(conn: sqlite3.Connection, user_id: str, note_id: str, embed_key
                     "symbol": None, "setupTag": None, "asOf": None, "frozen": False}
     else:
         template = _template_shape(block)
+    # ⛔ ASKED OF THE ONE PREDICATE, the same one `templates_for` filters with, so the answer
+    # here and what the nightly run does cannot disagree. Rows stored before the chart was
+    # known as an example are not shown either: they are not the member's setup.
+    example = sample_marker.is_sample_note(conn, user_id, note_id)
+    template["example"] = example
+    if example:
+        return {"template": template, "asOf": None, "computedAt": None, "status": STATUS_EXAMPLE,
+                "matches": [], "neverMatched": dict(NEVER_MATCHED_EXAMPLE)}
     as_of = _latest_as_of(conn, user_id, note_id, embed_key)
     rows = conn.execute(
         "SELECT rank, symbol, score, distance, coverage, reasons_json, computed_at FROM j2_similar_matches"
@@ -482,7 +501,7 @@ def read_matches(conn: sqlite3.Connection, user_id: str, note_id: str, embed_key
     else:
         status = "pending"
     return {"template": template, "asOf": as_of, "computedAt": rows[0]["computed_at"] if rows else None,
-            "status": status, "matches": matches}
+            "status": status, "matches": matches, "neverMatched": None}
 
 
 def list_templates(conn: sqlite3.Connection, user_id: str) -> list[dict]:

@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
-import useDarkSection from './useDarkSection'
+import useDarkSection, { useSectionsState } from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
-import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { signedPremium } from './optionsFormat'
 import OffNotice from './OffNotice'
+import FailedRead from './FailedRead'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 import Select from '../../components/ui/Select'
+import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // Premium reads on the terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS):
 // T/B at two decimals, M at one, K whole -- the tide's own old ladder, now shared.
@@ -27,12 +30,10 @@ import Select from '../../components/ui/Select'
 
 const SCOPES = [['all', 'All'], ['stocks', 'Stocks'], ['etfs', 'ETFs']]
 
+// The signed premium ("+$40K", "-$1.3M", "$0"), on the shared terminal ladder with its "$" from
+// the primitive (POS / TIDE / the chain tools all read it). Was a hand-made `±$`.
 export function money(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—'
-  const n = Number(v)
-  const a = Math.abs(n)
-  const s = formatCompactTerminal(a)
-  return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
+  return signedPremium(v)
 }
 
 /** A stale tide says WHEN it was last computed, not a bare "Refreshing." that reads as live.
@@ -77,9 +78,15 @@ export function minuteAt(minutes, fracX) {
   return minutes[Math.max(0, Math.min(minutes.length - 1, i))].t
 }
 
-function TidePanel({ scope, setScope, onPickMinute }) {
-  const { data, error } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
+function TidePanel({ scope, setScope, onPickMinute, quietLoading = false }) {
+  const { data, error, mutate } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false })
+  // TERM-019: the terminal panel header names the tape and the session minute it runs through.
+  const tideLast = Array.isArray(data?.minutes) ? data.minutes[data.minutes.length - 1] : null
+  usePanelFreshness(data && !data.paywalled && !error && Array.isArray(data.minutes)
+    ? { source: 'UCT options flow tape (50+ contract, $10K+ prints)', observedAt: data.computed_at || null,
+      age: { asOfDate: data.session ? `${data.session}${tideLast ? ` ${tideLast.t} ET` : ''}` : null } }
+    : null)
 
   if (error?.status === 404 || data?.paywalled) return null
   const head = (
@@ -95,11 +102,15 @@ function TidePanel({ scope, setScope, onPickMinute }) {
   )
   if (error) {
     return <section className={styles.panel} data-testid="market-tide">{head}
-      <p className={styles.note} data-testid="market-tide-unavailable">
-        Market Tide is unavailable right now. That does not mean the tape is quiet.
-      </p></section>
+      <FailedRead testId="market-tide-unavailable" retry={mutate}
+        title="Market Tide is unavailable right now. That does not mean the tape is quiet." /></section>
   }
-  if (!data) return <section className={styles.panel} data-testid="market-tide">{head}<p className={styles.note}>Reading the tape…</p></section>
+  // Standalone (TIDE), OffNotice already says "Loading market tide…" while every read is in
+  // flight; a second loading line under it was the same sentence twice (audit 2026-10-07).
+  if (!data) {
+    return <section className={styles.panel} data-testid="market-tide">{head}
+      {quietLoading ? null : <p className={styles.note}>Reading the tape…</p>}</section>
+  }
   // A body that is not a tide (an HTML page, another route's JSON) renders nothing rather
   // than crashing the Options Flow page it is mounted on.
   if (!Array.isArray(data.minutes)) return null
@@ -161,7 +172,7 @@ function TidePanel({ scope, setScope, onPickMinute }) {
 // ── FT-056 per-sector tide ────────────────────────────────────────────────────
 
 export function SectorTide({ scope }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/market-tide/sectors?scope=${scope}`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/market-tide/sectors?scope=${scope}`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.sectors))) return null
   return (
     <section className={styles.panel} data-testid="sector-tide">
@@ -169,16 +180,16 @@ export function SectorTide({ scope }) {
         <span className={styles.title}>Market Tide by sector</span>
         <span className={styles.badge}>computed</span>
       </div>
-      {failed ? <p className={styles.note}>The sector tide is unavailable right now. That does not mean the tape is quiet.</p> : (
+      {failed ? <FailedRead testId="sector-tide-unavailable" retry={retry} title="The sector tide is unavailable right now. That does not mean the tape is quiet." /> : (
         <>
           {data.sectors.length ? (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="sector-tide-table">
-                <thead><tr><th>Sector</th><th>Net call premium</th><th>Net put premium</th><th>Net</th><th>Prints</th></tr></thead>
+              <table className={styles.table} data-testid="sector-tide-table" aria-label="Market Tide by sector">
+                <thead><tr><th scope="col">Sector</th><th scope="col">Net call premium</th><th scope="col">Net put premium</th><th scope="col">Net</th><th scope="col">Prints</th></tr></thead>
                 <tbody>
                   {data.sectors.map((x) => (
                     <tr key={x.sector}>
-                      <th>{x.sector}</th>
+                      <th scope="row">{x.sector}</th>
                       <td>{money(x.totals.net_call_premium)}</td><td>{money(x.totals.net_put_premium)}</td>
                       <td className={x.totals.net_premium >= 0 ? styles.gain : styles.loss}>{money(x.totals.net_premium)}</td>
                       <td>{x.prints}{x.prints_unsigned ? <span className={styles.muted}> ({x.prints_unsigned} unsigned)</span> : null}</td>
@@ -216,7 +227,7 @@ export function TideMinute({ scope, minute, setMinute }) {
           {probe.data.minutes.map((t) => <option key={t} value={t}>{t} ET</option>)}
         </Select>
       </div>
-      {one.failed && <p className={styles.note}>That minute&apos;s prints are unavailable right now.</p>}
+      {one.failed && <FailedRead testId="tide-minute-unavailable" retry={one.retry} title={"That minute's prints are unavailable right now."} />}
       {d && Array.isArray(d.prints) && (
         <>
           <p className={styles.facts} data-testid="tide-minute-count">
@@ -224,12 +235,12 @@ export function TideMinute({ scope, minute, setMinute }) {
           </p>
           {d.prints.length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="tide-minute-prints">
-                <thead><tr><th>Ticker</th><th>Contract</th><th>Side</th><th>Premium</th><th>Contracts</th><th>Type</th></tr></thead>
+              <table className={styles.table} data-testid="tide-minute-prints" aria-label={`Prints at ${d.t} ET`}>
+                <thead><tr><th scope="col">Ticker</th><th scope="col">Contract</th><th scope="col">Side</th><th scope="col">Premium</th><th scope="col">Contracts</th><th scope="col">Type</th></tr></thead>
                 <tbody>
                   {d.prints.map((p, i) => (
                     <tr key={`${p.symbol}-${p.time}-${i}`}>
-                      <th>{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
+                      <th scope="row">{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
                       <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{tradeTypeWords(p.trade_type)}</td>
                     </tr>
                   ))}
@@ -253,14 +264,18 @@ export default function MarketTidePanel({ offNotice = false }) {
   // while the click-through's switch is on
   const probe = useDarkSection(`/api/options/market-tide/minute?scope=${scope}`)
   const clickable = isMinuteList(probe.data?.minutes)
+  const urls = [
+    `/api/options/market-tide?scope=${scope}`,
+    `/api/options/market-tide/sectors?scope=${scope}`,
+    `/api/options/market-tide/minute?scope=${scope}`,
+  ]
+  // the same three keys OffNotice reads (SWR shares the requests); fixed length, so hook order holds
+  const { allLoading } = useSectionsState(urls)
   return (
     <>
-      {offNotice && <OffNotice feature="Market Tide" urls={[
-        `/api/options/market-tide?scope=${scope}`,
-        `/api/options/market-tide/sectors?scope=${scope}`,
-        `/api/options/market-tide/minute?scope=${scope}`,
-      ]} />}
-      <TidePanel scope={scope} setScope={setScope} onPickMinute={clickable ? setMinute : undefined} />
+      {offNotice && <OffNotice feature="Market Tide" urls={urls} />}
+      <TidePanel scope={scope} setScope={setScope} onPickMinute={clickable ? setMinute : undefined}
+        quietLoading={offNotice && allLoading} />
       <SectorTide scope={scope} />
       <TideMinute scope={scope} minute={minute} setMinute={setMinute} />
     </>

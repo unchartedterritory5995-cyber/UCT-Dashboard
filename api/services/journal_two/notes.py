@@ -21,6 +21,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import db as j2_db
+from api.services.journal_two import sample_marker
 from api.services.journal_two.notebook_schema import check_body_write
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
@@ -45,6 +46,10 @@ def _log_notebook_event(user_id: str, event: str, details: dict | None = None) -
 MAX_TITLE_CHARS = 300
 MAX_SUBTITLE_CHARS = 500
 MAX_BODY_JSON_BYTES = 1_000_000  # 1MB
+# The most notes `import_confirm` takes in one batch. A name, not a literal in the
+# check, because the import door's body cap is derived from it
+# (`journal_two._note_import_json_max`): the largest batch this accepts must fit.
+IMPORT_CONFIRM_MAX_NOTES = 500
 MAX_TAG_LENGTH = 40
 MAX_TAGS = 30
 MAX_TICKER_LENGTH = 16
@@ -1181,8 +1186,8 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     if not isinstance(payload, dict) or not isinstance(payload.get("notes"), list):
         raise NoteValidationError("invalid import payload")
     notes = payload["notes"]
-    if len(notes) > 500:
-        raise NoteValidationError("too many notes in one batch (max 500)")
+    if len(notes) > IMPORT_CONFIRM_MAX_NOTES:
+        raise NoteValidationError(f"too many notes in one batch (max {IMPORT_CONFIRM_MAX_NOTES})")
     raw_source = payload.get("source")
     if raw_source is not None and not isinstance(raw_source, str):
         raise NoteValidationError("source must be a string")
@@ -1232,7 +1237,12 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # note sharing that same path fails and rolls itself back.
                 path = tuple((n.get("folderPath") or [])[:max_path_depth])
                 if path not in path_cache:
-                    path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
+                    # A folder the SAMPLE's import makes carries the sample's mark, so its
+                    # removal can find exactly the folders it made (never by name, never by
+                    # time). Any other import leaves the mark NULL.
+                    path_cache[path] = (ensure_folder_path(
+                        user_id, list(path), dest, conn=conn,
+                        import_source=source if sample_marker.is_sample(source) else None)
                                         if path else (dest or None))
                 folder_id = path_cache[path] or None
                 # Wave 0 trash: same reasoning as import_check above — a
@@ -1333,6 +1343,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
 
 # ── Row mapping ──────────────────────────────────────────────────────────────
 
+def _served_body(row: sqlite3.Row) -> Any:
+    """The note's body as it is served. A SAMPLE note added before its chart levels took the
+    drawn shape is served with them upgraded, in memory (`sample_marker.upgrade_sample_levels`);
+    a read never writes it back. Every other note is served exactly as stored."""
+    body = json.loads(row["body_json"] or '{"type":"doc","content":[]}')
+    if "import_source" in row.keys() and sample_marker.is_sample(row["import_source"]):
+        return sample_marker.upgrade_sample_levels(body)
+    return body
+
+
 def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -1341,7 +1361,7 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "folderId": row["folder_id"],
         "title": row["title"] or "",
         "subtitle": row["subtitle"],
-        "bodyJson": json.loads(row["body_json"] or '{"type":"doc","content":[]}'),
+        "bodyJson": _served_body(row),
         "bodyPlain": row["body_plain"] or "",
         "heroImageUrl": row["hero_image_url"],
         "firstImageUrl": row["first_image_url"],
@@ -3000,9 +3020,18 @@ def resolve_note_link_targets(
             conn.close()
 
 
+#: A note that counts toward "symbols this member has written about": live, and NOT a sample.
+#: ⛔ fin-data I3: the sample notebook's examples chart and name six real tickers. Read here
+#: they became "symbols you have research on", so a real position stopping out in one of them
+#: fired "review your research" (awareness R6) for research the member never wrote. Wave 8's
+#: rule for the first five notes was already "the sample must never do this"; the wave-14
+#: examples are held to it by the one predicate, `sample_marker`.
+_MENTION_COUNTS = "n.deleted_at IS NULL AND " + sample_marker.not_sample_sql("n")
+
+
 def _member_mentioned_symbols(user_id: str, conn: sqlite3.Connection) -> list[str]:
     """The member's own bounded, DISTINCT mentioned-symbol vocabulary
-    (widget embeds + cashtag mentions, trash excluded) — the shared query
+    (widget embeds + cashtag mentions; trash and the sample notebook excluded) — the shared query
     behind resolve_sector_theme_symbols and get_sector_theme_facets, pulled
     out so the two can never drift on what "mentioned" means. Same
     trash-exclusion join shape as get_symbol_backlinks — a symbol mentioned
@@ -3011,11 +3040,11 @@ def _member_mentioned_symbols(user_id: str, conn: sqlite3.Connection) -> list[st
         "SELECT DISTINCT symbol FROM ("
         "  SELECT e.symbol AS symbol FROM j2_note_embeds e"
         "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-        "  WHERE e.user_id = ? AND n.deleted_at IS NULL"
+        f"  WHERE e.user_id = ? AND {_MENTION_COUNTS}"
         "  UNION"
         "  SELECT m.symbol AS symbol FROM j2_note_mentions m"
         "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
-        "  WHERE m.user_id = ? AND n.deleted_at IS NULL"
+        f"  WHERE m.user_id = ? AND {_MENTION_COUNTS}"
         ")",
         (user_id, user_id),
     ).fetchall()
@@ -3039,11 +3068,11 @@ def bulk_member_mentioned_symbols(conn: sqlite3.Connection) -> dict[str, set[str
         "SELECT user_id, symbol FROM ("
         "  SELECT e.user_id AS user_id, e.symbol AS symbol FROM j2_note_embeds e"
         "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-        "  WHERE n.deleted_at IS NULL"
+        f"  WHERE {_MENTION_COUNTS}"
         "  UNION"
         "  SELECT m.user_id AS user_id, m.symbol AS symbol FROM j2_note_mentions m"
         "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
-        "  WHERE n.deleted_at IS NULL"
+        f"  WHERE {_MENTION_COUNTS}"
         ")"
     ).fetchall()
     out: dict[str, set[str]] = {}
@@ -5417,7 +5446,8 @@ def delete_folder(
             conn.close()
 
 
-def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None) -> str:
+def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None,
+                       *, import_source: str | None = None) -> str:
     """Upsert a folder chain under dest_folder_id; returns leaf folder id.
     Truncates each segment to the 80-char folder-name cap.
 
@@ -5461,6 +5491,11 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
                 pid = row["id"]
             else:
                 pid = create_folder(user_id, name, parent_id=pid, conn=conn)["id"]
+                # Only a folder this call CREATED is marked. One it found and reused is
+                # somebody's already, and stays exactly as it was.
+                if import_source:
+                    conn.execute("UPDATE j2_note_folders SET import_source = ? WHERE id = ? AND user_id = ?",
+                                 (import_source, pid, user_id))
         if owned:
             conn.commit()
         return pid

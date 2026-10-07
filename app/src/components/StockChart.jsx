@@ -830,7 +830,7 @@ import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
-import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
+import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
 import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
 import { withPrimaryProduct } from './chart/engine/primaryProduct'
 // ⭐ ECONOMIC PRIMARY CHART (`ECON:<SYMBOL>`) + economic overlays (`econ:`). Every
@@ -1240,6 +1240,25 @@ function computeEMA(bars, period, fromStart = false) {
 // value at the same index (mirrors the toolbar's `parseInt(v) || old`), falling back
 // to 20 only when there's no prior. Returns the same object reference when nothing
 // needed fixing, so it never churns identity on the common path.
+/**
+ * ⭐ A PERCENT CHANGE ONLY WHERE ONE MEANS SOMETHING (Breadth finishing pass, 2026-10-07).
+ *
+ * `change ÷ reference × 100` is a price idea. It was applied to every primary series, so a
+ * Net New Highs-Lows bar going −125 → −144 read "−129.03%" (the reference was the OPEN of a
+ * close-to-close body, and negative). Two rules:
+ *   • the reference must be POSITIVE — a ratio over zero or a negative is not a percent move;
+ *   • a SIGNED series (catalogue domain `signed`: Net H-L, McClellan, A/D line, net advances)
+ *     has no percent change at all — its point change IS the reading.
+ * Returns `null` when there is none; the legend then prints the point change alone.
+ */
+export function signSafeChangePct(change, reference, signed) {
+  if (signed) return null
+  const ref = Number(reference)
+  const chg = Number(change)
+  if (!Number.isFinite(ref) || !Number.isFinite(chg) || ref <= 0) return null
+  return (chg / ref) * 100
+}
+
 export function sanitizeOverlayPeriods(next, prev) {
   if (!next || !Array.isArray(next.overlays)) return next
   const okPeriod = (p) => { const n = Math.floor(Number(p)); return Number.isFinite(n) && n >= 1 && n <= 500 ? n : null }
@@ -2938,6 +2957,20 @@ export default function StockChart({
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
     }
   }
+  // ⭐ A CHANGE TO THE STORED SCALE WINS OVER A STALE LOCAL OVERRIDE. The override
+  // above exists for surfaces whose settings write is MASKED (stored scale never
+  // changes there, so this never fires and the override keeps working). Where the
+  // write lands (/charts), a toggle click sets the override AND moves the stored
+  // scale to the same value, so clearing it changes nothing visible — but an
+  // EXTERNAL writer (UCT Agent's chart.setScale, a template, a restore) used to be
+  // silently outranked by an override left from an earlier click.
+  const storedScale = cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith')
+  const storedScaleRef = useRef(storedScale)
+  useEffect(() => {
+    if (storedScaleRef.current === storedScale) return
+    storedScaleRef.current = storedScale
+    setScaleOverride(null)
+  }, [storedScale])
   // The price pane's right scale, addressed via the candle series so it's always
   // the PRICE scale even when an index-comparison pane sits at pane 0 (where
   // chart.priceScale('right') would otherwise resolve). Falls back to the bare
@@ -4841,7 +4874,7 @@ export default function StockChart({
       change = feedChg != null ? feedChg : (prevClose != null ? c - prevClose : c - o)
     } else {
       change = prevClose != null ? c - prevClose : c - o
-      changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
+      changePct = signSafeChangePct(change, prevClose != null ? prevClose : o, canonicalDomain(symRef.current) === 'signed')
     }
     const ovData = overlayDataRef.current || []
     const rovs = resolvedOverlaysRef.current || []
@@ -4853,7 +4886,7 @@ export default function StockChart({
     const vma = volMaDataRef.current
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
-      change: change.toFixed(2), changePct: changePct.toFixed(2),
+      change: change.toFixed(2), changePct: changePct == null ? '' : changePct.toFixed(2),
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
       // ⭐ THE CHIPS THE OFF-CURSOR LEGEND NOW PRINTS. This line read
@@ -7629,10 +7662,19 @@ export default function StockChart({
   // basis, value sanity) still gates it — a wrong-basis deep set is never spliced.
   // Only reached where the arm previously drew `data.bars`; every other outcome is
   // unchanged, and the pre-server arm keeps its refusal untouched.
+  // ⛔ BUT NOT THE LAST-BAR PRICE SANITY. `_idbDailyLastInsane` judges the cache's LAST
+  // bar as a stock price (positive, open within 50% of close) because that bar would be
+  // the first frame's tail. The splice never draws it — the tail is the server's — and
+  // the rule is wrong for a value series: NASDAQ:NETHL / MCO close below zero and a
+  // %-above-MA can double in a session, so every such day dropped the deep history and
+  // the chart "began" at the 600-bar window (May 2024, 2026-10-07).
+  const _splitDeepSpliceable = _splitOn && idbBars?.length > 0
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !_idbBasisMismatch
   const _splitDeepBehindFresh = useMemo(
-    () => ((_netMatches && !data.delta && _splitDeepUsable && !(_idbFresh || _splitDeepPaintable))
+    () => ((_netMatches && !data.delta && _splitDeepSpliceable && !(_idbFresh || _splitDeepPaintable))
       ? spliceDeepLeftOfFresh(idbBars, data.bars) : null),
-    [_netMatches, data, idbBars, _splitDeepUsable, _idbFresh, _splitDeepPaintable],
+    [_netMatches, data, idbBars, _splitDeepSpliceable, _idbFresh, _splitDeepPaintable],
   )
   const bars = _isCustomTf
     ? customBars   // custom TF: the resampled base bars (null until the base loads)
@@ -15266,7 +15308,7 @@ export default function StockChart({
         } catch { /* first bar / out of range */ }
       }
       const change = (prevClose != null) ? (c - prevClose) : (c - o)
-      const changePct = (prevClose != null && prevClose) ? ((change / prevClose) * 100) : (o ? ((change / o) * 100) : 0)
+      const changePct = signSafeChangePct(change, prevClose != null ? prevClose : o, canonicalDomain(symRef.current) === 'signed')
 
       // ── THE INDICATOR CHIPS — ONE PIPELINE, ONE LANE (B5 Task 6) ──────────
       //
@@ -15338,7 +15380,7 @@ export default function StockChart({
         open: o, high: h, low: l, close: c,
         volume: vol,
         change: change.toFixed(2),
-        changePct: changePct.toFixed(2),
+        changePct: changePct == null ? '' : changePct.toFixed(2),
         volAvg,
         volMaPeriod: volMaPeriodEff || null,
         overlays: ovValues,
@@ -19235,7 +19277,7 @@ export default function StockChart({
                     {legUp ? '+' : '−'}{String(crosshairData.change).replace(/^-/, '')}
                   </span>
                 )}
-                {barShows('changePct') && (
+                {barShows('changePct') && crosshairData.changePct !== '' && (
                   <span className={styles.barChg} style={{ color: legChgColor }}>
                     {legUp ? '+' : '−'}{String(crosshairData.changePct).replace(/^-/, '')}%
                   </span>
@@ -19451,7 +19493,7 @@ export default function StockChart({
               return c ? { color: c } : undefined
             })()}
           >
-            {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
+            {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change}{crosshairData.changePct !== '' ? ` (${crosshairData.changePct}%)` : ''}
           </span>
           {liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
             <LegendRow

@@ -210,3 +210,26 @@ test('the staleness notice states only what we can see: nothing newer is reporte
   expect(text).toMatch(/2025 Q4/)
   expect(text).toMatch(/reported/i)
 })
+
+// Accuracy follow-up 7 (audit 2026-10-06): a foreign filer's sales are in its REPORTING
+// currency (TSM reports in TWD). The payload's `currency` labels them; "$" never appears.
+test('a TWD filer: sales print "TWD", never "$", and the currency note is shown', () => {
+  mockData.mockReturnValue({
+    ticker: 'TSM', currency: 'TWD',
+    quarterly: [
+      { label: '2026 Q2', eps_actual: 15.4, eps_estimate: 14.9, eps_surprise_pct: 3.4, rev_actual: 9.3e11, rev_estimate: 9.1e11, rev_surprise_pct: 2.2, reported: true },
+    ],
+  })
+  render(<Wrap sym="TSM" />)
+  expect(screen.getByText('TWD 930.0B')).toBeInTheDocument()
+  expect(screen.getByText('TWD 910.0B')).toBeInTheDocument()
+  expect(document.body.textContent).not.toContain('$')
+  expect(screen.getByTestId('fundamentals-currency')).toHaveTextContent('Figures in TWD')
+})
+
+test('a USD (or unknown) payload renders exactly as before, with no note', () => {
+  mockData.mockReturnValue({ ...FULL_DATA, currency: 'USD' })
+  render(<Wrap />)
+  expect(screen.getByText('$1.6B')).toBeInTheDocument()
+  expect(screen.queryByTestId('fundamentals-currency')).not.toBeInTheDocument()
+})

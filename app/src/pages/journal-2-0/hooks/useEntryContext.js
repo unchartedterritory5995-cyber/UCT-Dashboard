@@ -62,20 +62,41 @@ export function useEntryContextFor(kind, id) {
   }
 }
 
+/** The server's code for "this note changed since you read it" (a 409 from the why door). */
+export const WHY_CHANGED = 'why_changed'
+
 /** Set (or, with an empty string, clear) the "why did you take it" note. Throws on failure —
- *  the caller (WhyPrompt) is the one place that renders the message. */
-export async function putWhy(symbol, entryDay, text) {
+ *  the caller (WhyPrompt) is the one place that renders the message.
+ *
+ *  ⛔ COMPARE-AND-SET: `baseUpdatedAt` is the note's `updatedAt` as the editor read it, or null
+ *  when there was no note. It is ALWAYS sent (a missing key would be the old last-write-wins).
+ *  When another tab or device saved in between, the server answers 409 and the thrown error
+ *  carries `code === WHY_CHANGED` and `current` (the stored note, or null when it was cleared),
+ *  so the caller can keep the member's typed words and show the other version beside them. */
+export async function putWhy(symbol, entryDay, text, baseUpdatedAt = null) {
   const res = await fetch(`${BASE}/why`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ symbol, entryDay, text }),
+    body: JSON.stringify({ symbol, entryDay, text, baseUpdatedAt: baseUpdatedAt ?? null }),
   })
   if (!res.ok) {
     let detail = `Could not save (${res.status})`
-    try { const body = await res.json(); if (body?.detail) detail = body.detail } catch { /* non-JSON */ }
+    let code = null
+    let current
+    try {
+      const body = await res.json()
+      if (typeof body?.detail === 'string') detail = body.detail
+      else if (body?.detail && typeof body.detail === 'object') {
+        if (body.detail.message) detail = body.detail.message
+        code = body.detail.code || null
+        current = body.detail.current ?? null
+      }
+    } catch { /* non-JSON */ }
     const err = new Error(detail)
     err.status = res.status
+    err.code = code
+    err.current = current
     throw err
   }
   return res.json()

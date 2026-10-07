@@ -44,8 +44,8 @@
 /* A prose cell inside a numeric table (an event's title, its source). */
 .grid td.text { white-space: normal; text-align: left; }
 .scroll { overflow-x: auto; max-width: 100%; }
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 .help { font-size: var(--text-base); color: var(--text-muted); margin: 6px 0 0; padding-left: var(--space-lg); }
 /* The panel a ?panel= deep link (e.g. the /terminal EVTS "Full page") landed on. */
 .focused { outline: 1px solid var(--ut-gold); outline-offset: 4px; border-radius: var(--radius-lg); scroll-margin-top: 12px; }

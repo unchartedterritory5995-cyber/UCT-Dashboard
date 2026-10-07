@@ -21,6 +21,6 @@
   letter-spacing: 0.2px;
 }
 
-.up   { color: var(--gain); }
-.down { color: var(--loss); }
+.up   { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 .flat { color: var(--text-muted); }

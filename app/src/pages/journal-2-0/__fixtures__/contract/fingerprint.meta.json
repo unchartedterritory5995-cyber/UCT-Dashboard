@@ -1,0 +1,43 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-fingerprint/meta",
+    "path": "/api/j2/notebook-fingerprint/meta",
+    "status": 200
+  },
+  "body": {
+    "fields": [
+      "adr_pct",
+      "pct_vs_sma10",
+      "pct_vs_sma20",
+      "pct_vs_sma50",
+      "pct_vs_sma200",
+      "ma_stack",
+      "ema_stack_intact",
+      "rs_rank",
+      "rs_line_trend",
+      "base_length_bars",
+      "base_depth_pct",
+      "pullback_depth_pct",
+      "vol_nweek_low",
+      "close_cv_pct",
+      "pole_pct",
+      "patterns"
+    ],
+    "missingReasons": {
+      "no_bars": "no stored daily bars on or before the day",
+      "no_benchmark": "no SPY bars for the RS line",
+      "no_flat_base": "no flat base ends at this day (base_catalog.flat_base_state found none)",
+      "not_enough_history": "too few sessions for this window",
+      "not_in_screener_row": "the nightly row holds no value for this column",
+      "patterns_current_window_only": "confirmed pattern verdicts are kept for the current seven-day window only",
+      "patterns_unavailable": "the confirmed-pattern store could not be read",
+      "rank_is_nightly_only": "RS rank is a nightly universe rank and only the latest nightly is kept; a past day has none",
+      "series_contradicts_itself": "withheld by the screener: the bar series reverses itself inside this window"
+    },
+    "transientMissing": [
+      "patterns_unavailable"
+    ],
+    "version": 1
+  }
+}

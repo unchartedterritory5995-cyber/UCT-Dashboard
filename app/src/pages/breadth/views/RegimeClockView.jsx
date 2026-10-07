@@ -220,7 +220,7 @@ export default function RegimeClockView({
                 <line key={`hit-${p.date ?? k}`} data-testid={`clock-dot-${k}`}
                       data-seek-idx={k} data-seek-date={p.date}
                       x1={X(p.level)} y1={Y(p.mom)} x2={X(p.level)} y2={Y(p.mom) + 0.01}
-                      stroke="#000" strokeOpacity="0" strokeWidth="16" strokeLinecap="round"
+                      stroke="transparent" strokeWidth="16" strokeLinecap="round"
                       vectorEffect="non-scaling-stroke"
                       style={{ pointerEvents: 'stroke', cursor: reachable ? 'pointer' : 'default' }}>
                   <title>{`${p.date} · level ${p.level.toFixed(1)} · momentum ${p.mom.toFixed(1)}`}</title>

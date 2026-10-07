@@ -83,5 +83,5 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.qvalUp { fill: var(--gain); }
-.qvalDown { fill: var(--loss); }
+.qvalUp { fill: var(--success-ink); }
+.qvalDown { fill: var(--danger-ink); }

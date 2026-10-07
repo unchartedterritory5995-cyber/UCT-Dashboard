@@ -22,7 +22,10 @@ export default function useOwnership(rawSym) {
   return useMemo(() => ({
     data: data ? data.body : null,
     isLoading: Boolean(isLoading && !data),
-    error: Boolean(data && !data.ok),
+    // 402 is the paid gate -- a STATE the tab renders as copy, never an outage to retry (the
+    // same rule as useCatalystHistory.js / sectionFetch.js; Retry could never clear it).
+    paywalled: Boolean(data && !data.ok && data.httpStatus === 402),
+    error: Boolean(data && !data.ok && data.httpStatus !== 402),
     mutate,
   }), [data, isLoading, mutate])
 }

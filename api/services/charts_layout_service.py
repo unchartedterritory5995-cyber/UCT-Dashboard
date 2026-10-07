@@ -169,6 +169,31 @@ def upsert(scope: str, user_id, name: str, layout: dict,
     return _row_to_dict(r)
 
 
+def create(scope: str, user_id, name: str, layout: dict,
+           groups: Optional[dict], created_by: Optional[str]) -> Optional[dict]:
+    """Insert a NEW layout, or return None if (scope, user_id, name) is already taken.
+    The check and the insert share the write lock, so this never replaces a row —
+    the caller asked for a new layout, not for whatever already holds that name."""
+    if scope not in ("global", "user"):
+        scope = "user"
+    uid = _GLOBAL_UID if scope == "global" else user_id
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if c.execute("SELECT 1 FROM charts_layouts WHERE scope=? AND user_id=? AND name=?",
+                     (scope, uid, name)).fetchone():
+            return None
+        cur = c.execute(
+            "INSERT INTO charts_layouts (scope, user_id, name, layout_json, groups_json, created_by, created_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (scope, uid, name, json.dumps(layout), json.dumps(groups) if groups else None, created_by, now),
+        )
+        c.commit()
+        r = c.execute("SELECT * FROM charts_layouts WHERE id=?", (cur.lastrowid,)).fetchone()
+    if scope == "user":
+        _version(user_id, r, before=None)
+    return _row_to_dict(r)
+
+
 def _version(user_id, r, *, before, source="save", restored_from=None):
     """COV-06: snapshot a committed save of a member's OWN (user-scope) layout. Prebuilt
     (global) rows are firm-curated, not a member's curation, and are not versioned. Never

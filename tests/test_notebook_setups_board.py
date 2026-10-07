@@ -289,3 +289,24 @@ def test_the_board_route_serves_the_member_their_own_cards(client, monkeypatch):
     assert [(x["symbol"], x["distancePct"], x["distanceR"]) for x in body["cards"]] == [("NVDA", 2.94, 0.6)]
     as_user(client, "m2")
     assert client.get("/api/j2/setups-board").json()["count"] == 0
+
+
+# ── fin walk P7: the board says whether a plan can be drawn at all ──────────────────────────
+
+def test_the_board_says_drawing_a_plan_is_unavailable_while_chart_plan_is_off(conn, monkeypatch):
+    """The empty board tells the member to draw an entry line on a chart in a plan note. That
+    is the chart plan panel. With it switched off the instruction points at nothing, so the
+    payload says so and the client can word the empty state honestly."""
+    monkeypatch.delenv("NOTEBOOK_CHART_PLAN_ENABLED", raising=False)
+    out = setups_board.build_cards(conn, "u1", today=TODAY, prices=prices({}))
+    assert out["count"] == 0
+    assert out["planDrawing"] == {
+        "available": False, "reason": "chart_plan_off",
+        "sentence": "Drawing a plan on a chart is switched off, so no new setup can be added here yet.",
+    }
+
+
+def test_the_board_says_drawing_is_available_while_chart_plan_is_on(conn, monkeypatch):
+    monkeypatch.setenv("NOTEBOOK_CHART_PLAN_ENABLED", "1")
+    out = setups_board.build_cards(conn, "u1", today=TODAY, prices=prices({}))
+    assert out["planDrawing"] == {"available": True, "reason": None, "sentence": None}

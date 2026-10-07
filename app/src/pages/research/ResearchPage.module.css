@@ -25,7 +25,7 @@
 .hdrSearch { margin-top: 4px; }
 .hdrCompare { margin-top: 4px; font-size: var(--text-sm); }
 .hdrRatings { flex-basis: 100%; }
-.up { color: var(--gain); } .down { color: var(--loss); }
+.up { color: var(--success-ink); } .down { color: var(--danger-ink); }
 .gold { color: var(--ut-gold); } .muted { color: var(--text-muted); }
 
 /* rating badges */
@@ -87,8 +87,8 @@
 /* Growth heat: the app's own gain/loss inks mixed into the cell, so a light or
    catalog theme tints with ITS gain and loss rather than a fixed dark-theme rgba. */
 .heatPos2 { background: color-mix(in srgb, var(--gain) 30%, transparent); color: var(--text-bright); font-weight: 700; border-radius: var(--radius-sm); }
-.heatPos1 { background: var(--gain-bg); color: var(--gain); border-radius: var(--radius-sm); }
-.heatNeg1 { background: var(--loss-bg); color: var(--loss); border-radius: var(--radius-sm); }
+.heatPos1 { background: var(--gain-bg); color: var(--success-ink); border-radius: var(--radius-sm); }
+.heatNeg1 { background: var(--loss-bg); color: var(--danger-ink); border-radius: var(--radius-sm); }
 .heatNeg2 { background: color-mix(in srgb, var(--loss) 30%, transparent); color: var(--text-bright); font-weight: 700; border-radius: var(--radius-sm); }
 /* The ONE state line for research tabs and depth panels: loading, empty,
    unavailable and paywalled all read as this muted sentence (never loss-red),

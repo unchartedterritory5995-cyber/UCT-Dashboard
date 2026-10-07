@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/research-capture/passed-setups",
+    "path": "/api/j2/research-capture/passed-setups",
+    "status": 402
+  },
+  "body": {
+    "detail": "Research capture requires a paid plan"
+  }
+}

@@ -46,6 +46,13 @@ UNREADABLE_SENTENCE = "The entry context could not be read just now. Try again i
 NO_CONTEXT_SENTENCE = ("No market context was captured for this entry, so there is nothing to "
                        "attach the note to.")
 
+#: fin-data I5: the why note changed (another tab, another device) since this editor read it.
+#: The client keeps the member's typed words and shows this sentence beside the stored ones.
+WHY_CHANGED_CODE = "why_changed"
+WHY_CHANGED_SENTENCE = ("This note was changed somewhere else since you opened it. Your words "
+                        "were not saved and are still here. Save again to replace the other "
+                        "version, or cancel to keep it.")
+
 #: A why note is at most WHY_MAX_CHARS characters; the body is bounded well above that.
 MAX_BODY_BYTES = 8 * 1024
 TOO_LARGE_SENTENCE = "Request too large"
@@ -160,10 +167,21 @@ def for_trade(trade_id: str, user: dict = Depends(require_paid)):
 @router.put("/why")
 def put_why(body: dict = Depends(paid_body), user: dict = Depends(require_paid)):
     uid = str(user["id"])
+    # fin-data I5: `baseUpdatedAt` (the why's `updatedAt` as this editor read it; null = there
+    # was none) makes the save a compare-and-set. A key that is ABSENT is the bundle from
+    # before this check and saves as it did -- the note door's own rule.
+    base = body["baseUpdatedAt"] if "baseUpdatedAt" in body else ectx.NO_BASE
     try:
-        ctx = ectx.set_why(uid, body.get("symbol"), body.get("entryDay"), body.get("text"))
+        ctx = ectx.set_why(uid, body.get("symbol"), body.get("entryDay"), body.get("text"),
+                           base_updated_at=base)
     except ectx.EntryContextRequestError as e:
         raise HTTPException(status_code=422, detail=str(e)) from None
+    except ectx.WhyConflict as e:
+        # 409, like every other stale-base write here. The stored words ride along so the
+        # client can show them; it keeps what the member typed and says so.
+        raise HTTPException(status_code=409, detail={
+            "code": WHY_CHANGED_CODE, "message": WHY_CHANGED_SENTENCE, "current": e.current,
+        }) from None
     except sqlite3.Error:
         raise _unreadable("why", uid) from None
     if ctx is None:

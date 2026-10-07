@@ -1,0 +1,199 @@
+{
+  "_doc": [
+    "Terminal theme rail baseline — read by pages/terminal/themeColours.rail.test.js.",
+    "exceptions = genuine fixed colours, each with its reason; debt = colours that should follow the theme and do not yet.",
+    "SHRINK-ONLY: a file may never gain a literal; when one is removed, lower its count here in the same commit (the rail reds until you do)."
+  ],
+  "exceptions": {
+    "components/CompanyLogo.module.css": {
+      "count": 1,
+      "why": "The white plate under a third-party company logo: brand logos are drawn for a white ground."
+    },
+    "components/NavBar.module.css": {
+      "count": 1,
+      "why": "The \"UCT\" wordmark green is sampled from the compass logo PNG (a fixed asset), so it is a fixed hex on every theme."
+    },
+    "components/calendar/TranscriptSearchAll.jsx": {
+      "count": 3,
+      "why": "Categorical hues for arbitrary search terms (no direction); the chart host nudges each to 3:1 on the live surface."
+    },
+    "components/research-kit/charts/echartsCore.js": {
+      "count": 10,
+      "why": "CHART_INK: the dark-theme literals the chart host swaps for resolved tokens at render (resolveThemeColor) — the jsdom fallback, never what a browser paints."
+    },
+    "components/research/sections/statementSeries.js": {
+      "count": 9,
+      "why": "Categorical series hues (revenue / op income / ...); the research-kit chart host nudges each to 3:1 on the live surface."
+    },
+    "components/ui/UIcon.jsx": {
+      "count": 7,
+      "why": "The brand gold emboss gradient (CLAUDE.md \"UI Icons\"); gold={false} gives currentColor where a surface needs it."
+    },
+    "components/voice/CompassOrb.jsx": {
+      "count": 28,
+      "why": "Brand artwork: the Compass orb medallion and its state glyph colours."
+    },
+    "constants/tagColors.js": {
+      "count": 14,
+      "why": "The seven member-picked ticker tag colours: identity data the member chose, not chrome."
+    },
+    "pages/Breadth.module.css": {
+      "count": 7,
+      "why": "The heat ladder (.bgG3...bgR3) is pinned byte-equal to tokens.css --heat-* by styles/tokens.test.js; translucent, so it composites on any ground."
+    },
+    "pages/BreadthCharts.jsx": {
+      "count": 1,
+      "why": "The follow-through-day violet, an identity hue drawn through readable() = ensureContrast against the live surface."
+    },
+    "pages/ThemeTrackerPage.module.css": {
+      "count": 2,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme]), a theme of its own, not the app theme."
+    },
+    "pages/Watchlists.module.css": {
+      "count": 2,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme]), a theme of its own, not the app theme."
+    },
+    "pages/breadth/breadthShare.js": {
+      "count": 5,
+      "why": "The exported Breadth share PNG is a fixed brand card, the same image whatever theme the sharer wears."
+    },
+    "pages/breadth/chartMetrics.js": {
+      "count": 19,
+      "why": "MA-breadth extreme-line and tone data inks; BreadthChartsV2 passes them through readable() (extremeInks) per theme."
+    },
+    "pages/breadth/heatmapMetrics.js": {
+      "count": 16,
+      "why": "TIER_CELL_COLORS / TIER_TIP_COLORS are now ONLY the /charts Breadth widget's dark-canvas tile palette (BreadthWidget picks them, LIGHT_TIER_* or the member's up/down hues by the member-chosen canvas). The Breadth treemap follows the theme through --heat-* (breadth/heatTiles.js, 21-theme contrast rail)."
+    },
+    "pages/breadth/v2/BreadthChartsV2.jsx": {
+      "count": 4,
+      "why": "The jsdom surface fallback used only when no token resolves (t.text empty)."
+    },
+    "pages/breadth/v2/chartOption.js": {
+      "count": 18,
+      "why": "DEFAULT_CHROME / LIGHT_CHROME: fallbacks for a caller that does not resolve tokens (tests); BreadthChartsV2 hands in useThemeInk-resolved chrome."
+    },
+    "pages/breadth/views/breadthViewShared.js": {
+      "count": 44,
+      "why": "The four selectable Breadth View data palettes; useViewColors nudges every tier ink to 3:1 on a light surface."
+    },
+    "pages/charts/ChartsWorkspace.module.css": {
+      "count": 120,
+      "why": "Two fixed sets: the .colorDotA-H/N link-group dots (the same identity hues as colorGroups.js GROUP_HEX), and the /charts chart-theme scopes ([data-charts-theme='sunrise'|'default']: the Sunrise palette, the default theme's widget re-assertion and frozen-light placement), which only the /charts workspace or a popped-out widget window stamps. Every other workspace colour is a token."
+    },
+    "pages/charts/colorGroups.js": {
+      "count": 9,
+      "why": "Link-group (A-H, N) identity colours: a group is recognised by its hue across every widget and stored in the layout, like boardModel.js's link groups and a member-picked tag colour."
+    },
+    "pages/charts/widgetChrome.js": {
+      "count": 2,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/AiSearchWidget.module.css": {
+      "count": 4,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/BreadthSettingsPanel.jsx": {
+      "count": 4,
+      "why": "The ⚙ panel's swatch fallbacks: the hex a member-pickable colour input displays before the member has picked one (an <input type=color> needs a hex)."
+    },
+    "pages/charts/widgets/BreadthWidget.jsx": {
+      "count": 8,
+      "why": "Ratio-bar inks keyed on the member-chosen widget canvas (isLightCanvas: one pair for a light canvas, one for a dark), beside the member's own up/down hues (customBreadthColors) which win when set."
+    },
+    "pages/charts/widgets/ChartDateNav.module.css": {
+      "count": 3,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/FundamentalsWidget.module.css": {
+      "count": 3,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/LeverageInverseControl.module.css": {
+      "count": 4,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/NhnlSettingsPanel.jsx": {
+      "count": 3,
+      "why": "The ⚙ panel's swatch fallbacks: the hex a member-pickable colour input displays before the member has picked one (an <input type=color> needs a hex)."
+    },
+    "pages/charts/widgets/VolumeScanWidget.module.css": {
+      "count": 9,
+      "why": "The surge heat ramp (.t1-.t5): five opaque data-encoding fills, each paired with its own fixed ink chosen for that fill (white on the greens/red, near-black on yellow/orange) plus the new-surge white flash, so each pair reads the same on any theme ground."
+    },
+    "pages/charts/widgets/WatchlistPicker.module.css": {
+      "count": 15,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/alertsWidgetSettings.js": {
+      "count": 14,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/basicWidgetSettings.js": {
+      "count": 9,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/breadthWidgetSettings.js": {
+      "count": 22,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/calendarWidgetSettings.js": {
+      "count": 19,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/fundamentalsSettings.js": {
+      "count": 10,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/newsWidgetSettings.js": {
+      "count": 13,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/nhnlSettings.js": {
+      "count": 7,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/notebookWidgetSettings.js": {
+      "count": 9,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/optionsFlowWidgetSettings.js": {
+      "count": 14,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/profileWidgetSettings.js": {
+      "count": 17,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/cot/cotPalette.js": {
+      "count": 7,
+      "why": "COT trader-group HUES (the one authority); useCotPalette nudges each to 3:1 on the live surface and swaps the neutrals for text tokens."
+    },
+    "pages/terminal/boardModel.js": {
+      "count": 13,
+      "why": "Link-group (A-D) and channel identity colours: a group is recognised by its hue across every panel, like a tag colour."
+    },
+    "pages/theme-tracker/themeTrackerSettings.js": {
+      "count": 15,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/watchlist/WatchlistSettingsPanel.jsx": {
+      "count": 1,
+      "why": "The ⚙ panel's swatch fallbacks: the hex a member-pickable colour input displays before the member has picked one (an <input type=color> needs a hex)."
+    },
+    "pages/watchlist/watchlistSettings.js": {
+      "count": 16,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "utils/dividerColor.js": {
+      "count": 42,
+      "why": "Menu chrome is theme-INVARIANT by owner decision (2026-07-30, tokens.css --menu-*): MENU_THEME here is the JS mirror of that block."
+    }
+  },
+  "debt": {
+    "components/research/EarningsResearchModal.module.css": {
+      "count": 49,
+      "why": "THEME ISLAND: the earnings research modal pins every themed token to its dark :root value, so it stays dark under light themes. Owner decision pending (the ruling says every panel follows the theme; the island was a deliberate fix)."
+    }
+  }
+}

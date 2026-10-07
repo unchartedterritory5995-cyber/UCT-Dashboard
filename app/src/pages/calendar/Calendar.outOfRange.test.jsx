@@ -60,6 +60,13 @@ describe('a week outside the data window', () => {
     expect(screen.queryByText(/Couldn.t load that week/)).not.toBeInTheDocument()
   })
 
+  it('the week still loading is a named status, never "Loading UCT Terminal" (completeness audit 2026-10-07)', () => {
+    _payload = undefined
+    renderCalendar('/calendar?week=2026-06-01')
+    expect(screen.getByRole('status', { name: "Loading this week's calendar" })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Loading UCT Terminal')).not.toBeInTheDocument()
+  })
+
   it('a real failed week still offers Retry', () => {
     _payload = { week_start: '2026-06-01', week_end: '2026-06-05', days: {}, source: 'error' }
     renderCalendar('/calendar?week=2026-06-01')

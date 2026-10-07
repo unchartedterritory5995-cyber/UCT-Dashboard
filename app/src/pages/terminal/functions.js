@@ -31,6 +31,8 @@
 export const FUNCTION_GROUPS = ['Calendar', 'Security', 'Research depth', 'Options', 'Market', 'Shell']
 
 const DEPTH = 'researchDepth'   // AuthContext's object of Research › Depth flags (researchDepthFlags.js)
+/** IMOV's theme-name REST argument (args.js `themeName`; the marker is args.js THEME_MARKER). */
+const IMOV_THEME_ARG = Object.freeze({ kind: 'themeName', prop: 'theme', rest: true, marker: 'THEME' })
 
 export const FUNCTIONS = [
   // ── the Calendar section (owner ruling 2026-10-02: a first-class section of the shell) ──
@@ -225,7 +227,29 @@ export const FUNCTIONS = [
   // row CLICK loads that name into the linked group instead (panels/MoversPanel.jsx).
   { code: 'MOST', label: 'Market movers (gainers, losers, unusual volume)', group: 'Market',
     market: { panel: 'Movers', args: [{ kind: 'moversLens', prop: 'lens' }] } },
+
+  // ── theme contribution (feature-gaps-2026-10-06 #4, Bloomberg `IMOV`): which names are driving a
+  // UCT theme's move, equal-weighted because a UCT theme IS an equal-weight basket. An index or ETF
+  // is refused in the panel (no index weights are held). The ticker variant opens the theme(s)
+  // holding that name; a row CLICK loads that name into the linked group (panels/ImovPanel.jsx).
+  // A theme can be NAMED (`IMOV semiconductors`, `IMOV AI / GPU Chips`): every word the window does
+  // not take is the theme query (a REST spec, args.js `themeName`), resolved in the panel. `THEME`
+  // (args.js THEME_MARKER) is what the panel writes back for a hand-picked theme.
+  { code: 'IMOV', label: 'Theme movers (which names drive a UCT theme)', group: 'Market',
+    ticker: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] },
+    market: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] } },
 ]
+
+/** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
+ *  itself (`MOVERS UP` runs, titles and records as `MOST UP`), so a panel, its URL and its history
+ *  never carry two names for one function. Lookups by the typed spelling still resolve (BY_CODE
+ *  carries the alias), so nothing that checks a token against the registry can miss it.
+ *  Kept outside FUNCTIONS on purpose: an alias is not a second function, so the registry rails,
+ *  HELP's numbered list and the ranking see one entry. (WIIM predates this and stays a code of its
+ *  own: it has always titled its panel WIIM.) */
+export const CODE_ALIASES = Object.freeze({
+  MOVERS: 'MOST',   // the word members type for the movers list (fn2-movers)
+})
 
 /** `n` comparator-ticker argument slots (`with0` … `with{n-1}`), for the comparison codes. */
 function symbolArgs(n) {
@@ -248,10 +272,24 @@ export function flagOn(auth, flag) {
   return obj[tail] === true
 }
 
-export const BY_CODE = Object.freeze(Object.fromEntries(FUNCTIONS.map((f) => [f.code, f])))
+export const BY_CODE = Object.freeze(Object.fromEntries([
+  ...FUNCTIONS.map((f) => [f.code, f]),
+  ...Object.entries(CODE_ALIASES).map(([alias, code]) => [alias, FUNCTIONS.find((f) => f.code === code)]),
+]))
 
 export function isCode(token) {
   return typeof token === 'string' && Object.prototype.hasOwnProperty.call(BY_CODE, token.toUpperCase())
+}
+
+/** The registered code a token names: an alias answers with its code, anything else upper-cased. */
+export function canonicalCode(token) {
+  const t = String(token || '').toUpperCase()
+  return Object.prototype.hasOwnProperty.call(CODE_ALIASES, t) ? CODE_ALIASES[t] : t
+}
+
+/** The aliases of one code (HELP prints them beside it). */
+export function aliasesOf(code) {
+  return Object.keys(CODE_ALIASES).filter((a) => CODE_ALIASES[a] === code)
 }
 
 /** The variant a command selects: ticker when a security was given AND the code has one,
@@ -304,7 +342,7 @@ export function researchHref(sym, section, panel = null) {
 export function suggest(token, limit = 5) {
   const t = String(token || '').toUpperCase()
   if (!t) return []
-  const pool = [...FUNCTIONS.map((f) => f.code), ...Object.keys(ABSENT)]
+  const pool = [...FUNCTIONS.map((f) => f.code), ...Object.keys(CODE_ALIASES), ...Object.keys(ABSENT)]
   const scored = pool.map((code) => {
     if (code.startsWith(t)) return [0, code.length, code]
     if (t.startsWith(code)) return [1, code.length, code]

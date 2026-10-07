@@ -22,6 +22,25 @@ describe('UCT 20 states', () => {
     expect(screen.queryByText(/not yet available/)).toBeNull()
   })
 
+  it('a failed holdings read says so above the list instead of blanking DAYS / SINCE ADD to dashes', async () => {
+    vi.stubGlobal('fetch', route({
+      '/api/leadership': [200, { stocks: [], status: 'ok', last_updated: null }],
+      '/api/uct20/portfolio': [503, { detail: 'down' }],
+    }))
+    renderWithProviders(fresh(<UCT20 />))
+    expect((await screen.findByTestId('uct20-holdings-error')).textContent).toMatch(/could not be read right now/)
+  })
+
+  it('a healthy holdings read shows no such note (control)', async () => {
+    vi.stubGlobal('fetch', route({
+      '/api/leadership': [200, { stocks: [], status: 'ok', last_updated: null }],
+      '/api/uct20/portfolio': [200, { open_positions: [], trades: [] }],
+    }))
+    renderWithProviders(fresh(<UCT20 />))
+    await screen.findByText(/not yet available/)
+    expect(screen.queryByTestId('uct20-holdings-error')).toBeNull()
+  })
+
   it('an empty list says when it is built and that the page re-checks', async () => {
     vi.stubGlobal('fetch', route({ '/api/leadership': [200, { stocks: [], status: 'ok', last_updated: null }] }))
     renderWithProviders(fresh(<UCT20 />))

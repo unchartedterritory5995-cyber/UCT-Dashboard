@@ -10,8 +10,8 @@ F
 ================================== FAILURES ===================================
 ________ test_a_level_3_editor_saves_a_plan_note_without_its_plan_data ________
 
-tmp_path = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-232/test_a_level_3_editor_saves_a_0')
-monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000020CAA3675C0>
+tmp_path = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-679/test_a_level_3_editor_saves_a_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000018E9ACB75C0>
 
     def test_a_level_3_editor_saves_a_plan_note_without_its_plan_data(tmp_path, monkeypatch):
         monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
@@ -62,7 +62,12 @@ __________ test_account_deletion_on_a_database_the_landing_wrote_to ___________
     def test_account_deletion_on_a_database_the_landing_wrote_to():
         conn = sqlite3.connect(":memory:")
         for table in LANDING_TABLES:
-            conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT)')
+            # The two gallery child tables carry `gallery_id`: the kept account_purge.py also removes
+            # what OTHER members recorded about the leaving member's templates, by that column
+            # (security lane M-7, merged after this probe was written). Left NULL, so that pass
+            # matches nothing and the counts below are the direct `user_id` pass, as before.
+            extra = ", gallery_id TEXT" if table in ("j2_template_gallery_reports", "j2_template_gallery_uses") else ""
+            conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT{extra})')
             conn.executemany(f'INSERT INTO "{table}" (user_id, v) VALUES (?, ?)',
                              [("member-leaving", "theirs"), ("member-staying", "not theirs")])
         conn.commit()
@@ -85,8 +90,8 @@ E         Differing items:
 E         {'rows_left_behind': 12} != {'rows_left_behind': 0}
 E         Use -v to get more diff
 
-docs\notebook\evidence\rollback-rehearsal-2026-10-06-fin\landing\test_ab_probe.py:112: AssertionError
+docs\notebook\evidence\rollback-rehearsal-2026-10-06-fin\landing\test_ab_probe.py:117: AssertionError
 =========================== short test summary info ===========================
 FAILED docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py::test_a_level_3_editor_saves_a_plan_note_without_its_plan_data
 FAILED docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py::test_account_deletion_on_a_database_the_landing_wrote_to
-2 failed, 1 passed in 2.96s
+2 failed, 1 passed in 2.58s

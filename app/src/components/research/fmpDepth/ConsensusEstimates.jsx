@@ -128,6 +128,26 @@ function Revisions({ rows, rc }) {
 const FALLBACK_REASON = {
   empty: 'FMP holds no forward consensus for this ticker; showing Yahoo Finance.',
   error: 'FMP did not answer; showing Yahoo Finance until it does.',
+  unknown: "FMP's consensus answer could not be read; showing Yahoo Finance.",
+}
+const CONSENSUS_LEGS = ['annual', 'quarterly']
+
+/** Why the Yahoo fallback is shown, worded per case (completeness audit 2026-10-07): "did not
+ *  answer" only when FMP truly did not. An answer with no forward periods is FMP answering empty;
+ *  one leg failing while the other answered empty is said as exactly that. */
+export function fallbackReason(c) {
+  const state = c?.state
+  const rows = (c?.annual || []).length + (c?.quarterly || []).length
+  if (state === 'empty' || (state === 'ok' && rows === 0)) return FALLBACK_REASON.empty
+  if (state === 'error') {
+    const failed = CONSENSUS_LEGS.filter((k) => Object.prototype.hasOwnProperty.call(c?.errors || {}, k))
+    const answered = CONSENSUS_LEGS.filter((k) => !failed.includes(k))
+    if (failed.length && answered.length) {
+      return `FMP's ${failed.join(' and ')} read failed and its ${answered.join(' and ')} answer holds no forward periods; showing Yahoo Finance until FMP answers in full.`
+    }
+    return FALLBACK_REASON.error
+  }
+  return FALLBACK_REASON.unknown
 }
 
 export default function ConsensusEstimates({ sym }) {
@@ -216,11 +236,11 @@ export default function ConsensusEstimates({ sym }) {
         <section className={styles.card} data-testid="ee-fallback">
           <div className={styles.head}><span className={styles.title}>Forward estimates</span></div>
           <SourceLine vendor="Yahoo Finance" fallback activity="yfinance earnings_estimate / revenue_estimate"
-                      reason={FALLBACK_REASON[c.state] || FALLBACK_REASON.error} />
+                      reason={fallbackReason(c)} />
           {fwd.length > 0 && yahooNote && <p className={styles.note} data-testid="ee-yahoo-currency">{yahooNote}</p>}
           {fwd.length
             ? <YahooForward rows={fwd} rc={rc} />
-            : (c.state === 'empty' && !data.yf_unavailable)
+            : (fallbackReason(c) === FALLBACK_REASON.empty && !data.yf_unavailable)
               ? <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>
               : <p className={styles.note} data-testid="ee-unread">Forward estimates could not be read right now. That is a gap in what we could read, not a finding about {s}.</p>}
         </section>

@@ -113,6 +113,21 @@ describe('AskAiTab', () => {
     await waitFor(() => expect(screen.getByTestId('ask-ai-error')).toBeInTheDocument())
   })
 
+  it('a model outage answered as a 200 refusal with `error` is the error turn with Ask again, not "not enough evidence"', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', response_state: 'refuse', summary: '', key_facts: [], citations: [],
+      insufficient_evidence: true, insufficient_evidence_reason: 'The AI assistant is temporarily unavailable.',
+      error: 'internal error', turn_state: { sym: 'AAPL', response_state: 'refuse' },
+    })
+    render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    const err = await screen.findByTestId('ask-ai-error')
+    expect(err.textContent).toMatch(/could not answer right now/)
+    expect(within(err).getByRole('button', { name: 'Ask again' })).toBeInTheDocument()
+    expect(screen.queryByText(/temporarily unavailable/)).toBeNull()
+  })
+
   it('the Ask button is disabled while a question is empty or a request is in flight', async () => {
     mockFetchOnce(200, {
       sym: 'AAPL', entity: null, summary: 'x', key_facts: [], interpretation: '',

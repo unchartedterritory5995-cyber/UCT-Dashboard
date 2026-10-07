@@ -70,6 +70,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Optional
 
 from api.services.auth_db import get_connection
@@ -85,6 +86,9 @@ EVENTS = frozenset({
     "import_accepted",
     "delivery_configured",
     "execution_finished",
+    # ⭐ CONTROLLED ROLLOUT (2026-10-07) -- UCT Intelligence conversational authoring.
+    "converse_turn",     # server-only: one /converse turn's outcome, cost and shape
+    "studio_action",     # client: the authoring funnel (opened / preview / saved / ...)
 })
 
 #: Of the five, only these two are ever fired FROM THE CLIENT (the three
@@ -93,7 +97,7 @@ EVENTS = frozenset({
 #: are server-derived only — a client must never be able to claim its own
 #: formula was "accepted" or "delivered"; that would let an unaccepted or
 #: unvalidated definition masquerade as a real one in the journey data.
-CLIENT_FIREABLE_EVENTS = frozenset({"import_submitted", "compile_finished"})
+CLIENT_FIREABLE_EVENTS = frozenset({"import_submitted", "compile_finished", "studio_action"})
 
 #: Correlation/identity fields every event may carry — the "which journey,
 #: which formula, which door" axis. Never content: an import_id is a
@@ -152,6 +156,101 @@ EVENT_SCHEMAS: dict = {
     },
 }
 
+# ─── ⭐ CONTROLLED ROLLOUT: the conversation's events ─────────────────────────
+#
+# ⛔ SHAPE ONLY, LIKE EVERYTHING ABOVE: never the member's words, the model's reply,
+# a tree or a formula. Every STRING below is additionally held to a closed value
+# set or a strict pattern (`_VALUE_RULES`), so not even a short free-text phrase
+# can ride in under a legal key. The unsupported-demand CATEGORY is computed
+# server-side from the turn (`definition_conversation.unsupported_category`); the
+# words it was computed from are never stored.
+
+#: The op names a `converse_turn` may report (the patch contract's 22).
+_CONVERSE_OPS = frozenset({
+    "create", "rename_definition", "add_output", "remove_output", "rename_output",
+    "set_output_tree", "set_slot", "add_clause", "remove_clause", "set_intent",
+    "set_placement", "set_style", "set_marker", "remove_marker", "set_paint",
+    "remove_paint", "request_info_value", "request_alert", "cancel_request",
+    "set_levels", "set_fill", "remove_fill",
+})
+#: What a turn's result WAS -- distinct product signals, never one "failed".
+FAILURE_CLASSES = frozenset({
+    "ok",                 # the model answered within the contract (any disposition)
+    "preflight_refused",  # deterministic refusal before any model call (another symbol/timeframe)
+    "backstop_refused",   # a change refused after the model (named another symbol / advisory phrase)
+    "concept_refused",    # the planner refused an unknown concept / unsupported data (truthful)
+    "model_invalid",      # the model's answer failed validation after the repair
+    "budget_user",        # this member's daily allowance
+    "budget_global",      # the shared member pool
+    "rate_limited",       # the hourly request window
+    "platform",           # the model provider could not be reached
+    "internal",           # an unexpected server error
+})
+#: Unsupported demand, aggregated. ⭐ Derived from the refusal reasons that exist
+#: (preflight gates, planner gates) plus a keyword bucket over a model UNSUPPORTED
+#: turn; "other" is the honest remainder.
+UNSUPPORTED_CATEGORIES = frozenset({
+    "other_symbol", "other_timeframe", "nightly_scalar", "unknown_concept",
+    "table", "fundamentals", "economic_data", "options", "news_sentiment",
+    "drawing", "delivery", "other",
+})
+STUDIO_ACTIONS = frozenset({
+    "opened", "preview", "saved", "save_failed", "discarded", "turn_failed",
+})
+#: Output/presentation kinds a saved conversation's definition carries (shape).
+_KINDS = frozenset({
+    "series", "condition", "marker", "candle_paint", "background", "fill", "level",
+    "info_value", "alert",
+})
+_CONV_ID = r"[A-Za-z0-9_-]{8,64}"
+
+
+def _csv_of(allowed):
+    def ok(v):
+        parts = [p for p in v.split(",") if p]
+        return len(parts) <= 32 and all(p in allowed for p in parts)
+    return ok
+
+
+_VALUE_RULES: dict = {
+    "converse_turn": {
+        "conversation_id": re.compile(_CONV_ID),
+        "access": frozenset({"admin", "cohort"}),
+        "disposition": frozenset({"change", "answer", "clarify", "unsupported", "none"}),
+        "outcome": re.compile(r"(patch|question|noop|[a-z_-]{2,32}:[a-z0-9_-]{2,48})"),
+        "failure_class": FAILURE_CLASSES,
+        "unsupported_category": UNSUPPORTED_CATEGORIES,
+        "repair_gate": re.compile(r"[a-z_-]{2,32}:[a-z0-9_-]{2,48}"),
+        "input_wrapper": frozenset({"args"}),
+        "op_kinds": _csv_of(_CONVERSE_OPS),
+    },
+    "studio_action": {
+        "conversation_id": re.compile(_CONV_ID),
+        "action": STUDIO_ACTIONS,
+        "surface": frozenset({"studio", "sheet"}),
+        "kinds": _csv_of(_KINDS),
+        "origin": frozenset({"native", "imported"}),
+        "failure": frozenset({"network", "http_5xx", "http_429", "http_403", "http_402", "http_other"}),
+        "import_id": re.compile(r"[A-Za-z0-9_:-]{1,64}"),
+    },
+}
+_N = (int, float)
+EVENT_SCHEMAS.update({
+    "converse_turn": {
+        "conversation_id": (str,), "access": (str,), "disposition": (str,),
+        "outcome": (str,), "failure_class": (str,), "unsupported_category": (str,),
+        "attempts": _N, "calls": _N, "repair_gate": (str,), "input_wrapper": (str,),
+        "usd": _N, "input_tokens": _N, "output_tokens": _N,
+        "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
+        "op_kinds": (str,), "preflight": (bool,),
+    },
+    "studio_action": {
+        "import_id": (str,), "conversation_id": (str,), "action": (str,),
+        "surface": (str,), "kinds": (str,), "origin": (str,), "created": (bool,),
+        "failure": (str,), "turns": _N,
+    },
+})
+
 #: Defense-in-depth ONLY — see the module docstring's 2026-09-04 hardening
 #: note. The allowlist above is what actually keeps content out; this just
 #: bounds an allowed field that arrives implausibly long.
@@ -184,6 +283,16 @@ def _prop_violation(event: str, key: str, value: Any) -> Optional[str]:
         return f"{key!r} must be {allowed_names}, got {type(value).__name__}"
     if isinstance(value, str) and len(value) > _MAX_PROP_STRING_LEN:
         return f"{key!r} exceeds {_MAX_PROP_STRING_LEN} chars"
+    rule = _VALUE_RULES.get(event, {}).get(key)
+    if rule is not None and isinstance(value, str):
+        if isinstance(rule, frozenset):
+            ok = value in rule
+        elif hasattr(rule, "fullmatch"):
+            ok = rule.fullmatch(value) is not None
+        else:
+            ok = bool(rule(value))
+        if not ok:
+            return f"{key!r} is not one of the values this event may carry"
     return None
 
 
@@ -270,3 +379,140 @@ def log_event(user_id: Any, event: str, *, import_id: Optional[str] = None,
         return False
     finally:
         conn.close()
+
+
+# ─── ⭐ CONTROLLED ROLLOUT — the owner's report (aggregates only) ──────────────
+
+def _pct(values: list, q: float):
+    if not values:
+        return None
+    v = sorted(values)
+    return v[min(len(v) - 1, max(0, int(round(q * (len(v) - 1)))))]
+
+
+def _tally(values) -> dict:
+    out: dict = {}
+    for v in values:
+        if v is None or v == "":
+            continue
+        out[str(v)] = out.get(str(v), 0) + 1
+    return dict(sorted(out.items(), key=lambda kv: -kv[1]))
+
+
+def _turn_block(sel: list) -> dict:
+    """Aggregates over `(user_id, day, props)` converse_turn rows."""
+    usd = [float(p.get("usd") or 0) for _, _, p in sel]
+    lat = [float(p["latency_ms"]) for _, _, p in sel if isinstance(p.get("latency_ms"), (int, float))]
+    model_turns = [p for _, _, p in sel if (p.get("calls") or 0) >= 1]
+    first = [p for p in model_turns if p.get("failure_class") == "ok" and (p.get("attempts") or 0) == 1]
+    repaired = [p for p in model_turns if (p.get("calls") or 0) > 1 or p.get("repair_gate")]
+    ok = [p for _, _, p in sel if p.get("failure_class") == "ok"]
+    per_member_day: dict = {}
+    for u, d, p in sel:
+        cell = per_member_day.setdefault((u, d), {"turns": 0, "usd": 0.0})
+        cell["turns"] += 1
+        cell["usd"] += float(p.get("usd") or 0)
+    return {
+        "members": len({u for u, _, _ in sel}),
+        "turns": len(sel),
+        "model_turns": len(model_turns),
+        "conversations": len({p.get("conversation_id") for _, _, p in sel if p.get("conversation_id")}),
+        "first_pass": len(first),
+        "first_pass_rate": round(len(first) / len(model_turns), 3) if model_turns else None,
+        "repairs": len(repaired),
+        "repair_rate": round(len(repaired) / len(model_turns), 3) if model_turns else None,
+        "ok_rate": round(len(ok) / len(sel), 3) if sel else None,
+        "usd_total": round(sum(usd), 4),
+        "usd_per_turn_mean": round(sum(usd) / len(usd), 4) if usd else None,
+        "usd_per_turn_median": _pct(usd, 0.5),
+        "usd_per_member_day_max": round(max((v["usd"] for v in per_member_day.values()), default=0.0), 4),
+        "turns_per_member_day_max": max((v["turns"] for v in per_member_day.values()), default=0),
+        "latency_ms_p50": _pct(lat, 0.5),
+        "latency_ms_p95": _pct(lat, 0.95),
+        "cache_read_tokens": sum(int(p.get("cache_read_tokens") or 0) for _, _, p in sel),
+        "cache_write_tokens": sum(int(p.get("cache_write_tokens") or 0) for _, _, p in sel),
+        "by_disposition": _tally(p.get("disposition") for _, _, p in sel),
+        "by_failure_class": _tally(p.get("failure_class") for _, _, p in sel),
+        "unsupported_demand": _tally(p.get("unsupported_category") for _, _, p in sel),
+        "op_kinds": _tally(o for _, _, p in sel for o in (p.get("op_kinds") or "").split(",") if o),
+    }
+
+
+def _cohort_state() -> dict:
+    try:
+        from api.services import rollout, rollout_gate
+        return {"name": rollout_gate.CREATE_INDICATOR_COHORT,
+                "switch_on": rollout_gate.create_indicator_cohort_enabled(),
+                "tagged_members": len(rollout.cohort_user_ids(rollout_gate.CREATE_INDICATOR_COHORT))}
+    except Exception:  # noqa: BLE001
+        log.exception("[indicator-telemetry] cohort state unavailable")
+        return {"name": "create-indicator", "switch_on": None, "tagged_members": None}
+
+
+def _pool_state() -> dict:
+    """Today's AI budget split by kind -- READ-ONLY, the same numbers
+    `cost_guard.may_member_spend` (interactive) and `may_synthesize` (background)
+    compare. Aggregates only: no user ids, no tickers."""
+    try:
+        from api.services.catalyst import cost_guard
+        from api.services import definition_concierge as dc
+        return cost_guard.budget_state(dc._market_date())
+    except Exception:  # noqa: BLE001
+        log.exception("[indicator-telemetry] pool state unavailable")
+        return {}
+
+
+def rollout_report(days: int = 7) -> dict:
+    """What the rollout cohort is doing with Create Indicator: the two structured
+    events above plus the shared spend ledger. READ-ONLY; aggregates only — the
+    store holds no member words, so none can be returned.
+
+    One key per owner question: who used it, turns, spend, repair, latency, saves,
+    the save rate, unsupported demand, recurring errors, and headroom under the
+    shared member ceiling. ``cohort_members`` excludes admins (``access``)."""
+    days = max(1, min(int(days or 7), 90))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT visitor_id, event, props, date(created_at) FROM landing_events"
+            " WHERE event IN ('converse_turn','studio_action')"
+            "   AND created_at >= datetime('now', ?)",
+            (f"-{days} days",),
+        ).fetchall()
+    finally:
+        conn.close()
+    turns, actions = [], []
+    for uid, event, props, day in rows:
+        try:
+            p = json.loads(props) if props else {}
+        except ValueError:
+            continue
+        (turns if event == "converse_turn" else actions).append((str(uid), day, p))
+    convs: dict = {}
+    for _, _, p in actions:
+        cid = p.get("conversation_id")
+        if cid:
+            convs.setdefault(cid, set()).add(p.get("action"))
+    started = [c for c, a in convs.items() if "opened" in a or "preview" in a]
+    saved = [c for c, a in convs.items() if "saved" in a]
+    return {
+        "window_days": days,
+        "cohort": _cohort_state(),
+        "cohort_members": _turn_block([t for t in turns if t[2].get("access") == "cohort"]),
+        "everyone_incl_admins": _turn_block(turns),
+        "funnel": {
+            "opened_by_members": len({u for u, _, p in actions if p.get("action") == "opened"}),
+            "conversations_started": len(started),
+            "reached_preview": len([c for c, a in convs.items() if "preview" in a]),
+            "saved": len(saved),
+            "discarded": len([c for c, a in convs.items() if "discarded" in a]),
+            "save_failed": len([c for c, a in convs.items() if "save_failed" in a]),
+            "save_rate": round(len(saved) / len(started), 3) if started else None,
+            "client_turn_failures": _tally(p.get("failure") for _, _, p in actions
+                                           if p.get("action") == "turn_failed"),
+            "saved_kinds": _tally(k for _, _, p in actions if p.get("action") == "saved"
+                                  for k in (p.get("kinds") or "").split(",") if k),
+            "saved_origin": _tally(p.get("origin") for _, _, p in actions if p.get("action") == "saved"),
+        },
+        "shared_pool_today": _pool_state(),
+    }

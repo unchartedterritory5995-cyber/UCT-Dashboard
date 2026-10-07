@@ -82,7 +82,7 @@ function hideBrokenImage(e) {
 }
 
 export default function NewsTab({ sym }) {
-  const { data, isLoading, error, mutate } = useCompanyNews(sym)
+  const { data, isLoading, error, paywalled, mutate } = useCompanyNews(sym)
   const session = useMarketOpen()
 
   if (isLoading) {
@@ -91,6 +91,9 @@ export default function NewsTab({ sym }) {
 
   // TERM-088 -- a failed read is not a genuinely empty news feed. Render the
   // error distinctly so a backend hiccup never reads as "no recent news".
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="news-paywalled">Company news requires a paid plan.</div>
+  }
   if (error) {
     return (
       <div className={styles.fnote} data-testid="news-error">

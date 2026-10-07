@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery",
+    "requestBody": {
+      "category": "trade_plan",
+      "description": "What I check before a breakout.",
+      "templateId": "nope",
+      "title": "Breakout checklist"
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery",
+    "requestBody": {
+      "category": "trade_plan",
+      "description": "What I check before a breakout.",
+      "templateId": "tg-template",
+      "title": "Breakout checklist"
+    },
+    "status": 402
+  },
+  "body": {
+    "detail": "The community template gallery requires a paid plan"
+  }
+}

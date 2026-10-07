@@ -30,6 +30,17 @@ from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.auth_db import get_connection
 from api.services.journal_two import plan_grading
+from api.services.journal_two import public_note_payload as public
+
+#: Per member, in `api/limiter.py`'s in-memory storage -- the limiter and the read rate the
+#: sibling Notebook routes use (`notebook_shares.PUBLIC_RATE`). The three reads share one
+#: bucket: they do the same work (a walk over trades and notes), so three routes must not be
+#: three budgets. ⚠️ Per-process state: a second web process doubles both.
+READ_RATE = "60/minute"
+WRITE_RATE = "30/minute"
+SCOPE_READ = "notebook-plan-grades-read"
+SCOPE_WRITE = "notebook-plan-grades-relink"
+RATE_SENTENCE = "Too many requests for your plan grades. Wait a minute and try again."
 
 MAX_BODY_BYTES = 16_000
 TOO_LARGE_SENTENCE = "Request too large"
@@ -73,12 +84,27 @@ async def _read_json(request: Request) -> dict[str, Any]:
     return data
 
 
-async def member_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
+def reader(user: dict = Depends(require_paid)) -> dict:
+    """The member, after one charge against their read rate. A dependency, so it runs after
+    the router-level gate (an off gate answers its 404 and spends nothing), after the
+    session (a signed-out caller answers 401 and spends nothing) and after the paid check (a
+    member with no paid plan answers 402 and spends nothing; security review I-7)."""
+    public.enforce_rate(READ_RATE, SCOPE_READ, f"member:{user['id']}", RATE_SENTENCE, public=False)
+    return user
+
+
+def writer(user: dict = Depends(require_paid)) -> dict:
+    """The member, after one charge against their Re-link rate."""
+    public.enforce_rate(WRITE_RATE, SCOPE_WRITE, f"member:{user['id']}", RATE_SENTENCE, public=False)
+    return user
+
+
+async def member_body(request: Request, _user: dict = Depends(writer)) -> dict[str, Any]:
     return await _read_json(request)
 
 
 @router.get("/trades/{trade_id}")
-def get_trade_grade(trade_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+def get_trade_grade(trade_id: str, user: dict = Depends(reader)) -> dict[str, Any]:
     conn = get_connection()
     try:
         t = plan_grading.get_trade(conn, user["id"], trade_id)
@@ -113,7 +139,7 @@ def relink_trade(trade_id: str, body: dict = Depends(member_body),
 
 @router.get("/status")
 def get_statuses(ids: str = Query("", max_length=20_000),
-                 user: dict = Depends(require_paid)) -> dict[str, Any]:
+                 user: dict = Depends(reader)) -> dict[str, Any]:
     wanted = [s.strip() for s in ids.split(",") if s.strip()]
     if len(wanted) > plan_grading.MAX_STATUS_IDS:
         raise HTTPException(status_code=400, detail=f"At most {plan_grading.MAX_STATUS_IDS} trades at a time")
@@ -126,7 +152,7 @@ def get_statuses(ids: str = Query("", max_length=20_000),
 
 @router.get("/discipline")
 def get_discipline(accountId: str | None = Query(None, max_length=128),  # noqa: N803 -- the client's name
-                   user: dict = Depends(require_paid)) -> dict[str, Any]:
+                   user: dict = Depends(reader)) -> dict[str, Any]:
     conn = get_connection()
     try:
         return plan_grading.discipline_record(conn, user["id"], accountId or None)

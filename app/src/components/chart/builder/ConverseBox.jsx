@@ -32,7 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   newAuthoringState, openAuthoringState, applyTurn, undo, readback, isDirty, PATCH_CONTRACT,
 } from './authoring'
-import { converseTurn } from './authoring/converseClient'
+import { converseTurn, transcriptSnippets, distinctNotUnderstood } from './authoring/converseClient'
 import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
 import { preflight } from './authoring/preflight'
 import { readSession, writeSession, clearSession, editKey } from './authoring/conversationSessions'
@@ -40,6 +40,9 @@ import { storeConversation, attachConversation, armConversationAlerts } from './
 import PreviewPane from './editor/PreviewPane'
 import { CONVERSE_PREVIEW_DEF_ID } from './editor/previewDefinition'
 import { stampSemantics } from '../engine/definitionSemantics'
+import { memberError, memberSaveError, conversationEditability, memberRefusal } from './authoring/memberWords'
+import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
+import { outputNamer } from './authoring/readback'
 
 const S = {
   box: { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)' },
@@ -50,6 +53,8 @@ const S = {
   transcript: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' },
   member: { alignSelf: 'flex-end', fontSize: 13, color: 'var(--text-bright)', background: 'var(--bg-elevated)', padding: '6px 10px', borderRadius: 'var(--radius-md)' },
   uct: { fontSize: 12, color: 'var(--text)', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' },
+  /** ⭐ P3: the assistant's own words beside the readback — clearly SECONDARY. */
+  assistantReply: { margin: '4px 0 0', fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted)' },
   refusal: { fontSize: 12, color: 'var(--text-bright)', padding: '6px 10px', border: '1px solid var(--loss-border)', background: 'var(--loss-bg)', borderRadius: 'var(--radius-md)' },
   input: { width: '100%', minHeight: 48, padding: '8px 10px', resize: 'vertical', background: 'var(--bg-surface)', color: 'var(--text-bright)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: 13 },
   row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
@@ -84,11 +89,12 @@ const OP_WORDS = Object.freeze({
 })
 const opWords = (op) => `${OP_WORDS[op.op] || 'a change'}${op.output ? ` on ${op.output}` : ''}`
 
-/** One errors[] entry → a sentence that names the op. */
-function errorLine(e, ops) {
+/** One errors[] entry → a member sentence that names the op (P3 UX: the
+ *  engine's code and message are the entry's secondary detail, `memberError`). */
+function errorLine(e, ops, working = null) {
   const op = Number.isInteger(e.op) && ops && ops[e.op] ? ops[e.op] : null
-  const where = op ? `Change ${e.op + 1} (${opWords(op)})` : `The result as a whole${e.output ? ` (output ${e.output})` : ''}`
-  return `${where} was refused: ${e.message} [${e.code}]`
+  const { text } = memberError(e, { nameOf: working ? outputNamer(working) : null })
+  return op ? `Change ${e.op + 1} (${opWords(op)}): ${text}` : text
 }
 
 /**
@@ -143,6 +149,15 @@ export default function ConverseBox({
   }, [activeKey, state, transcript, savedVersion])
   const name = state.working && state.working.meta ? state.working.meta.name : null
 
+  // ⭐ P3 UX — the conversation lives in this tab's memory only: a reload or a
+  // closed tab would lose unsaved changes silently, so the browser asks first.
+  useEffect(() => {
+    if (!unsaved || typeof window === 'undefined') return undefined
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
+
   // A fresh ack per working definition: the member acknowledges what they see.
   useEffect(() => { setAcked(false) }, [state.working])
 
@@ -158,7 +173,7 @@ export default function ConverseBox({
         role: 'uct', kind: 'refusal',
         lines: [
           'Nothing was changed.',
-          ...result.errors.map((e) => errorLine(e, ops)),
+          ...result.errors.map((e) => errorLine(e, ops, cur.working)),
           // ⭐ the engine's own advisory: which ops fail even on their own
           ...(alone.length && alone.length < ops.length
             ? [`Cannot apply: ${ops.map((op, i) => (alone.includes(i) ? null : `change ${i + 1} (${opWords(op)})`)).filter(Boolean).join(', ')}.`]
@@ -173,11 +188,16 @@ export default function ConverseBox({
     }
     setPartial(null)
     commit(out.state)
+    // ⭐ P3: a CLARIFY's reply rides beside its questions. ⛔ P3S: a CHANGE carries
+    // none -- the deterministic readback of the result is the whole entry (the model
+    // once claimed "Its name still says 'EMA 20'" beside a readback of EMA 50).
+    const reply = typeof extra.reply === 'string' ? extra.reply.trim() : ''
     if (result.status === 'question') {
-      say({ role: 'uct', kind: 'question', questions: out.state.questions, lines: out.readback.questions })
+      say({ role: 'uct', kind: 'question', questions: out.state.questions, reply, lines: out.readback.questions })
       return
     }
     const disclosed = (result.changes || []).map(changeLine).filter(Boolean)
+    logStudioAction(out.state.lineage, 'preview', { surface: 'sheet' })
     say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
@@ -185,9 +205,8 @@ export default function ConverseBox({
     const words = String(text || '').trim()
     if (!words || busy) return
     const before = stateRef.current
-    const snippets = transcript.slice(-6).map((t) => (t.role === 'member'
-      ? { role: 'member', text: t.text }
-      : { role: 'assistant', text: (t.lines || []).join(' · ') }))
+    // ⭐ P3: the assistant's own replies (answer AND change) ride along as context.
+    const snippets = transcriptSnippets(transcript)
     say({ role: 'member', text: words })
     setMessage('')
     // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / timeframe request: no call.
@@ -201,22 +220,24 @@ export default function ConverseBox({
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
       const gaps = [
-        ...((res && res.notUnderstood) || []).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
+        ...distinctNotUnderstood(res).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
         ...((res && res.unavailable) || []).map((n) => `Not available: ${n.column || n.name || ''} — ${n.reason || ''}`),
       ]
       const turn = classifyTurn(res)
       if (turn.outcome === OUTCOMES.ANSWER) {
-        say({ role: 'uct', kind: 'answer', lines: [turn.reply, ...gaps] })
+        say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
         return
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED || turn.outcome === OUTCOMES.REFUSED) {
+        const failure = clientFailureOf(turn.gate)
+        if (failure) logStudioAction(stateRef.current.lineage, 'turn_failed', { surface: 'sheet', failure })
         say({ role: 'uct', kind: turn.outcome === OUTCOMES.UNSUPPORTED ? 'unsupported' : 'refusal',
-          lines: ['Nothing was changed.', turn.reply || turn.reason, ...gaps], gate: turn.gate || null })
+          lines: ['Nothing was changed.', turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps], gate: turn.gate || null })
         setPartial(null)
         return
       }
       if (gaps.length) say({ role: 'uct', kind: 'gaps', lines: gaps })
-      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : {})
+      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
     } finally {
       setBusy(false)
     }
@@ -261,9 +282,13 @@ export default function ConverseBox({
     try {
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
-        say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', stored.error] })
+        logStudioAction(cur.lineage, 'save_failed', { surface: 'sheet' })
+        const m = memberSaveError(stored)
+        say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', m.text], errors: [{ code: m.code, message: m.detail }] })
         return
       }
+      logStudioAction(cur.lineage, 'saved', { surface: 'sheet', created: !!stored.created,
+        origin: cur.defId ? undefined : 'native', kinds: definitionKinds(stored.storedDoc, stored.requests) })
       const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings })
       if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
       const alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })
@@ -305,7 +330,11 @@ export default function ConverseBox({
   const canUndo = state.history.length > 0 && !busy && !saving
   const needsAck = rb.needsAck || []
   const canSave = !!state.working && unsaved && !busy && !saving && !disabled && (!needsAck.length || acked)
-  const offerOpen = editing && editing.prior && state.defId !== editing.defId
+  // ⭐ P3 UX — the engine's own first-turn guards, run BEFORE the member types:
+  // a definition the conversation cannot edit is said so up front.
+  const editability = useMemo(() => (editing && editing.prior ? conversationEditability(editing.prior) : null), [editing])
+  const notEditable = !!(editability && !editability.editable && state.defId !== editing.defId)
+  const offerOpen = editing && editing.prior && state.defId !== editing.defId && !notEditable
   const saveLabel = state.defId ? 'Save changes' : 'Save and add to chart'
 
   // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
@@ -325,10 +354,15 @@ export default function ConverseBox({
         data-def-id={state.defId || ''} data-lineage={state.lineage} data-revision={state.revision}
         data-saved={unsaved ? 'unsaved' : (state.defId ? 'saved' : 'none')}>
         <strong>{name || 'No indicator yet'}</strong>
-        {state.working && <span style={S.muted}>revision {state.revision}</span>}
         {state.defId && savedVersion !== null && <span style={S.muted}>saved version {savedVersion}</span>}
         {state.working && <span style={S.muted}>{unsaved ? 'Unsaved changes' : 'Saved'}</span>}
       </div>
+
+      {notEditable && (
+        <div style={S.muted} role="note" data-testid="converse-not-editable" data-code={editability.code}>
+          {editability.text} Anything you describe here starts a new indicator.
+        </div>
+      )}
 
       {offerOpen && (
         <button type="button" style={S.button} data-testid="converse-open-editing" onClick={openEditing} disabled={busy || saving}>
@@ -341,7 +375,18 @@ export default function ConverseBox({
           <li key={t.id} data-role={t.role} data-kind={t.kind || 'member'}
             style={t.role === 'member' ? S.member : (t.kind === 'refusal' ? S.refusal : S.uct)}>
             {t.role === 'member' ? t.text : (
-              <ul style={S.list}>{(t.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
+              <>
+                <ul style={S.list}>{(t.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
+                {t.reply && t.kind !== 'answer' && (
+                  <p style={S.assistantReply} data-testid="converse-assistant-reply">Assistant: {t.reply}</p>
+                )}
+              </>
+            )}
+            {t.role !== 'member' && Array.isArray(t.errors) && t.errors.length > 0 && (
+              <details style={S.muted} data-testid="converse-error-detail">
+                <summary>Details for support</summary>
+                {t.errors.map((e, i) => <div key={i}>{memberError(e).detail}</div>)}
+              </details>
             )}
           </li>
         ))}

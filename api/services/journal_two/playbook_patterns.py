@@ -32,7 +32,7 @@ import sqlite3
 from types import MappingProxyType
 from typing import Any
 
-from api.services.journal_two import plan_grading
+from api.services.journal_two import plan_grading, sample_marker
 from api.services.journal_two.notes import extract_plain_text
 from api.services.journal_two.tag_suggest import STANDARD_EMOTIONS, STANDARD_MISTAKES
 from api.services.journal_two.trade_refs import trade_ref_for_row
@@ -143,8 +143,10 @@ def notes_before_trade(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Ro
     cutoff = moment["cutoff"]
     out: list[dict[str, Any]] = []
     for nid in _linked_note_ids(conn, user_id, trade):
-        note = conn.execute(f"SELECT {_NOTE_COLS} FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-                            (nid, user_id)).fetchone()
+        # ⛔ Never a sample note (fin-data I3): an example is not something the member wrote
+        # before a trade, however it came to be linked. The one predicate, `sample_marker`.
+        note = conn.execute(f"SELECT {_NOTE_COLS} FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+                            f" AND {sample_marker.not_sample_sql()}", (nid, user_id)).fetchone()
         if note is None:
             continue
         # NOT redundant with the post_entry check below, even though every hand-made note has

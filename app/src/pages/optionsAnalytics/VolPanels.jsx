@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { OffLine } from './OffNotice'
+import FailedRead from './FailedRead'
 import styles from './optionsAnalytics.module.css'
-import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { formatNumber, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import { volPts } from './optionsFormat'
+import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
 // FT-006 IV rank in the chain header, FT-019 option monitor strip, FT-020 volatility stats.
 // (api/services/options_analytics/vol.py)
@@ -16,6 +18,13 @@ import { volPts } from './optionsFormat'
 const enc = encodeURIComponent
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
+
+// The rank / percentile header and the volume strip, through the shared formatter (completeness
+// audit 2026-10-07, column f). Same text as the old `Math.round(v)%` / `toLocaleString()` for
+// every value the server sends; a missing one is the em dash, never "0%" or "NaN".
+export const ivRankText = (v) => formatPercent(v == null ? NaN : Number(v), { decimals: 0 })
+export const wholeText = (v) => formatNumber(v == null ? NaN : Number(v), { decimals: 0, grouping: false })
+export const countText = (v) => formatNumber(v == null ? NaN : Number(v))
 
 // A hover title cannot be read on a touch screen, so a note that explains how a
 // number is measured is ALSO a tap-to-open line. The title stays for desktop.
@@ -30,10 +39,17 @@ function TapNote({ text, testid }) {
 }
 
 export function IvRankBadge({ sym, fallback = null }) {
-  const { data, hidden, failed, loading } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
+  const { data, hidden, failed, loading, retry } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
   if (hidden) return fallback
   if (loading) return <span className={styles.muted} data-testid="iv-rank-badge-loading">Loading…</span>
-  if (failed) return <span className={styles.muted} data-testid="iv-rank-badge-failed">IV rank is unavailable right now.</span>
+  if (failed) {
+    return (
+      <>
+        <span className={styles.muted} data-testid="iv-rank-badge-failed">IV rank is unavailable right now.</span>
+        {' '}<button type="button" onClick={() => retry()}>Retry</button>
+      </>
+    )
+  }
   if (!data || typeof data.sentence !== 'string') return fallback
   const title = `${data.method} ${data.n} session${data.n === 1 ? '' : 's'} logged since ${data.logging_began || '—'}.`
   if (data.iv_rank == null) {
@@ -46,8 +62,8 @@ export function IvRankBadge({ sym, fallback = null }) {
   }
   return (
     <span data-testid="iv-rank-badge" title={title}>
-      IV rank <b>{Math.round(data.iv_rank)}%</b> {data.rank_word}
-      <span className={styles.muted}> · pctl {Math.round(data.iv_percentile)} · {data.window_sessions} sessions</span>
+      IV rank <b>{ivRankText(data.iv_rank)}</b> {data.rank_word}
+      <span className={styles.muted}> · pctl {wholeText(data.iv_percentile)} · {data.window_sessions} sessions</span>
       {' '}<TapNote text={title} testid="iv-rank-note" />
     </span>
   )
@@ -64,9 +80,9 @@ export function volumeScope(v) {
 }
 
 export function OptionMonitorStrip({ sym }) {
-  const { data, hidden, failed } = useDarkSection(sym ? `/api/research/options/${enc(sym)}/monitor` : null)
+  const { data, hidden, failed, retry } = useDarkSection(sym ? `/api/research/options/${enc(sym)}/monitor` : null)
   if (hidden || (!data && !failed)) return null
-  if (failed) return <p className={styles.note} data-testid="option-monitor">The option monitor is unavailable right now.</p>
+  if (failed) return <FailedRead testId="option-monitor" retry={retry} title="The option monitor is unavailable right now." />
   if (!data.events || !data.volume) return null
   const e = data.events
   const v = data.volume
@@ -82,7 +98,7 @@ export function OptionMonitorStrip({ sym }) {
           : <span className={styles.muted}>{e.note}</span>}
       </span>
       <span title={v.note || ''}>
-        Vol C/P <b>{v.call_volume == null ? '—' : v.call_volume.toLocaleString()}</b>/<b>{v.put_volume == null ? '—' : v.put_volume.toLocaleString()}</b>
+        Vol C/P <b>{countText(v.call_volume)}</b>/<b>{countText(v.put_volume)}</b>
         {v.put_call_ratio != null ? <span className={styles.muted}> · P/C {v.put_call_ratio}</span> : null}
         {volumeScope(v) ? <span className={styles.muted} data-testid="option-monitor-scope"> ({volumeScope(v)})</span> : null}
       </span>
@@ -120,6 +136,14 @@ export function VolStatsPanel({ sym, offNotice = false }) {
   const rv = useVol(sym, 'realized')
   const cm = useVol(sym, 'interpolated-iv?days=30')
   const vp = useVol(sym, 'vrp')
+  // TERM-019: realized vol is UCT's; the IV it compares against is Massive's (the panel says which).
+  // The as-of is the IV surface's build time when one answered, else the last completed session
+  // the realized vol runs through.
+  const ivAt = cm.data?.as_of || vp.data?.as_of
+  usePanelFreshness(sym && (rv.data || cm.data || vp.data)
+    ? (ivAt ? panelAsOf('UCT, computed from Massive options data', ivAt)
+      : panelAsOf('UCT, computed from Massive options data', rv.data?.through, { dataClass: 'end_of_day' }))
+    : null)
   if (offNotice && rv.off && cm.off && vp.off) {
     return <OffLine feature="Volatility stats" />
   }
@@ -142,6 +166,11 @@ export function VolStatsPanel({ sym, offNotice = false }) {
         <span className={styles.title}>Volatility</span>
         <span className={styles.badge}>computed</span>
       </div>
+      {/* a failed read is said where the member reads, with one Retry that re-asks every failed read */}
+      {(rv.failed || cm.failed || vp.failed) && (
+        <FailedRead testId="vol-failed" retry={() => { for (const r of [rv, cm, vp]) if (r.failed) r.retry?.() }}
+          title="A volatility read failed. A line marked unavailable is a failed read, not a value." />
+      )}
       <ul className={styles.list}>
         <li data-testid="vol-realized">Realized (close to close): {readState(rv) || (rv.data?.available === false ? rv.data.note
           : realizedText(rv.data?.hv))}</li>

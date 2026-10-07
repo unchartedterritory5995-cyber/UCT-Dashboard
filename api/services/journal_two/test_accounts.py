@@ -854,3 +854,130 @@ def test_compass_enabled_roundtrip(db_conn):
     assert saved["compassEnabled"] is False
     fresh = accounts_service.get_account_settings(user_id, account["id"], conn=db_conn)
     assert fresh["compassEnabled"] is False
+
+
+# ── the first-read race: two first requests both create the member's default account ────────
+#
+# A brand-new member's first page fires several requests at once, and each one calls
+# `get_or_migrate_default_account`. Both read "no account yet", both INSERT 'Default', and the
+# second met UNIQUE(user_id, name): an IntegrityError, answered as a 500 (seen on
+# GET /api/j2/accounts/comparison in a real-browser walk). Live for every new member.
+
+def _fresh_conn():
+    from api.services.auth_db import get_connection
+    return get_connection()
+
+
+def test_a_second_first_request_landing_mid_creation_gets_the_same_account_not_an_error(db_conn, monkeypatch):
+    """Deterministic: the other request creates the account between this one's "none yet" read
+    and its insert."""
+    from api.services.journal_two import accounts
+    _add_user(db_conn, "new-1", "new1@example.com")
+    real = accounts._default_settings_block
+    state = {"raced": None}
+
+    def racing():
+        if state["raced"] is None:
+            state["raced"] = "running"
+            other = _fresh_conn()
+            try:
+                state["raced"] = accounts.get_or_migrate_default_account("new-1", conn=other)["id"]
+            finally:
+                other.close()
+        return real()
+
+    monkeypatch.setattr(accounts, "_default_settings_block", racing)
+    mine = _fresh_conn()
+    try:
+        got = accounts.get_or_migrate_default_account("new-1", conn=mine)
+    finally:
+        mine.close()
+    assert state["raced"] not in (None, "running"), "the race never ran; the test proves nothing"
+    assert got["id"] == state["raced"]
+    rows = db_conn.execute("SELECT id, name FROM j2_accounts WHERE user_id = 'new-1'").fetchall()
+    assert [(r["id"], r["name"]) for r in rows] == [(got["id"], "Default")]
+
+
+def test_many_first_requests_at_once_make_one_default_account_and_none_fails(db_conn):
+    import threading
+    from api.services.journal_two import accounts
+    _add_user(db_conn, "new-2", "new2@example.com")
+    n = 8
+    barrier = threading.Barrier(n)
+    ids, errors = [], []
+
+    def first_read():
+        try:
+            barrier.wait(timeout=10)
+            ids.append(accounts.get_or_migrate_default_account("new-2")["id"])
+        except Exception as e:  # noqa: BLE001 -- the test reports every failure by name
+            errors.append(repr(e))
+
+    threads = [threading.Thread(target=first_read) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    assert errors == []
+    assert len(ids) == n and len(set(ids)) == 1
+    assert db_conn.execute("SELECT COUNT(*) FROM j2_accounts WHERE user_id = 'new-2'").fetchone()[0] == 1
+
+
+def test_the_legacy_rows_are_assigned_to_the_account_that_won_the_race(db_conn, monkeypatch):
+    """The loser must not assign legacy positions to an account id that was never stored."""
+    from api.services.journal_two import accounts
+    _add_user(db_conn, "new-3", "new3@example.com")
+    now = datetime.now(timezone.utc).isoformat()
+    db_conn.execute(
+        "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares,"
+        " entry_price, stop_price, raise_to_breakeven, context_at_entry, created_at, updated_at)"
+        " VALUES ('p1','new-3','NVDA','Long',?,10,10,100.0,95.0,0,'{}',?,?)", (now, now, now))
+    db_conn.commit()
+    real = accounts._default_settings_block
+    raced = []
+
+    def racing():
+        if not raced:
+            raced.append(True)
+            other = _fresh_conn()
+            try:
+                accounts.get_or_migrate_default_account("new-3", conn=other)
+            finally:
+                other.close()
+        return real()
+
+    monkeypatch.setattr(accounts, "_default_settings_block", racing)
+    got = accounts.get_or_migrate_default_account("new-3")
+    assigned = db_conn.execute("SELECT account_id FROM j2_positions WHERE id = 'p1'").fetchone()[0]
+    assert assigned == got["id"]
+    assert db_conn.execute("SELECT COUNT(*) FROM j2_accounts WHERE id = ?", (assigned,)).fetchone()[0] == 1
+
+
+def test_the_comparison_route_never_answers_500_for_a_brand_new_member(db_conn, monkeypatch):
+    """The route the walk saw fail, driven with the race inside it."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user
+    from api.routers import journal_two
+    from api.services.journal_two import accounts
+    _add_user(db_conn, "new-4", "new4@example.com")
+    real = accounts._default_settings_block
+    raced = []
+
+    def racing():
+        if not raced:
+            raced.append(True)
+            other = _fresh_conn()
+            try:
+                accounts.get_or_migrate_default_account("new-4", conn=other)
+            finally:
+                other.close()
+        return real()
+
+    monkeypatch.setattr(accounts, "_default_settings_block", racing)
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "new-4"}
+    r = TestClient(app, raise_server_exceptions=False).get("/api/j2/accounts/comparison")
+    assert raced, "the race never ran"
+    assert r.status_code == 200, r.text

@@ -148,32 +148,113 @@ def rebuild_cache(db_path: str | None = None) -> int:
     the row count scanned. Cheap at this store's scale (spec §8.3/§14: "at
     ~15-20K rows this is sub-millisecond in Python") — always a full
     rebuild, never a partial patch, per §8.3's explicit design."""
-    global _CACHE_LOADED
-    conn = _conn(db_path)
-    rows = conn.execute(
+    new_cache, n = _scan_open_aliases(db_path)
+    with _CACHE_LOCK:
+        _bump_and_commit(new_cache)
+    return n
+
+
+def _scan_open_aliases(db_path: str | None = None) -> tuple[dict, int]:
+    """The full scan, OFF any lock: alias -> entity_id(s) for every open row."""
+    rows = _conn(db_path).execute(
         "SELECT alias, entity_id FROM entity_aliases WHERE valid_to IS NULL"
     ).fetchall()
     new_cache: dict[str, list[str]] = {}
     for alias, entity_id in rows:
         new_cache.setdefault(alias, []).append(entity_id)
+    return new_cache, len(rows)
+
+
+def _commit_cache(new_cache: dict) -> None:
+    """Swap the cache in. Caller holds `_CACHE_LOCK`."""
+    global _CACHE_LOADED
+    _ALIAS_CACHE.clear()
+    _ALIAS_CACHE.update(new_cache)
+    _CACHE_LOADED = True
+
+
+# ⛔ A REQUEST NEVER WAITS ON THE FULL LOAD (2026-10-07 boot stall). Measured on
+# a market-hours boot: research estimates for TSM sat >30 s inside the full
+# open-alias scan while the boot warmers held the /data volume at 10-25 MB/s,
+# and every member request that resolved a ticker queued behind it. So while
+# the cache is cold, a lookup answers from ONE indexed read
+# (`idx_alias_lookup`, leading column `alias`) -- the same answer the cache
+# gives, because the cache IS that query grouped by alias -- and the full load
+# runs on ONE background thread, started on first use (single-flight: a
+# second cold lookup never starts a second scan).
+#
+# `_CACHE_GEN` is bumped by every commit. A background scan commits only if no
+# other commit landed while it was reading AND it read the store the module
+# points at now, so a slow load can never overwrite a fresher rebuild (a write
+# path's `rebuild_cache`) or another store's rows.
+_CACHE_GEN = 0
+_LOAD_LOCK = threading.Lock()
+_LOADER: threading.Thread | None = None
+
+
+def _resolved_path(db_path: str | None) -> str:
+    return db_path or schema.DB_PATH
+
+
+def _background_load(db_path: str | None, gen: int, path: str) -> None:
+    try:
+        new_cache, _n = _scan_open_aliases(db_path)
+    except Exception:  # noqa: BLE001 -- a failed warm leaves the direct path serving
+        return
     with _CACHE_LOCK:
-        _ALIAS_CACHE.clear()
-        _ALIAS_CACHE.update(new_cache)
-        _CACHE_LOADED = True
-    return len(rows)
+        if _CACHE_GEN != gen or _resolved_path(db_path) != path or _CACHE_LOADED:
+            return
+        _bump_and_commit(new_cache)
+
+
+def _bump_and_commit(new_cache: dict) -> None:
+    global _CACHE_GEN
+    _CACHE_GEN += 1
+    _commit_cache(new_cache)
+
+
+def start_background_load(db_path: str | None = None) -> bool:
+    """Start the one full-cache load if the cache is cold and no load is
+    running. Never blocks; returns True when it started one."""
+    global _LOADER
+    if _CACHE_LOADED:
+        return False
+    with _LOAD_LOCK:
+        if _CACHE_LOADED or (_LOADER is not None and _LOADER.is_alive()):
+            return False
+        with _CACHE_LOCK:
+            gen = _CACHE_GEN
+        _LOADER = threading.Thread(
+            target=_background_load, args=(db_path, gen, _resolved_path(db_path)),
+            name="entity-master-cache-load", daemon=True)
+        _LOADER.start()
+        return True
 
 
 def _ensure_cache_loaded(db_path: str | None = None) -> None:
+    """Kick the background load if cold. Never waits for it."""
     if not _CACHE_LOADED:
-        rebuild_cache(db_path)
+        start_background_load(db_path)
+
+
+def _direct_open_candidates(alias: str, db_path: str | None = None) -> list[str]:
+    rows = _conn(db_path).execute(
+        "SELECT entity_id FROM entity_aliases WHERE alias = ? AND valid_to IS NULL "
+        "ORDER BY rowid",
+        (alias,),
+    ).fetchall()
+    return [r[0] for r in rows]
 
 
 def open_alias_candidates(alias: str, db_path: str | None = None) -> list[str]:
-    """entity_id(s) currently holding `alias` open, from the in-memory
-    cache (lazy-loaded). Empty list if none."""
+    """entity_id(s) currently holding `alias` open. Empty list if none.
+    Warm: the in-memory cache. Cold: one indexed read, and the full load is
+    started in the background -- the request never waits for it."""
+    if _CACHE_LOADED:
+        with _CACHE_LOCK:
+            return list(_ALIAS_CACHE.get(alias, ()))
     _ensure_cache_loaded(db_path)
-    with _CACHE_LOCK:
-        return list(_ALIAS_CACHE.get(alias, ()))
+    return _direct_open_candidates(alias, db_path)
 
 
 def alias_candidates_as_of(alias: str, as_of: str, db_path: str | None = None) -> list[str]:

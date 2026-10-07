@@ -120,9 +120,28 @@ Two things would be lost. Both are measured in `tests/test_notebook_rollback_nev
    requires level 4 for that note, and the save is refused. The note becomes read-only with the
    sentence "This note has content from a newer version of the app. Reload to edit it." It is
    never stripped. Bringing the feature back brings editing back.
-2. **Account deletion.** The landing adds twelve tables to the list that account deletion
+2. **Account deletion.** The landing adds thirteen tables to the list that account deletion
    clears. A revert leaves the tables and their rows in the database. A reverted list would
    leave those rows behind when a member deletes their account.
+
+The thirteenth table is `j2_trade_plan_misses` (finish program, data lane). It is a memo: plan
+grading remembers that a trade had no plan so a repeat read does no work. It can be dropped at
+any time and is rebuilt on the next read. It is in the deletion list, so it is covered by the
+kept `account_purge.py`, and the keep-list test names it. An older build does not read it and does
+not purge it; the account purge of this build does, which is one more reason `account_purge.py`
+stays at the tip.
+
+One thing a revert leaves behind that needs nothing done: the column
+`j2_template_gallery.preview_json`. The security lane added it with `ALTER TABLE` so the gallery
+list can show a preview without parsing a template body. It is nullable. The reverted code has
+no gallery at all (the module arrives with this landing), so nothing reads or writes the table and
+the column is ignored. There is nothing to revert and nothing to drop. Rolling forward again
+finds it already there.
+
+A second column of the same kind: `j2_note_folders.import_source` (finish program, data lane 2).
+It is additive and nullable. The sample notebook's import sets it on the folders it creates, so
+"Remove it" can delete exactly those folders. Older code never reads or writes it, and a folder
+with no value reads as a member's own folder. There is nothing to revert and nothing to drop.
 
 ### The keep-list
 
@@ -132,6 +151,7 @@ Two things would be lost. Both are measured in `tests/test_notebook_rollback_nev
 | `tests/test_notebook_schema_guard.py`, `app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js` | the rails for those two files |
 | `api/services/journal_two/account_purge.py` | the deletion list |
 | `tests/test_journal_two_account_purge.py`, `tests/test_notebook_rollback_never_revert.py` | the rails for it |
+| `tests/test_notes_cas_is_atomic.py` | the write-protection rail, in its fixed form. The copy below the landing cannot find the append doors and fails three times while checking nothing; the fixed one passes on the pre-landing product |
 | `docs/`, `tools/`, `scripts/`, `CLAUDE.md` | records and instruments are never reverted |
 
 The tool holds this list (`KEEP_AT_TIP`, `KEEP_WITH_LANDING`, `KEEP_PATHS` in
@@ -159,7 +179,7 @@ Then:
 
 ```sh
 git switch -c rollback/notebook-w12-15 <result>
-git diff origin/master HEAD --stat -- api/services/journal_two/notebook_schema.py app/src/pages/journal-2-0/lib/notebookSchema.js tests/test_notebook_schema_guard.py app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js api/services/journal_two/account_purge.py tests/test_journal_two_account_purge.py tests/test_notebook_rollback_never_revert.py
+git diff origin/master HEAD --stat -- api/services/journal_two/notebook_schema.py app/src/pages/journal-2-0/lib/notebookSchema.js tests/test_notebook_schema_guard.py app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js api/services/journal_two/account_purge.py tests/test_journal_two_account_purge.py tests/test_notes_cas_is_atomic.py tests/test_notebook_rollback_never_revert.py
 #   ^ must print NOTHING
 python -m pytest tests/test_notebook_rollback_never_revert.py tests/test_notebook_schema_guard.py tests/test_journal_two_account_purge.py -q
 python -m pytest api/services/journal_two/test_notes.py tests/test_notes_cas_is_atomic.py tests/test_notes_answer_is_the_committed_row.py tests/test_notes_unbuildable_body_refused.py tests/test_journal_two_notes_versions_router.py -q
@@ -231,6 +251,10 @@ disk.
 | The kept client rail on the rolled-back editor: `notebookSchema.rail.test.js` | `Test Files 1 passed (1)`, `Tests 17 passed (17)` |
 | The A/B probe, expecting the safe outcome | `3 passed in 4.87s` |
 
+**Superseded on 2026-10-07: the fixed test is on the keep-list now, and this set is fully green on
+the rolled-back tree (the re-run is recorded in `LANDING-12-15.md`, section 12).** What follows
+is the record of the first rehearsal.
+
 The three failures are not caused by the rollback. They are the three append-door cases of
 `tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words`
 ("the window never opened"). The same three fail the same way on the landing tip itself and on
@@ -263,7 +287,7 @@ The A/B probe is one save and one account deletion, the same file on both trees
 | | Tree A, keep-list kept | Tree B, whole revert |
 |---|---|---|
 | A level-3 editor saves a plan note without its plan data | answered 409, the plan data is still in the note | answered 200, the plan data is gone |
-| A member deletes their account; the twelve tables hold their rows | 0 rows left behind | 12 rows left behind |
+| A member deletes their account; the twelve tables hold their rows (rehearsed before the thirteenth, `j2_trade_plan_misses`, existed) | 0 rows left behind | 12 rows left behind |
 
 What the rehearsal does not show:
 

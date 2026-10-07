@@ -3,6 +3,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { isFailedSynthesis, FAILED_SYNTHESIS_NOTE } from '../../../utils/highlightThesis'
 import { withDeadline } from '../../../utils/withDeadline'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -61,13 +62,35 @@ export async function fetchHistory(url) {
   }
 }
 
+// ANY lane (the options tape, the Wire archive, the member's journal...) answers `pending` when it has not
+// finished inside the server's short wait; its read keeps going server-side. Ask again
+// until every lane has answered -- then stop asking.
+export function pendingLanesOf(body) {
+  const lanes = (body && body.lanes) || {}
+  return Object.keys(lanes).filter((k) => lanes[k] && lanes[k].status === 'pending')
+}
+
+export function historyRefreshMs(latest) {
+  if (!latest || !latest.ok) return 0
+  if (pendingLanesOf(latest.body).length === 0) return 0
+  const lanes = latest.body.lanes || {}
+  const hinted = Math.max(0, ...Object.values(lanes).map((l) => (l && l.status === 'pending' && l.retry_after_s) || 0))
+  return Math.max(1000, (hinted || 2) * 1000)
+}
+
 export default function HistoryTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, isLoading } = useMobileSWR(s ? `/api/research/history/${encodeURIComponent(s)}` : null, fetchHistory)
+  const { data, isLoading, mutate } = useMobileSWR(s ? `/api/research/history/${encodeURIComponent(s)}` : null, fetchHistory,
+    { refreshInterval: historyRefreshMs })
+  // TERM-019: the history is read from several UCT records and every row names its own source and
+  // date, so the terminal panel header says exactly that (a no-op outside the terminal).
+  // `as_of` is the oldest lane read this answer was assembled from (never "now").
+  usePanelFreshness(data && data.ok ? panelAsOf('several UCT records; each row names its own', data.body?.as_of) : null)
   const body = data && data.ok ? data.body : null
+  const pendingLanes = useMemo(() => pendingLanesOf(body), [body])
   const unavailableLanes = useMemo(() => {
     const lanes = (body && body.lanes) || {}
-    return Object.keys(lanes).filter((k) => lanes[k] && lanes[k].status !== 'ok')
+    return Object.keys(lanes).filter((k) => lanes[k] && lanes[k].status !== 'ok' && lanes[k].status !== 'pending')
   }, [body])
   // A lane whose store began after the window opened: rows before `covers_from` were
   // never recorded. Without this, "0 wire mentions" read as "never named" (2026-09-29).
@@ -90,7 +113,8 @@ export default function HistoryTab({ sym }) {
   }
   if (data && !data.ok) {
     return <div className={styles.card} data-testid="history-unavailable">
-      History is unavailable right now. That does not mean nothing happened.
+      History is unavailable right now. That does not mean nothing happened.{' '}
+      <button type="button" className={styles.basisBtn} onClick={() => mutate?.()}>Retry</button>
     </div>
   }
   if (!body) return null
@@ -106,6 +130,12 @@ export default function HistoryTab({ sym }) {
       {renamedFrom.length > 0 && (
         <p className={styles.muted} data-testid="history-entity">
           Joined across renames: {renamedFrom.map((a) => `${a.alias}${a.valid_to ? ` (until ${a.valid_to})` : ''}`).join(', ')}.
+        </p>
+      )}
+      {pendingLanes.length > 0 && (
+        <p className={styles.muted} data-testid="history-lane-pending" role="status">
+          Still reading: {pendingLanes.map((k) => LANE_LABEL[k] || k).join(', ')}. Those rows will appear here in a
+          moment; until then they are not shown, which does not mean there are none.
         </p>
       )}
       {unavailableLanes.length > 0 && (
@@ -124,7 +154,8 @@ export default function HistoryTab({ sym }) {
       )}
       {rows.length === 0 ? (
         <div className={styles.card} data-testid="history-empty">
-          No recorded mentions of {body.ticker} in these lanes since {body.since}.
+          No recorded mentions of {body.ticker} in these lanes since {body.since}
+          {pendingLanes.length > 0 ? ` so far (${pendingLanes.map((k) => LANE_LABEL[k] || k).join(', ')} still reading)` : ''}.
         </div>
       ) : (
         <ul data-testid="history-rows">

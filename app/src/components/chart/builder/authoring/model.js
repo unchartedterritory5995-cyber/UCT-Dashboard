@@ -47,7 +47,9 @@ export const CARRIED_COMPUTE = Object.freeze(['rev', 'paramState'])
 
 /** The presentation fields a plot row carries through `buildDefinition`. */
 const ROW_PRESENTATION = Object.freeze(['colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient',
-  'opacity', 'displace', 'displaceFrom', 'fill', 'fillColor', 'fillOpacity'])
+  'opacity', 'displace', 'displaceFrom', 'fill', 'fillColor', 'fillOpacity',
+  // ⭐ P3 — a plot's line style (`buildDefinition` projects it from the row).
+  'lineStyle'])
 
 const isDefaultPane = (p) => JSON.stringify(p) === JSON.stringify(PANE_PLACEMENT())
 

@@ -80,7 +80,9 @@
 
 .axisText {
   fill: var(--text-muted);
-  font-size: 10px;
+  /* --text-sm (11px; 12px on phones): the 2026-10-06 a11y audit's F12 lifted the chart
+     axis and point labels off the 10px floor. */
+  font-size: var(--text-sm);
   font-family: var(--font-mono);
 }
 
@@ -89,12 +91,13 @@
   font-size: 11px;
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  opacity: 0.8;
+  /* No opacity: the quadrant names are TEXT, and 0.8 on --text-muted read 3.7:1 on the light
+     themes (terminal a11y audit 2026-10-06). The muted ink already ranks them below the data. */
 }
 
 .pointLabel {
   fill: var(--text-bright);
-  font-size: 10px;
+  font-size: var(--text-sm);
   font-family: var(--font-mono);
 }
 
@@ -173,8 +176,8 @@
   font-size: var(--text-xs);
 }
 
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 
 .swatch {
   display: inline-block;
@@ -193,9 +196,9 @@
   font-size: var(--text-xs);
 }
 
-.pLeading { color: var(--gain); }
+.pLeading { color: var(--success-ink); }
 .pWeakening { color: var(--warn); }
-.pLagging { color: var(--loss); }
+.pLagging { color: var(--danger-ink); }
 .pImproving { color: var(--info); }
 
 /* CORR — positive correlation tints toward the accent, negative toward info. Neither is
@@ -213,4 +216,19 @@
 .corrNa {
   color: var(--text-muted);
   font-size: var(--text-xs);
+}
+
+/* ── TOUCH TIER (phone + tablet): finger targets ──
+   The window chips and the row buttons were 18-22px tall on touch; <=1024px is touch in this
+   repo, so the floor is the shared --tap-min at that boundary (styles/tapFloor.test.js;
+   terminal a11y audit 2026-10-06, rail pages/terminal/a11y/panelTapFloor.test.js). */
+@media (max-width: 1024px) {
+  .chip,
+  .rowBtn {
+    min-height: var(--tap-min);
+  }
+
+  .chip {
+    min-width: var(--tap-min);
+  }
 }

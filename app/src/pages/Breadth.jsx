@@ -44,9 +44,9 @@ export {
 }
 import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
-import { useInTerminalPanel } from '../components/terminal'
+import { useInTerminalPanel, PanelState } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
-import { formatNumber } from '../lib/presentation/presentationPrimitives'
+import { formatNumber, formatNumberMax, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -319,17 +319,17 @@ function fmtPct(v) {
   if (v === null || v === undefined) return '—'
   return formatNumber(Number(v), { decimals: 1, grouping: false })
 }
-function fmtPrice(v) {
+export function fmtPrice(v) {
   if (v === null || v === undefined) return '—'
-  return Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 })
+  return formatNumberMax(Number(v), { maxDecimals: 2 })
 }
 function fmtBool(v) {
   if (v === null || v === undefined) return '—'
   return v === 1 ? '✓' : '✗'
 }
-function fmtInt(v) {
+export function fmtInt(v) {
   if (v === null || v === undefined) return '—'
-  return Number(v).toLocaleString('en-US')
+  return formatNumber(Number(v))
 }
 
 function fmtCell(col, val) {
@@ -372,12 +372,6 @@ const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
 // TIER_SCORES / TIER_LABELS / TIER_TIP_COLORS moved to breadth/heatmapMetrics.js
 // (imported + re-exported above).
 
-// Y-axis label colors per group
-const HM_GROUP_COLORS = {
-  Score: '#c9a84c', Primary: '#b8c94a', MA: '#4ac97d',
-  Regime: '#7b9fc7', 'Highs/Lows': '#c9944a', Sentiment: '#b44ac9',
-}
-
 // HM_METRICS / FFILL_KEYS / PCTILE_KEYS / TIER_CELL_COLORS / HM_METRICS_BY_KEY /
 // TREEMAP_DEF moved to breadth/heatmapMetrics.js (imported + re-exported above).
 
@@ -405,7 +399,7 @@ function AnalogueCard({ analogue, refMetrics }) {
     <div className={styles.analogueCard}>
       <div className={styles.analogueCardHeader}>
         <span className={styles.analogueDate}>{date}</span>
-        <span className={styles.analogueSim}>{similarity}% match</span>
+        <span className={styles.analogueSim}>{formatPercentAsSent(similarity)} match</span>
       </div>
 
       {/* Forward SPY returns */}
@@ -422,7 +416,7 @@ function AnalogueCard({ analogue, refMetrics }) {
             <div key={k} className={styles.analogueFwdItem}>
               <span className={styles.analogueFwdLabel}>{label}</span>
               <span className={`${styles.analogueFwdVal} ${val >= 0 ? styles.analogueGreen : styles.analogueRed}`}>
-                {val > 0 ? '+' : ''}{val}%
+                {val > 0 ? '+' : ''}{formatPercentAsSent(val)}
               </span>
             </div>
           )
@@ -437,7 +431,7 @@ function AnalogueCard({ analogue, refMetrics }) {
           if (then == null) return null
           const fmtV = v => {
             if (v == null) return '--'
-            if (key === 'sp500_close') return Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
+            if (key === 'sp500_close') return formatNumberMax(Number(v), { maxDecimals: 0 })
             return formatNumber(Number(v), { decimals: key === 'ratio_5day' ? 2 : key === 'vix' ? 1 : 0, grouping: false })
           }
           return (
@@ -471,7 +465,7 @@ function BreadthAnalogues() {
     const fwd20 = top.forward_returns?.fwd_20d
     if (fwd20 == null) return null
     const dir = fwd20 >= 0 ? 'gained' : 'lost'
-    return `Last time breadth looked like this was ${top.date} — SPY ${dir} ${Math.abs(fwd20)}% over the next month`
+    return `Last time breadth looked like this was ${top.date} — SPY ${dir} ${formatPercentAsSent(Math.abs(fwd20))} over the next month`
   }, [analogues])
 
   if (isLoading) {
@@ -944,15 +938,45 @@ export default function Breadth() {
     return keys
   }, [visibleCols])
 
+  const errorBanner = error ? (
+    <div className={styles.errorBanner} role="alert">
+      <span>
+        {breadthErrorText(error)}
+      </span>
+      {/* ⛔ A 5-minute auto-retry with no manual lever leaves a reader who
+          already knows the network recovered staring at a stale error for
+          up to five more minutes. `onManualRefresh` is the same
+          revalidation the header's refresh icon fires. */}
+      <button
+        type="button"
+        className={styles.errorRetryBtn}
+        onClick={onManualRefresh}
+        disabled={refreshing}
+      >
+        {refreshing ? 'Retrying…' : 'Retry now'}
+      </button>
+    </div>
+  ) : null
+
   if (activeTab === 'overview') {
+    // 2026-10-07 completeness audit: this branch returned before the error banner, so a failed
+    // read (or the first load still in flight) reached DailyOverview with no rows and read
+    // "No session recorded yet" — a failure drawn as an empty day. The banner and a loading
+    // state now come first, and DailyOverview only speaks for rows that were actually read.
+    const noRows = !rows.length
     return (
       <div className={pageCls}>
         <SurfaceHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <div className={styles.overviewBody}>
-          <DailyOverview rows={rows} live={liveBreadth} cols={COLS}
-                         phaseClassFn={phaseClass} onDrill={openDrill} />
+          {errorBanner}
+          {noRows && isLoading && !error
+            ? <div className={styles.empty} data-testid="breadth-overview-loading"><SkeletonTileContent lines={4} /></div>
+            : !(noRows && error) && (
+              <DailyOverview rows={rows} live={liveBreadth} cols={COLS}
+                             phaseClassFn={phaseClass} onDrill={openDrill} />
+            )}
           <MarketBreadth />
         </div>
         {drill && (
@@ -1109,8 +1133,8 @@ export default function Breadth() {
                     : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
                 : isLoading ? 'Loading…' : 'No data')
             : (grid.count > 0
-                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : grid.ready ? 'No data' : 'Loading…')}
+                ? `${formatNumber(grid.count)} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')}
         </span>
         {activeTab === 'breadth' && (
           <button
@@ -1124,25 +1148,7 @@ export default function Breadth() {
         )}
       </SurfaceHeader>
 
-      {error && (
-        <div className={styles.errorBanner} role="alert">
-          <span>
-            {breadthErrorText(error)}
-          </span>
-          {/* ⛔ A 5-minute auto-retry with no manual lever leaves a reader who
-              already knows the network recovered staring at a stale error for
-              up to five more minutes. `onManualRefresh` is the same
-              revalidation the header's refresh icon fires. */}
-          <button
-            type="button"
-            className={styles.errorRetryBtn}
-            onClick={onManualRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? 'Retrying…' : 'Retry now'}
-          </button>
-        </div>
-      )}
+      {errorBanner}
 
       {!error && rows.length === 0 && !isLoading && (
         <div className={styles.empty}>
@@ -1175,19 +1181,33 @@ export default function Breadth() {
           no business sitting over a historical sheet. */}
       {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
 
+      {/* Completeness audit 2026-10-07: the Monitor grid swallowed a failed timeline read and
+          failed row blocks -- "Loading…" forever, rows that never filled. Said, with a Retry;
+          a failed row is never drawn as data (it stays an unfilled row under this notice). */}
+      {activeTab === 'breadth' && (grid.datesFailed || grid.blocksFailed > 0) && (
+        <PanelState kind="error" compact role="status" testId="breadth-monitor-failed"
+          title={grid.datesFailed
+            ? (grid.count > 0
+                ? "The breadth timeline couldn't be refreshed; the saved sessions are shown."
+                : "The breadth monitor couldn't be loaded right now.")
+            : "Some breadth sessions couldn't be loaded; their rows are left empty, not zero."}
+          action={<button type="button" onClick={() => grid.retry()}>Retry</button>} />
+      )}
+
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap} ref={tableWrapRef}>
-          <table className={styles.table}>
+          <table className={styles.table} aria-label="Breadth monitor">
             <thead>
               {/* Single column-label row — the colored group-header strip was
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
               <tr>
-                <th className={`${styles.th} ${styles.dateCol}`}>Date</th>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`}>Date</th>
                 {visibleCols.map(col => {
                   const isColCollapsed = collapsedCols.has(col.key)
                   return (
                     <th
+                      scope="col"
                       key={col.key}
                       title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
                       className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}

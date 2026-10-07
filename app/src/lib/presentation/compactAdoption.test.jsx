@@ -33,6 +33,7 @@ import { fmtVol, fmtRevenue, fmtShares } from '../../utils/profileFormat'
 import { fmtCompact, fmtSignedCompact } from '../../pages/cot/cotFormat'
 import ProfileSection from '../../components/research/sections/ProfileSection'
 import PositioningRail from '../../pages/cot/PositioningRail'
+import { withPromotion, boundaryMoves } from './__fixtures__/compactBoundary'
 
 // ── the frozen oracles (verbatim, 73040c87f) ────────────────────────────────
 
@@ -120,6 +121,17 @@ const EXOTIC = [10n, Symbol('x')]
 
 const FIXTURE = [...EDGE, ...GRID, ...SWEEP, ...EXOTIC]
 
+// ── the ONE deliberate move (accuracy audit 2026-10-06, design note 2) ───────
+// A value that rounds up to the next tier prints in it ("$1.0M", not "$1000.0K").
+// Each oracle is wrapped so ONLY those boundary values expect the next tier, in the
+// grammar's own decimals; every other input is still the frozen oracle verbatim.
+const LADDER_KMB = [1e3, 1e6, 1e9]
+const LADDER_COT = [1e3, 1e6]          // no B tier: "1000.00M" stays
+const P_fmtVol = withPromotion(ORACLE_fmtVol, LADDER_KMB)
+const P_fmtShares = withPromotion(ORACLE_fmtShares, LADDER_KMB)
+const P_fmtCompact = withPromotion(ORACLE_fmtCompact, LADDER_COT)
+const P_fmtSignedCompact = withPromotion(ORACLE_fmtSignedCompact, LADDER_COT)
+
 function outcome(fn, v) {
   try { return { value: fn(v) } } catch (e) { return { threw: e?.constructor?.name ?? 'thrown' } }
 }
@@ -142,18 +154,37 @@ describe('the batch is byte-identical to the frozen oracles on every input', () 
     expect(FIXTURE.length).toBeGreaterThan(4000)
   })
 
-  it('profileFormat.fmtVol', () => { expect(diff(fmtVol, ORACLE_fmtVol)).toEqual([]) })
+  it('profileFormat.fmtVol', () => { expect(diff(fmtVol, P_fmtVol)).toEqual([]) })
   // fmtRevenue's ONE deliberate move: the minus now goes before the "$"
   // ("-$1.50B", not "$-1.50B" -- presentationPrimitives.formatCompact).
   it('profileFormat.fmtRevenue (minus before the "$")', () => {
     const signMoved = (v) => { const s = ORACLE_fmtRevenue(v); return typeof s === 'string' ? (s.startsWith('$-') ? `-$${s.slice(2)}` : s) : s }
-    expect(diff(fmtRevenue, signMoved)).toEqual([])
+    expect(diff(fmtRevenue, withPromotion(signMoved, LADDER_KMB))).toEqual([])
     expect(fmtRevenue(-1_500_000_000)).toBe('-$1.50B')
   })
-  it('profileFormat.fmtShares', () => { expect(diff(fmtShares, ORACLE_fmtShares)).toEqual([]) })
-  it('cotFormat.fmtCompact', () => { expect(diff(fmtCompact, ORACLE_fmtCompact)).toEqual([]) })
+  it('profileFormat.fmtShares', () => { expect(diff(fmtShares, P_fmtShares)).toEqual([]) })
+  it('cotFormat.fmtCompact', () => { expect(diff(fmtCompact, P_fmtCompact)).toEqual([]) })
   it('cotFormat.fmtSignedCompact', () => {
-    expect(diff(fmtSignedCompact, ORACLE_fmtSignedCompact)).toEqual([])
+    expect(diff(fmtSignedCompact, P_fmtSignedCompact)).toEqual([])
+  })
+
+  it('the boundary moves are exactly the round-up-past-a-tier values, and nothing else', () => {
+    // Pinned, typed: the cases that changed (accuracy follow-up 4).
+    expect(fmtVol(999_950)).toBe('$1.0M')                // was "$1000.0K"
+    expect(fmtVol(999_999_999)).toBe('$1.0B')            // was "$1000.0M"
+    expect(fmtShares(999_500)).toBe('1.0M')              // was "1000K"
+    expect(fmtRevenue(-999_995_000)).toBe('-$1.00B')     // was "$-1000.00M"
+    expect(fmtCompact(999_500)).toBe('1.00M')            // was "1000K"
+    expect(fmtCompact(1e9)).toBe('1000.00M')             // unchanged: COT has no B tier
+    // every moved input sits within 0.05% below a tier threshold
+    for (const [oracle, ladder] of [[ORACLE_fmtVol, LADDER_KMB], [ORACLE_fmtShares, LADDER_KMB], [ORACLE_fmtCompact, LADDER_COT]]) {
+      const moves = boundaryMoves(oracle, ladder, FIXTURE)
+      expect(moves.length).toBeGreaterThan(0)
+      for (const { v } of moves) {
+        const T = ladder.find((t) => Math.abs(v) < t && Math.abs(v) >= t * 0.9995 - 0.5)
+        expect(T, `moved ${v} is not on a tier edge`).toBeDefined()
+      }
+    }
   })
 })
 
@@ -174,8 +205,10 @@ describe('the oracle can actually fail — non-vacuity', () => {
     expect((-2.5).toFixed(0)).toBe('-3')                    // …and toFixed would say -3
     // no B tier in the COT grammar
     expect(ORACLE_fmtCompact(1e9)).toBe('1000.00M')
-    // the tier is picked BEFORE rounding, so a value can round up past its tier
+    // the OLD grammar picked the tier before rounding, so a value rounded up past its
+    // tier — the one behaviour formatCompact now changes (see withPromotion)
     expect(ORACLE_fmtVol(999_950)).toBe('$1000.0K')
+    expect(P_fmtVol(999_950)).toBe('$1.0M')
   })
 
   it('a deliberately wrong implementation is caught', () => {
@@ -216,9 +249,9 @@ describe('rendered: ProfileSection shows the same Float and Avg $ vol text', () 
       render(<ProfileSection sym="ZZZ" />)
       await screen.findByText('Desc.')
       const facts = await screen.findByTestId('profile-facts')
-      expect(await within(facts).findByText(ORACLE_fmtShares(float))).toBeTruthy()
+      expect(await within(facts).findByText(P_fmtShares(float))).toBeTruthy()
       const ytd = screen.getByTestId('profile-ytd')
-      expect(within(ytd).getByText(ORACLE_fmtVol(vol))).toBeTruthy()
+      expect(within(ytd).getByText(P_fmtVol(vol))).toBeTruthy()
     })
   }
 })

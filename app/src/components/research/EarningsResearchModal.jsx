@@ -39,6 +39,10 @@ import FinancialsSection from './sections/FinancialsSection'
 import AnalystsSection from './sections/AnalystsSection'
 import NewsSection from './sections/NewsSection'
 import AskAiSection from './sections/AskAiSection'
+// TERM-019: the modal is a surface OVER a panel, never the panel itself — the tabs it embeds
+// (Filings, Analysts) report their sources to a terminal panel header when they ARE the panel, so
+// inside the modal they are kept quiet rather than relabelling the calendar panel behind it.
+import { QuietPanelFreshness } from '../terminal/terminalPanel'
 import styles from './EarningsResearchModal.module.css'
 
 // Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
@@ -433,7 +437,7 @@ export default function EarningsResearchModal({
             canvas scrolling never fights the gesture (§4.4). */}
         <div ref={panelRef} tabIndex={-1} className={styles.phoneBody}
              data-testid="erm-phone-body">
-          {body}
+          <QuietPanelFreshness>{body}</QuietPanelFreshness>
         </div>
       </Sheet>
     )
@@ -450,7 +454,7 @@ export default function EarningsResearchModal({
         tabIndex={-1}
       >
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close"><UIcon name="x" size={16} gold={false} aria-hidden="true" /></button>
-        {body}
+        <QuietPanelFreshness>{body}</QuietPanelFreshness>
       </div>
     </div>
   )

@@ -302,7 +302,7 @@
 .maCross {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--loss);
+  color: var(--danger-ink);
   line-height: 1;
 }
 
@@ -443,7 +443,7 @@
 
 .scoreGreen { color: var(--ut-green-bright); }
 
-.scoreRed   { color: var(--loss); }
+.scoreRed   { color: var(--danger-ink); }
 
 .scoreAmber { color: var(--ut-gold); }
 
@@ -518,7 +518,7 @@ tbody tr { cursor: pointer; }
   gap: 12px;
   font-family: var(--font-sans);
   font-size: var(--text-md);
-  color: var(--loss);
+  color: var(--danger-ink);
   background: color-mix(in srgb, var(--loss) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--loss) 25%, transparent);
   border-radius: var(--radius-md);
@@ -532,7 +532,7 @@ tbody tr { cursor: pointer; }
   font-family: var(--font-sans);
   font-size: var(--text-base);
   font-weight: 600;
-  color: var(--loss);
+  color: var(--danger-ink);
   background: color-mix(in srgb, var(--loss) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--loss) 40%, transparent);
   border-radius: var(--radius-sm);
@@ -645,11 +645,11 @@ tbody tr { cursor: pointer; }
 }
 
 .tmMaCheck {
-  color: var(--gain);
+  color: var(--success-ink);
 }
 
 .tmMaCross {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .tmMaDash {
@@ -1140,7 +1140,7 @@ tbody tr { cursor: pointer; }
 }
 
 .analogueRed {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 /* Metrics comparison grid */

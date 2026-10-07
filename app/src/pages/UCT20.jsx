@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
-import { useInTerminalPanel } from '../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelRows } from '../components/terminal'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
@@ -15,12 +15,16 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
-import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
+import { formatPercent, formatPercentAsSent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 import { useThemeInk, SEMANTIC_INK } from '../lib/theme'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// 2026-10-07 completeness audit: the four side reads used a bare `fetch().then(r => r.json())`,
+// so a 402/5xx `{detail}` became data and a failed holdings read blanked every DAYS / SINCE ADD
+// cell to "—" and dropped the NEW badges with no word. They throw on a non-2xx now, and a failed
+// holdings read says so above the list.
+const fetcher = url => jsonFetcher(url)
 // The leadership read THROWS on failure (jsonFetcher: non-2xx, network, 30 s deadline). With
 // the bare fetcher a 503 {detail} became an empty list and read "not yet available, check back".
 const leadershipFetcher = url => jsonFetcher(url)
@@ -173,8 +177,8 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
 
   const chartPriceLines = useMemo(() => {
     const lines = []
-    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry $${posData.entry_price.toFixed(2)}` })
-    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop $${posData.stop_price.toFixed(2)}` })
+    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry ${formatCurrency(posData.entry_price)}` })
+    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop ${formatCurrency(posData.stop_price)}` })
     return lines
   }, [posData, ink])
 
@@ -387,10 +391,16 @@ export default function UCT20() {
   const inPanel = useInTerminalPanel()
   const { mutate } = useSWRConfig()
   const { data: rows, error: rowsError, mutate: retryRows } = useSWR('/api/leadership', leadershipFetcher, { refreshInterval: 3600000 })
-  const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
+  const { data: portData, error: portError } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
   const { data: breadthData } = useSWR('/api/breadth', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // The list is the morning wire's (dated by its own `last_updated` when the payload carries one).
+  const listUpdated = rows && !Array.isArray(rows) && rows.last_updated ? String(rows.last_updated).slice(0, 10) : null
+  usePanelFreshness(rows && !rowsError
+    ? { source: 'UCT Leadership 20 (the morning wire), live prices', ...(listUpdated ? { age: { asOfDate: listUpdated } } : {}) }
+    : null)
   const [expandedIdx, setExpandedIdx] = useState(null)
   const [showMethodology, setShowMethodology] = useState(false)
   const [sort, setSort] = useState(null)          // {key, dir: 1|-1} | null = rank order
@@ -496,6 +506,15 @@ export default function UCT20() {
     })
   }, [ranked, sort, posMap])
 
+  // Row <GO>: the number a member types is the RANK this list prints in its # column, so the
+  // numbered rows follow rank order whatever the sort; the board list follows the rows as shown.
+  const rankRows = useMemo(() => allTickers.map(sym => `$${sym}`), [allTickers])
+  usePanelRows(rankRows)
+  const shownSyms = useMemo(
+    () => sortedRows.map(({ item }) => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
+    [sortedRows])
+  usePanelList(shownSyms.length ? { syms: shownSyms, label: 'UCT 20' } : null)
+
   const toggleSort = useCallback(key => {
     setSort(prev => nextUct20Sort(prev, key))   // desc → asc → reset
   }, [])
@@ -549,6 +568,7 @@ export default function UCT20() {
         <button className={styles.methodBtn} onClick={copyTickers} disabled={!stocks.length}>
           {copied ? 'Copied' : 'Copy tickers'}
         </button>
+        <BoardFromList syms={shownSyms} label="UCT 20" testId="uct20-board" />
         <button className={styles.methodBtn} onClick={() => setShowMethodology(true)}>
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           How it&rsquo;s built
@@ -569,6 +589,13 @@ export default function UCT20() {
         </div>
       )}
       <TileCard title={`UCT 20 — Current Top Stocks${leadershipUpdated ? ` · as of ${leadershipUpdated}` : ''}`}>
+        {rows && portError && !portData && (
+          <p className={styles.emptyStateBody} role="status" data-testid="uct20-holdings-error">
+            {portError.status === 402
+              ? 'Holding history (days held, return since added, NEW) requires a paid plan.'
+              : 'Holding history could not be read right now, so days held, return since added and the NEW marks are not shown. That is a gap in what we could read, not a change to the list.'}
+          </p>
+        )}
         {rowsError && !rows ? (
           <div className={styles.emptyState} data-testid="uct20-error">
             <p className={styles.emptyStateTitle}>The UCT 20 could not be read right now</p>
@@ -605,7 +632,7 @@ export default function UCT20() {
                   className={`${styles.ctxItem} ${exposure.score >= 70 ? styles.gain : exposure.score >= 50 ? styles.ctxAmber : styles.loss}`}
                   title={exposure.note || 'Recommended market exposure from the UCT regime model'}
                 >
-                  UCT EXPOSURE {exposure.score}%
+                  UCT EXPOSURE {formatPercentAsSent(exposure.score)}
                 </span>
               )}
               {sectorMix.length > 0 && (

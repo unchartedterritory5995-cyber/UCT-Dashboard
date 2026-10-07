@@ -1,8 +1,9 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
-import { ABSENT, formatCompactTerminal } from '../../../lib/presentation/presentationPrimitives'
+import { ABSENT, formatCompactTerminal, relabelDollarText } from '../../../lib/presentation/presentationPrimitives'
 import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
 
@@ -16,10 +17,12 @@ import PendingGaveUp from '../depth/PendingGaveUp'
 // ⛔ A section that could not be read says so; it is never an empty table that
 //    reads as "this company has no officers".
 
+// Through the shared primitives (completeness audit 2026-10-07): the hand-made version compared
+// the code case-sensitively ("usd" printed as a foreign "usd 16.8M") and put the "$" before the
+// sign. The proxy table's figures are SEC filings, in US dollars.
 const money = (v, cur) => {
   if (v == null) return null
-  const s = formatCompactTerminal(Number(v))
-  return `${cur && cur !== 'USD' ? `${cur} ` : '$'}${s}`
+  return relabelDollarText(formatCompactTerminal(Number(v), { money: true }), cur)
 }
 
 // The shared missing-value glyph, read aloud as "unavailable" (plus the source's
@@ -49,7 +52,7 @@ function Executives({ part, sym }) {
   if (!part?.rows) return <Gap part={part} testid="people-execs-unavailable" what="officer records" sym={sym} />
   return (
     <div className={styles.scroll}>
-      <table className={styles.grid} data-testid="people-execs">
+      <table className={styles.grid} data-testid="people-execs" aria-label="Officers and key executives">
         <thead><tr>
           <th scope="col">Name</th><th scope="col">Title</th><th scope="col">Since</th>
           <th scope="col">Pay (FMP)</th><th scope="col">Proxy total</th><th scope="col">Form 4 role</th>
@@ -87,7 +90,7 @@ function Compensation({ part, sym }) {
   if (!part?.rows) return <Gap part={part} testid="people-comp-unavailable" what="proxy compensation records" sym={sym} />
   return (
     <div className={styles.scroll}>
-      <table className={styles.grid} data-testid="people-comp">
+      <table className={styles.grid} data-testid="people-comp" aria-label="Compensation (proxy summary table)">
         <thead><tr>
           <th scope="col">Name and position</th><th scope="col" className={styles.num}>Salary</th>
           <th scope="col" className={styles.num}>Stock awards</th><th scope="col" className={styles.num}>Incentive</th>
@@ -126,7 +129,7 @@ function InsiderRoles({ part, sym }) {
   }
   return (
     <div className={styles.scroll}>
-      <table className={styles.grid} data-testid="people-roles">
+      <table className={styles.grid} data-testid="people-roles" aria-label="Insider roles (SEC Form 4)">
         <thead><tr><th scope="col">Reporting owner</th><th scope="col">Declared role</th><th scope="col">Latest Form 4</th></tr></thead>
         <tbody>
           {part.rows.map((r) => (
@@ -153,6 +156,14 @@ export default function PeopleTab({ sym }) {
   const { data, error, mutate } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
   // The Form 4 half answers `pending` while its read is queued; ask again by itself.
   const reask = usePendingReask(data?.insider_roles?.state === 'pending', mutate, key)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // Three sections, three sources: the header lists them once each; each section dates its own.
+  const peopleSources = data && !data.paywalled && !error && !data.not_applicable
+    ? [...new Set([data.executives, data.compensation, data.insider_roles].map((p) => memberText(p?.source)).filter(Boolean))]
+    : []
+  usePanelFreshness(peopleSources.length
+    ? { source: peopleSources.join(' · '), age: { asOfDate: data.executives?.as_of || data.compensation?.as_of || null } }
+    : null)
 
   if (error) {
     return <div className={styles.note} data-testid="people-unavailable">

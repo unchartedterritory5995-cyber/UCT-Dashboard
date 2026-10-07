@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { planPlacement, nudgePlan } from './place'
+import { planPlacement, nudgePlan, planGroupPlacement } from './place'
 
 const COLS = 24
 const ROWS = 20
@@ -268,5 +268,33 @@ describe('planPlacement — grid bounds', () => {
       expect(place.x + place.w).toBeLessThanOrEqual(COLS)
       expect(place.y + place.h).toBeLessThanOrEqual(ROWS)
     }
+  })
+})
+
+describe('planGroupPlacement — several new widgets of one type, equal cells, empty space only', () => {
+  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+  test('4 charts on an empty board → an exactly equal 2×2 dividing the board evenly', () => {
+    expect(planGroupPlacement([], 'chart', 4, COLS, ROWS)).toEqual([
+      { x: 0, y: 0, w: 12, h: 10 }, { x: 12, y: 0, w: 12, h: 10 },
+      { x: 0, y: 10, w: 12, h: 10 }, { x: 12, y: 10, w: 12, h: 10 },
+    ])
+  })
+  test('beside a rail: equal cells in the free region, never overlapping an existing widget', () => {
+    const rail = { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20 }
+    const cells = planGroupPlacement([rail], 'chart', 4, COLS, ROWS)
+    expect(new Set(cells.map(c => `${c.w}x${c.h}`))).toEqual(new Set(['9x10']))
+    expect(cells.some(c => overlaps(c, rail))).toBe(false)
+  })
+  test('not tied to four: 2, 3 and 6 also come out equal', () => {
+    for (const n of [2, 3, 6]) {
+      const cells = planGroupPlacement([], 'chart', n, COLS, ROWS)
+      expect(cells).toHaveLength(n)
+      expect(new Set(cells.map(c => `${c.w}x${c.h}`)).size).toBe(1)
+    }
+  })
+  test('no region holds the group at min size → null (the caller keeps normal placement); one widget → null', () => {
+    const board = [{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20 }]
+    expect(planGroupPlacement(board, 'chart', 4, COLS, ROWS)).toBeNull()
+    expect(planGroupPlacement([], 'chart', 1, COLS, ROWS)).toBeNull()
   })
 })

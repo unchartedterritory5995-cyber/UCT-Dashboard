@@ -255,21 +255,34 @@ def test_remove_leaves_no_sample_row_behind(db):
         c.close()
 
 
-def test_remove_deletes_a_trade_recorded_by_the_earlier_version(db):
-    """A dev-box preference from the never-shipped first version names a trade id. Remove must
-    still delete it, through the trades door's own delete."""
+def test_remove_never_deletes_a_trade_or_an_entry_context_a_preference_names(db):
+    """fin-data M4. `notebook_sample` is a preference, and a client can write a preference.
+    Remove used to HARD-DELETE whatever trade id and entry-context key it named ("for a dev-box
+    preference from the never-shipped first version") -- which is a member's real trade, gone,
+    for anyone who can write one JSON value. No shipped build seeds a trade, so there is nothing
+    for that branch to clean up; it is removed. ⚰️ This test used to assert the delete."""
+    from api.services.journal_two import entry_context
     sample_notebook.seed(U1)
     tid = _real_trade()
+    entry_context.freeze_static(U1, "AAPL", "2026-10-01", _static_fields(), capture_day="2026-10-01")
     raw = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
     raw["examples"]["tradeId"] = tid
+    raw["examples"]["entryContext"] = {"symbol": "AAPL", "entryDay": "2026-10-01"}
     auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps(raw))
     out = sample_notebook.remove(U1)
-    assert out["examplesRemoved"]["tradeDeleted"] is True
+    assert "tradeDeleted" not in out["examplesRemoved"] and "entryContextDeleted" not in out["examplesRemoved"]
     c = auth_db.get_connection()
     try:
-        assert c.execute("SELECT COUNT(*) FROM j2_trades WHERE user_id = ?", (U1,)).fetchone()[0] == 0
+        assert c.execute("SELECT COUNT(*) FROM j2_trades WHERE user_id = ? AND id = ?", (U1, tid)).fetchone()[0] == 1
+        assert c.execute("SELECT COUNT(*) FROM j2_entry_context WHERE user_id = ?", (U1,)).fetchone()[0] == 1
     finally:
         c.close()
+
+
+def _static_fields():
+    from api.services.journal_two import entry_context
+    return {f: {"value": None, "source": "test", "asOf": None, "missing": "not_ranked", "detail": None}
+            for f in entry_context.FIELDS}
 
 
 # ── Book and UCT20 read no j2 trade table at all ─────────────────────────────────────────────

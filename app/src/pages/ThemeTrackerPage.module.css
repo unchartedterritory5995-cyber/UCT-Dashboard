@@ -78,12 +78,12 @@
 
 .periodTab:hover {
   color: var(--tt-text-strong, var(--text));
-  background: var(--tt-row-hover, rgba(255, 255, 255, 0.06));
+  background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 6%, transparent));
 }
 
 .periodTabActive {
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 12%, transparent));
   border-color: var(--accent);
 }
 /* Keep the active tab GOLD on hover — the generic .periodTab:hover would otherwise
@@ -117,7 +117,7 @@
 .basisBtn:hover { color: var(--tt-text-strong, var(--text)); }
 .basisBtnActive {
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 12%, transparent));
 }
 .basisBtnActive:hover { color: var(--tt-accent, var(--ut-gold)); }
 
@@ -141,12 +141,12 @@
 .settingsBtn:hover {
   opacity: 1;
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-row-hover, rgba(255, 255, 255, 0.06));
+  background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 6%, transparent));
 }
 .settingsBtnActive {
   opacity: 1;
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 12%, transparent));
 }
 
 /* ── Search bar ─────────────────────────────────────────────────────────── */
@@ -165,7 +165,7 @@
 .searchInput {
   flex: 1;
   min-width: 0;   /* let the box shrink so the ⚙ / journal buttons never clip off the right edge */
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
   border: 1px solid var(--tt-divider, var(--border));
   border-radius: 3px;
   padding: 5px 26px 5px 10px;
@@ -236,7 +236,7 @@
   border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
   /* A whisper of gold on the leading edge — matches the prebuilt section headers. */
-  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold, #c9a84c));
+  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold));
 }
 
 /* Left header cell: the gold diamond mark + the "Theme" label. */
@@ -248,7 +248,7 @@
 .thMark {
   font-size: 7px;
   line-height: 1;
-  color: var(--tt-accent, var(--ut-gold, #c9a84c));
+  color: var(--tt-accent, var(--ut-gold));
   opacity: 0.9;
   transform: translateY(-0.5px);
 }
@@ -318,12 +318,12 @@
      bar never sits as a dark stripe on a light/gradient canvas. Same approach as
      the Watchlist widget's list scrollbar. */
   scrollbar-width: thin;
-  scrollbar-color: var(--tt-divider-strong, rgba(255, 255, 255, 0.14)) transparent;
+  scrollbar-color: var(--tt-divider-strong, color-mix(in srgb, var(--text-heading) 14%, transparent)) transparent;
 }
 .tableBody::-webkit-scrollbar { width: 8px; background: transparent; }
 .tableBody::-webkit-scrollbar-track { background: transparent; }
 .tableBody::-webkit-scrollbar-thumb {
-  background: var(--tt-divider-strong, rgba(255, 255, 255, 0.14));
+  background: var(--tt-divider-strong, color-mix(in srgb, var(--text-heading) 14%, transparent));
   border-radius: var(--radius-sm);
 }
 
@@ -383,7 +383,7 @@
   font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 500;
   color: var(--tt-text, var(--text-muted));
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-heading) 6%, transparent);
   border-radius: 3px;
   padding: 1px 5px;
 }
@@ -411,15 +411,15 @@
 }
 
 .rotBadgeIn {
-  color: var(--gain);
-  background: rgba(74, 222, 128, 0.14);
-  border: 1px solid rgba(74, 222, 128, 0.25);
+  color: var(--success-ink);
+  background: color-mix(in srgb, var(--gain) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gain) 25%, transparent);
 }
 
 .rotBadgeOut {
-  color: var(--loss);
-  background: rgba(248, 113, 113, 0.14);
-  border: 1px solid rgba(248, 113, 113, 0.25);
+  color: var(--danger-ink);
+  background: color-mix(in srgb, var(--loss) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--loss) 25%, transparent);
 }
 
 /* ── Stock row ──────────────────────────────────────────────────────────── */
@@ -432,7 +432,7 @@
   /* left padding matches .groupRow (12px) so the bullet + ticker line up
      under the theme caret + title */
   padding: 5px 12px;
-  border-bottom: 1px solid var(--tt-row-divider, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--tt-row-divider, color-mix(in srgb, var(--text-heading) 4%, transparent));
   cursor: pointer;
   transition: background 0.1s;
 }
@@ -483,28 +483,28 @@
   margin-right: 7px;
   flex-shrink: 0;
 }
-.flagStar:hover { color: var(--ut-gold, #dcbb5e); }
-.flagStarActive { color: var(--ut-gold, #dcbb5e); }
+.flagStar:hover { color: var(--ut-gold); }
+.flagStarActive { color: var(--ut-gold); }
 
 .stockRow:hover {
   background: var(--tt-row-hover, var(--bg-hover));
 }
 
 /* "… Index" row = the theme's equal-weight thematic-ETF chart. */
-.indexRow { border-bottom: 1px solid rgba(220, 187, 94, 0.15); }
+.indexRow { border-bottom: 1px solid color-mix(in srgb, var(--ut-gold) 15%, transparent); }
 .indexRow .sym { color: var(--tt-accent, var(--ut-gold)); }
 .indexRow :global(svg) { color: var(--tt-accent, var(--ut-gold)); }
 .indexBadge {
   margin-left: 6px; font-size: calc(8.5px * var(--tt-font-scale, 1)); font-weight: 700; letter-spacing: 0.5px;
   padding: 1px 5px; border-radius: 3px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18)); color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 18%, transparent)); color: var(--tt-accent, var(--ut-gold));
 }
 
 .stockRow.selected {
   /* EXACTLY the Watchlist widget's selected-row look (.listRowSelected): the same
      fixed gold tint + gold bar on every canvas — owner spotted the accent-bg
      variant reading slightly darker side-by-side. Keep these two in sync. */
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
   border-left: 2px solid var(--ut-gold);
   padding-left: 10px;   /* 12px − 2px border keeps the bullet aligned */
 }
@@ -545,11 +545,11 @@
    when the user customizes colors) still win. Needed because a saved settings blob
    can equal the DARK defaults, in which case no var is emitted and the dark-green
    fallback above would show on the white canvas. */
-:global([data-theme='light']) .page .retPos { color: var(--tt-up, #17a917); }
-:global([data-theme='light']) .page .retNeg { color: var(--tt-down, #db000b); }
+:global([data-theme='light']) .page .retPos { color: var(--tt-up, var(--success-ink)); }
+:global([data-theme='light']) .page .retNeg { color: var(--tt-down, var(--danger-ink)); }
 :global([data-theme='light']) .page {
-  --tick-up-bg: #17a91726;
-  --tick-down-bg: #db000b26;
+  --tick-up-bg: color-mix(in srgb, var(--gain) 15%, transparent);
+  --tick-down-bg: color-mix(in srgb, var(--loss) 15%, transparent);
 }
 .retFlat  { color: var(--tt-text, var(--text-muted)); }
 
@@ -563,7 +563,7 @@
    (CSS-modules doesn't reliably rewrite a keyframe name referenced inside :global()).
    var() resolves per-element at animation time from the cascaded custom property. */
 @keyframes themeTickUp {
-  0%   { background: var(--tick-up-bg, rgba(26, 229, 26, 0.28)); }
+  0%   { background: var(--tick-up-bg, color-mix(in srgb, var(--gain) 28%, transparent)); }
   100% { background: transparent; }
 }
 @keyframes themeTickDown {
@@ -626,7 +626,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: #0a0a0a;
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -662,12 +662,12 @@
 
 .chartPeriodBtn:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 .chartPeriodBtnActive {
   color: var(--ut-gold);
-  background: rgba(220, 187, 94, 0.12);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
   border-color: var(--accent);
 }
 
@@ -717,8 +717,8 @@
 .flagBtn:hover { opacity: 1; background: var(--bg-hover); }
 .flagBtnActive {
   color: var(--ut-gold);
-  border-color: rgba(212, 170, 80, 0.4);
-  background: rgba(212, 170, 80, 0.1);
+  border-color: color-mix(in srgb, var(--ut-gold) 40%, transparent);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
   opacity: 1;
 }
 .flagToast {
@@ -730,7 +730,7 @@
   border-radius: var(--radius-sm);
   animation: flagFade 1.5s ease-in-out forwards;
 }
-.flagToastAdded { color: var(--ut-gold); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
+.flagToastAdded { color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 15%, transparent); border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent); }
 .flagToastRemoved { color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); }
 @keyframes flagFade {
   0%   { opacity: 0; transform: translateY(-3px); }
@@ -769,7 +769,7 @@
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
   color: var(--tt-text, var(--text-muted));
-  border-top: 1px solid var(--widget-divider-strong, var(--tt-divider-strong, rgba(255, 255, 255, 0.11)));
+  border-top: 1px solid var(--widget-divider-strong, var(--tt-divider-strong, color-mix(in srgb, var(--text-heading) 11%, transparent)));
   background: var(--tt-bg, var(--bg));
   white-space: nowrap;
   overflow: hidden;
@@ -789,7 +789,7 @@
   align-items: center;
   border-radius: var(--radius-sm);
 }
-.ttFooterRefresh:hover { color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.06)); }
+.ttFooterRefresh:hover { color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 6%, transparent)); }
 .ttFooterRefreshSpin { animation: ttFooterSpin 0.7s linear infinite; }
 @keyframes ttFooterSpin { to { transform: rotate(360deg); } }
 
@@ -857,10 +857,10 @@
   color: var(--text-bright, #e4e6ea);
   cursor: pointer;
 }
-.setMenu button:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setMenu button:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
 .setMenuActive { color: var(--tt-accent, var(--ut-gold)) !important; font-weight: 700; }
 .setMenuSep { height: 1px; background: var(--tt-divider, var(--border)); margin: 4px 2px; }
-.setMenuDanger { color: var(--color-danger, #f87171) !important; }
+.setMenuDanger { color: var(--danger-ink) !important; }
 .setEditBtn, .setAddBtn {
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
@@ -874,10 +874,10 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.setEditBtn:hover, .setAddBtn:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setEditBtn:hover, .setAddBtn:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
 .setEditBtnActive {
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 12%, transparent));
   border-color: var(--accent);
 }
 .hiddenBar {
@@ -912,12 +912,12 @@
   margin-left: 6px;
   border-radius: 3px;
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.14));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 14%, transparent));
 }
 .editRemove {
   border: none;
   background: transparent;
-  color: var(--color-danger, #f87171);
+  color: var(--danger-ink);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
@@ -925,7 +925,7 @@
   border-radius: 3px;
   opacity: 0.8;
 }
-.editRemove:hover { opacity: 1; background: rgba(248, 113, 113, 0.14); }
+.editRemove:hover { opacity: 1; background: color-mix(in srgb, var(--loss) 14%, transparent); }
 .addStockRow { cursor: default; }
 .addStockInput {
   flex: 1;
@@ -947,7 +947,7 @@
   margin-left: 6px;
   border: none;
   border-radius: 4px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.16));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 16%, transparent));
   color: var(--tt-accent, var(--ut-gold));
   cursor: pointer;
 }
@@ -1019,7 +1019,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.setMenuName:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuName:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
 .setMenuRow {
   display: flex;
   align-items: center;
@@ -1038,11 +1038,11 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.setRowBtn:hover { opacity: 1; color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
-.setRowTrash:hover { color: var(--color-danger, #f87171); background: rgba(248, 113, 113, 0.12); }
+.setRowBtn:hover { opacity: 1; color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
+.setRowTrash:hover { color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 12%, transparent); }
 .setRowConfirm {
-  color: var(--color-danger, #f87171) !important;
-  background: rgba(248, 113, 113, 0.18);
+  color: var(--danger-ink) !important;
+  background: color-mix(in srgb, var(--loss) 18%, transparent);
   opacity: 1;
 }
 .setInline {
@@ -1053,7 +1053,7 @@
   padding: 5px 8px;
   border: 1px solid var(--tt-accent, var(--ut-gold));
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
   color: var(--text-bright, #e4e6ea);
   outline: none;
 }
@@ -1070,7 +1070,7 @@
   padding: 5px 9px;
   border: none;
   border-radius: 4px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.16));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 16%, transparent));
   color: var(--tt-accent, var(--ut-gold));
   cursor: pointer;
   white-space: nowrap;
@@ -1092,9 +1092,9 @@
      overlay (not --tt-accent-bg, which a theme can crank up) so the tint stays light and the
      input + Save button below it stay readable. Gold left-edge matches the normal header. */
   background:
-    linear-gradient(rgba(220, 187, 94, 0.06), rgba(220, 187, 94, 0.06)),
+    linear-gradient(color-mix(in srgb, var(--ut-gold) 6%, transparent), color-mix(in srgb, var(--ut-gold) 6%, transparent)),
     var(--tt-elev, var(--bg-elevated));
-  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold, #c9a84c));
+  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold));
   white-space: nowrap;
   overflow: hidden;
 }
@@ -1106,13 +1106,13 @@
   padding: 6px 12px;
   border: none;
   border-radius: 5px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 18%, transparent));
   color: var(--tt-accent, var(--ut-gold));
   cursor: pointer;
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.editBarAdd:hover { background: var(--tt-accent-bg, rgba(220, 187, 94, 0.30)); filter: brightness(1.08); }
+.editBarAdd:hover { background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 30%, transparent)); filter: brightness(1.08); }
 .editBarReset {
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
@@ -1126,7 +1126,7 @@
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.editBarReset:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); color: var(--tt-sym, var(--text-bright)); }
+.editBarReset:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); color: var(--tt-sym, var(--text-bright)); }
 .editBarHint {
   font-size: calc(9px * var(--tt-font-scale, 1));
   color: var(--text-secondary, #aab2bd);
@@ -1150,7 +1150,7 @@
   padding: 5px 12px;
   border: none;
   border-radius: 5px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18));
+  background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 18%, transparent));
   color: var(--tt-accent, var(--ut-gold));
   cursor: pointer;
   flex: 0 0 auto;
@@ -1176,7 +1176,7 @@
   white-space: nowrap;
 }
 .editBarName svg { color: var(--text-secondary, #aab2bd); flex: 0 0 auto; }
-.editBarName:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); border-color: var(--tt-divider, var(--border)); }
+.editBarName:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); border-color: var(--tt-divider, var(--border)); }
 .editBarNameInput {
   font-family: var(--font-sans);
   font-size: calc(11px * var(--tt-font-scale, 1));
@@ -1224,7 +1224,7 @@
 /* Pulse-highlight a just-added theme so the eye lands on it after the jump-scroll. */
 .groupFlash { animation: ttGroupFlash 1.8s ease-out 1; }
 @keyframes ttGroupFlash {
-  0%   { background: var(--tt-accent-bg, rgba(220, 187, 94, 0.42)); }
+  0%   { background: var(--tt-accent-bg, color-mix(in srgb, var(--ut-gold) 42%, transparent)); }
   100% { background: transparent; }
 }
 
@@ -1251,7 +1251,7 @@
   padding: 6px 9px;
   border: 1px solid var(--tt-divider, var(--border));
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
   color: var(--text-bright, #e4e6ea);
   outline: none;
   margin-bottom: 4px;
@@ -1278,7 +1278,7 @@
   color: var(--text-bright, #e4e6ea);
   cursor: pointer;
 }
-.addThemeItem:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.addThemeItem:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
 .addThemeName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .addThemeMark { color: var(--tt-accent, var(--ut-gold)); flex-shrink: 0; }
 .addThemeItemIn { opacity: 0.55; cursor: default; }
@@ -1336,8 +1336,8 @@
   padding: 4px 10px;
   border: none;
   border-radius: 4px;
-  background: var(--color-danger, #f87171);
-  color: #fff;
+  background: var(--color-danger, var(--loss));
+  color: var(--bg);
   cursor: pointer;
   flex-shrink: 0;
 }

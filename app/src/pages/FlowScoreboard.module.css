@@ -190,8 +190,8 @@
 .dateCell { color: var(--text-muted); font-size: var(--text-sm); }
 .nowCell { font-weight: 700; }
 
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+.gain { color: var(--success-ink); }
+.loss { color: var(--danger-ink); }
 .flat { color: var(--text-muted); }
 
 .oiTick { display: inline-flex; }
@@ -211,10 +211,10 @@
 }
 .gradeChipMuted { color: var(--text-muted); font-size: var(--text-sm); }
 .gradeAPlus { background: color-mix(in srgb, var(--ut-gold) 18%, transparent); color: var(--ut-gold); border: 1px solid var(--ut-gold-glow); }
-.gradeA     { background: color-mix(in srgb, var(--gain) 14%, transparent); color: var(--gain); }
+.gradeA     { background: color-mix(in srgb, var(--gain) 14%, transparent); color: var(--success-ink); }
 .gradeB     { background: var(--info-bg); color: var(--info); }
 .gradeC     { background: color-mix(in srgb, var(--text-muted) 12%, transparent); color: var(--text-bright); }
-.gradeD     { background: color-mix(in srgb, var(--loss) 12%, transparent); color: var(--loss); }
+.gradeD     { background: color-mix(in srgb, var(--loss) 12%, transparent); color: var(--danger-ink); }
 
 /* ── Recent standouts card grid ────────────────────────────────────────── */
 

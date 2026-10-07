@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 // TERM-049 -- the History tab. Asserted on RENDERED TEXT:
 //   * every row shows its lane, its date and its SOURCE;
@@ -19,9 +19,9 @@ const BODY = {
   ],
 }
 
-async function renderWith(data, isLoading = false) {
+async function renderWith(data, isLoading = false, mutate = () => {}) {
   vi.resetModules()
-  vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => ({ data, isLoading }) }))
+  vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => ({ data, isLoading, mutate }) }))
   const { default: Tab } = await import('./HistoryTab')
   return render(<Tab sym="nvda" />)
 }
@@ -61,6 +61,13 @@ describe('HistoryTab', () => {
     await renderWith({ ok: false, httpStatus: 500, body: null })
     expect(screen.getByTestId('history-unavailable').textContent).toMatch(/does not mean nothing happened/)
     expect(screen.queryByTestId('history-empty')).toBeNull()
+  })
+
+  it('a failed read offers Retry, and Retry reads again (2026-10-07: it had none)', async () => {
+    const mutate = vi.fn()
+    await renderWith({ ok: false, httpStatus: 503, body: null }, false, mutate)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalledTimes(1)
   })
 
   it('a 402 is the paid gate, not "History is unavailable"', async () => {
@@ -153,5 +160,45 @@ describe('HistoryTab', () => {
   it('an empty history says so in words', async () => {
     await renderWith({ ok: true, body: { ...BODY, timeline: [] } })
     expect(screen.getByTestId('history-empty').textContent).toMatch(/No recorded mentions of NVDA/)
+  })
+
+  // First open of HIS took 5-6 s because the whole panel waited on the options tape. The
+  // server now answers without it (`pending`) and the panel asks again.
+  it('a lane still being read is named as still reading, never as unreadable or empty', async () => {
+    const lanes = { ...BODY.lanes, flow: { status: 'pending', count: null, retry_after_s: 2 } }
+    await renderWith({ ok: true, body: { ...BODY, lanes } })
+    expect(screen.getByTestId('history-lane-pending').textContent).toMatch(/Still reading: Options flow/)
+    expect(screen.getByTestId('history-lane-pending').textContent).toMatch(/does not mean there are none/)
+    expect(screen.queryByTestId('history-lane-unavailable')).toBeNull()
+    expect(screen.getAllByTestId('history-row')).toHaveLength(3)    // the other lanes are shown now
+  })
+
+  it('any lane can be still reading, several at once, each named in plain words', async () => {
+    const lanes = { ...BODY.lanes, wire: { status: 'pending', count: null, retry_after_s: 2 },
+      journal: { status: 'pending', count: null, retry_after_s: 2 } }
+    await renderWith({ ok: true, body: { ...BODY, lanes } })
+    expect(screen.getByTestId('history-lane-pending').textContent).toMatch(/Still reading: Morning Wire, Your journal\./)
+    expect(screen.queryByTestId('history-lane-unavailable')).toBeNull()
+    expect(screen.queryByTestId('history-lane-partial')).toBeNull()
+  })
+
+  it('an empty answer while a lane is still reading says "so far", not "nothing"', async () => {
+    const lanes = { ...BODY.lanes, flow: { status: 'pending', count: null } }
+    await renderWith({ ok: true, body: { ...BODY, lanes, timeline: [] } })
+    expect(screen.getByTestId('history-empty').textContent).toMatch(/so far \(Options flow still reading\)/)
+  })
+
+  it('asks again while a lane is pending, and stops once every lane has answered', async () => {
+    let opts = null
+    vi.resetModules()
+    vi.doMock('../../../hooks/useMobileSWR', () => ({ default: (k, f, o) => { opts = o; return { data: undefined, isLoading: true } } }))
+    const mod = await import('./HistoryTab')
+    render(<mod.default sym="nvda" />)
+    expect(opts.refreshInterval).toBe(mod.historyRefreshMs)
+    const pending = { ok: true, body: { ...BODY, lanes: { ...BODY.lanes, flow: { status: 'pending', retry_after_s: 2 } } } }
+    expect(mod.historyRefreshMs(pending)).toBe(2000)
+    expect(mod.historyRefreshMs({ ok: true, body: BODY })).toBe(0)
+    expect(mod.historyRefreshMs({ ok: false, httpStatus: 500, body: null })).toBe(0)
+    expect(mod.historyRefreshMs(undefined)).toBe(0)
   })
 })

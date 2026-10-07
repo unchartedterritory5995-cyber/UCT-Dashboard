@@ -1,0 +1,37 @@
+{
+ "orb_before": [
+  {
+   "label": "Choose a specialist agent",
+   "x": 332,
+   "y": 774,
+   "w": 44,
+   "h": 44
+  }
+ ],
+ "corner_before": "BUTTON._toggle_zqeog_11 in button[Choose a specialist agent]",
+ "note_delete": {
+  "confirm_label": "Delete",
+  "hit": {
+   "box": [
+    284,
+    786,
+    84,
+    44
+   ],
+   "cx": 325.8203125,
+   "cy": 808,
+   "top_is_button": true,
+   "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+  },
+  "orb_while_open": [],
+  "body_overflow": "hidden"
+ },
+ "corner_while_open": "BUTTON._dangerBtn_wu5n8_211 in button[]",
+ "after_delete": {
+  "status": 404,
+  "keys": [],
+  "deletedAt": null,
+  "dialog_left": 0,
+  "still_in_notes_list": false
+ }
+}

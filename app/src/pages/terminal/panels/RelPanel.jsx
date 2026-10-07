@@ -11,9 +11,9 @@
 //
 // Computed in the panel from `/api/bars` daily closes; no new route (useCloses.js).
 import { useEffect, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses from './useCloses'
+import useCloses, { closesProvenance } from './useCloses'
 import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -86,9 +86,16 @@ export default function RelPanel({ sym, lookback, ...props }) {
   const syms = useMemo(() => relSymbols(sym, props), [sym, withKey])
   const [win, setWin] = useState(REL_WINDOWS.includes(lookback) ? lookback : '6M')
   useEffect(() => { if (REL_WINDOWS.includes(lookback)) setWin(lookback) }, [lookback])
+  // A typed window this panel cannot draw is SAID, never silently replaced (the CORR pattern).
+  const unapplied = lookback && !REL_WINDOWS.includes(lookback) ? lookback : null
   const state = useCloses(syms.length >= 2 ? syms : [], 'D')
+  // TERM-019: the panel header names the bar store and the newest close on screen.
+  usePanelFreshness(closesProvenance(state, 'D'))
   const read = useMemo(() => (state.phase === 'ready' ? relativePerformance(state.series, syms, win, RATIO_AVG) : null),
     [state, syms, win])
+  // Row <GO>: the table's rows, in order, each load that name (`$SYM`); the compared names are the
+  // list a "Board of" opens. Nothing is published until the comparison is on screen.
+  const shownSyms = usePanelSymbolRows(read && read.lines.length >= 2 ? read.rows.map((r) => r.sym) : [], `REL ${win}`)
 
   if (!syms.length) {
     return (
@@ -100,6 +107,8 @@ export default function RelPanel({ sym, lookback, ...props }) {
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} shape="chart" testId="terminal-rel-loading" />
   if (!read || read.lines.length < 2) {
     const missing = state.failed.length ? `Could not read ${state.failed.join(', ')} just now.` : 'These names share too little trading history to compare.'
+    // Nothing failed: too little SHARED history is a genuine empty answer, not an error to retry.
+    if (!state.failed.length) return <PanelState kind="empty" title={missing} testId="terminal-rel-empty">Try a shorter window, or drop the newest listing.</PanelState>
     return <PanelState kind="error" title={missing} testId="terminal-rel-error">Run the command again to retry, or drop a name.</PanelState>
   }
   const classes = read.lines.map((_, i) => styles[`s${i}`])
@@ -109,16 +118,25 @@ export default function RelPanel({ sym, lookback, ...props }) {
         {REL_WINDOWS.map((w) => (
           <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}>{w}</button>
         ))}
+        <BoardFromList syms={shownSyms} label={`REL ${win}`} testId="terminal-rel-board" />
       </div>
+      {unapplied && (
+        <p className={styles.note} role="status" data-testid="terminal-rel-unapplied">
+          Window {unapplied} is not available here; showing {win}.
+        </p>
+      )}
       <p className={styles.lede} data-testid="terminal-rel-lede">
         {read.lines.map((l) => l.sym).join(' vs ')}, rebased to 0 % on {read.dates[0]}, through {read.dates[read.dates.length - 1]} ({read.sessions} sessions).
       </p>
+      {/* The label states the RESULT, not just the axis (a11y audit 2026-10-06). */}
       <LineChart lines={read.lines.map((l) => ({ key: l.sym, values: l.pct }))} classes={classes}
-        label={`Percent change since ${read.dates[0]}`} testId="terminal-rel-chart" />
+        label={`Percent change since ${read.dates[0]} through ${read.dates[read.dates.length - 1]}: ${
+          read.rows.map((r) => `${r.sym} ${formatPercent(r.ret, { decimals: 1, signed: true })}`).join(', ')}`}
+        testId="terminal-rel-chart" />
       <div className={styles.tableBox}>
-        <table className={styles.table} data-testid="terminal-rel-table">
+        <table className={styles.table} data-testid="terminal-rel-table" aria-label={`Relative performance over ${win}`}>
           <thead>
-            <tr><th>Symbol</th><th>Return</th><th>Worst drawdown</th><th>vs {read.rows[0].sym}</th></tr>
+            <tr><th scope="col">Symbol</th><th scope="col">Return</th><th scope="col">Worst drawdown</th><th scope="col">vs {read.rows[0].sym}</th></tr>
           </thead>
           <tbody>
             {read.rows.map((r, i) => (

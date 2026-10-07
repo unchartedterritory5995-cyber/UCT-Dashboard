@@ -140,6 +140,23 @@ export default function GenericTourEngine({
   }, [setPrefMerged, entry.id])
 
   const steps = content?.steps || null
+
+  // ── the step counter counts what is SHOWN ────────────────────────────────────────────────
+  // A step that was passed over because its anchor is not on this screen is not a step the
+  // member takes, so it is in neither number: a tour whose first step cannot show here opens
+  // on "Step 1 of N-1", never "Step 2 of N" (the Formulas tour did, at every width). A step
+  // reached later (Back onto one that has since appeared) counts again.
+  const [passed, setPassed] = useState(() => new Set())
+  const indexRef = useRef(0)
+  indexRef.current = index
+  const land = useCallback((from, to) => {
+    setPassed((prev) => {
+      const out = new Set(prev)
+      for (let j = from + 1; j < to; j += 1) out.add(j)
+      out.delete(to)
+      return out.size === prev.size && [...out].every((j) => prev.has(j)) ? prev : out
+    })
+  }, [])
   const step = phase === 'open' && steps ? steps[index] : null
 
   // ── 1. START ──────────────────────────────────────────────────────────────────────────
@@ -182,6 +199,7 @@ export default function GenericTourEngine({
     const began = Date.now()
     const open = (at) => {
       if (!returnFocusRef.current && !passive) returnFocusRef.current = document.activeElement
+      land(-1, at)
       setIndex(at)
       openedRef.current = true
       setPhase('open')
@@ -222,9 +240,10 @@ export default function GenericTourEngine({
   // ── 3. WALK ─────────────────────────────────────────────────────────────────────────────
   const goTo = useCallback((i) => {
     setMoving(false)
+    land(indexRef.current, i)
     setIndex(i)
     record(TOUR_STATES.started, steps[i].id)
-  }, [record, steps])
+  }, [record, steps, land])
 
   // Next: wait (bounded) for the very next step's anchor; at the deadline take the first
   // later step that is on screen; with none, the tour is done.
@@ -425,7 +444,9 @@ export default function GenericTourEngine({
       aria-describedby={`${progressId} ${bodyId}${hintId}`}
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
-      <p id={progressId} className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
+      <p id={progressId} className={styles.progress}>
+        {`Step ${index + 1 - [...passed].filter((j) => j < index).length} of ${steps.length - passed.size}`}
+      </p>
       <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
         aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>
       <p id={bodyId} className={styles.body}>{copy.body}</p>

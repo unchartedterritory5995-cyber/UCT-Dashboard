@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/plan-grades/trades/pg-theirs",
+    "note": "Another member's trade answers the one 404.",
+    "path": "/api/j2/plan-grades/trades/pg-theirs",
+    "status": 404
+  },
+  "body": {
+    "detail": "Trade not found"
+  }
+}

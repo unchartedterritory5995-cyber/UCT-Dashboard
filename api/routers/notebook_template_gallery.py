@@ -6,7 +6,7 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery                     paid     browse (?q ?category ?sort ?section)
   member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
-  member  DELETE /api/j2/template-gallery/{gallery_id}        paid     unpublish
+  member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
   admin   GET    /api/j2/template-gallery/admin/queue                  pending, reported, hidden
@@ -19,12 +19,10 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
   * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN -- the gate, then the member, then the body
     (`member_body` / `paid_body`), never a FastAPI body parameter, so a malformed body can
     never answer 422 ahead of the gate.
-  * PLAN: every member route takes this router's own `require_paid` (owner ruling
-    2026-10-02, "no free tier, everything is paywall"; security review I-7). That replaced
-    the wave 6 rule that browsing, using and reporting needed a session only.
-    ⚠️ It includes UNPUBLISH: a member whose plan lapsed can no longer take their own
-    template down themselves (an admin can hide it, and deleting the account removes it).
-    That consequence is recorded as an open decision in docs/notebook/fin-sec.md.
+  * PLAN: browsing, previewing, using, reporting and publishing take this router's own
+    `require_paid` (owner ruling 2026-10-02, "no free tier, everything is paywall"; security
+    review I-7). UNPUBLISH DOES NOT, and that is a second ruling (2026-10-07): a member can
+    always take their own content down, whatever their plan. It needs a session only.
   * RATE LIMITS, per member: publish 10/hour and report 30/hour in the in-process limiter
     (`public.enforce_rate`; ⚠️ PER-PROCESS STATE, scopes `notebook-gallery-publish` and
     `notebook-gallery-report` -- a second web process doubles both), plus a DURABLE daily cap
@@ -42,7 +40,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import (
-    get_current_user_with_plan, is_paid_user, require_admin,
+    get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
 )
 from api.services import daily_counters
 from api.services.journal_two import public_note_payload as public
@@ -183,7 +181,9 @@ def publish_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Dep
 
 
 @router.delete("/{gallery_id}")
-def unpublish_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+def unpublish_endpoint(gallery_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    # SESSION ONLY, ON PURPOSE (owner ruling 2026-10-07): a member can always take their own
+    # content down, whatever their plan. Pinned by name in tests/test_paywall_gate_free_tier.py.
     if not gallery.unpublish(user["id"], gallery_id):
         raise public.not_found()
     return {"ok": True}

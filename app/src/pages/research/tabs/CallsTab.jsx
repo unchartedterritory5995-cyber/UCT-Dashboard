@@ -8,6 +8,7 @@ import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
+import PanelState from '../../../components/terminal/PanelState'
 
 export default function CallsTab({ sym }) {
   const { data: recapData, isLoading, error, paywalled, mutate } = useCallRecap(sym)
@@ -24,25 +25,26 @@ export default function CallsTab({ sym }) {
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
+      {/* TERM-088 -- a failed read is not a genuinely empty recap; the empty-state branch below
+          is guarded with `&& !error`. Completeness audit 2026-10-07: the error rendered BELOW the
+          transcript, under a long page a member had to scroll past to learn the recap failed. It
+          is the first thing in the tab now, in the shared error block. */}
+      {!isLoading && error && (
+        <PanelState kind="error" compact testId="call-recap-error"
+          title="Couldn't load the earnings call recap for this ticker."
+          action={<button type="button" onClick={() => mutate()}>Retry</button>}>
+          The transcript below is read separately.
+        </PanelState>
+      )}
       <SentimentGauge ticker={sym} />
       {isLoading && !recap && <ResearchLoading label="Loading earnings call recap" />}
       {/* The WHOLE payload, not `.recap`: webcast_url, rating_changes and
           review_status ride the outer object, and normalizeCallRecap (inside
           CallRecapSection) flat-merges them -- same as CallSection does. */}
       {recap && <CallRecapSection recap={recapData} audio={audioData} hideSentimentBadge />}
-      <TranscriptPanel sym={sym} />
-      {/* TERM-088 -- a failed read is not a genuinely empty recap. Rendered
-          BEFORE the empty-state branch, which is guarded with `&& !error` so
-          a backend hiccup never reads as "no recap available yet". */}
+      {/* the recap's other states sit where the recap would, above the transcript */}
       {!isLoading && paywalled && (
         <div className={styles.fnote} data-testid="call-recap-paywalled">The earnings call recap requires a paid plan.</div>
-      )}
-      {!isLoading && error && (
-        <div className={styles.fnote} data-testid="call-recap-error">
-          Couldn't load the earnings call recap for this ticker.
-          {' '}
-          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
-        </div>
       )}
       {!isLoading && !recap && !error && !paywalled && (() => {
         // Same shared copy as CallSection. This surface said "No earnings call
@@ -56,6 +58,7 @@ export default function CallsTab({ sym }) {
         )
       })()}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The recap" />
+      <TranscriptPanel sym={sym} />
     </div>
   )
 }

@@ -1,0 +1,202 @@
+/* IMOV — theme contribution. App tokens only (the terminal wears the member's theme); row height,
+   gaps and type size follow the board density through the --panel-* variables. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap, var(--space-sm));
+  color: var(--text);
+  font-size: var(--panel-fs, var(--text-sm));
+  min-width: 0;
+}
+
+.inPanel {
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+}
+
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.filter select {
+  font: inherit;
+  max-width: 22em;
+  padding: 1px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  color: var(--info);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lede {
+  margin: 0;
+  line-height: var(--lh-normal);
+}
+
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--panel-gap, var(--space-sm)) var(--space-md);
+}
+
+.split > .tableBox {
+  flex: 1 1 16em;
+}
+
+.tableBox {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.table th,
+.table td {
+  height: var(--panel-row-h, 24px);
+  padding: calc(var(--panel-gap, var(--space-sm)) / 4) var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: var(--text-xs);
+}
+
+.mine td {
+  background: var(--bg-surface);
+}
+
+.rowBtn {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.rowBtn:hover,
+.rowBtn:focus-visible {
+  color: var(--accent);
+}
+
+.rowNum {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.sym {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+}
+
+.reconcile {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-left: 2px solid var(--info);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+/* Number text uses the ink tokens: --gain/--loss also colour fills and miss 4.5:1 as text
+   on several themes (terminal a11y audit 2026-10-06, rail pages/terminal/a11y/terminalContrast). */
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
+
+/* Touch tier (phone + tablet): finger targets (rail pages/terminal/a11y/terminalA11yStatic). */
+@media (max-width: 1024px) {
+  .chip,
+  .rowBtn {
+    min-height: var(--tap-min);
+  }
+
+  .chip {
+    min-width: var(--tap-min);
+  }
+}

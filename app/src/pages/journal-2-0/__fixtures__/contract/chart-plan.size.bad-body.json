@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": "x"
+    },
+    "status": 422
+  },
+  "body": {
+    "detail": "That request could not be read."
+  }
+}

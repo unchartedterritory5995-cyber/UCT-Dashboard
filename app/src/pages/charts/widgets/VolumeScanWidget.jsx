@@ -31,6 +31,7 @@ import { ScopeControl, AddTickerBar, makeListHelpers } from './VolumeScanLists'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './VolumeScanWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
 // widget drew as "Warming up…", a scanner that never finished warming. Now SWR keeps the last good answer through a failed poll, and a
@@ -55,11 +56,12 @@ function fmtTime(iso) {
 
 const fmtPrice = (p) => (typeof p === 'number' ? (p >= 100 ? p.toFixed(1) : p.toFixed(2)) : '')
 const fmtPct = (v) => (typeof v === 'number' ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '')
-const fmtDollar = (d) => {
+// TERM-066: the K/M suffix comes from lib/presentation (formatCompact) on this line's own
+// ladder (K rounds with Math.round). Exported for widgetFormatters.term066.test.js.
+const DOLLAR_TIERS = [{ at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 'round' }]
+export const fmtDollar = (d) => {
   if (typeof d !== 'number' || d <= 0) return ''
-  if (d >= 1e6) return `$${(d / 1e6).toFixed(1)}M`
-  if (d >= 1e3) return `$${Math.round(d / 1e3)}K`
-  return `$${Math.round(d)}`
+  return formatCompact(d, { tiers: DOLLAR_TIERS, prefix: '$', absent: '' })
 }
 
 // Rank so the strongest tier is ALWAYS on top: lit rows first, then tier DESC (a

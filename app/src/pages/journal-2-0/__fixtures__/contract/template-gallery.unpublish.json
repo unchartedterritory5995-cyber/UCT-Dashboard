@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "DELETE /api/j2/template-gallery/4525cdb4ca5047a49587a3305069e54d",
+    "path": "/api/j2/template-gallery/4525cdb4ca5047a49587a3305069e54d",
+    "status": 200
+  },
+  "body": {
+    "ok": true
+  }
+}

@@ -53,6 +53,12 @@ export function nameOfTree(node, parentPrec = 0) {
     case 'offset': return `${nameOfTree(node.args ? node.args[0] : node.of, 9)}[${fmtNum(node.value)}]`
     case 'call': {
       const args = Array.isArray(node.args) ? node.args : []
+      // ⭐ P3S — an event reads as one: "RSI 28 crosses above 70", not
+      // "CROSSOVER 70 (RSI 28)" (P3R). Presentation only — names are not identity.
+      if ((node.name === 'crossOver' || node.name === 'crossUnder') && args.length === 2) {
+        const dir = node.name === 'crossOver' ? 'above' : 'below'
+        return `${nameOfTree(args[0], 9)} crosses ${dir} ${nameOfTree(args[1], 9)}`
+      }
       const fn = String(node.name || '').toUpperCase()
       // ⭐ THE CHART CONVENTION: "EMA 20", "RSI 14", "MACD 12,26,9". The bar
       // field `close` is the default source and is not repeated; any other source

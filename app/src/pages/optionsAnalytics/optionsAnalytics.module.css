@@ -6,8 +6,8 @@
 .muted { color: var(--text-muted); font-size: var(--text-base); line-height: 1.5; }
 .note { color: var(--text-muted); font-size: var(--text-md); padding: 8px 0; }
 .facts { font-size: var(--text-md); margin: 6px 0; font-variant-numeric: tabular-nums; }
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+.gain { color: var(--success-ink); }
+.loss { color: var(--danger-ink); }
 .seg { display: inline-flex; gap: 4px; }
 .seg button, .input, .select { min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: var(--text-base); }
 .seg button[aria-pressed='true'] { border-color: var(--ut-gold); color: var(--text-heading); }

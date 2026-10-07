@@ -10,6 +10,18 @@ import { useId, useState } from 'react'
 import { GALLERY_CATEGORIES, publishToGallery } from '../../lib/templateGallery'
 import styles from './TemplateGallery.module.css'
 
+const FAILED_SENTENCE = "Couldn't submit that template. Nothing was shared."
+
+/** What the member reads when a submit fails. The SERVER's own sentence when it sent one (a
+ *  refusal carries a status and a `detail`); the plain sentence for everything else: a dropped
+ *  connection (the browser's "Failed to fetch") and an error with no readable body (the
+ *  client's "request failed (502)"), neither of which is written for a member. */
+function refusalSentence(err) {
+  const text = typeof err?.message === 'string' ? err.message.trim() : ''
+  const fromServer = typeof err?.status === 'number' && text && !/^request failed \(\d+\)$/.test(text)
+  return fromServer ? text : FAILED_SENTENCE
+}
+
 export default function GalleryPublishForm({ template, onDone, onCancel }) {
   const uid = useId()
   const [title, setTitle] = useState(template?.name || '')
@@ -27,7 +39,7 @@ export default function GalleryPublishForm({ template, onDone, onCancel }) {
       const item = await publishToGallery({ templateId: template.id, title, description, category })
       onDone(`Submitted “${item.title}” for review. You'll see it under Your submissions in the community gallery.`)
     } catch (err) {
-      setError(err?.message || "Couldn't submit that template. Nothing was shared.")
+      setError(refusalSentence(err))
       setWorking(false)
     }
   }

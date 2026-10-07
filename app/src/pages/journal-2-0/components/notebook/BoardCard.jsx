@@ -66,6 +66,9 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
     <li className={styles.card} data-board-card={card.symbol} data-state={card.state} data-tour="setups-card">
       <div className={styles.cardHead}>
         <span className={styles.symbol}>{card.symbol}</span>
+        {/* The SERVER says which card is the sample's (`example`); never inferred here. Text,
+            so it does not rest on colour, and it is the chip's accessible name. */}
+        {card.example && <span className={styles.stateChip} data-example="">Example</span>}
         <span className={styles.stateChip} data-state={card.state}>{STATE_LABEL[card.state] || card.state}</span>
         {days != null && <span className={styles.days}>{daysText(days)}</span>}
       </div>
@@ -119,7 +122,12 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
         <Link className={styles.noteLink} to={notePath(card.noteId)} data-tour="setups-note">
           {card.noteTitle || 'Untitled note'}
         </Link>
-        {onFindSimilar && card.similarEmbedKey && (
+        {/* An example's chart is left out of the overnight matching by design, so the door
+            that would promise "matched tonight" is not offered on it. */}
+        {onFindSimilar && card.similarEmbedKey && (card.similarNeverMatched || card.example) && (
+          <span className={styles.quiet}>Examples are not matched against the day’s names.</span>
+        )}
+        {onFindSimilar && card.similarEmbedKey && !(card.similarNeverMatched || card.example) && (
           <button type="button" className={styles.action}
             aria-label={`Find more like ${card.symbol}`} data-tour="setups-similar"
             onClick={() => onFindSimilar({ noteId: card.noteId, embedKey: card.similarEmbedKey, symbol: card.symbol })}>

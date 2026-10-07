@@ -778,6 +778,29 @@ describe('Saved view delete clears activeView when it was the active one (UX #1)
     )).toBe(false)
   })
 
+  // Finish program, lane FE2 round 2 (found by the 390 px browser sweep): the confirm was
+  // rendered inside the notes-list branch only, so on Research Home, where the folders panel
+  // and its saved views are also shown, the Delete button set state and nothing appeared.
+  it('on Research Home the Delete button opens the same confirm, and confirming deletes the view', async () => {
+    renderTab('/journal/notebook')
+    expect(screen.getByTestId('research-home')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('delete view v1'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Delete view "My View"?')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      '/api/j2/saved-views/v1',
+      expect.objectContaining({ method: 'DELETE' }),
+    ))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('control: on the notes list the confirm is rendered once, not twice', () => {
+    renderTab()
+    fireEvent.click(screen.getByText('delete view v1'))
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
+
   it('renaming calls the PUT endpoint with the new name', async () => {
     renderTab()
     fireEvent.click(screen.getByText('rename view v1'))

@@ -256,4 +256,20 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
     // Other sections unmounted — only one at a time, the same discipline every tab follows.
     expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
   })
+
+  it('a refusal the door wrote for the member is shown in its own words, not the generic line', async () => {
+    reviewDraftsFlagOn = true
+    const { draftDailyReview, draftWeeklyReview } = await import('../../lib/reviewDrafts')
+    draftDailyReview.mockRejectedValueOnce(Object.assign(
+      new Error('This note is still syncing — try again in a moment.'),
+      { memberMessage: 'This note is still syncing — try again in a moment.' }))
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
+    fireEvent.click(screen.getByRole('button', { name: /today.s recap/i }))
+    expect(await screen.findByText('This note is still syncing — try again in a moment.')).toBeInTheDocument()
+    // Control: an ordinary failure still reads as the generic line.
+    draftWeeklyReview.mockRejectedValueOnce(new Error('boom'))
+    fireEvent.click(screen.getByRole('button', { name: /this week.s review/i }))
+    expect(await screen.findByText(/Could not draft the weekly review/)).toBeInTheDocument()
+  })
 })

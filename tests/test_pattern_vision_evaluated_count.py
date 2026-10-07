@@ -96,3 +96,20 @@ def test_the_two_queries_cannot_disagree(tmp_path, monkeypatch):
     evaluated = s.count_evaluated("NVDA", today="2026-09-10")
     assert confirmed <= evaluated
     assert (confirmed, evaluated) == (2, 3)
+
+
+def test_the_as_of_is_the_newest_judging_over_the_same_population(tmp_path, monkeypatch):
+    """TERM-019: the Technical panel header dates itself by when the judge last ran on the
+    population `count_evaluated` counts -- same window, same latest-per-key rule."""
+    s = _store(tmp_path, monkeypatch)
+    assert s.last_judged_at("NVDA", today="2026-09-10") is None      # never judged: undated
+    s.put_verdict({"ticker": "NVDA", "tf": "D", "setup": "vcp", "asof_date": "2026-09-09",
+                   "confirmed": 1, "vision_confidence": 80.0, "rationale": "r", "key_level": 1.0,
+                   "raw_confidence": 0.5, "model": "m", "signals_hash": "a", "judged_at": 1789000000,
+                   "checks": "[]"})
+    s.put_verdict({"ticker": "NVDA", "tf": "D", "setup": "bull_flag", "asof_date": "2026-09-10",
+                   "confirmed": 0, "vision_confidence": 70.0, "rationale": "r", "key_level": 1.0,
+                   "raw_confidence": 0.5, "model": "m", "signals_hash": "b", "judged_at": 1789050000,
+                   "checks": "[]"})
+    assert s.last_judged_at("NVDA", today="2026-09-10") == 1789050000
+    assert s.last_judged_at("NVDA", today="2026-09-30") is None      # outside the window

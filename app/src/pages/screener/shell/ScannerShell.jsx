@@ -8,6 +8,7 @@ import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../../components/mobile'
 import { SkeletonTable } from '../../../components/Skeleton'
 import UIcon from '../../../components/ui/UIcon'
+import { BoardFromList, usePanelList } from '../../../components/terminal'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
 import { scanErrorText } from './scanErrorText'
@@ -289,6 +290,12 @@ export default function ScannerShell({ embedded = false }) {
   const scansDoorRef = useRef(null)
   const openScans = useCallback(() => { openScansPicker(scansDoorRef.current) }, [])
 
+  /* Scan-to-board (UCT Terminal, feature-gaps #9): inside a terminal panel the results AS SHOWN
+   * (displayRows, the loaded page in display order) are this panel's list, so `BOARD GP` typed
+   * while the screener is focused opens them as a board. A no-op outside the terminal. */
+  const boardSyms = useMemo(() => displayRows.map(r => r.ticker).filter(Boolean), [displayRows])
+  usePanelList(boardSyms.length ? { syms: boardSyms, label: 'screener results', total } : null)
+
   const hub = useScreenerHubSection({
     displayRows, filters: s.filters, prices, hasMore, loadMore: s.loadMore,
     onOpenScans: openScans,
@@ -391,9 +398,13 @@ export default function ScannerShell({ embedded = false }) {
              * and it deliberately differs from the match count beside it.
              * Opens the IN-SCREENER review overlay (below) — no navigation to
              * /charts; the member flips through the charts here, keyboard-driven. */
-            <button type="button" className={styles.toolBtn} data-testid="review-charts" onClick={() => setReviewOpen(true)}>
-              <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
-            </button>
+            <>
+              <button type="button" className={styles.toolBtn} data-testid="review-charts" onClick={() => setReviewOpen(true)}>
+                <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
+              </button>
+              {/* In a terminal panel only: the loaded results as a board of panels. */}
+              <BoardFromList syms={boardSyms} label="screener results" total={total} testId="screener-board-from-list" />
+            </>
           ) : null}
           libraryBar={(
             <>

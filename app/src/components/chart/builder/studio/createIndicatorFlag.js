@@ -57,3 +57,33 @@ function subscribe(cb) {
 export function useCreateIndicatorFlag() {
   return useSyncExternalStore(subscribe, resolveCreateIndicatorFlag, () => DEFAULT_ON)
 }
+
+// ─── ⭐ CONTROLLED MEMBER ROLLOUT — WHO MAY SEE CREATE INDICATOR ──────────────
+//
+// Spelled exactly as `api/services/rollout_gate.py::CREATE_INDICATOR_COHORT`
+// (`createIndicatorAccess.test.js` reads the Python source and pins the two).
+export const CREATE_INDICATOR_COHORT = 'create-indicator'
+
+/**
+ * Pure: may the member this auth payload describes see Create Indicator?
+ *
+ *   · an ADMIN — only with this browser's opt-in flag (the dark owner review,
+ *     unchanged);
+ *   · a MEMBER — only when the SERVER's effective `cohorts` list names the
+ *     cohort. That list is computed server-side (`rollout_gate.client_cohorts`:
+ *     the kill switch first, then an admin-written tag), so nothing a member can
+ *     set in this browser grants it; the localStorage flag is ignored for them.
+ *
+ * ⛔ The browser decision is a DOOR. `/converse` enforces the same rule
+ * (`require_create_indicator_access`); a tampered client reaches a 403.
+ */
+export function createIndicatorAccess({ user = null, cohorts = null } = {}, flagOn = false) {
+  if (user && user.role === 'admin') return !!flagOn
+  return Array.isArray(cohorts) && cohorts.includes(CREATE_INDICATOR_COHORT)
+}
+
+/** The hook both doors use: the auth payload + this browser's flag. */
+export function useCreateIndicatorAccess(auth) {
+  const flagOn = useCreateIndicatorFlag()
+  return createIndicatorAccess(auth || {}, flagOn)
+}

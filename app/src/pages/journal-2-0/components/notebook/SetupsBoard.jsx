@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { chartPlanEnabled } from '../../lib/widgetEmbedCore'
 import useStaggeredMount from '../../../charts/grid/useStaggeredMount'
 import { makeGridWarmer } from '../../../charts/grid/gridWarm'
 import { GRID_MAX_CELLS } from '../../../charts/grid/gridLayouts'
@@ -48,11 +49,29 @@ export const cardKey = (c) => `${c.noteId}:${c.symbol}`
 
 const warmDaily = (syms) => prefetchListAllTimeframes(syms, { tfs: WARM_TFS })
 
+/** The board's "nothing yet" line. With the chart plan off the member cannot mark a line as an
+ *  entry, so the line says what is missing instead of naming a step they cannot take. */
+export function emptyBoardText({ planDrawing = null, chartPlanOn }) {
+  const how = 'No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here.'
+  // The board's own answer says whether a plan can be drawn, and why not (`planDrawing`).
+  if (planDrawing && typeof planDrawing.available === 'boolean') {
+    if (planDrawing.available) return how
+    return `No open setups yet. ${planDrawing.sentence || 'Drawing a plan on a chart is not switched on for your account.'}`
+  }
+  // An older answer without it: the tab's own latched flag decides.
+  return chartPlanOn
+    ? how
+    : 'No open setups yet. A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.'
+}
+
 function Board({ onFindSimilar }) {
   const { data, error, isLoading, mutate } = useSWR(BOARD_URL, fetchJson,
     { revalidateOnFocus: false, shouldRetryOnError: false })
   const [page, setPage] = useState(0)
   const cards = useMemo(() => (Array.isArray(data?.cards) ? data.cards : []), [data])
+  // A sample's card is shown and labelled, and is never one of the member's setups: the
+  // "none yet" guidance is decided on their OWN cards (the server marks `example`).
+  const hasOwn = useMemo(() => cards.some((c) => !c.example), [cards])
   const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE))
   const current = Math.min(page, pages - 1)
   const pageCards = useMemo(() => cards.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE), [cards, current])
@@ -78,11 +97,8 @@ function Board({ onFindSimilar }) {
       </div>
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
-      {!error && data && cards.length === 0 && (
-        <p className={styles.quiet}>
-          No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the
-          distance in R) and it shows here.
-        </p>
+      {!error && data && !hasOwn && (
+        <p className={styles.quiet}>{emptyBoardText({ planDrawing: data?.planDrawing, chartPlanOn: chartPlanEnabled() })}</p>
       )}
       {!error && data?.capped && (
         <p className={styles.note} role="note">
@@ -207,7 +223,7 @@ export default function SetupsBoard() {
       {similarOn && <Templates onPick={open} />}
       {similarOn && picked && (
         <Sheet open onClose={close} variant="auto" title="Find more like this" labelledByTitle>
-          <SimilarNames noteId={picked.noteId} embedKey={picked.embedKey} />
+          <SimilarNames noteId={picked.noteId} embedKey={picked.embedKey} example={picked.example === true} />
         </Sheet>
       )}
     </div>

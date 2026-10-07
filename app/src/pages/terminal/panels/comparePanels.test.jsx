@@ -10,7 +10,7 @@ import RrgPanel, { SECTOR_ETFS, rrgUniverse } from './RrgPanel'
 import RelPanel, { relSymbols, ratioVerdict, axisDecimals } from './RelPanel'
 import CorrPanel, { corrSymbols, corrTint } from './CorrPanel'
 import { clearClosesCache, settleLimited, MAX_IN_FLIGHT } from './useCloses'
-import { fakeBarsFetch, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
+import { fakeBarsFetch, fridays, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
 
 const realFetch = globalThis.fetch
 let fetchSpy
@@ -24,7 +24,7 @@ afterEach(() => { globalThis.fetch = realFetch })
 const requested = () => fetchSpy.mock.calls.map(([u]) => decodeURIComponent(String(u).match(/\/api\/bars\/([^?]+)/)[1]))
 
 describe('RRG', () => {
-  const dates = weekdays(60)
+  const dates = fridays(60)   // weekly bars: one per week (closesFromBars re-keys W bars to the ISO Friday)
   const bench = series(dates, () => 0.001)
   const shaped = (rel) => series(dates, (i) => (1.001 * (1 + rel(i))) - 1)
 
@@ -39,10 +39,15 @@ describe('RRG', () => {
     expect(screen.getByTestId('terminal-rrg-row-XLU').textContent).toContain('Lagging')
     expect(screen.getByTestId('rrg-point-XLK').getAttribute('data-quadrant')).toBe('Leading')
     expect(screen.getByTestId('terminal-rrg-row-XLK').textContent).toContain('Technology')
-    expect(onRows).toHaveBeenLastCalledWith(['XLK GP', 'XLU GP'])
-    fireEvent.click(screen.getByTitle('Open XLU GP'))
-    expect(onRun).toHaveBeenCalledWith('XLU GP')
+    // The rows publish in an effect after the graph paints; under a loaded test run the
+    // first (empty) publish can still be the last one when the graph is found.
+    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(['XLK GP', 'XLU GP']))
+    fireEvent.click(screen.getByTitle('Open XLU GP beside this graph'))
+    expect(onRun).toHaveBeenCalledWith('XLU GP', { next: true })
     expect(screen.getByTestId('terminal-rrg-method').textContent).toContain("not JdK's proprietary formula")
+    // a11y (audit 2026-10-06): the graph's name states what it SHOWS, and the table is named
+    expect(screen.getByRole('img', { name: /vs SPY.*Leading: XLK\..*Lagging: XLU\./ })).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'Rotation quadrants vs SPY' })).toBeTruthy()
     // weekly closes, one request per name, at the shared depth
     expect(fetchSpy.mock.calls.every(([u]) => /tf=W&bars=120/.test(u))).toBe(true)
   })
@@ -61,6 +66,15 @@ describe('RRG', () => {
     expect(screen.queryByTestId('terminal-rrg-table')).toBeNull()
   })
 
+  it('the benchmark read but every name failing is an ERROR naming them, never "not enough history"', async () => {
+    serve({ SPY: bench })
+    render(<RrgPanel with0="NOPE" with1="NADA" />)
+    const err = await screen.findByTestId('terminal-rrg-error')
+    expect(err.textContent).toContain('Could not read NOPE, NADA just now.')
+    expect(err.getAttribute('data-kind')).toBe('error')
+    expect(screen.queryByTestId('terminal-rrg-empty')).toBeNull()
+  })
+
   it('bare RRG plots the 11 sector ETFs against SPY; one security is placed AMONG them; D switches to daily', async () => {
     expect(rrgUniverse(null, {})).toMatchObject({ mode: 'sectors', syms: Object.keys(SECTOR_ETFS) })
     const among = rrgUniverse('nvda', {})
@@ -69,7 +83,8 @@ describe('RRG', () => {
     expect(rrgUniverse('NVDA', { with0: 'SPY', with1: 'AMD' })).toMatchObject({ mode: 'custom', syms: ['NVDA', 'AMD'] })
     serve({ SPY: bench })
     render(<RrgPanel tf="D" />)
-    await screen.findByTestId('terminal-rrg-empty')
+    // only SPY is served, so all 11 sectors FAIL: that is an error naming them (2026-10-07), not "empty"
+    await screen.findByTestId('terminal-rrg-error')
     expect(requested().sort()).toEqual(['SPY', ...Object.keys(SECTOR_ETFS)].sort())
     expect(fetchSpy.mock.calls.every(([u]) => /tf=D&bars=600/.test(u))).toBe(true)
   })
@@ -93,6 +108,8 @@ describe('REL', () => {
     expect(screen.getByTestId('terminal-rel-row-NVDA').textContent).toContain('+28.6%')
     expect(screen.getByTestId('terminal-rel-row-NVDA').textContent).toContain('base')
     expect(screen.getByTestId('terminal-rel-row-AMD').textContent).toContain('-28.6%')
+    // a11y (audit 2026-10-06): the chart's name carries the result, not only the axis
+    expect(screen.getByTestId('terminal-rel-chart').getAttribute('aria-label')).toMatch(/: NVDA \+28\.6%, AMD [^,]+$/)
     expect(screen.getByTestId('terminal-rel-verdict').textContent).toBe(
       'NVDA has outperformed AMD by 28.6% on the ratio over 6M. The ratio is above its 50-session average: NVDA is gaining on AMD now.')
   })
@@ -130,6 +147,15 @@ describe('REL', () => {
     serve({ NVDA: series(dates, () => 0.002) })
     render(<RelPanel sym="NVDA" with0="ZZZZ" />)
     expect((await screen.findByTestId('terminal-rel-error')).textContent).toContain('Could not read ZZZZ just now.')
+  })
+
+  it('too little SHARED history (nothing failed) is an empty answer, not an error to retry', async () => {
+    serve({ NVDA: series(dates.slice(-3), () => 0.002), NEWCO: series(dates.slice(0, 3), () => 0) })   // both read, no session in common
+    render(<RelPanel sym="NVDA" with0="NEWCO" />)
+    const empty = await screen.findByTestId('terminal-rel-empty')
+    expect(empty.textContent).toContain('These names share too little trading history to compare.')
+    expect(empty.getAttribute('data-kind')).toBe('empty')
+    expect(screen.queryByTestId('terminal-rel-error')).toBeNull()
   })
 })
 

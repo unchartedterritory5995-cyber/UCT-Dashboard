@@ -1,0 +1,928 @@
+{
+ "tool": "tools/notebook_fin_fe2_walk.py",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe2\\walk-run2-370128228a\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 13:12:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 13:13:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 13:15:01",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 13:18:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe2\\walk-run2-370128228a\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T13-12-18.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_paid_member_and_switches_on",
+   "verdict": "PASS",
+   "detail": "paid=True formulas=True resurface=True getting_started=True earnings_prep=True"
+  },
+  {
+   "id": "V1280_P1a_confirm_button_is_clear_of_floating_buttons",
+   "verdict": "PASS",
+   "detail": "voice button before=1; while the dialog is open=0; top element at the centre of 'Delete' is the button=True (BUTTON._dangerBtn_wu5n8_211); box=[793, 505, 84, 34]"
+  },
+  {
+   "id": "V1280_P1b_tap_on_confirm_deletes_the_note",
+   "verdict": "PASS",
+   "detail": "GET note -> 404, deletedAt=None; still in the notes list=False; dialogs left=0"
+  },
+  {
+   "id": "V1280_P3a_explainer_shows_for_a_member_who_hid_get_started_and_declined_another_tour",
+   "verdict": "PASS",
+   "detail": "seed={'hide_get_started': 200, 'declined_other_tour': 200}; explainer=shown after 0.5 s; inside the sheet=True; text='What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is '"
+  },
+  {
+   "id": "V1280_P3b_shown_once_per_member",
+   "verdict": "PASS",
+   "detail": "explainers on the second open (12 s wait)=0; the member's row after the first showing='{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}'"
+  },
+  {
+   "id": "V1280_P6_formulas_tour_opens_on_step_1_and_counts_what_it_shows",
+   "verdict": "PASS",
+   "detail": "cards=['Step 1 of 4', 'Step 2 of 4', 'Step 3 of 4', 'Step 4 of 4']; titles=['Numbers that work themselves out', 'A formula', 'See or change the formula', 'A rollup']; anchors on screen=[['properties-add-empty', 0], ['properties-add', 1], ['computed-value', 1], ['computed-edit', 1]]; defs={'entry': 200, 'stop': 200, 'formula': 200, 'formula_body': '{\"propertyDef\":{\"id\":\"aedce0ae1c714263b0b2e29893eac597\",\"name\":\"Risk V1280\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:14:25.727209+00:00\",\"updatedAt\"'}"
+  },
+  {
+   "id": "V820_P1a_confirm_button_is_clear_of_floating_buttons",
+   "verdict": "PASS",
+   "detail": "voice button before=0; while the dialog is open=0; top element at the centre of 'Delete' is the button=True (BUTTON._dangerBtn_wu5n8_211); box=[563, 640, 84, 44]"
+  },
+  {
+   "id": "V820_P1b_tap_on_confirm_deletes_the_note",
+   "verdict": "PASS",
+   "detail": "GET note -> 404, deletedAt=None; still in the notes list=False; dialogs left=0"
+  },
+  {
+   "id": "V820_P3a_explainer_shows_for_a_member_who_hid_get_started_and_declined_another_tour",
+   "verdict": "PASS",
+   "detail": "seed={'hide_get_started': 200, 'declined_other_tour': 200}; explainer=shown after 0.5 s; inside the sheet=True; text='What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is '"
+  },
+  {
+   "id": "V820_P3b_shown_once_per_member",
+   "verdict": "PASS",
+   "detail": "explainers on the second open (12 s wait)=0; the member's row after the first showing='{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}'"
+  },
+  {
+   "id": "V820_P5a_chart_toolbar_controls_44_by_44",
+   "verdict": "PASS",
+   "detail": "17 controls; under 44 in either direction: []; toolbar inside the block=True {'frame': [354, 732], 'toolbar': [363, 723, 140]}; sideways scroll of the page=0 px"
+  },
+  {
+   "id": "V820_P5b_template_picker_chips_44_by_44",
+   "verdict": "PASS",
+   "detail": "chips=[('All', 44, 44), ('Daily & weekly rituals', 140, 44), ('Thesis & research', 121, 44), ('Around a trade', 104, 44), ('Mindset', 65, 44), ('Your templates', 104, 44), ('All', 44, 44), ('Daily & weekly rituals', 140, 44)]; under 44: []"
+  },
+  {
+   "id": "V820_P5c_reporting_soon_row_controls_44_by_44",
+   "verdict": "FAIL",
+   "detail": "symbol link box=None; row controls=None; sideways scroll=0 px"
+  },
+  {
+   "id": "V820_P6_formulas_tour_opens_on_step_1_and_counts_what_it_shows",
+   "verdict": "PASS",
+   "detail": "cards=['Step 1 of 4', 'Step 2 of 4', 'Step 3 of 4', 'Step 4 of 4']; titles=['Numbers that work themselves out', 'A formula', 'See or change the formula', 'A rollup']; anchors on screen=[['properties-add-empty', 0], ['properties-add', 1], ['computed-value', 1], ['computed-edit', 1]]; defs={'entry': 200, 'stop': 200, 'formula': 200, 'formula_body': '{\"propertyDef\":{\"id\":\"80e216e86f3649018ed7b085456c4bcd\",\"name\":\"Risk V820\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:16:02.868031+00:00\",\"updatedAt\":'}"
+  },
+  {
+   "id": "V390_P1a_confirm_button_is_clear_of_floating_buttons",
+   "verdict": "PASS",
+   "detail": "voice button before=0; while the dialog is open=0; top element at the centre of 'Delete' is the button=True (BUTTON._dangerBtn_wu5n8_211); box=[284, 786, 84, 44]"
+  },
+  {
+   "id": "V390_P1b_tap_on_confirm_deletes_the_note",
+   "verdict": "PASS",
+   "detail": "GET note -> 404, deletedAt=None; still in the notes list=False; dialogs left=0"
+  },
+  {
+   "id": "V390_P3a_explainer_shows_for_a_member_who_hid_get_started_and_declined_another_tour",
+   "verdict": "PASS",
+   "detail": "seed={'hide_get_started': 200, 'declined_other_tour': 200}; explainer=shown after 0.5 s; inside the sheet=True; text='What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is '"
+  },
+  {
+   "id": "V390_P3b_shown_once_per_member",
+   "verdict": "PASS",
+   "detail": "explainers on the second open (12 s wait)=0; the member's row after the first showing='{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}'"
+  },
+  {
+   "id": "V390_P5a_chart_toolbar_controls_44_by_44",
+   "verdict": "PASS",
+   "detail": "17 controls; under 44 in either direction: []; toolbar inside the block=True {'frame': [60, 330], 'toolbar': [69, 321, 188]}; sideways scroll of the page=0 px"
+  },
+  {
+   "id": "V390_P5b_template_picker_chips_44_by_44",
+   "verdict": "PASS",
+   "detail": "chips=[('All', 44, 44), ('Daily & weekly rituals', 140, 44), ('Thesis & research', 121, 44), ('Around a trade', 104, 44), ('Mindset', 65, 44), ('Your templates', 104, 44), ('All', 44, 44), ('Daily & weekly rituals', 140, 44)]; under 44: []"
+  },
+  {
+   "id": "V390_P5c_reporting_soon_row_controls_44_by_44",
+   "verdict": "FAIL",
+   "detail": "symbol link box=None; row controls=None; sideways scroll=0 px"
+  },
+  {
+   "id": "V390_P6_formulas_tour_opens_on_step_1_and_counts_what_it_shows",
+   "verdict": "PASS",
+   "detail": "cards=['Step 1 of 4', 'Step 2 of 4', 'Step 3 of 4', 'Step 4 of 4']; titles=['Numbers that work themselves out', 'A formula', 'See or change the formula', 'A rollup']; anchors on screen=[['properties-add-empty', 0], ['properties-add', 1], ['computed-value', 1], ['computed-edit', 1]]; defs={'entry': 200, 'stop': 200, 'formula': 200, 'formula_body': '{\"propertyDef\":{\"id\":\"bc43bdb433f4426c8caf57031d8f767b\",\"name\":\"Risk V390\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:17:38.320119+00:00\",\"updatedAt\":'}"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "V1280_P1": {
+   "orb_before": [
+    {
+     "label": "Tap to start a conversation",
+     "x": 1096,
+     "y": 818,
+     "w": 64,
+     "h": 64
+    }
+   ],
+   "note_delete": {
+    "confirm_label": "Delete",
+    "hit": {
+     "box": [
+      793,
+      505,
+      84,
+      34
+     ],
+     "cx": 834.8203125,
+     "cy": 521.796875,
+     "top_is_button": true,
+     "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+    },
+    "orb_while_open": [],
+    "body_overflow": "hidden"
+   },
+   "after_delete": {
+    "status": 404,
+    "keys": [],
+    "deletedAt": null,
+    "dialog_left": 0,
+    "still_in_notes_list": false
+   }
+  },
+  "V1280_P3": {
+   "seed": {
+    "hide_get_started": 200,
+    "declined_other_tour": 200
+   },
+   "versions": {
+    "put": 200,
+    "count": 1
+   },
+   "tours_pref_before": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null}}",
+   "explainer_appeared_after_s": 0.5,
+   "explainer_first_open": {
+    "text": "What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is the saved version that first named it, shown read only. Close this to go back to the note as it is now. To restore an older version, use History. Got it closes this note.\nWhat you wrote then\n\nA level this note named was touched, the name moved 8% or more, or a date you set arrive",
+    "in_sheet": true,
+    "box": [
+     936,
+     662,
+     320,
+     214
+    ]
+   },
+   "sheet_text": "What you wrote then\n×\n\nSaved 2:14 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nfe2 thesis V1280\n\nFirst thought: the stop is 170.\n\nBack to the note as it is now\nWhat you wrote then. A level this note named was touched, the name moved 8% or more, or a date yo",
+   "tours_pref_after_showing": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}",
+   "explainer_second_open_count": 0
+  },
+  "V1280_P6": {
+   "defs": {
+    "entry": 200,
+    "stop": 200,
+    "formula": 200,
+    "formula_body": "{\"propertyDef\":{\"id\":\"aedce0ae1c714263b0b2e29893eac597\",\"name\":\"Risk V1280\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:14:25.727209+00:00\",\"updatedAt\""
+   },
+   "properties_put": {
+    "status": 200,
+    "stored": null
+   },
+   "anchors_on_screen": [
+    [
+     "properties-add-empty",
+     0
+    ],
+    [
+     "properties-add",
+     1
+    ],
+    [
+     "computed-value",
+     1
+    ],
+    [
+     "computed-edit",
+     1
+    ]
+   ],
+   "cards": [
+    {
+     "progress": "Step 1 of 4",
+     "title": "Numbers that work themselves out",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 2 of 4",
+     "title": "A formula",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 3 of 4",
+     "title": "See or change the formula",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 4 of 4",
+     "title": "A rollup",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Done"
+     ]
+    }
+   ]
+  },
+  "V1280_sweep": {
+   "folder_create": 200,
+   "bulk_error": "TimeoutError: Locator.scroll_into_view_if_needed: Timeout 10000ms exceeded."
+  },
+  "V820_P1": {
+   "orb_before": [],
+   "note_delete": {
+    "confirm_label": "Delete",
+    "hit": {
+     "box": [
+      563,
+      640,
+      84,
+      44
+     ],
+     "cx": 604.8203125,
+     "cy": 661.796875,
+     "top_is_button": true,
+     "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+    },
+    "orb_while_open": [],
+    "body_overflow": "hidden"
+   },
+   "after_delete": {
+    "status": 404,
+    "keys": [],
+    "deletedAt": null,
+    "dialog_left": 0,
+    "still_in_notes_list": false
+   }
+  },
+  "V820_P3": {
+   "seed": {
+    "hide_get_started": 200,
+    "declined_other_tour": 200
+   },
+   "versions": {
+    "put": 200,
+    "count": 1
+   },
+   "tours_pref_before": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null}}",
+   "explainer_appeared_after_s": 0.5,
+   "explainer_first_open": {
+    "text": "What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is the saved version that first named it, shown read only. Close this to go back to the note as it is now. To restore an older version, use History. Got it closes this note.\nWhat you wrote then\n\nA level this note named was touched, the name moved 8% or more, or a date you set arrive",
+    "in_sheet": true,
+    "box": [
+     12,
+     993,
+     796,
+     175
+    ]
+   },
+   "sheet_text": "What you wrote then\n×\n\nSaved 2:15 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nfe2 thesis V820\n\nFirst thought: the stop is 170.\n\nBack to the note as it is now\nWhat you wrote then. A level this note named was touched, the name moved 8% or more, or a date you",
+   "tours_pref_after_showing": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}",
+   "explainer_second_open_count": 0
+  },
+  "V820_P5": {
+   "chart_toolbar": [
+    {
+     "name": "Hide toolbar",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Block actions",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Embed timeframe",
+     "w": 65,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Go live (max 3 per note)",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Half width (pair two side-by-side)",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Draw on this snapshot (lines, text — saved with the embed)",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "What happened next — show this window through today (view-on",
+     "w": 71,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "What happened next — replay bar by bar from this note's date",
+     "w": 52,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Re-capture the archive image",
+     "w": 75,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Chart settings",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Sync from my chart — pull your current Charts-page settings ",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Freeze — make the chart static (no crosshair, not interactiv",
+     "w": 52,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Remove embed",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Freeze the fingerprint",
+     "w": 141,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "No setup tagFlat Base BreakoutBull FlagIPO BaseLaunchpadCup ",
+     "w": 254,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Visual playbook",
+     "w": 108,
+     "h": 44,
+     "visible": true
+    }
+   ],
+   "scroll_note": {
+    "doc": 0,
+    "inner": []
+   },
+   "toolbar_inside_block": {
+    "frame": [
+     354,
+     732
+    ],
+    "toolbar": [
+     363,
+     723,
+     140
+    ]
+   },
+   "template_chips": [
+    {
+     "name": "All",
+     "w": 44,
+     "h": 44
+    },
+    {
+     "name": "Daily & weekly rituals",
+     "w": 140,
+     "h": 44
+    },
+    {
+     "name": "Thesis & research",
+     "w": 121,
+     "h": 44
+    },
+    {
+     "name": "Around a trade",
+     "w": 104,
+     "h": 44
+    },
+    {
+     "name": "Mindset",
+     "w": 65,
+     "h": 44
+    },
+    {
+     "name": "Your templates",
+     "w": 104,
+     "h": 44
+    },
+    {
+     "name": "All",
+     "w": 44,
+     "h": 44
+    },
+    {
+     "name": "Daily & weekly rituals",
+     "w": 140,
+     "h": 44
+    },
+    {
+     "name": "Thesis & research",
+     "w": 121,
+     "h": 44
+    },
+    {
+     "name": "Around a trade",
+     "w": 104,
+     "h": 44
+    },
+    {
+     "name": "Mindset",
+     "w": 65,
+     "h": 44
+    },
+    {
+     "name": "Your templates",
+     "w": 104,
+     "h": 44
+    }
+   ],
+   "reporting_soon_error": "TimeoutError: Locator.wait_for: Timeout 25000ms exceeded.",
+   "reporting_soon_symbol_link": null,
+   "reporting_soon_row_controls": null,
+   "scroll_home": {
+    "doc": 0,
+    "inner": []
+   }
+  },
+  "V820_P6": {
+   "defs": {
+    "entry": 200,
+    "stop": 200,
+    "formula": 200,
+    "formula_body": "{\"propertyDef\":{\"id\":\"80e216e86f3649018ed7b085456c4bcd\",\"name\":\"Risk V820\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:16:02.868031+00:00\",\"updatedAt\":"
+   },
+   "properties_put": {
+    "status": 200,
+    "stored": null
+   },
+   "anchors_on_screen": [
+    [
+     "properties-add-empty",
+     0
+    ],
+    [
+     "properties-add",
+     1
+    ],
+    [
+     "computed-value",
+     1
+    ],
+    [
+     "computed-edit",
+     1
+    ]
+   ],
+   "cards": [
+    {
+     "progress": "Step 1 of 4",
+     "title": "Numbers that work themselves out",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 2 of 4",
+     "title": "A formula",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 3 of 4",
+     "title": "See or change the formula",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 4 of 4",
+     "title": "A rollup",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Done"
+     ]
+    }
+   ]
+  },
+  "V820_sweep": {
+   "folder_create": 200,
+   "bulk_error": "TimeoutError: Locator.scroll_into_view_if_needed: Timeout 10000ms exceeded."
+  },
+  "V390_P1": {
+   "orb_before": [],
+   "note_delete": {
+    "confirm_label": "Delete",
+    "hit": {
+     "box": [
+      284,
+      786,
+      84,
+      44
+     ],
+     "cx": 325.8203125,
+     "cy": 808,
+     "top_is_button": true,
+     "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+    },
+    "orb_while_open": [],
+    "body_overflow": "hidden"
+   },
+   "after_delete": {
+    "status": 404,
+    "keys": [],
+    "deletedAt": null,
+    "dialog_left": 0,
+    "still_in_notes_list": false
+   }
+  },
+  "V390_P3": {
+   "seed": {
+    "hide_get_started": 200,
+    "declined_other_tour": 200
+   },
+   "versions": {
+    "put": 200,
+    "count": 1
+   },
+   "tours_pref_before": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null}}",
+   "explainer_appeared_after_s": 0.5,
+   "explainer_first_open": {
+    "text": "What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is the saved version that first named it, shown read only. Close this to go back to the note as it is now. To restore an older version, use History. Got it closes this note.\nWhat you wrote then\n\nA level this note named was touched, the name moved 8% or more, or a date you set arrive",
+    "in_sheet": true,
+    "box": [
+     12,
+     618,
+     366,
+     214
+    ]
+   },
+   "sheet_text": "What you wrote then\n×\n\nSaved 2:16 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nfe2 thesis V390\n\nFirst thought: the stop is 170.\n\nBack to the note as it is now\nWhat you wrote then. A level this note named was touched, the name moved 8% or more, or a date you",
+   "tours_pref_after_showing": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}",
+   "explainer_second_open_count": 0
+  },
+  "V390_P5": {
+   "chart_toolbar": [
+    {
+     "name": "Hide toolbar",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Block actions",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Embed timeframe",
+     "w": 65,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Go live (max 3 per note)",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Half width (pair two side-by-side)",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Draw on this snapshot (lines, text — saved with the embed)",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "What happened next — show this window through today (view-on",
+     "w": 71,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "What happened next — replay bar by bar from this note's date",
+     "w": 52,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Re-capture the archive image",
+     "w": 75,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Chart settings",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Sync from my chart — pull your current Charts-page settings ",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Freeze — make the chart static (no crosshair, not interactiv",
+     "w": 52,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Remove embed",
+     "w": 44,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Freeze the fingerprint",
+     "w": 141,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "No setup tagFlat Base BreakoutBull FlagIPO BaseLaunchpadCup ",
+     "w": 248,
+     "h": 44,
+     "visible": true
+    },
+    {
+     "name": "Visual playbook",
+     "w": 108,
+     "h": 44,
+     "visible": true
+    }
+   ],
+   "scroll_note": {
+    "doc": 0,
+    "inner": []
+   },
+   "toolbar_inside_block": {
+    "frame": [
+     60,
+     330
+    ],
+    "toolbar": [
+     69,
+     321,
+     188
+    ]
+   },
+   "template_chips": [
+    {
+     "name": "All",
+     "w": 44,
+     "h": 44
+    },
+    {
+     "name": "Daily & weekly rituals",
+     "w": 140,
+     "h": 44
+    },
+    {
+     "name": "Thesis & research",
+     "w": 121,
+     "h": 44
+    },
+    {
+     "name": "Around a trade",
+     "w": 104,
+     "h": 44
+    },
+    {
+     "name": "Mindset",
+     "w": 65,
+     "h": 44
+    },
+    {
+     "name": "Your templates",
+     "w": 104,
+     "h": 44
+    },
+    {
+     "name": "All",
+     "w": 44,
+     "h": 44
+    },
+    {
+     "name": "Daily & weekly rituals",
+     "w": 140,
+     "h": 44
+    },
+    {
+     "name": "Thesis & research",
+     "w": 121,
+     "h": 44
+    },
+    {
+     "name": "Around a trade",
+     "w": 104,
+     "h": 44
+    },
+    {
+     "name": "Mindset",
+     "w": 65,
+     "h": 44
+    },
+    {
+     "name": "Your templates",
+     "w": 104,
+     "h": 44
+    }
+   ],
+   "reporting_soon_error": "TimeoutError: Locator.wait_for: Timeout 25000ms exceeded.",
+   "reporting_soon_symbol_link": null,
+   "reporting_soon_row_controls": null,
+   "scroll_home": {
+    "doc": 0,
+    "inner": []
+   }
+  },
+  "V390_P6": {
+   "defs": {
+    "entry": 200,
+    "stop": 200,
+    "formula": 200,
+    "formula_body": "{\"propertyDef\":{\"id\":\"bc43bdb433f4426c8caf57031d8f767b\",\"name\":\"Risk V390\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:17:38.320119+00:00\",\"updatedAt\":"
+   },
+   "properties_put": {
+    "status": 200,
+    "stored": null
+   },
+   "anchors_on_screen": [
+    [
+     "properties-add-empty",
+     0
+    ],
+    [
+     "properties-add",
+     1
+    ],
+    [
+     "computed-value",
+     1
+    ],
+    [
+     "computed-edit",
+     1
+    ]
+   ],
+   "cards": [
+    {
+     "progress": "Step 1 of 4",
+     "title": "Numbers that work themselves out",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 2 of 4",
+     "title": "A formula",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 3 of 4",
+     "title": "See or change the formula",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Next"
+     ]
+    },
+    {
+     "progress": "Step 4 of 4",
+     "title": "A rollup",
+     "buttons": [
+      "Skip tour",
+      "Back",
+      "Done"
+     ]
+    }
+   ]
+  },
+  "V390_sweep": {
+   "folder_create": 200,
+   "bulk_error": "TimeoutError: Locator.scroll_into_view_if_needed: Timeout 10000ms exceeded."
+  },
+  "page_errors": []
+ }
+}

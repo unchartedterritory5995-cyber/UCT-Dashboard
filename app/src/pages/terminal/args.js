@@ -11,7 +11,7 @@
 // `TIMEFRAMES` is pinned to StockChart's own `TF_WM_LABELS` keys by functions.rail.test.js.
 import { todayIso } from '../calendar/earningsModalRow'
 import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
-import { isCode } from './functions'
+import { canonicalCode, isCode } from './functions'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -38,6 +38,12 @@ function isRealIsoDate(iso) {
   if (Number.isNaN(dt.getTime())) return false
   return dt.getFullYear() === y && dt.getMonth() + 1 === m && dt.getDate() === d
 }
+
+/** The comparison windows `lookback` accepts (REL, CORR). Each panel draws every one of them, and
+ *  says so out loud for anything else (panels/RelPanel.jsx, panels/CorrPanel.jsx; railed). */
+export const LOOKBACK_WINDOWS = Object.freeze(['1M', '3M', '6M', '1Y', '2Y', 'YTD'])
+/** The cadences `cadence` accepts (RRG's daily or weekly closes; panels/RrgPanel.jsx RRG_CADENCES). */
+export const CADENCES = Object.freeze(['D', 'W'])
 
 /**
  * Each kind: `parse(token, ctx)` → a value or null (not this kind), `describe(value)` → the
@@ -70,7 +76,7 @@ export const ARG_KINDS = {
   },
   code: {
     takes: 'a function code (HELP GP)',
-    parse: (tok) => (isCode(tok) ? String(tok).toUpperCase() : null),
+    parse: (tok) => (isCode(tok) ? canonicalCode(tok) : null),   // HELP MOVERS focuses MOST
     describe: (v) => `function ${v}`,
   },
   // ── the comparison panels (RRG / REL / CORR, feature-gaps-2026-10-06) ──
@@ -92,7 +98,7 @@ export const ARG_KINDS = {
     takes: 'a window (1M, 3M, 6M, 1Y, 2Y, YTD)',
     parse: (tok) => {
       const t = String(tok).toUpperCase()
-      return ['1M', '3M', '6M', '1Y', '2Y', 'YTD'].includes(t) ? t : null
+      return LOOKBACK_WINDOWS.includes(t) ? t : null
     },
     describe: (v) => `window ${v}`,
   },
@@ -112,7 +118,32 @@ export const ARG_KINDS = {
     })[String(tok).toUpperCase()] ?? null,
     describe: (v) => ({ up: 'gainers', down: 'losers', volume: 'unusual volume' })[v],
   },
+  /** IMOV's window: the periods theme_performance stores a reference close for (1D is live). */
+  contribWindow: {
+    takes: 'a window (1D, 1W, 1M, 3M)',
+    parse: (tok) => ({ '1D': '1D', TODAY: '1D', '1W': '1W', '1M': '1M', '3M': '3M' })[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `window ${v}`,
+  },
+  /** IMOV's theme, by NAME: every word the other kinds do not take (`IMOV AI / GPU Chips`). A
+   *  REST kind (`rest: true` on the spec): the words are joined into one query and the PANEL
+   *  resolves it against the themes it reads (case/spacing-insensitive, unique prefix, "did you
+   *  mean" otherwise), because the theme list is data, not a constant. A window-shaped token
+   *  (`1Y`) is never a theme word, so it is still said to be not applied. `THEME` is the marker
+   *  the panel writes (`IMOV THEME SEMICONDUCTORS`): it forces the theme reading of one word
+   *  that would otherwise be a ticker, and is not part of the name. */
+  themeName: {
+    takes: 'a theme name (IMOV SEMICONDUCTORS)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim()
+      if (!t || /^(?:\d+[DWMY]|YTD|MTD|QTD)$/i.test(t)) return null
+      return t.toUpperCase()
+    },
+    describe: (v) => `theme "${v}"`,
+  },
 }
+
+/** The word IMOV writes before a hand-picked theme (see `themeName`). */
+export const THEME_MARKER = 'THEME'
 
 /**
  * Pure: what a variant does with the tokens typed after its code.
@@ -137,10 +168,17 @@ export function applyArgs(variant, args = [], ctx = {}) {
   const specs = variant.args || []
   out.takes = [...new Set(specs.map((s) => ARG_KINDS[s.kind]?.takes).filter(Boolean))]
   const filled = new Set()
+  // A REST spec (IMOV's theme name) collects every word the single-token specs do not take.
+  const restAt = specs.findIndex((s) => s.rest)
+  const rest = []
   tokens.forEach((tok, i) => {
     if (consumed.has(i)) return
-    const at = specs.findIndex((s, j) => !filled.has(j) && ARG_KINDS[s.kind]?.parse(tok, ctx) != null)
-    if (at < 0) { out.ignored.push(tok); return }
+    const at = specs.findIndex((s, j) => !s.rest && !filled.has(j) && ARG_KINDS[s.kind]?.parse(tok, ctx) != null)
+    if (at < 0) {
+      if (restAt >= 0 && ARG_KINDS[specs[restAt].kind]?.parse(tok, ctx) != null) rest.push(tok)
+      else out.ignored.push(tok)
+      return
+    }
     filled.add(at)
     const spec = specs[at]
     const value = ARG_KINDS[spec.kind].parse(tok, ctx)
@@ -148,6 +186,16 @@ export function applyArgs(variant, args = [], ctx = {}) {
     if (spec.param) Object.assign(out.params, value)
     out.applied.push(ARG_KINDS[spec.kind].describe(value))
   })
+  if (rest.length) {
+    const spec = specs[restAt]
+    const words = spec.marker && String(rest[0]).toUpperCase() === spec.marker ? rest.slice(1) : rest
+    const value = words.length ? ARG_KINDS[spec.kind].parse(words.join(' '), ctx) : null
+    if (value == null) out.ignored.push(...rest)            // a bare `THEME` names nothing
+    else {
+      if (spec.prop) out.props[spec.prop] = value
+      out.applied.push(ARG_KINDS[spec.kind].describe(value))
+    }
+  }
   return out
 }
 

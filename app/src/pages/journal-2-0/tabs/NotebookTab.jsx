@@ -2002,6 +2002,31 @@ export default function NotebookTab() {
         {!noteId && (
           <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
         )}
+        {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
+            note / Research Home / notes-list branches. They used to be inside the notes-list
+            branch only, while the folders panel (and its saved views) is also shown beside
+            Research Home and beside an open note: there the Delete button set the state and
+            nothing appeared. Rail: NotebookTab.test.jsx, "on Research Home the Delete button". */}
+        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
+            FolderSidebar.jsx exactly -- same reason it lives here rather
+            than there (folders own rename/remove via their OWN hook call;
+            saved views' rename/remove had to live wherever `activeView`
+            state lives, which is here, not FolderSidebar). */}
+        {deleteViewTarget && (
+          <ConfirmModal
+            title={`Delete view "${deleteViewTarget.name}"?`}
+            body="This removes the saved view. It does not delete any notes."
+            confirmLabel="Delete"
+            tone="danger"
+            onConfirm={onDeleteViewConfirm}
+            onClose={() => setDeleteViewTarget(null)}
+            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
+          />
+        )}
+        {savedViewError && (
+          <div className={styles.error} role="alert">{savedViewError}</div>
+        )}
         {noteId ? (
           <>
           {/* D2 (D-1): the way back to the list on a phone, where the folder
@@ -2393,26 +2418,6 @@ export default function NotebookTab() {
           onSave={handleSaveCurrentView}
         />
 
-        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
-            FolderSidebar.jsx exactly -- same reason it lives here rather
-            than there (folders own rename/remove via their OWN hook call;
-            saved views' rename/remove had to live wherever `activeView`
-            state lives, which is here, not FolderSidebar). */}
-        {deleteViewTarget && (
-          <ConfirmModal
-            title={`Delete view "${deleteViewTarget.name}"?`}
-            body="This removes the saved view. It does not delete any notes."
-            confirmLabel="Delete"
-            tone="danger"
-            onConfirm={onDeleteViewConfirm}
-            onClose={() => setDeleteViewTarget(null)}
-            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
-              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
-          />
-        )}
-        {savedViewError && (
-          <div className={styles.error} role="alert">{savedViewError}</div>
-        )}
 
         {error && (
           <div className={styles.error} role="alert">

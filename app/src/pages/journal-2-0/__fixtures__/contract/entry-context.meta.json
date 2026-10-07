@@ -1,0 +1,42 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/entry-context/meta",
+    "path": "/api/j2/entry-context/meta",
+    "status": 200
+  },
+  "body": {
+    "captureKinds": [
+      "at_entry",
+      "captured_late"
+    ],
+    "fields": [
+      "regime",
+      "exposure",
+      "breadth_pct_above_50",
+      "rs_rank",
+      "days_to_earnings",
+      "uct_scans",
+      "member_screens",
+      "fingerprint"
+    ],
+    "missingReasons": {
+      "bad_symbol": "the symbol is not one the chart data can be read for",
+      "breadth_unavailable": "no warm live breadth reading and no wire breadth value",
+      "no_report_date": "no upcoming report date was found for the symbol",
+      "no_scan_published": "no UCT scanner run had been published",
+      "no_screens_swept": "none of the member's saved screens had a nightly sweep",
+      "rs_cache_cold": "the RS rankings cache was cold (the background warmer had not run)",
+      "rs_not_ranked": "the symbol is not in the RS-ranked universe",
+      "source_busy": "the source was busy when the context was frozen, so it was not asked",
+      "source_error": "the source could not be read when the context was frozen",
+      "wire_unavailable": "the morning wire's exposure block was not available"
+    },
+    "notCaptured": {
+      "entry_day_unknown": "The broker reported this holding without its entry date, so there is no entry day to freeze a market context for.",
+      "not_captured": "No market context was captured for this entry. It is frozen only on the day of the entry, and a past day is never reconstructed."
+    },
+    "version": 1,
+    "whyMaxChars": 500
+  }
+}

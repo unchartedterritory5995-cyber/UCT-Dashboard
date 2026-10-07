@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/cards",
+    "path": "/api/j2/notebook-visual-playbook/cards?range=bogus:1:",
+    "status": 422
+  },
+  "body": {
+    "detail": "'bogus' is not a fingerprint number a range can filter"
+  }
+}

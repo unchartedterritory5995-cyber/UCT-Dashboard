@@ -106,6 +106,23 @@ export function breadthRecord(sym) {
   return _cache.map.get(String(sym).toUpperCase()) || null
 }
 
+/**
+ * The LIBRARY row for a symbol (`unit`, `domain`, `presentation`, `description`…), or null.
+ * ⭐ The `symbols` map answers identity; the library block (same payload) answers what the
+ * number IS. Indexed once per payload.
+ */
+let _libIdxFor = null
+let _libIdx = null
+export function breadthLibraryRecord(sym) {
+  if (!_cache || !sym) return null
+  const rows = (_cache.library && _cache.library.rows) || []
+  if (_libIdxFor !== rows) {
+    _libIdx = new Map(rows.map((r) => [String(r.symbol || '').toUpperCase(), r]))
+    _libIdxFor = rows
+  }
+  return _libIdx.get(String(sym).toUpperCase()) || null
+}
+
 /** Start the fetch without mounting a component — for a non-React caller that
  *  wants the answer to become available. Safe to call repeatedly. */
 /**

@@ -23,9 +23,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services import request_body_cap as body_cap
 from api.services.journal_two import passed_setups as ps
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import transcript_capture as tc
@@ -69,6 +70,24 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+# ⛔ FIN (2026-10-06, security review I-5): neither body is a declared parameter.
+# FastAPI reads a declared body before it solves any dependency, so with the flag
+# off these doors answered 422 to malformed JSON (every other request: 404) and
+# buffered an anonymous body of any size. `_json` reads it capped, after the
+# router's gate and after the plan check. Rail: tests/test_notebook_body_census.py.
+# The largest body is a saved passage and its annotation, each at most one
+# transcript turn (`tc.MAX_TURN_CHARS` characters, at most 4 bytes each).
+TOO_LARGE_SENTENCE = "Request too large"
+
+
+def _body_max() -> int:
+    return 8 * tc.MAX_TURN_CHARS + 16 * 1024
+
+
+def _json(annotation):
+    return body_cap.capped_json(annotation, _body_max, lambda: TOO_LARGE_SENTENCE, after=require_paid)
+
+
 def _fail(e: Exception) -> HTTPException:
     return HTTPException(status_code=getattr(e, "status", 400), detail=str(e))
 
@@ -76,7 +95,7 @@ def _fail(e: Exception) -> HTTPException:
 # ── transcripts ──────────────────────────────────────────────────────────────
 
 @transcripts_router.post("/save")
-def save_passage(payload: dict[str, Any], user: dict = Depends(require_paid)) -> dict[str, Any]:
+def save_passage(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(require_paid)) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="A JSON object is required")
     try:
@@ -114,14 +133,21 @@ def read_transcript(symbol: str, quarter: str, user: dict = Depends(require_paid
 # ── passed setups ────────────────────────────────────────────────────────────
 
 @passed_router.get("")
-def list_passed(user: dict = Depends(require_paid)) -> dict[str, Any]:
+def list_passed(background_tasks: BackgroundTasks, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """A PLAIN READ (security review I-3). This used to run `ps.refresh` first: collect, then a
+    write for each open row, before answering -- a list view that could hold auth.db's write
+    lock. The refresh is now queued for AFTER the response, at most once per member per
+    `REFRESH_MIN_INTERVAL_S`, and commits row by row. `refreshQueued` tells the client a
+    fresher list is on its way, so it can read once more."""
     uid = str(user["id"])
-    ps.refresh(uid)
-    return ps.list_items(uid)
+    queued = ps.claim_refresh(uid)
+    if queued:
+        background_tasks.add_task(ps.run_claimed_refresh, uid)
+    return {**ps.list_items(uid), "refreshQueued": queued}
 
 
 @passed_router.post("")
-def add_passed(payload: dict[str, Any], user: dict = Depends(require_paid)) -> dict[str, Any]:
+def add_passed(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(require_paid)) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="A JSON object is required")
     try:

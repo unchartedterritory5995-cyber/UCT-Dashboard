@@ -86,8 +86,9 @@ def test_the_five_levels_are_five_different_questions():
     assert "mcclellan_osc" in bm.METRICS                       # REGISTERED
     assert bm.is_applicable("mcclellan_osc", "us")             # APPLICABLE
     assert not bm.is_producible("mcclellan_osc", "us")         # not PRODUCIBLE
-    assert bm.is_producible("magna_up", "us")                  # PRODUCIBLE
-    assert not bm.is_published_metric("magna_up", "us")        # not PUBLISHED (V1.1)
+    assert bm.is_producible("hvc_52w", "us")                   # PRODUCIBLE
+    assert not bm.is_published_metric("hvc_52w", "us")         # not PUBLISHED (class D, withheld)
+    assert bm.is_published_metric("magna_up", "us")            # PUBLISHED since V1.1
     assert bm.is_published_metric("pct_above_50sma", "us")     # PUBLISHED
 
 
@@ -102,8 +103,32 @@ def test_uct_is_never_gated_by_a_publication_set():
 
 def test_a_typoed_publication_set_falls_back_to_the_default(monkeypatch):
     monkeypatch.setenv("BREADTH_LIBRARY_METRICS", "v9-does-not-exist")
+    assert bm.publication_set_name() == "v1.1"
+    assert len(bm.published_metric_keys()) == 35
+
+
+def test_v1_remains_the_one_variable_rollback(monkeypatch):
+    monkeypatch.setenv("BREADTH_LIBRARY_METRICS", "v1")
     assert bm.publication_set_name() == "v1"
     assert len(bm.published_metric_keys()) == 18
+
+
+def test_every_unpublished_producible_metric_is_classified_exactly_once():
+    """⛔ THE V1.1 PROMOTION WAS A DECISION PER METRIC, and this pins that every candidate got
+    one: each registered + applicable + producible PIT metric outside V1 is in the table, the
+    table names nothing else, and only class A is published."""
+    candidates = {m for m in bm.metrics_for("us") if m not in bm.V1_METRICS}
+    assert set(bm.V1_1_CLASSIFICATION) == candidates
+    assert set(bm.V1_1_ADDED) == {m for m, c in bm.V1_1_CLASSIFICATION.items() if c == "A"}
+    for m, c in bm.V1_1_CLASSIFICATION.items():
+        assert bm.is_published_metric(m, "us") is (c == "A"), (m, c)
+    # the class-D four are exactly what the US V2 authority itself withholds
+    from api.services import breadth_authority as ba
+    assert {m for m, c in bm.V1_1_CLASSIFICATION.items() if c == "D"} == set(ba.US_WITHHELD)
+    # and every published US metric is one the V2 authority actually stores
+    for m in bm.published_metric_keys():
+        if bm.applies_to(m, "us"):
+            assert m in ba.V2_METRICS, m
 
 
 def test_the_star_publication_set_opens_everything(monkeypatch):
@@ -148,7 +173,7 @@ def test_publishing_a_universe_turns_every_surface_on_together(monkeypatch):
     publish(monkeypatch, "us")
     rows = bs.list_breadth_symbols()
     us = [r for r in rows if r.get("universe") == "us"]
-    assert len(us) == 18
+    assert len(us) == 35                                 # V1.1
     assert rows[:44] == bs.legacy_symbol_rows()          # legacy first, untouched
 
     # …and the SAME identities answer at every other surface
@@ -161,8 +186,8 @@ def test_publishing_a_universe_turns_every_surface_on_together(monkeypatch):
     assert any(r["ticker"] == "US:A50" for r in bs.search("US:A50", 40))
 
 
-def test_a_published_universe_does_NOT_publish_its_v1_1_metrics(monkeypatch):
-    publish(monkeypatch, "us")
+def test_a_published_universe_does_NOT_publish_its_v1_1_metrics_under_v1(monkeypatch):
+    publish(monkeypatch, "us", "v1")
     for sym in ("US:MU", "US:U25M", "US:S2", "US:NH20", "US:HVC"):
         assert bs.resolve(sym) is None, sym
         assert not bs.is_breadth_symbol(sym), sym
@@ -230,7 +255,7 @@ def test_legacy_symbol_rows_is_immune_to_every_flag(monkeypatch):
 def test_enable_then_disable_leaves_no_trace_in_discovery(monkeypatch):
     before = bs.list_breadth_symbols()
     publish(monkeypatch, "us")
-    assert len(bs.list_breadth_symbols()) == 62
+    assert len(bs.list_breadth_symbols()) == 79          # 44 legacy + 35 US (V1.1)
     monkeypatch.delenv("BREADTH_LIBRARY_UNIVERSES", raising=False)
     bs._avail_cache.update(at=0.0, value=None)
     after = bs.list_breadth_symbols()
@@ -287,7 +312,7 @@ def test_health_reports_a_dark_universe_as_healthy_not_broken():
     would make the signal useless on the day it matters."""
     h = bs.library_health(force=True)
     assert h["ok"] is True
-    assert h["publication_set"] == "v1"
+    assert h["publication_set"] == "v1.1"
     for uid in ("us", "nasdaq", "nyse"):
         row = h["universes"][uid]
         assert row["published"] is False
@@ -305,7 +330,7 @@ def test_health_reports_a_published_but_empty_universe_as_UNHEALTHY(monkeypatch,
     assert h["universes"]["us"]["published"] is True
     assert h["universes"]["us"]["healthy"] is False
     assert h["ok"] is False
-    assert h["universes"]["us"]["metrics_published"] == 18
+    assert h["universes"]["us"]["metrics_published"] == 35
     store._INIT_DONE = False
 
 

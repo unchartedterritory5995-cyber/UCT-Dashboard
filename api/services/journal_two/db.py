@@ -583,6 +583,9 @@ CREATE TABLE IF NOT EXISTS j2_note_folders (
     parent_id   TEXT NOT NULL DEFAULT '',
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
+    -- Which importer MADE this folder, or NULL for one a member made (fin-data2 round 2).
+    -- Only the sample seed sets it; `sample_marker` is the one reader. Nullable and additive.
+    import_source TEXT,
     UNIQUE(user_id, parent_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
@@ -2006,6 +2009,14 @@ _PHASE_2_ALTERS = [
     "matched_at TEXT NOT NULL, relinked_at TEXT, "
     "relink_count INTEGER NOT NULL DEFAULT 0, previous_json TEXT, "
     "PRIMARY KEY (user_id, trade_ref))",
+    # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
+    # that had no plan the last time it was matched, with a stamp of everything that could
+    # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the
+    # trade is matched again. Additive; safe to drop (it is rebuilt on read). Purged with the
+    # account (account_purge.py).
+    "CREATE TABLE IF NOT EXISTS j2_trade_plan_misses ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, stamp TEXT NOT NULL, "
+    "checked_at TEXT NOT NULL, PRIMARY KEY (user_id, trade_ref))",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
@@ -2157,6 +2168,18 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         run_notebook_migration_v2(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v2] aborted: {e}")
+
+    # The folder's own maker mark (fin-data2 round 2): additive, nullable, idempotent. HERE and
+    # not inside migration v2, which is skipped once its flag file exists and whose rebuild
+    # recreates the table without it. A folder that existed before the column stays NULL,
+    # which reads as "a member's folder": the sample's removal never deletes it.
+    try:
+        fcols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_folders)")}
+        if fcols and "import_source" not in fcols:
+            conn.execute("ALTER TABLE j2_note_folders ADD COLUMN import_source TEXT")
+            conn.commit()
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[note-folders import_source] aborted: {e}")
 
     # Partial UNIQUE index on (user_id, import_key) — created here, AFTER both
     # notebook migrations, so it can never reference import_key before that

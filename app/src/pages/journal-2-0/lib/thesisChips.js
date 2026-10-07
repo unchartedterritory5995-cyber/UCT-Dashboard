@@ -56,6 +56,9 @@ export function stopDistanceText(chip, currentPrice) {
 export function chipLabel(chip, currentPrice) {
   const dist = stopDistanceText(chip, currentPrice)
   if (dist) return dist
-  const meta = chip?.thesisStatus ? STATUS_META[chip.thesisStatus] : null
+  // An OWN key only: STATUS_META is a plain object, so `constructor` or `toString` would
+  // otherwise be "found" on its prototype and give a chip with no text.
+  const status = chip?.thesisStatus
+  const meta = typeof status === 'string' && Object.hasOwn(STATUS_META, status) ? STATUS_META[status] : null
   return meta ? meta.label : 'Thesis'
 }

@@ -1,19 +1,47 @@
 == flags-off render parity
-base b06ec4fd85 vs HEAD b03d77302c
+base b06ec4fd85 vs HEAD 647bc284eb
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
-swapped 477 source files to the base blob; restored, git status unchanged
-36 identical | 0 differ only by a named expected difference | 4 differ (40 cases)
-  DIFFERS: notebook home | prod-like: every capability on, getting-started off | fresh member
-    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
-    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
-  DIFFERS: notebook home | prod-like: every capability on, getting-started off | base tour done, checklist closed
-    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
-    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
-  DIFFERS: notebook home | every capability on, onboarding off | fresh member
-    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
-    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
-  DIFFERS: notebook home | every capability on, onboarding off | base tour done, checklist closed
-    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
-    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
-VERDICT: DIFFERS
+capture fingerprints (same tree, same fingerprints): A 7c3a6f9b386b41e9 | B e52c2ed7d44450c0
+swapped 595 source files to the base blob; restored, git status unchanged
+28 identical | 12 differ only by a named expected difference | 0 differ (40 cases)
+  EXPECTED: notebook home | prod-like: every capability on, getting-started off | fresh member
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV), Research Home skip link to the reviews (lane KEYS), Research Home reviews heading is the skip link's landing (lane KEYS)
+  EXPECTED: open note | prod-like: every capability on, getting-started off | fresh member
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: notebook home | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV), Research Home skip link to the reviews (lane KEYS), Research Home reviews heading is the skip link's landing (lane KEYS)
+  EXPECTED: open note | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: notebook home | every capability on, onboarding off | fresh member
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV), Research Home skip link to the reviews (lane KEYS), Research Home reviews heading is the skip link's landing (lane KEYS)
+  EXPECTED: open note | every capability on, onboarding off | fresh member
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: notebook home | every capability on, onboarding off | base tour done, checklist closed
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV), Research Home skip link to the reviews (lane KEYS), Research Home reviews heading is the skip link's landing (lane KEYS)
+  EXPECTED: open note | every capability on, onboarding off | base tour done, checklist closed
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: open note | onboarding only | fresh member
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: open note | onboarding only | base tour done, checklist closed
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: open note | all off | fresh member
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  EXPECTED: open note | all off | base tour done, checklist closed
+    explained exactly by: editor formatting toolbar is one Tab stop (lane KEYS)
+  NAMED: passed-setups status line (fin-a11y M-5) | commit cb5c30b38d | accepted 2026-10-06 | only on 'notebook home' with notebook_passed_setups_enabled on
+    change: <p class="_quiet_ _notice_" role="status" data-passed-status=""></p>
+    reason: Accessibility item M-5: the passed-setups box keeps one status line mounted, empty at rest, that Add and Remove fill so a screen reader hears the result. It exists only while the passed-setups capability is on. Accepted by the controller as an intended accessibility change.
+  NAMED: Active setups door (lane NAV) | commit 6b7e037c9f | accepted 2026-10-07 | only on 'notebook home' with notebook_setups_board_enabled on
+    change: <a class="btn btn-ghost _setupsLink_" title="Your open chart plans, closest to their entry first" href="/journal/notebook/setups" data-discover="true">Active setups</a>
+    reason: The active setups board had no door (BETA-HANDOFF 1b: no menu link to it yet). The NAV lane added one link on Research Home, rendered only while the setups board capability is on. Accepted by the controller as intended.
+  NAMED: Research Home skip link to the reviews (lane KEYS) | commit ce16e3f4d5 | accepted 2026-10-07 | only on 'notebook home' with notebook_review_drafts_enabled on
+    change: <a href="#nb-home-reviews" class="_skipLink_">Skip to reviews and setups</a>
+    reason: Keyboard budget Q18 and Q23: a hidden-until-focused skip link in the shell's skip-link slot, so the reviews and the setups door are a few keys away. It is rendered by the review-drafts box, so only while that capability is on.
+  NAMED: Research Home reviews heading is the skip link's landing (lane KEYS) | commit ce16e3f4d5 | accepted 2026-10-07 | only on 'notebook home' with notebook_review_drafts_enabled on
+    change: <h3 id="nb-home-reviews" tabindex="-1" class="_sectionTitle_">  (was <h3 class="_sectionTitle_">)
+    reason: The same change as the skip link above: the 'Reviews that write themselves' heading gains the id the link points at and becomes focusable by script only (tabindex -1), so it is not a Tab stop of its own.
+  NAMED: editor formatting toolbar is one Tab stop (lane KEYS) | commit fca50d3e5a | accepted 2026-10-07 | only on 'open note' in every flag set (always on)
+    change: the counted run tb-0, tb-1, ...
+    reason: Keyboard budget Q2, Q12 and Q18: the editor's formatting toolbar is one Tab stop with arrow keys inside it. Each control carries the roving marker, and every control but the first is tabindex -1. ALWAYS ON: it is in every open note, with every flag off as well. Nothing is added, removed or renamed; only how the keyboard walks the row changes.
+VERDICT: PASS -- identical except 12 case(s) explained exactly by a named expected difference

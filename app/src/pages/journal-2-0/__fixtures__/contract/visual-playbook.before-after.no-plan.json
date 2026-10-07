@@ -1,0 +1,32 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/trades/vp-noplan/before-after",
+    "note": "A trade with no frozen plan.",
+    "path": "/api/j2/notebook-visual-playbook/trades/vp-noplan/before-after",
+    "status": 200
+  },
+  "body": {
+    "plan": null,
+    "planChart": null,
+    "planStatus": "none",
+    "trade": {
+      "entryDate": "2026-09-30T14:00:00Z",
+      "entryDay": "2026-09-30",
+      "entryPrice": 100.0,
+      "exitDate": "2026-10-01T17:00:00Z",
+      "exitDay": "2026-10-01",
+      "exitPrice": 101.0,
+      "outcome": "win",
+      "pnlDollar": 100.0,
+      "rMultiple": 0.25,
+      "result": "Win",
+      "setup": null,
+      "shares": 100.0,
+      "side": "Long",
+      "symbol": "VPZZ",
+      "tradeId": "vp-noplan",
+      "tradeRef": "id:vp-noplan"
+    }
+  }
+}

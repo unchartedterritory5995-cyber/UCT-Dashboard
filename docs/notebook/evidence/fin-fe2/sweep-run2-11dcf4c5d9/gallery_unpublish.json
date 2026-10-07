@@ -1,0 +1,18 @@
+{
+ "hit": {
+  "box": [
+   265,
+   720,
+   76,
+   44
+  ],
+  "cx": 303.484375,
+  "cy": 742,
+  "top_is_button": true,
+  "top_tag": "BUTTON._btn_u43uz_435 _danger_u43uz_495"
+ },
+ "voice_button_while_open": 0,
+ "inside_a_dialog": true,
+ "message": "Unpublished “Sweep template”. Copies other members made are theirs and stay.",
+ "mine_after": "{\"templates\":[{\"id\":\"8a8f0bd125ad4dc681a52e06e49c9515\",\"title\":\"Weekly Review\",\"description\":\"Patterns, leaks, and the ONE commitment for next week.\",\"category\":\"review\",\"author\":\"UCT\",\"firm\":true,\"featured\":true,\"usedBy\":0,\"listedAt\":\"2026-10-07T18:56:41.923597+00:00\",\"updatedAt\":\"2026-10-07T18:56:"
+}

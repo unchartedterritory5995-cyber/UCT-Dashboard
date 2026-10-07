@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import thesis_chips as tcj
@@ -39,8 +40,23 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+# ⛔ FIN (2026-10-06, security review I-5): the body is NOT a declared parameter.
+# FastAPI reads a declared body before it solves any dependency, so with the flag
+# off this door answered 422 to malformed JSON (every other request: 404) and
+# buffered an anonymous body of any size. `_json` reads it capped, after the
+# router's gate and after the plan check. Rail: tests/test_notebook_body_census.py.
+# The body is a list of at most `MAX_SYMBOLS` tickers.
+MAX_BODY_BYTES = 64 * 1024
+TOO_LARGE_SENTENCE = "Request too large"
+
+
+def _json(annotation):
+    return body_cap.capped_json(annotation, lambda: MAX_BODY_BYTES, lambda: TOO_LARGE_SENTENCE,
+                                after=require_paid)
+
+
 @router.post("")
-def chips(payload: dict[str, Any], user: dict = Depends(require_paid)) -> dict[str, Any]:
+def chips(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(require_paid)) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="A JSON object is required")
     symbols = payload.get("symbols")

@@ -86,6 +86,74 @@ def db_path(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_vendor_lookup(monkeypatch):
+    """The draft resolves the name's display identity through `ticker_meta.get_ticker_meta`
+    (`ticker_research.py:48-49`: Yahoo, then FMP, then Finnhub). Nothing here replaced it, so on
+    a cold cache this suite made live vendor requests. It is a fixed stand-in now, and every
+    outbound connection is refused and recorded, so a NEW unreplaced source fails the test that
+    reached it instead of quietly going to the network. Loopback stays open (the event loop's own
+    wake-up pair uses it on Windows).
+
+    Two doors are closed, because one is not enough: Python sockets (requests, httpx, urllib), and
+    yfinance itself, which can go out through libcurl where a socket guard never sees it."""
+    import socket
+    from api.services import ticker_meta
+    looked_up: list[str] = []
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta",
+                        lambda symbol: looked_up.append(symbol) or {"name": f"{symbol} Corp"})
+    attempts: list[str] = []
+    real_connect, real_connect_ex = socket.socket.connect, socket.socket.connect_ex
+
+    def _guard(real):
+        def connect(self, address):
+            host = str(address[0]) if isinstance(address, tuple) and address else str(address)
+            if not host.startswith(("127.", "::1", "localhost", "0.0.0.0")):
+                attempts.append(host)
+                raise OSError(f"test_notebook_earnings_prep: outbound connection refused ({host})")
+            return real(self, address)
+        return connect
+
+    monkeypatch.setattr(socket.socket, "connect", _guard(real_connect))
+    monkeypatch.setattr(socket.socket, "connect_ex", _guard(real_connect_ex))
+    import yfinance
+
+    def _no_yahoo(*args, **kwargs):
+        attempts.append(f"yfinance:{args[0] if args else '?'}")
+        raise OSError("test_notebook_earnings_prep: outbound connection refused (yfinance)")
+    monkeypatch.setattr(yfinance, "Ticker", _no_yahoo)
+    monkeypatch.setattr(yfinance, "download", _no_yahoo)
+    yield {"looked_up": looked_up, "attempts": attempts}
+    assert attempts == [], f"this test tried to reach the network: {sorted(set(attempts))}"
+
+
+def test_CONTROL_the_network_refusal_can_fire(_no_vendor_lookup):
+    """The guard above is only worth having if it fires. TEST-NET-3 is never a real host."""
+    import socket
+    s = socket.socket()
+    try:
+        with pytest.raises(OSError, match="outbound connection refused"):
+            s.connect(("203.0.113.7", 9))
+    finally:
+        s.close()
+    import yfinance
+    with pytest.raises(OSError, match="yfinance"):
+        yfinance.Ticker("NVDA")
+    assert _no_vendor_lookup["attempts"] == ["203.0.113.7", "yfinance:NVDA"]
+    _no_vendor_lookup["attempts"].clear()          # the control's own attempts are not a leak
+
+
+def test_the_draft_asks_for_the_names_identity_through_the_stand_in(client, app, gate_on, monkeypatch, stores,
+                                                                    _no_vendor_lookup):
+    """Non-vacuity for the stand-in: the draft path really does reach `get_ticker_meta`, so
+    replacing it is what keeps this suite off the network."""
+    _today(monkeypatch)
+    _full_market(monkeypatch, stores)
+    as_user(app, A)
+    assert client.post("/api/j2/earnings-prep/NVDA/draft").status_code == 200
+    assert "NVDA" in _no_vendor_lookup["looked_up"]
+
+
+@pytest.fixture(autouse=True)
 def _clean_cache():
     from api.services.cache import cache
     for prefix in ("notebook_earnings_prep_window", "calendar_week", "calendar_enrichment_"):
@@ -234,13 +302,18 @@ def _position(user_id: str, sym: str, *, closed: bool = False) -> None:
 
 
 def _trade(user_id: str, sym: str, tid: str) -> None:
+    """A closed trade row: in at 100.00, out at 112.30, so +12.3%.
+
+    ⛔ `pnl_percent` IS A FRACTION (0.123), the journal's own unit. This helper wrote 12.3 for
+    months, a percent, and no test noticed. A fixture in the wrong unit is how the note's
+    "+1230.0%" defect hid: the tests agreed with the fixture, not with the product."""
     from api.services.auth_db import get_connection
     conn = get_connection()
     conn.execute(
         "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price, entry_date, exit_price,"
         " exit_date, original_stop, pnl_dollar, pnl_percent, r_multiple, hold_days, result, context_at_entry, created_at)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (tid, user_id, f"pos-{tid}", sym, "Long", 10, 100.0, "2026-08-01", 112.3, "2026-08-20", 95.0, 123.0, 12.3,
+        (tid, user_id, f"pos-{tid}", sym, "Long", 10, 100.0, "2026-08-01", 112.3, "2026-08-20", 95.0, 123.0, 0.123,
          2.1, 19, "Win", "{}", "2026-08-20T20:00:00Z"))
     conn.commit()
     conn.close()
@@ -399,6 +472,7 @@ def test_a_full_draft_carries_source_and_as_of_on_every_cell(client, app, gate_o
     assert d["recap"]["value"]["headline"] == "Data center carried it" and d["recap"]["value"]["quarter"] == "Q2 2027"
     assert [n["id"] for n in d["myNotes"]["value"]] == [note_id]
     assert [t["id"] for t in d["myTrades"]["value"]] == ["t-nvda-1"]
+    assert d["myTrades"]["value"][0]["pnlPercent"] == 0.123      # the journal's fraction, passed through
     assert d["myPosition"]["value"][0]["shares"] == 100
     assert d["usage"] == {"used": 1, "cap": 20}
 
@@ -729,3 +803,95 @@ def test_the_sandbox_calendar_is_read_only_off_railway_with_the_conftest(monkeyp
     monkeypatch.delenv("RAILWAY_ENVIRONMENT")
     monkeypatch.delitem(sys.modules, "conftest", raising=False)
     assert earnings_prep.sandbox_calendar_active() is False
+
+
+# ── the member's own closed trade, made through the journal's own doors (fin walk P4) ────
+
+def _journal_app(db_path):
+    """The prep router beside the journal's own router, so a trade is opened and closed the
+    way a member does it, never by a row written straight into the table."""
+    from api.routers import journal_two, notebook_earnings_prep
+    fa = FastAPI()
+    fa.include_router(journal_two.router)
+    fa.include_router(notebook_earnings_prep.router)
+    return fa
+
+
+def _open_and_close(c, sym, *, shares, close_shares, entry, exit_, day="2026-10-07"):
+    r = c.post("/api/j2/positions", json={"symbol": sym, "side": "Long", "shares": shares, "entryPrice": entry,
+                                          "stopPrice": round(entry * 0.95, 2), "entryDate": day})
+    assert r.status_code == 200, r.text
+    r2 = c.post(f"/api/j2/positions/{r.json()['id']}/close",
+                json={"shares": close_shares, "exitPrice": exit_, "exitDate": day})
+    assert r2.status_code == 200, r2.text
+    return r2.json()["trade"]["id"]
+
+
+def test_a_trade_closed_through_the_journal_is_in_a_prep_note_built_after_it(db_path, gate_on, monkeypatch, stores):
+    """The walk's P4 case as the product sees it: AMD long, in at 341.28, out at 514.93 the same
+    day, which is +50.9%. A prep note built AFTER the close lists it, and the result is the
+    journal's FRACTION (0.509), the shape the note's own formatter prints as "+50.9%"."""
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    tid = _open_and_close(c, "AMD", shares=40, close_shares=40, entry=341.28, exit_=514.93)
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    cell = d["myTrades"]
+    assert cell["missing"] is None and cell["source"] == "Your trade journal", cell
+    assert [t["id"] for t in cell["value"]] == [tid]
+    t = cell["value"][0]
+    assert round(t["pnlPercent"], 3) == 0.509, t          # a fraction, never 50.9
+    assert t["side"] == "Long" and t["result"] == "Win" and t["exitDate"].startswith("2026-10-07")
+    assert d["myPosition"]["value"] is None                # fully closed: no open position line
+
+
+def test_a_prep_note_built_before_the_close_has_no_trade_and_says_so(db_path, gate_on, monkeypatch, stores):
+    """The order the walk actually ran in: the note was built while AMD was still open, and the
+    trade closed 38 seconds later. The honest answer then is the open position and the plain
+    "no closed trades" sentence. The note is frozen, so it never gains the trade afterwards."""
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    r = c.post("/api/j2/positions", json={"symbol": "AMD", "side": "Long", "shares": 40, "entryPrice": 341.28,
+                                          "stopPrice": 320.0, "entryDate": "2026-10-07"})
+    assert r.status_code == 200, r.text
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    assert d["myTrades"]["value"] is None
+    assert d["myTrades"]["missing"] == "You have no closed trades in AMD in your journal."
+    assert d["myPosition"]["value"][0]["shares"] == 40
+
+
+def test_a_part_close_lists_the_trade_and_the_shares_still_held(db_path, gate_on, monkeypatch, stores):
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    tid = _open_and_close(c, "AMD", shares=100, close_shares=40, entry=341.28, exit_=514.93)
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    assert [t["id"] for t in d["myTrades"]["value"]] == [tid]
+    assert d["myPosition"]["value"][0]["shares"] == 60
+
+
+def test_a_trade_in_a_second_account_is_still_the_members_trade(db_path, gate_on, monkeypatch, stores):
+    """The prep note reads the member's journal, not one account of it."""
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    from api.services.journal_two import accounts
+    accounts.get_or_migrate_default_account(A)
+    second = accounts.create_account(A, {"name": "Second", "color": "blue", "startingBalance": 25000})
+    r = c.post("/api/j2/positions", json={"symbol": "AMD", "side": "Long", "shares": 10, "entryPrice": 100.0,
+                                          "stopPrice": 95.0, "entryDate": "2026-10-07", "accountId": second["id"]})
+    assert r.status_code == 200, r.text
+    r2 = c.post(f"/api/j2/positions/{r.json()['id']}/close", json={"shares": 10, "exitPrice": 110.0, "exitDate": "2026-10-07"})
+    assert r2.status_code == 200, r2.text
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    assert [t["id"] for t in d["myTrades"]["value"]] == [r2.json()["trade"]["id"]]
+    assert round(d["myTrades"]["value"][0]["pnlPercent"], 3) == 0.1

@@ -290,3 +290,58 @@ def test_no_model_client_is_importable_from_this_module_or_review_drafts():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names.add(node.module.split(".")[0])
         assert not (names & forbidden), f"{rel} imports a model client: {names & forbidden}"
+
+
+# ── fin-data M6: the finder says what it left out, and what was not worse ────────────────────
+#
+# Two honesty gaps. A trade with no R was dropped from every finding without a word, so a
+# member whose broker trades carry no R saw understated counts and dollars. And every detector
+# that cited one trade was listed under "Leaks" whether or not those trades did worse than the
+# period's own average.
+
+def test_a_finding_says_how_many_of_its_trades_it_left_out_for_having_no_R():
+    trades = [trade(1, r=-1.0, pnl_net=-100.0), trade(2, r=None, pnl_net=-250.0), trade(3, r=None, pnl_net=-40.0)]
+    f = leak_finder._finding("probe", "Probe", trades, baseline=baseline_of(trades))
+    assert f["excludedNoR"] == 2
+    assert [t["id"] for t in f["trades"]] == ["id1"]
+    assert f["dollarImpact"]["netPnl"] == -100.0          # the listed trades still sum to the dollars
+    assert f["excludedNetPnl"] == -290.0                  # and the dollars left out are stated
+    clean = leak_finder._finding("probe", "Probe", [trade(1, r=-1.0)], baseline=baseline_of(trades))
+    assert clean["excludedNoR"] == 0 and clean["excludedNetPnl"] == 0.0
+
+
+def test_coverage_counts_every_trade_the_finder_could_not_read():
+    trades = [trade(1, r=-1.0), trade(2, r=None), trade(3, r=None), trade(4, r=0.5)]
+    assert leak_finder.coverage(trades) == {"trades": 4, "withR": 2, "withoutR": 2}
+    assert leak_finder.coverage([]) == {"trades": 0, "withR": 0, "withoutR": 0}
+
+
+def test_each_finding_says_whether_it_did_worse_than_the_periods_average():
+    """Unplanned trades that did BETTER than the average are not a leak; they are still shown."""
+    planned = [trade(i, r=-1.0, pnl_net=-100.0, status="planned") for i in range(3)]
+    unplanned = [trade(i + 10, r=2.0, pnl_net=200.0, result="Win", status="unplanned") for i in range(2)]
+    trades = [*planned, *unplanned]
+    found = {f["kind"]: f for f in leak_finder.find_leaks(trades, baseline=baseline_of(trades))}
+    assert found["unplanned_trades"]["vsBaseline"] == "not_worse"
+
+    worse = [trade(i + 10, r=-3.0, pnl_net=-300.0, status="unplanned") for i in range(2)]
+    trades = [*planned, *worse]
+    found = {f["kind"]: f for f in leak_finder.find_leaks(trades, baseline=baseline_of(trades))}
+    assert found["unplanned_trades"]["vsBaseline"] == "worse"
+
+
+def test_a_finding_equal_to_the_average_is_not_called_worse_and_no_baseline_is_unknown():
+    trades = [trade(i, r=-1.0, status="unplanned") for i in range(3)]
+    f = leak_finder._finding("probe", "Probe", trades, baseline=baseline_of(trades))
+    assert f["vsBaseline"] == "not_worse"      # every trade is in it: it IS the average
+    g = leak_finder._finding("probe", "Probe", trades, baseline={"avgR": None, "avgNetPnlPerTrade": None})
+    assert g["vsBaseline"] == "unknown"
+
+
+def test_the_time_window_finding_says_it_is_read_by_exit_time():
+    morning = [trade(i, hour_et=9, r=1.0, pnl_net=100.0, result="Win") for i in range(3)]
+    afternoon = [trade(i + 10, hour_et=15, r=-2.0, pnl_net=-200.0, result="Loss") for i in range(3)]
+    trades = [*morning, *afternoon]
+    weak = next(f for f in leak_finder.find_leaks(trades, baseline=baseline_of(trades))
+                if f["kind"] == "weak_time_window")
+    assert "exit" in weak["label"].lower()

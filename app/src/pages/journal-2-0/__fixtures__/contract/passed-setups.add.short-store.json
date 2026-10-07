@@ -1,0 +1,68 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "note": "The store holds two sessions after the save and the market has had more: a labelled gap.",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2026-08-31",
+      "symbol": "PSSH"
+    },
+    "status": 200
+  },
+  "body": {
+    "deduped": false,
+    "item": {
+      "baseClose": 40.0,
+      "baseDate": "2026-08-31",
+      "id": "525912dda2844eed8a868053eca386f0",
+      "noBarsLabel": null,
+      "outcomes": [
+        {
+          "key": "r1",
+          "label": null,
+          "missing": null,
+          "pct": 2.5,
+          "sessions": 1
+        },
+        {
+          "key": "r5",
+          "label": "Bars missing from the store",
+          "missing": "missing",
+          "pct": null,
+          "sessions": 5
+        },
+        {
+          "key": "r10",
+          "label": "Bars missing from the store",
+          "missing": "missing",
+          "pct": null,
+          "sessions": 10
+        },
+        {
+          "key": "r20",
+          "label": "Bars missing from the store",
+          "missing": "missing",
+          "pct": null,
+          "sessions": 20
+        },
+        {
+          "best": true,
+          "key": "best20",
+          "label": "Bars missing from the store",
+          "missing": "missing",
+          "pct": null,
+          "sessions": 20
+        }
+      ],
+      "savedAt": "2026-08-31T20:00:00+00:00",
+      "savedDay": "2026-08-31",
+      "sessionsStored": 2,
+      "source": "manual",
+      "sourceRef": null,
+      "status": "pending",
+      "symbol": "PSSH",
+      "tradedOn": null
+    }
+  }
+}

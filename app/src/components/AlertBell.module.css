@@ -110,7 +110,7 @@
    statement about what is MISSING from the list below it. */
 .trouble {
   border-bottom: 1px solid var(--border);
-  background: rgba(239, 68, 68, 0.06);
+  background: color-mix(in srgb, var(--loss) 6%, transparent);
   padding: 8px 14px 10px;
 }
 
@@ -123,7 +123,7 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--loss);
+  color: var(--danger-ink);
   margin-bottom: 6px;
 }
 
@@ -187,7 +187,7 @@
 .itemLinked:hover .itemTitle { text-decoration: underline; }
 
 .unread {
-  background: rgba(74, 222, 128, 0.04);
+  background: color-mix(in srgb, var(--gain) 4%, transparent);
   border-left: 2px solid var(--ut-green);
 }
 

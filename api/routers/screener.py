@@ -182,6 +182,13 @@ def screener_meta(user=Depends(require_paid)):
     return scr_filters.meta(user_id=user["id"])
 
 
+@router.get("/api/screener/fields")
+def screener_fields(_user=Depends(require_paid)):
+    """The filter registry alone (key/label/type/unit/category) — no measurement.
+    For callers that need to know which fields exist, not draw the filter panel."""
+    return {"fields": scr_filters.field_catalog()}
+
+
 class ScreenAlertSub(BaseModel):
     def_hash: str
     def_id: str = ""

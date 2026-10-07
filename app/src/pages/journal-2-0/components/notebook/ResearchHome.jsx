@@ -9,7 +9,7 @@ import useNotebookHome from '../../hooks/useNotebookHome'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openNotebookTour } from './onboarding/tourControl'
 import {
-  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, isNotebookKey,
+  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, removedMessage, isNotebookKey,
   describeSampleHold,
 } from './onboarding/sampleNotebook'
 import { precheckNoteBatch } from '../../lib/noteBatch'
@@ -99,8 +99,9 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
       // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
       const { note } = await fn(await loadReviewDrafts())
       onOpenNote(note)
-    } catch {
-      setError(`Could not draft the ${period} review — try again.`)
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
     } finally {
       setBusy(null)
     }
@@ -267,7 +268,7 @@ export default function ResearchHome({
         setSampleMessage({ alert: true, text: out.message })
         return
       }
-      setSampleMessage({ alert: false, text: SAMPLE_COPY.removed })
+      setSampleMessage({ alert: false, text: removedMessage(out) })
       mutate(isNotebookKey)
     } finally {
       setRemoving(false)

@@ -1,0 +1,130 @@
+{
+ "tool": "tools/notebook_fin_fe2_sweep.py",
+ "config": "off",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe2\\off-final-eeccbdf6a2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 14:12:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 14:12:57",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 14:13:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe2\\off-final-eeccbdf6a2\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T14-12-19.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "V390_off_W0_switches",
+   "verdict": "PASS",
+   "detail": "{'notebook_review_drafts_enabled': True, 'notebook_plan_grading_enabled': False, 'notebook_setups_board_enabled': True, 'notebook_chart_plan_enabled': False, 'notebook_find_similar_enabled': True, 'notebook_ta_fingerprint_enabled': False}"
+  },
+  {
+   "id": "V390_P7_review_draft_says_the_discipline_record_is_not_in_it",
+   "verdict": "PASS",
+   "detail": "under the heading: 'Discipline record\\n\\nPlan grading is switched off, so this draft has no discipline record.\\n\\nSetup changes\\n\\nNo tagged setups this period.\\n\\nLinks\\nPlans used this period\\n\\nNo plan notes linked to this period’s trades.\\n\\nPrior r'"
+  },
+  {
+   "id": "V390_P7_insights_box_does_not_promise_the_discipline_record",
+   "verdict": "PASS",
+   "detail": "box='Reviews that write themselves\\n\\nOne click drafts the trades and P&L, setup changes, links to plans and prior reviews, the best and worst trade, and any leaks — from your own numbers, never generated. The discipline record is left out: it comes from plan grading, which is not switched on for your account.\\n\\nDraft today’s recap\\nDraft this week’s review\\nDraft this month’s review'"
+  },
+  {
+   "id": "V390_P7_setups_board_empty_line_says_a_plan_cannot_be_drawn",
+   "verdict": "PASS",
+   "detail": "planDrawing={'available': False, 'reason': 'chart_plan_off', 'sentence': 'Drawing a plan on a chart is switched off, so no new setup can be added here yet.'}; the line on the page starts: 'No open setups yet. Drawing a plan on a chart is switched off, so no new setup can be added here yet.\\n\\nAAPL\\nExample\\nNo price\\nNew today\\n\\nNo price yet\\n\\nEntry $180.00\\nStop $'"
+  },
+  {
+   "id": "V390_P9_example_cards_offer_no_find_similar_and_say_so",
+   "verdict": "PASS",
+   "detail": "example cards from the API=2; 'Examples are not matched' on the page=True; Find-more buttons on the page=0"
+  },
+  {
+   "id": "V390_P9_find_similar_on_an_example_shows_the_never_matched_sentence",
+   "verdict": "PASS",
+   "detail": "answer status='example'; sheet='NAMES LIKE AAPL (CLASSIC FLAG/PULLBACK)\\n\\nThis chart is an example, so it is never matched. Tag a chart of your own to find names like it.'"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "sample_add": 200,
+  "off_review_draft": {
+   "button": "Today's recap",
+   "discipline_part": "Discipline record\n\nPlan grading is switched off, so this draft has no discipline record.\n\nSetup changes\n\nNo tagged setups this period.\n\nLinks\nPlans used this period\n\nNo plan notes linked to this period’s trades.\n\nPrior r",
+   "draft_head": "Today's recap — Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n0\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n0 / 0 / 0\n\n\n\n\nWin rate\n\n\t\n\n—\n\n\n\n\nAverage R\n\n\t\n\n—\n\n\n\n\nNet P&L\n\n\t\n\n$0.00\n\n\n\n\nProfit factor\n\n\t\n\n—\n\n",
+   "trade_seed": {
+    "status": 200,
+    "body": "{\"id\":\"6e998958-1609-4188-9e0f-18d7c51294e6\",\"userId\":\"2bdf1dd1-4b3f-490e-8c15-aa952cf407e9\",\"positionId\":\"manual-aa66acbf-8563-4f7d-b437-928063669343\",\"symbol\""
+   },
+   "insights_box": "Reviews that write themselves\n\nOne click drafts the trades and P&L, setup changes, links to plans and prior reviews, the best and worst trade, and any leaks — from your own numbers, never generated. The discipline record is left out: it comes from plan grading, which is not switched on for your account.\n\nDraft today’s recap\nDraft this week’s review\nDraft this month’s review"
+  },
+  "off_setups_board": {
+   "api": {
+    "count": 0,
+    "exampleCount": 2,
+    "planDrawing": {
+     "available": false,
+     "reason": "chart_plan_off",
+     "sentence": "Drawing a plan on a chart is switched off, so no new setup can be added here yet."
+    },
+    "cards": [
+     {
+      "symbol": "AAPL",
+      "example": true,
+      "similarNeverMatched": true,
+      "similarEmbedKey": "ex-plan",
+      "noteId": "a531ba2f1e2f4930b71b522f80556254"
+     },
+     {
+      "symbol": "MSFT",
+      "example": true,
+      "similarNeverMatched": true,
+      "similarEmbedKey": "ex-setup",
+      "noteId": "c06cc5ab1e534896afeb798b52b01b24"
+     }
+    ]
+   },
+   "page_text": "Setups\nACTIVE SETUPS\nOpen plans with levels drawn on a chart, closest to the entry first.\n\nNo open setups yet. Drawing a plan on a chart is switched off, so no new setup can be added here yet.\n\nAAPL\nExample\nNo price\nNew today\n\nNo price yet\n\nEntry $180.00\nStop $170.00\nTarget $205.00\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nTrade plan: example -- AAPL pullback\nExamples are not matched against the day’s names.\nMSFT\nExample\nNo price\nNew today\n\nNo price yet\n\nEntry $410.00\nStop $395.00\nTarget —\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nActive setup: example -- MSFT base breakout\nExamples are not matched against the day’s names.\nFIND MORE LIKE THIS\nYour tagged charts, matched every night against the day’s scored names.\n\nTag a chart in a note with its setup and it is matched tonight.",
+   "find_similar_buttons": 0,
+   "similar_api": {
+    "status": "example",
+    "neverMatched": {
+     "reason": "sample_example",
+     "sentence": "This chart is an example, so it is never matched. Tag a chart of your own to find names like it."
+    }
+   },
+   "sheet_text": "NAMES LIKE AAPL (CLASSIC FLAG/PULLBACK)\n\nThis chart is an example, so it is never matched. Tag a chart of your own to find names like it."
+  },
+  "page_errors": []
+ }
+}

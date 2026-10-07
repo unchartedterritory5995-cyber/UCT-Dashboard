@@ -24,7 +24,7 @@
   padding: 0 28px;           /* symmetric inset so the centered block clears the gear */
   box-sizing: border-box;
   background: transparent;
-  border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  border-bottom: 1px solid var(--prof-divider, var(--divider, color-mix(in srgb, var(--text) 8%, transparent)));
   flex: 0 0 auto;
 }
 .symWrap {
@@ -66,7 +66,7 @@
   border-radius: 5px;
   flex: 0 0 auto;
 }
-.gearBtn:hover, .gearBtnActive { color: var(--prof-accent, var(--ut-gold, #dcbb5e)); background: var(--prof-row-hover, rgba(255, 255, 255, 0.06)); }
+.gearBtn:hover, .gearBtnActive { color: var(--prof-accent, var(--ut-gold, #dcbb5e)); background: var(--prof-row-hover, color-mix(in srgb, var(--text) 6%, transparent)); }
 
 .scroll {
   flex: 1;
@@ -79,7 +79,7 @@
   display: flex;
   gap: 10px;
   padding: 12px 12px 13px;
-  border-bottom: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  border-bottom: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .stat { flex: 1 1 0; min-width: 0; text-align: center; }
 /* Every value sits centered directly beneath its own label. */
@@ -107,7 +107,7 @@
 /* ── Earnings table ── */
 .earnWrap {
   padding: 12px 12px 6px;
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  border-top: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .sectionLabel {
   font-size: 9.5px;
@@ -133,7 +133,7 @@
 }
 .earnTable td {
   padding: 5px 0;
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.05));
+  border-top: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 5%, transparent));
   color: var(--prof-text, var(--text-bright, #e0dac8));
 }
 .thLeft, .tdLeft { text-align: left; }
@@ -177,7 +177,7 @@
 /* ── Key stats ── */
 .keyWrap {
   padding: 12px 12px 16px;
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  border-top: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .keyGrid {
   display: grid;
@@ -190,7 +190,7 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  border-bottom: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 5%, transparent));
   padding-bottom: 5px;
 }
 .keyLabel {
@@ -218,7 +218,7 @@
 .infoList {
   margin-top: 11px;
   padding-top: 10px;
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  border-top: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 6%, transparent));
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -239,7 +239,7 @@
 /* ── Sympathy stocks — clickable ticker chips ── */
 .sympWrap {
   padding: 12px 12px 16px;
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  border-top: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .chips {
   display: flex;
@@ -254,15 +254,15 @@
   padding: 3px 9px;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  color: var(--prof-chrome-strong, var(--prof-text, #e0dac8));
-  background: var(--prof-row-hover, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.10));
+  color: var(--prof-chrome-strong, var(--prof-text, var(--text)));
+  background: var(--prof-row-hover, color-mix(in srgb, var(--text) 6%, transparent));
+  border: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 10%, transparent));
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 .chip:hover {
   color: var(--prof-accent, var(--ut-gold, #dcbb5e));
   border-color: var(--prof-accent, var(--ut-gold, #dcbb5e));
-  background: var(--prof-row-hover, rgba(255, 255, 255, 0.10));
+  background: var(--prof-row-hover, color-mix(in srgb, var(--text) 10%, transparent));
 }
 
 /* States */
@@ -279,7 +279,7 @@
   padding: 12px;
   font-size: 11.5px;
   color: var(--prof-accent, var(--ut-gold, #dcbb5e));
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  border-top: 1px solid var(--prof-row-divider, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .spinner {
   width: 12px;

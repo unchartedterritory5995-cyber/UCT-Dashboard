@@ -18,8 +18,8 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
-.pass .glyph { color: var(--gain); }
-.fail .glyph { color: var(--loss); }
+.pass .glyph { color: var(--success-ink); }
+.fail .glyph { color: var(--danger-ink); }
 
 .label {
   font-family: var(--font-sans);

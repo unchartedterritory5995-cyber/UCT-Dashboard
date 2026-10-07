@@ -39,7 +39,7 @@ import {
 import { printFormula } from '../../engine/ast/pine'
 import { assertCanonical, astHash } from '../../engine/ast/parse'
 import { declaredInputs } from '../../engine/ast/lint'
-import { outputTypeOf, outputsOf, treeOutputType } from '../../engine/outputType'
+import { outputTypeOf, outputsOf, treeOutputType, OUTPUT_TYPES } from '../../engine/outputType'
 import { evaluability, LANES, STATUS } from '../../engine/evaluability'
 import { signalAlertGate } from '../../engine/triggerPolicy'
 import { infoValueOutputExists } from '../../engine/infoValueResolve'
@@ -115,6 +115,15 @@ function setTree(st, row, tree, i, kind) {
   st.touched.add(row.key)
   st.changes.push({ op: i, kind, output: row.key, from, to: g.source })
 }
+
+/** ⭐ P3 — the styles drawn as a LINE, so a line style is something they show
+ *  (`pool`: a histogram has no line style, a markers plot has `lineWidth: 0`). */
+export const LINE_DRAWN_STYLES = Object.freeze(['line', 'stepline', 'area', 'baseline'])
+
+/** ⭐ P3 — a fill the conversation may replace or remove: exactly the shape
+ *  `set_fill` writes (`{with}` and nothing else). A band carrying its own
+ *  conditional colour (an import's) is not this door's to overwrite. */
+const plainFill = (f) => !!f && typeof f === 'object' && Object.keys(f).length === 1 && typeof f.with === 'string'
 
 const ownPaintOf = (paints, key, channel) => (paints || []).findIndex((p) => p && p.kind === channel
   && p.colorMode === `column:${key}` && p.colorDown === NO_PAINT && typeof p.colorUp === 'string')
@@ -286,11 +295,23 @@ const OPS = {
     if (op.style !== undefined && row.marker) {
       throw err('style:has-marker', `"${row.key}" is drawn as markers; remove the marker before changing its line style.`, { output: row.key })
     }
-    const from = { color: row.color, width: row.width, style: row.style, hidden: row.hidden }
+    if (op.lineStyle !== undefined) {
+      const drawn = op.style !== undefined ? op.style : row.style
+      if (!LINE_DRAWN_STYLES.includes(drawn)) {
+        throw err('style:line-style-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to make ${op.lineStyle}.`, { output: row.key })
+      }
+    }
+    const look = () => ({ color: row.color, width: row.width, style: row.style, hidden: row.hidden,
+      lineStyle: row.lineStyle || 'solid' })
+    const from = look()
     for (const f of ['color', 'width', 'style', 'hidden']) if (op[f] !== undefined) row[f] = op[f]
+    if (op.hidden !== undefined) st.hiddenSet.add(row.key)
+    // ⭐ P3 — solid is the default and is written as NO field, so an undashed
+    // plot stays byte-identical to one that never had a line style.
+    if (op.lineStyle === 'solid') delete row.lineStyle
+    else if (op.lineStyle !== undefined) row.lineStyle = op.lineStyle
     st.touched.add(row.key)
-    st.changes.push({ op: i, kind: 'style-set', output: row.key, from,
-      to: { color: row.color, width: row.width, style: row.style, hidden: row.hidden } })
+    st.changes.push({ op: i, kind: 'style-set', output: row.key, from, to: look() })
   },
 
   set_marker(st, op, i) {
@@ -306,6 +327,12 @@ const OPS = {
     const from = row.marker || null
     row.style = 'markers'
     row.marker = marker
+    // ⭐ P3S — markers are a request to DRAW: an output hidden (by the member, or by
+    // `hidePaintedConditionLines`) would otherwise draw nothing at all.
+    if (row.hidden === true) {
+      row.hidden = false
+      st.changes.push({ op: i, kind: 'line-shown', output: row.key, reason: 'marker' })
+    }
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'marker-set', output: row.key, from, to: marker })
   },
@@ -330,7 +357,7 @@ const OPS = {
     const [paint] = signalPaintsFor(row.key, { [op.channel]: op.color })
     const from = at >= 0 ? paints[at].colorUp : null
     if (at >= 0) paints[at] = paint
-    else paints.push(paint)
+    else { paints.push(paint); st.newPaints.add(row.key) }
     m.paints = paints
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'paint-set', output: row.key, channel: op.channel, from, to: op.color })
@@ -345,6 +372,58 @@ const OPS = {
     const kept = m.paints.filter((_, j) => j !== at)
     m.paints = kept.length ? kept : null
     st.changes.push({ op: i, kind: 'paint-removed', output: row.key, channel: op.channel, from })
+  },
+
+  // ─── ⭐ P3 — levels and fills: presentation the Builder already writes ────
+
+  set_levels(st, op, i) {
+    if (!st.model) throw err('definition:none', 'There is no definition yet.')
+    const values = op.values
+    if (!values.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+      throw err('levels:not-number', 'Levels are plain numbers.')
+    }
+    if (values.length > PATCH_LIMITS.maxLevels) throw err('levels:limit', `At most ${PATCH_LIMITS.maxLevels} levels.`)
+    const from = st.model.levels && st.model.levels.length ? [...st.model.levels] : []
+    // ⭐ THE BUILDER'S OWN SHAPE: the Levels box's list, in order; none = no guide.
+    st.model.levels = values.length ? [...values] : null
+    if (JSON.stringify(from) === JSON.stringify(values)) { st.changes.push({ op: i, kind: 'unchanged', what: 'levels' }); return }
+    st.changes.push({ op: i, kind: values.length ? 'levels-set' : 'levels-removed', from, to: [...values] })
+  },
+
+  set_fill(st, op, i) {
+    const row = rowOf(st, op.output)
+    const other = rowOf(st, op.with)
+    if (other === row) throw err('fill:self', `A fill between "${row.key}" and itself has no area.`, { output: row.key })
+    if (row.fill && !plainFill(row.fill)) {
+      throw err('fill:foreign', `"${row.key}" already has an imported band with its own colours; it is not overwritten.`, { output: row.key })
+    }
+    if (other.fill && other.fill.with === row.key) {
+      throw err('fill:duplicate', `"${other.key}" is already shaded to "${row.key}".`, { output: row.key })
+    }
+    const from = row.fill ? { with: row.fill.with, color: row.fillColor || null, opacity: Number.isFinite(row.fillOpacity) ? row.fillOpacity : null } : null
+    row.fill = { with: other.key }
+    delete row.fillColor
+    delete row.fillOpacity
+    if (op.color !== undefined) row.fillColor = op.color
+    if (op.opacity !== undefined) row.fillOpacity = op.opacity
+    st.touched.add(row.key)
+    st.fills.add(row.key)
+    st.changes.push({ op: i, kind: 'fill-set', output: row.key, from,
+      to: { with: other.key, color: op.color || null, opacity: op.opacity !== undefined ? op.opacity : null } })
+  },
+
+  remove_fill(st, op, i) {
+    const row = rowOf(st, op.output)
+    if (!row.fill) throw err('fill:none', `"${row.key}" has no fill to remove.`, { output: row.key })
+    if (!plainFill(row.fill)) {
+      throw err('fill:foreign', `"${row.key}" has an imported band with its own colours; it is not removed here.`, { output: row.key })
+    }
+    const from = row.fill.with
+    delete row.fill
+    delete row.fillColor
+    delete row.fillOpacity
+    st.touched.add(row.key)
+    st.changes.push({ op: i, kind: 'fill-removed', output: row.key, from })
   },
 
   request_info_value(st, op, i) {
@@ -386,6 +465,20 @@ function finalChecks(st, input, gateCtx) {
   const def = buildFromModel(st.model, { like: input })
   const { errors } = validateUserDefinitions([def])
   if (errors.length) throw err('definition:invalid', errors.join('\n'))
+
+  // ⭐ P3 — A BAND IS AREA BETWEEN TWO NUMBERS. Every fill this patch set, or
+  // whose edge it changed, must join two SERIES outputs: a yes/no edge would
+  // shade between 0 and 1 and call it a band.
+  for (const row of st.model.rows) {
+    if (!row.fill || typeof row.fill.with !== 'string') continue
+    if (!(st.fills.has(row.key) || st.touched.has(row.key) || st.touched.has(row.fill.with))) continue
+    for (const k of [row.key, row.fill.with]) {
+      const t = outputTypeOf(def, k)
+      if (!t || t.type !== OUTPUT_TYPES.SERIES) {
+        throw err('fill:not-series', `"${k}" is ${t && t.type === OUTPUT_TYPES.CONDITION ? 'a yes/no, not a number' : 'not a number line'}; a fill shades between two number outputs.`, { output: row.key })
+      }
+    }
+  }
 
   for (const key of st.touched) {
     const row = st.model.rows.find((r) => r.key === key)
@@ -451,12 +544,43 @@ function disclosures(st, input, def, gateCtx) {
   return out
 }
 
+/**
+ * ⭐ P3S — A YES/NO THAT A COLOUR SHOWS IS NOT ALSO A 0/1 LINE. When this patch
+ * gives a CONDITION output its FIRST own paint (candles or background), the output
+ * is still drawn with the default line, and the patch did not set its visibility,
+ * the line is hidden. A hidden plot is COMPUTED, never drawn (`defSchema`), so the
+ * paint — which reads the output's own column — is unchanged; only the flat 0/1
+ * line under it goes (P3R: "RSI 28 > 70 0.00" drawn in the RSI pane). Only when
+ * another output is drawn beside it. Disclosed;
+ * `set_style hidden:false` draws it again, and a later colour change does not
+ * re-hide it. ⛔ Presentation only: the tree, the type and the truth are untouched.
+ */
+function hidePaintedConditionLines(st) {
+  for (const row of st.model.rows) {
+    if (!st.newPaints.has(row.key) || st.hiddenSet.has(row.key)) continue
+    if (row.hidden === true || row.marker || row.style !== 'line' || !row.ast) continue
+    if (treeOutputType(row.ast).type !== OUTPUT_TYPES.CONDITION) continue
+    // ⛔ ONLY WHERE NOTHING IS LEFT EMPTY: beside another drawn output (the P3R
+    // shape: an RSI line + its yes/no), or ON THE PRICE CHART, where a lone 0/1 line
+    // sits far off the price scale and the candles themselves carry the answer
+    // (rollout polish). A lone painted condition IN ITS OWN PANE keeps its line, as
+    // P2 accepted it: hiding it there would leave the pane empty.
+    const onPrice = !!(st.model.placement && st.model.placement.target === 'price')
+    if (!onPrice && !st.model.rows.some((o) => o !== row && o.hidden !== true)) continue
+    row.hidden = true
+    st.changes.push({ op: null, kind: 'line-hidden', output: row.key, reason: 'paint' })
+    st.engineAssumptions.push({ output: row.key, source: 'engine',
+      text: 'this yes/no shows through its colour, so it is not also drawn as a 0/1 line' })
+  }
+}
+
 function runOps(input, ops, ctx) {
   const st = {
     model: null, ctx, changes: [], touched: new Set(), removed: new Set(), requested: new Set(),
     intent: ctx.intent ? { ...ctx.intent } : null, requests: normRequests(ctx.requests),
-    engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false,
+    engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false, fills: new Set(),
     renamedDefinition: false, renamedOutputs: new Set(),
+    newPaints: new Set(), hiddenSet: new Set(),
   }
   let namingBefore = null
   if (input) {
@@ -483,6 +607,7 @@ function runOps(input, ops, ctx) {
     }
   }
   if (!st.model) return { ok: false, errors: [{ op: null, code: 'definition:none', message: 'There is no definition yet; the first turn must create one.' }] }
+  hidePaintedConditionLines(st)
   // ⭐⭐ THE NAME DESCRIBES THE RESULT (derivedName.js): an auto name and auto
   // labels are re-derived from the patched trees; a custom one is kept.
   st.changes.push(...applyDerivedNaming(st.model, namingBefore,

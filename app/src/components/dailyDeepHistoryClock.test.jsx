@@ -142,9 +142,9 @@ function seriesEndingAt(isoEnd, n) {
 const SERVER_MARK = 0.01
 const serverCopy = (b) => ({ ...b, c: +(b.c + SERVER_MARK).toFixed(4) })
 
-function fixturesAt() {
+function fixturesAt(shape) {
   const frontier = MS.expectedDailyTailForPaintET()
-  const deep = seriesEndingAt(frontier, DEEP_ROWS)
+  const deep = shape ? shape(seriesEndingAt(frontier, DEEP_ROWS)) : seriesEndingAt(frontier, DEEP_ROWS)
   return {
     frontier,
     deep,
@@ -214,9 +214,9 @@ afterAll(() => { clock.restore() })
 
 let _n = 0
 /** Mount one daily chart at the pinned clock and score it once the server has answered. */
-async function runCase({ seedIdb = false, clickOrigin = false } = {}) {
+async function runCase({ seedIdb = false, clickOrigin = false, shape = null } = {}) {
   world.sym = `Q${++_n}`
-  const fx = fixturesAt()
+  const fx = fixturesAt(shape)
   // The server's /api/bars is the fresh copy for ANY depth it is asked for.
   world.netBars = fx.deep.slice(0, -PRIMARY_ROWS).concat(fx.primary)
   world.histBars = fx.sealed
@@ -311,6 +311,25 @@ describe('DAILY deep history — every session window', () => {
         expect(res.origin.frame.to).toBeGreaterThan(0)
       }, 30000)
     })
+  }
+
+  // ⛔ VALUE SERIES (2026-10-07). The last-bar sanity gate is a STOCK-PRICE rule
+  // (positive, open within 50% of close). Breadth series break it on ordinary days —
+  // NASDAQ:NETHL / MCO close below zero, a %-above-MA can double in a session — and
+  // the splice used to inherit it, so those charts "began" at the 600-bar window.
+  const VALUE_SHAPES = {
+    'negative-valued (net highs-lows)': (bars) => bars.map((b) => ({ ...b, o: b.o - 200, h: b.h - 200, l: b.l - 200, c: b.c - 200 })),
+    'last bar swings >50% (% above MA)': (bars) => bars.map((b, i) => (i === bars.length - 1
+      ? { ...b, o: 10, h: 26, l: 10, c: 25 } : b)),
+  }
+  for (const [name, iso] of [['RTH 13:17 Tue', CLOCKS['RTH 13:17 Tue']], ['POST 19:30 Tue', CLOCKS['POST 19:30 Tue']]]) {
+    for (const [shapeName, shape] of Object.entries(VALUE_SHAPES)) {
+      it(`${name} · ${shapeName} with a deep cache: deep history still drawn`, async () => {
+        clock.retarget(iso)
+        const res = await runCase({ seedIdb: true, shape })
+        assertDeep(`${name} ${shapeName}`, res)
+      }, 30000)
+    }
   }
 
   it('MATRIX', () => {

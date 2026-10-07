@@ -94,7 +94,12 @@ def test_a_level_3_editor_saves_a_plan_note_without_its_plan_data(tmp_path, monk
 def test_account_deletion_on_a_database_the_landing_wrote_to():
     conn = sqlite3.connect(":memory:")
     for table in LANDING_TABLES:
-        conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT)')
+        # The two gallery child tables carry `gallery_id`: the kept account_purge.py also removes
+        # what OTHER members recorded about the leaving member's templates, by that column
+        # (security lane M-7, merged after this probe was written). Left NULL, so that pass
+        # matches nothing and the counts below are the direct `user_id` pass, as before.
+        extra = ", gallery_id TEXT" if table in ("j2_template_gallery_reports", "j2_template_gallery_uses") else ""
+        conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT{extra})')
         conn.executemany(f'INSERT INTO "{table}" (user_id, v) VALUES (?, ?)',
                          [("member-leaving", "theirs"), ("member-staying", "not theirs")])
     conn.commit()
