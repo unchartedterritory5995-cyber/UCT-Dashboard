@@ -1,0 +1,29 @@
+{
+ "report_day": "2026-10-12",
+ "data_dir": "C:\\data-fin-walk\\c1",
+ "c1_note_1280": "7ec689ed96844d008d890df48a03912a",
+ "c1_confirm_top_1280": {
+  "on_top": true,
+  "w": 84,
+  "h": 34,
+  "covered_by": null
+ },
+ "c1_thesis_1280": "7c344684f50e4dd5b9c723c340fb3f05",
+ "c1_note_820": "6491eea90d39414d95baa2036ea3d5b3",
+ "c1_confirm_top_820": {
+  "on_top": true,
+  "w": 84,
+  "h": 44,
+  "covered_by": null
+ },
+ "c1_thesis_820": "ce394f1a3c0d4a1ab71f02b0371aae9e",
+ "c1_note_390": "71dbc1dd0c874f93a92b74bb57e6f9df",
+ "c1_confirm_top_390": {
+  "on_top": true,
+  "w": 84,
+  "h": 44,
+  "covered_by": null
+ },
+ "c1_thesis_390": "a7b793750b9241b086a80f14f61e40c7",
+ "tip": "af0b7ffeea"
+}
