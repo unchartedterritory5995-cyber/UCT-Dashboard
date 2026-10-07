@@ -160,6 +160,11 @@
     "count": 7,
     "exampleCount": 0,
     "pageSize": 16,
+    "planDrawing": {
+      "available": true,
+      "reason": null,
+      "sentence": null
+    },
     "scanned": 7,
     "today": "2026-10-05"
   }
