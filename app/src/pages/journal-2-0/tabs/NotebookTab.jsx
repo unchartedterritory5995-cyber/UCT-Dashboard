@@ -46,6 +46,7 @@ import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dail
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
+import { registerShortcuts } from '../../command/shortcutRegistry'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
@@ -1201,17 +1202,18 @@ export default function NotebookTab() {
   // direction this flow is used.
   useEffect(() => {
     if (!selection.count) return undefined
-    const onKey = (e) => {
-      if (!isBulkActionsShortcut(e)) return
-      const bar = document.querySelector('[data-bulk-bar]')
-      if (!bar) return
-      e.preventDefault()
-      const target = bar.querySelector('[data-bulk-move-select]')
-        || [...bar.querySelectorAll('button, select')].find((el) => !el.disabled)
-      target?.focus()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    // Bound through the shared shortcut registry (declared there as `notebook.bulkBar`).
+    return registerShortcuts({
+      'notebook.bulkBar': (e) => {
+        if (!isBulkActionsShortcut(e)) return       // the AltGr guard lives there
+        const bar = document.querySelector('[data-bulk-bar]')
+        if (!bar) return
+        e.preventDefault()
+        const target = bar.querySelector('[data-bulk-move-select]')
+          || [...bar.querySelectorAll('button, select')].find((el) => !el.disabled)
+        target?.focus()
+      },
+    })
   }, [selection.count])
 
   // 13Q-5: Shift+Arrow extends the selection to the adjacent note and moves
