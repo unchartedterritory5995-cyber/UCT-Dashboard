@@ -635,3 +635,61 @@ describe('the draft doors are idempotent', () => {
     expect(state.creates).toBe(1)
   })
 })
+
+// ── fin-data M6: leaks say what was left out, and what was not worse than average ──────────
+describe('buildDraftBlocks — leak honesty', () => {
+  const finding = (over = {}) => ({
+    kind: 'unplanned_trades', label: 'Unplanned trades', vsBaseline: 'worse', excludedNoR: 0, excludedNetPnl: 0,
+    sample: { n: 12, mean: -0.5, band: 'thin', wording: 'thin sample', range: [-0.9, -0.1] },
+    dollarImpact: { netPnl: -600, avgR: -0.5, baselineAvgR: -0.2, baselineAvgNetPnlPerTrade: -24.69 },
+    trades: Array.from({ length: 12 }, (_, i) => mkTrade({ id: `u${i}`, pnlDollar: -50, rMultiple: -0.5 })),
+    detail: {}, ...over,
+  })
+
+  it('says how many trades have no R value and were left out of every finding', () => {
+    const text = allText(buildDraftBlocks(fixturePayload({ leakCoverage: { trades: 9, withR: 5, withoutR: 4 } })))
+    expect(text).toContain('4 of 9 trades have no R value')
+  })
+
+  it('says so even when no leak was found, so "none found" is not read as "all clear"', () => {
+    const text = allText(buildDraftBlocks(fixturePayload({ leaks: [], leakCoverage: { trades: 3, withR: 0, withoutR: 3 } })))
+    expect(text).toContain('3 of 3 trades have no R value')
+  })
+
+  it('says nothing about R when every trade has one', () => {
+    const text = allText(buildDraftBlocks(fixturePayload({ leakCoverage: { trades: 5, withR: 5, withoutR: 0 } })))
+    expect(text).not.toContain('no R value')
+  })
+
+  it('a finding names the trades it left out for having no R, and their dollars', () => {
+    const text = allText(buildDraftBlocks(fixturePayload({ leaks: [finding({ excludedNoR: 2, excludedNetPnl: -290 })] })))
+    expect(text).toContain('2 more trades fit this but have no R value')
+    expect(text).toContain('-$290.00')
+  })
+
+  it('a finding that was NOT worse than the period average is listed apart from the leaks', () => {
+    const blocks = buildDraftBlocks(fixturePayload({
+      leaks: [finding(), finding({ kind: 'regime_at_entry', label: 'Regime at entry', vsBaseline: 'not_worse' })],
+    }))
+    const texts = blocks.map((b) => flattenText(b).join(''))
+    const leaksAt = texts.findIndex((t) => t === 'Leaks')
+    const apartAt = texts.findIndex((t) => t.startsWith('Checked, and not worse than your average'))
+    const unplannedAt = texts.findIndex((t) => t.includes('Unplanned trades'))
+    const regimeAt = texts.findIndex((t) => t.includes('Regime at entry'))
+    expect(leaksAt).toBeGreaterThanOrEqual(0)
+    expect(apartAt).toBeGreaterThan(unplannedAt)
+    expect(regimeAt).toBeGreaterThan(apartAt)
+  })
+
+  it('when nothing was worse, it says no leaks and still lists what it checked', () => {
+    const blocks = buildDraftBlocks(fixturePayload({ leaks: [finding({ vsBaseline: 'not_worse' })] }))
+    expect(blocks.some((b) => b.type === 'callout')).toBe(true)
+    expect(allText(blocks)).toContain('Checked, and not worse than your average')
+  })
+
+  it('a payload from before this field treats every finding as a leak, as it always did', () => {
+    const f = finding(); delete f.vsBaseline
+    const text = allText(buildDraftBlocks(fixturePayload({ leaks: [f] })))
+    expect(text).not.toContain('Checked, and not worse')
+  })
+})

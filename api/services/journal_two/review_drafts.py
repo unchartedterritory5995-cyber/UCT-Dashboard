@@ -448,6 +448,7 @@ def _assemble(
             "resurfaced": _resurfaced_notes(conn, user_id, range_["start"], range_["end"]),
         },
         "leaks": leaks,
+        "leakCoverage": leak_finder.coverage(enriched),
         "compassText": compass,
         "baseline": baseline,
         "sample": sample_size.constants(),

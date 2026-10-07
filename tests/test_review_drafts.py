@@ -394,3 +394,16 @@ def test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch()
     assert "dependencies=[Depends(_require_enabled)]" in router
     drafts = (repo / "api/services/journal_two/review_drafts.py").read_text(encoding="utf-8")
     assert "plan_grading_enabled()" in drafts
+
+
+# ── fin-data M6: the draft carries how many trades the leak finder could not read ────────────
+
+def test_the_payload_says_how_many_trades_have_no_R(conn, client):
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
+              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
+    tid = add_trade(conn, symbol="AAPL", entry_date="2026-09-30T14:00:00+00:00",
+                    exit_date="2026-09-30T19:30:00+00:00", entry_price=200.0, exit_price=195.0)
+    conn.execute("UPDATE j2_trades SET r_multiple = NULL WHERE id = ?", (tid,))
+    conn.commit()
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
+    assert payload["leakCoverage"] == {"trades": 2, "withR": 1, "withoutR": 1}

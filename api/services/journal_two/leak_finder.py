@@ -87,6 +87,13 @@ def baseline_stats(trades: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def coverage(trades: list[dict[str, Any]]) -> dict[str, int]:
+    """How many of the period's trades the finder can read at all. Every finding is an average
+    of R, so a trade with no R is in none of them; this is the count the note states once."""
+    with_r = sum(1 for t in trades if t.get("rMultiple") is not None)
+    return {"trades": len(trades), "withR": with_r, "withoutR": len(trades) - with_r}
+
+
 def _trade_citation(t: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": t["id"], "tradeRef": t["tradeRef"], "symbol": t["symbol"],
@@ -100,11 +107,21 @@ def _finding(kind: str, label: str, trades: list[dict[str, Any]], *, baseline: d
     cited = [t for t in trades if t.get("rMultiple") is not None]
     if not cited:
         return None
+    # ⛔ SAID, NEVER SILENT (fin-data M6). A trade with no R cannot be in an average of R, so it
+    # is left out of this finding -- and the finding states how many and how many dollars.
+    left_out = [t for t in trades if t.get("rMultiple") is None]
     stat = sample_size.mean_stat([t["rMultiple"] for t in cited])
     net = sum(t["pnlDollarNet"] for t in cited)
+    base = baseline.get("avgR")
     return {
         "kind": kind,
         "label": label,
+        # A finding is a LEAK only when its trades did worse than the period's own average.
+        # One that did not is still returned, labelled, and the note lists it apart.
+        "vsBaseline": ("unknown" if base is None or stat["mean"] is None
+                       else "worse" if stat["mean"] < base else "not_worse"),
+        "excludedNoR": len(left_out),
+        "excludedNetPnl": round(sum(t.get("pnlDollarNet") or 0.0 for t in left_out), 2),
         "sample": stat,
         "dollarImpact": {
             "netPnl": round(net, 2),
@@ -191,7 +208,8 @@ def _detect_weak_time_window(trades: list[dict[str, Any]], baseline: dict[str, A
     if worst_hour is None or worst_avg >= baseline["avgR"]:
         return None
     return _finding(
-        "weak_time_window", "A weak time window", buckets[worst_hour], baseline=baseline,
+        # `hourEt` is the hour the trade was CLOSED (trades.py computes it from the exit).
+        "weak_time_window", "A weak time window (by exit time)", buckets[worst_hour], baseline=baseline,
         detail={"hourEt": worst_hour, "hourLabel": _hour_label(worst_hour)},
     )
 

@@ -265,6 +265,11 @@ function leakToggle(finding) {
   const body = [
     labeled('Net P&L:', fmtDollar(di.netPnl)),
     labeled('Average R:', `${wordedMean(s)} vs your period average of ${fmtR(di.baselineAvgR)}`),
+    // Said, never silent: trades that fit this finding and have no R are in none of its numbers.
+    ...(finding.excludedNoR > 0 ? [p(
+      `${finding.excludedNoR} more trade${finding.excludedNoR === 1 ? '' : 's'} fit this but have no R value, `
+      + `so ${finding.excludedNoR === 1 ? 'it is' : 'they are'} not in the numbers above `
+      + `(${fmtDollar(finding.excludedNetPnl)} net).`)] : []),
     h(3, 'The trades'),
     bullets(
       (finding.trades || []).map(
@@ -284,12 +289,28 @@ function leakToggle(finding) {
   return toggle(summary, [...body, linkList], { open: !tooFew })
 }
 
-function leaksSection(leaks) {
+/** The Leaks section. Two honesty rules (fin-data M6):
+ *  - a finding whose trades did NOT do worse than the period average is not a leak; it is
+ *    listed apart, under its own heading, never dropped and never called a leak;
+ *  - when some trades have no R value they are in no finding at all, and the section says
+ *    how many, including when it found nothing.
+ *  A payload without `vsBaseline` (an older server) reads as before: every finding a leak. */
+function leaksSection(leaks, coverage) {
   const rows = Array.isArray(leaks) ? leaks : []
-  if (!rows.length) {
-    return [h(2, 'Leaks'), callout('success', 'No leaks found this period.')]
+  const worse = rows.filter((f) => f.vsBaseline !== 'not_worse')
+  const notWorse = rows.filter((f) => f.vsBaseline === 'not_worse')
+  const out = [h(2, 'Leaks')]
+  const c = coverage || {}
+  if (c.withoutR > 0) {
+    out.push(p(`${c.withoutR} of ${c.trades} trades have no R value and are left out of every finding below.`))
   }
-  return [h(2, 'Leaks'), ...rows.map(leakToggle)]
+  if (worse.length) out.push(...worse.map(leakToggle))
+  else out.push(callout('success', 'No leaks found this period.'))
+  if (notWorse.length) {
+    out.push(h(3, 'Checked, and not worse than your average this period'))
+    out.push(...notWorse.map(leakToggle))
+  }
+  return out
 }
 
 function compassSection(compassText) {
@@ -321,7 +342,7 @@ export function buildDraftBlocks(payload) {
   blocks.push(hr())
   blocks.push(...chartsSection(payload.bestTrade, payload.worstTrade))
   blocks.push(hr())
-  blocks.push(...leaksSection(payload.leaks))
+  blocks.push(...leaksSection(payload.leaks, payload.leakCoverage))
   const compass = compassSection(payload.compassText)
   if (compass.length) {
     blocks.push(hr())
