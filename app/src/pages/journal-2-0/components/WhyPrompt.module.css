@@ -65,6 +65,9 @@
 }
 
 .error { color: var(--danger-ink); font-size: 12px; margin: 8px 0 0; }
+/* "Saved." Always in the tree (see WhyPrompt.jsx); it takes no room while it is empty. */
+.notice { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+.notice:empty { margin: 0; }
 
 /* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
 @media (max-width: 1024px) {
