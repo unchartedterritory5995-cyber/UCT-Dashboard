@@ -1,0 +1,13 @@
+{
+ "report_day": "2026-10-09",
+ "data_dir": "C:\\data-fin-walk\\c1",
+ "c1_note_1280": "8dc03f1e9c1a42a0a6ea9b2ca60ec368",
+ "c1_search_err_1280": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n",
+ "c1_thesis_1280": "23b39742931d46bd9e5e71d00f07a988",
+ "c1_note_820": "9e2d3643a8a848dca2c937d7f9448ec7",
+ "c1_search_err_820": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n",
+ "c1_thesis_820": "bb501c832ab84c30b3174caf97ed7f95",
+ "c1_note_390": "f6a67a14d0e1490386226337112039d6",
+ "c1_search_err_390": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n",
+ "c1_thesis_390": "0d9c306e74b74213b05caf9297159cd2"
+}
