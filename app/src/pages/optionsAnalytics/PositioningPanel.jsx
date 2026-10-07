@@ -3,6 +3,7 @@ import OffNotice from './OffNotice'
 import { money } from './MarketTidePanel'
 import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
+import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // BRK-08 positioning extensions under the option chain: FT-047 named levels, FT-049 heatmap,
 // FT-055 max pain + NOPE, FT-050 Options Impact, FT-052 dealer short.
@@ -203,6 +204,8 @@ export const positioningUrls = (s) => [
 // `offNotice`: set by the terminal's POS, which opens this panel on its own.
 export default function PositioningPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
+  // TERM-019: every section below is computed by UCT from Massive's chain; each dates itself.
+  usePanelFreshness(s ? { source: 'UCT, computed from Massive options data' } : null)
   if (!s) return null
   return (
     <div data-testid="positioning">

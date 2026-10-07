@@ -641,3 +641,83 @@ describe('TERM-034 — the boundary, over EVERY Ask-AI door the research pages m
     expect(aiDoorFiles([compare]).map(key)).toEqual([COMPARE_DOOR])
   })
 })
+
+// ─── TERM-050 — THE ROOTS, WIDENED TO EVERY ASK-AI DOOR THE TERMINAL MOUNTS ────────────────
+//
+// The header above says what was still outside every surface: AI doors not mounted by a research
+// PAGE. The UCT Terminal is the next mount point — `pages/terminal/panels.jsx` names every module
+// its shell can put in a panel — so its Ask-AI doors join the roots here, DERIVED from that
+// registry's AST exactly as `aiDoorFiles()` derives the research pages' (a default import whose
+// name says Ask-AI there; a `PANEL_IMPORTERS` key that says it here). Extended, not rewritten:
+// the detector, the vocabulary and both sections above are untouched.
+//
+// ⚠️ Still outside, and not this rail's to reach: the Notebook's Ask panel
+// (`pages/journal-2-0/**`, another workstream's files) — TERM-050's one remaining surface.
+
+const TERMINAL_PANELS = path.join(SRC, 'pages', 'terminal', 'panels.jsx')
+const isAskAiName = (name) => String(name || '').toLowerCase().replace(/[^a-z]/g, '').includes('askai')
+
+/** `{ name, file }` for every `PANEL_IMPORTERS` entry, read off the registry's AST. */
+export function terminalPanelEntries(registry = TERMINAL_PANELS) {
+  const out = []
+  walk(parse(read(registry)), (n) => {
+    if (n.type !== 'VariableDeclarator' || n.id?.name !== 'PANEL_IMPORTERS' || n.init?.type !== 'ObjectExpression') return
+    for (const p of n.init.properties) {
+      if (p.type !== 'Property') continue
+      let spec = null
+      walk(p.value, (m) => {
+        if (!spec && m.type === 'ImportExpression' && m.source?.type === 'Literal') spec = m.source.value
+      })
+      out.push({ name: p.key?.name ?? p.key?.value, file: spec ? resolve(registry, spec) : null })
+    }
+  })
+  return out
+}
+
+/** Every Ask-AI door the terminal can mount — parsed, never typed. */
+export function terminalAiDoorFiles(entries = terminalPanelEntries()) {
+  return [...new Set(entries.filter((e) => e.file && isAskAiName(e.name)).map((e) => e.file))]
+}
+
+const TERMINAL_ENTRIES = terminalPanelEntries()
+const TERMINAL_DOORS = terminalAiDoorFiles(TERMINAL_ENTRIES)
+const TERMINAL_SURFACE = i1Surface(TERMINAL_DOORS)
+const TERMINAL_FINDINGS = TERMINAL_SURFACE.flatMap((f) => boundaryFindings(f))
+
+describe('TERM-050 — the boundary, over every Ask-AI door the TERMINAL mounts', () => {
+  it('the terminal roots are derived from the panel registry and reach the Ask-AI tab', () => {
+    // eslint-disable-next-line no-console
+    console.log(`[i1-rail:s8-boundary] terminal: ${TERMINAL_ENTRIES.length} registry panels, `
+      + `${TERMINAL_DOORS.length} Ask-AI doors [${TERMINAL_DOORS.map(key).join(', ')}], `
+      + `${TERMINAL_SURFACE.length} modules in their surface, ${TERMINAL_FINDINGS.length} findings`)
+    expect(TERMINAL_ENTRIES.length).toBeGreaterThan(20)
+    expect(TERMINAL_ENTRIES.every((e) => e.file), 'every registry entry resolves').toBe(true)
+    expect(TERMINAL_DOORS.map(key)).toContain('app/src/pages/research/tabs/AskAiTab.jsx')
+  })
+
+  it('⭐ every Ask-AI door the terminal mounts composes S8 — no findings', () => {
+    expect(TERMINAL_FINDINGS.map((f) => `${f.id} (line ${f.line}) — ${f.detail}`),
+      'a terminal-mounted Ask-AI door renders citation/freshness/coverage/provenance itself instead '
+      + "of composing S8's primitives in app/src/components/provenance/").toEqual([])
+  })
+
+  it('CONTROL: the derivation discriminates — a non-AI panel is not a door, a renamed one would be', () => {
+    const news = TERMINAL_ENTRIES.find((e) => e.name === 'News')
+    expect(news?.file).toBeTruthy()
+    expect(terminalAiDoorFiles([news])).toEqual([])
+    expect(terminalAiDoorFiles([{ name: 'AskAI', file: news.file }])).toEqual([news.file])
+    expect(TERMINAL_DOORS.length).toBeLessThan(TERMINAL_ENTRIES.length)
+  })
+
+  it('CONTROL: a terminal door that drew its own citation list would be RED, by name', () => {
+    const door = TERMINAL_DOORS[0]
+    const local = [
+      "import styles from '../ResearchPage.module.css'",
+      'export default ({ data }) => (',
+      '  <div className={styles.explainCitations}>{data.map((c) => <span key={c}>{c}</span>)}</div>',
+      ')',
+      '',
+    ].join('\n')
+    expect(boundaryFindings(door, local).map((f) => f.what)).toEqual(['explainCitations'])
+  })
+})

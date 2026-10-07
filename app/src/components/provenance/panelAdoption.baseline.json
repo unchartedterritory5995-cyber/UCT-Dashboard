@@ -24,6 +24,7 @@
     "app/src/pages/ProvenanceDemo.jsx",
     "app/src/pages/breadth/views/TheReadStrip.jsx",
     "app/src/pages/charts/widgets/AiSearchWidget.jsx",
+    "app/src/pages/charts/widgets/DockFinancials.jsx",
     "app/src/pages/cot/PositioningRail.jsx",
     "app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx",
     "app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx",
