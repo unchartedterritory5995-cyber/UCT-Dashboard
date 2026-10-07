@@ -254,7 +254,10 @@ FIXTURES: dict[str, Callable[[], dict]] = {
     "italic": lambda: doc(p(t("i", {"type": "italic"}))),
     "strike": lambda: doc(p(t("s", {"type": "strike"}))),
     "underline": lambda: doc(p(t("u", {"type": "underline"}))),
-    "textStyle": lambda: doc(p(t("ts", {"type": "textStyle", "attrs": {"color": "#fff"}}))),
+    # A value the toolbar writes. (This was `{"color": "#fff"}`, an attribute the editor's
+    # textStyle mark does not declare; gallery mode now keeps only declared attributes with
+    # checked values, security review I-4, so a mark that styles nothing does not travel.)
+    "textStyle": lambda: doc(p(t("ts", {"type": "textStyle", "attrs": {"fontSize": "18px"}}))),
     "highlight": lambda: doc(p(t("h", {"type": "highlight", "attrs": {"color": "yellow"}}))),
     "textColor": lambda: doc(p(t("tc", {"type": "textColor", "attrs": {"color": "red"}}))),
     "link": lambda: doc(p(t("web", {"type": "link", "attrs": {"href": "https://example.com/x"}}))),

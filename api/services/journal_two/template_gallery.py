@@ -225,6 +225,19 @@ def sanitize_body(body: Any, owner_id: str) -> dict:
                          attachment_base="", facts={}, note_links={})
 
 
+def _stored_body(row: sqlite3.Row) -> dict:
+    """A stored gallery body, put through the gallery reducer AGAIN on its way out (security
+    review I-4, defence in depth). The body was reduced when it was published; a row written
+    before a rule existed, or by anything other than `publish`, is still cleaned before a
+    member previews it or copies it into their own templates. The reducer is stable on its
+    own output, so a clean row is unchanged. A body that does not parse reads as empty."""
+    try:
+        body = json.loads(row["body_json"] or "{}")
+    except (TypeError, ValueError):
+        body = {}
+    return sanitize_body(body, "")
+
+
 def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection) -> list[dict]:
     """The DEFINITIONS of the properties a template carries values for -- never a value.
 
@@ -433,7 +446,7 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
         if not _can_see(row, viewer_id, is_admin):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
-        out["bodyJson"] = json.loads(row["body_json"] or '{"type":"doc","content":[]}')
+        out["bodyJson"] = _stored_body(row)
         out["propertyDefs"] = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
         return out
     finally:
@@ -578,7 +591,7 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
         conn.execute(
             "INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json,"
             " created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)",
-            (new_id, user_id, name, row["title"] or "", row["body_json"], now, now),
+            (new_id, user_id, name, row["title"] or "", json.dumps(_stored_body(row)), now, now),
         )
         if row["user_id"] != user_id:
             conn.execute(
