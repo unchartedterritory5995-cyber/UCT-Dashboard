@@ -239,6 +239,18 @@ _PREIMPORT = (
 )
 
 
+def _qualname(value: Any) -> str:
+    """`value.__qualname__`, or "" for anything that will not say. Some module-level objects
+    answer EVERY attribute read by doing work: the `openai` package's lazy client proxy builds a
+    client and raises `OpenAIError` (no API key) on `getattr`, which is not an AttributeError, so
+    `getattr(..., default)` does not catch it. Seen on the landing branch when a test file that
+    imports the voice modules ran before the fixture rail in one pytest process."""
+    try:
+        return getattr(value, "__qualname__", "") or ""
+    except Exception:  # noqa: BLE001 -- a foreign object's attribute hook; never this sweep's failure
+        return ""
+
+
 def _unfreeze_stragglers() -> None:
     """A module imported DURING the freeze captured the frozen clock by name. Give it the real
     one back, so nothing outlives the run (this matters inside pytest, not for the CLI)."""
@@ -251,7 +263,7 @@ def _unfreeze_stragglers() -> None:
                 d[key] = _REAL_DATETIME
             elif value is _FrozenDate:
                 d[key] = _REAL_DATE
-            elif getattr(value, "__qualname__", "") == "_deterministic_uuid4.<locals>.uuid4":
+            elif _qualname(value) == "_deterministic_uuid4.<locals>.uuid4":
                 d[key] = _uuid.uuid4
 
 
