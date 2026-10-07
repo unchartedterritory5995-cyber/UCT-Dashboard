@@ -338,6 +338,13 @@ def _member_template(owner, body):
     return tid
 
 
+def _approve(svc, gid):
+    """Approve the version that is there now: an approval names the version reviewed
+    (security review I-6, tests/test_notebook_fin_sec_gallery_approve.py)."""
+    seen = svc.get_item(ADMIN, gid, is_admin=True)
+    return svc.admin_act(ADMIN, gid, "approve", reviewed_updated_at=seen["updatedAt"])
+
+
 def _one(sql, *args):
     c = _conn()
     try:
@@ -354,7 +361,7 @@ def test_publish_approve_preview_and_use_never_carry_a_hostile_value(svc, label,
     stored = json.loads(_one("SELECT body_json FROM j2_template_gallery WHERE id = ?", gid))
     _assert_clean(stored, fragment, "the stored gallery template")
 
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     served = svc.get_item(B, gid)
     _assert_clean(served["bodyJson"], fragment, "the served gallery template")
 

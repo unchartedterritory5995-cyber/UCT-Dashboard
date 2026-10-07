@@ -177,6 +177,13 @@ def _publish(svc, owner=A, tid=None, **kw):
                        category=kw.get("category", "trade_plan"))
 
 
+def _approve(svc, gid):
+    """Approve the version that is there now: an approval names the version reviewed
+    (security review I-6, tests/test_notebook_fin_sec_gallery_approve.py)."""
+    seen = svc.get_item(ADMIN, gid, is_admin=True)
+    return svc.admin_act(ADMIN, gid, "approve", reviewed_updated_at=seen["updatedAt"])
+
+
 def _listed(svc, viewer=B, **kw):
     return [x["id"] for x in svc.list_gallery(viewer, **kw)]
 
@@ -284,7 +291,7 @@ def test_the_author_is_a_display_name_never_an_email_or_id(svc):
     b = _publish(svc, owner=B)                   # B's display name is an email address
     c = _publish(svc, owner=C)                   # C has none
     for gid in (a["id"], b["id"], c["id"]):
-        svc.admin_act(ADMIN, gid, "approve")
+        _approve(svc, gid)
     rows = {x["id"]: x for x in svc.list_gallery(ADMIN)}
     assert rows[a["id"]]["author"] == "Alice Trader"
     assert rows[b["id"]]["author"] == svc.ANONYMOUS_AUTHOR
@@ -316,7 +323,7 @@ def test_a_submission_is_pending_and_invisible_until_an_admin_approves_it(svc):
     assert svc.get_item(B, gid) is None                       # a pending one reads as missing
     assert gid in _listed(svc, A, section="mine")              # its author sees it
     assert [x["id"] for x in svc.admin_queue()["pending"]] == [gid]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     assert gid in _listed(svc, B)
     assert svc.get_item(B, gid)["bodyJson"]["type"] == "doc"
     assert svc.admin_queue()["pending"] == []
@@ -335,7 +342,7 @@ def test_a_rejection_needs_a_reason_and_the_author_reads_it(svc):
 def test_publishing_again_sends_an_approved_template_back_to_review(svc):
     tid = _member_template(A)
     gid = _publish(svc, tid=tid)["id"]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     svc.admin_act(ADMIN, gid, "feature")
     again = _publish(svc, tid=tid, title="Breakout checklist v2")
     assert again["id"] == gid                                   # the same copy, not a second one
@@ -352,7 +359,7 @@ def test_use_template_copies_into_your_templates_and_later_edits_never_reach_it(
     from api.services.journal_two import note_templates as nt
     tid = _member_template(A)
     gid = _publish(svc, tid=tid)["id"]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     out = svc.use_template(B, gid)
     copy_id = out["template"]["id"]
     copy = nt.get_template(B, copy_id)
@@ -368,7 +375,7 @@ def test_use_template_copies_into_your_templates_and_later_edits_never_reach_it(
     conn.commit()
     conn.close()
     _publish(svc, tid=tid)
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     assert "totally new" in json.dumps(svc.get_item(B, gid)["bodyJson"])
     assert "totally new" not in json.dumps(nt.get_template(B, copy_id)["bodyJson"])
     # and an unpublish leaves it too
@@ -381,7 +388,7 @@ def test_use_reuses_a_same_named_property_and_skips_a_clash(svc):
     np.create_property_def(B, "setup", "select", [{"label": "Mine"}])      # same name, same type
     np.create_property_def(B, "Private notes", "number")                    # same name, other type
     gid = _publish(svc)["id"]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     out = svc.use_template(B, gid)["properties"]
     assert "Setup" in out["existing"] and "Private notes" in out["skipped"]
     names = [d["name"].lower() for d in np.list_property_defs(B)]
@@ -392,7 +399,7 @@ def test_most_used_counts_distinct_members_and_sorts_by_it(svc):
     g1 = _publish(svc, owner=A, title="One")["id"]
     g2 = _publish(svc, owner=C, title="Two")["id"]
     for g in (g1, g2):
-        svc.admin_act(ADMIN, g, "approve")
+        _approve(svc, g)
     svc.use_template(B, g1)
     svc.use_template(B, g1)                                     # same member twice = one use
     svc.use_template(B, g2)
@@ -406,7 +413,7 @@ def test_most_used_counts_distinct_members_and_sorts_by_it(svc):
 def test_a_pending_or_hidden_template_cannot_be_used(svc):
     gid = _publish(svc)["id"]
     assert svc.use_template(B, gid) is None
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     svc.admin_act(ADMIN, gid, "hide")
     assert svc.use_template(B, gid) is None
 
@@ -416,7 +423,7 @@ def test_a_pending_or_hidden_template_cannot_be_used(svc):
 def test_report_then_admin_hide_is_a_visibility_state_never_a_delete(svc):
     gid = _publish(svc)["id"]
     assert svc.report(B, gid, reason="spam") is None               # not listed yet: nothing to report
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     assert svc.report(B, gid, reason="personal_info", note="has a phone number") == {"reported": True, "already": False}
     assert svc.report(B, gid, reason="spam") == {"reported": True, "already": True}
     with pytest.raises(svc.GalleryError):
@@ -441,7 +448,7 @@ def test_report_then_admin_hide_is_a_visibility_state_never_a_delete(svc):
 
 def test_dismiss_closes_one_report_and_leaves_the_template_listed(svc):
     gid = _publish(svc)["id"]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     svc.report(B, gid, reason="broken")
     rid = svc.admin_queue()["reported"][0]["reports"][0]["id"]
     assert svc.admin_report_act(ADMIN, rid, "dismiss") is True
@@ -461,7 +468,7 @@ def test_no_moderation_path_issues_a_DELETE(svc, monkeypatch):
 def test_unpublish_is_the_authors_own_and_always_possible(svc):
     gid = _publish(svc)["id"]
     assert svc.unpublish(B, gid) is False                          # not B's
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     svc.report(B, gid, reason="spam")
     svc.admin_act(ADMIN, gid, "hide")
     assert svc.unpublish(A, gid) is True                           # even while hidden
@@ -503,7 +510,7 @@ def test_an_admin_features_a_member_template_into_the_picks(svc):
     gid = _publish(svc)["id"]
     with pytest.raises(svc.GalleryConflict):
         svc.admin_act(ADMIN, gid, "feature")                       # not approved yet
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     svc.admin_act(ADMIN, gid, "feature")
     assert gid in _listed(svc, B, section="picks")
 
@@ -514,7 +521,7 @@ def test_search_and_category_filter_the_list(svc):
     g = _publish(svc, title="Gap and go plan", category="trade_plan", description="opening drive")["id"]
     h = _publish(svc, owner=C, title="Sunday review", category="review", description="weekly 100% honest")["id"]
     for x in (g, h):
-        svc.admin_act(ADMIN, x, "approve")
+        _approve(svc, x)
     assert g in _listed(svc, B, q="gap and") and h not in _listed(svc, B, q="gap and")
     assert h in _listed(svc, B, q="100%") and g not in _listed(svc, B, q="100%")   # % is literal
     assert h in _listed(svc, B, category="review") and g not in _listed(svc, B, category="review")
@@ -535,7 +542,9 @@ def test_the_route_walk_publish_approve_browse_use_report_hide(app, client, gate
     assert client.get(f"/api/j2/template-gallery/{gid}").status_code == 404
     assert client.get("/api/j2/template-gallery/admin/queue").status_code == 403
     as_user(app, ADMIN, role="admin")
-    assert client.patch(f"/api/j2/template-gallery/admin/items/{gid}", json={"action": "approve"}).status_code == 200
+    assert client.patch(f"/api/j2/template-gallery/admin/items/{gid}", json={
+        "action": "approve", "reviewedUpdatedAt": svc.get_item(ADMIN, gid, is_admin=True)["updatedAt"],
+    }).status_code == 200
     as_user(app, B)
     listing = client.get("/api/j2/template-gallery", params={"q": "route"}).json()
     assert [x["id"] for x in listing["templates"]] == [gid] and listing["viewer"] == {"admin": False}
@@ -552,7 +561,7 @@ def test_the_route_walk_publish_approve_browse_use_report_hide(app, client, gate
 
 def test_publishing_needs_a_paid_plan_and_nothing_else_does(app, client, gate_on, svc):
     gid = _publish(svc)["id"]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     as_user(app, B, plan=FREE)
     r = client.post("/api/j2/template-gallery", json={"templateId": _member_template(B), "title": "x",
                                                       "category": "journal"})
@@ -595,7 +604,7 @@ def test_publish_and_report_have_a_DURABLE_daily_cap_that_outlives_the_process_l
     assert daily_counters.value(et_today(), "notebook_gallery_publish", A) == 0
     g1, g2 = (_publish(svc, owner=C, title=f"r{i}")["id"] for i in range(2))
     for g in (g1, g2):
-        svc.admin_act(ADMIN, g, "approve")
+        _approve(svc, g)
     as_user(app, B)
     assert client.post(f"/api/j2/template-gallery/{g1}/report", json={"reason": "spam"}).status_code == 200
     limiter.reset()
@@ -628,7 +637,7 @@ def test_the_client_categories_and_report_reasons_are_the_servers(svc):
 def test_an_authors_account_deletion_takes_their_listings_and_leaves_the_firm_picks(svc):
     from api.services.journal_two import account_purge
     gid = _publish(svc)["id"]
-    svc.admin_act(ADMIN, gid, "approve")
+    _approve(svc, gid)
     svc.use_template(B, gid)
     conn = _conn()
     report = account_purge.purge_user_data(A, conn)

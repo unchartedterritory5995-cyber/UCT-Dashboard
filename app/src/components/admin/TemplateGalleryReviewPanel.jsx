@@ -58,6 +58,10 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
   const [rejecting, setRejecting] = useState(null)
   const [working, setWorking] = useState(false)
   const [preview, setPreview] = useState(null)
+  // The version of each template this reviewer has looked at: the preview's when they
+  // opened one, else the queue row's. An approval sends it, and the server refuses (409)
+  // when the author has published again since.
+  const [seen, setSeen] = useState({})
 
   const act = async (fn, okText) => {
     setWorking(true)
@@ -67,6 +71,8 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
       refresh()
     } catch (err) {
       onMessage({ tone: 'error', text: err?.message || "Couldn't do that. Nothing changed." })
+      // A 409 means the queue on screen is out of date: show what is there now.
+      if (err?.status === 409) { setSeen({}); refresh() }
     } finally {
       setWorking(false)
     }
@@ -77,6 +83,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
     setPreview({ ...base, loading: true })
     try {
       const full = await getGalleryTemplate(item.id)
+      setSeen((prev) => ({ ...prev, [item.id]: full.updatedAt }))
       setPreview({ ...base, body: full.bodyJson })
     } catch (err) {
       setPreview({ ...base, loadError: err?.message || "Couldn't load this template." })
@@ -101,7 +108,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
               <button type="button" className={styles.btn} onClick={() => openPreview(item)}
                 aria-label={`Preview ${item.title}`}>Preview</button>
               <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={working}
-                onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve'), `Approved “${item.title}”. It is listed now.`)}
+                onClick={() => act(() => reviewGalleryTemplate(item.id, 'approve', '', seen[item.id] || item.updatedAt), `Approved “${item.title}”. It is listed now.`)}
                 aria-label={`Approve ${item.title}`}>Approve</button>
               <button type="button" className={styles.btn} onClick={() => setRejecting(item.id)}
                 aria-label={`Reject ${item.title}`}>Reject…</button>

@@ -225,10 +225,13 @@ def report_endpoint(gallery_id: str, body: dict[str, Any] = Depends(member_body)
 @router.patch("/admin/items/{gallery_id}")
 def admin_item_endpoint(gallery_id: str, body: dict[str, Any] = Depends(admin_body),
                         admin: dict = Depends(require_admin)) -> dict[str, Any]:
-    """`{action: approve|reject|hide|unhide|feature|unfeature, note?}`. Hide is a visibility
-    state; nothing here deletes a member's template."""
+    """`{action: approve|reject|hide|unhide|feature|unfeature, note?, reviewedUpdatedAt?}`.
+    Hide is a visibility state; nothing here deletes a member's template. An approval must
+    carry `reviewedUpdatedAt`, the `updatedAt` of the version the reviewer saw; if the
+    template changed since, the answer is 409 and nothing is listed."""
     try:
-        item = gallery.admin_act(admin["id"], gallery_id, body.get("action"), note=body.get("note"))
+        item = gallery.admin_act(admin["id"], gallery_id, body.get("action"), note=body.get("note"),
+                                 reviewed_updated_at=body.get("reviewedUpdatedAt"))
     except gallery.GalleryError as e:
         raise _bad(e)
     if item is None:

@@ -88,6 +88,10 @@ LIST_LIMIT = 200
 PREVIEW_LINES = 3
 _PREVIEW_LINE_CHARS = 72
 
+#: What an admin reads when the template they are approving is not the one they looked at.
+APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing was listed. "
+                          "Look at it again, then approve.")
+
 FIRM_AUTHOR = "UCT"
 ANONYMOUS_AUTHOR = "A UCT member"
 
@@ -676,11 +680,20 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
 
 
 def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
+              reviewed_updated_at: Any = None,
               conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """approve | reject | hide | unhide | feature | unfeature. None when no such template.
 
     ⛔ hide and unhide flip a VISIBILITY column; nothing is deleted (the kill-switch rule).
-    Hiding also closes the template's open reports as `hidden`, the Floor's shape."""
+    Hiding also closes the template's open reports as `hidden`, the Floor's shape.
+
+    ⛔ AN APPROVAL NAMES THE VERSION THAT WAS REVIEWED (security review I-6).
+    `reviewed_updated_at` is the `updatedAt` of the template as the reviewer saw it (the
+    review queue row and the preview both carry it). The UPDATE is conditional on it, in
+    its own WHERE clause, so there is no gap between the check and the write: publishing
+    again replaces the body and moves `updated_at`, and an approval of the earlier version
+    then changes nothing and raises `GalleryConflict` (409). An approval that names no
+    version is refused the same way -- nothing may be listed unseen."""
     if action not in ADMIN_ACTIONS:
         raise GalleryError("Unknown review action.")
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
@@ -692,10 +705,16 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             return None
         now = _now()
         if action == "approve":
-            conn.execute(
+            if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
+                raise GalleryConflict(APPROVE_STALE_SENTENCE)
+            cur = conn.execute(
                 "UPDATE j2_template_gallery SET status = 'approved', review_note = NULL, reviewed_by = ?,"
-                " reviewed_at = ?, listed_at = COALESCE(listed_at, ?), updated_at = ? WHERE id = ?",
-                (admin_id, now, now, now, gallery_id))
+                " reviewed_at = ?, listed_at = COALESCE(listed_at, ?), updated_at = ?"
+                " WHERE id = ? AND updated_at = ?",
+                (admin_id, now, now, now, gallery_id, reviewed_updated_at))
+            if cur.rowcount != 1:
+                conn.rollback()
+                raise GalleryConflict(APPROVE_STALE_SENTENCE)
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")
