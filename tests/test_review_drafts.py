@@ -578,3 +578,28 @@ def test_with_no_compass_review_there_is_nothing_to_omit(conn, client, monkeypat
     _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0)
     payload = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
     assert payload["compassText"] is None and payload["compassOmitted"] is None
+
+
+# ── fin walk P7: a draft SAYS the discipline part is unavailable, and why ───────────────────
+
+def test_with_plan_grading_off_the_draft_says_the_discipline_part_is_unavailable_and_why(conn, client, monkeypatch):
+    """Leaving the section out silently while the box still promises "the discipline record" is
+    a promise nobody keeps. The payload names the reason, so the client can say it."""
+    monkeypatch.delenv(PG_FLAG, raising=False)
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
+              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
+    for payload in _three_drafts(client):
+        assert payload["discipline"] is None
+        assert payload["disciplineOmitted"] == {
+            "reason": "plan_grading_off",
+            "sentence": "Plan grading is switched off, so this draft has no discipline record.",
+        }
+
+
+def test_with_plan_grading_on_nothing_is_said_to_be_left_out(conn, client, monkeypatch):
+    monkeypatch.setenv(PG_FLAG, "1")
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
+              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
+    for payload in _three_drafts(client):
+        assert payload["discipline"] is not None
+        assert payload["disciplineOmitted"] is None
