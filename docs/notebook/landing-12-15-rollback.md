@@ -127,7 +127,9 @@ Two things would be lost. Both are measured in `tests/test_notebook_rollback_nev
 The thirteenth table is `j2_trade_plan_misses` (finish program, data lane). It is a memo: plan
 grading remembers that a trade had no plan so a repeat read does no work. It can be dropped at
 any time and is rebuilt on the next read. It is in the deletion list, so it is covered by the
-kept `account_purge.py`, and the keep-list test names it.
+kept `account_purge.py`, and the keep-list test names it. An older build does not read it and does
+not purge it; the account purge of this build does, which is one more reason `account_purge.py`
+stays at the tip.
 
 One thing a revert leaves behind that needs nothing done: the column
 `j2_template_gallery.preview_json`. The security lane added it with `ALTER TABLE` so the gallery
