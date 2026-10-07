@@ -11,8 +11,9 @@ Branch `feat/notebook-fin-nav`. Budgets: `docs/notebook/WAVE-13-PLAN.md` section
 | `44aa449a16` | raw evidence, onboarding flows O1 to O6; Q21 keyboard reach of Plan |
 | (this commit) | raw evidence for the Q20 and Q21 re-run, this record |
 
-> **Follow-up branch `feat/notebook-fin-keys2`: section 14.** The folder panel is a tree and one
-> Tab stop. Q2 on a keyboard is 25 and Q11 is 41.
+> **Follow-up branch `feat/notebook-fin-keys2`: section 14, latest reading in 14.8.** The folder
+> panel is a tree and one Tab stop, and the notes list is one Tab stop. Q2 on a keyboard is 25
+> and Q11 is 33.
 >
 > **Latest reading: section 13** (round 3). The "Loading..." stall of section 12.6 was the
 > click tool, not the page. Keyboard is 10 of 23 inside budget; mouse and touch are 18 of 23.
@@ -939,3 +940,116 @@ names and roles, not by listening.
    of notes tiring to arrow through, and is Left to the parent discoverable?
 8. The focus mark on a folder row is a gold ring on the row and a gold bar down the left of
    the folder and its contents. Is it visible enough in all three themes at 200 percent zoom?
+
+### 14.8 Round 5: the notes list, the merge, and the final table
+
+This subsection is the latest reading. Where it differs from 14.1 to 14.6, it is the one to use.
+
+**Verdict.** The notes list (card view) is one Tab stop. The branch now holds the landing
+(`origin/feat/notebook-w14-land` at `5e5d6c0b0c`, merged with no conflicts). All 23 flows and
+the browser walk were run again on the merged build. Item 2 of the brief (one more change for
+each of nine flows) and the table view of the list are **not built**.
+
+**What each existing thing pins, read before the list was changed:**
+
+| what | what it pins | why | kept |
+|---|---|---|---|
+| lane 13Q-5, `docs/notebook/wave13-13q5.md` and `NotebookTab.bulk.test.jsx` | Shift+Down and Shift+Up on a note's tick box extend the selection to the next note and carry focus; a bare Down does NOT select | a file manager's convention; the bare key must stay free for browsing | yes. The new hook takes no key with Shift, and a bare Down only moves focus |
+| the same lane | Ctrl+Alt+B jumps to the bulk bar | the bar sits above a long list | yes. The hook takes no Ctrl, Cmd or Alt chord |
+| the same lane, about the TEMPLATE gallery | "no tabIndex is ever set on a card" (`TemplatePicker.gallery.test.jsx`) | every template card must be in the Tab order | untouched: that is the template picker, not the notes list |
+| `NoteCard.jsx` | the tick box and the card are SIBLINGS, never one inside the other | a button inside a button is invalid | yes. The row is their shared wrapper, marked `data-note-row` |
+| the hub cursor (`hub/sections/notebookSection.js`) | finds notes by `data-note-card-id`, anywhere in the document | the joystick's list cursor | yes. The attribute is where it was |
+| tours | none anchors on a list row (the tour files were searched) | | nothing to keep |
+| the table view, through the shared `components/mobile/ResponsiveTable.jsx` | the ROW itself is a Tab stop that opens its note on Enter (wave 10, finding A2R-02) | a clickable row had no keyboard door | **not changed**: see "not built" below |
+
+**Built:**
+
+| commit | what |
+|---|---|
+| `5b7acbc514` | `lib/useGridRoving.js` (one Tab stop for a list of rows, a test for every key), and the notes list (card view) uses it |
+| `f380cf2481` | tool: a one-stop list is walked as a member walks it; the walk covers the list |
+| `44a4c2541d` | merge of the landing branch |
+
+In the list: Down and Up go note to note and stay on the same control (tick to tick, card to
+card). Right and Left move between a note's own controls: its tick, its card, and Unarchive or
+Restore where a row has one. Home and End go to the first and last note. Space still ticks.
+Enter still opens. A note row has no hidden actions, so it has no Shift+F10 menu: everything a
+row offers is a control in the row, and the bulk actions are behind Ctrl+Alt+B.
+
+**The final table.** Evidence: `docs/notebook/evidence/fin-keys2/44a4c2541d/q/` (all 23 on the
+merged build, integrity CLEAN) and `.../952682293f/q18/` for Q18.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | verdict |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | pass |
+| Q2 | 5 (4) over | 5 (4) over | 25 / 25 | 6 | over |
+| Q3 | 2 (2) | 1 (3) | 2 / 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 / 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 / 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 22 / 19 | 10 | over |
+| Q7 | 1 (3) | 1 (3) | 5 / 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 / 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 18 / 24 | 9 | over |
+| Q10 | 1 (2) | 1 (3) | 4 / 4 | 4 | pass |
+| Q11 | 9 (8) over | 12 (10) over | **33 / 35** (was 41 / 43) | 27 | over |
+| Q12 | 3 (3) | 3 (3) | 20 / 19 | 12 | over |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | pass |
+| Q14 | 3 (3) | 3 (3) | 6 / 6 | 6 | pass |
+| Q15 | 1 (2) | 1 (2) | 7 / 7 | 5 | over |
+| Q16 | 2 (2) | 2 (2) | 46 / 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 7 / 7 | 7 | pass |
+| Q18 | 2 (3) | 2 (3) | 27 / 33 | 9 | over |
+| Q19 | 3 (3) | 3 (4) | 12 / 12 | 9 | over |
+| Q20 | 13 (6) over | 13 (8) over | 25 / 25 | 22 | over |
+| Q21 | 2 (2) | 2 (2) | 15 / 15 | 4 | over |
+| Q22 | 2 (2) | 2 (3) | 21 / 21 | 4 | over |
+| Q23 | 2 (3) | 2 (3) | 14 / 14 | 9 | over |
+
+Mouse 18 of 23, touch 18 of 23, keyboard 10 of 23.
+
+Q18 read INCONCLUSIVE in three of four rows of the full run. The landing drafts this week's
+review once per week, and a second press opens the same note; the flow expected a new note each
+time. The tool now trashes the earlier run's review in setup. The row above is from the re-run.
+
+**The browser walk on the merged build** (`.../44a4c2541d/walk/`): 26 steps, 0 failed,
+integrity CLEAN. By mouse at 1280 px and by touch at 390 px, ten steps each: the seven folder
+steps of 14.5, then All notes shows the list, two ticks are counted by the bulk bar and
+unticked, and a note's card opens the note. By keyboard, six steps: the five of 14.5, then the
+list is one Tab stop, Down moves tick to tick, Right moves to the card, Space then Shift+Down
+reads "2 selected", and one Tab leaves the list.
+
+**Tests on the merged tree** (from `app/`, `--maxWorkers=2`): every `FolderSidebar*` and
+`NotebookTab*` test, every ContextPopover user, the a11y directory, the onboarding directory,
+`src/hub/`, `src/pages/command/`, the three hooks' tests and `styles/tapFloor.test.js`:
+238 files passed; 3026 tests passed, 1 skipped. `python -m pytest
+tests/test_notebook_w13q_clicks.py -q`: 65 passed. Hygiene exit 0. First-open bytes:
+2,226,125 B of 2,260,793 B, PASS (57 files; the landing's own changes are in that number).
+
+**Asked for in round 5 and not built:**
+
+* **The table view of the list.** Its rows come from the shared `ResponsiveTable.jsx`, where
+  the row itself is the Tab stop (the A2R-02 pin above). Making it one stop means changing
+  that shared component or wrapping it, and neither was done. The card view is the default
+  and the one every flow uses.
+* **Item 2, all nine flows.** Nothing was built for Q21, Q22, Q18, Q12, Q20, Q6, Q9, Q15 or
+  Q19 in this round. What their keys are spent on:
+
+| flow | now | budget | the keys | the one change it needs |
+|---|---|---|---|---|
+| Q21 | 15 | 4 | 1 Tab to Plan, Enter, 12 Tabs to the stop's Arm button, Enter | each level row is four stops and the stop is the third row. A row's controls as one stop needs a way out of its price box, which keeps its arrow keys. A direct "arm the stop" control in the plan's summary is the shorter road; it is a new control |
+| Q22 | 21 | 4 | 9 Tabs to Visual playbook, Enter, 10 Tabs to "only this setup", Enter | the door is the last control under the chart, and in the sheet four filters and four fields come first. The sheet could open with focus on the "only this setup" button when it was opened from a chart |
+| Q18 | 27 / 33 | 9 | 4 Tabs to the skip link, 2 to the button, about 18 to the leak's arrow | the drafted note opens with focus at its top. Focus the first collapsed block of a review that was just drafted |
+| Q12 | 20 / 19 | 12 | 6 Shift+Tabs to More, 8 Tabs to Export, 3 Down | More note actions is a group of plain buttons. As a menu with arrow keys, Export is one End away |
+| Q20 | 25 | 22 | 15 Tabs between the plan's fields | after "Add level" focus follows the new row (lane A11Y's choice). Returning it to the price box would save 5 |
+| Q6 | 22 / 19 | 10 | 11 Tabs to the sixth trade, 5 to Save to Notebook | each trade row is two stops. The Trades table as a one-stop list (this round's hook) would cut the 11 to about 6 |
+| Q9 | 18 / 24 | 9 | 8 Tabs to the skip link, 4 to Insert | the note's skip links are four; and Insert is the fourth stop of the answer |
+| Q15 | 7 | 5 | 2 Tabs to the skip link, 3 to the prep button | two stops come before the button |
+| Q19 | 12 | 9 | 5 Tabs to the turn, 2 to Save | the sheet opens on Close, then quarter and search come first |
+
+**For a screen reader user to check by hand, in addition to the eight items of 14.7:**
+
+9. The notes list is announced as a group named "Notes". Each note is still a checkbox and a
+   button. Is it clear that Down and Up move between notes, and that the card is one Right
+   away from the tick? Nothing in the markup says so; a hint in the shortcuts sheet may be needed.
+10. After Shift+Down extends the selection, is the newly ticked note announced as checked,
+    and does the bulk bar's count ("2 selected") get read?
