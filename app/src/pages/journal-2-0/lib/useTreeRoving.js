@@ -47,6 +47,10 @@ const own = (item, selector) => {
   }
   return null
 }
+/** A key type-ahead takes: one letter or digit, with no Ctrl, Cmd or Alt held. */
+export const isTypeaheadKey = (e) => Boolean(e && typeof e.key === 'string' && e.key.length === 1
+  && /[\p{L}\p{N}]/u.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey)
+
 const nameOf = (item) => (item.getAttribute('aria-label') || item.textContent || '').trim().toLowerCase()
 
 export default function useTreeRoving({ onMenu } = {}) {
@@ -138,7 +142,14 @@ export default function useTreeRoving({ onMenu } = {}) {
       }
       default:
     }
-    if (e.key.length === 1 && /\S/.test(e.key)) {
+    // Lane KEYS3 round 2: a letter or digit typed on a row is this tree's key, as it would be
+    // a text field's. It is stopped here so it does not ALSO reach a page shortcut bound on the
+    // document (the Journal's "g then letter" navigation: typing "ga" for a folder called Gaps
+    // also opened the Calendar). Every such key, whether or not a row matched: a "g" that
+    // matched nothing must not be left armed as half a shortcut. A key with Ctrl, Cmd or Alt
+    // is not type-ahead and passes through; so does punctuation ("?" opens the shortcut sheet).
+    if (isTypeaheadKey(e)) {
+      e.stopPropagation()
       const now = Date.now()
       const t = typed.current
       t.text = now - t.at > TYPEAHEAD_MS ? e.key.toLowerCase() : t.text + e.key.toLowerCase()

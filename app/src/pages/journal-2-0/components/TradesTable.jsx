@@ -261,9 +261,9 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
   // row used to be two stops (its symbol cell and its Setup select), so the sixth trade was
   // eleven Tabs down. Down and Up move trade to trade, Home and End go to the ends, Right and
   // Left reach the row's Setup select (the same hook as the Notebook's notes list).
-  // A letter typed on a trade goes to the next trade whose symbol starts with it. "g" first is
-  // left to the Journal's "g then letter" shortcuts (JournalLayout HOTKEY_ROUTES).
-  const tradesGrid = useGridRoving({ rowSelector: '[data-trade-row]', typeahead: true, typeaheadSkipFirst: 'g' })
+  // A letter typed on a trade goes to the next trade whose symbol starts with it. The list
+  // stops a key it takes, so it does not also reach the Journal's "g then letter" shortcuts.
+  const tradesGrid = useGridRoving({ rowSelector: '[data-trade-row]', typeahead: true })
 
   if (sorted.length === 0) {
     return (

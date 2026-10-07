@@ -132,13 +132,15 @@ describe('TradesTable: typing a symbol moves to that trade (lane KEYS3)', () => 
     expect(document.activeElement).toBe(cell('NVDA'))
   })
 
-  it('"g" first is NOT taken (the Journal\'s "g then j" shortcuts own it), nor a letter with Ctrl', () => {
+  it('"g" is a letter like any other here, and it does not reach the document (round 2)', () => {
     renderTable()
     cell('NVDA').focus()
-    const g = new KeyboardEvent('keydown', { key: 'g', bubbles: true, cancelable: true })
-    cell('NVDA').dispatchEvent(g)
-    expect(g.defaultPrevented).toBe(false)
-    fireEvent.keyDown(cell('NVDA'), { key: 'c', ctrlKey: true })
+    const seen = vi.fn()
+    document.addEventListener('keydown', seen)
+    fireEvent.keyDown(cell('NVDA'), { key: 'g' })
+    fireEvent.keyDown(cell('NVDA'), { key: 'c', ctrlKey: true })     // Ctrl+C is not type-ahead
+    document.removeEventListener('keydown', seen)
+    expect(seen).toHaveBeenCalledTimes(1)                            // only the Ctrl one got out
     expect(document.activeElement).toBe(cell('NVDA'))
   })
 

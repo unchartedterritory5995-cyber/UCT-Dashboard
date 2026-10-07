@@ -30,6 +30,7 @@
  * this hook for its opt-in `oneTabStop`, so the table view and the card view share one model.
  */
 import { useCallback, useLayoutEffect, useRef } from 'react'
+import { isTypeaheadKey } from './useTreeRoving'
 
 // `[data-grid-cell]`: a cell that is a control without being one of these elements (the Trades
 // table's symbol cell is a <td> that opens its trade on Enter, and keeps its cell role).
@@ -64,13 +65,16 @@ const TYPEAHEAD_MS = 600
 /**
  * `typeahead` (lane KEYS3, opt-in, the Trades list): a letter typed on a row moves to the next
  * row whose text starts with it (a trade's symbol), and typing on narrows it. Off by default:
- * the notes list does not ask for it. `typeaheadSkipFirst` names letters that are never taken
- * as a FIRST letter, because something else owns them there (the Journal's "g then letter"
- * shortcuts). Letters in a text field or a <select> are always that control's own.
+ * the notes list does not ask for it. Letters in a text field or a <select> are always that
+ * control's own.
+ *
+ * Round 2: a key this list takes is STOPPED here, the same rule as the folder tree
+ * (`isTypeaheadKey` in useTreeRoving.js is the one definition of such a key). It does not also
+ * reach a page shortcut bound on the document (the Journal's "g then letter" navigation). No
+ * letter is special: on a list that takes letters, "g" is a letter. A list that does not ask
+ * for type-ahead stops nothing, so the page's shortcuts work from its rows as before.
  */
-export default function useGridRoving({
-  rowSelector, enabled = true, typeahead = false, typeaheadSkipFirst = '',
-} = {}) {
+export default function useGridRoving({ rowSelector, enabled = true, typeahead = false } = {}) {
   const ref = useRef(null)
   const stopRef = useRef(null)
   const typed = useRef({ text: '', at: 0 })
@@ -108,16 +112,16 @@ export default function useGridRoving({
 
   const onKeyDown = useCallback((e) => {
     if (!enabled) return
-    if (typeahead && e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (typeahead && isTypeaheadKey(e)) {
       const t = e.target
       if (!t || !t.tagName || isText(t) || t.tagName === 'SELECT') return
       const rows = gridRows(ref.current, rowSelector)
       const r = rows.findIndex((cells) => cells.includes(t))
       if (r === -1) return
+      e.stopPropagation()
       const now = Date.now()
       const fresh = now - typed.current.at > TYPEAHEAD_MS
       const letter = e.key.toLowerCase()
-      if (fresh && typeaheadSkipFirst.includes(letter)) return
       const text = fresh ? letter : typed.current.text + letter
       typed.current = { text, at: now }
       const label = (cells) => (cells[0].closest(rowSelector)?.textContent || '').trim().toLowerCase()
@@ -157,7 +161,7 @@ export default function useGridRoving({
     stopRef.current = next
     apply()
     next.focus()
-  }, [apply, enabled, rowSelector, typeahead, typeaheadSkipFirst])
+  }, [apply, enabled, rowSelector, typeahead])
 
   const onFocus = useCallback((e) => {
     if (!enabled) return

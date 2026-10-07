@@ -588,3 +588,114 @@ describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
     await waitFor(() => expect(document.activeElement).toBe(opener))
   })
 })
+
+// Finish program, lane KEYS3 round 2. A list that takes letters for type-ahead (the folder tree,
+// the Trades list) sat under the Journal's "g then letter" shortcuts, which listen on the
+// document. A member on a folder row who typed "ga" to reach a folder called Gaps was moved to
+// it AND sent to the Calendar (g then a). The rule is the one a text field already follows: a
+// key a widget takes for itself does not also reach the page's shortcuts. The widget stops it.
+// The REAL layout and the real shortcut library are mounted here; only the page under the
+// layout is a small tree and two small lists built on the real hooks.
+import useTreeRoving from './lib/useTreeRoving'
+import useGridRoving from './lib/useGridRoving'
+
+function TypeaheadPage() {
+  const tree = useTreeRoving({})
+  const trades = useGridRoving({ rowSelector: '[data-row]', typeahead: true })
+  const notes = useGridRoving({ rowSelector: '[data-row]' })
+  return (
+    <div>
+      <div role="tree" aria-label="Folders" ref={tree.ref} onKeyDown={tree.onKeyDown} onFocus={tree.onFocus}>
+        {['All notes', 'Gaps', 'Goals', 'Ideas'].map((n) => (
+          <div key={n} role="treeitem" aria-label={n} aria-level={1}>
+            <button type="button" tabIndex={-1} data-tree-primary="">{n}</button>
+          </div>
+        ))}
+      </div>
+      <div aria-label="Trades" ref={trades.ref} onKeyDown={trades.onKeyDown} onFocus={trades.onFocus}>
+        {['NVDA', 'GOOG', 'GAP'].map((s) => <button key={s} type="button" data-row="">{s} trade</button>)}
+      </div>
+      <div aria-label="Notes" ref={notes.ref} onKeyDown={notes.onKeyDown} onFocus={notes.onFocus}>
+        {['Alpha', 'Gamma'].map((s) => <button key={s} type="button" data-row="">{s} note</button>)}
+      </div>
+    </div>
+  )
+}
+
+function renderTypeaheadPage() {
+  mockIsPaid = true
+  return render(
+    <MemoryRouter initialEntries={['/journal/notebook']}>
+      <LocationProbe />
+      <Routes>
+        <Route path="/journal" element={<JournalLayout />}>
+          <Route path="notebook" element={<TypeaheadPage />} />
+          <Route path="calendar" element={<div data-testid="calendar-page" />} />
+          <Route path="trades" element={<div data-testid="trades-page" />} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+const typeOn = (el, letters) => {
+  el.focus()
+  for (const ch of letters) {
+    fireEvent.keyDown(document.activeElement, { key: ch, code: `Key${ch.toUpperCase()}` })
+  }
+}
+
+describe('lane KEYS3 round 2: type-ahead and the "g then letter" shortcuts do not both answer', () => {
+  it('folder tree: typing "ga" on a row moves to Gaps and the page does not navigate', () => {
+    renderTypeaheadPage()
+    typeOn(screen.getByRole('treeitem', { name: 'All notes' }), 'ga')
+    expect(loc()).toBe('/journal/notebook')
+    expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: 'Gaps' }))
+  })
+
+  it('folder tree: "go" reaches Goals, and a "g" no row starts with is still not half a shortcut', () => {
+    renderTypeaheadPage()
+    typeOn(screen.getByRole('treeitem', { name: 'All notes' }), 'go')
+    expect(loc()).toBe('/journal/notebook')
+    expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: 'Goals' }))
+    typeOn(screen.getByRole('treeitem', { name: 'Ideas' }), 'gj')      // no row starts with what is typed now
+    expect(loc()).toBe('/journal/notebook')
+  })
+
+  it('Trades list: "g" is an ordinary letter (it moves to the first G trade)', () => {
+    renderTypeaheadPage()
+    typeOn(screen.getByRole('button', { name: 'NVDA trade' }), 'g')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'GOOG trade' }))
+    expect(loc()).toBe('/journal/notebook')
+  })
+
+  it('Trades list: typing "ga" moves to the GAP trade and does not navigate', () => {
+    renderTypeaheadPage()
+    typeOn(screen.getByRole('button', { name: 'NVDA trade' }), 'ga')
+    expect(loc()).toBe('/journal/notebook')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'GAP trade' }))
+  })
+
+  it('CONTROL, notes list (it takes no letters): "g then j" from a note row still navigates', () => {
+    renderTypeaheadPage()
+    typeOn(screen.getByRole('button', { name: 'Alpha note' }), 'gj')
+    expect(loc()).toBe('/journal/trades?seg=closed')
+  })
+
+  it('CONTROL: "g then j" from the page body still navigates, and so does "g then a"', () => {
+    renderTypeaheadPage()
+    pressChord('KeyJ')
+    expect(loc()).toBe('/journal/trades?seg=closed')
+  })
+
+  it('a key with Ctrl held on a tree row is not type-ahead and is not stopped', () => {
+    renderTypeaheadPage()
+    const row = screen.getByRole('treeitem', { name: 'All notes' })
+    row.focus()
+    const seen = vi.fn()
+    document.addEventListener('keydown', seen)
+    fireEvent.keyDown(row, { key: 'g', code: 'KeyG', ctrlKey: true })
+    document.removeEventListener('keydown', seen)
+    expect(seen).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(row)
+  })
+})
