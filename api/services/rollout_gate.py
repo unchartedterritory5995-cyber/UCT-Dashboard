@@ -197,6 +197,38 @@ def enroll_in_terminal_next(user_id: str) -> None:
     rollout.assign_cohort(TERMINAL_NEXT_COHORT, [user_id])
 
 
+#: The one-shot marker for the graduation seed below, in DATA_DIR beside the
+#: repo's other one-shot heals (`.fmp_tz_heal_v1`, `.logo_hires_v1`). Bump the
+#: suffix only to deliberately re-run the seed on every volume.
+TERMINAL_NEXT_SEED_MARKER = ".terminal_next_seed_v1"
+
+
+def seed_existing_members_into_terminal_next(data_dir: Optional[str] = None) -> Optional[int]:
+    """GRADUATION (owner decision 2026-10-05, re-confirmed 2026-10-07): every EXISTING
+    account joins the Terminal-Next cohort, ONCE per volume. New signups are enrolled by
+    `enroll_in_terminal_next`; this closes the gap for everyone who signed up before.
+
+    ⛔ NOT A SECOND WRITER. It calls `rollout.seed_cohort_all_members` -- the exact writer
+    `tools/rollout_cohort.py seed-all --apply` uses -- which is idempotent and never
+    removes a tag, so a re-run (or a race with a signup) changes nothing.
+
+    Returns the number of tag rows added, or None when the marker says it already ran.
+    ⛔ The marker is written only AFTER the write succeeded; a failure raises and leaves
+    no marker, so the next boot tries again. Membership is a write, so it is not behind
+    the kill switch -- what a member SEES is still `terminal_next_enabled_for`.
+    """
+    d = data_dir or os.environ.get("DATA_DIR", "/data")
+    marker = os.path.join(d, TERMINAL_NEXT_SEED_MARKER)
+    if os.path.exists(marker):
+        return None
+    from api.services import rollout
+
+    added = rollout.seed_cohort_all_members(TERMINAL_NEXT_COHORT)
+    with open(marker, "w", encoding="utf-8") as fh:
+        fh.write("seeded %d\n" % int(added))
+    return int(added)
+
+
 def terminal_next_enabled_for(user_id: Optional[str]) -> bool:
     """Terminal-Next's composition of the two: the flag and the cohort, named
     together in the one place they are joined."""
