@@ -93,13 +93,14 @@ describe('Create Indicator — one conversation, one preview, one indicator', ()
     expect(previews.filter(Boolean).at(-1).instanceId).toBe(a.instanceId)
   })
 
-  it('an unsupported request (TABLE) is refused in the conversation and changes nothing', async () => {
+  it('an unsupported request (TABLE) is answered as a LIMIT in the conversation and changes nothing', async () => {
     mount()
     await say('Add a 20 EMA')
     const before = previewTree()
     await say('I want a 4x4 table of the last four quarters with EPS and revenue')
     const last = [...document.querySelectorAll('[data-role="uct"]')].at(-1)
-    expect(last.dataset.kind).toBe('refusal')
+    expect(last.dataset.kind).toBe('unsupported')      // SLICE 2: the assistant names the limit
+    expect(last.dataset.updated).toBeUndefined()
     expect(last.textContent).toMatch(/can't draw a table/)
     expect(last.textContent).toMatch(/Nothing on the chart changed/)
     expect(previewTree()).toBe(before)

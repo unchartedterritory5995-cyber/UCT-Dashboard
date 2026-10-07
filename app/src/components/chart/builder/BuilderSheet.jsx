@@ -120,6 +120,8 @@ import MemberPane from './memberPane/MemberPane'
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import ConverseBox from './ConverseBox'
+import { chipName } from '../engine/labelText'
+import { mintScope, editKey, newKey } from './authoring/conversationSessions'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
@@ -181,26 +183,10 @@ export function draftDefId() {
  * by a model and never typed by the author — so the sentence in the indicator
  * library is the same sentence the author confirmed before saving.
  */
-/** A chip-sized name: at most `CHIP_NAME_MAX`, cut at a word boundary when there
- *  is a usable one, and never left with a trailing space.
- *
- *  ⚰️ `trimmed.slice(0, 12)` ALONE PRODUCED "Above 50 on  settings". Measured in
- *  production 2026-08-11: saving "Above 50 on volume" gave a chip reading
- *  "Above 50 on " — cut mid-word, trailing space intact — and the controls built
- *  from it read `Hide Above 50 on ` and `Above 50 on  settings`, double space and
- *  all. The cap itself is real (the chip strip is narrow); the ragged edge was not.
- */
-const CHIP_NAME_MAX = 12
-export function chipName(name) {
-  const trimmed = String(name || '').trim()
-  if (trimmed.length <= CHIP_NAME_MAX) return trimmed
-  const cut = trimmed.slice(0, CHIP_NAME_MAX)
-  const lastSpace = cut.lastIndexOf(' ')
-  // Only prefer the word boundary when it leaves something worth reading —
-  // "Above" beats "Above 50 on", but a single stub is worse than a clean cut.
-  const out = lastSpace >= Math.ceil(CHIP_NAME_MAX / 2) ? cut.slice(0, lastSpace) : cut
-  return out.trim()
-}
+/** A chip-sized name — see `engine/labelText.js` (SLICE 2: moved there so the
+ *  legend can recognise, and undo, the cut for display). Re-exported here for
+ *  this module's existing callers. */
+export { chipName }
 
 /** The plot key `levels` is minted by this form, so nobody else may claim it. */
 export const LEVELS_PLOT_KEY = 'levels'
@@ -1247,6 +1233,17 @@ export default function BuilderSheet({
    *  whenever the sheet (re)opens a definition, i.e. the form is fresh again. */
   const [conversationSaved, setConversationSaved] = useState(null)
   useEffect(() => { setConversationSaved(null) }, [editing])
+  // ⭐ SLICE 2 — the conversation box's authoring context: the stored definition
+  // being edited (`edit:<def id>`) or this sheet's new formula (`new:<scope>`).
+  // The box is keyed by it, so editing B never shows A's conversation, and
+  // closing the sheet keeps each one (in memory) for when it is reopened.
+  const [sheetScope] = useState(mintScope)
+  const converseKey = editing ? editKey(editing.defId) : newKey(sheetScope)
+  // ⭐ SLICE 2 — ONE PRIMARY SAVE. While the conversation has unsaved changes the
+  // footer's primary button commits THEM (the box shows no button of its own);
+  // otherwise it saves the formula form, exactly as before.
+  const [converseCommit, setConverseCommit] = useState(null)
+  const converseCommitRef = useRef(null)
   // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
   // picker is on screen; it is NOT persisted, NOT written into the document and
   // NOT read back — the saved artifact is the same one either door produces.
@@ -1816,7 +1813,10 @@ export default function BuilderSheet({
   // definition while `pending` is true, so reading `saveGates.formula` here
   // would show whatever the PREVIOUS formula's verdict happened to be —
   // exactly the confusing-message failure mode this hint exists to prevent.
-  const saveHint = supersededByConversation
+  const converseActive = !!(conversationOn && buildMode !== 'picker' && converseCommit && converseCommit.dirty)
+  const saveHint = converseActive
+    ? 'Saves the indicator from the conversation above.'
+    : supersededByConversation
     ? `The conversation above saved this formula as version ${conversationSaved.version}. Reopen it from "Your formulas" to edit it here.`
     : (saveGates.idle && !saveGates.settled)
     ? 'Checking your formula…'
@@ -2262,21 +2262,15 @@ export default function BuilderSheet({
               not touch this sheet's formula box or save state. Indicator modes
               only; the Conditions tab keeps the one-shot box below. */}
           {buildMode !== 'picker' && conversationOn && (
-            <ConverseBox settings={settings} onChange={onChange} sym={sym} tf={tf}
+            <ConverseBox key={converseKey} sessionKey={converseKey}
+              settings={settings} onChange={onChange} sym={sym} tf={tf}
               editing={editing} disabled={saving}
+              onCommitState={setConverseCommit} commitRef={converseCommitRef}
               onSaved={(defId, version) => setConversationSaved({ defId, version })} />
           )}
-          {/* ⭐ P2X OWNER DECISION 4 (2026-10-06) — THE ONE-SHOT "Draft a formula"
-              IS RETIRED FROM THE INDICATOR MODES. The conversation above is the
-              canonical AI door for an indicator (patch, readback, save through the
-              same doors); two AI boxes in one sheet were two answers to one
-              question. It stays on the Conditions tab only, where it drafts a
-              SCREEN (`kind: 'scan'`) and is still that tab's only AI door — the
-              one remaining product caller of `POST /propose`. */}
-          {/* ⛔ INTEGRATION (2026-10-06): WHILE THE CONVERSATION IS DARK for this
-              user (`conversationOn` false — the release gate), the indicator modes
-              keep the one-shot so a member's sheet is exactly the old sheet; the
-              moment the conversation is on, the one-shot is gone there. Never both. */}
+          {/* ⭐ SLICE 2 ROLLOUT RULE — the one-shot box drafts an INDICATOR only
+              while conversation is off; with it on, the conversation replaces it.
+              The Conditions tab (a scan) always keeps it. */}
           {(buildMode === 'picker' || !conversationOn) && (
           <ConciergeBox
             bars={bars}
@@ -3634,9 +3628,12 @@ export default function BuilderSheet({
             <button
               type="button"
               className="btn btn-primary"
-              onClick={save}
-              disabled={!canSave}
-            >{saving ? 'Saving…' : (editing ? 'Save changes' : 'Save')}</button>
+              data-testid="sheet-save"
+              onClick={converseActive ? () => converseCommitRef.current?.save() : save}
+              disabled={converseActive ? !converseCommit.canSave : !canSave}
+            >{converseActive
+                ? (converseCommit.saving ? 'Saving…' : converseCommit.label)
+                : (saving ? 'Saving…' : (editing ? 'Save changes' : 'Save'))}</button>
           </div>
         </div>
 

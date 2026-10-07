@@ -93,6 +93,7 @@
 // no React, no LWC, no DOM, and crucially NO SOURCE GRAMMAR, which is the thing
 // `sourceStemOf` below refuses to import and says why. See its header for why one
 // naming rule is shared and the other is deliberately spelled twice.
+import { untruncatedLabel } from './labelText'
 import { semanticName, namesItselfSemantically } from './semanticName'
 import { formatFundamentalValue, fundamentalFormatOfInstance } from './fundamentalFormat'
 import { tfLabel } from '../timeframes'
@@ -262,7 +263,10 @@ function chipLabel(def, plot, inputs, displayName) {
   // reader instead of agreeing by hand. See that module's header.
   const semantic = semanticName(def, inputs)
   if (semantic) return semantic
-  const name = (def.meta && def.meta.shortName) || def.id
+  // ⭐ SLICE 2 — a user definition's `shortName` is the builder's 12-character
+  // chip CUT of its name; the strip shows the whole name (CSS ellipsis + the full
+  // name in the chip's title do any truncating, visually). Natives are untouched.
+  const name = untruncatedLabel(def, (def.meta && def.meta.shortName) || def.id)
   const params = (def.meta && def.meta.legendParams) || []
   if (!params.length) return name
   const declared = new Map((def.inputs || []).map(i => [i.key, i.default]))

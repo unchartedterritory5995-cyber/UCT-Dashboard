@@ -67,7 +67,7 @@ def stage_import() -> None:
 def stage_validate() -> None:
     from api.services import definition_conversation as dc
     v = dc._validator()
-    good = {"contract": "uct.authoring.patch/1", "baseRevision": 0, "ops": [
+    good = {"contract": "uct.authoring.patch/1", "baseRevision": 0, "disposition": "change", "ops": [
         {"op": "set_slot", "slot": "value#1", "value": 80}]}
     bad = {"contract": "uct.authoring.patch/1", "baseRevision": "zero", "ops": "nope"}
     good_errors = list(v.iter_errors(good))

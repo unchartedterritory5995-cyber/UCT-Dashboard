@@ -66,7 +66,7 @@ describe('focus contract', () => {
 
 describe('focus contract — a clarification asks for explicit interaction', () => {
   const asking = async (message, view) => ({
-    ok: true, turn: 'question',
+    ok: true, turn: 'question', disposition: 'clarify', reply: '',
     envelope: { contract: 'uct.authoring.patch/1', baseRevision: (view && view.revision) || 0, ops: [],
       questions: [{ id: 'q1', text: 'Which moving average?', choices: ['EMA', 'SMA'] }] },
   })

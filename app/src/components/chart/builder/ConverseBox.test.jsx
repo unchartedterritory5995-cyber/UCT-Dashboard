@@ -91,7 +91,10 @@ function stubConverse() {
     if (message === 'refuse me') return { ok: false, gate: 'prompt:unsupported', reason: 'UCT cannot read "astrology" as a market quantity.', notUnderstood: [], unavailable: [] }
     const make = SCRIPT[message]
     if (!make) throw new Error(`unscripted: ${message}`)
-    return { ok: true, turn: 'patch', envelope: make(state), notUnderstood: [], unavailable: [] }
+    const envelope = make(state)
+    // SLICE 2: the server declares what the turn is (the stand-in, as the real one).
+    const disposition = envelope.questions && envelope.questions.length ? 'clarify' : 'change'
+    return { ok: true, disposition, reply: '', turn: 'patch', envelope, notUnderstood: [], unavailable: [] }
   })
   fn.calls = calls
   return fn

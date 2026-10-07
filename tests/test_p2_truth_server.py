@@ -91,7 +91,15 @@ def out(key, tree, *, label="", type_="condition", slots=()):
 
 
 def env(revision, ops=(), **extra):
-    return {"contract": C, "baseRevision": revision, "ops": list(ops), **extra}
+    """A model envelope. SLICE 2: the model must declare its disposition; unless a
+    test says otherwise it is the one its payload implies."""
+    e = {"contract": C, "baseRevision": revision, "ops": list(ops), **extra}
+    if "disposition" not in e:
+        e["disposition"] = ("clarify" if e.get("questions") else
+                            "change" if e["ops"] else "answer")
+        if e["disposition"] == "answer":
+            e.setdefault("reply", "An answer; nothing changes.")
+    return e
 
 
 # ═══ the stub model ═══════════════════════════════════════════════════════

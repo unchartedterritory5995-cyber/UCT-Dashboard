@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "uct.authoring.patch/1",
   "title": "UCT conversational authoring patch",
-  "description": "The model's whole answer for ONE conversational turn: a structured patch against the current canonical definition. The engine (builder/authoring/applyPatch.js) re-validates EVERYTHING deterministically and applies atomically; this schema is a structural pre-check only. See scratchpad P2-DESIGN.md. Prose fields (note, *.text) never reach the definition.",
+  "description": "The model's whole answer for ONE conversational turn: a structured patch against the current canonical definition. The engine (builder/authoring/applyPatch.js) re-validates EVERYTHING deterministically and applies atomically; this schema is a structural pre-check only. See scratchpad P2-DESIGN.md. Prose fields (note, reply, *.text) never reach the definition.",
   "type": "object",
   "additionalProperties": false,
   "required": ["contract", "baseRevision", "ops"],
@@ -12,7 +12,15 @@
     "ops": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/patchOp" } },
     "assumptions": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/assumption" } },
     "questions": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/question" } },
-    "note": { "type": "string", "maxLength": 600 }
+    "note": { "type": "string", "maxLength": 600 },
+    "disposition": {
+      "description": "SLICE 2 — what this turn IS. change: ops apply (no questions). clarify: questions, ops []. answer: a reply about the indicator, ops [], nothing changes. unsupported: a reply naming the limit, ops [], nothing changes. The server REQUIRES it of the model; the engine applies ops only for change.",
+      "enum": ["change", "answer", "clarify", "unsupported"]
+    },
+    "reply": {
+      "description": "SLICE 2 — the assistant's words to the member (an answer, a limit, or a one-line summary of a change). Prose: never applied, never a definition, never the read-back.",
+      "type": "string", "maxLength": 1200
+    }
   },
   "x-uct-limits": { "maxOps": 12, "maxOutputs": 8, "maxAssumptions": 12, "maxQuestions": 3, "maxTextLength": 300 },
   "$defs": {

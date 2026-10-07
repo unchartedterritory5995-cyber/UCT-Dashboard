@@ -156,6 +156,11 @@ def composed_schema() -> Dict[str, Any]:
             raise RuntimeError(f"$defs collision on {key!r} between the patch contract "
                                "and the concierge node schema")
     schema["$defs"].update(advertised)
+    # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
+    # engine file (older envelopes and the engine's own tests carry none); required
+    # of the model here, so mutation is never inferred from which fields happen to
+    # be present. ``check_envelope`` then holds disposition and payload consistent.
+    schema["required"] = list(schema.get("required", [])) + ["disposition"]
     return schema
 
 
@@ -183,11 +188,12 @@ def anthropic_tool() -> Dict[str, Any]:
     return {
         "name": TOOL_NAME,
         "description": (
-            "Emit ONE structured patch (contract uct.authoring.patch/1) against the "
-            "current indicator shown in <uct_indicator_data>. Either ops (with any "
-            "assumptions you made) OR questions with ops: [] -- never both. You do not "
-            "write the indicator, its read-back, its type, its id or its semantics; "
-            "deterministic code applies and reads back your patch."),
+            "Answer ONE member turn about the current indicator shown in "
+            "<uct_indicator_data> (contract uct.authoring.patch/1). `disposition` says "
+            "what the turn is: change (ops, never questions), clarify (questions, ops: []), "
+            "answer or unsupported (`reply`, ops: []). You do not write the indicator, "
+            "its read-back, its type, its id or its semantics; deterministic code "
+            "applies and reads back any change."),
         "input_schema": _strip_meta(composed_schema()),
     }
 
@@ -211,6 +217,9 @@ REFUSALS: Mapping[str, str] = {
     "envelope:questions-with-ops": (
         "the assistant both asked a question and proposed changes, which is not "
         "allowed, so nothing was offered to apply"),
+    "envelope:disposition": (
+        "the assistant's answer said one thing and did another, so nothing was "
+        "offered to apply"),
     "envelope:revision": (
         "the assistant's change was written against a different version of this "
         "indicator, so nothing was offered to apply"),
@@ -349,11 +358,31 @@ REQUEST_BLOCK = "uct_member_request"
 
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
-    "request and the CURRENT indicator, and you answer with exactly one call to "
-    f"{TOOL_NAME}: a structured patch against that indicator. You never write the "
-    "indicator yourself. Deterministic code applies your patch atomically, checks it, "
+    "message and the CURRENT indicator, and you answer with exactly one call to "
+    f"{TOOL_NAME}. You never write the indicator yourself. When the member asks for a "
+    "change, deterministic code applies your structured patch atomically, checks it, "
     "reads it back to the member in plain English from the RESULT, and the member "
     "confirms before anything is saved.\n\n"
+    "WHAT THE TURN IS -- set `disposition`\n"
+    "  Not every message asks for a change. Decide what the member wants:\n"
+    "  * answer: the member asks ABOUT this indicator or about indicators -- what it "
+    "does, why it is yes/no, what a line represents, whether it repaints, the "
+    "difference between two things, what WOULD happen if something changed. Answer "
+    "in `reply` from <uct_indicator_data> and emit `ops: []`. A hypothetical "
+    "(\"would 50 be slower?\", \"what happens if I change 14 to 21?\") is a question: "
+    "explain it and change NOTHING.\n"
+    "  * change: the member asks you to build or change it (\"make it 50\", \"add\", "
+    "\"remove\", \"paint\", \"alert me\"). Emit the smallest ops and a one-sentence "
+    "`reply` saying what you changed.\n"
+    "  * clarify: a change was asked for but cannot be written without the member's "
+    "choice. Ask in `questions` and emit `ops: []`.\n"
+    "  * unsupported: the request needs something not offered here. Emit `ops: []` and "
+    "say so plainly in `reply`; you may suggest what IS possible. Never substitute "
+    "something different.\n"
+    "  `reply` is shown to the member as your words; the read-back of the indicator is "
+    "computed separately from the RESULT. Keep it to at most four short sentences of "
+    "plain English: no formula syntax unless the member used it, no internal names, "
+    "ids or field names.\n\n"
     "SOURCE OF TRUTH AND DATA\n"
     "  * <uct_indicator_data> (contract uct.authoring.view/1) is the whole current "
     "indicator and is authoritative. Earlier turns are context only.\n"
@@ -388,18 +417,21 @@ CONVERSE_SYSTEM_PROMPT = (
     "  * The chart's own symbol and timeframe only: no other symbol, no higher or lower "
     "timeframe. Nightly snapshot values (one number per symbol, the same on every "
     "bar) are not history and are not offered here.\n"
-    "  * If the request needs something not offered here, emit no ops and say so "
-    "plainly in `note`. Never substitute something different.\n\n"
+    "  * If the request needs something not offered here, emit no ops, set "
+    "disposition unsupported and say so plainly in `reply`. Never substitute "
+    "something different.\n\n"
     "MISSING INFORMATION\n"
     "  * REQUIRED: the patch cannot be written without the member's choice and no UCT "
     "convention decides it. Ask in `questions` (at most 3, one short sentence each, "
-    "optionally 2-4 `choices`) and emit `ops: []`. Nothing is applied on a question turn.\n"
+    "optionally 2-4 `choices`), set disposition clarify and emit `ops: []`. Nothing is "
+    "applied on a question turn.\n"
     "  * ASSUMABLE: a UCT convention decides it. Proceed and disclose each choice in "
     "`assumptions`, naming the slot id when the value sits in a slot. UCT conventions:\n"
     + "".join(f"      {name}: {value}\n" for name, value in UCT_DEFAULTS)
     + "    A number the member wrote is never an assumption: use it exactly.\n"
     "  * IRRELEVANT: anything the definition does not depend on. Never ask about it.\n\n"
-    "`note` is optional prose. It is never applied and never shown as the read-back.\n\n"
+    "`note` is optional and is never shown to anyone; what the member should read "
+    "goes in `reply`.\n\n"
     "VOCABULARY\n"
 )
 
@@ -662,6 +694,32 @@ def _check_tree(where: str, tree: Any) -> None:
         raise _Refused("lint:repaint", f"{where}: {'; '.join(verdict['reasons'])}")
 
 
+#: ⭐ SLICE 2 — the turn outcomes. Only ``change`` ever carries ops.
+DISPOSITIONS = ("change", "answer", "clarify", "unsupported")
+
+
+def _check_disposition(envelope: Mapping[str, Any], ops: List[Any]) -> None:
+    """The declared outcome and the payload must agree, so the client never has to
+    guess: change = ops and no questions; clarify = questions and no ops; answer /
+    unsupported = a reply and neither ops nor questions."""
+    d = envelope.get("disposition")
+    questions = envelope.get("questions") or []
+    reply = envelope.get("reply")
+    has_reply = isinstance(reply, str) and bool(reply.strip())
+    if d == "change":
+        ok = bool(ops) and not questions
+    elif d == "clarify":
+        ok = bool(questions) and not ops
+    elif d in ("answer", "unsupported"):
+        ok = not ops and not questions and has_reply
+    else:
+        ok = False
+    if not ok:
+        raise _Refused("envelope:disposition",
+                       f"disposition {d!r} with {len(ops)} op(s), {len(questions)} question(s)"
+                       f"{'' if has_reply else ' and no reply'}")
+
+
 def check_envelope(envelope: Any, revision: int) -> Dict[str, Any]:
     """Structural pre-check of the model's answer. Returns it UNCHANGED, or raises
     ``_Refused``. ⛔ Never applies, never repairs, never strips: an envelope with
@@ -677,6 +735,7 @@ def check_envelope(envelope: Any, revision: int) -> Dict[str, Any]:
     if envelope.get("questions") and ops:
         raise _Refused("envelope:questions-with-ops",
                        f"{len(envelope['questions'])} question(s) and {len(ops)} op(s)")
+    _check_disposition(envelope, ops)
     if len(ops) > MAX_OPS:      # the schema says so too; the constant is the budget
         raise _Refused("envelope:schema", f"{len(ops)} ops; at most {MAX_OPS}")
     if envelope.get("baseRevision") != revision:
@@ -884,13 +943,23 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 
 
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
-             snippets: Any = None, admin: bool = False,
+             snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
-    ``{ok: True, turn: 'question'|'patch'|'noop', envelope, not_understood,
-    unavailable, tokens, cost_usd, attempts, model, usage}`` -- ``envelope`` is
-    the model's patch, structurally valid, VERBATIM, and NOT applied.
+    ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
+    turn: 'question'|'patch'|'noop', envelope, not_understood, unavailable, tokens,
+    cost_usd, attempts, model, usage}`` -- ``envelope`` is the model's patch,
+    structurally valid, VERBATIM, and NOT applied. Only ``change`` carries ops.
+
+    ⭐ SLICE 2 PRE-FLIGHT: an explicit request for another symbol or timeframe
+    (``conversation_preflight``) is answered BEFORE the planner and the model --
+    ``{ok: False, gate, reason, disposition: 'unsupported', preflight: True,
+    attempts: 0, cost_usd: 0}``, nothing spent, nothing recorded as a call.
+
+    ⭐ P2X: ``admin`` selects the conversation's admin allowance
+    (``conversation_cap_usd``); ``conversation_id`` (opaque, optional) keys the
+    per-conversation usage aggregate in the ``usage`` record.
 
     ``{ok: False, gate, reason, not_understood?, unavailable?, usage}`` -- and
     then there is NO envelope: nothing is offered to apply.
@@ -901,7 +970,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     calls: List[Dict[str, Any]] = []
     cap_usd = conversation_cap_usd(admin=admin)
     result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
-                            snippets=snippets, cap_usd=cap_usd, calls=calls)
+                            snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
@@ -912,13 +981,22 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
-                   snippets: Any, cap_usd: float,
+                   snippets: Any, chart: Any, cap_usd: float,
                    calls: List[Dict[str, Any]]) -> Dict[str, Any]:
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
     except _Refused as refused:
         return {"ok": False, "gate": refused.gate, "reason": refused.reason}
     revision = view["revision"]
+
+    from api.services import conversation_preflight
+    caught = conversation_preflight.check(message, chart)
+    if caught is not None:
+        logger.info("[converse] preflight %s (no model call)", caught["gate"])
+        return {"ok": False, "gate": caught["gate"], "reason": caught["reason"],
+                "disposition": "unsupported", "preflight": True, "attempts": 0,
+                "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0,
+                "not_understood": [], "unavailable": []}
 
     understanding = dc.plan(_product_nouns_plain(message), dc.INDICATOR_KIND)
     not_understood = understanding["not_understood"]
@@ -993,8 +1071,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             turn = "patch"
         else:
             turn = "noop"
+        reply = envelope.get("reply")
         return {
             "ok": True,
+            "disposition": envelope["disposition"],
+            "reply": reply.strip() if isinstance(reply, str) else "",
             "turn": turn,
             "envelope": envelope,
             **extra,

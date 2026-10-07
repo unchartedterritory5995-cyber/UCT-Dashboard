@@ -436,6 +436,9 @@ class ConverseIn(BaseModel):
     # on purpose -- a malformed id is IGNORED by the service, never a 422, so
     # older clients (which omit it) and odd ones keep working unchanged.
     conversationId: Optional[Any] = None
+    #: SLICE 2 — the chart the member is on: ``{sym, tf}`` only, for the
+    #: deterministic pre-flight (another symbol / timeframe). Strings, bounded.
+    chart: Optional[dict] = None
 
 
 def require_admin_dark_rollout(user: dict = Depends(require_paid)) -> dict:
@@ -472,9 +475,11 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     # (`definition_conversation.conversation_cap_usd`). Every other bound --
     # the hourly window above, the per-turn call and op caps, the size caps and
     # the global member budget -- is the same for everyone.
+    chart = body.chart if isinstance(body.chart, dict) else {}
+    chart = {k: chart[k][:24] for k in ("sym", "tf") if isinstance(chart.get(k), str)}
     return definition_conversation.converse(
         body.message, user_id=user["id"], view=body.view,
-        authoring=body.authoring, snippets=body.snippets,
+        authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId)
 
 
