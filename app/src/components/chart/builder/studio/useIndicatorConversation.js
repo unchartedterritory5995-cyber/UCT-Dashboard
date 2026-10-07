@@ -38,7 +38,7 @@ import { storeConversation, attachConversation, armConversationAlerts } from '..
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from './chartPreview'
-import { memberError, memberSaveError } from '../authoring/memberWords'
+import { memberError, memberSaveError, memberRefusal } from '../authoring/memberWords'
 import { outputNamer, slotWords } from '../authoring/readback'
 
 /** The member-facing type word for an output, keyed by the P1 type authority's own values. */
@@ -160,12 +160,12 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED) {
         say({ role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
-          lines: [turn.reply || turn.reason, ...gaps, NOTHING_CHANGED] })
+          lines: [turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
         return false
       }
       if (turn.outcome === OUTCOMES.REFUSED) {
         say({ role: 'uct', kind: 'refusal', gate: turn.gate,
-          lines: [turn.reason, ...gaps, NOTHING_CHANGED] })
+          lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
         return false
       }
       // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused

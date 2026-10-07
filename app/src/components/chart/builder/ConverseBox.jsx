@@ -40,7 +40,7 @@ import { storeConversation, attachConversation, armConversationAlerts } from './
 import PreviewPane from './editor/PreviewPane'
 import { CONVERSE_PREVIEW_DEF_ID } from './editor/previewDefinition'
 import { stampSemantics } from '../engine/definitionSemantics'
-import { memberError, memberSaveError, conversationEditability } from './authoring/memberWords'
+import { memberError, memberSaveError, conversationEditability, memberRefusal } from './authoring/memberWords'
 import { outputNamer } from './authoring/readback'
 
 const S = {
@@ -228,7 +228,7 @@ export default function ConverseBox({
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED || turn.outcome === OUTCOMES.REFUSED) {
         say({ role: 'uct', kind: turn.outcome === OUTCOMES.UNSUPPORTED ? 'unsupported' : 'refusal',
-          lines: ['Nothing was changed.', turn.reply || turn.reason, ...gaps], gate: turn.gate || null })
+          lines: ['Nothing was changed.', turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps], gate: turn.gate || null })
         setPartial(null)
         return
       }

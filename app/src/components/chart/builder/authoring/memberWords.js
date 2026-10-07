@@ -125,3 +125,38 @@ export function conversationEditability(def) {
   }
   return Object.freeze({ editable: true })
 }
+
+// ─── ⭐ ROLLOUT — a turn that could not run, in member words ─────────────────
+//
+// The conversation's refusals by GATE CODE. The server's own sentences for these
+// are shared with `/propose` and speak about plumbing ("the formula assistant",
+// "the change format"); an HTTP failure reached the member as "The assistant could
+// not answer (502)". Each line here says what happened, that nothing changed where
+// that is true, and what to do — never a status code, a provider, a ledger or a
+// schema. ⛔ No promised times: the daily allowance renews with the market day,
+// which this sentence does not try to pin to a clock.
+const REFUSAL_BY_GATE = Object.freeze({
+  'cost:user': "You've used today's UCT Intelligence allowance. It renews each day — your indicators are unaffected, and you can still edit them in the Formula tab.",
+  'cost:global': 'UCT Intelligence is at capacity right now. Your indicators are unaffected — please try again later.',
+  'http:429': "You're sending requests faster than UCT Intelligence can take them. Wait a minute, then try again.",
+  'http:402': 'Custom indicators require a paid plan.',
+  'http:403': "UCT Intelligence isn't available on your account yet.",
+  'http:401': 'Your session has ended. Sign in again to continue.',
+})
+const PLATFORM = 'UCT Intelligence is briefly unavailable. Try again in a moment.'
+const MODEL = "UCT Intelligence couldn't produce a valid change for that. Try rephrasing it."
+
+/**
+ * The member sentence for a refused conversation turn, or the server's own reason
+ * when that already is member language (an unknown concept, another symbol, a
+ * scalar the chart cannot read …).
+ * @param {string|null} gate  the turn's gate code (`cost:user`, `http:502`, `network`, …)
+ * @param {string} reason     what the server said
+ */
+export function memberRefusal(gate, reason = '') {
+  const g = String(gate || '')
+  if (REFUSAL_BY_GATE[g]) return REFUSAL_BY_GATE[g]
+  if (g === 'network' || g === 'model:transport' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
+  if (/^(envelope|model|schema|converse|internal):/.test(g)) return MODEL
+  return reason || MODEL
+}
