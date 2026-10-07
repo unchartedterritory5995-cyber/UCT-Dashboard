@@ -27,15 +27,18 @@ function target({ tag = 'DIV', contentEditable = false, matches = [] } = {}) {
 }
 
 describe('widgetEmbedStopEvent — the 13H-2 draw-mode focus-steal fix', () => {
-  it('stops a mousedown that lands on the chart body — the fix itself', () => {
-    const t = target({ tag: 'CANVAS', matches: ['[data-widget-embed-body]'] })
+  // Finish program (lane FE, round 2): the stop applies only while the member is DRAWING
+  // (`data-widget-embed-body="draw"`). Out of Draw mode a click on the body selects the block,
+  // as it did before this lane; widgetEmbedNode.finFe.test.js holds that half.
+  it('stops a mousedown that lands on the chart body while drawing — the fix itself', () => {
+    const t = target({ tag: 'CANVAS', matches: ['[data-widget-embed-body="draw"]'] })
     expect(widgetEmbedStopEvent({ event: { type: 'mousedown', target: t } })).toBe(true)
   })
 
   it('stops a mousedown on an SVG drawing handle inside the body (the exact evidence shape)', () => {
     // The walk's recorder captured the real offending target as
     // `circle.[object SVGAnimatedString][]` — an SVG <circle>, not a CANVAS.
-    const t = target({ tag: 'circle', matches: ['[data-widget-embed-body]'] })
+    const t = target({ tag: 'circle', matches: ['[data-widget-embed-body="draw"]'] })
     expect(widgetEmbedStopEvent({ event: { type: 'mousedown', target: t } })).toBe(true)
   })
 

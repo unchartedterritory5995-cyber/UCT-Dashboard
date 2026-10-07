@@ -780,10 +780,12 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {/* data-widget-embed-body: the ONE marker widgetEmbedNode.jsx's stopEvent
           reads to tell ProseMirror "this click is mine" (see that file's
           comment for the full mechanism — the 13H-2 draw-mode focus-steal
-          fix). Keep this attribute on whatever element wraps the live
+          fix). Its VALUE is "draw" exactly while Draw mode is on: only then does
+          stopEvent keep the click from the editor; otherwise a click on the body
+          selects the block. Keep this attribute on whatever element wraps the live
           chart/drawing surface; moving the ref without moving the marker
           reopens the bug silently. */}
-      <div ref={bodyRef} data-widget-embed-body="" className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
+      <div ref={bodyRef} data-widget-embed-body={annotate ? 'draw' : ''} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
       {planDoors && inView && (
