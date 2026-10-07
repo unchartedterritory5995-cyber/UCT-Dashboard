@@ -21,11 +21,11 @@
 
 .tierLabel { font-weight: 600; letter-spacing: 0.3px; }
 
-.tier_real_time .tierLabel { color: var(--color-success, #4ade80); }
+.tier_real_time .tierLabel { color: var(--success-ink); }
 .tier_delayed_15 .tierLabel { color: var(--color-warning); }
 .tier_end_of_day .tierLabel,
 .tier_historical .tierLabel { color: var(--text-muted); }
-.tier_stale .tierLabel { color: var(--color-danger); }
+.tier_stale .tierLabel { color: var(--danger-ink); }
 .tier_unknown .tierLabel { color: var(--text-muted); }
 
 .tierAsOf { color: var(--text-muted); font-weight: 400; }
@@ -47,7 +47,7 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: var(--color-danger);
+  color: var(--danger-ink);
 }
 
 .sessionStaleNote { color: var(--color-warning); }
@@ -56,7 +56,7 @@
   color: var(--text-muted);
   font-size: 11px;
 }
-.session_open { color: var(--color-success, #4ade80); }
+.session_open { color: var(--success-ink); }
 .session_ext { color: var(--color-warning); }
 .session_closed { color: var(--text-muted); }
 

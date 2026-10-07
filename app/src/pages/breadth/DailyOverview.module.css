@@ -75,9 +75,9 @@
   color: var(--text);
   text-transform: capitalize;
 }
-.phaseGreen { color: var(--gain); border-color: color-mix(in srgb, var(--gain) 45%, transparent); }
+.phaseGreen { color: var(--success-ink); border-color: color-mix(in srgb, var(--gain) 45%, transparent); }
 .phaseAmber { color: var(--accent); border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent); }
-.phaseRed   { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 45%, transparent); }
+.phaseRed   { color: var(--danger-ink); border-color: color-mix(in srgb, var(--loss) 45%, transparent); }
 
 .scores {
   display: flex;
@@ -319,8 +319,8 @@
 /* Tone — kept last, and compounded with .wrap so these outrank the base
    colors above at 0-1-1 vs 0-1-0. Bare [data-tone] selectors lost that fight
    silently: every value rendered white on day one. */
-.wrap [data-tone='gain'] { color: var(--gain); }
-.wrap [data-tone='loss'] { color: var(--loss); }
+.wrap [data-tone='gain'] { color: var(--success-ink); }
+.wrap [data-tone='loss'] { color: var(--danger-ink); }
 .wrap [data-tone='gold'] { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {

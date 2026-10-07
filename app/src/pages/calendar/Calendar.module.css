@@ -100,7 +100,7 @@
   padding: 2px 6px;
   border-radius: 5px;
   background: var(--gain-bg);
-  color: var(--gain);
+  color: var(--success-ink);
 }
 
 /* metric rows */
@@ -126,11 +126,11 @@
 }
 
 .pos {
-  color: var(--gain);
+  color: var(--success-ink);
 }
 
 .neg {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 /* Expected move box */
@@ -177,7 +177,7 @@
 
 .beatNote {
   font-size: var(--text-xs);
-  color: var(--gain);
+  color: var(--success-ink);
   font-weight: 600;
   margin-top: 9px;
 }
@@ -1038,7 +1038,7 @@
 
 .error {
   padding: 32px;
-  color: var(--loss);
+  color: var(--danger-ink);
   text-align: center;
 }
 
@@ -1324,7 +1324,7 @@
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
   border-radius: 7px;
-  color: var(--loss);
+  color: var(--danger-ink);
   font-size: var(--text-sm);
   padding: 5px 0;
   cursor: pointer;
@@ -1500,7 +1500,7 @@
 /* IPO status pills */
 .evtStatusPriced {
   background: var(--gain-bg);
-  color: var(--gain);
+  color: var(--success-ink);
   border-color: var(--gain-border);
 }
 
@@ -2782,7 +2782,7 @@
   padding: 2px 6px;
   border-radius: 5px;
   background: var(--loss-bg);
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .cardMetaRow {
@@ -3200,8 +3200,8 @@
 .printRow:hover { background: var(--bg-hover); }
 .printSym { font-size: var(--text-md); font-weight: 800; color: var(--text-bright); flex: 0 0 auto; }
 .printBeat, .printMiss { font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.3px; flex: 0 0 auto; }
-.printBeat { color: var(--gain); }
-.printMiss { color: var(--loss); }
+.printBeat { color: var(--success-ink); }
+.printMiss { color: var(--danger-ink); }
 
 @media (max-width: 640px) {
   .brief { margin: 0 12px 4px; padding: 10px 12px; }

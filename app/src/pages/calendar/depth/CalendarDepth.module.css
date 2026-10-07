@@ -4,7 +4,7 @@
 .title { font-weight: 700; }
 .chip { font-size: var(--text-base); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted); font-size: var(--text-base); margin: 6px 0 0; }
-.error { color: var(--loss); font-size: var(--text-md); }
+.error { color: var(--danger-ink); font-size: var(--text-md); }
 .scroll { overflow-x: auto; max-width: 100%; margin-top: 6px; }
 .grid { border-collapse: collapse; font-size: var(--text-base); font-variant-numeric: tabular-nums; width: 100%; }
 .grid th, .grid td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }

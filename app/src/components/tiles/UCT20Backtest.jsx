@@ -27,12 +27,12 @@ function monthLabel(ym) {
 // reads on a light ground as well as a dark one: the cell is a tint of the hue over the
 // surface, the figure is the hue itself (mixed toward the muted text for a small month).
 function monthColor(pct) {
-  if (pct >= 5) return 'var(--gain)'
-  if (pct >= 2) return 'color-mix(in srgb, var(--gain) 80%, var(--text-muted))'
-  if (pct >= 0) return 'color-mix(in srgb, var(--gain) 55%, var(--text-muted))'
-  if (pct >= -2) return 'color-mix(in srgb, var(--loss) 55%, var(--text-muted))'
-  if (pct >= -5) return 'color-mix(in srgb, var(--loss) 80%, var(--text-muted))'
-  return 'var(--loss)'
+  if (pct >= 5) return 'var(--success-ink)'
+  if (pct >= 2) return 'color-mix(in srgb, var(--success-ink) 80%, var(--text-muted))'
+  if (pct >= 0) return 'color-mix(in srgb, var(--success-ink) 55%, var(--text-muted))'
+  if (pct >= -2) return 'color-mix(in srgb, var(--danger-ink) 55%, var(--text-muted))'
+  if (pct >= -5) return 'color-mix(in srgb, var(--danger-ink) 80%, var(--text-muted))'
+  return 'var(--danger-ink)'
 }
 
 function monthBg(pct) {

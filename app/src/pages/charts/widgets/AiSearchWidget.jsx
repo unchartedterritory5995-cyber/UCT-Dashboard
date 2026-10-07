@@ -171,7 +171,7 @@ function AnswerSparklines({ tickers, onTicker }) {
           onClick={() => onTicker(r.sym)} title={`Open ${r.sym} on the chart`}>
           <span className={styles.sparkSym}>{r.sym}</span>
           <Sparkline closes={r.closes} />
-          <span style={{ color: r.pct < 0 ? 'var(--loss)' : 'var(--gain)', fontWeight: 600 }}>
+          <span style={{ color: r.pct < 0 ? 'var(--danger-ink)' : 'var(--success-ink)', fontWeight: 600 }}>
             {r.pct >= 0 ? '+' : ''}{r.pct.toFixed(1)}%
           </span>
         </button>
@@ -267,7 +267,7 @@ function renderRich(text, onTicker, cites) {
     if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{renderRich(p.slice(2, -2), onTicker, cites)}</strong>
     // ±pct — chart-matched green/red (widget CSS overrides --gain/--loss to chart colors)
     if (/^[+-]\d+(?:\.\d+)?%$/.test(p)) {
-      return <span key={i} style={{ color: p[0] === '-' ? 'var(--loss)' : 'var(--gain)', fontWeight: 600 }}>{p}</span>
+      return <span key={i} style={{ color: p[0] === '-' ? 'var(--danger-ink)' : 'var(--success-ink)', fontWeight: 600 }}>{p}</span>
     }
     return <span key={i}>{p}</span>
   })

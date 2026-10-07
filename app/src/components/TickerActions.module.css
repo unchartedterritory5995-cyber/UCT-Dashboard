@@ -195,7 +195,7 @@
 .alertDel {
   background: none;
   border: none;
-  color: var(--loss);
+  color: var(--danger-ink);
   font-size: 12px;
   cursor: pointer;
   opacity: 0.5;

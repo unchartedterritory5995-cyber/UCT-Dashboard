@@ -2,8 +2,8 @@
 
 .quote { display: flex; align-items: baseline; gap: var(--space-md); }
 .price { font-family: var(--font-mono); font-size: var(--text-2xl); color: var(--text-heading); }
-.up { color: var(--gain); font-weight: 600; }
-.down { color: var(--loss); font-weight: 600; }
+.up { color: var(--success-ink); font-weight: 600; }
+.down { color: var(--danger-ink); font-weight: 600; }
 
 .tfRow { display: flex; gap: 6px; }
 .tfChip {

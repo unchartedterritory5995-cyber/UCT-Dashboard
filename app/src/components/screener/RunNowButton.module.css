@@ -83,7 +83,7 @@
 
 /* Over the cap: the count is already on screen beside it, so this says what to
    DO rather than repeating the number twice in two colours. */
-.over { color: var(--color-danger); }
+.over { color: var(--danger-ink); }
 
 .go {
   display: inline-flex;

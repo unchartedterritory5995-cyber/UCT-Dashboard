@@ -879,10 +879,10 @@
   border-radius: 2px;
 }
 
-.cellDeepGreen { background: color-mix(in srgb, var(--gain) 26%, transparent); color: var(--gain); }
-.cellGreen     { background: color-mix(in srgb, var(--gain) 12%, transparent); color: var(--gain); }
-.cellRed       { background: color-mix(in srgb, var(--loss) 12%, transparent); color: var(--loss); }
-.cellDeepRed   { background: color-mix(in srgb, var(--loss) 26%, transparent); color: var(--loss); }
+.cellDeepGreen { background: color-mix(in srgb, var(--gain) 26%, transparent); color: var(--success-ink); }
+.cellGreen     { background: color-mix(in srgb, var(--gain) 12%, transparent); color: var(--success-ink); }
+.cellRed       { background: color-mix(in srgb, var(--loss) 12%, transparent); color: var(--danger-ink); }
+.cellDeepRed   { background: color-mix(in srgb, var(--loss) 26%, transparent); color: var(--danger-ink); }
 
 .colHeaderRow {
   display: flex;
@@ -1080,7 +1080,7 @@
 .alertDeleteBtn {
   background: none;
   border: none;
-  color: var(--loss);
+  color: var(--danger-ink);
   font-size: 12px;
   cursor: pointer;
   opacity: 0.5;
@@ -1205,7 +1205,7 @@
 }
 
 .ctxItemDanger {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .ctxItemDanger:hover {
@@ -1326,7 +1326,7 @@
   border-color: var(--ut-gold-glow);
 }
 
-.wlDeleteBtn:hover { color: var(--loss); }
+.wlDeleteBtn:hover { color: var(--danger-ink); }
 
 /* ── Expanded items ── */
 .wlItems {
@@ -1388,7 +1388,7 @@
   flex-shrink: 0;
   font-size: 10px;
   line-height: 1;
-  color: var(--loss);
+  color: var(--danger-ink);
   white-space: nowrap;
 }
 

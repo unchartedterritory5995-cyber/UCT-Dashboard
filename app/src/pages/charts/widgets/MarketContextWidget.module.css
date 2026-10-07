@@ -85,8 +85,8 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
-.pos { color: var(--gain); }
-.neg { color: var(--loss); }
+.pos { color: var(--success-ink); }
+.neg { color: var(--danger-ink); }
 
 /* The em dash a deliberately-unknowable reading renders as. It is NOT a
    loading state and NOT an error — `powerTrend` has no derivation rule by
