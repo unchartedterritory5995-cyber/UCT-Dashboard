@@ -230,6 +230,21 @@ describe('EE — ConsensusEstimates', () => {
       expect(within(fb).getByText('Current Qtr')).toBeInTheDocument()
     })
 
+  // Completeness audit 2026-10-07: "FMP did not answer" was printed whenever the state was not
+  // exactly 'empty' -- including when FMP DID answer, with nothing in it. Worded per case now.
+  it.each([
+    ['FMP answered with no forward periods', { state: 'ok', annual: [], quarterly: [] }, /no forward consensus/],
+    ['one FMP leg failed and the other answered empty',
+      { state: 'error', annual: [], quarterly: [], errors: { annual: 'timeout' } },
+      /annual read failed and its quarterly answer holds no forward periods/],
+  ])('EE fallback wording: %s is never "did not answer"', async (_name, consensus, reason) => {
+    routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(consensus)
+    mount(<ConsensusEstimates sym="NVDA" />)
+    const src = within(await screen.findByTestId('ee-fallback')).getByTestId('depth-source')
+    expect(src).toHaveTextContent(reason)
+    expect(src).not.toHaveTextContent(/did not answer/)
+  })
+
   it('a FAILED request is an error with retry', async () => {
     routes['/api/research/estimates/NVDA'] = new TypeError('Failed to fetch')
     mount(<ConsensusEstimates sym="NVDA" />)

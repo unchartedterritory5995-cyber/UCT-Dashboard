@@ -74,6 +74,9 @@ FLAGS = (
     "NOTEBOOK_PLAYBOOK_ENABLED", "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED",
     "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_FIND_SIMILAR_ENABLED",
     "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    # The onboarding router (the sample notebook's add / status / remove, and the tour rows).
+    # Here since fin-data2 round 2: lane FE2 words the removal's kept-folder sentence.
+    "NOTEBOOK_ONBOARDING_ENABLED",
 )
 
 
@@ -225,6 +228,8 @@ _PREIMPORT = (
     "api.services.journal_two.note_excerpts", "api.services.journal_two.web_capture",
     "api.services.journal_two.web_capture_store",
     "api.services.journal_two.notes", "api.services.journal_two.note_levels",
+    "api.services.journal_two.sample_notebook", "api.services.journal_two.sample_examples",
+    "api.services.journal_two.tour_seen_state",
     "api.services.journal_two.note_properties", "api.services.journal_two.plan_extract",
     "api.services.journal_two.plan_grading", "api.services.journal_two.playbook_stats",
     "api.services.journal_two.playbook_patterns", "api.services.journal_two.setups_board",
@@ -239,6 +244,18 @@ _PREIMPORT = (
 )
 
 
+def _qualname(value: Any) -> str:
+    """`value.__qualname__`, or "" for anything that will not say. Some module-level objects
+    answer EVERY attribute read by doing work: the `openai` package's lazy client proxy builds a
+    client and raises `OpenAIError` (no API key) on `getattr`, which is not an AttributeError, so
+    `getattr(..., default)` does not catch it. Seen on the landing branch when a test file that
+    imports the voice modules ran before the fixture rail in one pytest process."""
+    try:
+        return getattr(value, "__qualname__", "") or ""
+    except Exception:  # noqa: BLE001 -- a foreign object's attribute hook; never this sweep's failure
+        return ""
+
+
 def _unfreeze_stragglers() -> None:
     """A module imported DURING the freeze captured the frozen clock by name. Give it the real
     one back, so nothing outlives the run (this matters inside pytest, not for the CLI)."""
@@ -251,7 +268,7 @@ def _unfreeze_stragglers() -> None:
                 d[key] = _REAL_DATETIME
             elif value is _FrozenDate:
                 d[key] = _REAL_DATE
-            elif getattr(value, "__qualname__", "") == "_deterministic_uuid4.<locals>.uuid4":
+            elif _qualname(value) == "_deterministic_uuid4.<locals>.uuid4":
                 d[key] = _uuid.uuid4
 
 
@@ -262,7 +279,7 @@ def build_app() -> Any:
     generator, the sweeps and the pytest's coverage rail all read it from here."""
     from fastapi import FastAPI
     from api.routers import (notebook_chart_alerts, notebook_earnings_prep, notebook_entry_context,
-                             notebook_fingerprint, notebook_plan_grades, notebook_playbook,
+                             notebook_fingerprint, notebook_onboarding, notebook_plan_grades, notebook_playbook,
                              notebook_research_capture, notebook_review_drafts, notebook_setups_board,
                              notebook_template_gallery, notebook_thesis_chips, notebook_visual_playbook)
     app = FastAPI()
@@ -272,7 +289,7 @@ def build_app() -> Any:
               notebook_earnings_prep.router, notebook_entry_context.router,
               notebook_chart_alerts.router, notebook_research_capture.transcripts_router,
               notebook_research_capture.passed_router, notebook_template_gallery.router,
-              notebook_fingerprint.router):
+              notebook_fingerprint.router, notebook_onboarding.router):
         app.include_router(r)
     return app
 
@@ -1569,6 +1586,57 @@ def route_table(app: Any) -> list[tuple[str, str]]:
 
 def _concrete(path: str) -> str:
     return re.sub(r"\{[^}]+\}", "x", path)
+
+
+@builder
+def sample_notebook(w: World) -> None:
+    """The sample notebook's doors and the tour row. The removal answer is the one lane FE2
+    words: which folders went, which stayed because a member's note is in one, and why."""
+    from api.services.journal_two import notes as notes_service
+    base = "/api/j2/onboarding"
+    # The capability examples (and their folder) exist only while wave 14 is armed. Set for this
+    # surface only, and put back, so no other surface's answer depends on it.
+    w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
+    try:
+        clean = w.member("sample")
+        w.as_user(clean)
+        w.record("sample-notebook.status.empty", "GET", f"{base}/sample-notebook", case="empty", expect=200,
+                 note="A member who never added the sample.")
+        w.record("sample-notebook.add", "POST", f"{base}/sample-notebook", case="success", expect=200)
+        w.record("sample-notebook.status", "GET", f"{base}/sample-notebook", case="success", expect=200)
+        w.record("sample-notebook.add.has-notes", "POST", f"{base}/sample-notebook", case="error", expect=409,
+                 note="The member already has notes (here: the sample itself).")
+        w.record("sample-notebook.remove", "DELETE", f"{base}/sample-notebook", case="success", expect=200,
+                 note="Nothing of the member's is in a sample folder: both folders the sample made are removed.")
+        w.record("sample-notebook.remove.again", "DELETE", f"{base}/sample-notebook", case="empty", expect=200,
+                 note="A second removal finds nothing left to remove.")
+
+        keeper = w.member("sample-keeper")
+        w.as_user(keeper)
+        res = w.client.post(f"{base}/sample-notebook")
+        assert res.status_code == 200, res.text
+        c = w.conn()
+        try:
+            folder = c.execute("SELECT id FROM j2_note_folders WHERE user_id = ? AND name = 'Capability examples'",
+                               (keeper,)).fetchone()[0]
+        finally:
+            c.close()
+        own = notes_service.create_note(keeper, {"title": "My own idea", "bodyJson": doc(para("mine"))})
+        notes_service.update_note(keeper, own["id"], {"folderId": folder})
+        w.record("sample-notebook.remove.folder-kept", "DELETE", f"{base}/sample-notebook", case="success", expect=200,
+                 note="The member moved a note of their own into a sample folder. That folder is kept, nothing "
+                      "in it is moved, and the folder it sits in is kept too. Each kept folder carries a sentence.")
+
+        w.as_user(clean)
+        w.record("onboarding.tour.record", "PUT", f"{base}/tours/reporting-soon", case="success", expect=200,
+                 json_body={"state": "started", "step": "open-box"})
+        w.record("onboarding.tour.bad-state", "PUT", f"{base}/tours/reporting-soon", case="error", expect=400,
+                 json_body={"state": "paused"})
+        w.as_user(clean, FREE)
+        w.record("sample-notebook.add.free-plan", "POST", f"{base}/sample-notebook", case="error", expect=402)
+    finally:
+        w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", None)
+        w.as_user(MEMBER)
 
 
 @builder

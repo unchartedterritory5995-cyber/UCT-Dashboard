@@ -102,6 +102,23 @@ describe('MorningWire board feedback', () => {
       .toBe('Logged today: SKHY'))
   })
 
+  it('owner: a note the server refuses says "Save failed", never "Saved", and keeps the panel', async () => {
+    role = 'admin'
+    global.fetch = vi.fn(async (url, opts) => (opts?.method === 'POST'
+      ? { ok: false, status: 500, json: async () => ({ detail: 'down' }) }
+      : { ok: true, status: 200, json: async () => ({ feedback: {} }) }))
+    const { renderWithProviders } = await import('../test-utils')
+    const { default: MorningWire } = await import('./MorningWire')
+    const { container } = renderWithProviders(<MorningWire />)
+    await waitFor(() => expect(container.querySelector('[data-fb-note="setup:LITE"]')).not.toBeNull())
+    fireEvent.click(container.querySelector('[data-fb-note="setup:LITE"]'))
+    await waitFor(() => expect(container.querySelector('.rd-note-input')).not.toBeNull())
+    container.querySelector('.rd-note-input').value = 'stop was too wide'
+    fireEvent.click(container.querySelector('[data-fb-note-save]'))
+    await waitFor(() => expect(container.querySelector('.rd-note-status').textContent).toBe('Save failed — try again'))
+    expect(container.querySelector('.rd-note-panel')).not.toBeNull()
+  })
+
   it('member: no setup controls at all', async () => {
     role = 'member'
     global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ feedback: {} }) }))

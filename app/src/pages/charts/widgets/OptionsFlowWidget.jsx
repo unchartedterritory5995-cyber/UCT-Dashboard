@@ -32,13 +32,16 @@ import {
   mergeOptionsFlowWidgetSettings, optionsFlowWidgetStyleVars, optionsFlowDefaultsForTheme,
 } from './optionsFlowWidgetSettings'
 import styles from './OptionsFlowWidget.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // ── tiny formatters (same recipe as OptionsFlowPreview) ──
-function fmt(n) {
+// TERM-066: the K/M suffix comes from lib/presentation (formatCompact) on this tape's own
+// ladder. Exported for the frozen-oracle test (widgetFormatters.term066.test.js).
+const PREMIUM_TIERS = [{ at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
+export function fmt(n) {
   const a = Math.abs(n || 0)
-  if (a >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
-  return `$${(n || 0).toFixed(0)}`
+  if (a < 1e3) return `$${(n || 0).toFixed(0)}`
+  return formatCompact(Number(n), { tiers: PREMIUM_TIERS, prefix: '$' })
 }
 function fmtStrike(s) {
   const v = Number(s)

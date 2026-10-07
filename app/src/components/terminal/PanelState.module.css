@@ -29,7 +29,7 @@
 }
 
 .state[data-kind='error'] .icon {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .state[data-kind='locked'] .icon {

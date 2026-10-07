@@ -60,9 +60,9 @@ export default function EstimatesTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Forward estimates (analyst consensus)</div>
           <div className={styles.gridScroll}>
-            <table className={styles.fgrid}>
+            <table className={styles.fgrid} aria-label="Forward estimates (analyst consensus)">
               <thead>
-                <tr><th>Period</th><th>EPS avg</th><th>Range</th><th>Analysts</th><th>EPS growth</th><th>Revenue</th></tr>
+                <tr><th scope="col">Period</th><th scope="col">EPS avg</th><th scope="col">Range</th><th scope="col">Analysts</th><th scope="col">EPS growth</th><th scope="col">Revenue</th></tr>
               </thead>
               <tbody>
                 {fwd.map(r => (
@@ -130,9 +130,9 @@ export default function EstimatesTab({ sym }) {
             ariaLabel="EPS estimate revisions by period, upgrades versus downgrades"
           />
           <div className={styles.gridScroll}>
-            <table className={styles.fgrid}>
+            <table className={styles.fgrid} aria-label="EPS estimate revisions">
               <thead>
-                <tr><th>Period</th><th>Current</th><th>30d ago</th><th>90d ago</th><th>↑ 30d</th><th>↓ 30d</th></tr>
+                <tr><th scope="col">Period</th><th scope="col">Current</th><th scope="col">30d ago</th><th scope="col">90d ago</th><th scope="col">↑ 30d</th><th scope="col">↓ 30d</th></tr>
               </thead>
               <tbody>
                 {rev.map(r => (

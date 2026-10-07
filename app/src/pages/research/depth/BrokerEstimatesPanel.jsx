@@ -8,6 +8,7 @@ import {
   relabelDollarText, reportingCurrencyNote,
 } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
 // high/low and dispersion, and the firms acting on the stock by name.
@@ -36,6 +37,10 @@ export default function BrokerEstimatesPanel({ sym }) {
   const { data, error, mutate } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
   const reask = usePendingReask(data?.state === 'pending', mutate, s)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  // `as_of` is when the consensus was read from FMP (the cache fill); absent while pending.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error && data.source ? panelAsOf(memberText(data.source), data.as_of) : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
@@ -46,12 +51,14 @@ export default function BrokerEstimatesPanel({ sym }) {
     body = (
       <div data-testid="broker-estimates">
         {data.state !== 'ok'
-          ? <p className={styles.note} data-testid="broker-state">{memberSentence(data.reason)}</p>
-          : (
+          ? <p className={styles.note} data-testid="broker-state">{memberSentence(data.reason) || `Estimates for ${s} are not available right now.`}</p>
+          : !data.periods?.length
+            ? <p className={styles.note} data-testid="broker-no-periods">No upcoming quarter has a consensus estimate on file for {s}.</p>
+            : (
             <div className={styles.scroll}>
-              <table className={styles.grid}>
+              <table className={styles.grid} aria-label="Estimates by contributor">
                 <thead>
-                  <tr><th scope="col">Quarter ending</th><th scope="col">{headIn('EPS mean', data.currency)}</th><th scope="col"># Ests</th><th scope="col">Low–high</th><th scope="col">Spread</th>
+                  <tr><th scope="col">Quarter ending</th><th scope="col">{headIn('EPS mean', data.currency)}</th><th scope="col"># Ests</th><th scope="col">{headIn('Low–high', data.currency)}</th><th scope="col">Spread</th>
                     <th scope="col">{headIn('Revenue mean', data.currency)}</th><th scope="col"># Ests</th></tr>
                 </thead>
                 <tbody>
@@ -59,7 +66,7 @@ export default function BrokerEstimatesPanel({ sym }) {
                     <tr key={p.period_end} data-testid="broker-row">
                       <th scope="row">{p.period_end}</th>
                       <td>{n2In(p.eps.mean, data.currency)}</td><td>{p.eps.n ?? '—'}</td>
-                      <td>{n2(p.eps.low)}–{n2(p.eps.high)}</td>
+                      <td>{n2In(p.eps.low, data.currency)}–{n2In(p.eps.high, data.currency)}</td>
                       <td>{p.eps.dispersion_pct == null ? '—' : `${p.eps.dispersion_pct}%`}</td>
                       <td>{bigIn(p.revenue.mean, data.currency)}</td><td>{p.revenue.n ?? '—'}</td>
                     </tr>
@@ -76,7 +83,7 @@ export default function BrokerEstimatesPanel({ sym }) {
         </p>
         <div data-testid="broker-firms">
           <p className={styles.lede}>Firms acting on {s} (rating actions, not the estimates above):</p>
-          {firms.state === 'ok'
+          {firms.state === 'ok' && firms.actions?.length
             ? (
               <ul className={styles.help}>
                 {firms.actions.map((a, i) => (
@@ -84,7 +91,7 @@ export default function BrokerEstimatesPanel({ sym }) {
                 ))}
               </ul>
             )
-            : <p className={styles.note}>{memberSentence(firms.reason) || 'No rating actions on file.'}</p>}
+            : <p className={styles.note}>{(firms.state !== 'ok' && memberSentence(firms.reason)) || 'No rating actions on file.'}</p>}
         </div>
         <p className={styles.muted}>Source: {memberText(data.source)}; firms: {memberText(firms.source)}.</p>
       </div>

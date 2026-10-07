@@ -20,6 +20,7 @@ import { playbookEnabled } from '../../lib/myPlaybookLink'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { WORDING } from '../../lib/sampleSize'
 import { cardStats, findingText } from '../../lib/playbookFormat'
+import { RouteLanding } from '../../lib/routeFocus'
 import styles from './MyPlaybook.module.css'
 
 const BASE = '/api/j2/my-playbook'
@@ -263,6 +264,9 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
             <Link className={styles.link} to="/journal/trades?seg=closed">Tag them in the Trade Journal</Link>
           </p>
         )}
+        {/* Where keyboard focus arrives after a move to this page: the next Tab is the first
+            card's first number. */}
+        {setups.length ? <RouteLanding title="My Playbook, setup cards" /> : null}
         {setups.length ? (
           <div className={styles.grid}>
             {setups.map((rec, i) => (

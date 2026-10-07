@@ -1,0 +1,25 @@
+{
+ "seed": {
+  "hide_get_started": 200,
+  "declined_other_tour": 200
+ },
+ "versions": {
+  "put": 200,
+  "count": 1
+ },
+ "tours_pref_before": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null}}",
+ "explainer_appeared_after_s": 0.5,
+ "explainer_first_open": {
+  "text": "What you wrote then. A level this note named was touched, the name moved 8% or more, or a date you set arrived. This is the saved version that first named it, shown read only. Close this to go back to the note as it is now. To restore an older version, use History. Got it closes this note.\nWhat you wrote then\n\nA level this note named was touched, the name moved 8% or more, or a date you set arrive",
+  "in_sheet": true,
+  "box": [
+   936,
+   662,
+   320,
+   214
+  ]
+ },
+ "sheet_text": "What you wrote then\n×\n\nSaved 2:14 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nfe2 thesis V1280\n\nFirst thought: the stop is 170.\n\nBack to the note as it is now\nWhat you wrote then. A level this note named was touched, the name moved 8% or more, or a date yo",
+ "tours_pref_after_showing": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"note-resurfaces\":{\"v\":1,\"state\":\"started\",\"step\":\"then\"}}",
+ "explainer_second_open_count": 0
+}

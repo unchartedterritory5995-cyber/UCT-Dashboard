@@ -146,6 +146,9 @@ const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trad
 // Wave 13 lane 13B: My Playbook (dark behind notebook_playbook_enabled; the page sends the member
 // back to Insights while it is off, and its API answers 404).
 const J2MyPlaybook = lazy(() => import('./pages/journal-2-0/components/insights/MyPlaybook'))
+// Finish program, lane KEYS: the standalone Journal pages land keyboard focus on arrival
+// (Journal routes only). Lazy, so the app entry does not grow.
+const J2RouteFocus = lazy(() => import('./pages/journal-2-0/lib/routeFocus'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsWorkspace'))
@@ -730,12 +733,12 @@ export default function App() {
                 </Route>
                 <Route path="/community" element={<Community />} />
                 <Route path="/community/:threadId" element={<Community />} />
-                <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
-                <Route path="/journal-2-0/report" element={<J2ReportPage />} />
-                <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
-                <Route path="/journal-2-0/trade/:id" element={<J2TradeDetailPage />} />
+                <Route path="/journal-2-0/calendar/:date" element={<><J2RouteFocus /><J2DayDetailPage /></>} />
+                <Route path="/journal-2-0/report" element={<><J2RouteFocus /><J2ReportPage /></>} />
+                <Route path="/journal-2-0/position/:sym" element={<><J2RouteFocus /><J2PositionDetailPage /></>} />
+                <Route path="/journal-2-0/trade/:id" element={<><J2RouteFocus /><J2TradeDetailPage /></>} />
                 {/* Wave 13 lane 13B: My Playbook, reached from Insights > Playbook. */}
-                <Route path="/journal-2-0/playbook" element={<J2MyPlaybook />} />
+                <Route path="/journal-2-0/playbook" element={<><J2RouteFocus /><J2MyPlaybook /></>} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />

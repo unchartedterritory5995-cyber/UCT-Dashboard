@@ -30,7 +30,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from '../authoring'
-import { converseTurn } from '../authoring/converseClient'
+import { openAuthoringState } from '../authoring/authoringState'
+import { converseTurn, transcriptSnippets, distinctNotUnderstood } from '../authoring/converseClient'
 import { classifyTurn, OUTCOMES } from '../authoring/turnOutcome'
 import { preflight } from '../authoring/preflight'
 import { readSession, writeSession, clearSession } from '../authoring/conversationSessions'
@@ -38,6 +39,9 @@ import { storeConversation, attachConversation, armConversationAlerts } from '..
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from './chartPreview'
+import { memberError, memberSaveError, memberRefusal } from '../authoring/memberWords'
+import { logStudioAction, definitionKinds, clientFailureOf } from '../authoring/studioTelemetry'
+import { outputNamer, slotWords } from '../authoring/readback'
 
 /** The member-facing type word for an output, keyed by the P1 type authority's own values. */
 const TYPE_WORDS = Object.freeze({
@@ -58,8 +62,9 @@ function changeWords(c) {
   }
 }
 
-/** A refused engine error, without engine jargon. The code stays on the entry. */
-const errorWords = (e) => String((e && e.message) || 'That change could not be applied.')
+/** A refused engine error, without engine jargon (P3 UX: the ONE mapping,
+ *  `memberError`). The code and the engine's message stay on the entry. */
+const errorWords = (e, working = null) => memberError(e, { nameOf: working ? outputNamer(working) : null }).text
 
 /**
  * The deterministic lines a UCT reply carries after a successful turn: what each
@@ -69,11 +74,12 @@ export function replyLines(rb, state, changes = []) {
   const lines = []
   for (const c of changes) { const w = changeWords(c); if (w) lines.push(w) }
   for (const o of rb.outputs || []) {
-    if (o.sentence) lines.push(o.sentence)
+    if (o.phrase) lines.push(`${o.name || o.label} — ${o.phrase}`)
+    else if (o.sentence) lines.push(o.sentence)
   }
   for (const a of state.assumptions || []) {
     if (a.revision !== state.revision) continue
-    if (a.label !== undefined) lines.push(`Using ${a.label} = ${a.value}.`)
+    if (a.label !== undefined) lines.push(`Using ${slotWords(a.label)} ${a.value}.`)
     else if (a.source === 'engine') lines.push(`Default: ${a.text}.`)
   }
   return lines
@@ -81,20 +87,47 @@ export function replyLines(rb, state, changes = []) {
 
 const NOTHING_CHANGED = 'Nothing on the chart changed.'
 
+/** ⭐ PHASE 4 — the first line of an opened definition's conversation. */
+function openedEntry(open) {
+  const def = open.def
+  const name = (def && def.meta && def.meta.name) || open.defId
+  const st = openAuthoringState(def, { defId: open.defId, version: open.version })
+  const rb = readback(st.working, st, {})
+  return {
+    id: 0, role: 'uct', kind: 'opened',
+    lines: [`Opened “${name}” (saved version ${open.version}). Describe a change — nothing is saved until you choose Save.`,
+      ...(rb.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)],
+  }
+}
+
 /**
  * @param {object} p
  * @param {string|null} p.sym / p.tf   the chart the studio was opened over
  * @param {Function} [p.converse]      injectable client (tests / harness)
  * @param {string|null} [p.sessionKey] the opaque authoring context to keep the
  *                                     conversation under while the dock is closed
+ * @param {{def: object, defId: string, version: number}|null} [p.open] ⭐ PHASE 4 —
+ *   an EXISTING user definition to edit (the store's row). The studio opens it as
+ *   its working snapshot: OPEN != MUTATE — nothing is written until Save, and an
+ *   opened, untouched definition is clean.
  */
-export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null } = {}) {
+export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null, open = null } = {}) {
   // ⭐ Restored once, at mount — the same key reopened is the same conversation.
-  const [initial] = useState(() => readSession(sessionKey))
-  const [state, setState] = useState(() => (initial && initial.state) || newAuthoringState())
+  // ⭐ PHASE 4 — an EDIT's draft is restored only while it was opened from the
+  // version that is STILL the stored one; a draft of an older version is stale
+  // and the studio reopens the definition as it is now.
+  const [initial] = useState(() => {
+    const kept = readSession(sessionKey)
+    if (!open) return kept
+    const st = kept && kept.state
+    return st && st.defId === open.defId && st.baseVersion === open.version ? kept : null
+  })
+  const [state, setState] = useState(() => (initial && initial.state)
+    || (open && open.def ? openAuthoringState(open.def, { defId: open.defId, version: open.version }) : newAuthoringState()))
   const stateRef = useRef(state)
   const commit = useCallback((next) => { stateRef.current = next; setState(next) }, [])
-  const [transcript, setTranscript] = useState(() => (initial && initial.transcript) || [])
+  const [transcript, setTranscript] = useState(() => (initial && initial.transcript)
+    || (open && open.def ? [openedEntry(open)] : []))
   const transcriptRef = useRef(transcript)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -102,16 +135,20 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   /** Bumped on every applied change — the "Updated preview" cue keys off it. */
   const [changeSeq, setChangeSeq] = useState(0)
   const restored = !!(initial && ((initial.transcript && initial.transcript.length) || (initial.state && initial.state.working)))
+  /** ⭐ PHASE 4 — true while this studio edits a stored definition. */
+  const editing = !!(state.defId && Number.isInteger(state.baseVersion))
   const gateCtx = useMemo(() => ({ tf, symbol: sym }), [tf, sym])
 
   // Keep the session current. Nothing to keep (a fresh, untouched dock) is not
   // stored, so opening and closing an empty dock leaves no session behind.
+  // ⭐ PHASE 4 — an opened, untouched definition is "nothing to keep" too.
   const ended = useRef(false)
   useEffect(() => {
     if (!sessionKey || ended.current) return
     if (!transcript.length && !state.working) return
+    if (open && !isDirty(state) && transcript.length <= 1) return
     writeSession(sessionKey, { state, transcript, acked })
-  }, [sessionKey, state, transcript, acked])
+  }, [sessionKey, state, transcript, acked, open])
 
   const say = useCallback((entry) => {
     setTranscript((t) => {
@@ -121,15 +158,18 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     })
   }, [])
 
+  // ⭐ ROLLOUT FUNNEL — the dock was opened on this conversation (once; de-duplicated
+  // server-side per lineage).
+  useEffect(() => { logStudioAction(stateRef.current.lineage, 'opened', { surface: 'studio' }) }, [])
+
   const rb = useMemo(() => readback(state.working, state, gateCtx), [state, gateCtx])
 
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return false
     const before = stateRef.current
-    const snippets = transcriptRef.current.slice(-6).map((t) => (t.role === 'member'
-      ? { role: 'member', text: t.text }
-      : { role: 'assistant', text: (t.lines || []).join(' · ') }))
+    // ⭐ P3: the assistant's own replies (answer AND change) ride along as context.
+    const snippets = transcriptSnippets(transcriptRef.current)
     say({ role: 'member', text: words })
 
     // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / other-timeframe request is
@@ -145,24 +185,26 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
       const gaps = [
-        ...((res && res.notUnderstood) || []).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
+        ...distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
         ...((res && res.unavailable) || []).map((n) => `${n.column || n.name || 'That'} isn't available yet${n.reason ? ` — ${n.reason}` : ''}.`),
       ]
       const turn = classifyTurn(res)
       // ⛔ ANSWER / UNSUPPORTED / REFUSED: the assistant's words, and NOTHING else.
       // `state` is not touched — not even replaced with an equal copy.
       if (turn.outcome === OUTCOMES.ANSWER) {
-        say({ role: 'uct', kind: 'answer', lines: [turn.reply, ...gaps] })
+        say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
         return true
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED) {
         say({ role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
-          lines: [turn.reply || turn.reason, ...gaps, NOTHING_CHANGED] })
+          lines: [turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
         return false
       }
       if (turn.outcome === OUTCOMES.REFUSED) {
+        const failure = clientFailureOf(turn.gate)
+        if (failure) logStudioAction(before.lineage, 'turn_failed', { surface: 'studio', failure })
         say({ role: 'uct', kind: 'refusal', gate: turn.gate,
-          lines: [turn.reason, ...gaps, NOTHING_CHANGED] })
+          lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
         return false
       }
       // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
@@ -172,20 +214,25 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       const { result } = out
       if (result.status === 'refused') {
         say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
-          lines: [...(result.errors || []).map(errorWords), ...gaps, NOTHING_CHANGED] })
+          details: (result.errors || []).map((e) => memberError(e).detail),
+          lines: [...(result.errors || []).map((e) => errorWords(e, stateRef.current.working)), ...gaps, NOTHING_CHANGED] })
         return false
       }
       if (result.status === 'question') {
         commit(out.state)
-        say({ role: 'uct', kind: 'question', questions: out.state.questions,
+        say({ role: 'uct', kind: 'question', questions: out.state.questions, reply: turn.reply || '',
           lines: [...(turn.reply ? [turn.reply] : []), ...gaps, ...out.state.questions.map((q) => q.text)] })
         return true
       }
       commit(out.state)
       setAcked(false)
       setChangeSeq((n) => n + 1)
+      logStudioAction(out.state.lineage, 'preview', { surface: 'studio' })
+      // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the
+      // model wrote. Its prose is not the authority on applied state (P3R, real model:
+      // "Its name still says 'EMA 20'" beside a readback of EMA 50), so it is not shown
+      // and -- not being on the entry -- never rides back to the model as context.
       say({ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-        reply: turn.reply || '',
         lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] })
       return true
     } finally {
@@ -202,7 +249,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     setChangeSeq((n) => n + 1)
     const after = readback(next.working, next, gateCtx)
     say({ role: 'uct', kind: 'undo', lines: next.working
-      ? ['Undid the last change.', ...(after.outputs || []).map((o) => o.sentence).filter(Boolean)]
+      ? ['Undid the last change.', ...(after.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)]
       : ['Undid the last change. The chart preview is cleared.'] })
     return true
   }, [busy, saving, commit, gateCtx, say])
@@ -221,9 +268,13 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
-        say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', stored.error] })
+        logStudioAction(cur.lineage, 'save_failed', { surface: 'studio' })
+        const m = memberSaveError(stored)
+        say({ role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] })
         return { ok: false, error: stored.error }
       }
+      logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
+        kinds: definitionKinds(stored.storedDoc, stored.requests) })
       if (typeof beforeAttach === 'function') beforeAttach()
       const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings })
       if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
@@ -231,7 +282,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       const outcomes = [...attached.outcomes, ...alerts]
       say({ role: 'uct', kind: 'saved', lines: outcomes.map((o) => o.text), outcomes })
       // Creation is complete (the dock closes on it): this context's session ends,
-      // so the next Create Indicator starts a new definition.
+      // so the next Create Indicator starts a new definition. ⭐ PHASE 4 — an edit
+      // ends the same way: the store's row is the authority again.
       ended.current = true
       clearSession(sessionKey)
       return { ok: true, storedDoc: stored.storedDoc, instanceId: attached.instanceId, outcomes }
@@ -242,6 +294,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   /** Discard: the member threw this draft away on purpose. */
   const discard = useCallback(() => {
+    if (stateRef.current.working) logStudioAction(stateRef.current.lineage, 'discarded', { surface: 'studio' })
     ended.current = true
     clearSession(sessionKey)
   }, [sessionKey])
@@ -253,17 +306,29 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
    *  (pinned in `chartPreview.test.js`). */
   const previewDefinition = useMemo(() => {
     if (!state.working) return null
-    return stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: null })
-  }, [state.working])
+    // ⭐ PHASE 4 — an edit previews under the store's rule for an EDIT (prior = the
+    // stored definition): an unchanged-maths edit keeps its semantics, a Pine import
+    // keeps Pine's.
+    return stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: state.base || null })
+  }, [state.working, state.base])
 
   const lastEntry = transcript.length ? transcript[transcript.length - 1] : null
   const questions = lastEntry && lastEntry.kind === 'question' ? (lastEntry.questions || []) : []
   const needsAck = rb.needsAck || []
   const dirty = isDirty(state)
 
+  // ⭐ P3 UX — the draft lives in this tab's memory only (✕ keeps it, by design):
+  // a reload or a closed tab would lose an unsaved draft silently, so ask first.
+  useEffect(() => {
+    if (!dirty || typeof window === 'undefined') return undefined
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
-    previewDefinition, send, undo, save, discard, dirty, restored,
+    previewDefinition, send, undo, save, discard, dirty, restored, editing,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }

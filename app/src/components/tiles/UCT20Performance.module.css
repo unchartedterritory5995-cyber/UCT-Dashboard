@@ -119,7 +119,7 @@
 }
 .openStop {
   font-family: var(--font-sans);
-  font-size: 10px; color: var(--loss); opacity: 0.75; flex: 1;
+  font-size: 10px; color: var(--danger-ink); opacity: 0.75; flex: 1;
 }
 /* Takes the same slot the bare stop price used to occupy, so the row keeps its
    column rhythm. Colour comes from .gain/.loss on the element -- the Book's
@@ -186,13 +186,13 @@
   align-items: center;
 }
 .tradesRow:last-child { border-bottom: none; }
-.tradesRow:hover { background: rgba(255,255,255,0.02); }
+.tradesRow:hover { background: color-mix(in srgb, var(--text-heading) 2%, transparent); }
 .tradeSym { font-weight: 700; color: var(--ut-cream); }
 .alignRight { text-align: right; }
 
 /* ── Utilities ── */
-.gain   { color: var(--gain); }
-.loss   { color: var(--loss); }
+.gain   { color: var(--success-ink); }
+.loss   { color: var(--danger-ink); }
 .muted  { color: var(--text-muted); }
 
 /* ── Tooltip ── */
@@ -269,7 +269,7 @@
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   margin: 0 0 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text-heading) 2%, transparent);
 }
 .bookHead {
   display: flex; align-items: center; gap: 8px;
@@ -291,7 +291,7 @@
   border: 1px solid var(--border);
 }
 .bookLive {
-  color: var(--gain);
+  color: var(--success-ink);
   border: 1px solid var(--gain);
 }
 .bookNote {

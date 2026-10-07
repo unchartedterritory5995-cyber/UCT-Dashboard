@@ -18,6 +18,7 @@
 import { useMemo } from 'react'
 import MiniBars from './MiniBars'
 import styles from './dockPanels.module.css'
+import { currencyPrefix, formatCompact, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 
 const shortFy = (label, year) =>
   (label ? String(label).replace(/^FY(\d{2})(\d{2})/, 'FY$2') : `FY${String(year).slice(2)}`)
@@ -36,20 +37,33 @@ function Strip({ title, rows, format }) {
   )
 }
 
-const fmtMoney = (v) => {
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact); this keeps its
+// own ladder and sign rule (formatCompact only sees the magnitude). Exported for the
+// frozen-oracle test (widgetFormatters.term066.test.js).
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+]
+// `ccy` = the earnings-intel payload's reporting currency (TSM -> "TWD"). Revenue prints in it,
+// never "$"; EPS prints WITHOUT a symbol for a non-USD filer, because its EPS leg can be a
+// per-ADR figure in another currency -- the same rule EE/FA follow (earnings_intel
+// `_reporting_currency`). USD or unknown renders exactly as before (accuracy follow-up 7).
+export const fmtMoney = (v, ccy) => {
+  const prefix = currencyPrefix(ccy)
   const a = Math.abs(v)
-  if (a >= 1e12) return `${v < 0 ? '-' : ''}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${v < 0 ? '-' : ''}$${(a / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${v < 0 ? '-' : ''}$${(a / 1e6).toFixed(0)}M`
-  return `${v < 0 ? '-' : ''}$${a.toFixed(0)}`
+  const s = v < 0 ? '-' : ''
+  if (a < 1e6) return `${s}${prefix}${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix })}`
 }
-const fmtEps = (v) => `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`
+export const fmtEps = (v, ccy) => `${v < 0 ? '-' : ''}${isForeignCurrency(ccy) ? '' : '$'}${Math.abs(v).toFixed(2)}`
 
 /**
  * @param annual  { reported: [...], estimates: [...] } from /api/earnings-intel
  * @param years   how many fiscal years of history to draw
+ * @param currency the payload's reporting currency (`currency`), null = unknown
  */
-export default function BusinessTrend({ annual, years = 5 }) {
+export default function BusinessTrend({ annual, years = 5, currency = null }) {
   const rows = useMemo(
     // REPORTED YEARS ONLY. A forward estimate was prototyped here and removed
     // after looking at it: on Micron the FY26 consensus is ~3.5x the largest
@@ -69,8 +83,9 @@ export default function BusinessTrend({ annual, years = 5 }) {
   return (
     <section className={`${styles.section} ${styles.layerBreak}`}>
       <div className={styles.secHead}>Business trend</div>
-      <Strip title="Revenue" rows={revRows} format={fmtMoney} />
-      <Strip title="EPS" rows={epsRows} format={fmtEps} />
+      <Strip title={isForeignCurrency(currency) ? `Revenue (${normalizeCurrencyCode(currency)})` : 'Revenue'}
+        rows={revRows} format={(v) => fmtMoney(v, currency)} />
+      <Strip title="EPS" rows={epsRows} format={(v) => fmtEps(v, currency)} />
       <div className={styles.btAxis} style={{ gridTemplateColumns: `repeat(${axis.length}, 1fr)` }}>
         {axis.map((a, i) => (
           <span key={a + i} className={`${styles.btYear}${rows[i].estimate ? ' ' + styles.btYearEst : ''}`}>{a}</span>

@@ -16,7 +16,7 @@
   font-weight: 600;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .time {
@@ -46,14 +46,14 @@
   flex: 0 0 auto;
 }
 
-.open   { color: var(--gain); }
+.open   { color: var(--success-ink); }
 .open .dot {
   background: var(--gain);
   box-shadow: 0 0 8px var(--gain);
   animation: clockPulse 2s ease-in-out infinite;
 }
-.ext    { color: var(--ut-gold, #dcbb5e); }
-.ext .dot { background: var(--ut-gold, #dcbb5e); box-shadow: 0 0 8px rgba(220, 187, 94, 0.7); }
+.ext    { color: var(--ut-gold); }
+.ext .dot { background: var(--ut-gold); box-shadow: 0 0 8px color-mix(in srgb, var(--ut-gold) 70%, transparent); }
 .closed { color: var(--text); }
 .closed .dot { background: var(--text-muted); }
 

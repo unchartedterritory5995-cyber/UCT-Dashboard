@@ -1342,7 +1342,10 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: authoring door (one turn in, a structured patch out, applied by the CLIENT
 #: engine, stored nowhere). It carries its OWN `require_paid` and shares
 #: `/propose`'s hourly window and daily ledger; verified before this moved.
-EXPECTED_ROUTE_COUNT = 18
+#: 2026-10-07 (Phase 4): 18 -> 19 — `POST /{def_id}/fork`, "Create custom copy" (a
+#: new, independent definition from the caller's OWN). Its OWN `require_paid` was
+#: verified before this moved; the other two sites moved with it.
+EXPECTED_ROUTE_COUNT = 19
 
 
 def _routes():

@@ -13,7 +13,8 @@
  * and this renders the server's OWN sentence for it — never field rows, never a fabricated value.
  * Dark behind `notebook_entry_context_enabled`; a free plan's 402 renders nothing (same as off).
  */
-import { useId } from 'react'
+import { useId, useRef } from 'react'
+import { SkipLinkPortal } from '../../../components/skipLinks'
 import { useEntryContextFor, useEntryContextMeta } from '../hooks/useEntryContext'
 import WhyPrompt from './WhyPrompt'
 import styles from './EntryContextCard.module.css'
@@ -54,7 +55,16 @@ function FieldRow({ fieldKey, label, field, format, missingReasons }) {
   )
 }
 
-export default function EntryContextCard({ kind, id }) {
+const LANDING = {
+  position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, border: 0,
+  overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', outline: 'none',
+}
+
+// `skipLink` (lane KEYS): the page asks for a "Skip to why you took it" link in the shell's
+// skip-link slot. A position page passes it: there the field sits below a chart whose header
+// is 22 Tab stops. Off by default, so every other caller is unchanged.
+export default function EntryContextCard({ kind, id, skipLink = false }) {
+  const whyLandingRef = useRef(null)
   const { meta } = useEntryContextMeta()
   const { enabled, status, context, reason, error, isLoading, paidOut, retry } =
     useEntryContextFor(kind, id)
@@ -135,6 +145,17 @@ export default function EntryContextCard({ kind, id }) {
         <FieldRow fieldKey="uct_scans" label="UCT scans" field={f.uct_scans} missingReasons={missingReasons}
           format={(field) => ((field.value || []).length ? field.value.map(humanizeScan).join(', ') : 'None')} />
       </div>
+      {skipLink && (
+        <>
+          <SkipLinkPortal>
+            <a href="#why-you-took-it" className={styles.skipLink}
+              onClick={(e) => { e.preventDefault(); whyLandingRef.current?.focus() }}>
+              Skip to why you took it
+            </a>
+          </SkipLinkPortal>
+          <span id="why-you-took-it" ref={whyLandingRef} tabIndex={-1} style={LANDING}>Why did you take it?</span>
+        </>
+      )}
       <WhyPrompt
         symbol={context.symbol}
         entryDay={context.entryDay}

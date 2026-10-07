@@ -1293,6 +1293,21 @@ def _normalize_earnings(raw, amc_tonight_raw=None) -> dict:
     return {"bmo": bmo[:15], "amc": amc[:15], "amc_tonight": amc_tonight[:15]}
 
 
+def _row_timing(row: dict | None) -> str | None:
+    """The report's session carried on an earnings row: the warm path's
+    `session` ("BMO"/"AMC"/"TBD", `earnings_preview_warm.engine_row`), a raw
+    calendar `hour`, or the bucket the click path stamps
+    (`routers/earnings._resolve_row`). Feeds the implied-move expiry choice (an
+    after-close print needs the expiry AFTER the date); None lets
+    `enrich_earnings_response` resolve it itself."""
+    row = row or {}
+    for k in ("session", "hour", "timing"):
+        v = str(row.get(k) or "").strip()
+        if v and v.lower() != "tbd":     # TBD = unknown: let the resolver try
+            return v
+    return None
+
+
 def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: bool = False) -> dict:
     """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h.
 
@@ -1408,7 +1423,8 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     try:
         from api.services.earnings_enrichment import enrich_earnings_response
         earnings_date = (row or {}).get("date") or (row or {}).get("earnings_date")
-        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
+        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date,
+                                              timing=_row_timing(row))
     except Exception as _e:
         _logger.warning("enrichment failed for %s (analysis): %s", sym, _e)
 
@@ -1795,7 +1811,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     try:
         from api.services.earnings_enrichment import enrich_earnings_response
         earnings_date = row.get("date") or row.get("earnings_date")
-        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
+        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date,
+                                              timing=_row_timing(row))
     except Exception as _e:
         _logger.warning("enrichment failed for %s (preview): %s", sym, _e)
 

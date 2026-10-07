@@ -204,11 +204,20 @@ export function ReviewDraftsSection({ accountId }) {
     <div className={styles.comingSoon} data-testid="review-drafts-section">
       <UIcon name="book" size={26} className={styles.comingSoonGlyph} />
       <h4 className={styles.comingSoonTitle}>Reviews that write themselves</h4>
-      <p className={styles.comingSoonText}>
-        One click drafts the trades and P&amp;L, the discipline record, setup changes,
-        links to plans and prior reviews, the best and worst trade, and any leaks —
-        from your own numbers, never generated.
-      </p>
+      {planGradingEnabled() ? (
+        <p className={styles.comingSoonText}>
+          One click drafts the trades and P&amp;L, the discipline record, setup changes,
+          links to plans and prior reviews, the best and worst trade, and any leaks —
+          from your own numbers, never generated.
+        </p>
+      ) : (
+        <p className={styles.comingSoonText}>
+          One click drafts the trades and P&amp;L, setup changes, links to plans and prior
+          reviews, the best and worst trade, and any leaks — from your own numbers, never
+          generated. The discipline record is left out: it comes from plan grading, which is
+          not switched on for your account.
+        </p>
+      )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <button
           type="button"

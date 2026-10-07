@@ -16,9 +16,100 @@ from api.services.serve_stale import ServeStale
 _log = logging.getLogger(__name__)
 
 
-def select_report_expiry(expirations: list[str], report_date: str | None) -> str | None:
+AFTER_CLOSE_TIMINGS = frozenset({"amc", "after", "after_close", "post", "pm"})
+
+
+def reports_after_close(timing) -> bool:
+    """True when `timing` says the report lands AFTER the 4 PM close."""
+    return str(timing or "").strip().lower() in AFTER_CLOSE_TIMINGS
+
+
+# ── Report timing for callers that know only (symbol, date) ─────────────────
+#
+# The calendar knows each reporter's session (its bmo/amc buckets); the ERX
+# panel, the Discord chart context and the earnings-preview enrichment know
+# only a symbol and a report date. `report_timing` answers 'bmo' / 'amc' for
+# them from, in order:
+#   1. the engine's weekly calendar (wire_data['weekly_calendar'][date].bmo/amc)
+#      -- the same multi-source buckets the Calendar page renders; a cache /
+#      disk read, no vendor call;
+#   2. Finnhub's symbol-filtered `/calendar/earnings` `hour` field (bmo / amc /
+#      dmh), through the budgeted `_fh_get`.
+# Anything else (dmh, '', not listed, a vendor failure) is None = UNKNOWN, and
+# an unknown timing keeps the on-or-after rule: the same-day expiry. That is the
+# documented default -- right for a pre-market or intraday print, one expiry
+# early for an after-close print whose session no source states.
+# Results (None included) are cached per (symbol, date) for `_TIMING_TTL`.
+
+_TIMING_TTL = 6 * 3600
+_timing_cache = TTLCache()
+
+
+def _wire_timing(sym: str, day: str) -> str | None:
+    from api.services.engine import _load_wire_data
+    cal = (_load_wire_data() or {}).get("weekly_calendar") or {}
+    entry = cal.get(day) if isinstance(cal, dict) else None
+    if not isinstance(entry, dict):
+        return None
+    for bucket in ("bmo", "amc"):
+        for e in entry.get(bucket) or []:
+            if isinstance(e, dict) and str(e.get("sym") or e.get("symbol") or "").upper() == sym:
+                return bucket
+    return None
+
+
+def _finnhub_timing(sym: str, day: str) -> str | None:
+    from api.services.earnings_estimates import _fh_get
+    data = _fh_get("/calendar/earnings", {"symbol": sym, "from": day, "to": day})
+    rows = (data or {}).get("earningsCalendar") if isinstance(data, dict) else None
+    for r in rows or []:
+        if isinstance(r, dict) and str(r.get("date") or "")[:10] == day:
+            hour = str(r.get("hour") or "").strip().lower()
+            if hour in ("bmo", "amc"):
+                return hour
+    return None
+
+
+def report_timing(sym: str | None, report_date: str | None) -> str | None:
+    """'bmo' | 'amc' | None (unknown) for `sym` reporting on `report_date`.
+    Never raises; see the block comment above for sources and the default."""
+    sym = str(sym or "").strip().upper()
+    day = str(report_date or "")[:10]
+    if not sym or not day:
+        return None
+    try:
+        _dt.date.fromisoformat(day)
+    except ValueError:
+        return None
+    key = f"timing::{sym}::{day}"
+    hit = _timing_cache.get(key)
+    if hit is not None:
+        return hit or None
+    timing = None
+    for source in (_wire_timing, _finnhub_timing):
+        try:
+            timing = source(sym, day)
+        except Exception as exc:  # noqa: BLE001 -- best effort, unknown on failure
+            _log.debug("report_timing: %s failed for %s %s: %s", source.__name__, sym, day, exc)
+            timing = None
+        if timing:
+            break
+    _timing_cache.set(key, timing or "", _TIMING_TTL)
+    return timing
+
+
+def select_report_expiry(expirations: list[str], report_date: str | None,
+                         timing: str | None = None) -> str | None:
     """First expiry ≥ report_date; front expiry when no date; None when the
-    report lies beyond every listed expiry (better no number than a wrong one)."""
+    report lies beyond every listed expiry (better no number than a wrong one).
+
+    ⛔ An AFTER-CLOSE report needs the first expiry STRICTLY AFTER the report date:
+    an expiry ON that date settles at 4 PM, before the print, so its straddle holds
+    no earnings move at all. Single names now list Mon/Wed/Fri expiries, so a
+    Wednesday AMC reporter (NVDA, TSLA) picked the Wednesday expiry and published a
+    one-day non-event straddle as the "expected move" (accuracy audit 2026-10-06).
+    A pre-market (or unknown-timing) report keeps the same-day expiry, which
+    settles after the reaction session."""
     exps = sorted(e for e in (expirations or []) if e)
     if not exps:
         return None
@@ -29,9 +120,11 @@ def select_report_expiry(expirations: list[str], report_date: str | None) -> str
     except (TypeError, ValueError):
         _log.warning("select_report_expiry: unparseable report_date=%s, returning None", report_date)
         return None
+    after_close = reports_after_close(timing)
     for e in exps:
         try:
-            if _dt.date.fromisoformat(e) >= target:
+            d = _dt.date.fromisoformat(e)
+            if d > target or (d == target and not after_close):
                 return e
         except ValueError:
             continue
@@ -334,12 +427,12 @@ def straddle_from_rows(calls: list[dict], puts: list[dict], spot: float) -> dict
     return result["move"] if result["ok"] else None
 
 
-def compute_expected_move_result(sym: str, report_date: str | None) -> dict:
+def compute_expected_move_result(sym: str, report_date: str | None, timing: str | None = None) -> dict:
     """`compute_expected_move`, but tagged: always a dict, shaped exactly like
     `evaluate_straddle`'s. This is the primitive; the None-returning function
     below is the adapter every existing caller keeps using."""
     exps = polygon_options.list_expirations(sym)
-    expiry = select_report_expiry(exps.get("expirations") or [], report_date)
+    expiry = select_report_expiry(exps.get("expirations") or [], report_date, timing)
     if not expiry:
         _log.debug("expected_move %s: no valid expiry", sym)
         return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": UNAVAILABLE_NO_EXPIRY,
@@ -375,14 +468,15 @@ def compute_expected_move_result(sym: str, report_date: str | None) -> dict:
 
 
 def compute_expected_move(sym: str, report_date: str | None,
-                          *, outcome: dict | None = None) -> dict | None:
+                          *, outcome: dict | None = None, timing: str | None = None) -> dict | None:
     """Adapter over `compute_expected_move_result` — unchanged contract.
 
     `outcome` is an optional OUT-dict (the idiom this repo already uses for
     breadth's drill `members`): it is filled with the tagged result minus the
     payload, so a caller that needs to record WHY nothing came back gets it
     from the SAME evaluation, never from a second pass."""
-    result = compute_expected_move_result(sym, report_date)
+    result = (compute_expected_move_result(sym, report_date, timing) if timing
+              else compute_expected_move_result(sym, report_date))
     if outcome is not None:
         outcome.clear()
         outcome.update({k: v for k, v in result.items() if k != "move"})
@@ -408,7 +502,7 @@ def _move_is_good(payload: dict | None) -> bool:
 
 
 def get_expected_move(sym: str, report_date: str | None = None,
-                      *, outcome: dict | None = None) -> dict | None:
+                      *, outcome: dict | None = None, timing: str | None = None) -> dict | None:
     """Cached front for `compute_expected_move`: fresh TTL cache wins; else the
     last good straddle serves the gap while a background refresh runs; else
     this caller builds synchronously (single-flight).
@@ -425,12 +519,15 @@ def get_expected_move(sym: str, report_date: str | None = None,
     not cached (`_move_is_good` is unchanged) — the value we would be
     remembering is the absence of a number, and a chain that re-lists a strike
     should be able to answer tomorrow without waiting out a TTL."""
-    key = f"expmove::{(sym or '').upper()}::{report_date or ''}"
+    amc = reports_after_close(timing)
+    # an AMC read picks a different expiry, so it is a different cache entry
+    key = f"expmove::{(sym or '').upper()}::{report_date or ''}" + ("::amc" if amc else "")
     built: dict = {}
 
     def _build():
         oc: dict = {}
-        value = compute_expected_move(sym, report_date, outcome=oc)
+        value = (compute_expected_move(sym, report_date, outcome=oc, timing="amc") if amc
+                 else compute_expected_move(sym, report_date, outcome=oc))
         built.clear()
         built.update(oc)
         if value is not None:

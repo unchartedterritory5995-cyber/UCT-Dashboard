@@ -31,7 +31,7 @@
 }
 .toggle:hover,
 .toggle:focus-visible { color: var(--text-bright); background: var(--bg-surface); }
-.toggle:focus-visible { outline: 2px solid var(--color-accent, #c9a84c); outline-offset: 1px; }
+.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .panel {
   position: absolute;
@@ -97,7 +97,7 @@
 .passage {
   display: block;
   padding-left: 8px;
-  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  border-left: 2px solid var(--ut-gold);
   color: var(--text, #e8e6df);
   font-style: normal;
 }
@@ -107,7 +107,7 @@
   min-height: 24px;
   padding: 2px 8px;
   font-size: 11px;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   background: transparent;
   border: 1px solid var(--border-accent, var(--text-muted));
   border-radius: var(--radius-md);
@@ -115,7 +115,7 @@
 }
 .openSource:hover,
 .openSource:focus-visible { color: var(--text-bright); }
-.openSource:focus-visible { outline: 2px solid var(--color-accent, #c9a84c); outline-offset: 1px; }
+.openSource:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 @media (max-width: 1024px) {
   .togglePassage {

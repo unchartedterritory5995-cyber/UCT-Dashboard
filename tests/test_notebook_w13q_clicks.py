@@ -793,6 +793,55 @@ def test_trade_row_prefers_the_real_table_row_when_one_exists():
     assert pg.queries[0][0] == "tr"
 
 
+class FakeLeavingPage:
+    """The page a member is LEAVING still names the symbol for a moment (a note's ticker chip),
+    then the Trades page shows its "Loading" fallback, then the table. `alt_script` is what the
+    loose locator finds on each sample; `tr_after` is the sample from which the table exists."""
+
+    def __init__(self, alt_script, tr_after):
+        self.alt_script, self.tr_after = list(alt_script), tr_after
+        self.sample = 0
+
+    def locator(self, selector, has_text=None):
+        page = self
+
+        class Loc:
+            def filter(self, visible=None):
+                return self
+
+            def count(self):
+                if selector == "tr":
+                    return 1 if page.sample >= page.tr_after else 0
+                i = min(page.sample, len(page.alt_script) - 1)
+                return 1 if page.alt_script[i] else 0
+
+            is_table_row = selector == "tr"
+        return Loc()
+
+    def wait_for_timeout(self, ms):
+        self.sample += 1
+
+
+def test_trade_row_never_returns_a_control_of_the_page_being_left():
+    """Finish program, lane KEYS round 3. Q6 on a keyboard read INCONCLUSIVE three times in three
+    runs with a screenshot of "Loading...". The page was not stuck: the helper took the note's
+    own ticker chip (the page being left names CRWD too) as the trade row, the chip was gone a
+    moment later, and the flow gave up within a second. A loose match counts only when it is
+    still there on the next sample; here it is not, and the real table row is what comes back."""
+    pg = FakeLeavingPage(alt_script=[True, False, False, False], tr_after=3)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+    assert row.is_table_row is True
+
+
+def test_trade_row_still_takes_a_loose_match_that_stays():
+    """The phone shape must keep working: no table ever, a card that stays."""
+    pg = FakeLeavingPage(alt_script=[False, True, True, True], tr_after=10 ** 6)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+    assert row.is_table_row is False
+
+
 # ── table_md rendering ───────────────────────────────────────────────────────────────────
 
 def test_table_md_renders_a_missing_measured_as_a_dash_never_a_crash():
@@ -812,6 +861,42 @@ def test_table_md_sanitizes_pipes_and_newlines_in_the_reason_so_the_table_stays_
     body_line = [l for l in out.splitlines() if l.startswith("| Q9")][0]
     assert body_line.count("|") == 10       # 9 columns = 10 pipes; none injected by the reason
     assert "\n" not in body_line
+
+
+# ── the keyboard ruling of 2026-10-07 must not drift from the plan doc that owns it ────────
+
+def _parse_plan_keys_ruling() -> dict[str, tuple[int, int, int]]:
+    """The plan's "Keyboard budgets by ruling" table, read directly: flow -> (plan, floor, budget)."""
+    text = (REPO / "docs" / "notebook" / "WAVE-13-PLAN.md").read_text(encoding="utf-8")
+    start = text.index("| # | plan keys | floor | keys budget |")
+    rows: dict[str, tuple[int, int, int]] = {}
+    for line in text[start:].splitlines()[2:]:
+        m = re.match(r"^\|\s*(Q\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|", line)
+        if not m:
+            break
+        rows[m.group(1)] = (int(m.group(2)), int(m.group(3)), int(m.group(4)))
+    return rows
+
+
+def test_the_keyboard_ruling_in_the_tool_is_the_plans_table():
+    ruling = _parse_plan_keys_ruling()
+    assert len(ruling) == 10                                  # NON-VACUITY: the parser read rows
+    assert set(ruling) == set(w13q.KEYS_RULING_FLOOR)
+    plan_keys = {b[0]: b[3] for b in w13q.BUDGETS}
+    for fid, (plan, floor, budget) in ruling.items():
+        assert plan == plan_keys[fid], fid                    # the "plan keys" column is the plan's own
+        assert floor == w13q.KEYS_RULING_FLOOR[fid], fid
+        assert floor > plan, fid                              # the ruling covers only a floor ABOVE the plan
+        assert budget == floor + w13q.KEYS_RULING_ALLOWANCE, fid
+        assert w13q.BUDGET[fid]["keys"] == budget, fid
+
+
+def test_the_ruling_changes_keyboard_only_and_only_the_eight():
+    for fid, _flow_name, mouse, keys, taps, _owner in w13q.BUDGETS:
+        assert w13q.BUDGET[fid]["mouse"] == mouse and w13q.BUDGET[fid]["taps"] == taps
+        if fid not in w13q.KEYS_RULING_FLOOR:
+            assert w13q.BUDGET[fid]["keys"] == keys, fid
+            assert w13q.BUDGET[fid]["keys_floor"] is None
 
 
 # ── the 23 budgets must not drift from the plan doc that owns them ─────────────────────────
@@ -855,7 +940,9 @@ def test_instrument_budgets_match_the_plan_doc_exactly():
     assert set(plan) == set(w13q.BUDGET)
     for fid, (mouse, keys, taps) in plan.items():
         b = w13q.BUDGET[fid]
-        assert (b["mouse"], b["keys"], b["taps"]) == (mouse, keys, taps), fid
+        # keys_plan is the plan table's own number; keys is that number, or the ruled
+        # one for the eight flows of the 2026-10-07 keyboard ruling (checked above).
+        assert (b["mouse"], b["keys_plan"], b["taps"]) == (mouse, keys, taps), fid
 
 
 # ── finish program, lane CLICKS: one-Tab-stop groups, the helper count, the full roster ─────

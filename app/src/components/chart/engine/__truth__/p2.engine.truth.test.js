@@ -132,7 +132,8 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('4 DEFAULTS DISCLOSED — ASKED "RSI overbought" (no length, no level); CLAIMED 14 and 70 are assumptions; DID: readback discloses them FROM THE DEFINITION (DISCLOSED DIFFERENCE)', () => {
     const rb = turns[0].readback
-    expect(rb.assumptions).toEqual(['Assumed rsi period = 14 (value)', 'Assumed threshold of > = 70 (value)'])
+    // P3 UX: member-voiced slot names (the slot labels themselves are unchanged)
+    expect(rb.assumptions).toEqual(['Assumed RSI period 14', 'Assumed threshold 70'])
     // the member then decided the threshold (T2): that assumption is dropped, the length one stays
     expect(turns[1].state.assumptions.map((a) => a.label)).toEqual(['rsi period'])
     // an engine default (marker position) is disclosed too
@@ -143,7 +144,8 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('7 CANDLE PAINT — ASKED "gold candles"; CLAIMED candles gold where true, nothing else; DID: the P1 signal paint (colour where true, transparent where false/unknown) (EXACT)', () => {
     expect(def(3).paints).toEqual(signalPaintsFor('value', { barcolor: '#FFD700' }))
-    expect(turns[3].readback.presentation).toContain('candles painted #FFD700 where value is true (nothing where it is false or unknown)')
+    // P3S: the one-output label reads back as the WHOLE name -- the chip cut "RSI 14 > 80" hid the AND clause
+    expect(turns[3].readback.presentation).toContain('candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
     expect(def(3).compute).toEqual(def(2).compute) // presentation-only: maths identical
   })
 
@@ -160,14 +162,14 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
     expect(Object.keys(turns[5].state.requests.alerts[0]).sort()).toEqual(['plotKey', 'triggerPolicy'])
     expect(def(5)).toBe(def(5)) // sanity
     expect(stableJson(def(5))).toBe(stableJson(def(4)))
-    expect(turns[5].readback.alerts).toEqual(['Alert when value becomes true'])
+    expect(turns[5].readback.alerts).toEqual(['Alert when RSI 14 > 80 and Close > EMA 20 × 1.08 becomes true'])
   })
 
   it('17 INFO VALUE REQUEST — ASKED "show the RSI value"; CLAIMED the latest RSI in the header; DID: an RSI output plus a {plotKey, format} reference — no formula copy in the request (EXACT)', () => {
     expect(turns[6].state.requests.infoValues).toEqual([{ plotKey: 'rsi', format: 'auto' }])
     expect(outputTypeOf(def(6), 'rsi').type).toBe(OUTPUT_TYPES.SERIES)
     expect(JSON.stringify(turns[6].state.requests)).not.toMatch(/rsi\(|"type"|"args"/)
-    expect(turns[6].readback.infoValues).toEqual(['Chart header shows the latest value of rsi'])
+    expect(turns[6].readback.infoValues).toEqual(['Chart header shows the latest value of RSI 14'])
   })
 
   it('29 "RSI 75" — ASKED a new level after the tree grew; CLAIMED the condition threshold moves; DID: the re-derived slot (value#0.1) moved, the rsi output untouched (EXACT)', () => {
@@ -443,16 +445,18 @@ describe('P2 engine — atomicity, undo, multi-output, imports, semantics, prose
     const ra = readback(a.definition, { assumptions: a.assumptions })
     const rb = readback(b.definition, { assumptions: b.assumptions })
     expect(rb.lines).toEqual(ra.lines)
-    expect(rb.assumptions).toEqual(['Assumed rsi period = 14 (value)'])
+    expect(rb.assumptions).toEqual(['Assumed RSI period 14 (on RSI 14 > 80)']) // two outputs: named
   })
 })
 
 describe('P2 engine — fidelity, view and the shared patch fixture', () => {
   it('UNREPRESENTABLE — a definition carrying a field the Builder would drop is refused, never rebuilt without it (REFUSAL)', () => {
     const d = created()
-    const odd = deepFreeze({ ...d, plots: d.plots.map((p, i) => (i === 0 ? { ...p, legend: { decimals: 4 } } : p)) })
+    // ⭐ PHASE 4 — MATHS the row model cannot hold (an unknown compute stage) still
+    // refuses; a presentation field it cannot author is CARRIED (phase4 tests).
+    const odd = deepFreeze({ ...d, compute: { ...d.compute, importedStage: { kind: 'foreign' } } })
     const r = applyPatch(odd, env({ revision: 0 }, [{ op: 'rename_definition', name: 'x' }]))
-    expect(r.errors[0]).toMatchObject({ code: 'authoring:unrepresentable', paths: ['plots[value].legend.decimals'] })
+    expect(r.errors[0]).toMatchObject({ code: 'authoring:unrepresentable', paths: ['compute.importedStage'] })
     const native = applyPatch({ id: 'rsi', compute: { kind: 'native', fn: 'rsi' }, plots: [{ key: 'rsi' }] },
       env({ revision: 0 }, [{ op: 'rename_definition', name: 'x' }]))
     expect(native.errors[0].code).toBe('authoring:kind')
@@ -495,11 +499,13 @@ describe('P2 engine — fidelity, view and the shared patch fixture', () => {
 })
 
 describe('P2 engine — the remaining ops and guards', () => {
-  it('OP RAIL — the schema names exactly the 19 ops the engine implements', async () => {
+  // ⭐ P3 vocab moved this rail deliberately: 19 → 22 (set_levels, set_fill,
+  // remove_fill — additive, contract still uct.authoring.patch/1).
+  it('OP RAIL — the schema names exactly the 22 ops the engine implements', async () => {
     const { OP_NAMES } = await import('../../builder/authoring/patchValidate')
     const { HANDLED_OPS } = await import('../../builder/authoring/applyPatch')
     expect([...OP_NAMES].sort()).toEqual([...HANDLED_OPS].sort())
-    expect(OP_NAMES).toHaveLength(19)
+    expect(OP_NAMES).toHaveLength(22)
   })
 
   it('REMOVE CLAUSE / PLACEMENT / REMOVE MARKER / REMOVE PAINT / CANCEL — each is an explicit, reversible op (EXACT)', () => {

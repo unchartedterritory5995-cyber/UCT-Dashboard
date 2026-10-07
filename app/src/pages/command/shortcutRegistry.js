@@ -302,6 +302,39 @@ export const SHORTCUTS = Object.freeze([
     target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'Escape exits fullscreen / picture-in-picture on the active video.',
   }),
+
+  // -- the Notebook (finish program, lane KEYS, 2026-10-07) --------------------
+  // Three listeners the Notebook waves added raw. Each is declared here with its scope.
+  decl({
+    id: 'notebook.tourEscape',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Escape closes an open Notebook tour card. Bound only while a tour card is open. '
+      + 'Window capture so the tour decides first; it acts only when its card is the topmost '
+      + 'layer, and otherwise lets the key through untouched.',
+  }),
+  decl({
+    id: 'notebook.tourTrapTab',
+    chord: { keys: ['Tab'] },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Tab stays inside a MODAL Notebook tour card. Bound only while a tour card is open; '
+      + 'a non-modal step lets Tab through untouched.',
+  }),
+  decl({
+    id: 'notebook.bulkBar',
+    chord: { code: 'KeyB', alt: true, shift: false, mod: 'either' },
+    target: 'window', capture: false, inEditable: true, repeat: true,
+    why: 'Ctrl/Cmd+Alt+B moves focus into the bulk action bar. Bound only while notes are '
+      + 'selected on the Notebook list. Physical key, AltGr excluded by the handler.',
+  }),
+  decl({
+    id: 'notebook.toggleChevron',
+    chord: { keys: ['Enter'], ctrl: false, meta: false, alt: false },
+    target: 'document', capture: true, inEditable: true, repeat: true,
+    why: 'Enter on the arrow button of a collapsible block opens or closes it. Bound only '
+      + 'while a note editor exists; the handler acts ONLY when the key was pressed on that '
+      + 'button and otherwise lets Enter through untouched.',
+  }),
 ])
 
 const BY_ID = new Map(SHORTCUTS.map((d) => [d.id, d]))
@@ -322,6 +355,25 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
     why: 'Escape matches both. While the palette is open focus sits in its input, and '
       + 'video.escape is not inEditable, so it does not fire. Resolved by the focus guard — '
       + 'but only while focus stays in that input.',
+  }),
+  Object.freeze({
+    ids: ['notebook.tourEscape', 'palette.close'],
+    kind: 'layer',
+    why: 'Escape matches both. The tour acts only when its card is the topmost layer; with '
+      + 'the palette open above it the tour returns without touching the event and the '
+      + 'palette closes.',
+  }),
+  Object.freeze({
+    ids: ['notebook.tourEscape', 'video.escape'],
+    kind: 'propagation',
+    why: 'Escape matches both. When the tour acts it stops propagation in the window capture '
+      + 'phase, so the video binding (window bubble) never sees that press.',
+  }),
+  Object.freeze({
+    ids: ['notebook.tourTrapTab', 'palette.trapTab'],
+    kind: 'layer',
+    why: 'Tab matches both. The palette pins focus to its own input while it is open; the '
+      + 'tour trap acts only when focus is leaving its own modal card.',
   }),
 ])
 

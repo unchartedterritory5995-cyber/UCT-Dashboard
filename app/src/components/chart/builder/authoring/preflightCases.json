@@ -1,5 +1,5 @@
 {
-  "description": "SLICE 2 - the pre-flight's pinned verdicts, asserted IDENTICALLY by tests/test_conversation_preflight.py and authoring/preflight.test.js. gate null = NOT intercepted (the model handles it).",
+  "description": "SLICE 2 - the pre-flight's pinned verdicts, asserted IDENTICALLY by tests/test_conversation_preflight.py and authoring/preflight.test.js. gate null = NOT intercepted (the model handles it). P3: a QUESTION (questionShape) is never intercepted -- other symbol included; possessive ('SPY's RSI') and adjacent ('SPY RSI') tickers are other-symbol authoring; 'CAN SLIM' is never ticker CAN. `shapes` pins the shared question detector (questionShape) verdicts in both languages.",
   "cases": [
     {
       "message": "Can it compare AAPL with SPY?",
@@ -7,7 +7,8 @@
         "sym": "XRPN",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p3": "a question -- reaches the model (the server backstop refuses a change)"
     },
     {
       "message": "compare AAPL to SPY",
@@ -44,7 +45,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p3": "a question -- reaches the model (the server backstop refuses a change)"
     },
     {
       "message": "Can I compare it against QQQ?",
@@ -52,7 +54,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p3": "a question -- reaches the model (the server backstop refuses a change)"
     },
     {
       "message": "use AAPL",
@@ -247,6 +250,396 @@
         "tf": "D"
       },
       "gate": null
+    },
+    {
+      "message": "What period would you recommend for a swing trader?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "What period would you recommend for a Swing Trader?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "What would you include in an earnings table for CAN SLIM characteristics?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "What's the difference between above 70 and crossing above 70?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Why might that be better?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Make it faster.",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Build an earnings check for CAN SLIM stocks",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Add a CAN-SLIM style filter on RSI",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "What does RSI on SPY look like?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Would this work better on QQQ?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Tell me which period suits weekly bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Explain how the weekly RSI differs",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Should I use the weekly timeframe instead?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Is SPY's RSI above 50 a good market filter?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "Only when SPY's RSI is above 50",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    },
+    {
+      "message": "SPY RSI above 50",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    },
+    {
+      "message": "use QQQ's close",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    },
+    {
+      "message": "Add a condition: QQQ close above its 50 EMA",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    },
+    {
+      "message": "Can you use SPY's close instead?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    },
+    {
+      "message": "Can you add RSI of QQQ?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    },
+    {
+      "message": "use the weekly RSI. Is that ok?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-timeframe",
+      "p3": true
+    },
+    {
+      "message": "Only when AAPL's RSI is above 50",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "AAPL RSI above 50",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "SPY RSI above 50",
+      "chart": null,
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "RSI EMA crossover",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "IF close is above the EMA paint it gold",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "mark BUY signals when RSI crosses 30",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "paint it RED for SELL signals",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "show EPS YOY growth",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "ROE above 20 and ATH breakouts",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p3": true
+    },
+    {
+      "message": "compare it with SPY",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol",
+      "p3": true
+    }
+  ],
+  "shapes": [
+    {
+      "message": "What period would you recommend for a Swing Trader?",
+      "shape": "question"
+    },
+    {
+      "message": "Why might that be better?",
+      "shape": "question"
+    },
+    {
+      "message": "Tell me which period suits weekly bars",
+      "shape": "question"
+    },
+    {
+      "message": "What does RSI on SPY look like?",
+      "shape": "question"
+    },
+    {
+      "message": "So, which length would you use?",
+      "shape": "question"
+    },
+    {
+      "message": "Ok - should I use 21 here",
+      "shape": "question"
+    },
+    {
+      "message": "I'd like to know which is smoother",
+      "shape": "question"
+    },
+    {
+      "message": "I want to understand the difference",
+      "shape": "question"
+    },
+    {
+      "message": "Explain the Relative Strength Index",
+      "shape": "question"
+    },
+    {
+      "message": "Describe what this does",
+      "shape": "question"
+    },
+    {
+      "message": "Recommend a length for weekly bars",
+      "shape": "question"
+    },
+    {
+      "message": "Does this work on a 5 minute chart?",
+      "shape": "question"
+    },
+    {
+      "message": "Do I need a longer period?",
+      "shape": "question"
+    },
+    {
+      "message": "Is SPY's RSI above 50 a good market filter?",
+      "shape": "question"
+    },
+    {
+      "message": "make it 21?",
+      "shape": "authoring"
+    },
+    {
+      "message": "Make it faster.",
+      "shape": "authoring"
+    },
+    {
+      "message": "Can you make it 21?",
+      "shape": "authoring"
+    },
+    {
+      "message": "Could you please add a signal line?",
+      "shape": "authoring"
+    },
+    {
+      "message": "How about 21",
+      "shape": "authoring"
+    },
+    {
+      "message": "Add RSI. Why 14?",
+      "shape": "authoring"
+    },
+    {
+      "message": "Now add a 50 EMA",
+      "shape": "authoring"
+    },
+    {
+      "message": "I want an RSI",
+      "shape": "authoring"
+    },
+    {
+      "message": "Let's use 21",
+      "shape": "authoring"
+    },
+    {
+      "message": "Only when SPY's RSI is above 50",
+      "shape": "other"
+    },
+    {
+      "message": "on the 5 minute timeframe",
+      "shape": "other"
+    },
+    {
+      "message": "RSI above 70",
+      "shape": "other"
+    },
+    {
+      "message": "compare AAPL to SPY",
+      "shape": "compare"
+    },
+    {
+      "message": "Compare the Relative Strength Index with the Moving Average",
+      "shape": "compare"
     }
   ]
 }

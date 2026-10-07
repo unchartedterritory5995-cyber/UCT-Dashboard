@@ -53,13 +53,13 @@
   margin: 3px 10px 5px 10px;
   border-radius: 3px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 .tiltHigh { background: var(--nh-up, var(--ut-green-bright)); transition: width 0.5s ease; }
 .tiltLow { background: var(--nh-down, var(--ut-red-bright)); transition: width 0.5s ease; }
 .tiltCenter {
   position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px;
-  background: rgba(255, 255, 255, 0.4);
+  background: color-mix(in srgb, var(--text) 40%, transparent);
 }
 
 .chartWrap {

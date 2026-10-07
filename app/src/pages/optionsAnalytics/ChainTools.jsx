@@ -126,10 +126,10 @@ export function ContractDrill({ sym, contract, spot, onClose }) {
         <label>Days <Input className={styles.input} aria-label="Pricer days" value={days} onChange={(e) => setDays(e.target.value)} style={{ width: 60 }} /></label>
         <label>IV % <Input className={styles.input} aria-label="Pricer IV" value={ivPct} onChange={(e) => setIvPct(e.target.value)} style={{ width: 60 }} /></label>
       </div>
-      <table className={styles.table} data-testid="pricer">
-        <thead><tr><th /><th>Vendor</th><th>Computed</th></tr></thead>
+      <table className={styles.table} data-testid="pricer" aria-label="Pricer: vendor versus computed">
+        <thead><tr><td /><th scope="col">Vendor</th><th scope="col">Computed</th></tr></thead>
         <tbody>
-          {rows.map(([l, v, c, d]) => <tr key={l}><th>{l}</th><td>{num(v, d)}</td><td>{num(c, d)}</td></tr>)}
+          {rows.map(([l, v, c, d]) => <tr key={l}><th scope="row">{l}</th><td>{num(v, d)}</td><td>{num(c, d)}</td></tr>)}
         </tbody>
       </table>
       <p className={styles.muted}>

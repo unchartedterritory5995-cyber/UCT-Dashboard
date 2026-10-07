@@ -665,3 +665,173 @@ def test_the_recorded_order_is_kept_for_the_notes_the_preference_does_name(db):
     out = sample_notebook.seed(U1)
     assert sample_notebook.recorded_ids(U1) == out["ids"]
     assert sample_notebook.active_ids(U1) == out["ids"]
+
+
+# ── fin walk P8: removing the sample removes the folders the sample made ────────────────────
+
+def _folders(user_id):
+    c = _conn()
+    try:
+        return {r["name"]: r["id"] for r in c.execute(
+            "SELECT id, name FROM j2_note_folders WHERE user_id = ?", (user_id,))}
+    finally:
+        c.close()
+
+
+def _folder_of(note_id):
+    c = _conn()
+    try:
+        return c.execute("SELECT folder_id FROM j2_notes WHERE id = ?", (note_id,)).fetchone()[0]
+    finally:
+        c.close()
+
+
+def test_remove_deletes_the_two_folders_the_sample_made(db):
+    out = sample_notebook.seed(U1)
+    made = _folders(U1)
+    assert set(made) == {"Sample notebook", "Capability examples"}
+    result = sample_notebook.remove(U1)
+    assert _folders(U1) == {}
+    assert sorted(f["name"] for f in result["foldersRemoved"]) == ["Capability examples", "Sample notebook"]
+    assert result["foldersKept"] == [] and result["foldersOlder"] == []
+    # every sample note is still in Trash and can still be restored
+    for nid in out["ids"]:
+        assert notes.get_note(U1, nid, include_deleted=True) is not None
+    assert sample_notebook.remove(U1)["foldersRemoved"] == []      # a second click finds nothing
+
+
+def test_remove_keeps_a_sample_folder_the_member_put_their_own_note_in_and_says_so(db):
+    sample_notebook.seed(U1)
+    made = _folders(U1)
+    mine = _own_note(U1, key="own:moved", title="My own idea")
+    notes.update_note(U1, mine, {"folderId": made["Capability examples"]})
+    assert _folder_of(mine) == made["Capability examples"]
+    result = sample_notebook.remove(U1)
+    left = _folders(U1)
+    # the folder with the member's note stays, and so does the folder it sits in
+    assert left == made
+    assert _folder_of(mine) == made["Capability examples"], "the member's note was moved"
+    assert notes.get_note(U1, mine) is not None
+    assert result["foldersRemoved"] == []
+    kept = {k["name"]: k for k in result["foldersKept"]}
+    assert set(kept) == {"Capability examples", "Sample notebook"}
+    assert kept["Capability examples"]["memberNotes"] == 1
+    assert kept["Capability examples"]["sentence"] == (
+        'The folder "Capability examples" has 1 note of yours in it, so it was kept.')
+    assert kept["Sample notebook"]["sentence"] == (
+        'The folder "Sample notebook" still holds a folder that was kept, so it was kept too.')
+
+
+def test_remove_keeps_only_the_folder_with_the_members_note(db):
+    sample_notebook.seed(U1)
+    made = _folders(U1)
+    mine = _own_note(U1, key="own:top", title="Mine")
+    notes.update_note(U1, mine, {"folderId": made["Sample notebook"]})
+    result = sample_notebook.remove(U1)
+    assert _folders(U1) == {"Sample notebook": made["Sample notebook"]}
+    assert [f["name"] for f in result["foldersRemoved"]] == ["Capability examples"]
+    assert [k["name"] for k in result["foldersKept"]] == ["Sample notebook"]
+    assert _folder_of(mine) == made["Sample notebook"]
+
+
+def _marks(user_id):
+    c = _conn()
+    try:
+        return {r["id"]: r["import_source"] for r in c.execute(
+            "SELECT id, import_source FROM j2_note_folders WHERE user_id = ?", (user_id,))}
+    finally:
+        c.close()
+
+
+def test_the_seed_marks_exactly_the_folders_it_makes(db):
+    mine = notes.create_folder(U1, "Made before")["id"]
+    sample_notebook.seed(U1)
+    made = _folders(U1)
+    marks = _marks(U1)
+    assert marks[mine] is None
+    assert marks[made["Sample notebook"]] == sample_notebook.SOURCE
+    assert marks[made["Capability examples"]] == sample_notebook.SOURCE
+
+
+def test_a_members_empty_folder_made_in_the_same_second_as_the_sample_survives(db):
+    """The owner's case against a time window: a member's own EMPTY folder, made in the same
+    instant as the sample's folders, is not the sample's and is not removed."""
+    before = notes.create_folder(U1, "Mine, just before")["id"]
+    out = sample_notebook.seed(U1)
+    made = _folders(U1)
+    c = _conn()
+    try:
+        after = notes.create_folder(U1, "Capability examples", parent_id=before, conn=c)["id"]   # same NAME too
+        stamp = c.execute("SELECT created_at FROM j2_note_folders WHERE id = ?",
+                          (made["Sample notebook"],)).fetchone()[0]
+        c.execute("UPDATE j2_note_folders SET created_at = ? WHERE id IN (?, ?)", (stamp, before, after))
+        c.commit()
+    finally:
+        c.close()
+    notes.update_note(U1, out["ids"][0], {"folderId": before})     # a sample note moved into it
+    result = sample_notebook.remove(U1)
+    left = set(_folders(U1).values()) | set(_marks(U1))
+    assert before in left and after in left
+    assert made["Sample notebook"] not in left and made["Capability examples"] not in left
+    assert sorted(f["name"] for f in result["foldersRemoved"]) == ["Capability examples", "Sample notebook"]
+    assert result["foldersKept"] == []
+
+
+def test_a_folder_that_was_there_before_the_sample_is_kept_even_with_the_samples_name(db):
+    """The seed reuses a folder with the same name. It did not make that folder, so it does not
+    mark it, and removing the sample does not delete it."""
+    mine = notes.create_folder(U1, "Sample notebook")["id"]
+    sample_notebook.seed(U1)
+    assert _marks(U1)[mine] is None
+    result = sample_notebook.remove(U1)
+    assert _folders(U1) == {"Sample notebook": mine}
+    assert [f["name"] for f in result["foldersRemoved"]] == ["Capability examples"]
+    # it is unmarked and holds sample notes, so the summary says an older folder may remain
+    assert [f["id"] for f in result["foldersOlder"]] == [mine]
+
+
+def test_folders_seeded_before_the_mark_existed_are_left_and_the_summary_says_so(db):
+    """A sandbox seeded before the column: the folders carry no mark. They are never guessed at
+    by time or by name. They stay, and the answer says one may remain."""
+    sample_notebook.seed(U1)
+    made = _folders(U1)
+    c = _conn()
+    try:
+        c.execute("UPDATE j2_note_folders SET import_source = NULL WHERE user_id = ?", (U1,))
+        c.commit()
+    finally:
+        c.close()
+    result = sample_notebook.remove(U1)
+    assert _folders(U1) == made
+    assert result["foldersRemoved"] == [] and result["foldersKept"] == []
+    assert sorted(f["name"] for f in result["foldersOlder"]) == ["Capability examples", "Sample notebook"]
+    assert {f["sentence"] for f in result["foldersOlder"]} == {
+        "An older example folder may remain. It was made before folders were marked, so it was "
+        "left alone. You can delete it by hand."}
+
+
+def test_the_folder_mark_column_is_added_to_a_database_made_before_it(db):
+    from api.services.journal_two import db as j2db
+    c = _conn()
+    try:
+        c.execute("ALTER TABLE j2_note_folders DROP COLUMN import_source")
+        c.commit()
+        assert "import_source" not in {r[1] for r in c.execute("PRAGMA table_info(j2_note_folders)")}
+    finally:
+        c.close()
+    auth_db.init_db()
+    auth_db.init_db()                                   # twice: the pass is idempotent
+    c = _conn()
+    try:
+        assert "import_source" in {r[1] for r in c.execute("PRAGMA table_info(j2_note_folders)")}
+    finally:
+        c.close()
+    del j2db
+
+
+def test_another_members_folders_are_never_touched(db):
+    sample_notebook.seed(U1)
+    sample_notebook.seed(U2)
+    theirs = _folders(U2)
+    sample_notebook.remove(U1)
+    assert _folders(U1) == {} and _folders(U2) == theirs

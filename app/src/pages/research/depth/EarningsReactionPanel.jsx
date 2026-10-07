@@ -4,7 +4,8 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
-import { formatCurrency, formatNumber, formatPercent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { formatCurrency, formatNumber, formatPercent, formatPercentAsSent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
@@ -49,18 +50,24 @@ export default function EarningsReactionPanel({ sym }) {
   const { data, error, mutate } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
   const reask = usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error && data.state === 'ok'
+    ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.bars_through || null } }
+    : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the earnings reaction" />
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason)}</div>
+  else if (data.state === 'ok' && !data.quarters?.length) body = <div className={styles.note} data-testid="earnings-reaction-none">No reported quarter for {s} is on file to measure a reaction against.</div>
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason) || `The earnings reaction for ${s} is not available right now.`}</div>
   else {
     const sum = data.summary || {}
     body = (
       <div data-testid="earnings-reaction">
         <div className={styles.scroll}>
-          <table className={styles.grid}>
+          <table className={styles.grid} aria-label="Earnings reaction (8 quarters)">
             <thead>
               <tr><th scope="col">Quarter</th><th scope="col">Session</th>
                 {COLS.map(([, l]) => <th key={l} scope="col">{l}</th>)}
@@ -85,12 +92,13 @@ export default function EarningsReactionPanel({ sym }) {
         <p className={styles.lede} data-testid="earnings-reaction-summary">
           {SUMS.map(([k, l]) => {
             const st = sum[k] || {}
-            return `${l}: avg ${pct(st.avg)}, avg size ${formatPercent(st.avg_abs == null ? NaN : st.avg_abs, { decimals: 2 })}, up ${st.pct_up ?? '—'}% (n=${st.n ?? 0})`
+            return `${l}: avg ${pct(st.avg)}, avg size ${formatPercent(st.avg_abs == null ? NaN : st.avg_abs, { decimals: 2 })}, up ${formatPercentAsSent(st.pct_up)} (n=${st.n ?? 0})`
           }).join(' · ')}
         </p>
         {data.realized_vol && (
           <p className={styles.muted} data-testid="realized-vol">
-            Realized volatility, last {data.realized_vol.sessions} sessions through {data.realized_vol.through}: {data.realized_vol.annualized_pct}% annualized.
+            Realized volatility, last {data.realized_vol.sessions} sessions through {data.realized_vol.through}: {formatPercentAsSent(data.realized_vol.annualized_pct)} annualized.
+            {data.realized_vol.method ? ` ${data.realized_vol.method}` : ''}
           </p>
         )}
         {isForeignCurrency(data.currency) && (

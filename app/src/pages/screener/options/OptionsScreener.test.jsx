@@ -119,6 +119,17 @@ describe('OptionsScreener', () => {
     expect(calls[0]).toBe('/api/options-screener/screen?preset=high_iv_short_premium')
   })
 
+  it('a successful screen with no rows says so in words, never a header-only table', async () => {
+    const empty = { ...PAYLOADS.screen, matched: 0, shown: 0, rows: [] }
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const key = url.split('/api/options-screener/')[1].split('?')[0]
+      return { ok: true, status: 200, json: async () => (key === 'screen' ? empty : PAYLOADS[key]) }
+    }))
+    wrap(<OptionsScreener />)
+    expect((await screen.findByTestId('opts-none')).textContent).toMatch(/passed these filters/)
+    expect(screen.queryByRole('table', { name: 'Option screener results' })).toBeNull()
+  })
+
   it('has no trade buttons', async () => {
     wrap(<OptionsScreener />)
     await screen.findByText(`${S} EOD`)

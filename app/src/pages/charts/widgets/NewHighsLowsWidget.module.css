@@ -60,11 +60,11 @@
   opacity: 0; color: var(--nh-text, var(--text-muted)); transition: opacity .1s, background .1s, color .1s;
 }
 .uniTab:hover .uniTabX { opacity: 0.7; }
-.uniTabX:hover { opacity: 1; background: rgba(242, 75, 66, 0.85); color: #fff; }
+.uniTabX:hover { opacity: 1; background: color-mix(in srgb, var(--loss) 85%, transparent); color: var(--bg); }
 .uniAdd {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 3px;
-  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--nh-divider, color-mix(in srgb, var(--text) 16%, transparent));
   background: transparent; color: var(--nh-sym, var(--text-bright)); cursor: pointer;
   transition: border-color .12s, color .12s;
 }
@@ -248,8 +248,8 @@
 
 /* Count histogram — dim tint anchored to the # side, behind the text. */
 .bar { position: absolute; top: 1px; bottom: 1px; right: 0; z-index: 0; border-radius: 3px 0 0 3px; pointer-events: none; }
-.up .bar { background: rgba(45, 140, 78, 0.24); }
-.down .bar { background: rgba(192, 57, 43, 0.24); }
+.up .bar { background: color-mix(in srgb, var(--gain) 24%, transparent); }
+.down .bar { background: color-mix(in srgb, var(--loss) 24%, transparent); }
 
 /* Hot-now cue: a soft tone-tinted wash that fades across the whole row when a fresh
    new high/low prints (the overlay is keyed by count → remounts only on increment).

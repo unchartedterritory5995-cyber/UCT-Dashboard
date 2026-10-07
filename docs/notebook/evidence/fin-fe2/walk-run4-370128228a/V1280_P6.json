@@ -1,0 +1,68 @@
+{
+ "defs": {
+  "entry": 200,
+  "stop": 200,
+  "formula": 200,
+  "formula_body": "{\"propertyDef\":{\"id\":\"14946ee0482648ba97c637121b1b19bd\",\"name\":\"Risk V1280\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:28:54.821889+00:00\",\"updatedAt\""
+ },
+ "properties_put": {
+  "status": 200,
+  "stored": null
+ },
+ "anchors_on_screen": [
+  [
+   "properties-add-empty",
+   0
+  ],
+  [
+   "properties-add",
+   1
+  ],
+  [
+   "computed-value",
+   1
+  ],
+  [
+   "computed-edit",
+   1
+  ]
+ ],
+ "cards": [
+  {
+   "progress": "Step 1 of 4",
+   "title": "Numbers that work themselves out",
+   "buttons": [
+    "Skip tour",
+    "Back",
+    "Next"
+   ]
+  },
+  {
+   "progress": "Step 2 of 4",
+   "title": "A formula",
+   "buttons": [
+    "Skip tour",
+    "Back",
+    "Next"
+   ]
+  },
+  {
+   "progress": "Step 3 of 4",
+   "title": "See or change the formula",
+   "buttons": [
+    "Skip tour",
+    "Back",
+    "Next"
+   ]
+  },
+  {
+   "progress": "Step 4 of 4",
+   "title": "A rollup",
+   "buttons": [
+    "Skip tour",
+    "Back",
+    "Done"
+   ]
+  }
+ ]
+}

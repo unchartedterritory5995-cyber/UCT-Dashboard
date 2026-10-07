@@ -7,8 +7,8 @@
 :root {
   /* FILL tier — candle bodies, news rails, surprise bars, pins. Large solid
      shapes, so the chart's own saturated values are right here. */
-  --dock-up: var(--chart-up, #26a869);
-  --dock-down: var(--chart-down, #e5484d);
+  --dock-up: var(--chart-up, var(--gain));
+  --dock-down: var(--chart-down, var(--loss));
   /* TEXT tier — the same hues lifted for 11px glyphs. Measured against the
      chart's own price readout (rgb(47,175,104) ≈ 143 luminance at weight 700):
      the FILL green renders at ~136 and the fill red at only ~106, so directional
@@ -16,8 +16,8 @@
      is exactly the "faint / visually dead" read. These sit at ~166 / ~134 and
      carry weight 700 like the chart's readout. Saturated, not neon.
      ⛔ Don't use these as fills, and don't use the fill tier for text. */
-  --dock-up-text: #3fc885;
-  --dock-down-text: #f1696e;
+  --dock-up-text: var(--success-ink);
+  --dock-down-text: var(--danger-ink);
 }
 
 .pos { color: var(--dock-up-text, #3fc885); font-weight: 700; }
@@ -28,7 +28,7 @@
 .rowFlash { animation: rowFlash 1.7s ease; border-radius: 4px; }
 @keyframes rowFlash {
   0% { background: var(--accent, #c9a84c); }
-  12% { background: rgba(201, 168, 76, 0.34); }
+  12% { background: color-mix(in srgb, var(--ut-gold) 34%, transparent); }
   100% { background: transparent; }
 }
 
@@ -63,8 +63,8 @@
   --t-label: var(--text, #f0efea);        /* 239 clean secondary white — labels */
   --t-meta: var(--text-muted, #cfcac0);   /* 202 sector, timestamps, fact labels */
   --t-group: var(--accent, #dcbb5e);      /* 187 section headings stay gold */
-  --t-dim: #6f6a5c;                       /* 106 MISSING only (matches .finFoot) */
-  --t-gold-hi: #f0d488; /* gold hover lift */
+  --t-dim: color-mix(in srgb, var(--text-muted) 55%, transparent);                      /* 106 MISSING only (matches .finFoot) */
+  --t-gold-hi: var(--ut-gold-bright); /* gold hover lift */
 
   height: 100%;
   min-height: 0;
@@ -78,7 +78,7 @@
   scrollbar-width: thin;
 }
 .profile::-webkit-scrollbar { width: 8px; }
-.profile::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.profile::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 4px; }
 
 /* ── Overview typographic system ─────────────────────────────────────────────
    Hierarchy comes from type + space, not containers:
@@ -95,14 +95,14 @@
    Trimmed from 21+16: with the Company section folded into the identity block
    there is one fewer layer break, and 37px of pure chrome above the panel's
    most valuable content was not earning its place. Still a clear breath. */
-.layerBreak { margin-top: 17px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,0.075); }
+.layerBreak { margin-top: 17px; padding-top: 13px; border-top: 1px solid color-mix(in srgb, var(--text) 7.5%, transparent); }
 
 /* L3 — the single gold head per block (Fundamentals / Price / Ownership) */
 .secHead {
   font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
   color: var(--accent, #c9a84c);
   padding-bottom: 4px; margin-bottom: 9px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
 }
 /* (the L6 quiet sub-head died with the dedicated "Company" section — those facts
    are now inline identity metadata, see .idFacts) */
@@ -115,7 +115,7 @@
 /* 14+11 → 12+9: with five groups the inter-group chrome alone was 100px. The
    hairline is what separates the groups, so 4px each buys back a whole metric
    row without the groups reading as merged. */
-.mGroup { margin-top: 12px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,0.055); }
+.mGroup { margin-top: 12px; padding-top: 9px; border-top: 1px solid color-mix(in srgb, var(--text) 5.5%, transparent); }
 .mGroupFirst { margin-top: 0; padding-top: 0; border-top: 0; }
 .mGroupLabel {
   font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
@@ -145,7 +145,7 @@
 .generating { display: flex; align-items: center; gap: 8px; color: var(--text-muted, #8b8574); padding: 6px 0; font-size: 11px; }
 .spinner {
   width: 12px; height: 12px; border-radius: 50%;
-  border: 2px solid rgba(201,168,76,0.25); border-top-color: var(--accent, #c9a84c);
+  border: 2px solid color-mix(in srgb, var(--ut-gold) 25%, transparent); border-top-color: var(--accent, #c9a84c);
   animation: dockspin 0.8s linear infinite;
 }
 @keyframes dockspin { to { transform: rotate(360deg); } }
@@ -196,7 +196,7 @@
   padding: 2px 0 3px 14px;
   /* the rail IS the Story's whole visual identity — softened so it reads as a
      refined accent rather than a highlighter stripe */
-  border-left: 2px solid rgba(201, 168, 76, 0.55);
+  border-left: 2px solid color-mix(in srgb, var(--ut-gold) 55%, transparent);
 }
 .storyHead { display: flex; align-items: baseline; gap: 9px; margin-bottom: 6px; }
 .storyTitle {
@@ -266,13 +266,13 @@
 .nwBar { flex: 0 0 auto; padding: 8px 10px 6px; }
 .nwSearchWrap {
   display: flex; align-items: center; gap: 6px;
-  border: 1px solid var(--divider, rgba(255,255,255,0.10));
+  border: 1px solid var(--divider, color-mix(in srgb, var(--text) 10%, transparent));
   border-radius: 5px; padding: 4px 7px;
-  background: rgba(255,255,255,0.022);
+  background: color-mix(in srgb, var(--text) 2.2%, transparent);
   color: var(--text-muted, #8b8574);
   transition: border-color .12s ease;
 }
-.nwSearchWrap:focus-within { border-color: rgba(201,168,76,0.55); }
+.nwSearchWrap:focus-within { border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent); }
 .nwSearch {
   flex: 1; min-width: 0; appearance: none; border: 0; background: transparent;
   color: var(--text-bright, #f8f7f3); font-size: 11px; font-family: inherit;
@@ -289,7 +289,7 @@
 /* ── ALL | BULLISH | BEARISH — the Financials/Earnings segmented control ── */
 .nwSeg {
   flex: 0 0 auto; display: flex; align-items: center; gap: 1px;
-  padding: 0 10px 7px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 0 10px 7px; border-bottom: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
 }
 
 .nwSearchNote {
@@ -309,7 +309,7 @@
   overscroll-behavior: contain;
 }
 .nwFeed::-webkit-scrollbar { width: 8px; }
-.nwFeed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.nwFeed::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 4px; }
 
 /* Date separator — the SAME gold uppercase head Earnings and Ownership use
    for their sections, so chronology reads as this tab's structural layer. */
@@ -319,13 +319,13 @@
   font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
   color: var(--accent, #c9a84c);
   background: var(--widget-canvas, var(--bg, #0e0f0d));
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
 }
 .nwGroup + .nwGroup .nwDate { margin-top: 2px; }
 
-.nwItem { border-bottom: 1px solid rgba(255,255,255,0.045); }
+.nwItem { border-bottom: 1px solid color-mix(in srgb, var(--text) 4.5%, transparent); }
 .nwItem:last-child { border-bottom: 0; }
-.nwItemOpen { background: rgba(201,168,76,0.055); }
+.nwItemOpen { background: color-mix(in srgb, var(--ut-gold) 5.5%, transparent); }
 
 /* The row is a BUTTON: the whole thing is the expand affordance, which is
    how Financials, Earnings and Ownership already behave. */
@@ -335,10 +335,10 @@
   align-items: start; text-align: left; cursor: pointer;
   padding: 8px 10px 9px; font-family: inherit;
 }
-.nwRow:hover { background: rgba(255,255,255,0.028); }
+.nwRow:hover { background: color-mix(in srgb, var(--text) 2.8%, transparent); }
 .nwItemOpen .nwRow:hover { background: transparent; }
 .nwRow:focus-visible {
-  outline: 1px solid rgba(201,168,76,0.7); outline-offset: -2px;
+  outline: 1px solid color-mix(in srgb, var(--ut-gold) 70%, transparent); outline-offset: -2px;
 }
 .nwMain { min-width: 0; }
 
@@ -361,7 +361,7 @@
 
 .nwBreaking {
   font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
-  color: var(--accent, #c9a84c); border: 1px solid rgba(201,168,76,0.45);
+  color: var(--accent, #c9a84c); border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
   border-radius: 3px; padding: 0 3px; line-height: 1.5;
 }
 /* Sentiment: a single small glyph. Never a filled card, never a score. */
@@ -385,12 +385,12 @@
 /* Media stays small: it improves a story, it does not decorate the panel. */
 .nwThumb {
   width: 52px; height: 38px; object-fit: cover; border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  border: 1px solid color-mix(in srgb, var(--text) 7%, transparent); background: color-mix(in srgb, var(--text) 3%, transparent);
   align-self: start;
 }
 .nwPlay {
   width: 22px; height: 22px; border-radius: 50%; align-self: start;
-  border: 1px solid rgba(255,255,255,0.16); color: var(--text-muted, #cfcac0);
+  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent); color: var(--text-muted, #cfcac0);
   display: inline-flex; align-items: center; justify-content: center;
 }
 
@@ -415,10 +415,10 @@
 .nwEmbed {
   display: inline-flex; align-items: center; gap: 6px; margin-bottom: 9px;
   padding: 5px 9px; border-radius: 4px; text-decoration: none;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
   color: var(--text-bright, #f8f7f3); font-size: 10.5px; font-weight: 600;
 }
-.nwEmbed:hover { border-color: rgba(201,168,76,0.5); color: var(--accent, #c9a84c); }
+.nwEmbed:hover { border-color: color-mix(in srgb, var(--ut-gold) 50%, transparent); color: var(--accent, #c9a84c); }
 
 .nwRelated { margin-bottom: 9px; }
 .nwRelHead {
@@ -460,9 +460,9 @@
 .nwRetry:hover { text-decoration: underline; }
 
 .nwSkel { padding: 4px 10px; }
-.nwSkelRow { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.045); }
+.nwSkelRow { padding: 9px 0; border-bottom: 1px solid color-mix(in srgb, var(--text) 4.5%, transparent); }
 .nwSkelMeta, .nwSkelHead {
-  height: 8px; border-radius: 3px; background: rgba(255,255,255,0.055);
+  height: 8px; border-radius: 3px; background: color-mix(in srgb, var(--text) 5.5%, transparent);
   animation: nwPulse 1.5s ease-in-out infinite;
 }
 .nwSkelMeta { width: 34%; margin-bottom: 7px; }
@@ -520,8 +520,8 @@
 .fundRail {
   flex: 0 0 auto; width: 84px;
   display: flex; flex-direction: column; gap: 1px;
-  padding: 5px 4px; border-right: 1px solid var(--divider, rgba(255,255,255,0.08));
-  background: var(--panel-2, rgba(255,255,255,0.015));
+  padding: 5px 4px; border-right: 1px solid var(--divider, color-mix(in srgb, var(--text) 8%, transparent));
+  background: var(--panel-2, color-mix(in srgb, var(--text) 1.5%, transparent));
 }
 .fundTab {
   appearance: none; border: 0; background: transparent; text-align: left;
@@ -529,8 +529,8 @@
   font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
   padding: 4px 7px; border-radius: 5px; cursor: pointer; white-space: nowrap;
 }
-.fundTab:hover { color: var(--text, #d8d2c2); background: rgba(255,255,255,0.04); }
-.fundTabOn { color: var(--accent, #c9a84c); background: var(--accent-weak, rgba(201,168,76,0.14)); }
+.fundTab:hover { color: var(--text, #d8d2c2); background: color-mix(in srgb, var(--text) 4%, transparent); }
+.fundTabOn { color: var(--accent, #c9a84c); background: var(--accent-weak, color-mix(in srgb, var(--ut-gold) 14%, transparent)); }
 
 .fundClose {
   position: absolute; top: 4px; right: 4px; z-index: 3;
@@ -539,7 +539,7 @@
   width: 20px; height: 20px; border-radius: 5px;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.fundClose:hover { background: rgba(255,255,255,0.08); color: var(--text, #d8d2c2); }
+.fundClose:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text, #d8d2c2); }
 
 /* quarter/annual card row — horizontal scroll, thin */
 .cardRow {
@@ -548,15 +548,15 @@
   overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
 }
 .cardRow::-webkit-scrollbar { height: 7px; }
-.cardRow::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 4px; }
+.cardRow::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 14%, transparent); border-radius: 4px; }
 
 .qCard {
   flex: 0 0 auto; min-width: 148px;
-  padding: 7px 13px; border-left: 1px solid var(--divider, rgba(255,255,255,0.07));
+  padding: 7px 13px; border-left: 1px solid var(--divider, color-mix(in srgb, var(--text) 7%, transparent));
   display: flex; flex-direction: column; justify-content: center; gap: 3px;
 }
 .qCard:first-child { border-left: 0; }
-.qNext { background: rgba(201,168,76,0.035); }
+.qNext { background: color-mix(in srgb, var(--ut-gold) 3.5%, transparent); }
 .qHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 1px; }
 .qLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text, #e0dac8); }
 .qDate { font-size: 9.5px; color: var(--text-muted, #7d7768); font-variant-numeric: tabular-nums; }
@@ -626,12 +626,12 @@
   padding: 2px 5px; border-radius: 4px; cursor: pointer;
 }
 .finPeriodBtn:hover { color: var(--text, #d8d2c2); }
-.finPeriodOn { background: var(--accent-weak, rgba(201,168,76,0.16)); color: var(--accent, #c9a84c); }
+.finPeriodOn { background: var(--accent-weak, color-mix(in srgb, var(--ut-gold) 16%, transparent)); color: var(--accent, #c9a84c); }
 
 .finHead {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   padding: 4px 12px; font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
-  color: var(--text-muted, #7d7768); border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+  color: var(--text-muted, #7d7768); border-bottom: 1px solid var(--divider, color-mix(in srgb, var(--text) 8%, transparent));
 }
 .finHeadMetric { flex: 1; }
 .finHeadTrend { width: 46px; text-align: center; }
@@ -640,22 +640,22 @@
 
 .finBody { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 0 8px; scrollbar-width: thin; }
 .finBody::-webkit-scrollbar { width: 8px; }
-.finBody::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.finBody::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 4px; }
 
 .finRow {
   display: flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 3%, transparent);
 }
-.finRow:hover { background: rgba(255,255,255,0.03); }
+.finRow:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
 /* Key metrics: weight + a whisper of ground, never a zebra stripe. */
-.finRowH { background: rgba(255,255,255,0.022); }
+.finRowH { background: color-mix(in srgb, var(--text) 2.2%, transparent); }
 .finRowH .finLabel { font-weight: 700; color: var(--text-bright, #f8f7f3); }
 .finRowH .finVal { font-weight: 700; }
 /* Derived margins read as annotations ON the row above, not as peers. They are
    the ONE place --text-muted is right here: they restate a computed ratio. */
 .finRowM .finLabel { padding-left: 12px; font-style: italic; color: var(--text-muted, #cfcac0); }
 .finRowM .finVal { color: var(--text-muted, #cfcac0); }
-.finRowOpen { background: rgba(201,168,76,0.07); }
+.finRowOpen { background: color-mix(in srgb, var(--ut-gold) 7%, transparent); }
 .finLabel { flex: 1; min-width: 0; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .spark { width: 46px; height: 15px; flex: 0 0 auto; display: inline-flex; align-items: center; }
 /* Placeholder keeps every value column on one edge whether or not the row has a
@@ -675,17 +675,17 @@
   padding: 11px 12px 4px; font-size: 8.5px; font-weight: 700;
   letter-spacing: 0.8px; text-transform: uppercase; color: var(--accent, #c9a84c);
 }
-.finRow + .finSection { margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.05); }
+.finRow + .finSection { margin-top: 2px; border-top: 1px solid color-mix(in srgb, var(--text) 5%, transparent); }
 
 /* ── expanded row: how has this metric evolved? ───────────────────────────── */
 .finExpand {
   padding: 7px 12px 9px 12px;
   background: rgba(0,0,0,0.22);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
 }
 .finCagr {
   display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;
-  padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 6px; border-bottom: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
 }
 .finCagrK { font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
 .finCagrV { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -699,7 +699,7 @@
 .finSkeleton { padding: 2px 12px; }
 .finSkelRow {
   height: 12px; margin: 9px 0; border-radius: 3px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--text) 5%, transparent), color-mix(in srgb, var(--text) 9%, transparent), color-mix(in srgb, var(--text) 5%, transparent));
   background-size: 200% 100%;
   animation: finShimmer 1.4s ease-in-out infinite;
 }
@@ -741,9 +741,9 @@
 .finDoc {
   display: flex; align-items: baseline; gap: 8px; padding: 4px 6px;
   margin: 0 -6px; border-radius: 5px; text-decoration: none;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 4%, transparent);
 }
-.finDoc:hover { background: rgba(255,255,255,0.05); }
+.finDoc:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
 .finDocForm {
   flex: 0 0 auto; width: 54px; font-size: 10px; font-weight: 700;
   color: var(--accent, #c9a84c); font-variant-numeric: tabular-nums;
@@ -794,7 +794,7 @@
   padding: 4px var(--et-pad) 5px;
   font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
   color: var(--text-muted, #7d7768);
-  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--divider, color-mix(in srgb, var(--text) 8%, transparent));
 }
 .etHeadR { text-align: right; white-space: nowrap; }
 .etHeadShort { display: none; }
@@ -804,22 +804,22 @@
   padding: 0 0 10px; scrollbar-width: thin;
 }
 .etBody::-webkit-scrollbar { width: 8px; }
-.etBody::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+.etBody::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 4px; }
 
 .etRow {
   padding: 5px var(--et-pad);
   /* 0.035 -> 0.03, matching .finRow exactly: with the strip gone the rules were
      the loudest chrome left on the page, and the two tabs should share one
      hairline weight. */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 3%, transparent);
   cursor: pointer;
 }
-.etRow:hover { background: rgba(255, 255, 255, 0.03); }
+.etRow:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
 .etRow:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: -1px; }
 /* An estimate row has no actual-vs-estimate story to open into. */
 .etRowStatic { cursor: default; }
 .etRowStatic:hover { background: transparent; }
-.etRowOpen { background: rgba(201, 168, 76, 0.07); }
+.etRowOpen { background: color-mix(in srgb, var(--ut-gold) 7%, transparent); }
 
 /* PERIOD — the row's identity, so it carries the one emphasis tier. */
 .etPeriod {
@@ -835,7 +835,7 @@
 .etEst {
   flex: 0 0 auto; font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
   padding: 0 3px; border-radius: 3px;
-  color: var(--accent, #c9a84c); border: 1px solid rgba(201, 168, 76, 0.45);
+  color: var(--accent, #c9a84c); border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
 }
 
 /* LEVELS — real reported financials, kept at the panel's primary value tier.
@@ -892,7 +892,7 @@
   font-size: 10.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
   font-variant-numeric: tabular-nums;
 }
-.etRow + .etSection { margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.etRow + .etSection { margin-top: 2px; border-top: 1px solid color-mix(in srgb, var(--text) 5%, transparent); }
 /* A caveat that belongs to the whole section, said ONCE rather than repeated on
    every row it applies to. Sentence case and un-tracked, so it reads as prose
    beside the uppercase gold head rather than as a second heading. */
@@ -925,7 +925,7 @@
 .etQRow {
   display: flex; align-items: baseline; gap: 8px;
   padding: 3px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 3%, transparent);
 }
 /* The block should end on its content, not on a rule hanging under the last
    pair — in one column that is the final row, in two it is the last of each. */
@@ -951,7 +951,7 @@
 .etDetail {
   padding: 9px var(--et-pad) 11px;
   background: rgba(0, 0, 0, 0.22);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
 }
 .etCompare { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
 .etCompareTitle {
@@ -977,7 +977,7 @@
 
 .etFacts {
   display: flex; flex-wrap: wrap; gap: 3px 16px;
-  margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 8px; padding-top: 7px; border-top: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
 }
 .etFact { display: inline-flex; align-items: baseline; gap: 5px; }
 .etFactK {
@@ -1071,7 +1071,7 @@
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   column-gap: var(--et-gap); row-gap: 8px;
   padding: 9px var(--et-pad) 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 5.5%, transparent);
 }
 .owStripItem { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .owStripK {
@@ -1129,15 +1129,15 @@
   padding: 4px var(--et-pad) 5px;
   font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
   color: var(--text-muted, #7d7768);
-  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--divider, color-mix(in srgb, var(--text) 8%, transparent));
 }
 .owR { text-align: right; }
 .owRow {
   padding: 5px var(--et-pad);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 3%, transparent);
   cursor: pointer;
 }
-.owRow:hover { background: rgba(255, 255, 255, 0.03); }
+.owRow:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
 .owRow:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: -1px; }
 /* A fund name is the row's identity, so it takes the emphasis tier — but it is
    also the only thing here that can be arbitrarily long, hence the ellipsis. */
@@ -1154,7 +1154,7 @@
 .owDetail {
   padding: 7px var(--et-pad) 9px;
   background: rgba(0, 0, 0, 0.22);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
 }
 
 /* ── insider transactions ───────────────────────────────────────────────── */
@@ -1169,9 +1169,9 @@
   padding: 6px var(--et-pad) 5px;
   font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
   color: var(--text-muted, #7d7768);
-  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--divider, color-mix(in srgb, var(--text) 8%, transparent));
 }
-.owInsRow { padding: 5px var(--et-pad); border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+.owInsRow { padding: 5px var(--et-pad); border-bottom: 1px solid color-mix(in srgb, var(--text) 3%, transparent); }
 .owInsDate {
   font-size: 10px; color: var(--text-muted, #cfcac0);
   font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -1237,7 +1237,7 @@
 .btPos { fill: var(--dock-up-text, #3fc885); }
 .btNeg { fill: var(--dock-down-text, #f1696e); }
 .btEst { fill: none; stroke: var(--accent, #c9a84c); stroke-width: 1; }
-.btZero { stroke: rgba(255, 255, 255, 0.16); stroke-width: 0.5; }
+.btZero { stroke: color-mix(in srgb, var(--text) 16%, transparent); stroke-width: 0.5; }
 .btAxis { display: grid; column-gap: 3px; margin-top: 4px; }
 /* Names only the two endpoints — enough to fix the strip's direction without
    repeating the year list that sits directly beneath it. */
@@ -1255,7 +1255,7 @@
 /* ── Financials · expanded metric trend ─────────────────────────────────── */
 .fmTrend {
   margin: 2px 0 8px; padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
 }
 
 /* ── Earnings · reaction ────────────────────────────────────────────────── */

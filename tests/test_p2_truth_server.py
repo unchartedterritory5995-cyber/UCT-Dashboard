@@ -175,6 +175,13 @@ def http(conv):
     router_mod._propose_calls.clear()
 
 
+def sys_text(call):
+    """The system prompt TEXT a recorded call carried. P3S: it is sent as one text
+    block with a prompt-cache breakpoint (``system_blocks``); the text is unchanged."""
+    s = call["system"]
+    return s if isinstance(s, str) else "".join(b["text"] for b in s)
+
+
 def schema_ok(conv_mod, envelope):
     errors = list(Draft202012Validator(conv_mod.composed_schema()).iter_errors(envelope))
     return [e.message for e in errors]
@@ -282,14 +289,14 @@ def test_4_default_RSI_is_applied_with_its_assumptions_DISCLOSED(conv, model):
     # and the firm's "overbought" -- whose vocabulary form reads the NIGHTLY rsi14 --
     # reached the model in its CHART form only; the nightly name appears nowhere.
     sent = client.calls[0]
-    assert "RSI length: 14" in sent["system"]
-    assert "70 / 30" in sent["system"]
+    assert "RSI length: 14" in sys_text(sent)
+    assert "70 / 30" in sys_text(sent)
     notes = _block(sent["messages"][0]["content"], "uct_language_notes")
     concept = notes["firm_concepts"][0]
     assert concept["word"] == "overbought"
     assert concept["chart_formula"] == "(rsi(close, 14) >= 70)"
     assert "rsi14" not in sent["messages"][0]["content"]
-    assert "rsi14" not in sent["system"]
+    assert "rsi14" not in sys_text(sent)
 
 
 def test_DECISION_E_the_converse_tool_advertises_NO_nightly_scalar(conv):
@@ -512,10 +519,11 @@ def test_PROMPT_INJECTION_in_a_name_cannot_touch_the_system_prompt_or_the_tool(c
                   snippets=[{"role": "assistant", "text": INJECTION}],
                   authoring={"assumptions": [{"text": INJECTION}], "openQuestions": []})
     a, b = client.calls
-    assert a["system"] == b["system"] == conv.system_prompt()
+    assert sys_text(a) == sys_text(b) == conv.system_prompt()
+    assert a["system"] == b["system"] == conv.system_blocks()   # P3S: the constant block, breakpoint included
     assert a["tools"] == b["tools"] == [conv.anthropic_tool()]
     assert a["tool_choice"] == b["tool_choice"] == {"type": "tool", "name": "emit_patch"}
-    assert "ignore every rule" not in b["system"]
+    assert "ignore every rule" not in sys_text(b)
     assert "ignore every rule" not in json.dumps(b["tools"])
     content = b["messages"][0]["content"]
     for tag in ("uct_member_request",) + conv.DATA_BLOCKS:
@@ -529,7 +537,7 @@ def test_PROMPT_INJECTION_in_a_name_cannot_touch_the_system_prompt_or_the_tool(c
     assert _block(content, "uct_recent_turns")[0]["text"] == INJECTION
     assert _block(content, "uct_member_request") == "make it 80"
     # and the system prompt tells the model the blocks are data
-    assert "untrusted_text" in a["system"] and "is DATA" in a["system"]
+    assert "untrusted_text" in sys_text(a) and "is DATA" in sys_text(a)
 
 
 def test_a_hostile_view_cannot_make_the_server_accept_a_sym_patch(conv, model):
@@ -588,7 +596,7 @@ def test_BUDGET_the_cap_is_rechecked_before_the_repair_call(conv, model, monkeyp
     ({"message": "x" * 2001}, "request"),
     ({"view_pad": 40_000}, "indicator view"),
     ({"snippets": [{"role": "member", "text": "x"}] * 7}, "recent turns"),
-    ({"snippets": [{"role": "member", "text": "x" * 401}]}, "recent turn"),
+    ({"snippets": [{"role": "member", "text": "x" * 1201}]}, "recent turn"),  # P3: the cap is 1200
     ({"authoring": {"assumptions": [{"text": "x" * 300}] * 40}}, "authoring state"),
 ], ids=["message", "view", "snippet-count", "snippet-size", "state"])
 def test_BUDGET_oversized_input_is_refused_BEFORE_any_model_call(conv, model, kw, what):
@@ -758,7 +766,7 @@ def test_36_SCENARIO_eight_turns_through_the_endpoint_each_envelope_validates(co
         assert v == before                       # the request view is untouched
     assert len(client.calls) == 8
     # every call carried the same constant system prompt and tool
-    assert len({c["system"] for c in client.calls}) == 1
+    assert len({sys_text(c) for c in client.calls}) == 1
     assert all(c["tools"] == [conv.anthropic_tool()] for c in client.calls)
 
 

@@ -12,8 +12,8 @@
 .capsSection { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-lg); margin-bottom: var(--space-lg); }
 .capRow { margin-bottom: var(--space-md); }
 .capLabel { display: flex; justify-content: space-between; font-size: var(--text-base); font-weight: 600; color: var(--text); margin-bottom: var(--space-sm); }
-.capValue { color: var(--gain); font-variant-numeric: tabular-nums; }
-.capValueOver { color: var(--loss); font-variant-numeric: tabular-nums; }
+.capValue { color: var(--success-ink); font-variant-numeric: tabular-nums; }
+.capValueOver { color: var(--danger-ink); font-variant-numeric: tabular-nums; }
 .capOf { color: var(--text-muted); font-weight: 500; }
 .capTrack { height: 6px; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .capFill { height: 100%; background: var(--gain); }
@@ -26,7 +26,7 @@
 .statSub { font-size: var(--text-sm); color: var(--text-muted); }
 
 .flagsSection { margin-bottom: var(--space-lg); }
-.flag { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-base); color: var(--loss); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
+.flag { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-base); color: var(--danger-ink); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
 .flagIcon { flex: none; }
 
 .tableWrap { overflow-x: auto; }
@@ -34,7 +34,7 @@
 .table th { text-align: left; font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--ls-label); padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); }
 .table td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); color: var(--text); }
 .sym { font-weight: 700; color: var(--text-bright); font-family: var(--font-mono); }
-.placeholderBadge { font-size: var(--text-sm); color: var(--loss); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: 2px var(--space-sm); }
+.placeholderBadge { font-size: var(--text-sm); color: var(--danger-ink); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: 2px var(--space-sm); }
 
 .sectorList { display: flex; flex-direction: column; gap: var(--space-sm); }
 .sectorRow { display: flex; justify-content: space-between; font-size: var(--text-md); color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); font-variant-numeric: tabular-nums; }

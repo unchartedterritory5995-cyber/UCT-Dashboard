@@ -3,9 +3,10 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { OffLine } from '../../optionsAnalytics/OffNotice'
-import { useInTerminalPanel } from '../../../components/terminal'
+import FailedRead from '../../optionsAnalytics/FailedRead'
+import { BoardFromList, useInTerminalPanel, usePanelSymbolRows } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
-import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import { num } from '../../optionsAnalytics/optionsFormat'
@@ -36,7 +37,12 @@ const FIELDS = [
 
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
-const int = (v) => (v == null ? '—' : Math.round(Number(v)).toLocaleString('en-US'))
+const int = (v) => (v == null ? '—' : formatNumber(Math.round(Number(v))))
+
+// Row <GO> (completeness audit 2026-10-07, column g): each view's rows, in table order, load
+// their UNDERLYING (`$SYM`) into the linked group; the underlyings are the list a "Board of"
+// opens. A view with no table on screen publishes nothing.
+const underlyings = (rows) => (Array.isArray(rows) ? rows.map((r) => r.underlying) : [])
 
 export function screenUrl(preset, filters) {
   const q = new URLSearchParams()
@@ -49,15 +55,14 @@ export function screenUrl(preset, filters) {
 
 // Quality pass 2026-10-05: a 404 here is the route's switch being off
 // (OPTIONS_SCREENER_ENABLED), not a failure -- it used to read "unavailable right now".
-function ReadFailed({ error, what }) {
+function ReadFailed({ error, what, retry }) {
   if (error?.status === 404) return <OffLine feature={`The ${what}`} />
-  return <Unavailable what={what} />
+  return <Unavailable what={what} retry={retry} />
 }
 
-function Unavailable({ what }) {
-  return <p className={styles.note} data-testid="opts-unavailable">
-    The {what} is unavailable right now. That does not mean there is nothing to show.
-  </p>
+function Unavailable({ what, retry }) {
+  return <FailedRead testId="opts-unavailable" retry={retry}
+    title={`The ${what} is unavailable right now. That does not mean there is nothing to show.`} />
 }
 
 function Screen() {
@@ -65,9 +70,10 @@ function Screen() {
   const [draft, setDraft] = useState({ type: 'any' })
   const [filters, setFilters] = useState({})
   const url = screenUrl(preset, filters)
-  const { data, error } = useSWR(url, sectionFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(url, sectionFetcher, { revalidateOnFocus: false })
 
   const presets = data?.presets || {}
+  const shownSyms = usePanelSymbolRows(!error && data?.status === 'ok' ? underlyings(data.rows) : [], 'OSCR screen')
   return (
     <div data-testid="opts-screen">
       <div className={styles.chips} role="group" aria-label="Preset screens">
@@ -95,7 +101,7 @@ function Screen() {
         <span className={styles.muted}>{preset ? 'Filters refine the preset.' : ''}</span>
       </form>
       {error?.status === 422 && <p className={styles.note} data-testid="opts-bad">A filter value could not be read.</p>}
-      {error && error.status !== 422 && <ReadFailed error={error} what="option screener" />}
+      {error && error.status !== 422 && <ReadFailed error={error} what="option screener" retry={mutate} />}
       {data?.paywalled && <p className={styles.note}>The option screener requires a paid plan.</p>}
       {!error && !data && <p className={styles.note}>Loading the screen…</p>}
       {data && data.status === 'no_screen' && <p className={styles.note} data-testid="opts-no-screen">{data.note}</p>}
@@ -104,11 +110,15 @@ function Screen() {
           <p className={styles.facts} data-testid="opts-session">
             {int(data.matched)} contracts matched · showing {int(data.shown)} · session {data.session} (end-of-day snapshot)
           </p>
+          <BoardFromList syms={shownSyms} label="OSCR screen" testId="oscr-board" />
+          {!data.rows?.length ? (
+            <p className={styles.note} data-testid="opts-none">No contract in the {data.session} snapshot passed these filters.</p>
+          ) : (
           <div className={styles.scroll}>
-            <table className={styles.grid}>
+            <table className={styles.grid} aria-label="Option screener results">
               <thead><tr>
-                <th>Session</th><th>Contract</th><th>Und</th><th>Type</th><th>Strike</th><th>Exp</th><th>DTE</th>
-                <th>OTM %</th><th>Δ</th><th>IV</th><th>Bid</th><th>Ask</th><th>Spread %</th><th>OI</th><th>Vol</th>
+                <th scope="col">Session</th><th scope="col">Contract</th><th scope="col">Und</th><th scope="col">Type</th><th scope="col">Strike</th><th scope="col">Exp</th><th scope="col">DTE</th>
+                <th scope="col">OTM %</th><th scope="col">Δ</th><th scope="col">IV</th><th scope="col">Bid</th><th scope="col">Ask</th><th scope="col">Spread %</th><th scope="col">OI</th><th scope="col">Vol</th>
               </tr></thead>
               <tbody>
                 {data.rows.map((r) => (
@@ -124,6 +134,7 @@ function Screen() {
               </tbody>
             </table>
           </div>
+          )}
           <CoverageLine coverage={data.coverage} />
           <p className={styles.muted}>{data.note} {data.screen_rule} Source: {data.source}.</p>
         </>
@@ -133,8 +144,10 @@ function Screen() {
 }
 
 function Volume() {
-  const { data, error } = useSWR('/api/options-screener/unusual-volume', sectionFetcher, { revalidateOnFocus: false })
-  if (error) return <ReadFailed error={error} what="unusual-volume ranking" />
+  const { data, error, mutate } = useSWR('/api/options-screener/unusual-volume', sectionFetcher, { revalidateOnFocus: false })
+  const volRows = !error && data?.status === 'ok' ? (data.ranked.length ? data.ranked : data.not_ranked) : []
+  const volSyms = usePanelSymbolRows(underlyings(volRows), 'OSCR unusual volume')
+  if (error) return <ReadFailed error={error} what="unusual-volume ranking" retry={mutate} />
   if (!data) return <p className={styles.note}>Loading the unusual-volume ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
   if (data.status !== 'ok') return <p className={styles.note} data-testid="opts-vol-none">{data.note}</p>
@@ -150,9 +163,10 @@ function Volume() {
       <p className={styles.facts} data-testid="opts-vol-source">
         {data.volume_rule}{data.fallback_note ? ` ${data.fallback_note}` : ''}
       </p>
+      <BoardFromList syms={volSyms} label="OSCR unusual volume" testId="oscr-vol-board" />
       <div className={styles.scroll}>
-        <table className={styles.grid}>
-          <thead><tr><th>Session</th><th>Underlying</th><th>Volume</th><th>Calls</th><th>Puts</th><th>Own average</th><th>Ratio</th></tr></thead>
+        <table className={styles.grid} aria-label="Option volume ranking">
+          <thead><tr><th scope="col">Session</th><th scope="col">Underlying</th><th scope="col">Volume</th><th scope="col">Calls</th><th scope="col">Puts</th><th scope="col">Own average</th><th scope="col">Ratio</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.underlying}>
@@ -174,8 +188,9 @@ function Volume() {
 }
 
 function Iv() {
-  const { data, error } = useSWR('/api/options-screener/iv-percentile', sectionFetcher, { revalidateOnFocus: false })
-  if (error) return <ReadFailed error={error} what="IV percentile ranking" />
+  const { data, error, mutate } = useSWR('/api/options-screener/iv-percentile', sectionFetcher, { revalidateOnFocus: false })
+  const ivSyms = usePanelSymbolRows(!error && data?.status === 'ok' ? underlyings(data.ranked) : [], 'OSCR IV percentile')
+  if (error) return <ReadFailed error={error} what="IV percentile ranking" retry={mutate} />
   if (!data) return <p className={styles.note}>Loading the IV percentile ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
   if (data.status !== 'ok') return <p className={styles.note} data-testid="opts-iv-none">{data.note}</p>
@@ -186,10 +201,11 @@ function Iv() {
         {data.ranked.length === 0 && data.available_on ? ` · the percentile becomes available on ${data.available_on} if every session from here is logged` : ''}
       </p>
       {data.note && <p className={styles.note} data-testid="opts-iv-note">{data.note}</p>}
+      <BoardFromList syms={ivSyms} label="OSCR IV percentile" testId="oscr-iv-board" />
       {data.ranked.length > 0 && (
         <div className={styles.scroll}>
-          <table className={styles.grid}>
-            <thead><tr><th>Session</th><th>Underlying</th><th>ATM IV</th><th>Percentile</th><th>Bucket</th><th>Sessions</th></tr></thead>
+          <table className={styles.grid} aria-label="IV percentile ranking">
+            <thead><tr><th scope="col">Session</th><th scope="col">Underlying</th><th scope="col">ATM IV</th><th scope="col">Percentile</th><th scope="col">Bucket</th><th scope="col">Sessions</th></tr></thead>
             <tbody>
               {data.ranked.map((r) => (
                 <tr key={r.underlying}>

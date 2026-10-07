@@ -95,7 +95,7 @@ function MatchRow({ m }) {
   )
 }
 
-export default function SimilarNames({ noteId, embedKey }) {
+export default function SimilarNames({ noteId, embedKey, example = false }) {
   const enabled = findSimilarEnabled()
   const titleId = useId()
   const key = enabled && noteId && embedKey ? similarUrl(noteId, embedKey) : null
@@ -113,7 +113,18 @@ export default function SimilarNames({ noteId, embedKey }) {
       {!error && data?.status === 'not_tagged' && (
         <p className={styles.quiet}>Tag this chart with a setup and it is matched in the nightly run.</p>
       )}
-      {!error && data?.status === 'pending' && (
+      {!error && data?.status === 'example' && (
+        <p className={styles.quiet} data-similar-never-matched="">
+          {data.neverMatched?.sentence || 'This chart is an example, so it is never matched. Tag a chart of your own to find names like it.'}
+        </p>
+      )}
+      {!error && data?.status === 'pending' && example && (
+        <p className={styles.quiet}>
+          This is an example chart. Examples are not matched; tag one of your own charts with a
+          setup and it is matched in the nightly run.
+        </p>
+      )}
+      {!error && data?.status === 'pending' && !example && (
         <p className={styles.quiet}>
           No matches yet. Tagged charts are matched against the day’s scored names every night after
           the scan sweep, so this one is matched tonight.

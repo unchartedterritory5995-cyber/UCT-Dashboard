@@ -83,6 +83,13 @@ MAX_GRADED_TRADES = 300
 COMPASS_EXCERPT_MAX_CHARS = 420
 
 
+#: Why a draft has no discipline part. The client words it; `reason` is the stable key.
+DISCIPLINE_OFF = {
+    "reason": "plan_grading_off",
+    "sentence": "Plan grading is switched off, so this draft has no discipline record.",
+}
+
+
 def enabled() -> bool:
     """The gate, read per call through the one parser (unset = OFF)."""
     return flag_on(FLAG, False)
@@ -514,6 +521,10 @@ def _assemble(
         "tradeCount": len(enriched),
         "aggregates": aggregates,
         "discipline": _period_discipline(enriched) if plan_grading_enabled() else None,
+        # Said, never silent (fin walk P7): the box that offers a draft promises "the
+        # discipline record". When plan grading is off there is none, and the client says why
+        # from this field instead of leaving the section out without a word.
+        "disciplineOmitted": None if plan_grading_enabled() else dict(DISCIPLINE_OFF),
         "setupChanges": _setup_changes(conn, user_id, account_id, enriched),
         "bestTrade": best,
         "worstTrade": worst,

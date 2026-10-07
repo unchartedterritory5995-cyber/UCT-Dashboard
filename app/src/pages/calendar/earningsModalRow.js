@@ -64,6 +64,9 @@ export function toModalRow(entry) {
     // upstream by `enrichReady`, and defaulting to "unresolved" would show
     // "unavailable" on every un-enriched row.
     history_unresolved: entry.history_unresolved ?? false,
+    // Fiscal identity + label of the next report (accuracy follow-up 2): the
+    // upcoming row used to be numbered by the report date's calendar month.
+    next_report_fiscal: entry.next_report_fiscal ?? null,
     // 2026-09-03 A5 modernization — canonical entity (S3), stamped on every
     // calendar entry by `api/routers/calendar.py::_attach_entities`. Same
     // ALLOW-LIST trap the comment above already documents: absent here, the

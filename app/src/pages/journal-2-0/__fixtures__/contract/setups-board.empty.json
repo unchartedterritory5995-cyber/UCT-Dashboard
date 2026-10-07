@@ -11,6 +11,11 @@
     "count": 0,
     "exampleCount": 0,
     "pageSize": 16,
+    "planDrawing": {
+      "available": true,
+      "reason": null,
+      "sentence": null
+    },
     "scanned": 0,
     "today": "2026-10-05"
   }

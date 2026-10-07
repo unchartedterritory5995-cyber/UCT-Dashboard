@@ -12,21 +12,21 @@ import styles from './FundamentalSnapshot.module.css'
 
 function scoreColor(v) {
   if (v == null) return 'var(--text-muted, #8a8f98)'
-  if (v >= 80) return '#3cb868'
-  if (v >= 60) return '#7fb84e'
-  if (v >= 40) return '#c9a84c'
-  if (v >= 20) return '#e08a3c'
-  return '#e74c3c'
+  if (v >= 80) return 'var(--score-elite)'
+  if (v >= 60) return 'var(--score-strong)'
+  if (v >= 40) return 'var(--score-neutral)'
+  if (v >= 20) return 'var(--score-weak)'
+  return 'var(--score-poor)'
 }
 function letterColor(l) {
   if (!l) return 'var(--text-muted, #8a8f98)'
-  if (l === 'A') return '#3cb868'
-  if (l === 'B') return '#7fb84e'
-  if (l === 'C') return '#c9a84c'
-  if (l === 'D') return '#e08a3c'
-  return '#e74c3c'
+  if (l === 'A') return 'var(--grade-a)'
+  if (l === 'B') return 'var(--grade-b)'
+  if (l === 'C') return 'var(--grade-c)'
+  if (l === 'D') return 'var(--grade-d)'
+  return 'var(--grade-f)'
 }
-const signColor = (v) => (v == null ? undefined : v > 0 ? '#3cb868' : v < 0 ? '#e74c3c' : undefined)
+const signColor = (v) => (v == null ? undefined : v > 0 ? 'var(--success-ink)' : v < 0 ? 'var(--danger-ink)' : undefined)
 
 // formatters
 const dash = '—'
@@ -217,7 +217,7 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
           <div className={styles.groupLbl}>Stock Checkup</div>
           {checkup.map((c, i) => (
             <div key={`${c.label}-${i}`} className={styles.checkRow}>
-              <span className={styles.checkIcon} style={{ color: c.status === 'pass' ? '#3cb868' : c.status === 'fail' ? '#e74c3c' : 'var(--text-muted, #8a8f98)' }}>
+              <span className={styles.checkIcon} style={{ color: c.status === 'pass' ? 'var(--success-ink)' : c.status === 'fail' ? 'var(--danger-ink)' : 'var(--text-muted)' }}>
                 {c.status === 'pass' ? <UIcon name="check" size={13} /> : c.status === 'fail' ? <UIcon name="x" size={13} /> : '–'}
               </span>
               <span className={styles.checkLbl}>{c.label}</span>

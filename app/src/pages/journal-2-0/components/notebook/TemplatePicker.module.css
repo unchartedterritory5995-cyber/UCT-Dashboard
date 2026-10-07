@@ -310,10 +310,13 @@
   .searchClear,
   .chip {
     min-height: var(--tap-min);
+    /* "All" was 37 px wide */
+    min-width: var(--tap-min, 44px);
   }
   .chip {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
   }
 }
 

@@ -67,13 +67,15 @@ describe('persistence boundary rails (source-level)', () => {
   it('StockChart strips the preview at its one persist writer and lays it over csView only', () => {
     const s = src('../../../StockChart.jsx')
     expect(s).toMatch(/newSettings = stripPreview\(newSettings\)/)
-    expect(s).toMatch(/return withPreviewInstance\(view, studioPreview\)/)
+    // ⭐ PHASE 4 — an EDIT's preview may stand in for its definition's own instances.
+    expect(s).toMatch(/return withPreviewInstance\(view, studioPreview, studioPreviewReplaces\)/)
     // the toolbar is handed the STORED blob, never the view
-    expect(s).toMatch(/chartSettings=\{cs\}\s+volumePaneFixed=\{volumePaneFixed\}\s+onUpdateSettings=\{handleUpdateChartSettings\}\s+[\s\S]{0,400}onStudioPreview=\{setStudioPreview\}/)
+    expect(s).toMatch(/chartSettings=\{cs\}\s+volumePaneFixed=\{volumePaneFixed\}\s+onUpdateSettings=\{handleUpdateChartSettings\}\s+[\s\S]{0,400}onStudioPreview=\{handleStudioPreview\}/)
   })
   it('⚰️ browser-found: StockChart forwards openCreateIndicator through its published toolbar API', () => {
     // Without it the Indicators button closed the modal and opened nothing.
-    expect(src('../../../StockChart.jsx')).toMatch(/openCreateIndicator: \(\) => \{\s*try \{ return toolbarRef\.current\?\.openCreateIndicator\?\.\(\)/)
+    // ⭐ PHASE 4 — it forwards `{defId}` too (Modify with UCT Intelligence).
+    expect(src('../../../StockChart.jsx')).toMatch(/openCreateIndicator: \(opts = null\) => \{\s*try \{ return toolbarRef\.current\?\.openCreateIndicator\?\.\(opts\)/)
   })
   it('⚰️ browser-found: the repaint no-op fingerprint sees definition installs and the preview', () => {
     // Without these, "make it 50" recomputed the column and the chart skipped setData.

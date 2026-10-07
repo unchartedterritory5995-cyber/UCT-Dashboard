@@ -22,7 +22,7 @@
       "type": "string", "maxLength": 1200
     }
   },
-  "x-uct-limits": { "maxOps": 12, "maxOutputs": 8, "maxAssumptions": 12, "maxQuestions": 3, "maxTextLength": 300 },
+  "x-uct-limits": { "maxOps": 12, "maxOutputs": 8, "maxAssumptions": 12, "maxQuestions": 3, "maxTextLength": 300, "maxLevels": 8 },
   "$defs": {
     "node": {
       "description": "THE EXISTING CANONICAL AST NODE. Placeholder: the server substitutes definition_concierge.tool_schema()['input_schema']['$defs'] (the advertised emit_formula union: num, series, op, call, offset over the closed table). The engine accepts only canonical trees of those five node types and proves each by print/parse round trip.",
@@ -73,7 +73,9 @@
         { "$ref": "#/$defs/op_set_marker" }, { "$ref": "#/$defs/op_remove_marker" },
         { "$ref": "#/$defs/op_set_paint" }, { "$ref": "#/$defs/op_remove_paint" },
         { "$ref": "#/$defs/op_request_info_value" }, { "$ref": "#/$defs/op_request_alert" },
-        { "$ref": "#/$defs/op_cancel_request" }
+        { "$ref": "#/$defs/op_cancel_request" },
+        { "$ref": "#/$defs/op_set_levels" }, { "$ref": "#/$defs/op_set_fill" },
+        { "$ref": "#/$defs/op_remove_fill" }
       ]
     },
     "op_create": {
@@ -148,6 +150,7 @@
         "color": { "$ref": "#/$defs/colour" },
         "width": { "type": "integer", "minimum": 1, "maximum": 4 },
         "style": { "enum": ["line", "stepline", "histogram", "area", "baseline"] },
+        "lineStyle": { "enum": ["solid", "dashed", "dotted", "largeDashed"] },
         "hidden": { "type": "boolean" }
       }
     },
@@ -198,6 +201,28 @@
         "op": { "const": "cancel_request" }, "kind": { "enum": ["alert", "info_value"] },
         "output": { "$ref": "#/$defs/outputKey" }
       }
+    },
+    "op_set_levels": {
+      "description": "P3 — the definition's horizontal reference lines: the Builder's Levels box (ONE hlines guide). values replaces the whole list, in order; [] removes the guide.",
+      "type": "object", "additionalProperties": false, "required": ["op", "values"],
+      "properties": {
+        "op": { "const": "set_levels" },
+        "values": { "type": "array", "maxItems": 8, "items": { "type": "number" } }
+      }
+    },
+    "op_set_fill": {
+      "description": "P3 — shade the area between two SERIES outputs (plots[output].fill.with). color / opacity are the band's own; omitted, the band is drawn in the output's colour at a low alpha.",
+      "type": "object", "additionalProperties": false, "required": ["op", "output", "with"],
+      "properties": {
+        "op": { "const": "set_fill" }, "output": { "$ref": "#/$defs/outputKey" },
+        "with": { "$ref": "#/$defs/outputKey" },
+        "color": { "$ref": "#/$defs/colour" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "op_remove_fill": {
+      "type": "object", "additionalProperties": false, "required": ["op", "output"],
+      "properties": { "op": { "const": "remove_fill" }, "output": { "$ref": "#/$defs/outputKey" } }
     }
   }
 }

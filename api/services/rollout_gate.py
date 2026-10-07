@@ -204,6 +204,42 @@ def terminal_next_enabled_for(user_id: Optional[str]) -> bool:
                               kill_switch=terminal_next_enabled)
 
 
+# --------------------------------------------------------------------------- #
+# ⭐ CREATE INDICATOR (UCT Intelligence conversational authoring) — a controlled
+# member cohort, the Terminal-Next shape exactly: an ENABLEMENT flag read per
+# call and FIRST, then an admin-written cohort tag (`create-indicator`). Admins
+# keep their own (dark-review) access at the call site; this answers only "has
+# the feature been released to THIS member". Unset flag or empty cohort ⇒ no
+# member, never a fallback. Turning it off stops NEW conversations only: saved
+# indicators are ordinary user definitions and are not behind this gate.
+# --------------------------------------------------------------------------- #
+
+#: ⛔ `_ENABLED` suffix: `feature_flag_index.is_gate()` must see it, and
+#: `docs/feature_flags.json` carries its ledger entry.
+CREATE_INDICATOR_FLAG_ENV = "CREATE_INDICATOR_COHORT_ENABLED"
+#: Enablement polarity, for the reason this module's header gives Terminal-Next:
+#: a forgotten variable reading "on" would release an unreleased AI surface to the
+#: cohort; reading "off" costs nothing. Pinned to the ledger's `default`.
+CREATE_INDICATOR_FLAG_DEFAULT = "0"
+#: The BARE cohort name (`rollout.tag_for` adds the prefix). Spelled exactly as
+#: `app/src/components/chart/builder/studio/createIndicatorFlag.js`.
+CREATE_INDICATOR_COHORT = "create-indicator"
+
+
+def create_indicator_cohort_enabled() -> bool:
+    """`CREATE_INDICATOR_COHORT_ENABLED` RIGHT NOW. ⛔ Never cached (see
+    `terminal_next_enabled`). Unset means the cohort is not released."""
+    raw = os.environ.get(CREATE_INDICATOR_FLAG_ENV, CREATE_INDICATOR_FLAG_DEFAULT)
+    return (raw or "").strip().lower() in _ON_VALUES
+
+
+def create_indicator_enabled_for(user_id: Optional[str]) -> bool:
+    """Is Create Indicator released to this MEMBER? (Admins are decided by the
+    caller's role check, so a dark review never depends on the flag.)"""
+    return cohort_enabled_for(user_id, CREATE_INDICATOR_COHORT,
+                              kill_switch=create_indicator_cohort_enabled)
+
+
 #: ⛔ THE COHORTS A CLIENT MAY BE TOLD ABOUT, each beside the kill switch that
 #: can stop it. A cohort absent from this map is NEVER surfaced to a browser,
 #: and that is fail-closed on purpose: a cohort the client can see but nobody
@@ -212,6 +248,16 @@ def terminal_next_enabled_for(user_id: Optional[str]) -> bool:
 #: them here would be a new exposure nobody decided on.
 COHORT_KILL_SWITCHES: dict[str, Callable[[], bool]] = {
     TERMINAL_NEXT_COHORT: terminal_next_enabled,
+    CREATE_INDICATOR_COHORT: create_indicator_cohort_enabled,
+}
+
+#: Each registered cohort's flag VARIABLE, beside its reader above -- so the
+#: kill-switch rails can throw EACH cohort's own switch (they were written when
+#: Terminal-Next was the only entry and threw only its variable). Same keys as
+#: `COHORT_KILL_SWITCHES`; `tests/test_terminal_next_flag.py` holds them equal.
+COHORT_FLAG_ENVS: dict[str, str] = {
+    TERMINAL_NEXT_COHORT: TERMINAL_NEXT_FLAG_ENV,
+    CREATE_INDICATOR_COHORT: CREATE_INDICATOR_FLAG_ENV,
 }
 
 

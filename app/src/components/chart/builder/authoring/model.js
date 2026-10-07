@@ -47,7 +47,9 @@ export const CARRIED_COMPUTE = Object.freeze(['rev', 'paramState'])
 
 /** The presentation fields a plot row carries through `buildDefinition`. */
 const ROW_PRESENTATION = Object.freeze(['colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient',
-  'opacity', 'displace', 'displaceFrom', 'fill', 'fillColor', 'fillOpacity'])
+  'opacity', 'displace', 'displaceFrom', 'fill', 'fillColor', 'fillOpacity',
+  // ⭐ P3 — a plot's line style (`buildDefinition` projects it from the row).
+  'lineStyle'])
 
 const isDefaultPane = (p) => JSON.stringify(p) === JSON.stringify(PANE_PLACEMENT())
 
@@ -247,6 +249,170 @@ export function diffPaths(a, b, at = '', out = []) {
 /** ⛔ THE FIDELITY GUARD: the paths a Builder round trip of `def` would change. */
 export function fidelityResidual(def, model) {
   return diffPaths(def, buildFromModel(model))
+}
+
+// ─── ⭐⭐ PHASE 4 — PRESERVE WHAT THE CONVERSATION CANNOT AUTHOR ─────────────────
+//
+// THE AI DOES NOT NEED TO UNDERSTAND EVERY FIELD IN ORDER TO PRESERVE EVERY FIELD.
+// A residual path (a field `buildFromModel` would not reproduce — an imported
+// plot's legend decimals, column geometry, packed per-bar colours, a band, a share
+// install's `origin` …) used to refuse the WHOLE definition. It is now split:
+//
+//   CARRIED  — valid presentation/document state outside the model's vocabulary.
+//              Kept out of model ownership and grafted back VERBATIM (the stored
+//              value, by path) onto every patched document.
+//   BLOCKING — maths and structure (`compute.*`, `inputs`, a whole plot the row
+//              model does not hold, plot order). Still refused, by name: carrying
+//              maths the model cannot see would desynchronise what it edits.
+//
+// ⛔ A CONFLICT IS REFUSED, NEVER RESOLVED: when a patch changes a setting in the
+// SAME group as a carried field of the same output (its colour while a per-bar
+// colour is carried, its style while column geometry is carried …), the request
+// needs a field the conversation cannot read, so the turn is refused truthfully.
+
+/** Top-level keys whose residual is never carried (the maths and the identity). */
+const BLOCKING_TOP = Object.freeze(['compute', 'inputs', 'schemaVersion', 'id', 'version'])
+
+/** Per-output setting groups: a carried field conflicts with a change in its group. */
+const PLOT_GROUPS = Object.freeze([
+  Object.freeze(['color', 'colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient', 'colorPacked', 'opacity']),
+  Object.freeze(['style', 'bar', 'band', 'edges', 'marker', 'lineStyle', 'sparse', 'width', 'base']),
+  Object.freeze(['fill', 'fillColor', 'fillOpacity']),
+  Object.freeze(['legend']),
+  Object.freeze(['precision']),
+  Object.freeze(['displace', 'displaceFrom']),
+])
+
+/** `'plots[value].legend.decimals'` → `[{k:'plots'}, {key:'value'}, {k:'legend'}, {k:'decimals'}]`. */
+export function parsePath(p) {
+  const out = []
+  const re = /([^.[\]]+)|\[([^\]]*)\]/g
+  let m
+  while ((m = re.exec(p))) out.push(m[2] !== undefined ? { key: m[2] } : { k: m[1] })
+  return out
+}
+
+const NOT_FOUND = Symbol('not-found')
+function step(v, seg) {
+  if (seg.key !== undefined) {
+    if (!Array.isArray(v)) return NOT_FOUND
+    const hit = v.find((x) => isObj(x) && x.key === seg.key)
+    return hit === undefined ? NOT_FOUND : hit
+  }
+  if (!isObj(v) || !(seg.k in v)) return NOT_FOUND
+  return v[seg.k]
+}
+export function getPath(doc, p) {
+  let v = doc
+  for (const seg of parsePath(p)) { v = step(v, seg); if (v === NOT_FOUND) return NOT_FOUND }
+  return v
+}
+
+/** Is a residual path one the conversation may CARRY (never maths/structure)? */
+export function isCarryablePath(p) {
+  if (!p || p === '(root)' || p.includes('(order)')) return false
+  const segs = parsePath(p)
+  if (!segs.length || segs[0].k === undefined || BLOCKING_TOP.includes(segs[0].k)) return false
+  // A FIELD of a keyed output — never the whole output (the row model would have
+  // to hold it) and never an un-keyed array position.
+  if (segs[0].k === 'plots') return segs.length >= 3 && segs[1].key !== undefined && segs[2].k !== undefined
+  return true
+}
+
+/** Is a residual path one `buildDefinition` DERIVES (`meta.name`, `meta.shortName`,
+ *  `meta.description`, `meta.repaint`, `meta.freshness`)? Those are re-derived from the
+ *  model on every save — never carried (a stale short name would override the new one)
+ *  and never blocking (the Builder re-derives them too). */
+const isDerivedMetaPath = (p) => {
+  const segs = parsePath(p)
+  return segs.length >= 2 && segs[0].k === 'meta' && DERIVED_META.includes(segs[1].k)
+}
+
+/** The residual of a stored definition, split into carried and blocking paths
+ *  (derived meta, re-derived on save, is neither). */
+export function fidelityPlan(def, model) {
+  const residual = fidelityResidual(def, model).filter((p) => !isDerivedMetaPath(p))
+  const carry = []
+  const blocking = []
+  for (const p of residual) (isCarryablePath(p) ? carry : blocking).push(p)
+  return Object.freeze({ residual, carry, blocking })
+}
+
+/** The group of settings a carried path belongs to: `{plotKey, fields}` for an
+ *  output field, `{top}` for a document key. */
+function groupOf(p) {
+  const segs = parsePath(p)
+  if (segs[0].k === 'plots') {
+    const field = segs[2].k
+    const fields = PLOT_GROUPS.find((g) => g.includes(field)) || Object.freeze([field])
+    return { plotKey: segs[1].key, fields }
+  }
+  return { top: segs[0].k }
+}
+
+function plotOf(doc, key) {
+  return (Array.isArray(doc && doc.plots) ? doc.plots : []).find((x) => isObj(x) && x.key === key) || null
+}
+
+function setPath(doc, p, value) {
+  const segs = parsePath(p)
+  let v = doc
+  for (let i = 0; i < segs.length - 1; i += 1) {
+    const seg = segs[i]
+    const nxt = step(v, seg)
+    if (nxt === NOT_FOUND) {
+      if (seg.key !== undefined || !isObj(v)) return false
+      v[seg.k] = {}
+      v = v[seg.k]
+    } else {
+      v = nxt
+    }
+  }
+  const last = segs[segs.length - 1]
+  if (last.k === undefined || !isObj(v)) return false
+  v[last.k] = clone(value)
+  return true
+}
+
+/** The model field a document top-level key is authored through (a carried field
+ *  under it conflicts when the patch moved that model field). */
+const TOP_MODEL_FIELD = Object.freeze({ placement: 'placement', paints: 'paints', objects: 'objects', meta: 'name' })
+
+/**
+ * Graft the CARRIED residual of `stored` back onto `next` (a fresh document; it is
+ * copied, never mutated). `before` / `after` are the ROW MODEL before and after the
+ * patch — the record of what the patch changed: a carried field conflicts when the
+ * patch moved anything in its group (an output's colour while a per-bar colour is
+ * carried …). ⛔ The model, not two built documents: the Builder's projection writes
+ * some presentation only in some shapes, so comparing built documents would see
+ * movement the member never asked for.
+ * @returns {{doc, conflicts: {path, output, fields}[], dropped: string[]}}
+ */
+export function graftCarried(next, stored, before, after, carry) {
+  const doc = clone(next)
+  const conflicts = []
+  const dropped = []
+  const rowIn = (m, key) => (m && Array.isArray(m.rows) ? m.rows.find((r) => r && r.key === key) : null) || null
+  for (const p of carry) {
+    const value = getPath(stored, p)
+    if (value === NOT_FOUND) continue
+    const g = groupOf(p)
+    if (g.plotKey !== undefined) {
+      if (!plotOf(doc, g.plotKey) || !rowIn(after, g.plotKey)) { dropped.push(p); continue }   // removed on purpose
+      const b = rowIn(before, g.plotKey)
+      const a = rowIn(after, g.plotKey)
+      const moved = g.fields.some((f) => stableJson(b ? b[f] : undefined) !== stableJson(a[f]))
+      if (moved) { conflicts.push({ path: p, output: g.plotKey, fields: g.fields }); continue }
+    } else {
+      const mf = TOP_MODEL_FIELD[g.top]
+      if (mf && stableJson(before ? before[mf] : undefined) !== stableJson(after ? after[mf] : undefined)) {
+        conflicts.push({ path: p, output: null, fields: [g.top] })
+        continue
+      }
+    }
+    if (!setPath(doc, p, value)) dropped.push(p)
+  }
+  return { doc, conflicts, dropped }
 }
 
 export { LEVELS_PLOT_KEY }

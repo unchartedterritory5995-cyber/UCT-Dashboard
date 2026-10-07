@@ -272,7 +272,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
 
   if (isPhone) {
     return (
-      <div className={styles.cardList}>
+      <div className={styles.cardList} tabIndex={-1} data-route-landing="" aria-label="Trades">
         {sorted.map((t) => (
           <TradeCard key={t.id} trade={t} onRowAction={onRowAction} reviewedIds={reviewedIds} planStatuses={planStatuses} />
         ))}
@@ -310,7 +310,9 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
             })}
           </tr>
         </thead>
-        <tbody>
+        {/* Where keyboard focus lands after a move to this page (lib/routeFocus.jsx): the next
+            Tab is the first trade, not the column headers. Focusable by script only. */}
+        <tbody tabIndex={-1} data-route-landing="" aria-label="Trades">
           {sorted.map((t) => (
             <tr key={t.id} className={styles.row}>
               {visibleColumns.map((c) => (

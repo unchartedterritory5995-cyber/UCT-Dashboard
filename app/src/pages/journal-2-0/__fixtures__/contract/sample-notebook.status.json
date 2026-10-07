@@ -1,0 +1,34 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/onboarding/sample-notebook",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 200
+  },
+  "body": {
+    "activeIds": [
+      "eed94ec8e6e242f4bbb5da9a3a9b7f85",
+      "90ae7f1a8a884ec38225a1247c2cdf73",
+      "946557c7e6c64c4b811c781dacf84007",
+      "b53d3c03065b46078784de42d8421b26",
+      "cb3751fa470b46cf9205043149c30da7",
+      "09ab5a39caaa4426a257961c8317e431",
+      "32e881b195144474ac030ebcf764697c",
+      "220b31a77b6f4b7a90f8b2ec7c411eb4",
+      "c21bc478379f493c884b6a386e22bfef",
+      "5b122682c1614bbdb43d3403b4fe2c9a"
+    ],
+    "ids": [
+      "eed94ec8e6e242f4bbb5da9a3a9b7f85",
+      "90ae7f1a8a884ec38225a1247c2cdf73",
+      "946557c7e6c64c4b811c781dacf84007",
+      "b53d3c03065b46078784de42d8421b26",
+      "cb3751fa470b46cf9205043149c30da7",
+      "09ab5a39caaa4426a257961c8317e431",
+      "32e881b195144474ac030ebcf764697c",
+      "220b31a77b6f4b7a90f8b2ec7c411eb4",
+      "c21bc478379f493c884b6a386e22bfef",
+      "5b122682c1614bbdb43d3403b4fe2c9a"
+    ]
+  }
+}

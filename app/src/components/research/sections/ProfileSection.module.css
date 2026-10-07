@@ -13,8 +13,8 @@
 }
 .statLabel { font-size: var(--text-xs); color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .statValue { font-size: var(--text-lg); color: var(--text-bright); font-variant-numeric: tabular-nums; line-height: var(--lh-snug); }
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 
 .facts { display: flex; flex-direction: column; gap: var(--space-xs); margin: 0; font-size: var(--text-sm); }
 .factRow { display: grid; grid-template-columns: minmax(96px, max-content) 1fr; gap: var(--space-md); }

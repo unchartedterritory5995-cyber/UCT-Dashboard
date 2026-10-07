@@ -32,6 +32,7 @@ import {
   formatNumber,
   formatPercent,
   formatCurrency,
+  formatPercentAsSent,
   formatCompact,
   COMPACT_TIERS,
   TERMINAL_COMPACT_TIERS,
@@ -230,6 +231,14 @@ describe('formatPercent', () => {
     expect(formatPercent(0, { signed: true })).toBe('+0.00%')
     expect(formatPercent(-1.5, { signed: true })).toBe('-1.50%')
     expect(formatPercent(-1.5, { signed: true })).not.toContain('+')
+    // a negative that ROUNDS to zero is zero, never "-0.00%" (accuracy audit 2026-10-06)
+    expect(formatPercent(-0.001)).toBe('0.00%')
+    expect(formatPercent(-0.001, { signed: true })).toBe('0.00%')
+    expect(formatPercent(-0.004, { decimals: 2 })).toBe('0.00%')
+    expect(formatPercent(-0.005, { decimals: 2 })).toBe('-0.01%')        // a real -0.01 keeps its sign
+    expect(formatPercent(-0.04, { decimals: 1, signed: true })).toBe('0.0%')
+    expect(formatPercent(-0)).toBe('0.00%')
+    expect(formatPercent(0.001, { signed: true })).toBe('+0.00%')
   })
 
   it('decimals', () => {
@@ -257,7 +266,8 @@ describe('formatCompact (TERM-066) — volume, market cap, revenue, share count'
 
   it('below the smallest tier it is a Math.round integer — and never "-0"', () => {
     expect(formatCompact(999.4)).toBe('999')
-    expect(formatCompact(999.5)).toBe('1000')   // rounds past the tier: the tier is chosen first
+    // rounds up to the K threshold, so it prints in K (accuracy audit 2026-10-06; was "1000")
+    expect(formatCompact(999.5)).toBe('1.0K')
     expect(formatCompact(-0.4)).toBe('0')
     expect(formatCompact(0)).toBe('0')
   })
@@ -280,8 +290,38 @@ describe('formatCompact (TERM-066) — volume, market cap, revenue, share count'
     expect(formatCompact(1e9, { tiers })).toBe('1000.00M')
   })
 
-  it('the first tier the magnitude reaches wins, and a value can round up past it', () => {
-    expect(formatCompact(999_950)).toBe('1000.0K')
+  it('a value that ROUNDS up to the next tier prints in it (accuracy audit 2026-10-06)', () => {
+    // was "1000.0K" / "1000K" / "1000.0M": the tier was picked before rounding
+    expect(formatCompact(999_950)).toBe('1.0M')
+    expect(formatCompact(999_949)).toBe('999.9K')               // just below: unchanged
+    expect(formatCompact(-999_950)).toBe('-1.0M')
+    expect(formatCompact(999_950_000)).toBe('1.0B')
+    expect(formatCompact(999.6)).toBe('1.0K')                   // below the smallest tier too
+    expect(formatCompact(999.4)).toBe('999')
+    expect(formatCompactTerminal(999_999)).toBe('1.0M')         // was "1000K"
+    expect(formatCompactTerminal(999_499)).toBe('999K')
+    expect(formatCompactTerminal(999_950_000, { money: true })).toBe('$1.00B')   // was "$1000.0M"
+    expect(formatCompactTerminal(-999_995_000_000, { money: true })).toBe('-$1.00T')
+    expect(formatCompactTerminal(999.5)).toBe('1K')
+    // the top tier has nothing to promote to; a ladder without B keeps counting in M
+    expect(formatCompactTerminal(1e18)).toBe('1000000.00T')
+    const tiers = [{ at: 1e6, suffix: 'M', decimals: 2 }, { at: 1e3, suffix: 'K', decimals: 'round' }]
+    expect(formatCompact(999_999_999, { tiers })).toBe('1000.00M')
+    expect(formatCompact(999_500, { tiers })).toBe('1.00M')     // Math.round(999.5) = 1000 -> M
+  })
+
+  it('independent reference: no rendered number ever reads 1000 of a unit that has a next tier', () => {
+    // the units that HAVE a next tier: default ladder K M (B is its top), terminal K M B (T top)
+    let x = 0x5eed
+    for (let i = 0; i < 20000; i++) {
+      x = (Math.imul(x, 1103515245) + 12345) >>> 0
+      const v = (x / 2 ** 32) * 10 ** (1 + (i % 13)) * (i % 2 ? -1 : 1)
+      for (const [out, units] of [[formatCompact(v), 'KM'], [formatCompactTerminal(v, { money: true }), 'KMB']]) {
+        const m = out.match(/(\d+(?:\.\d+)?)([KMBT]?)$/)
+        const hasNext = m && (m[2] ? units.includes(m[2]) : true)
+        if (hasNext) expect(Number(m[1]), `${v} -> ${out}`).toBeLessThan(1000)
+      }
+    }
   })
 
   it('is total: a non-finite or non-number value is the caller’s absent', () => {
@@ -443,5 +483,46 @@ describe('TERM-066 golden — a pre-1900 date formats, it does not crash or blan
   it('formatTimeEt renders the same instant, never "Invalid Date" or the absent value', () => {
     const out = formatTimeEt(new Date(epoch1895 * 1000), { absent: 'ABSENT' })
     expect(out).toBe('7:00 AM')
+  })
+})
+
+describe('formatCurrency grouping (completeness audit 2026-10-07)', () => {
+  it('the default is unchanged: toFixed, ungrouped', () => {
+    expect(formatCurrency(1234.5)).toBe('$1234.50')
+    expect(formatCurrency(-2.9, { decimals: 0 })).toBe('-$3')
+  })
+  it('grouping: a grouped amount, the sign inside the minus, halves away from zero', () => {
+    expect(formatCurrency(12500, { decimals: 0, grouping: true })).toBe('$12,500')
+    expect(formatCurrency(-12500.4, { decimals: 0, grouping: true })).toBe('-$12,500')
+    expect(formatCurrency(-2.5, { decimals: 0, grouping: true })).toBe('-$3')
+    expect(formatCurrency(1234.567, { grouping: true })).toBe('$1,234.57')
+  })
+  it('a value that rounds to zero is zero, never "-$0"', () => {
+    expect(formatCurrency(-0.4, { decimals: 0, grouping: true })).toBe('$0')
+    expect(formatCurrency(-0, { decimals: 0, grouping: true })).toBe('$0')
+    expect(formatCurrency(-0.001, { grouping: true })).toBe('$0.00')
+    expect(formatCurrency(-0.6, { decimals: 0, grouping: true })).toBe('-$1')
+  })
+  it('absent as every primitive', () => {
+    expect(formatCurrency(NaN, { grouping: true })).toBe(ABSENT)
+    expect(formatCurrency(null, { grouping: true, absent: null })).toBe(null)
+  })
+})
+
+describe('formatPercentAsSent (completeness audit 2026-10-07)', () => {
+  it('prints what the server sent: no padded zeros, ungrouped, up to three decimals', () => {
+    expect(formatPercentAsSent(3.27)).toBe('3.27%')
+    expect(formatPercentAsSent(3)).toBe('3%')
+    expect(formatPercentAsSent(87.5)).toBe('87.5%')
+    expect(formatPercentAsSent(1234.5)).toBe('1234.5%')
+    expect(formatPercentAsSent(-12.25)).toBe('-12.25%')
+    expect(formatPercentAsSent('3.5')).toBe('3.5%')
+  })
+  it('zero has no sign; a missing or non-numeric value is absent, never "NaN%" / "null%"', () => {
+    expect(formatPercentAsSent(-0)).toBe('0%')
+    expect(formatPercentAsSent(null)).toBe(ABSENT)
+    expect(formatPercentAsSent('')).toBe(ABSENT)
+    expect(formatPercentAsSent('n/a')).toBe(ABSENT)
+    expect(formatPercentAsSent(Infinity, { absent: null })).toBe(null)
   })
 })

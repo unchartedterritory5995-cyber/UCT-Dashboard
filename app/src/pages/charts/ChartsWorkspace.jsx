@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -8,6 +8,12 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+// UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
+// for anyone who never opens it. The host only READS the chart registry below.
+import useSWR, { useSWRConfig } from 'swr'
+import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
+import { buildWorkspaceHost } from '../../agent/host'
+const AgentPanel = lazy(() => import('../../agent/AgentPanel'))
 // TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
 // A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
@@ -1619,8 +1625,18 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false } = {}) => {
+  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false, place: slot = null } = {}) => {
     if (refuseIfBoardFull()) return
+    // `place` = an exact slot a caller already planned in EMPTY space (e.g. one cell of
+    // planGroupPlacement, so a group of new widgets comes out equal). Honoured only if it
+    // is inside the board and overlaps nothing right now; otherwise ignored, and the
+    // normal placement below decides — a stale slot can never overlap or move anything.
+    const freeSlot = (board) => {
+      if (!slot || float || ![slot.x, slot.y, slot.w, slot.h].every(Number.isInteger)) return null
+      if (slot.x < 0 || slot.y < 0 || slot.w < 1 || slot.h < 1 || slot.x + slot.w > COLS.lg || slot.y + slot.h > FIXED_ROWS) return null
+      const hit = (board || []).some(w => w.x < slot.x + slot.w && slot.x < w.x + w.w && w.y < slot.y + slot.h && slot.y < w.y + w.h)
+      return hit ? null : { x: slot.x, y: slot.y, w: slot.w, h: slot.h }
+    }
     // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
@@ -1630,7 +1646,7 @@ export default function ChartsWorkspace() {
     // space, fall through and place it immediately — no confirm step. (Float-on-create
     // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
     // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
-    if (!float && !instant && SMART_PLACEMENT) {
+    if (!float && !instant && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)) {
       const base = layoutRef.current?.widgets || []
       const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
       if (plan.mutations && plan.mutations.length > 0) {
@@ -1644,7 +1660,10 @@ export default function ChartsWorkspace() {
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
-      if (float) {
+      const planned = freeSlot(prev.widgets)
+      if (planned) {
+        place = planned
+      } else if (float) {
         // Float-on-create: it renders on TOP of the board, so it must NOT reshuffle
         // the grid (no findPlacement / reserveBottomStrip — those shrink the existing
         // charts to make room, which a floating overlay must never do). Its grid slot
@@ -1913,7 +1932,7 @@ export default function ChartsWorkspace() {
   // ── Named layout templates (prebuilt + personal) ──
   const { user, addressSpaceEnabled } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, adoptRow: adoptLayoutRow, isLoading: templatesLoading } = useChartLayouts()
+  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, adoptRow: adoptLayoutRow, refresh: refreshLayouts, isLoading: templatesLoading } = useChartLayouts()
 
   const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
@@ -2278,40 +2297,49 @@ export default function ChartsWorkspace() {
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
      Layouts sheet owns its own input and passes the name explicitly. One handler,
      two callers: the alternative was a second save path that would drift. */
+  // Save the board on screen as the named layout `nm` and make it the open one.
+  // Returns the saved row; throws the server's sentence on failure. `createOnly`
+  // refuses (409) instead of replacing an existing layout of that name.
+  const saveCurrentAs = useCallback(async (nm, scope, { createOnly = false } = {}) => {
+    // Templates store the arrangement + the current CHART SETTINGS (so opening
+    // one restores the exact chart look you saved) — but NEVER the tickers, so
+    // opening a template never swaps the stock you're viewing. chartSettings is
+    // nested in the layout blob (backend persists it as layout_json);
+    // applyTemplate restores it. The frozen default settings are applied ONLY by
+    // "UCT Default".
+    const chartSettings = parsePref(prefs?.chart_settings, null)
+    const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
+    const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
+    const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
+    const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
+    const watchlistColumns = readWatchlistColumns()
+    const saved = await saveLayout({
+      name: nm,
+      layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
+      groups: null,
+      scope,
+      createOnly,
+    })
+    // The just-saved template becomes the active one, so "Save current
+    // arrangement" updates it going forward.
+    if (saved?.id != null) {
+      setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }))
+    }
+    return saved
+  }, [layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, saveLayout, setPref])
+
   const handleSaveAsTemplate = useCallback(async (nameArg, scopeArg) => {
     const nm = (typeof nameArg === 'string' ? nameArg : saveAsName).trim()
     if (!nm) { setSaveErr('Name required'); return }
     try {
-      // Templates store the arrangement + the current CHART SETTINGS (so opening
-      // one restores the exact chart look you saved) — but NEVER the tickers, so
-      // opening a template never swaps the stock you're viewing. chartSettings is
-      // nested in the layout blob (backend persists it as layout_json);
-      // applyTemplate restores it. The frozen default settings are applied ONLY by
-      // "UCT Default".
-      const chartSettings = parsePref(prefs?.chart_settings, null)
-      const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
-      const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
-      const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
-      const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
-      const watchlistColumns = readWatchlistColumns()
       const scope = isAdmin ? ((typeof scopeArg === 'string' && scopeArg) || saveAsScope) : 'user'
-      const saved = await saveLayout({
-        name: nm,
-        layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
-        groups: null,
-        scope,
-      })
-      // The just-saved template becomes the active one, so "Save current
-      // arrangement" updates it going forward.
-      if (saved?.id != null) {
-        setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }))
-      }
+      await saveCurrentAs(nm, scope)
       setSaveAsName(''); setSaveErr(''); setSaveMenuOpen(false)
       flashSaved()
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
+  }, [saveAsName, isAdmin, saveAsScope, saveCurrentAs, flashSaved])
 
   // Explicit "Save current arrangement" — flush the debounced auto-save + persist
   // the working board immediately (the auto-save is debounced 500ms, so a refresh
@@ -2789,6 +2817,78 @@ export default function ChartsWorkspace() {
     </div>
   )
 
+  // ── UCT Agent (admin-dark) ── the far-right workspace column. Two keys: the
+  // per-browser flag AND the admin role; the server routes are admin-only too.
+  // The host reads the charts through chartApiById (each ChartWidget's own agent
+  // adapter) and the visible board below — it never writes prefs itself.
+  const agentFlag = useAgentFlag()
+  const agentAllowed = agentFlag && isAdmin
+  const [agentOpen, setAgentOpenState] = useState(() => readLocal(AGENT_OPEN_KEY) === '1')
+  const setAgentOpen = useCallback((v) => { setAgentOpenState(v); writeLocal(AGENT_OPEN_KEY, v ? '1' : '0') }, [])
+  // Saved watchlists (the DATA, not the widget) for the Agent: the member's OWN lists,
+  // the same rows the Watchlists page reads, fetched only while the Agent is open.
+  // Writes go through the page's own REST routes (agent/host.js); afterwards every
+  // /api/watchlists* key re-reads, so each open list — widget or page — updates.
+  const { data: agentWatchlists } = useSWR(agentAllowed && agentOpen ? '/api/watchlists?include_prebuilt=0' : null,
+    (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : [])), { revalidateOnFocus: false })
+  const { mutate: swrMutate } = useSWRConfig()
+  const agentWatchlistsRef = useRef(null)
+  agentWatchlistsRef.current = {
+    lists: agentWatchlists,
+    revalidate: () => swrMutate(k => typeof k === 'string' && k.startsWith('/api/watchlists')),
+  }
+  // ⚠️ Hooks live ABOVE the phone early-return; the ref is filled below it.
+  const agentWidgetsRef = useRef([])
+  // widget.add / its undo go through the SAME handlers the Widgets menu and a
+  // widget's ✕ use — read through a ref so the host never holds a stale closure.
+  const agentWidgetOpsRef = useRef(null)
+  agentWidgetOpsRef.current = { add: (t, place) => handleAddWidget(t, undefined, { place }), remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd }
+  // Named layouts, read EXACTLY as the Layout Dock reads them (dockEntries + the
+  // charts_active_template pointer) and changed ONLY through the dock's own handlers:
+  // open = the dock's open (a no-op for the layout already open), rename =
+  // handleDockRename (keeps the active pointer in step), save-as = saveCurrentAs with
+  // createOnly (never replaces an existing layout of that name).
+  // `unsaved`: would switching away DISCARD edits? Only your own layouts auto-save
+  // (and are flushed on switch); edits on UCT Default, a prebuilt or a blank board
+  // are dropped by a switch — the manual product does the same, silently.
+  const agentLayoutsRef = useRef(null)
+  {
+    const active = dockActiveTpl
+    const known = active?.id != null && dockEntries.some(e => e.id === active.id)
+    let unsaved
+    if (dockAutoSaves && known) unsaved = false
+    else if (active?.id === UCT_DEFAULT_ID) unsaved = arrangementSig(layout) !== arrangementSig(parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
+    else if (known) unsaved = dockDirty
+    else unsaved = (layout.widgets?.length || 0) > 0
+    agentLayoutsRef.current = {
+      entries: dockEntries,
+      active: known ? { id: active.id, name: active.name, scope: active.scope || 'user' } : null,
+      unsaved,
+      arrangement: arrangementSig(layout),
+      open: (entry) => { if (entry && entry.id !== dockActiveId) handleDockOpen(entry) },
+      rename: (id, name) => handleDockRename(id, name),
+      saveAs: (name) => saveCurrentAs(name, 'user', { createOnly: true }),
+      refresh: () => refreshLayouts(),
+    }
+  }
+  const agentHost = useMemo(() => buildWorkspaceHost({
+    chartApiById: chartApiByIdRef,
+    getWidgets: () => agentWidgetsRef.current,
+    widgetLabel: (t) => WIDGET_LABELS[t] || t,
+    widgetOps: {
+      layout: () => layoutRef.current,
+      add: (t, place) => agentWidgetOpsRef.current.add(t, place),
+      remove: (id) => agentWidgetOpsRef.current.remove(id),
+      color: (id, c) => agentWidgetOpsRef.current.color(id, c),
+      cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
+    },
+    layouts: () => agentLayoutsRef.current,
+    watchlists: {
+      getLists: () => agentWatchlistsRef.current.lists,
+      revalidate: () => agentWatchlistsRef.current.revalidate(),
+    },
+  }), [])
+
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
     // pickers; non-chart widgets open as full-screen pages). Rendered inside
@@ -2861,6 +2961,8 @@ export default function ChartsWorkspace() {
   // slot frees up and the grid recompacts while it's away, and its stored
   // position is still there to dock back into.
   const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
+
+  agentWidgetsRef.current = visibleWidgets
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
   // Floating widgets stay in layout.widgets (geometry preserved for docking) but are
   // hidden from the grid and rendered in FloatingWidgetPanels over the canvas.
@@ -3231,7 +3333,22 @@ export default function ChartsWorkspace() {
               Workspace
             </button>
           )}
+          {agentAllowed && (
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              style={{ marginLeft: 'auto', ...(agentOpen ? { color: 'var(--ut-gold, #c9a84c)' } : null) }}
+              aria-pressed={agentOpen}
+              data-testid="agent-launch"
+              onClick={() => setAgentOpen(!agentOpen)}
+            >UCT Agent</button>
+          )}
         </header>
+        {/* UCT Agent: <main> + the Layout Dock become one column so the Agent can
+            sit at the FAR RIGHT of the whole workspace; the ResizeObserver on
+            .workspaceBody re-tiles the grid into the narrower column on its own. */}
+        <div className={styles.workspaceRow}>
+        <div className={styles.workspaceMainCol}>
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
@@ -3295,6 +3412,13 @@ export default function ChartsWorkspace() {
           onRename={handleDockRename}
           onRestored={handleDockRestored}
         />
+        </div>
+        {agentAllowed && agentOpen && (
+          <Suspense fallback={null}>
+            <AgentPanel host={agentHost} gridMode={gridMode} onClose={() => setAgentOpen(false)} />
+          </Suspense>
+        )}
+        </div>
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and

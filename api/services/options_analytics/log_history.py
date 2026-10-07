@@ -46,10 +46,12 @@ def _rows(sym: str, store=None) -> tuple:
 def _coverage(manifests: dict, now: Optional[_dt.datetime]) -> dict:
     ivh = _ivh()
     if not manifests:
-        return {"logging_began": None, "missing_sessions": []}
+        return {"logging_began": None, "missing_sessions": [], "as_of": None}
     began = min(manifests)
     return {"logging_began": began,
-            "missing_sessions": [d for d in ivh.expected_sessions(began, now) if d not in manifests]}
+            "missing_sessions": [d for d in ivh.expected_sessions(began, now) if d not in manifests],
+            # TERM-019: the newest session the log recorded (written 16:30 ET that day).
+            "as_of": max(manifests)}
 
 
 def _nth_trading_after(start: str, n: int) -> Optional[str]:
@@ -205,7 +207,8 @@ def iv_crush(sym: str, *, now: Optional[_dt.datetime] = None, store=None) -> dic
     out = {"symbol": sym, "label": "computed", "source": ivh.SOURCE, "method": CRUSH_METHOD,
            "offsets": list(CRUSH_OFFSETS), "prints": out_rows, "prints_before_log": before_log,
            "complete_prints": len(complete), "min_prints": CRUSH_MIN_PRINTS, "summary": None,
-           "summary_note": None, "logging_began": began}
+           "summary_note": None, "logging_began": began,
+           "as_of": max(manifests) if manifests else None}
     if len(complete) >= CRUSH_MIN_PRINTS:
         def col(k):
             return [r["iv"][str(k)] for r in complete]

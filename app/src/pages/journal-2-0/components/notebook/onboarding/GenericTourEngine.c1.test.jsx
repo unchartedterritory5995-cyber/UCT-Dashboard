@@ -125,7 +125,9 @@ describe('(c) the step list is re-evaluated on every Next', () => {
     await card('c-back a')
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(await card('c-back c')).toBeInTheDocument()
-    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
+    // the step that was passed over is in neither number (finish program FE2, P6):
+    // this read "Step 3 of 3" while the member had been shown two steps
+    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(await card('c-back a')).toBeInTheDocument()
   })

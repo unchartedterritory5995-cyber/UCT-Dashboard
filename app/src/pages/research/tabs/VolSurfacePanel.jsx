@@ -107,9 +107,9 @@ export default function VolSurfacePanel({ sym, expiration }) {
         <>
           <h4 className={styles.volHead}>Strike × expiration</h4>
           <div className={styles.scroll}>
-            <table className={styles.grid} data-testid="vol-grid">
+            <table className={styles.grid} data-testid="vol-grid" aria-label="Implied volatility, strike by expiration">
               <thead>
-                <tr><th className={styles.strikeHead}>Strike</th>{grid.expirations.map((x) => <th key={x}>{x}</th>)}</tr>
+                <tr><th scope="col" className={styles.strikeHead}>Strike</th>{grid.expirations.map((x) => <th scope="col" key={x}>{x}</th>)}</tr>
               </thead>
               <tbody>
                 {grid.rows.map((r) => (

@@ -54,15 +54,23 @@ LEDGER = REPO / 'docs' / 'notebook' / 'competitive-gap-ledger.md'
 PLAN = REPO / 'docs' / 'notebook' / 'NOTEBOOK-10-OF-10-PLAN.md'
 RESEARCH = REPO / 'docs' / 'notebook' / 'competitive-research-ledger.md'
 
-_spec = importlib.util.spec_from_file_location('gap_ledger_summary_for_scorecard', REPO / 'tools' / 'gap_ledger_summary.py')
-gls = importlib.util.module_from_spec(_spec)
-sys.modules[_spec.name] = gls
-_spec.loader.exec_module(gls)
+def _load_tool(name: str, filename: str):
+    """A tool loaded by path under a private name. A dataclass needs its module registered while
+    the module body runs, so the name is bound for exactly that long and then removed: an
+    import-time bind left in `sys.modules` is global state no test can undo, and which copy wins
+    then depends on collection order (tests/test_shared_state_landmines.py)."""
+    spec = importlib.util.spec_from_file_location(name, REPO / 'tools' / filename)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.modules.pop(name, None)
+    return mod
 
-_pspec = importlib.util.spec_from_file_location('parity_scorecard_tool', REPO / 'tools' / 'parity_scorecard.py')
-psc = importlib.util.module_from_spec(_pspec)
-sys.modules[_pspec.name] = psc
-_pspec.loader.exec_module(psc)
+
+gls = _load_tool('gap_ledger_summary_for_scorecard', 'gap_ledger_summary.py')
+psc = _load_tool('parity_scorecard_tool', 'parity_scorecard.py')
 
 VERDICT = re.compile(r'^(AHEAD|PARITY|BEHIND|N/A|NOT-VERIFIED|OUT-OF-SCOPE \(D\d+\)|BLOCKED \((owner|external)\))$')
 KINDS = re.compile(r'^(CODE|TEST|WALK|MEASURE|RECORD|RULING) ')

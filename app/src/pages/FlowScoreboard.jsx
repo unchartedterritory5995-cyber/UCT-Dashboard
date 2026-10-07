@@ -10,9 +10,9 @@
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
-import { useInTerminalPanel } from '../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
 import styles from './FlowScoreboard.module.css'
-import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
+import { currencyPrefix, formatCurrency, formatNumber, formatPercent } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 
 // jsonFetcher THROWS on a non-2xx, a network error and a 30 s deadline. The old fetcher
@@ -30,15 +30,18 @@ export function asOfText(iso) {
 
 /* ── Formatting helpers ──────────────────────────────────────────────────── */
 
+// A strike is a level a reader compares digit by digit: ungrouped, no padded zeros ("150",
+// "2.5"), at most three decimals. The currency sign comes from the shared primitive (a pick
+// carries no currency field, so it is "$" — the options tape is US-listed).
 export function fmtStrike(s) {
   const n = Number(s)
   if (!Number.isFinite(n)) return String(s ?? '')
-  return n % 1 === 0 ? n.toFixed(0) : String(n)
+  return formatNumber(n, { grouping: false })
 }
 
 export function contractLine(p) {
   const cp = p.cp === 'P' ? 'P' : 'C'
-  return `$${fmtStrike(p.strike)}${cp} ${p.exp || ''}`.trim()
+  return `${currencyPrefix(p.currency)}${fmtStrike(p.strike)}${cp} ${p.exp || ''}`.trim()
 }
 
 // Shared formatter; this page keeps its own sign rule ("+" only above zero, so a
@@ -85,11 +88,19 @@ export default function FlowScoreboard({ embedded = false }) {
   })
 
   const overall = data?.overall
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error
+    ? { source: 'UCT flow record (our options flow tape)', observedAt: data.generated_at || null,
+      age: { asOfDate: asOfText(data.generated_at) } }
+    : null)
   // In a terminal panel the panel header names FREC; the public-page hero copy steps aside.
   const inPanel = useInTerminalPanel()
   const pageCls = embedded ? `${styles.page} ${styles.embedded}`
     : inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page
   const hasData = (data?.picks_tracked ?? 0) > 0
+  // Row <GO>: the honest tape's rows, in order, each loads its name (`$SYM`); its names are
+  // the list a "Board of" opens. Only while the tape is on screen.
+  const tapeSyms = usePanelSymbolRows(hasData ? (data?.recent_picks || []).map((p) => p.sym) : [], 'FREC picks')
 
   return (
     <div className={pageCls}>
@@ -163,14 +174,14 @@ export default function FlowScoreboard({ embedded = false }) {
               <span className={styles.sectionMeta}>peak-gain outcomes by flag grade</span>
             </div>
             <div className={styles.tableWrap}>
-              <table className={styles.table}>
+              <table className={styles.table} aria-label="Grade calibration: peak-gain outcomes by flag grade">
                 <thead>
                   <tr>
-                    <th>Grade</th>
-                    <th className={styles.num}>Picks</th>
-                    <th className={styles.num}>Hit +25%</th>
-                    <th className={styles.num}>Avg peak gain</th>
-                    <th className={styles.num}>OI-confirmed</th>
+                    <th scope="col">Grade</th>
+                    <th scope="col" className={styles.num}>Picks</th>
+                    <th scope="col" className={styles.num}>Hit +25%</th>
+                    <th scope="col" className={styles.num}>Avg peak gain</th>
+                    <th scope="col" className={styles.num}>OI-confirmed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -232,18 +243,19 @@ export default function FlowScoreboard({ embedded = false }) {
                 Last {data.recent_picks?.length || 0} picks — the honest tape
               </span>
               <span className={styles.sectionMeta}>every recent pick, winners and losers alike</span>
+              <BoardFromList syms={tapeSyms} label="FREC picks" testId="frec-board" />
             </div>
             <div className={styles.tableWrap}>
-              <table className={styles.table}>
+              <table className={styles.table} aria-label="Recent picks">
                 <thead>
                   <tr>
-                    <th>Pick</th>
-                    <th>Grade</th>
-                    <th className={styles.dateCol}>Flagged</th>
-                    <th className={styles.num}>Entry</th>
-                    <th className={styles.num}>Peak</th>
-                    <th className={styles.num}>Now</th>
-                    <th className={styles.num}>OI</th>
+                    <th scope="col">Pick</th>
+                    <th scope="col">Grade</th>
+                    <th scope="col" className={styles.dateCol}>Flagged</th>
+                    <th scope="col" className={styles.num}>Entry</th>
+                    <th scope="col" className={styles.num}>Peak</th>
+                    <th scope="col" className={styles.num}>Now</th>
+                    <th scope="col" className={styles.num}>OI</th>
                   </tr>
                 </thead>
                 <tbody>

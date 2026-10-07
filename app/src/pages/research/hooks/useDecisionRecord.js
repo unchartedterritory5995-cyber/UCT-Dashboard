@@ -24,11 +24,12 @@ export default function useDecisionRecord(rawSym, { limit = 50, offset = 0 } = {
   const key = sym
     ? `/api/decision-record/ticker/${encodeURIComponent(sym)}?limit=${limit}&offset=${offset}`
     : null
-  const { data, isLoading } = useMobileSWR(key, fetchDecisionRecord)
+  const { data, isLoading, mutate } = useMobileSWR(key, fetchDecisionRecord)
   // Memoized so a consumer's effect/memo keyed on this object does not re-run
   // on every render (the H14 shape).
   return useMemo(() => ({
     result: data || null,
     isLoading: Boolean(isLoading && !data),
-  }), [data, isLoading])
+    mutate,
+  }), [data, isLoading, mutate])
 }

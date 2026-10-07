@@ -42,12 +42,12 @@ function GrowthGrid({ title, rows, ccy }) {
     <section className={styles.card}>
       <div className={styles.ct}>{title}</div>
       <div className={styles.gridScroll}>
-        <table className={styles.fgrid}>
+        <table className={styles.fgrid} aria-label={title}>
           <thead>
             <tr>
-              <th>Period</th><th>Revenue</th><th>Rev YoY</th>
-              <th>{isForeignCurrency(ccy) ? `EPS, ${normalizeCurrencyCode(ccy)}` : 'EPS'}</th><th>EPS YoY</th>
-              <th>Gross</th><th>Op</th><th>Net</th>
+              <th scope="col">Period</th><th scope="col">Revenue</th><th scope="col">Rev YoY</th>
+              <th scope="col">{isForeignCurrency(ccy) ? `EPS, ${normalizeCurrencyCode(ccy)}` : 'EPS'}</th><th scope="col">EPS YoY</th>
+              <th scope="col">Gross</th><th scope="col">Op</th><th scope="col">Net</th>
             </tr>
           </thead>
           <tbody>

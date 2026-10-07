@@ -22,9 +22,9 @@
      var(--ut-red-bright), same values ChartWidget + ChartDayGain use). Overridden for
      the Sunrise light theme below. */
   --li-up: var(--ut-green-bright);
-  --li-up-bg: rgba(26, 229, 26, 0.09);
+  --li-up-bg: color-mix(in srgb, var(--gain) 9%, transparent);
   --li-down: var(--ut-red-bright);
-  --li-down-bg: rgba(255, 59, 71, 0.1);
+  --li-down-bg: color-mix(in srgb, var(--loss) 10%, transparent);
 }
 
 .segBtn,
@@ -78,7 +78,7 @@
 .segShortActive,
 .segShortActive:hover:not(:disabled) {
   color: var(--accent, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 
 .caretBtn {
@@ -257,5 +257,5 @@
 }
 .rowDotOn {
   background: var(--menu-accent, #dcbb5e);
-  box-shadow: 0 0 4px rgba(220, 187, 94, 0.6);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--ut-gold) 60%, transparent);
 }

@@ -196,6 +196,16 @@ export default function ChartPlanPanel({
     const next = setPlanRole(annotations, drawingId, role || null)
     if (next !== annotations) updateAttributes?.({ annotations: next })
   }
+  // Opening the plan puts focus in it (lane KEYS): the Plan button is in the chart's toolbar
+  // and this panel renders below the chart, so the next Tab is now the plan's first control.
+  // Only on a change from closed to open; a panel open from the start takes nothing.
+  const wasOpenRef = useRef(open)
+  useEffect(() => {
+    const was = wasOpenRef.current
+    wasOpenRef.current = open
+    if (open && !was) rootRef.current?.focus({ preventScroll: false })
+  }, [open])
+
   // ── the typed door to a level (lane FIN-A11Y, I-6): make one, move one ─────────────────
   // Focus follows the level being worked on: the rows are sorted by price, so a step can
   // reorder them, and the field of a new level does not exist until the note re-renders.
@@ -356,6 +366,7 @@ export default function ChartPlanPanel({
         ref={rootRef}
         className={styles.panel}
         contentEditable={false}
+        tabIndex={-1}
         aria-label={`Trade plan for ${symbol}`}
         data-chart-plan-panel=""
         data-tour="chart-plan-panel"
@@ -373,6 +384,10 @@ export default function ChartPlanPanel({
               const role = PRICE_ROLES.includes(d.role) ? d.role : ''
               const armed = embedId && armedIds.has(boundAlertId(embedId, d.id))
               const derived = roleDirection(role, plan?.side)
+              // An alert follows the line's own geometry, so a level with no anchor point on
+              // the chart cannot carry one. The button is offered only where it can work;
+              // elsewhere the row says why, before any click (it used to refuse after one).
+              const canArm = anchorsForDrawing(d, { tf }) != null
               return (
                 <li key={d.id} className={styles.level} data-level-id={d.id}>
                   <LevelPriceField
@@ -387,7 +402,7 @@ export default function ChartPlanPanel({
                     onChange={(r) => setRole(d.id, r)}
                   />
                   <div className={styles.alertCell}>
-                    {!derived && !armed && (
+                    {!derived && !armed && canArm && (
                       <select
                         className={styles.dirSelect}
                         aria-label={`Alert direction at ${fmtPrice(price)}`}
@@ -400,6 +415,8 @@ export default function ChartPlanPanel({
                     )}
                     {armed ? (
                       <span className={styles.armed}>Alert armed</span>
+                    ) : !canArm ? (
+                      <span className={styles.hint}>Draw this level on the chart to set an alert.</span>
                     ) : (
                       <button
                         type="button"

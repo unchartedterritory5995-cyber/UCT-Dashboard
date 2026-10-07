@@ -325,6 +325,13 @@ class TestCachePolicy:
         assert r.status_code == 200
         assert seen.get("ttl") == router_mod._FH_METRIC_TTL
         assert "TESTCP" in persisted
+        # TERM-019: the build instant rides the cached AND persisted payload, so a later cache
+        # or disk hit answers with the build time, never a fresh "now".
+        import datetime as _dt
+        stamp = persisted["TESTCP"]["as_of"]
+        assert stamp == r.json()["as_of"]
+        age = _dt.datetime.now(_dt.timezone.utc) - _dt.datetime.fromisoformat(stamp)
+        assert 0 <= age.total_seconds() < 120
 
     def test_all_sources_failing_gets_the_short_ttl_and_is_not_persisted(self, client, monkeypatch):
         """THE regression: before this fix `cache.set` at the router level ran
@@ -345,7 +352,8 @@ class TestCachePolicy:
             r = client.get("/api/fundamentals/TESTCP")
         assert r.status_code == 200
         data = r.json()
-        assert all(v is None for k, v in data.items() if k != "ticker")
+        assert all(v is None for k, v in data.items() if k not in ("ticker", "status"))
+        assert data["status"] == "unavailable"
         assert seen.get("ttl") == router_mod._FUND_FAIL_TTL
         assert seen.get("ttl") < router_mod._FH_METRIC_TTL
         assert "TESTCP" not in persisted
@@ -473,3 +481,61 @@ class TestFmpMetricsTrio:
         elapsed = time.monotonic() - start
         assert merged == {}  # nothing completed within the budget
         assert elapsed < 1.0  # bounded near the 0.2s budget, nowhere near the 1.5s sleep
+
+
+class TestFundamentalsStatus:
+    """Completeness audit 2026-10-07 (DES): a vendor failure used to arrive as a 200 whose every
+    field was null -- byte-for-byte the same as a genuine empty, so the panel could only say "will
+    appear here once available" for both. `status` tells them apart."""
+
+    def test_a_resolved_build_is_ok(self, client):
+        p1, p2, p3, p4, p5 = _patch_services()
+        with p1, p2, p3, p4, p5:
+            data = client.get("/api/fundamentals/AAPL").json()
+        assert data["status"] == "ok"
+
+    def test_every_provider_answering_empty_is_empty_not_unavailable(self, client):
+        p1, p2, p3, p4, p5 = _patch_services(fund={"error": "no fundamentals available", "ticker": "ZZZQ"}, fh={})
+        with p1, p2, p3, p4, p5:
+            data = client.get("/api/fundamentals/ZZZQ").json()
+        assert data["status"] == "empty"
+        assert data["market_cap"] is None
+
+    def test_a_raising_provider_with_nothing_resolved_is_unavailable(self, client):
+        p1 = patch("api.routers.fundamentals.get_fundamentals", side_effect=RuntimeError("timeout"))
+        p2, p3, p4, p5 = (
+            patch("api.routers.fundamentals._fh_metric_get", return_value={}),
+            patch("api.routers.fundamentals.cache.get", return_value=None),
+            patch("api.routers.fundamentals.cache.set"),
+            patch("api.routers.fundamentals._fmp_metrics_get", return_value={}),
+        )
+        with p1, p2, p3, p4, p5:
+            data = client.get("/api/fundamentals/ERR").json()
+        assert data["status"] == "unavailable"
+
+    def test_a_finnhub_non_answer_is_a_failure_not_an_empty(self, client, monkeypatch):
+        import api.services.finnhub_client as fc
+        import api.routers.fundamentals as router_mod
+        monkeypatch.setattr(fc, "fh_get", lambda *a, **k: None)
+        monkeypatch.setattr(router_mod.cache, "get", lambda k: None)
+        legs = {}
+        assert router_mod._fh_metric_get("ZZZQ", legs=legs) == {}
+        assert legs == {"finnhub_failed": True}
+        legs = {}
+        monkeypatch.setattr(fc, "fh_get", lambda *a, **k: {"metric": {}})
+        router_mod._fh_metric_get("ZZZQ", legs=legs)
+        assert legs == {}
+
+    def test_an_fmp_fan_out_that_failed_marks_the_leg_and_is_not_cached_as_empty(self, monkeypatch):
+        import api.routers.fundamentals as router_mod
+        monkeypatch.setattr(router_mod.cache, "get", lambda k: None)
+        sets = []
+        monkeypatch.setattr(router_mod.cache, "set", lambda *a, **k: sets.append(a))
+
+        def _boom(tk):
+            raise RuntimeError("FMP 500")
+        monkeypatch.setattr(router_mod, "_FMP_METRIC_FNS", {p: _boom for p in router_mod._FMP_ENDPOINTS})
+        legs = {}
+        assert router_mod._fmp_metrics_get("ZZZQ", legs=legs) == {}
+        assert legs == {"fmp_failed": True}
+        assert sets == []

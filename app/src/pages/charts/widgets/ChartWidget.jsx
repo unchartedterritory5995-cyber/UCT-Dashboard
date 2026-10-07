@@ -28,6 +28,7 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 import { nextGroup, isSuspendedGroup } from '../colorGroups'
+import { resolveThemeColor } from '../../../lib/theme'
 import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
@@ -271,6 +272,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // through a ref so the registered fns never go stale.
   const chartCsRef = useRef(chartCs)
   chartCsRef.current = chartCs
+
+  // ⭐ UCT AGENT ADAPTER (agent/host.js). The Agent never resolves a chart's
+  // settings, tab or colour group itself — it reads them from HERE, as this
+  // widget last rendered them, and writes through this widget's own sinks
+  // (`onOptsChange` for settings + tf in ONE call, `setGroupSym` for the ticker,
+  // exactly what a search pick does). The Agent writes no indicator state.
+  const agentRef = useRef(null)
+  agentRef.current = {
+    chartId, tabId: isMainTab ? null : (activeExtra?.id || null),
+    opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
+    symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings,
+  }
   useEffect(() => {
     if (!chartApiById) return undefined
     const id = widgetIdRef.current
@@ -298,6 +311,31 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           to: range ? lwcTimeToTs(range.to) : undefined,
           settings: chartCsRef.current,
         }
+      },
+      agent: {
+        read: () => {
+          const r = agentRef.current
+          return {
+            chartId: r.chartId, tabId: r.tabId, groupKey: r.activeColor,
+            symbol: r.symbol, tf: r.tf, cs: r.cs, stored: r.stored ?? null,
+          }
+        },
+        // ONE onOptsChange for settings + tf; the ticker through the colour group.
+        // `settings` present (even null) means "store exactly this blob".
+        commit: (patch) => {
+          const r = agentRef.current
+          const tabPatch = {}
+          if ('settings' in patch) tabPatch.settings = patch.settings
+          if ('tf' in patch) tabPatch.tf = patch.tf
+          if (Object.keys(tabPatch).length) {
+            const o = r.opts || {}
+            if (r.isMainTab) r.onOptsChange?.({ ...o, ...tabPatch })
+            else if (r.activeExtra) r.onOptsChange?.(patchChartTab(o, r.activeExtra.id, tabPatch))
+            else return false
+          }
+          if (patch.symbol) r.setGroupSym?.(r.activeColor, patch.symbol)
+          return true
+        },
       },
     })
     return () => { chartApiById.current.delete(id) }
@@ -622,7 +660,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
           startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
           highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : undefined,
-          highlightColor: startMarker && startMarkerStyle === 'candle' ? '#c9a84c' : undefined,
+          highlightColor: startMarker && startMarkerStyle === 'candle' ? resolveThemeColor('--ut-gold', '#c9a84c') : undefined,
           // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
           highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}

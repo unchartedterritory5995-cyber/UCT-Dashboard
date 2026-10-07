@@ -58,6 +58,9 @@ export function mergeEnrichment(entry, enrichment) {
     // answered for this ticker, which is what stops the Earnings History
     // section from stating "No reported quarters yet" as a fact.
     history_unresolved: e.history_unresolved ?? false,
+    // The fiscal quarter the NEXT report covers (backend `fiscal_calendar`,
+    // the same authority EE's labels use) — named here AND in `toModalRow`.
+    next_report_fiscal: e.next_report_fiscal ?? null,
   }
 }
 

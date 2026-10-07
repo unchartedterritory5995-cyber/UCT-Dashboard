@@ -29,6 +29,7 @@ import {
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
+import useMarketIndicators from '../../../hooks/useMarketIndicators'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useDelisted from '../../../hooks/useDelisted'
@@ -187,12 +188,27 @@ function ChartPane({
   const breadth = useBreadthSymbols()
   const breadthRec = breadth.get(sym)
   const isBreadth = !!breadthRec
+  // ⭐ A MARKET-INDICATOR SERIES IS BREADTH-LIKE TOO (finishing pass, 2026-10-07). NYSE:MCO,
+  // NASDAQ:AD, US:ZBT, the A/D ratios, NAAIM… are daily values with no live quote, no volume
+  // and no company — they were falling through to the STOCK treatment (candles, a market-cap
+  // header, a "Volume 0" pane). The registry row says what they are; a Cboe volatility index
+  // (real OHLC, a published instrument) and a multi-series product are excluded.
+  const marketIndicators = useMarketIndicators()
+  const miRec = isBreadth ? null : marketIndicators.get(sym)
+  const isIndicatorSeries = !!miRec && miRec.source_type !== 'volatility' && miRec.kind !== 'product'
+  const isBreadthLike = isBreadth || isIndicatorSeries
+  // The metric half of the registry's `Universe · Metric` display — the header already shows
+  // the symbol, which carries the universe.
+  const _miDisplay = miRec ? String(miRec.display || sym) : ''
+  const _miPrefix = miRec && miRec.universe_label ? `${miRec.universe_label} · ` : ''
+  const breadthLikeName = isBreadth ? breadthRec.name
+    : (_miPrefix && _miDisplay.startsWith(_miPrefix) ? _miDisplay.slice(_miPrefix.length) : _miDisplay)
   const { isEtf } = useEtfSymbols()
   // Funds/indexes/breadth have no meaningful "market cap" — the info row shows a
   // dash for them (like Next Earnings), only real stocks get a value.
-  const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadth || isEcon || String(sym || '').startsWith('^')
+  const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadthLike || isEcon || String(sym || '').startsWith('^')
   const breadthTf = DWM.includes(tf) ? tf : 'D'
-  const synthDailyOnly = themeIdx.isIndex || isBreadth || isEcon   // no live feed, D/W/M only
+  const synthDailyOnly = themeIdx.isIndex || isBreadthLike || isEcon   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
   const idxGain = useMemo(() => {
@@ -321,7 +337,9 @@ function ChartPane({
       return next
     })
   }, [])
-  const breadthLineActive = isBreadth && breadthLineOn
+  // ⚠️ An indicator series has no OHLC at all (registry `ohlc_capable: false`), so it is always
+  // a line; the member toggle stays a breadth-symbol affordance.
+  const breadthLineActive = (isBreadth && breadthLineOn) || isIndicatorSeries
   // Merge the forced line TYPE onto the surface's own override blob (never a second
   // settingsOverride — ChartPane already passes one). Identity-stable so StockChart's
   // memo dep doesn't churn. null when inactive = byte-identical to the prior behavior.
@@ -414,8 +432,8 @@ function ChartPane({
     : null
   const headerLabel = _themeViewLabel
     ? _themeViewLabel
-    : isBreadth
-    ? `${sym} · ${breadthRec.name}`
+    : isBreadthLike
+    ? `${sym} · ${breadthLikeName}`
     : isEcon
     ? (econName && econName !== econSym ? `${econName} · ${econSym}` : econSym)
     : themeIdx.isIndex
@@ -434,7 +452,7 @@ function ChartPane({
   // A breadth symbol has no intraday basis, so lock its TF bar to D/W/M (no overflow
   // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
   // tfCodes still wins.
-  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadth || isEcon) ? DWM : null)
+  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon) ? DWM : null)
   const visibleTfs = (() => {
     if (Array.isArray(effTfCodes)) return effTfCodes.map(c => [c, tfLabel(c)])
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -455,10 +473,10 @@ function ChartPane({
   // host-locked tfCodes set is never trimmed.
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
-    : trimTimeframes(visibleTfs, (isBreadth || isEcon) ? breadthTf : tf, tfCap)
+    : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, tfCap)
   shownTfCountRef.current = responsiveTfs.length
   const infoAbbrev = infoForceAbbrev
-  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadth && !isEcon && !themeIdx.isIndex)
+  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
     ? sym
     : headerLabel
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
@@ -616,6 +634,18 @@ function ChartPane({
     setSettingsOpen(false)
     try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
   }, [])
+  /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
+   *  same toolbar calls the legend menu makes. The modal closes first (one surface
+   *  holding Escape at a time — the hazard `openFormulaBuilder` describes). */
+  const definitionDoors = useMemo(() => ({
+    canModify: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
+    modify: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openCreateIndicator?.({ defId }) ?? false } catch { return false } },
+    editFormula: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openFormulaEditor?.({ defId }) ?? false } catch { return false } },
+    customCopy: async (def, inputs) => {
+      setSettingsOpen(false)
+      try { return (await paneToolbarApi.current?.createCustomCopy?.({ def, inputs })) ?? { ok: false } } catch { return { ok: false } }
+    },
+  }), [])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {
     try {
@@ -791,12 +821,12 @@ function ChartPane({
           displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
           logoSym={(_themeViewLabel || synthDailyOnly) ? null : sym}
-          brandLogo={themeIdx.isIndex || isBreadth}
+          brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
           economic={allowEconomic}
-          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadth && !isEcon && !(themeIdx.isIndex && !idxGain)}
+          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
@@ -814,7 +844,7 @@ function ChartPane({
       {showTfBar && (
         <ChartTfBar
           rootRef={tfBarRef}
-          tf={(isBreadth || isEcon) ? breadthTf : tf}
+          tf={(isBreadthLike || isEcon) ? breadthTf : tf}
           visibleTfs={responsiveTfs}
           onTf={handleTf}
           /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
@@ -895,19 +925,19 @@ function ChartPane({
           sym={sym}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
-          tf={(isBreadth || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+          tf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
           /* The old drawing-toolbar compare entry is retired — comparisons are
              managed by the /charts Tools → Compare Symbols panel now (rendering via
              cs.comparisonSymbols is unchanged). */
           hideCompare
-          {...(isBreadth ? {
+          {...(isBreadthLike ? {
             // UCT BREADTH: /api/bars serves the synthetic candles, so NO barsOverride —
             // just freeze the live paths. Watermark = the SYMBOL on top (e.g. UCTA50)
             // with the indicator's full name beneath it, mirroring a stock's ticker +
             // company name.
             liveUpdates: false,
             watermark: sym,
-            watermarkName: breadthRec.name,
+            watermarkName: breadthLikeName,
             // UCT pseudo-ticker — its watermark logo is the UCT compass brand mark,
             // not a (wrong) company-logo lookup on the synthetic symbol.
             watermarkBrandMark: true,
@@ -1070,7 +1100,7 @@ function ChartPane({
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
       <ChartSettingsModal
         open={settingsOpen}
-        chartTf={(isBreadth || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+        chartTf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
         onClose={() => setSettingsOpen(false)}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={chartCs}
@@ -1102,6 +1132,7 @@ function ChartPane({
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
         onCreateIndicator={openCreateIndicator}
+        definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
       />
       {/* The Create Indicator dock host. Always mounted (so the panel can portal

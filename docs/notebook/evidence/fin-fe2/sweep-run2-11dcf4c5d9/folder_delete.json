@@ -1,0 +1,18 @@
+{
+ "dialog": "Delete folder \"Sweep folder\"?\n×\n\nSubfolders and notes move up one level. This does not delete any notes.\n\nCancel\nDelete",
+ "hit": {
+  "box": [
+   284,
+   786,
+   84,
+   44
+  ],
+  "cx": 325.8203125,
+  "cy": 808,
+  "top_is_button": true,
+  "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+ },
+ "voice_button_while_open": 0,
+ "body_overflow": "hidden",
+ "dialog_left": 0
+}

@@ -4,7 +4,7 @@
 //   * the dark flag (404) says "isn't switched on yet", not "error";
 //   * the numbered rows are published to the shell for row <GO>.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
@@ -57,6 +57,17 @@ describe('MovePanel', () => {
     jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 500 }))
     render(<MovePanel sym="AMD" />)
     expect((await screen.findByTestId('terminal-move-error')).textContent).toContain('AMD MOVE again')
+  })
+
+  it('a failed read is an error with a Retry that reads again (2026-10-07: copy only before)', async () => {
+    jsonFetcher.mockResolvedValue({ ticker: 'AMD', intel: {}, catalysts: [] })
+    jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 503 }))
+    render(<MovePanel sym="AMD" />)
+    const err = await screen.findByTestId('terminal-move-error')
+    expect(err.getAttribute('data-kind')).toBe('error')
+    const before = jsonFetcher.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(jsonFetcher.mock.calls.length).toBe(before + 1))
   })
 
   it('every numbered row is a command the registry knows', async () => {

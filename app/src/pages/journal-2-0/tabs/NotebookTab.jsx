@@ -46,8 +46,10 @@ import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dail
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
+import { registerShortcuts } from '../../command/shortcutRegistry'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
+import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
   joinUndo, runNoteBatch, undoFor,
@@ -430,6 +432,17 @@ export default function NotebookTab() {
     try { localStorage.setItem('uct.j2.nb.sidebarOpen', next ? '1' : '0') } catch { /* private mode */ }
     return next
   })
+
+  // Lane KEYS: the command palette's "Search Notebook" arrives with `#search`
+  // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
+  // only: the member's stored choice is not rewritten) and asked to open its search with the
+  // cursor in the box. Keyed on `location.key`, so choosing the command twice works twice.
+  const [searchRequest, setSearchRequest] = useState(0)
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_SEARCH_HASH) return
+    setSidebarOpen(true)
+    setSearchRequest((n) => n + 1)
+  }, [location.hash, location.key])
 
   // Divider drag. The live width is written straight to a CSS variable on the
   // wrap element (no React state per move) so the panel tracks the pointer 1:1
@@ -1189,17 +1202,18 @@ export default function NotebookTab() {
   // direction this flow is used.
   useEffect(() => {
     if (!selection.count) return undefined
-    const onKey = (e) => {
-      if (!isBulkActionsShortcut(e)) return
-      const bar = document.querySelector('[data-bulk-bar]')
-      if (!bar) return
-      e.preventDefault()
-      const target = bar.querySelector('[data-bulk-move-select]')
-        || [...bar.querySelectorAll('button, select')].find((el) => !el.disabled)
-      target?.focus()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    // Bound through the shared shortcut registry (declared there as `notebook.bulkBar`).
+    return registerShortcuts({
+      'notebook.bulkBar': (e) => {
+        if (!isBulkActionsShortcut(e)) return       // the AltGr guard lives there
+        const bar = document.querySelector('[data-bulk-bar]')
+        if (!bar) return
+        e.preventDefault()
+        const target = bar.querySelector('[data-bulk-move-select]')
+          || [...bar.querySelectorAll('button, select')].find((el) => !el.disabled)
+        target?.focus()
+      },
+    })
   }, [selection.count])
 
   // 13Q-5: Shift+Arrow extends the selection to the adjacent note and moves
@@ -1940,6 +1954,7 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            searchRequest={searchRequest}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
@@ -1975,6 +1990,31 @@ export default function NotebookTab() {
             after it. Visually hidden until it takes focus. */}
         {!noteId && (
           <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
+        )}
+        {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
+            note / Research Home / notes-list branches. They used to be inside the notes-list
+            branch only, while the folders panel (and its saved views) is also shown beside
+            Research Home and beside an open note: there the Delete button set the state and
+            nothing appeared. Rail: NotebookTab.test.jsx, "on Research Home the Delete button". */}
+        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
+            FolderSidebar.jsx exactly -- same reason it lives here rather
+            than there (folders own rename/remove via their OWN hook call;
+            saved views' rename/remove had to live wherever `activeView`
+            state lives, which is here, not FolderSidebar). */}
+        {deleteViewTarget && (
+          <ConfirmModal
+            title={`Delete view "${deleteViewTarget.name}"?`}
+            body="This removes the saved view. It does not delete any notes."
+            confirmLabel="Delete"
+            tone="danger"
+            onConfirm={onDeleteViewConfirm}
+            onClose={() => setDeleteViewTarget(null)}
+            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
+          />
+        )}
+        {savedViewError && (
+          <div className={styles.error} role="alert">{savedViewError}</div>
         )}
         {noteId ? (
           <>
@@ -2124,6 +2164,7 @@ export default function NotebookTab() {
             // day-note opener -- so the bare-root Research Home reaches Today in one
             // click/tap instead of "All notes" -> "Today" (2).
             onOpenToday={openToday}
+            skipLinkClassName={styles.skipLink}
           />
         ) : (
           <>
@@ -2363,26 +2404,6 @@ export default function NotebookTab() {
           onSave={handleSaveCurrentView}
         />
 
-        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
-            FolderSidebar.jsx exactly -- same reason it lives here rather
-            than there (folders own rename/remove via their OWN hook call;
-            saved views' rename/remove had to live wherever `activeView`
-            state lives, which is here, not FolderSidebar). */}
-        {deleteViewTarget && (
-          <ConfirmModal
-            title={`Delete view "${deleteViewTarget.name}"?`}
-            body="This removes the saved view. It does not delete any notes."
-            confirmLabel="Delete"
-            tone="danger"
-            onConfirm={onDeleteViewConfirm}
-            onClose={() => setDeleteViewTarget(null)}
-            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
-              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
-          />
-        )}
-        {savedViewError && (
-          <div className={styles.error} role="alert">{savedViewError}</div>
-        )}
 
         {error && (
           <div className={styles.error} role="alert">

@@ -16,13 +16,24 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
 import { FUNDAMENTALS_SETTINGS_KEY, mergeFundamentalsSettings, fundamentalsStyleVars, fundamentalsDefaultsForTheme } from './fundamentalsSettings'
 import styles from './FundamentalsWidget.module.css'
+import { currencyPrefix, formatCompact, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 
-function fmtSales(v) {
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladder
+// this widget already had. Exported for the frozen-oracle test (widgetFormatters.term066.test.js).
+const SALES_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+]
+// `ccy` is the payload's reporting currency (`currency`, TSM -> "TWD"): sales print in it
+// ("TWD 2.9T"), never "$" (accuracy follow-up 7). USD or unknown renders exactly as before.
+// EPS (`fmtEps`) never carried a symbol, so a foreign filer's EPS needs no change -- the same
+// rule EE/FA follow (an EPS leg can be per-ADR in another currency).
+export function fmtSales(v, ccy) {
   if (v == null) return '—'
-  if (Math.abs(v) >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (Math.abs(v) >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (Math.abs(v) >= 1e6) return `$${(v / 1e6).toFixed(0)}M`
-  return `$${v}`
+  const prefix = currencyPrefix(ccy)
+  if (Math.abs(v) < 1e6) return `${prefix}${v}`
+  return formatCompact(Number(v), { tiers: SALES_TIERS, prefix })
 }
 function fmtEps(v) { return v == null ? '—' : v.toFixed(2) }
 function fmtPct(v) { return v == null ? '' : `${v > 0 ? '+' : ''}${v}%` }
@@ -34,18 +45,18 @@ function RevisionMark({ dir }) {
   return null
 }
 
-function AnnualTable({ rows }) {
+function AnnualTable({ rows, ccy }) {
   if (!rows?.length) return null
   // Backend sends oldest→newest with forward estimates last; show newest first
   // so the forward-estimate years lead and the oldest year sits at the bottom.
   const ordered = rows.slice().reverse()
   return (
-    <table className={styles.annual}>
+    <table className={styles.annual} aria-label="Annual EPS and sales">
       <thead>
         <tr>
-          <th className={styles.left}>Year</th>
-          <th>EPS</th><th>% Chg</th>
-          <th>Sales</th><th>% Chg</th>
+          <th scope="col" className={styles.left}>Year</th>
+          <th scope="col">EPS</th><th scope="col" aria-label="EPS % Chg">% Chg</th>
+          <th scope="col">Sales</th><th scope="col" aria-label="Sales % Chg">% Chg</th>
         </tr>
       </thead>
       <tbody>
@@ -54,7 +65,7 @@ function AnnualTable({ rows }) {
             <td className={styles.left}>{r.year}{r.estimate ? ' e' : ''}</td>
             <td>{fmtEps(r.eps)}</td>
             <td className={pctClass(r.eps_chg_pct)}>{fmtPct(r.eps_chg_pct)}<RevisionMark dir={r.eps_revision} /></td>
-            <td>{fmtSales(r.sales)}</td>
+            <td>{fmtSales(r.sales, ccy)}</td>
             <td className={pctClass(r.sales_chg_pct)}>{fmtPct(r.sales_chg_pct)}<RevisionMark dir={r.sales_revision} /></td>
           </tr>
         ))}
@@ -92,7 +103,7 @@ function useShrinkToFit(dep) {
   return ref
 }
 
-function QuarterBlock({ q }) {
+function QuarterBlock({ q, ccy }) {
   const fitRef = useShrinkToFit(q)
   if (!q.reported) {
     return (
@@ -105,7 +116,7 @@ function QuarterBlock({ q }) {
           <span className={styles.qDate} title={q.report_date ? 'Expected report date' : q.period_end ? 'Fiscal period end' : undefined}>{q.report_date || q.period_end}</span>
         </div>
         <div className={styles.qRow}><span className={styles.muted}>EPS</span> <span>{fmtEps(q.eps_estimate)}</span> <span className={styles.est}>est</span> <span className={pctClass(q.eps_est_chg_pct)}>{fmtPct(q.eps_est_chg_pct)}</span></div>
-        <div className={styles.qRow}><span className={styles.muted}>Rev</span> <span>{fmtSales(q.rev_estimate)}</span> <span className={styles.est}>est</span> <span className={pctClass(q.rev_est_chg_pct)}>{fmtPct(q.rev_est_chg_pct)}</span></div>
+        <div className={styles.qRow}><span className={styles.muted}>Rev</span> <span>{fmtSales(q.rev_estimate, ccy)}</span> <span className={styles.est}>est</span> <span className={pctClass(q.rev_est_chg_pct)}>{fmtPct(q.rev_est_chg_pct)}</span></div>
       </div>
     )
   }
@@ -118,8 +129,8 @@ function QuarterBlock({ q }) {
         <span className={pctClass(q.eps_surprise_pct)}>{fmtPct(q.eps_surprise_pct)}</span>
       </div>
       <div className={styles.qRow}>
-        <span className={styles.muted}>Rev</span> <span>{fmtSales(q.rev_actual)}</span>
-        <span className={styles.slash}>/</span> <span>{fmtSales(q.rev_estimate)}</span>
+        <span className={styles.muted}>Rev</span> <span>{fmtSales(q.rev_actual, ccy)}</span>
+        <span className={styles.slash}>/</span> <span>{fmtSales(q.rev_estimate, ccy)}</span>
         <span className={pctClass(q.rev_surprise_pct)}>{fmtPct(q.rev_surprise_pct)}</span>
       </div>
     </div>
@@ -361,10 +372,15 @@ export default function FundamentalsWidget({
       ) : effectiveView === 'ownership' ? (
         <OwnershipPanel sym={sym} />
       ) : effectiveView === 'annual' ? (
-        <AnnualTable rows={data.annual} />
+        <AnnualTable rows={data.annual} ccy={data?.currency} />
       ) : (
         <div className={styles.qStrip}>
-          {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} />)}
+          {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} ccy={data?.currency} />)}
+        </div>
+      )}
+      {!isPanelView && reportingCurrencyNote(data?.currency) && (
+        <div className={styles.hint} data-testid="fundamentals-currency" data-currency={data.currency}>
+          {reportingCurrencyNote(data.currency)}
         </div>
       )}
     </div>

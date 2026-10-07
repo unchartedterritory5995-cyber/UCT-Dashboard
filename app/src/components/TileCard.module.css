@@ -47,7 +47,7 @@
   letter-spacing: 1px;
   border-radius: var(--radius-lg);
   background: var(--gain-bg);
-  color: var(--gain);
+  color: var(--success-ink);
   border: 1px solid var(--gain-border);
   text-transform: uppercase;
 }

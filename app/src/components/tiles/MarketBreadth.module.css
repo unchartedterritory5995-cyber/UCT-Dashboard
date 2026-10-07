@@ -174,7 +174,7 @@
 .gateNote {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--loss);
+  color: var(--danger-ink);
   margin: -4px 0 8px;
   text-align: center;
 }
@@ -201,7 +201,7 @@
 }
 
 .wireStampStale {
-  color: var(--warning, #f5a623);
+  color: var(--warn);
   opacity: 1;
 }
 
@@ -239,7 +239,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   animation: tileLiveBeat 2.4s ease-out infinite;
   flex: none;
 }
@@ -253,7 +253,7 @@
 
 .liveValue {
   font-size: 15px;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   font-weight: 700;
 }
 
@@ -265,9 +265,9 @@
 }
 
 @keyframes tileLiveBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ut-gold) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 0%, transparent); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -46,6 +46,7 @@ import { cardIsTopmost, dialogHost } from './tourLayers'
 import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
 import { importWithOneRetry } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
+import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 import PoliteStatus from '../PoliteStatus'
@@ -139,6 +140,23 @@ export default function GenericTourEngine({
   }, [setPrefMerged, entry.id])
 
   const steps = content?.steps || null
+
+  // ── the step counter counts what is SHOWN ────────────────────────────────────────────────
+  // A step that was passed over because its anchor is not on this screen is not a step the
+  // member takes, so it is in neither number: a tour whose first step cannot show here opens
+  // on "Step 1 of N-1", never "Step 2 of N" (the Formulas tour did, at every width). A step
+  // reached later (Back onto one that has since appeared) counts again.
+  const [passed, setPassed] = useState(() => new Set())
+  const indexRef = useRef(0)
+  indexRef.current = index
+  const land = useCallback((from, to) => {
+    setPassed((prev) => {
+      const out = new Set(prev)
+      for (let j = from + 1; j < to; j += 1) out.add(j)
+      out.delete(to)
+      return out.size === prev.size && [...out].every((j) => prev.has(j)) ? prev : out
+    })
+  }, [])
   const step = phase === 'open' && steps ? steps[index] : null
 
   // ── 1. START ──────────────────────────────────────────────────────────────────────────
@@ -181,6 +199,7 @@ export default function GenericTourEngine({
     const began = Date.now()
     const open = (at) => {
       if (!returnFocusRef.current && !passive) returnFocusRef.current = document.activeElement
+      land(-1, at)
       setIndex(at)
       openedRef.current = true
       setPhase('open')
@@ -221,9 +240,10 @@ export default function GenericTourEngine({
   // ── 3. WALK ─────────────────────────────────────────────────────────────────────────────
   const goTo = useCallback((i) => {
     setMoving(false)
+    land(indexRef.current, i)
     setIndex(i)
     record(TOUR_STATES.started, steps[i].id)
-  }, [record, steps])
+  }, [record, steps, land])
 
   // Next: wait (bounded) for the very next step's anchor; at the deadline take the first
   // later step that is on screen; with none, the tour is done.
@@ -332,21 +352,23 @@ export default function GenericTourEngine({
   // the tour decides first whether it is the layer a key belongs to.
   useEffect(() => {
     if (!(phase === 'open' || phase === 'unreachable')) return undefined
-    const onKey = (e) => {
-      const card = cardRef.current
-      if (e.key === 'Escape') {
+    // Bound through the shared shortcut registry (declared there with its scope), so the
+    // key-listener census can see it. Same node, same phase, same order as before.
+    return registerShortcuts({
+      'notebook.tourEscape': (e) => {
+        const card = cardRef.current
         if (passive && !(card && card.contains(document.activeElement))) return
         if (!cardIsTopmost(card)) return            // a sheet above the tour answers it
         e.preventDefault()
         e.stopPropagation()                          // the sheet beneath stays open
         if (phase === 'unreachable') { finish(); return }
         close(TOUR_STATES.dismissed)
-      } else if (e.key === 'Tab' && (modal || phase === 'unreachable')) {
-        if (trapTabKey(e, card)) e.stopPropagation()
-      }
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+      },
+      'notebook.tourTrapTab': (e) => {
+        if (!(modal || phase === 'unreachable')) return
+        if (trapTabKey(e, cardRef.current)) e.stopPropagation()
+      },
+    })
   }, [phase, modal, passive, close, finish])
 
   // ── render ───────────────────────────────────────────────────────────────────────────────
@@ -422,7 +444,9 @@ export default function GenericTourEngine({
       aria-describedby={`${progressId} ${bodyId}${hintId}`}
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
-      <p id={progressId} className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
+      <p id={progressId} className={styles.progress}>
+        {`Step ${index + 1 - [...passed].filter((j) => j < index).length} of ${steps.length - passed.size}`}
+      </p>
       <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
         aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>
       <p id={bodyId} className={styles.body}>{copy.body}</p>

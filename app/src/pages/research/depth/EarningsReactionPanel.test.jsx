@@ -1,6 +1,6 @@
 // FT-005 — the earnings reaction panel, asserted on rendered text.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import DepthTab from './DepthTab'
 
@@ -15,7 +15,8 @@ const OK = {
       reaction_pct: -0.8, drift_pct: null, drift_state: 'pending', eps_actual: 1.05, eps_estimate: 1.01 },
   ],
   summary: { run_in: stat(2, 0.85, 1.25, 50), gap: stat(2, 1.7, 3.7, 50), reaction: stat(2, 1.23, 2.03, 50), drift: stat(1, -1.2, 1.2, 0) },
-  realized_vol: { annualized_pct: 41.3, sessions: 20, through: '2026-10-01' },
+  realized_vol: { annualized_pct: 41.3, sessions: 20, through: '2026-10-01',
+    method: 'Realized volatility = the sample standard deviation (divisor n-1) of daily log returns, close to close, x sqrt(252), over the last 20 sessions -- the same definition the VOL panel HV uses.' },
   implied_move: { state: 'ok', pct: 6.8, dollar: 12.4, expiry: '2026-11-21', strike: 182.5, call_mark: 6.3, put_mark: 6.1, read_at: 1790000000 },
 }
 let body
@@ -61,9 +62,53 @@ describe('EarningsReactionPanel', () => {
     expect(t).toContain('call 6.30 + put 6.10')
   })
 
+  it('the realized vol states its method: the sample standard deviation, same as VOL', async () => {
+    renderTab()
+    const t = (await screen.findByTestId('realized-vol')).textContent
+    expect(t).toContain('41.3% annualized.')
+    expect(t).toContain('sample standard deviation (divisor n-1)')
+    expect(t).toContain('the same definition the VOL panel')
+  })
+
   it('a pending earnings history says so', async () => {
     body = { state: 'pending', reason: 'the earnings history is being read; this panel fills in by itself' }
     renderTab()
     expect((await screen.findByTestId('earnings-reaction-state')).textContent).toMatch(/being read/)
+  })
+})
+
+// 2026-10-07 completeness audit: a failed read is drawn as an error with a working Retry, never as
+// an empty or "nothing reported" state.
+describe('EarningsReactionPanel — a failed read', () => {
+  it('a 503 reads as unavailable with Retry, and Retry reads again', async () => {
+    const good = body
+    let calls = 0
+    global.fetch = vi.fn(() => {
+      calls += 1
+      return calls === 1
+        ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({ detail: 'down' }) })
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(good) })
+    })
+    renderTab()
+    const err = await screen.findByTestId('earnings-reaction-unavailable')
+    expect(err.textContent).toMatch(/unavailable right now/)
+    expect(screen.queryByTestId('earnings-reaction-state')).toBeNull()
+    expect(screen.queryByTestId('earnings-reaction-none')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findAllByTestId('earnings-reaction-summary')).not.toHaveLength(0)
+    expect(screen.queryByTestId('earnings-reaction-unavailable')).toBeNull()
+  })
+
+  it('a successful read with no quarters says so in words, never a header-only table', async () => {
+    body = { ...body, quarters: [] }
+    renderTab()
+    expect((await screen.findByTestId('earnings-reaction-none')).textContent).toMatch(/No reported quarter for NVDA/)
+    expect(screen.queryByTestId('earnings-reaction-row')).toBeNull()
+  })
+
+  it('a non-ok state with no reason still reads as a sentence, never a blank note', async () => {
+    body = { state: 'unavailable' }
+    renderTab()
+    expect((await screen.findByTestId('earnings-reaction-state')).textContent).toMatch(/not available right now/)
   })
 })

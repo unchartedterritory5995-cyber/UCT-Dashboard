@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  UCT AGENT LIVE HARNESS — the REAL ChartsWorkspace + the REAL UCT Agent panel,
+  driven from a FIXTURE board, with every persistence write REFUSED.
+
+  ⛔ IT CANNOT WRITE A PREFERENCE, LAYOUT OR WORKSPACE DOC. This runs on the
+  machine holding the frozen Main Trading row, so window.fetch refuses every
+  non-GET to /api/auth/preferences, /api/charts/layouts and /api/workspace, and
+  answers their GETs from the fixture (never the network).
+
+  /api/agent/turn is answered by a SCRIPTED DOUBLE (src/testing/agent/scriptedAgent.js),
+  not a model: no key exists locally. It only produces envelopes; everything
+  after it (planner, policy, runtime, ACK, receipts, undo) is the real code.
+
+  Dev-server only (vite build takes index.html as its single input) — railed by
+  src/testing/agent/agentHarnessAbsent.test.js.
+
+  Run:  npx vite --host 127.0.0.1 --port 0   (from app/)
+  Then: http://127.0.0.1:<port>/agent-harness.html?charts=2&theme=dark
+        theme = dark | oled | light | uct:<app theme id>
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>agent harness</title>
+    <style>html, body, #root { height: 100%; margin: 0; }</style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/agent/agentHarness.jsx"></script>
+  </body>
+</html>

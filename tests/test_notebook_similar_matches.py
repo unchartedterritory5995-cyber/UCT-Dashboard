@@ -405,3 +405,46 @@ def test_a_tagged_chart_with_no_run_yet_is_pending_and_another_members_note_is_4
     assert r.status_code == 200 and r.json()["status"] == "pending" and r.json()["matches"] == []
     as_user(client, "m2")
     assert client.get(f"/api/j2/similar-names/{n['id']}/e-1").status_code == 404
+
+
+# ── fin walk P9: an example chart is never matched, and the answer says so ─────────────────
+
+def _mark_sample(c, note_id):
+    from api.services.journal_two import sample_marker
+    c.execute("UPDATE j2_notes SET import_source = ? WHERE id = ?", (sample_marker.SAMPLE_SOURCE, note_id))
+    c.commit()
+
+
+def test_the_nightly_job_never_matches_a_sample_chart(conn, on):
+    n = notes.create_note("u1", {"title": "Example plan", "bodyJson": _doc(_chart("e-1"))}, conn=conn)
+    _mark_sample(conn, n["id"])
+    r = sm.run_nightly(conn=conn, universe=_universe(), compute=stub_compute,
+                       pattern_field=lambda a, s: {"value": [], "missing": None})
+    assert r["templates"] == 0 and r["rows"] == 0 and _stored(conn) == []
+
+
+def test_an_example_chart_answers_example_never_pending(conn, on):
+    """ "Pending" tells the member the chart is matched tonight. An example never is, so its
+    answer has its own status and a sentence the client can show."""
+    n = notes.create_note("u1", {"title": "Example plan", "bodyJson": _doc(_chart("e-1"))}, conn=conn)
+    mine = notes.create_note("u1", {"title": "Mine", "bodyJson": _doc(_chart("e-9"))}, conn=conn)
+    _mark_sample(conn, n["id"])
+    out = sm.read_matches(conn, "u1", n["id"], "e-1")
+    assert out["status"] == "example" and out["matches"] == []
+    assert out["template"]["example"] is True
+    assert out["neverMatched"] == {
+        "reason": "sample_example",
+        "sentence": "This chart is an example, so it is never matched. Tag a chart of your own to find names like it.",
+    }
+    own = sm.read_matches(conn, "u1", mine["id"], "e-9")
+    assert own["status"] == "pending" and own["neverMatched"] is None and own["template"]["example"] is False
+
+
+def test_matches_stored_for_a_chart_before_it_was_known_as_an_example_are_not_shown(conn, on):
+    n = notes.create_note("u1", {"title": "Example plan", "bodyJson": _doc(_chart("e-1"))}, conn=conn)
+    sm.run_nightly(conn=conn, universe=_universe(), compute=stub_compute,
+                   pattern_field=lambda a, s: {"value": [], "missing": None})
+    assert sm.read_matches(conn, "u1", n["id"], "e-1")["status"] == "ready"
+    _mark_sample(conn, n["id"])
+    out = sm.read_matches(conn, "u1", n["id"], "e-1")
+    assert out["status"] == "example" and out["matches"] == [] and out["asOf"] is None

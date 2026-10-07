@@ -72,6 +72,42 @@ _log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
 
+# ⛔ FIN (2026-10-06): no route here declares a JSON body parameter (`body: Model`).
+# FastAPI reads a declared body BEFORE it solves any dependency -- before the
+# voice-access check, and with no size limit. Each door takes its body through
+# `_json(Model)`: a dependency that runs the access check first and caps the body
+# WHILE it is read. Rail: tests/test_notebook_body_census.py.
+#
+# Sizes, each read per request from the constant that already governs the door:
+#   * most doors carry a sentence or a setting: 64 KiB.
+#   * read-aloud text is held to MAX_TTS_CHARS characters, at most 4 bytes each.
+#   * a chart image sent inline is base64, 4 bytes for every 3 of the image the
+#     upload door beside it holds to VISION_MAX_BYTES.
+#   * pasted document text is held to what the document upload door takes.
+VOICE_JSON_MAX_BYTES = 64 * 1024
+VOICE_JSON_TOO_LARGE_SENTENCE = "That is too large to send. Shorten it and try again."
+
+
+def _voice_json_max() -> int:
+    return VOICE_JSON_MAX_BYTES
+
+
+def _tts_json_max() -> int:
+    return 4 * MAX_TTS_CHARS + VOICE_JSON_MAX_BYTES
+
+
+def _vision_json_max() -> int:
+    return (VISION_MAX_BYTES * 4) // 3 + VOICE_JSON_MAX_BYTES
+
+
+def _document_json_max() -> int:
+    return DOCUMENT_MAX_BYTES + VOICE_JSON_MAX_BYTES
+
+
+def _json(annotation, *, after=requires_voice_access, max_bytes=_voice_json_max):
+    return body_cap.capped_json(annotation, max_bytes, lambda: VOICE_JSON_TOO_LARGE_SENTENCE, after=after)
+
+
 # ── Schemas ─────────────────────────────────────────────────────────────────
 
 class TtsRequest(BaseModel):
@@ -181,7 +217,7 @@ def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
 
 @router.post("/tts")
 @limiter.limit("30/minute")
-def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_access)):
+def tts(request: Request, body: TtsRequest = Depends(_json(TtsRequest, max_bytes=_tts_json_max)), user: dict = Depends(requires_voice_access)):
     """POST audio. Kept for backwards compat; the frontend prefers the
     prepare→stream flow below for low-latency progressive playback."""
     text, voice, speed, _is_admin = _resolve_tts_params(user, body)
@@ -208,7 +244,7 @@ def _purge_prepared(now: float) -> None:
 
 @router.post("/tts/prepare")
 @limiter.limit("30/minute")
-def tts_prepare(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_access)):
+def tts_prepare(request: Request, body: TtsRequest = Depends(_json(TtsRequest, max_bytes=_tts_json_max)), user: dict = Depends(requires_voice_access)):
     text, voice, speed, _is_admin = _resolve_tts_params(user, body)
     # Fail fast on misconfig BEFORE the user hits play (only matters on a miss).
     # Precheck the cache under the SAME normalized key /tts/stream serves from —
@@ -288,7 +324,7 @@ def settings_get(user: dict = Depends(requires_voice_access)):
 @limiter.limit("30/minute")
 def settings_put(
     request: Request,
-    body: SettingsUpdateRequest,
+    body: SettingsUpdateRequest = Depends(_json(SettingsUpdateRequest)),
     user: dict = Depends(requires_voice_access),
 ):
     try:
@@ -428,7 +464,7 @@ class VisionDescribeRequest(BaseModel):
 @limiter.limit("20/minute")
 def vision_describe(
     request: Request,
-    body: VisionDescribeRequest,
+    body: VisionDescribeRequest = Depends(_json(VisionDescribeRequest, max_bytes=_vision_json_max)),
     user: dict = Depends(requires_voice_access),
 ):
     """GPT-4o vision pass on a chart image. Pass image_url OR image_b64."""
@@ -519,7 +555,7 @@ def documents_list(user: dict = Depends(requires_voice_access)):
 @limiter.limit("10/minute")
 def documents_ingest_text(
     request: Request,
-    body: DocumentIngestText,
+    body: DocumentIngestText = Depends(_json(DocumentIngestText, max_bytes=_document_json_max)),
     user: dict = Depends(requires_voice_access),
 ):
     """Ingest a plain-text document for RAG. For PDFs, use /documents/upload."""
@@ -646,9 +682,22 @@ def hallucinations_audit_one(
 
 @router.get("/cost")
 def cost_summary(user: dict = Depends(requires_voice_access)):
-    """Estimated voice cost for the current calendar month + projection."""
-    from api.services.voice_cost_service import get_monthly_cost_summary
-    return get_monthly_cost_summary(user["id"])
+    """Estimated voice cost for the current calendar month + projection.
+
+    Fails soft. If usage cannot be read the answer is still a 200, marked
+    `available: false`, with every figure null (never zero: a zero would read as
+    "you have used nothing") and a sentence. The cause goes to the log."""
+    from api.services import voice_cost_service
+    try:
+        return {"available": True, **voice_cost_service.get_monthly_cost_summary(user["id"])}
+    except Exception:
+        _log.exception("voice cost summary could not be read")
+        return {
+            "available": False,
+            "message": "Voice usage is not available right now.",
+            "month_to_date_usd": None, "projected_month_usd": None, "days_elapsed": None,
+            "days_in_month": None, "daily_rate_usd": None, "breakdown": None,
+        }
 
 
 @router.get("/reward/scoreboard")
@@ -704,7 +753,7 @@ class ExplainRequest(BaseModel):
 @limiter.limit("30/minute")
 def explain(
     request: Request,
-    body: ExplainRequest,
+    body: ExplainRequest = Depends(_json(ExplainRequest)),
     user: dict = Depends(requires_voice_access),
 ):
     """Structured 'why did you say that' for a specific session/turn.
@@ -959,7 +1008,7 @@ _TRAIN_ME_INSTRUCTIONS = (
 @limiter.limit("10/minute")
 def session_token(
     request: Request,
-    body: SessionTokenRequest,
+    body: SessionTokenRequest = Depends(_json(SessionTokenRequest)),
     user: dict = Depends(requires_voice_access),
 ):
     import time as _time
@@ -1241,7 +1290,7 @@ def session_token(
 @limiter.limit("120/minute")
 def exec_tool(
     request: Request,
-    body: ExecRequest,
+    body: ExecRequest = Depends(_json(ExecRequest)),
     user: dict = Depends(requires_voice_access),
 ):
     if not session_belongs_to_user(body.session_id, user["id"]):
@@ -1270,7 +1319,7 @@ class SessionEndRequest(BaseModel):
 @limiter.limit("180/minute")
 def transcript_post(
     request: Request,
-    body: TranscriptRequest,
+    body: TranscriptRequest = Depends(_json(TranscriptRequest)),
     user: dict = Depends(requires_voice_access),
 ):
     if not session_belongs_to_user(body.session_id, user["id"]):
@@ -1285,8 +1334,8 @@ def transcript_post(
 @limiter.limit("60/minute")
 def session_end_post(
     request: Request,
-    body: SessionEndRequest,
     background_tasks: BackgroundTasks,
+    body: SessionEndRequest = Depends(_json(SessionEndRequest)),
     user: dict = Depends(requires_voice_access),
 ):
     if not session_belongs_to_user(body.session_id, user["id"]):
@@ -1542,7 +1591,7 @@ def memory_facts_get(user: dict = Depends(requires_voice_access)):
 @limiter.limit("30/minute")
 def memory_facts_post(
     request: Request,
-    body: FactCreate,
+    body: FactCreate = Depends(_json(FactCreate)),
     user: dict = Depends(requires_voice_access),
 ):
     text = (body.text or "").strip()
@@ -1583,7 +1632,7 @@ class FeedbackCreate(BaseModel):
 @limiter.limit("60/minute")
 def feedback_post(
     request: Request,
-    body: FeedbackCreate,
+    body: FeedbackCreate = Depends(_json(FeedbackCreate)),
     user: dict = Depends(requires_voice_access),
 ):
     from api.services.voice_feedback_service import record_feedback

@@ -389,6 +389,32 @@ export function duplicatePanel(layout, i) {
   return { ok: true, layout: withCompat({ ...layout, count: layout.count + 1, focus: i + 1, panels: panels.slice(0, MAX_PANELS) }) }
 }
 
+/** Where an "Open SYM CODE" link inside a LIST panel (MOST's catalyst story, an RRG row) lands, so
+ *  the list it was clicked in stays on screen. `{ layout, index, added }`:
+ *   · the next visible panel already shows `code` → reuse it (a second story replaces the first,
+ *     it does not stack a third panel);
+ *   · the board has room → a fresh panel right after `from`, on `from`'s own channel (an unlinked
+ *     list opens an unlinked panel, exactly as opening in place did), focused;
+ *   · a full board → the next visible panel (wrapping), whatever it shows.
+ *  On a one-panel board with no room nothing else exists, so `index === from` (in place). */
+export function panelBeside(layout, from, code = null) {
+  const count = layout.count
+  const at = Number.isInteger(from) && from >= 0 && from < count ? from : Math.min(layout.focus, count - 1)
+  const after = at + 1 < count ? at + 1 : null
+  if (after != null && code && layout.panels[after]?.code === code) return { layout, index: after, added: false }
+  if (count < MAX_VISIBLE) {
+    const panels = layout.panels.slice()
+    const src = panels[at]
+    panels.splice(at + 1, 0, { id: newPanelId(panels), code: code || 'DES', channel: panelChannel(src), sym: null, args: [] })
+    return {
+      layout: withCompat({ ...layout, count: count + 1, panels: panels.slice(0, MAX_PANELS) }),
+      index: at + 1,
+      added: true,
+    }
+  }
+  return { layout, index: (at + 1) % count, added: false }
+}
+
 /** The securities this board looked at lately, newest first, one list: the active channel's
  *  history leads, the other channels' histories are interleaved by recency position (a
  *  channel history carries no timestamps, so position is the only order there is). */

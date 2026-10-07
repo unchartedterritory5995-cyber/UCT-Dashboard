@@ -36,7 +36,8 @@ Each row was checked against the diff, not taken from a plan.
 | New tables created at boot | `journal_two/db.py::ensure_schema` creates the gallery tables and the wave-13 tables; the firm templates are seeded once | Nothing visible. Additive, idempotent |
 | Chart-plan line in note exports | `notes_export.py`, `notes_export_formats.py` | Only for a chart block whose drawings carry plan roles, which needs the dark chart-plan feature to create |
 | Schema node types | `journal_two/notebook_schema.py` and the client schema | New node types are accepted by the server. See rollback, section 4 |
-| **flow-worker restarts** | `api/flow_worker_deploy_marker.txt`, bump 11 | The options tape drops for the length of the restart and Massive does not replay it. **Land this after hours** |
+| **flow-worker restarts. MERGE OUTSIDE MARKET HOURS** | `api/flow_worker_deploy_marker.txt`, bump 11. It is the only file in the diff on flow-worker's watch list; fifteen `journal_two` files flow-worker reaches but does not watch ride along with it | The options tape drops for the length of the restart and Massive does not replay it |
+| Not this landing's, for the merge summary | `docs/api/member-api-whitelist.json`, `docs/api/skill.md` | Master added four member reads without regenerating these (`/api/agent/conversations`, `/api/agent/conversations/{conversation_id}`, `/api/flow/tape-span`, `/api/flow/ticker/{symbol}/day-counts`), and three `/api/marketcap/pit*` paths its generator does not produce. Master's to fix. This landing leaves the files as master has them plus its own entries, so `tests/test_skill_whitelist.py` stays red until then |
 | Schema layer imports no web framework (this lane, `1a7dd79ff8`) | `journal_two/public_note_payload.py` | Nothing. It unblocks the deploy gate |
 
 Open for the controller: this lane did not walk any of these in a browser.
@@ -291,4 +292,287 @@ Inherited reds unchanged: `reachable.test.js` (expired parking note), `test_skil
 (the three marketcap paths, entries otherwise equal), `test_notebook_flag_parse.py::
 test_every_flag_on_call_names_a_payload_flag` (master's `tools/runtime_pane_smoke.py`),
 `test_user_definitions_auth.py`, `test_feature_flag_ledger.py` (three `BREADTH_EXCH_*` flags).
+
+## 10. Phase 5 (2026-10-07): the voice lane, at `296309a7d8`
+
+Where this section disagrees with an earlier one, this section is newer.
+
+Merge commit `87f41cc8df`: `fin-voice` at `f5aaabfa5e` (final). 93 routes read their JSON body
+through `request_body_cap.capped_json`: flag gate, then session, then a bounded body.
+
+Conflicts, both sides kept:
+
+- `api/routers/notebook_onboarding.py`, `PUT /tours/{tour_id}`: security made it paid, voice
+  capped its body after the plain session. Now the body waits for the paid check
+  (`_json(TourRow, after=require_paid)`).
+- `api/routers/journal_two.py`, `POST /notes/import/confirm`: voice's capped body in the
+  signature, the data lane's refusal of the sample's reserved import source in the body.
+
+Body order on the merged family (read off the mounted app, not off the source):
+
+- 93 capped JSON bodies. Every one waits for each gate, session, paid, rate or access dependency
+  its route declares, either through the helper's `after=` or because the dependency is declared
+  ahead of it. None reads its body first.
+- No `/api/j2` or `/api/voice` route still takes a plain body parameter, including the routes the
+  security and data lanes added after the voice lane branched. Nothing needed converting.
+- `tests/test_notebook_body_order.py`, `test_notebook_body_census.py`, `test_main_router_order.py`:
+  67 passed. `grep -c broker_sync api/main.py` = 10.
+
+**A finding, and the reason three of those tests need care.** With a built bundle present
+(`app/dist`), three order tests fail: they compare a dark route's 404 with what an unknown path
+answers, and with the bundle the app's page catch-all (GET and HEAD only) answers an unknown
+POST, PUT, PATCH or DELETE path with 405. So on a production-shaped app a dark write route (404)
+can be told from a path that does not exist (405). The catch-all is master's and the dark 404s
+predate this landing, so this is not new, but the rail's promise holds only without a bundle.
+The 67 passed above were measured with the bundle moved aside, which is the voice lane's and
+CI's environment. Not fixed here; it needs an owner decision.
+
+The differential (`python tests/support/run_body_differential.py`, re-run from scratch on the
+committed tree, old side a `git archive` of `72715e8001`):
+`93 routes, 2811 requests: 2640 same, 171 intended, 0 REGRESSIONS`.
+
+- It signs in with a paid session, so the routes the security and data lanes made paid show no
+  402 rows.
+- The 171 non-identical rows are two kinds only. 78: a request with no session is refused 401
+  before its body is read (the old tree parsed the body first and answered 422). 93: a body over
+  the cap answers 413 (the old tree accepted it), one per route.
+- Evidence: `docs/notebook/evidence/fin-voice/differential/`. Only its header line changed from
+  the voice lane's own run (the commit it names).
+
+Regenerated by tool after this merge: the contract fixtures did not change (172, `--check`
+exit 0), and the whitelist and skill doc did not change (master's three paths kept).
+
+Two reds the wide run found, fixed in `296309a7d8`:
+
+- The fixture rail errored (an `OpenAIError`) only when a file that imports the voice modules
+  ran before it in one process. A sweep in the fixture tool read an attribute off the openai
+  package's lazy client. Fixed in the tool.
+- `test_notebook_bridges_pin_the_root.py` named the fixture tool for setting variables by hand.
+  It does so on purpose, after the sandbox pins. The rail has a named exemption for that one
+  finding, with a staleness check and a control.
+
+Totals:
+
+- Wide backend list, 142 named files in 12 chunks (derived by the voice lane's rule): 4,140
+  passed in the first pass, then the failed chunk again after the fixes (318 passed with the
+  four voice rails). Four reds remain, all master's (below).
+- Frontend: 37 files (the voice lane's, the importer, the wizard, the CSV modal, day
+  attachments, the voice components, read-aloud, the door rails): 441 passed. The whole
+  accessibility directory and the manifest rails: 445 passed, 1 skipped, 1 inherited failure.
+- Build exit 0. First-open bytes `2,202,567 B across 56 JS chunks`, PASS.
+- Flags-off parity at `296309a7d8`: 36 identical, 4 differ only by a named expected difference,
+  0 differ. PASS. Same fingerprints as before the merge.
+
+The three reds the voice lane reported, and one more, each also red on master by content:
+
+| Test | Why it is master's |
+|---|---|
+| `test_notebook_bridges_pin_the_root.py` | `tools/notebook_w11b_scale.py:69` sets a variable; the tool is identical on master and master's copy of the test flags the same line |
+| `test_notebook_trade_canvas.py` | The test (identical on master) wants `NOTEBOOK_TRADE_CANVAS_ENABLED` declared `dark`; master's ledger says `armed` |
+| `test_user_definitions_auth.py` | Three Screener routers share one refusal sentence on master |
+| `test_skill_whitelist.py` | The three `/api/marketcap/pit*` paths, kept as master has them by ruling |
+
+Still to come before the final gate: `fin-keys`, the `fin-walk` tools, and the fifth master merge.
+
+## 11. Phase 6 (2026-10-07): the fifth master merge
+
+Where this section disagrees with an earlier one, this section is newer.
+
+Merge commit `90ee97068c`: `origin/master` at `b6495c5fbf`, 116 commits. No textual conflict. Six
+files changed on both sides (`api/main.py`, `StockChart.jsx`, `Watchlists.jsx`,
+`ScannerShell.jsx` and its stylesheet, `docs/feature_flags.json`); each merged file is the new
+master plus exactly this branch's lines. `grep -c broker_sync api/main.py` = 10. No file under
+`app/src/pages/journal-2-0` was changed by master.
+
+Generated files: the whitelist and skill doc are left as master has them plus this branch's
+entries. Master added four member reads without regenerating its whitelist
+(`/api/agent/conversations`, `/api/agent/conversations/{conversation_id}`, `/api/flow/tape-span`,
+`/api/flow/ticker/{symbol}/day-counts`). They are another workstream's and are not added here.
+
+**The known limitation, pinned (controller ruling).** The page catch-all answers an unknown write
+path with 405 when a bundle is mounted, where a dark route answers 404. Accepted as a
+pre-existing limitation of master's catch-all; not fixed in this landing.
+`tests/test_notebook_body_order.py` now builds both app shapes from the real app and asserts
+both facts wherever it runs: with no bundle a dark route equals an unknown route, and
+`test_KNOWN_LIMITATION_with_a_bundle_mounted_an_unknown_write_path_is_405_and_a_dark_route_404`
+pins the other. 43 passed with `app/dist` present and with it moved aside.
+
+Broken by the merge, and fixed:
+
+- `tests/test_voice_client_request_shapes.py` named master's new agent test harness
+  (`src/testing/agent/agentHarness.jsx:201`) as calling "GET /api/voice/transcribe". That line is
+  a fetch stand-in testing a path with `startsWith`. The census no longer reads a string test as
+  a request, and the literal is declared by name. 14 passed.
+
+Found by the rollback rehearsal, and fixed (the rehearsal is what the fix branches had not been
+run against):
+
+- The kept `tests/test_journal_two_account_purge.py` failed twice on the rolled-back tree: the
+  data lane's `j2_trade_plan_misses` was in the deletion list but not in that file's map of
+  landing tables. Added.
+- The rehearsal's probe built its gallery tables without `gallery_id`, which the kept
+  `account_purge.py` reads since the security lane's M-7. Probe fixed; product unchanged.
+- `rehearse.sh` could not finish once its logs and its probe were tracked files: the second
+  checkout refused, and then the pre-landing tree had no probe (exit 4). It now writes its logs
+  outside the repository and carries the probe across.
+
+The rehearsal at `f6c4578d8a`
+(`python tools/notebook_rollback_chain.py --landing HEAD --pending --from origin/master`, then
+`rehearse.sh`): the landing changes 712 files, 0 conflicts, 0 product conflicts.
+
+| Tree | Run | Result |
+|---|---|---|
+| A, reverted with the keep-list | kept rails | 42 passed |
+| A | note save and load files | 3 failed, 185 passed |
+| A | the server imports and mounts | 8 passed |
+| A | probe, expecting the safe outcome | 3 passed: the save is refused 409 and the plan data is still in the note; 0 rows left behind |
+| A | kept client rail | 17 passed |
+| B, reverted whole | probe, expecting the loss | 3 passed: the save answers 200 and the plan data is gone; 12 rows left behind |
+| B | probe, expecting the safe outcome | 2 failed, as it must |
+
+The three failures on tree A are `tests/test_notes_cas_is_atomic.py`: a rollback puts back
+master's copy of that test, which has the defect fixed on this branch (`4c9520c606`). The fixed
+test passes on the pre-landing product too, so adding it to the keep-list would leave a
+rolled-back tree green. Not done here; it changes the tool's keep-list and is the rollback
+lane's or the controller's call.
+
+flow-worker: the landing still bumps `api/flow_worker_deploy_marker.txt` (bump 11), and that
+marker is the only file in the diff on flow-worker's watch list.
+`python tools/flow_worker_watch_coverage.py`: OK, 15 reachable files that are not watched ride
+along with it (`accounts.py`, `calendar.py`, `chart_plan.py`, `db.py`, `document_extraction.py`,
+`note_tasks.py`, `notebook_schema.py`, `notes.py`, `notes_export.py`, `notes_export_formats.py`,
+`plan_extract.py`, `public_note_payload.py`, `sample_marker.py`, `template_gallery.py`,
+`trade_attachments.py`, all under `api/services/journal_two/`). The merge restarts flow-worker.
+
+Gates after the merge:
+
+- Build exit 0. First-open bytes `2,207,601 B across 56 JS chunks`, PASS (53,192 B under; master
+  added about 5 KB to the path, nothing needed moving).
+- Flags-off parity at `90ee97068c`: 36 identical, 4 differ only by a named expected difference,
+  0 differ. PASS. Fingerprints unchanged.
+- Contract fixtures `--check`: 172 match, nothing changed. Hygiene clean.
+- Body order: 93 capped bodies, none ahead of a gate, session, paid, rate or access dependency.
+  No route in the Journal, Notebook or voice family takes a plain body parameter. Outside the
+  family 229 routes do, as before (not this landing's; among those in files master changed:
+  `POST /api/calendar/seen`, three under `/api/patterns`, the `/api/modelbook` writes).
+- Differential: `93 routes, 2811 requests: 2640 same, 171 intended, 0 REGRESSIONS`.
+- Frontend, 56 named files plus the whole accessibility directory: 1,113 passed, 1 skipped,
+  1 inherited failure.
+- Backend, 21 named files: 934 passed, 7 inherited failures. Order, census, router and voice
+  rails: 96 passed after the census fix.
+
+Every inherited red, re-read against the NEW master. None was fixed upstream:
+
+| Test | Still master's because |
+|---|---|
+| `screener/reachable.test.js` | the parking note with expiry `2026-10-06` is still in master's file |
+| `test_feature_flag_ledger.py` | three `BREADTH_EXCH_*` flags still absent from master's ledger |
+| `test_skill_whitelist.py` | the three marketcap paths, and now master's four unlisted reads |
+| `test_notebook_flag_parse.py` (flag_on literals) | `tools/runtime_pane_smoke.py` unchanged on master |
+| `test_user_definitions_auth.py` | the three Screener routers still share one sentence |
+| `test_notebook_bridges_pin_the_root.py` | `tools/notebook_w11b_scale.py:69` unchanged on master |
+| `test_notebook_trade_canvas.py` | master's ledger still says `armed` |
+| `test_shared_state_landmines.py` | six import-time binds, all in master's files |
+| `test_auth_surface_reads.py`, `test_open_reads_gate.py`, `test_rate_limit_policy.py` (5) | master routes not declared; no `/api/j2` route is named |
+
+Still to come before the final gate: `fin-keys`, the `fin-walk` tools, and a small top-up master
+merge if master moves again.
+
+## 12. Phase 7 (2026-10-07): the keep-list, the trade canvas test, the reds by owner
+
+Where this section disagrees with an earlier one, this section is newer.
+
+**The fixed write-protection rail is on the rollback keep-list** (controller ruling).
+`tests/test_notes_cas_is_atomic.py` joins `KEEP_WITH_LANDING` for this landing, the keep-list
+rail, the rehearsal script and the rollback page. Rehearsal re-run at `65f56566e5`, tree A (the
+landing reverted with the keep-list):
+
+| Run | Before | Now |
+|---|---|---|
+| Note save and load (five files) | 3 failed, 185 passed | **193 passed** |
+| Kept rails | 42 passed | 42 passed |
+| Server imports and mounts | 8 passed | 8 passed |
+| Probe, safe outcome | 3 passed | 3 passed |
+| Kept client rail | 17 passed | 17 passed |
+
+Tree B (a plain revert) is unchanged: the loss probe passes and the safe-outcome probe fails,
+as it must.
+
+**The trade canvas ledger test was the Notebook's own, and is fixed.**
+`tests/test_notebook_trade_canvas.py` asserted the gate's ledger entry was `dark`. The gate was
+armed on web on 2026-10-03 by this program: the entry says so ("ARMED on web 2026-10-03 ... live
+from web deploy 01c5a7697") and PR #267 (`a0509fae96`) recorded it. The test now reads the
+ledger and holds that the entry agrees with itself, whichever state it is in. 25 passed. No
+sibling restates a ledger status: the AI actions gate, armed in the same PR, has no such
+assertion, and no other Notebook test does either.
+
+**The reds this landing carries, by owner.** Each is red on master too, by content.
+
+In other workstreams' files:
+
+| Test | The file that has to change | Owning area |
+|---|---|---|
+| `screener/reachable.test.js`, parking note past its expiry | the `WAVE 2 IN FLIGHT` block for five `components/chart/engine` files | Charts and indicator renderer |
+| `test_feature_flag_ledger.py` | ledger rows for three `BREADTH_EXCH_*` flags | Breadth |
+| `test_skill_whitelist.py` | master's whitelist: three `/api/marketcap/pit*` paths, four unlisted reads | Market cap; Terminal agent; Options flow |
+| `test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag` | `tools/runtime_pane_smoke.py`, which defines and calls its own `flag_on` | Pine and indicators |
+| `test_user_definitions_auth.py` | one refusal sentence shared by `screener.py`, `screener_nl.py`, `screen_promote.py` | Screener |
+| `test_shared_state_landmines.py` | import-time binds in `test_discord_render_goldens.py`, `test_mobile_audit_route_validity.py`, `test_oi44_loop_blockers_gate.py`, `test_w8_accuracy_audit.py` | Discord render; mobile audit; Terminal; wave 8 audit |
+| `test_auth_surface_reads.py`, `test_open_reads_gate.py`, `test_rate_limit_policy.py` (5) | undeclared routes under `/api/ltr`, `/api/marketcap`, `/live-trading-room`, `/api/artifact-versions`, `/api/exports`, `/api/options`, `/api/options-screener`, `/api/terminal`, `/api/pine`, `/api/instruments` | Live trading room; Market cap; Terminal; Options; Pine |
+
+Notebook-owned: **none remain.** Two more were found while sorting this list, both red on master
+as well, and both are fixed (`tests/test_parity_scorecard.py`, `test_notebook_bridges_pin_the_root.py`):
+
+| Was red | What it was | Fix |
+|---|---|---|
+| `test_shared_state_landmines.py`, two of its six lines | `tests/test_parity_scorecard.py` bound two tool modules into `sys.modules` at import and left them there | The tools are loaded by a helper that binds the name only while the module body runs, then removes it. The scorecard tests pass; the landmine rail now names only the four files of other workstreams |
+| `test_notebook_bridges_pin_the_root.py` | `tools/notebook_w11b_scale.py:69` (wave 11) switches one capability flag on for its own run | It takes the same named exemption the fixture tool has, with its reason. The rail is fully green |
+
+Run together: `tests/test_parity_scorecard.py`, `tests/test_notebook_bridges_pin_the_root.py`,
+`tests/test_shared_state_landmines.py`: 1 failed, 62 passed. The one failure is the landmine
+rail on the four files listed in the table above.
+
+## 13. Phase 8 (2026-10-07): data lane 2 and frontend lane 2, at `d88b514743`
+
+Where this section disagrees with an earlier one, this section is newer.
+
+| Merge commit | Branch and tip | Conflicts |
+|---|---|---|
+| `bff2eef093` | `fin-data2` at `627a9a9ff3` (final) | None. `landing-12-15-rollback.md` changed on both sides in separate hunks |
+| `d88b514743` | `fin-fe2` at `9e09c09f85` (a small round 2 follows) | None, and no both-sides file |
+
+What these add: a review draft says when its discipline part is unavailable and why; the setups
+board says whether a plan can be drawn; a sample folder is removed by a durable mark; an example
+chart answers "example" in find-similar; a Notebook confirm locks the page and no longer sits
+under the voice orb; touch targets are 44 px wide as well as tall; a tour's step counter counts
+the steps it shows.
+
+**Contract fixtures: 182** (was 172). The ten new ones are the sample notebook's doors, from the
+onboarding router now in the generator. `python tools/notebook_contract_fixtures.py --check` on
+the merged tree: 182 match, nothing to regenerate.
+
+New rollback surface: `j2_note_folders.import_source`, a nullable column added by an idempotent
+ALTER. Its line is in the rollback page. The schema guard, purge, deletion manifest and
+keep-list tests pass with it.
+
+More that is LIVE on merge (no flag): the confirm's page lock, the 44 px width floors, and the
+tour step counter. The rest is behind the features' own flags.
+
+Gates:
+
+- Build exit 0. First-open bytes `2,208,087 B across 56 JS chunks`, PASS.
+- Flags-off parity: 36 identical, 4 differ only by a named expected difference, 0 differ. PASS,
+  with the same fingerprints as before. The tour counter and the confirm lock are always-on, but
+  no case captures them: no parity case has a tour card or a confirm on screen, and the lock and
+  the width floors are not markup. Nothing was added to the named list.
+- Frontend: 30 named files (both lanes' and every contract consumer), the whole accessibility
+  directory and the whole onboarding directory: 1,497 passed, 1 skipped, 1 inherited failure
+  (the chart-engine parking note).
+- Backend: both lanes' files with the fixture rail, schema guard, purge, manifest, keep-list,
+  body order, census and router order: 699 passed, 1 inherited failure (master's
+  `tools/runtime_pane_smoke.py`).
+- Body order unchanged: 93 capped bodies in order; no plain body parameter in the family.
+- Hygiene clean; the deletion manifest matches the purge code.
+
+Still to come before the final gate: `fin-fe2` round 2, `fin-keys`, the `fin-walk` tools.
 

@@ -188,7 +188,7 @@ const str = (v, fallback = '') => (typeof v === 'string' && v ? v : fallback)
  * follows when it says something new — and only the breadth adapter overrides it.
  * `SourceField` renders `lead` / `sub` and learns nothing about breadth.
  */
-function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create, metricShort, universeLabel, tab }) {
+function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create, metricShort, universeLabel, tab, chip }) {
   const _lead = str(lead, str(shortName, id))
   return {
     key: `${kind}:${id}`,
@@ -213,7 +213,59 @@ function result({ id, kind, name, shortName, lead, sub, category, description, t
     ...(universeLabel ? { universeLabel } : {}),
     // Discovery HOME only — see `discoveryTabOf`. Absent on almost every result.
     ...(tab ? { tab } : {}),
+    // ⭐ THE LIST CHIP, when it differs from `shortName`. `shortName` is the series' display
+    // NAME on the chart (a legacy UCT row keeps `UCTA50` there); the chip is what a LIST row
+    // shows beside the metric so four identical names are told apart (`UCT`, `US`, …).
+    ...(chip ? { chip } : {}),
   }
+}
+
+/** `2026-10-05` → `Oct 5, 2026`; anything else back unchanged. */
+function prettyDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  if (!m) return str(iso, '')
+  const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m[2]) - 1]
+  return mon ? `${mon} ${Number(m[3])}, ${m[1]}` : iso
+}
+
+/** The universe availability row (`{id,label,first,last}`) for a breadth row, by id or label. */
+function universeAvailability(row, universes) {
+  const list = Array.isArray(universes) ? universes : []
+  const id = str(row.universe, '').toLowerCase()
+  const label = str(row.universe_label || row.universeLabel, '').toUpperCase()
+  return list.find((u) => u && ((id && u.id === id)
+    || (label && String(u.label || '').toUpperCase() === label))) || null
+}
+
+/**
+ * ⭐⭐ WHAT A BREADTH ROW SAYS ON HOVER — assembled ONLY from metadata the server sent
+ * (finishing pass, 2026-10-07). Line by line:
+ *
+ *   NYSE · New 52-Week Highs (NYSE:NH)          ← universe · name (symbol)
+ *   Stocks closing at a new 52-week high.       ← `description` (breadth_metrics) or the
+ *                                                  registry's `methodology` (market indicators)
+ *   NYSE: NYSE-listed operating equity, …       ← `universe_description` (breadth_universes)
+ *   History from Jun 11, 2009 · data through Oct 5, 2026
+ *
+ * ⛔ NO CLIENT-WRITTEN METHODOLOGY. A line the payload did not carry is simply absent —
+ * an older backend yields today's bare name, never a sentence this file invented.
+ */
+export function breadthTooltip(row, { universes, sym, name, universeLabel } = {}) {
+  if (!row) return ''
+  const lines = []
+  const head = `${universeLabel ? `${universeLabel} · ` : ''}${name || ''}`
+  lines.push(sym && sym !== name ? `${head} (${sym})` : head)
+  const what = str(row.description, '') || str(row.methodology, '')
+  if (what && what !== name) lines.push(what)
+  const uni = str(row.universe_description, '')
+  if (uni) lines.push(uni)
+  const avail = universeAvailability(row, universes)
+  const first = str(row.history_start, '') || (avail && str(avail.first, '')) || str(row.floor, '')
+  const last = avail ? str(avail.last, '') : ''
+  const dates = [first ? `History from ${prettyDate(first)}` : '', last ? `data through ${prettyDate(last)}` : '']
+    .filter(Boolean).join(' · ')
+  if (dates) lines.push(dates.charAt(0).toUpperCase() + dates.slice(1))
+  return lines.filter(Boolean).join('\n')
 }
 
 // ─── capability, read from evidence ─────────────────────────────────────────
@@ -339,7 +391,24 @@ export function formulaResults(registry) {
  * here is what lets a breadth row reach this function from EITHER endpoint
  * without the caller having to normalise first.
  */
-export function breadthResults(rows, { tf, bars } = {}) {
+/**
+ * The `/api/breadth-symbols` `symbols` rows, each joined to its LIBRARY row (same payload,
+ * same symbol) so browse carries `description`, `universe_description`, `legacy` and the
+ * universe — the facts `breadthTooltip` and the list chip read. ⛔ A JOIN, NOT A COPY: a
+ * symbol with no library row passes through untouched, and the symbols row wins on any key
+ * both carry, so nothing that read these rows before sees a different value.
+ */
+export function withLibraryMetadata(rows, library) {
+  const libRows = library && Array.isArray(library.rows) ? library.rows : []
+  if (!libRows.length) return Array.isArray(rows) ? rows : []
+  const bySym = new Map(libRows.map((r) => [String(r.symbol || '').toUpperCase(), r]))
+  return (Array.isArray(rows) ? rows : []).map((r) => {
+    const lib = r && bySym.get(String(r.symbol || r.ticker || '').toUpperCase())
+    return lib ? { ...lib, ...r } : r
+  })
+}
+
+export function breadthResults(rows, { tf, bars, universes } = {}) {
   const out = []
   for (const row of (Array.isArray(rows) ? rows : [])) {
     if (!row) continue
@@ -376,6 +445,11 @@ export function breadthResults(rows, { tf, bars } = {}) {
     // be a regression dressed as consistency. A namespaced row has no such history
     // and its universe is the thing that distinguishes it from its siblings.
     const universeLabel = row.legacy ? '' : str(row.universe_label || row.universeLabel, '')
+    // ⭐ THE LIST CHIP NAMES THE POPULATION FOR EVERY BREADTH ROW, legacy included — a legacy
+    // row is UCT's by definition (it carries no universe key). A market-indicator row
+    // (`family`) already states its universe in its name (`NYSE · McClellan Oscillator`),
+    // so it keeps its symbol chip.
+    const chip = row.family ? '' : (str(row.universe_label || row.universeLabel, '') || 'UCT')
     const pres = presentationFor(row)
     out.push(result({
       id: sym,
@@ -397,7 +471,8 @@ export function breadthResults(rows, { tf, bars } = {}) {
       universeLabel,
       category: discoveryTabOf(row) === 'positioning'
         ? POSITIONING_HEADING : str(row.group_label || row.groupLabel || row.group, 'Breadth'),
-      description: name,
+      description: breadthTooltip(row, { universes, sym, name, universeLabel: chip }),
+      chip,
       tags: ['breadth'],
       tab: discoveryTabOf(row),
       ...knownCapabilityOf(sym, tf, bars),
@@ -624,12 +699,20 @@ export function presentationFor(row) {
  * a discovery, and adapting it would put a result in the list for every
  * keystroke.
  */
-export function securityResults(rows, { tf, bars } = {}) {
+export function securityResults(rows, { tf, bars, universes } = {}) {
   const out = []
   for (const row of (Array.isArray(rows) ? rows : [])) {
     if (!row || row._typed === true) continue
     if (row.breadth === true || row.type === 'breadth') {
-      out.push(...breadthResults([row], { tf, bars }))
+      out.push(...breadthResults([row], { tf, bars, universes }))
+      continue
+    }
+    // ⭐ A MARKET-INDICATOR SERIES ROW IS RE-ROUTED TOO (2026-10-07), so a searched `NYSE:MCO`
+    // is the same `breadth:NYSE:MCO` result the catalogue browses — "NYSE · McClellan
+    // Oscillator", not a ticker headline — and the two dedupe. ⛔ Not a Cboe volatility index:
+    // that is a real OHLC instrument and stays a security.
+    if (row.indicator === true && row.family && row.family !== 'volatility' && row.kind !== 'product') {
+      out.push(...breadthResults([{ ...row, legacy: true }], { tf, bars, universes }))
       continue
     }
     // ⛔⛔ A PRODUCT ROW IS RE-ROUTED, exactly as a breadth row is, and for the same
@@ -1735,12 +1818,14 @@ export function symbolLibraryRow(res) {
     name: isBreadth ? (res.name || res.id) : res.id,
     // The server's own classification, upper-cased for the chip; breadth says so.
     shortName: res.kind === 'positioning' ? (res.shortName || 'COT')
-      : isBreadth ? 'Breadth' : String(res.category || 'symbol').toUpperCase(),
+      // ⭐ THE POPULATION, NOT THE WORD "Breadth". Four `New 52-Week Highs` rows that all
+      // read "Breadth" were indistinguishable in search (measured 2026-10-07).
+      : isBreadth ? (res.chip || 'Breadth') : String(res.category || 'symbol').toUpperCase(),
     category: (res.kind === 'positioning' || res.tab === 'positioning') ? (res.category || POSITIONING_HEADING)
       : isBreadth ? BREADTH_CATEGORY : SYMBOL_CATEGORY,
     // The universe qualifies, and the address stays available without dominating.
-    description: isBreadth ? [res.shortName, res.id].filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i).join(' · ') : long,
+    description: isBreadth ? ((res.description && res.description !== res.name) ? res.description
+      : [res.shortName, res.id].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ')) : long,
     longName: long,
     tags: res.tags,
     ...(res.tab ? { tab: res.tab } : {}),
@@ -1780,7 +1865,7 @@ export function symbolLibraryRow(res) {
  * separate `dormant` array that the hook does not index, so NYMO cannot be shaped
  * into a result and cannot be clicked.
  */
-export function marketIndicatorResults(rows, { tf, bars } = {}) {
+export function marketIndicatorResults(rows, { tf, bars, universes } = {}) {
   const vol = []
   const internals = []
   // ⭐ COT LEADS the Positioning tab, ahead of the sentiment rows filed beside it.
@@ -1822,9 +1907,13 @@ export function marketIndicatorResults(rows, { tf, bars } = {}) {
       group_label: row.family_label,
       presentation: row.presentation,
       domain: row.domain,
+      // ⭐ The registry's own words, for the row's hover (`breadthTooltip`) — never retyped.
+      methodology: row.methodology,
+      history_start: row.history_start,
+      universe: row.universe,
     })
   }
-  return [...breadthResults(lead, { tf, bars }),
-          ...breadthResults(internals, { tf, bars }),
+  return [...breadthResults(lead, { tf, bars, universes }),
+          ...breadthResults(internals, { tf, bars, universes }),
           ...securityResults(vol, { tf, bars })]
 }

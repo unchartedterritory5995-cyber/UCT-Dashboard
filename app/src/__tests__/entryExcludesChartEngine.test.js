@@ -196,16 +196,40 @@ describe('⛔ the entry chunk does not statically reach the chart engine', () =>
 // (NoteEditorPage → widgetEmbedCore → ownChartSettings; AddPositionModal →
 // widgetEmbedCore) after the entry stopped carrying it. Owner-approved change,
 // 2026-09-29: widgetEmbedCore loads ownChartSettings lazily.
+//
+// Wave 12-15 landing, 2026-10-07: the Journal layout no longer holds the embed core at all.
+// Its only static path to it was LogTradeButton → AddPositionModal, and those two dialogs
+// load on first open now (LogTradeButton.jsx, JournalLogFab.jsx). So the non-vacuity anchor
+// is named per start: the Notebook surface must still hold the embed core (the editor), and
+// the Journal layout must hold LogTradeButton, the module the old edge went through. The
+// last test pins the new fact itself, so the edge cannot come back as a static import.
 describe('⛔ the Notebook and Journal routes do not statically reach the chart engine', () => {
-  for (const start of ['pages/journal-2-0/surfaces/NotebookSurface.jsx', 'pages/journal-2-0/JournalLayout.jsx']) {
+  const STARTS = [
+    ['pages/journal-2-0/surfaces/NotebookSurface.jsx', 'pages/journal-2-0/lib/widgetEmbedCore.js'],
+    ['pages/journal-2-0/JournalLayout.jsx', 'pages/journal-2-0/LogTradeButton.jsx'],
+  ]
+  for (const [start, anchor] of STARTS) {
     it(`${start}: no components/chart/engine/ module on its static closure`, () => {
       const closure = staticClosure(at(start))
-      // non-vacuity: the walk really covers the editor and the shared embed core
+      // non-vacuity: the walk really covers this route's own code
       expect(closure.size).toBeGreaterThan(50)
-      expect(closure.has(at('pages/journal-2-0/lib/widgetEmbedCore.js'))).toBe(true)
+      expect(closure.has(at(anchor)), `${anchor} is not on the closure of ${start}`).toBe(true)
       const hits = engineHits(closure)
       const report = hits.slice(0, 3).map((h) => `  ${rel(h)} via\n    → ${chainTo(closure, h)}`).join('\n')
       expect(hits.length, `${start} statically reaches the chart engine (${hits.length} modules):\n${report}\n`).toBe(0)
     })
   }
+
+  it('the Journal layout reaches the embed core only through the two lazy Log Trade dialogs', () => {
+    const closure = staticClosure(at('pages/journal-2-0/JournalLayout.jsx'))
+    expect(closure.has(at('pages/journal-2-0/lib/widgetEmbedCore.js'))).toBe(false)
+    expect(closure.has(at('pages/journal-2-0/components/AddPositionModal.jsx'))).toBe(false)
+    const { statics, dynamics } = importsOf(at('pages/journal-2-0/LogTradeButton.jsx'))
+    const rels = (specs) => specs.map((s) => resolve(at('pages/journal-2-0/LogTradeButton.jsx'), s)).filter(Boolean).map(rel)
+    expect(rels(statics)).not.toContain('pages/journal-2-0/components/AddPositionModal.jsx')
+    expect(rels(dynamics)).toContain('pages/journal-2-0/components/AddPositionModal.jsx')
+    // and the dialog is where the embed core lives, so the lazy edge is the one that matters
+    expect(staticClosure(at('pages/journal-2-0/components/AddPositionModal.jsx'))
+      .has(at('pages/journal-2-0/lib/widgetEmbedCore.js'))).toBe(true)
+  })
 })

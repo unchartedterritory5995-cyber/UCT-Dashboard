@@ -922,6 +922,24 @@ def column_for(key):
     return f["column"] if f else None
 
 
+def field_catalog() -> list[dict]:
+    """The filter registry ITSELF, cheaply: key, label, type, unit, category for every
+    live filter — no measurement, no database, no member-specific lists.
+
+    ``meta()`` is what the Screener page draws, and it MEASURES (per-field
+    distributions over the whole snapshot, distinct enum options, the member's own
+    scans and lists) — seconds of work per call. A caller that only needs to know
+    WHICH fields exist (UCT Agent turning "ADR above 5%" into ``adr_pct > 5``) reads
+    this instead. Same registry, so a filter added to ``FILTERS`` is listed here the
+    moment it ships; retired keys are never listed.
+    """
+    return [
+        {"key": key, "label": f.get("label") or key, "type": f.get("type"),
+         "unit": f.get("unit"), "category": f.get("category")}
+        for key, f in FILTERS.items() if key not in RETIRED
+    ]
+
+
 def comparable_keys():
     """Filter keys whose column may sit on the RIGHT of a `_col` comparison.
 

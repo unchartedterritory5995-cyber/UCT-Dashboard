@@ -532,6 +532,8 @@ def test_the_boards_count_is_the_members_own_setups_and_each_sample_card_is_mark
     assert board["count"] == 1 and board["exampleCount"] == 2
     assert [(c["noteId"] == mine, c["example"]) for c in board["cards"]] == [(True, False), (False, True), (False, True)], \
         "the member's own setup must come first and be unmarked"
+    # fin walk P9: an example card says it is never matched overnight; the member's own does not
+    assert [c["similarNeverMatched"] for c in board["cards"]] == [False, True, True]
 
 
 def test_control_a_member_with_no_sample_has_no_example_cards(conn, db):

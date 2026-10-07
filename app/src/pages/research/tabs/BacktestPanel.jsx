@@ -9,7 +9,9 @@ import {
   summaryFacts, excludedText, notRunText, ivText,
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import useDarkSection from '../../optionsAnalytics/useDarkSection'
+import FailedRead from '../../optionsAnalytics/FailedRead'
 import Select from '../../../components/ui/Select'
 
 // BRK-01 increment 4 (roadmap RM-L01): the options strategy backtester, under the chain.
@@ -89,6 +91,10 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
   })
   const st = poll.data
   const spread = Boolean(choices.find(([k]) => k === kind)?.[2])
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // Nothing to source until a run has finished; the inputs are the member's own.
+  // `as_of` is when the run finished (a cached identical run keeps its own finish time).
+  usePanelFreshness(st?.state === 'done' ? panelAsOf('Massive options history, simulated by UCT', st.as_of) : null)
 
   async function onSimulate() {
     setBusy(true)
@@ -187,6 +193,11 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
       </div>
 
       {startError && <p className={styles.note} data-testid="backtest-error">{startError}</p>}
+      {/* the catalog read failing used to drop silently to the first slice of strategies */}
+      {cat.failed && (
+        <FailedRead testId="backtest-catalog-failed" retry={cat.retry}
+          title="The full strategy list could not be read right now, so only the first set of strategies is offered." />
+      )}
       {waiting && !exhausted && (
         <p className={styles.note} data-testid="backtest-busy">
           The backtester is busy right now. This asks again by itself every {PENDING_REASK_MS / 1000} seconds.
@@ -198,7 +209,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           <button type="button" onClick={retry}>Try again</button>
         </p>
       )}
-      {poll.error && <p className={styles.note} data-testid="backtest-error">The backtest result is unavailable right now.</p>}
+      {poll.error && <FailedRead testId="backtest-error" retry={() => poll.mutate()} title="The backtest result is unavailable right now." />}
       {st && (st.state === 'queued' || st.state === 'running') && (
         <p className={styles.note} data-testid="backtest-running">
           Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}… {st.budget_text || ''}
@@ -218,12 +229,12 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           {notRunText(r) && <p className={styles.muted} data-testid="backtest-not-run">{notRunText(r)}</p>}
           {r.trades?.length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.grid} data-testid="backtest-trades">
+              <table className={styles.grid} data-testid="backtest-trades" aria-label={`Backtest trades for ${sym}`}>
                 <thead>
                   <tr>
-                    {r.anchor === 'earnings' && <th>Report</th>}
-                    <th>Entry</th><th>Expiry</th><th>Contracts</th><th>Debit</th>
-                    <th title={r.iv_source_text}>IV (computed)</th><th>Exit</th><th>P&amp;L</th>
+                    {r.anchor === 'earnings' && <th scope="col">Report</th>}
+                    <th scope="col">Entry</th><th scope="col">Expiry</th><th scope="col">Contracts</th><th scope="col">Debit</th>
+                    <th scope="col" title={r.iv_source_text}>IV (computed)</th><th scope="col">Exit</th><th scope="col">P&amp;L</th>
                   </tr>
                 </thead>
                 <tbody>

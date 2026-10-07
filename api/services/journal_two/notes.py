@@ -46,6 +46,10 @@ def _log_notebook_event(user_id: str, event: str, details: dict | None = None) -
 MAX_TITLE_CHARS = 300
 MAX_SUBTITLE_CHARS = 500
 MAX_BODY_JSON_BYTES = 1_000_000  # 1MB
+# The most notes `import_confirm` takes in one batch. A name, not a literal in the
+# check, because the import door's body cap is derived from it
+# (`journal_two._note_import_json_max`): the largest batch this accepts must fit.
+IMPORT_CONFIRM_MAX_NOTES = 500
 MAX_TAG_LENGTH = 40
 MAX_TAGS = 30
 MAX_TICKER_LENGTH = 16
@@ -1182,8 +1186,8 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     if not isinstance(payload, dict) or not isinstance(payload.get("notes"), list):
         raise NoteValidationError("invalid import payload")
     notes = payload["notes"]
-    if len(notes) > 500:
-        raise NoteValidationError("too many notes in one batch (max 500)")
+    if len(notes) > IMPORT_CONFIRM_MAX_NOTES:
+        raise NoteValidationError(f"too many notes in one batch (max {IMPORT_CONFIRM_MAX_NOTES})")
     raw_source = payload.get("source")
     if raw_source is not None and not isinstance(raw_source, str):
         raise NoteValidationError("source must be a string")
@@ -1233,7 +1237,12 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # note sharing that same path fails and rolls itself back.
                 path = tuple((n.get("folderPath") or [])[:max_path_depth])
                 if path not in path_cache:
-                    path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
+                    # A folder the SAMPLE's import makes carries the sample's mark, so its
+                    # removal can find exactly the folders it made (never by name, never by
+                    # time). Any other import leaves the mark NULL.
+                    path_cache[path] = (ensure_folder_path(
+                        user_id, list(path), dest, conn=conn,
+                        import_source=source if sample_marker.is_sample(source) else None)
                                         if path else (dest or None))
                 folder_id = path_cache[path] or None
                 # Wave 0 trash: same reasoning as import_check above — a
@@ -5437,7 +5446,8 @@ def delete_folder(
             conn.close()
 
 
-def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None) -> str:
+def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None,
+                       *, import_source: str | None = None) -> str:
     """Upsert a folder chain under dest_folder_id; returns leaf folder id.
     Truncates each segment to the 80-char folder-name cap.
 
@@ -5481,6 +5491,11 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
                 pid = row["id"]
             else:
                 pid = create_folder(user_id, name, parent_id=pid, conn=conn)["id"]
+                # Only a folder this call CREATED is marked. One it found and reused is
+                # somebody's already, and stays exactly as it was.
+                if import_source:
+                    conn.execute("UPDATE j2_note_folders SET import_source = ? WHERE id = ? AND user_id = ?",
+                                 (import_source, pid, user_id))
         if owned:
             conn.commit()
         return pid

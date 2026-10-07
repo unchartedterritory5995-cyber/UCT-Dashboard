@@ -1,10 +1,10 @@
 
-[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-fin-rollback/app[39m
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w14-land/app[39m
 
- [32m✓[39m src/pages/journal-2-0/lib/notebookSchema.rail.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 342[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/notebookSchema.rail.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 306[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
-[2m   Start at [22m 23:05:43
-[2m   Duration [22m 37.36s[2m (transform 15.57s, setup 600ms, import 34.76s, tests 342ms, environment 1.19s)[22m
+[2m   Start at [22m 13:10:05
+[2m   Duration [22m 34.83s[2m (transform 10.87s, setup 369ms, import 33.38s, tests 306ms, environment 600ms)[22m
 

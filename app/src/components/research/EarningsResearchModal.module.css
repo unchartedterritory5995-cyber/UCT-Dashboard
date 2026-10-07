@@ -45,7 +45,8 @@
    substituted using the REFERENCING element's own computed value, then
    inherited as a finished value." So a descendant reading `var(--text-primary)`
    would get the ROOT's light-theme near-black even inside this island. Only
-   the ten aliases whose TARGET is theme-variant are listed; `--grade-*` and
+   the aliases whose TARGET is theme-variant are listed (the five `--grade-*`
+   joined them when the score ramp gained a light variant, 2026-10-06);
    `--control-*` point at tokens no theme block touches.
 
    ⛔ DERIVED, NOT TYPED. `EarningsResearchModal.themeIsland.test.js` re-reads
@@ -69,7 +70,7 @@
   --bg-surface: #17181b;
   --border: #2a2c31;
   --border-accent: #383b41;
-  --danger-ink: #e67070;
+  --danger-ink: #e87878;
   --field-edge: #6a6f7c;
   --gain: #2faf68;
   --gain-bg: #2faf6815;
@@ -102,6 +103,11 @@
   --text-bright: #f8f7f3;
   --text-heading: #ffffff;
   --text-muted: #cfcac0;
+  --score-elite: #3cb868;
+  --score-neutral: #c9a84c;
+  --score-poor: #e74c3c;
+  --score-strong: #7fb84e;
+  --score-weak: #e08a3c;
   --ut-cream: #d4c9a8;
   --ut-gold: #dcbb5e;
   --ut-gold-dim: #dcbb5e15;
@@ -119,6 +125,11 @@
 
   /* The bridge aliases whose target is re-pointed above. */
   --accent: var(--ut-gold);
+  --grade-a: var(--score-elite);
+  --grade-b: var(--score-strong);
+  --grade-c: var(--score-neutral);
+  --grade-d: var(--score-weak);
+  --grade-f: var(--score-poor);
   --bg-base: var(--bg);
   --color-danger: var(--loss);
   --color-success: var(--gain);

@@ -23,7 +23,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -89,6 +89,7 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
     [all, lens, minPrice, minVolume, sort],
   )
   const cmds = useMemo(() => rows.map((r) => `$${r.sym}`), [rows])
+  const rowSyms = useMemo(() => rows.map((r) => r.sym), [rows])
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
 
   // When did the list last land? Reported up to the panel header with the session it belongs to.
@@ -152,6 +153,9 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
           <Select value={minVolume} onChange={(e) => setMinVolume(Number(e.target.value))} data-testid="terminal-movers-min-volume"
             options={VOLUME_FLOORS.map((v) => ({ value: v, label: v ? formatCompactTerminal(v) : 'Any' }))} />
         </label>
+        {/* Scan-to-board: these rows, as filtered and sorted, as a board of panels (the shell pages
+            a list longer than a board). Renders nothing outside the terminal. */}
+        <BoardFromList syms={rowSyms} label={`MOST ${LENSES[lens].toLowerCase()}`} testId="terminal-movers-board" />
       </div>
 
       {notes.map((n) => <p key={n} className={styles.note} role="status">{n}</p>)}
@@ -167,18 +171,20 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
         </PanelState>
       ) : (
         <div className={styles.tableBox}>
-          <table className={styles.table} data-testid="terminal-movers-table">
+          <table className={styles.table} data-testid="terminal-movers-table" aria-label={`${LENSES[lens]}, sortable`}>
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}>
+                  <th scope="col" key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}>
                     <button type="button" className={styles.sortBtn} onClick={() => toggleSort(c.key)}
                       data-testid={`terminal-movers-sort-${c.key}`}>
-                      {c.label}{sortCaretFor(sort, c.key) ? ` ${sortCaretFor(sort, c.key)}` : ''}
+                      {c.label}
+                      {/* The caret is decoration: the <th>'s aria-sort already says which way. */}
+                      {sortCaretFor(sort, c.key) ? <span aria-hidden="true">{` ${sortCaretFor(sort, c.key)}`}</span> : null}
                     </button>
                   </th>
                 ))}
-                <th>Why</th>
+                <th scope="col">Why</th>
               </tr>
             </thead>
             <tbody>
@@ -224,9 +230,9 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
                           : <p className={styles.thesis}>The catalyst board tagged {r.sym} as {r.catalyst.label} with no written story yet.</p>}
                         <p className={styles.muted}>
                           {r.catalyst.at ? `Catalyst broke at ${formatTimeEt(r.catalyst.at, { zoneSuffix: 'ET', absent: '—' })}. ` : ''}
-                          <button type="button" className={styles.linkBtn} onClick={() => onRun?.(`${r.sym} MOVE`)}>
+                          <button type="button" className={styles.linkBtn} onClick={() => onRun?.(`${r.sym} MOVE`, { next: true })}>
                             Open {r.sym} MOVE
-                          </button> for the full story (it opens in this panel).
+                          </button> for the full story (it opens beside this list).
                         </p>
                       </td>
                     </tr>
