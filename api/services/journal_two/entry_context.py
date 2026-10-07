@@ -654,22 +654,6 @@ def freeze_static(user_id: str, symbol: str, entry_day: str, fields: dict[str, d
         return {"frozen": cur.rowcount == 1, "context": _serialize(_row(c, user_id, sym, day))}
 
 
-def forget(user_id: str, symbol: str, entry_day: str, *, conn: sqlite3.Connection | None = None) -> bool:
-    """Hard-delete one frozen context row, by its own primary key.
-
-    Wave 14, lane W14-E: the sample notebook's removal door for a `freeze_static` row. Real
-    entries are never deleted outside a full account purge -- this exists only so a sample's
-    static example can be removed as completely as the note it rides beside, scoped to exactly
-    the one (member, symbol, entry day) key the caller names."""
-    sym, day = clean_symbol(symbol), clean_day(entry_day)
-    with _Conn(conn) as c:
-        cur = c.execute(
-            "DELETE FROM j2_entry_context WHERE user_id = ? AND symbol = ? AND entry_day_et = ?",
-            (str(user_id), sym, day))
-        c.commit()
-        return cur.rowcount > 0
-
-
 def _why_of(row: sqlite3.Row) -> dict | None:
     return ({"text": row["why_text"], "updatedAt": row["why_updated_at"]} if row["why_text"] else None)
 

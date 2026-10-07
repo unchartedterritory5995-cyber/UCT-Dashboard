@@ -369,8 +369,7 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     result = sample_notebook.remove(U1)
     assert result["trashed"] == [i for i in out["ids"] if i != already]
     # No trade or entry context was seeded, so there is none to delete.
-    assert result["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
-                                         "passedSetupDismissed": True, "insightDismissed": False,
+    assert result["examplesRemoved"] == {"passedSetupDismissed": True, "insightDismissed": False,
                                          "planLinksForgotten": 0}
     assert notes.get_note(U1, mine) is not None     # the member's own note is untouched
     for nid in out["ids"]:
@@ -380,8 +379,7 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     assert again["trashed"] == []
     # passedSetupDismissed is False the second time -- passed_setups.dismiss() filters
     # `dismissed_at IS NULL`. No insight is seeded, so none is dismissed either time.
-    assert again["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
-                                        "passedSetupDismissed": False, "insightDismissed": False,
+    assert again["examplesRemoved"] == {"passedSetupDismissed": False, "insightDismissed": False,
                                         "planLinksForgotten": 0}
 
 
@@ -584,3 +582,86 @@ def test_M9_a_failure_in_pass_2_leaves_a_sample_that_can_be_removed(db, monkeypa
     trashed = sample_notebook.remove(U1)["trashed"]
     assert set(trashed) == written
     assert sample_notebook.active_ids(U1) == []
+
+
+# ── fin-data M3: removal reads the notes' OWN marker, never the preference ──────────────────
+#
+# `notebook_sample` is a preference: a client can write it, and a seed that dies before
+# recording leaves it short. Removal by its id list could miss sample notes (orphans nobody
+# could remove) and could be pointed at notes that are not the sample's. Every sample note
+# carries `import_source = 'sample'`; removal and the status strip read that.
+
+def _set_pref(user, **changes):
+    raw = json.loads(auth_service.get_user_preferences(user).get(sample_notebook.PREF_KEY) or "{}")
+    raw.update(changes)
+    auth_service.set_user_preference(user, sample_notebook.PREF_KEY, json.dumps(raw))
+
+
+def test_remove_ignores_a_note_id_the_preference_names_that_is_not_a_sample_note(db):
+    out = sample_notebook.seed(U1)
+    mine = _own_note(U1, key="own:forged")
+    _set_pref(U1, ids=out["ids"] + [mine])
+    assert mine not in sample_notebook.recorded_ids(U1)
+    assert mine not in sample_notebook.active_ids(U1)
+    result = sample_notebook.remove(U1)
+    assert mine not in result["trashed"]
+    assert notes.get_note(U1, mine) is not None, "Remove trashed a note of the member's own"
+    assert sorted(result["trashed"]) == sorted(out["ids"])
+
+
+def test_remove_finds_every_sample_note_when_the_preference_lists_none(db):
+    """The crash window: the notes exist and the preference never recorded them."""
+    out = sample_notebook.seed(U1)
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps({"v": 2, "ids": []}))
+    assert sorted(sample_notebook.active_ids(U1)) == sorted(out["ids"])
+    result = sample_notebook.remove(U1)
+    assert sorted(result["trashed"]) == sorted(out["ids"])
+    assert sample_notebook.active_ids(U1) == []
+
+
+def test_a_seed_that_dies_while_writing_the_examples_leaves_nothing_remove_cannot_find(db, monkeypatch):
+    real = sample_examples.seed
+
+    def dies_midway(user_id, conn):
+        real(user_id, conn)                       # every example note is written...
+        raise RuntimeError("the pod restarted")   # ...and the preference never hears of them
+
+    monkeypatch.setattr(sample_examples, "seed", dies_midway)
+    with pytest.raises(RuntimeError):
+        sample_notebook.seed(U1)
+    c = _conn()
+    try:
+        live = [r[0] for r in c.execute("SELECT id FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", (U1,))]
+    finally:
+        c.close()
+    recorded = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])["ids"]
+    assert len(live) > len(recorded), "the fixture did not orphan anything; the test proves nothing"
+    assert sorted(sample_notebook.active_ids(U1)) == sorted(live)
+
+    sample_notebook.remove(U1)
+
+    c = _conn()
+    try:
+        assert c.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL",
+                         (U1,)).fetchone()[0] == 0
+        assert c.execute("SELECT COUNT(*) FROM j2_passed_setups WHERE user_id = ? AND dismissed_at IS NULL",
+                         (U1,)).fetchone()[0] == 0
+    finally:
+        c.close()
+
+
+def test_the_status_route_lists_sample_notes_the_preference_never_recorded(db):
+    out = sample_notebook.seed(U1)
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, "{}")
+    from api.routers import notebook_onboarding
+    app = FastAPI()
+    app.include_router(notebook_onboarding.router)
+    _as(app, U1)
+    body = TestClient(app).get("/api/j2/onboarding/sample-notebook").json()
+    assert sorted(body["activeIds"]) == sorted(out["ids"])
+
+
+def test_the_recorded_order_is_kept_for_the_notes_the_preference_does_name(db):
+    out = sample_notebook.seed(U1)
+    assert sample_notebook.recorded_ids(U1) == out["ids"]
+    assert sample_notebook.active_ids(U1) == out["ids"]

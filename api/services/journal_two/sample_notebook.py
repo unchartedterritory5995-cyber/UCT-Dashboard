@@ -24,10 +24,13 @@ wave-8 final review M-9), then, for a member with none, takes the write lock
 and a member's own work never shares a notebook with practice notes they did not ask for.
 
 The seeded ids are recorded in the member's preference `notebook_sample`
-(`{"v": 1, "ids": [...], "at": "<iso>"}`) the moment pass 1 has written them (M-9: a
-failure in pass 2 still leaves a sample `remove` can find), which is what `remove` and the
-Research Home strip read. `remove` trashes exactly those ids that are not in Trash already, through the
-Notebook's own soft delete, so every one of them can be restored from Trash.
+(`{"v": 1, "ids": [...], "at": "<iso>"}`) the moment pass 1 has written them. ⛔ That
+preference is NOT what `remove` or the Research Home strip trust (fin-data M3): a client can
+write a preference, and a seed that dies before recording leaves it short. Every sample note
+carries `import_source = 'sample'` (`sample_marker`), written with the note itself; `remove`
+trashes exactly the notes that carry it and are not in Trash already, through the Notebook's
+own soft delete, so every one of them can be restored from Trash. The preference only orders
+them.
 
 ⛔⛔ WAVE 14, LANE W14-E -- ONE EXAMPLE PER CAPABILITY, SAME CLICK, SAME DOOR. Right after pass
 2, `seed` also calls `sample_examples.seed`, which writes one seeded example per Notebook
@@ -253,10 +256,36 @@ def _recorded_pref(user_id: str) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def recorded_ids(user_id: str) -> list[str]:
-    """The ids `seed` recorded for this member, or [] when there is no sample."""
-    ids = _recorded_pref(user_id).get("ids")
-    return [i for i in ids if isinstance(i, str) and i] if isinstance(ids, list) else []
+def _sample_ids(user_id: str, conn: sqlite3.Connection, *, live_only: bool) -> list[str]:
+    """This member's sample notes, found by the notes' OWN durable marker
+    (`sample_marker`), in the order the preference recorded them, then any it never did.
+
+    ⛔ THE MARKER DECIDES WHICH NOTES; THE PREFERENCE ONLY ORDERS THEM (fin-data M3).
+    `notebook_sample` is a preference: a client can write it, and a seed that dies before
+    recording leaves it short. Read as the list of what to remove it could MISS sample notes
+    (orphans "Remove it" could never find) and could NAME a note that is not the sample's.
+    An id it names that does not carry the marker is ignored."""
+    sql = "SELECT id FROM j2_notes WHERE user_id = ? AND import_source = ?"
+    if live_only:
+        sql += " AND deleted_at IS NULL"
+    marked = [r[0] for r in conn.execute(sql + " ORDER BY created_at, rowid",
+                                         (user_id, sample_marker.SAMPLE_SOURCE))]
+    have = set(marked)
+    pref = _recorded_pref(user_id).get("ids")
+    named = [i for i in (pref if isinstance(pref, list) else []) if isinstance(i, str) and i in have]
+    seen = set(named)
+    return named + [i for i in marked if i not in seen]
+
+
+def recorded_ids(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[str]:
+    """Every sample note this member has -- in Trash or not -- or [] when there is no sample."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        return _sample_ids(user_id, conn, live_only=False)
+    finally:
+        if owned:
+            conn.close()
 
 
 def recorded_examples(user_id: str) -> dict[str, Any]:
@@ -270,33 +299,31 @@ def recorded_examples(user_id: str) -> dict[str, Any]:
 
 
 def active_ids(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[str]:
-    """The recorded sample ids that are not in Trash (archived ones count as still here)."""
-    ids = recorded_ids(user_id)
-    if not ids:
-        return []
+    """The sample notes that are not in Trash (archived ones count as still here)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        return [i for i in ids if notes.get_note(user_id, i, conn=conn) is not None]
+        return _sample_ids(user_id, conn, live_only=True)
     finally:
         if owned:
             conn.close()
 
 
 def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
-    """Trash exactly the recorded sample notes that are not in Trash already, and (W14-E)
-    undo every non-note row a capability example wrote -- a passed setup, a resurfacing
-    insight (and, for a preference from the earlier version only, a trade and an entry
-    context) -- through that capability's own "remove" verb
-    (`sample_examples.remove`; see its docstring for which verb each one is and why none of
-    it is a Trash-shaped soft delete).
+    """Trash exactly the sample notes that are not in Trash already, and (W14-E) undo every
+    non-note row a capability example wrote -- a passed setup, a resurfacing insight --
+    through that capability's own "remove" verb (`sample_examples.remove`).
 
-    The Notebook's own soft delete, one note at a time: nothing but the recorded ids is
-    touched, and each one can be restored from Trash."""
+    WHICH notes: the ones carrying the sample's own marker (`_sample_ids`), never the id list
+    in the preference. So a seed that died before recording leaves nothing this cannot find,
+    and nothing a preference names can be removed unless the sample made it.
+
+    The Notebook's own soft delete, one note at a time: each one can be restored from Trash."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        trashed = [i for i in recorded_ids(user_id) if notes.delete_note(user_id, i, conn=conn)]
+        trashed = [i for i in _sample_ids(user_id, conn, live_only=True)
+                   if notes.delete_note(user_id, i, conn=conn)]
         examples_removed = sample_examples.remove(user_id, recorded_examples(user_id), conn=conn)
         # fin-data I3: no real trade may stay graded against a sample plan once the sample is
         # gone. Matching no longer picks a sample, so this only finds links frozen before that

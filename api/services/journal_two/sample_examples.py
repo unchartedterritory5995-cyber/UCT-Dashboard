@@ -21,8 +21,8 @@ from freezing -- the sample's fabricated context. The plan note stays, unlinked:
 the chart plan, the drawn levels and the frozen fingerprint, and it tells the member how to get
 a grade (link one of their own trades). `tests/test_sample_notebook_trade_exclusion.py` is the
 rail: seeding writes no row to any trade-side table, and every trade consumer reads the same
-for a seeded member as for an empty one. `remove()` still knows how to delete a recorded trade
-and entry context, for any preference written by the earlier version on a dev box.
+for a seeded member as for an empty one. `remove()` deletes no trade and no entry context at all (fin-data
+M4): there is none to delete, and the ids it used to act on came from a preference a client can write.
 
 ONE REAL DOOR PER PIECE, NEVER RAW SQL THAT SKIPS AN INVARIANT:
   * the plan / setup notes `notes.import_confirm`        -- the sample notebook's own door
@@ -91,12 +91,10 @@ from typing import Any
 
 from api.services.journal_two import (
     chart_blocks,
-    entry_context,
     note_levels,
     note_properties,
     passed_setups,
     sample_marker,
-    trades as trades_service,
 )
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two.timeutil import ET, compute_trading_day_et
@@ -481,24 +479,13 @@ def remove(user_id: str, recorded: dict[str, Any], conn: sqlite3.Connection) -> 
     five base notes -- restorable, consistent with how this whole feature already treats
     "removed".
 
-    `seed()` no longer writes a trade or an entry context. The two branches below that delete
-    them stay ONLY for a preference recorded by the earlier version (dev boxes; it never
-    shipped): with today's preference both ids are None and both branches are skipped."""
-    out = {"tradeDeleted": False, "entryContextDeleted": False, "passedSetupDismissed": False,
-          "insightDismissed": False}
-    trade_id = recorded.get("tradeId")
-    if trade_id:
-        try:
-            out["tradeDeleted"] = trades_service.delete_trade(user_id, trade_id, conn=conn)
-        except Exception:  # noqa: BLE001 -- one piece failing must not block the rest
-            log.warning("[sample_examples] could not delete the example trade", exc_info=True)
-    ectx = recorded.get("entryContext")
-    if isinstance(ectx, dict) and ectx.get("symbol") and ectx.get("entryDay"):
-        try:
-            out["entryContextDeleted"] = entry_context.forget(
-                user_id, ectx["symbol"], ectx["entryDay"], conn=conn)
-        except Exception:  # noqa: BLE001
-            log.warning("[sample_examples] could not forget the example entry context", exc_info=True)
+    ⛔ NO TRADE AND NO ENTRY CONTEXT IS EVER DELETED HERE (fin-data M4). `seed()` writes
+    neither, and no shipped build ever did. This function used to hard-delete whatever trade
+    id and entry-context key `recorded` named, "for a preference recorded by the earlier
+    version" -- but `recorded` comes from a preference a client can write, so that was a
+    member's real trade deleted on the strength of one JSON value. `recorded["tradeId"]` and
+    `recorded["entryContext"]` are not read."""
+    out = {"passedSetupDismissed": False, "insightDismissed": False}
     # ⛔ By the row's own marker, never by `recorded["passedSetupId"]` (fin-data I4): that id
     # comes from a preference a client can write, and before this rule it could be the id of a
     # pass the MEMBER made. Only rows the sample itself inserted carry the marker.
