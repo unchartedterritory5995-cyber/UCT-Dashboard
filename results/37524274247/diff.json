@@ -1,0 +1,57 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 5,
+    "fixed": 1,
+    "unchanged": 182,
+    "missing": 0,
+    "baseline": 183,
+    "current": 189,
+    "current_ran": 38905,
+    "new_flaky": 2,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 183 = unchanged 182 + fixed 1 + missing 0  |  current 189 = unchanged 182 + new 5 + new-but-flaky 2",
+  "invalid_because": [
+    "current: shards_success 17 of 19"
+  ],
+  "baseline_run_id": "37491758202",
+  "current_run_id": "37524274247",
+  "baseline_sha": "20e11b5c90590b50f19ae65aec2090d5d060a9d7",
+  "current_sha": "8eb49a7df16a28f884b4cd3503b3a1c41fa8a06e",
+  "commit_range": "20e11b5c90590b50f19ae65aec2090d5d060a9d7..8eb49a7df16a28f884b4cd3503b3a1c41fa8a06e",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive",
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "pytest|tests.test_phase_e_acceptance|test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step",
+    "pytest|tests.test_phase_e_acceptance|test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED",
+    "pytest|tests.test_phase_e_acceptance|test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_ai_doors_census|test_every_module_that_calls_a_model_is_described_in_the_door_table"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
