@@ -977,7 +977,11 @@ export default function FolderSidebar({
     const folder = id ? folders.find((f) => String(f.id) === id) : null
     if (!folder) return                       // a standing row or a note: no actions
     const box = (rowEl.firstElementChild || rowEl).getBoundingClientRect()
-    setRowMenu({ folder, anchor: { x: box.left + 24, y: box.bottom } })
+    // A second call for the folder whose menu is already open changes NOTHING: a new anchor
+    // object would make the open menu place itself again, and on doing that it hands focus
+    // back to the row (measured in a real browser, where the menu key arrives twice).
+    setRowMenu((open) => (open && open.folder.id === folder.id
+      ? open : { folder, anchor: { x: box.left + 24, y: box.bottom } }))
   }
   const folderTree = useTreeRoving({ onMenu: openRowMenu })
 
@@ -1837,7 +1841,8 @@ export default function FolderSidebar({
                 to search by name, Enter or Space to select, Shift+F10 (or the context-menu
                 key) for a folder's actions. "+ New folder" below is outside it on purpose. */}
             <div role="tree" aria-label="Folders" ref={folderTree.ref}
-              onKeyDown={folderTree.onKeyDown} onFocus={folderTree.onFocus}>
+              onKeyDown={folderTree.onKeyDown} onFocus={folderTree.onFocus}
+              onContextMenu={folderTree.onContextMenu}>
             <div className={styles.rowWrap} role="treeitem" aria-level={1}
               aria-label={`All notes, ${notesTotal ?? notes.length}`}
               aria-selected={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}>
@@ -2075,9 +2080,13 @@ export default function FolderSidebar({
       )}
       {rowMenu && (
         <ContextPopover open onClose={() => setRowMenu(null)} anchor={rowMenu.anchor} title={rowMenu.folder.name}
+          // ⛔ Rename and Add subfolder open a FIELD, and the menu hands focus back to the row
+          // as it closes. Opened in the same turn, the field took focus, lost it to the row,
+          // and (it saves on blur) closed at once. So the field opens a frame later, after the
+          // menu has let go (measured in a real browser, tools/notebook_fin_keys_folder_walk.py).
           items={[
-            { key: 'rename', label: 'Rename', onClick: () => { setEditingId(rowMenu.folder.id); setEditName(rowMenu.folder.name) } },
-            { key: 'add', label: 'Add subfolder', onClick: () => startAddChild(rowMenu.folder.id) },
+            { key: 'rename', label: 'Rename', onClick: () => { const f = rowMenu.folder; requestAnimationFrame(() => { setEditingId(f.id); setEditName(f.name) }) } },
+            { key: 'add', label: 'Add subfolder', onClick: () => { const f = rowMenu.folder; requestAnimationFrame(() => startAddChild(f.id)) } },
             { key: 'delete', label: 'Delete', danger: true, onClick: () => onDeleteRequest(rowMenu.folder.id, rowMenu.folder.name) },
             ...extraFolderActions.map((action) => ({
               key: action.id, label: action.label, onClick: () => action.onSelect(rowMenu.folder),

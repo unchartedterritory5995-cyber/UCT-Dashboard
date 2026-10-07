@@ -30,7 +30,8 @@ function Tree({ onPick = () => {}, onMenu, selected }) {
   return (
     <div>
       <button type="button">before</button>
-      <div role="tree" aria-label="Folders" ref={t.ref} onKeyDown={t.onKeyDown} onFocus={t.onFocus}>
+      <div role="tree" aria-label="Folders" ref={t.ref} onKeyDown={t.onKeyDown} onFocus={t.onFocus}
+        onContextMenu={t.onContextMenu}>
         <Row name="All notes" level={1} onPick={onPick} />
         <Row name="Alpha" level={1} onPick={onPick} selected={selected === 'Alpha'}>
           <Row name="Apple" level={2} onPick={onPick} />
@@ -157,6 +158,21 @@ describe('useTreeRoving: the keys', () => {
     key('F10', { shiftKey: true })
     key('ContextMenu')
     expect(onMenu.mock.calls.map((c) => c[0].getAttribute('aria-label'))).toEqual(['Beta', 'Beta'])
+  })
+
+  it('the context menu of the browser is held back after the menu KEY, and left alone for a right-click', () => {
+    render(<Tree onMenu={() => {}} />)
+    item('Beta').focus()
+    key('F10', { shiftKey: true })
+    const fromKey = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    item('Beta').dispatchEvent(fromKey)
+    expect(fromKey.defaultPrevented).toBe(true)
+    // a right-click with no menu key before it: the browser's menu, as today
+    cleanup()
+    render(<Tree onMenu={() => {}} />)
+    const fromMouse = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+    item('Beta').dispatchEvent(fromMouse)
+    expect(fromMouse.defaultPrevented).toBe(false)
   })
 
   it('the arrows carry on from a row whose BUTTON has focus (a member who clicked a folder)', () => {

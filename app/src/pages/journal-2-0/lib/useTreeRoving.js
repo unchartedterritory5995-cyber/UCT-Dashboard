@@ -53,6 +53,7 @@ export default function useTreeRoving({ onMenu } = {}) {
   const ref = useRef(null)
   const stopRef = useRef(null)
   const typed = useRef({ text: '', at: 0 })
+  const menuKeyAt = useRef(0)
 
   const apply = useCallback(() => {
     const root = ref.current
@@ -99,6 +100,7 @@ export default function useTreeRoving({ onMenu } = {}) {
     if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
       if (!onMenu) return
       e.preventDefault()
+      menuKeyAt.current = Date.now()
       onMenu(item)
       return
     }
@@ -157,5 +159,12 @@ export default function useTreeRoving({ onMenu } = {}) {
     apply()
   }, [apply])
 
-  return { ref, onKeyDown, onFocus, focusItem }
+  // The menu key also makes the browser raise its OWN context menu (a `contextmenu` event,
+  // after the key). Left alone it opens over the row's menu and takes the keyboard with it.
+  // Held back only right after the menu key: a right-click still gets the browser's menu.
+  const onContextMenu = useCallback((e) => {
+    if (Date.now() - menuKeyAt.current < 1000) e.preventDefault()
+  }, [])
+
+  return { ref, onKeyDown, onFocus, onContextMenu, focusItem }
 }

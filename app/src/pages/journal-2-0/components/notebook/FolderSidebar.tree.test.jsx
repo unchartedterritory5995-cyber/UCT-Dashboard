@@ -98,7 +98,43 @@ describe('the folder panel is a tree', () => {
     expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent)).toEqual(
       ['Rename', 'Add subfolder', 'Delete'])
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Rename' }))
-    expect(screen.getByRole('textbox', { name: 'Rename folder Theses' })).toHaveValue('Theses')
+    expect(await screen.findByRole('textbox', { name: 'Rename folder Theses' })).toHaveValue('Theses')
+  })
+
+  // Found in a real browser (tools/notebook_fin_keys_folder_walk.py): the menu key reached the
+  // handler twice, the second open replaced the menu's anchor, and the menu gave focus back to
+  // the row and never took it again. A second press for the SAME folder changes nothing.
+  it('the menu key pressed twice keeps ONE menu and focus stays inside it', async () => {
+    renderSidebar()
+    await tree()
+    await waitFor(() => row('Theses'))
+    const folder = row('Theses')
+    folder.focus()
+    fireEvent.keyDown(folder, { key: 'F10', shiftKey: true })
+    const menu = await screen.findByRole('menu', { name: 'Theses' })
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true))
+    fireEvent.keyDown(folder, { key: 'ContextMenu' })
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    expect(screen.getByRole('menu', { name: 'Theses' }).contains(document.activeElement)).toBe(true)
+  })
+
+  // Found in a real browser: the menu, on closing, hands focus back to the row. The rename
+  // field had just opened and taken focus, lost it to the row, and (it saves on blur) closed
+  // at once with nothing renamed. The field must open AFTER the menu has let go, and keep focus.
+  it('Rename from the menu: the field keeps focus and stays open to be typed in', async () => {
+    renderSidebar()
+    await tree()
+    await waitFor(() => row('Theses'))
+    row('Theses').focus()
+    key('F10', { shiftKey: true })
+    const menu = await screen.findByRole('menu', { name: 'Theses' })
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true))
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByRole('textbox', { name: 'Rename folder Theses' })
+    await waitFor(() => expect(document.activeElement).toBe(field))
+    await new Promise((r) => setTimeout(r, 60))
+    expect(screen.getByRole('textbox', { name: 'Rename folder Theses' })).toBe(document.activeElement)
   })
 
   it('the menu carries the extra actions too (the folder publish door)', async () => {
