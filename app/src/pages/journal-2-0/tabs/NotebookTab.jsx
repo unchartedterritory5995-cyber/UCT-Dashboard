@@ -47,6 +47,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
+import useToolbarRoving from '../lib/useToolbarRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
@@ -254,6 +255,7 @@ export default function NotebookTab() {
   const voiceOn = voiceNotesEnabled(auth?.isPaid)
   const [voiceNote, setVoiceNote] = useState(null) // { source }
   const [publishFolder, setPublishFolder] = useState(null) // { id, name, opener, open }
+  const listToolbar = useToolbarRoving()
   const extraFolderActions = useMemo(() => (publishOn ? [{
     id: 'publish',
     label: PUBLISH_FOLDER_ACTION,
@@ -2150,7 +2152,10 @@ export default function NotebookTab() {
           />
         ) : (
           <>
-        <div className={styles.toolbar}>
+        {/* Lane KEYS round 4: ONE Tab stop for the list's header row (the toolbar pattern:
+            Left and Right inside it, Home and End to its ends). Tabindex only. */}
+        <div className={styles.toolbar} role="toolbar" aria-label="Notes list tools"
+          ref={listToolbar.ref} onKeyDown={listToolbar.onKeyDown} onFocus={listToolbar.onFocus}>
           {isArchiveView && <span className={styles.trashLabel}>Archived</span>}
           {isTrashView ? (
             // Trash view sort is fixed (most recently deleted first) — the

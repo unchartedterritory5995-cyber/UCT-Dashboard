@@ -286,6 +286,23 @@ describe('NotebookTab — selecting notes', () => {
     expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
   })
 
+  // Lane KEYS round 4: the list header (sort, the view buttons, Import, Export, Today,
+  // Templates, New note) was thirteen Tab stops in front of the list. It is one toolbar stop.
+  it('the list header is ONE toolbar stop; Right and End move inside it', () => {
+    renderTab()
+    const bar = screen.getByRole('toolbar', { name: 'Notes list tools' })
+    const controls = [...bar.querySelectorAll('button, a[href], select')].filter((el) => !el.disabled)
+    expect(controls.length).toBeGreaterThan(5)             // NON-VACUITY: a real row of controls
+    expect(controls.filter((el) => el.tabIndex === 0)).toHaveLength(1)
+    const first = controls.find((el) => el.tabIndex === 0)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'End' })
+    expect(document.activeElement).toBe(controls[controls.length - 1])
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(controls[controls.length - 2])
+    expect(controls.filter((el) => el.tabIndex === 0)).toEqual([controls[controls.length - 2]])
+  })
+
   it('Esc clears the selection', () => {
     renderTab()
     fireEvent.click(box('First note'))
