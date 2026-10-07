@@ -75,7 +75,7 @@
 
 import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
-import { useCreateIndicatorFlag } from './studio/createIndicatorFlag'
+import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
@@ -904,9 +904,10 @@ export default function BuilderSheet({
    *  UNGATED here once and reached every paid member's New Formula sheet; it is
    *  now behind the same two keys as Create Indicator — the per-browser opt-in
    *  AND the server-provided admin role. A member sees exactly the old sheet. */
-  const conversationFlag = useCreateIndicatorFlag()
-  const conversationAdmin = useContext(AuthContext)?.user?.role === 'admin'
-  const conversationOn = !!(conversationFlag && conversationAdmin)
+  // ⭐ ROLLOUT — an admin with this browser's opt-in, or a member the server's
+  // effective `cohorts` list releases it to (`createIndicatorAccess`). The server
+  // (`require_create_indicator_access`) enforces the same rule on `/converse`.
+  const conversationOn = useCreateIndicatorAccess(useContext(AuthContext))
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
    *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */
@@ -1485,6 +1486,8 @@ export default function BuilderSheet({
     // ⭐ P0G — `prior` is the stored document, so the preview can apply the
     // store's semantics rule (a presentation edit inherits; new maths gets 2).
     setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null })
+    // ⭐ ROLLOUT — the opened version is the clean baseline (taken after this render).
+    openBaselineRef.current = 'pending'
     setName(String(def?.meta?.name || ''))
     setSource(restored[0].source)
     // ⭐ OPENING A SAVED FORMULA IS A LANE LIKE ANY OTHER. Found by enumerating
@@ -2218,11 +2221,23 @@ export default function BuilderSheet({
   const formPrintRef = useRef(formPrint)
   formPrintRef.current = formPrint
   const savedByConversation = !!(supersededByConversation && conversationSaved.formPrint === formPrint)
+  // ⭐ ROLLOUT — OPENING A SAVED FORMULA IS NOT AN EDIT. The edit-open writes every
+  // field at once; the fingerprint of the form it produced is the baseline, so
+  // closing an untouched reopened formula asks nothing, and the first real change
+  // (any field) makes it dirty again. Cleared whenever the sheet leaves that edit.
+  const openBaselineRef = useRef(null)
+  const [openPrint, setOpenPrint] = useState(null)
+  useEffect(() => {
+    if (openBaselineRef.current === 'pending') { openBaselineRef.current = null; setOpenPrint(formPrint) }
+  }, [formPrint])
+  useEffect(() => { if (!editing) setOpenPrint(null) }, [editing])
+  const untouchedSinceOpen = !!(editing && openPrint !== null && openPrint === formPrint)
   const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
     && !savedByConversation
+    && !untouchedSinceOpen
 
   // ⭐ P3 UX — AN UNSAVED CONVERSATION IS UNSAVED WORK TOO. The conversation's
   // own dirty authority (`isDirty`, reported by the box through `onCommitState`)

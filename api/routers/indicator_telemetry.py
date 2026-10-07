@@ -22,7 +22,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import indicator_telemetry as telemetry
 
 router = APIRouter(prefix="/api/indicator-telemetry", tags=["indicator-telemetry"])
@@ -60,3 +60,11 @@ def track_event(body: EventBody, user: dict = Depends(get_current_user)) -> dict
         **(body.props or {}),
     )
     return {"ok": True, "logged": logged}
+
+
+@router.get("/rollout-report")
+def rollout_report(days: int = 7, user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """⭐ CONTROLLED ROLLOUT — the owner's report: aggregates over the structured
+    `converse_turn` / `studio_action` events and today's shared AI pool. ADMIN ONLY.
+    Shape only; no member words are stored, so none can be returned."""
+    return telemetry.rollout_report(days)

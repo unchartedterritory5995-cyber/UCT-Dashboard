@@ -634,21 +634,25 @@ def test_the_registered_cohorts_each_have_a_kill_switch_that_is_a_live_reader():
     meaningless. Each one is driven both ways through the environment.
     """
     assert rg.COHORT_KILL_SWITCHES, "an empty registry would make client_cohorts vacuous"
+    assert set(rg.COHORT_FLAG_ENVS) == set(rg.COHORT_KILL_SWITCHES), (
+        "every registered cohort must name the variable its kill switch reads")
     import os
     for cohort, kill_switch in rg.COHORT_KILL_SWITCHES.items():
         assert not cohort.startswith(rollout.ROLLOUT_PREFIX), cohort
         assert callable(kill_switch), cohort
-        before = os.environ.get(rg.TERMINAL_NEXT_FLAG_ENV)
+        # each cohort's OWN variable (Create Indicator joined the registry 2026-10-07)
+        env = rg.COHORT_FLAG_ENVS[cohort]
+        before = os.environ.get(env)
         try:
-            os.environ[rg.TERMINAL_NEXT_FLAG_ENV] = "1"
+            os.environ[env] = "1"
             on = kill_switch()
-            os.environ[rg.TERMINAL_NEXT_FLAG_ENV] = "0"
+            os.environ[env] = "0"
             off = kill_switch()
         finally:
             if before is None:
-                os.environ.pop(rg.TERMINAL_NEXT_FLAG_ENV, None)
+                os.environ.pop(env, None)
             else:
-                os.environ[rg.TERMINAL_NEXT_FLAG_ENV] = before
+                os.environ[env] = before
         assert (on, off) == (True, False), (
             f"{cohort}'s kill switch did not move with the environment — it is "
             "captured, or it is not a reader at all")

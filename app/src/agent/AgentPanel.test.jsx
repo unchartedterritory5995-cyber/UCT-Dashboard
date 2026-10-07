@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 
 // The mic is the shared journal VoiceInputButton (Whisper). Here it is a button
@@ -10,6 +10,7 @@ vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({
 }))
 
 import AgentPanel from './AgentPanel'
+import { makeBoard } from './__fixtures__/board'
 
 function makeHost(defs) {
   const st = new Map(defs.map(d => [d.ref, { stored: null, tf: d.tf || 'D', symbol: d.symbol || 'SPY', label: d.label || 'Chart (SPY)', position: d.position || null }]))
@@ -248,6 +249,48 @@ describe('UCT Agent panel', () => {
     expect(turnBodies[1].message).toBe('Hide volume')
     expect(host.raw('w2').stored.volume.visible).toBe(false)
     expect(host.raw('w1').stored).toBeNull()
+  })
+
+  it('MULTI-CREATE: proposal first, "never mind" cancels, "do it" runs the STORED plan, one Undo', async () => {
+    const { host, state } = makeBoard([])
+    const plan = [
+      ...[1, 2, 3, 4].map(i => ({ action: 'widget.add', target: 'w1', args: { type: 'chart', as: `new${i}` } })),
+      ...[1, 2, 3, 4].map(i => ({ action: 'chart.setTimeframe', target: `new${i}`, args: { timeframe: '5' } })),
+      ...['SPY', 'QQQ', 'NVDA', 'TSLA'].map((s, i) => ({ action: 'chart.setSymbol', target: `new${i + 1}`, args: { symbol: s } })),
+    ]
+    globalThis.fetch.mockImplementation(async (url, init) => {
+      const body = init?.body ? JSON.parse(init.body) : null
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (url === '/api/agent/turn') { turnBodies.push(body); return json({ conversationId: 'ac_1', envelope: env('propose', plan, 'Four 5-minute charts.'), usage: {} }) }
+      if (url === '/api/agent/record') { records.push(body); return json({ conversationId: 'ac_1' }) }
+      if (String(url).startsWith('/api/ticker-search')) {
+        const q = new URL(url, 'http://x').searchParams.get('q')
+        return json({ results: [{ ticker: q }] })
+      }
+      return json({ conversations: [] })
+    })
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('Add 4 charts. Make them all 5-minute. Put SPY, QQQ, NVDA, and TSLA in them.')
+    const card = await screen.findByTestId('agent-proposal')
+    expect(card.textContent).toContain('Added 4 Charts')
+    expect(card.textContent).toContain('New chart 4: Changed symbol to TSLA')
+    expect(state.widgets).toHaveLength(0)
+    expect(turnBodies[0].context.workspace[0]).toMatchObject({ ref: 'w1', widgetCount: 0 })
+    type('never mind')
+    await screen.findByText(/nothing changed/)
+    expect(state.widgets).toHaveLength(0)
+    type('Add 4 charts. Make them all 5-minute. Put SPY, QQQ, NVDA, and TSLA in them.')
+    await waitFor(() => expect(screen.getAllByTestId('agent-proposal')).toHaveLength(2))
+    const calls = turnBodies.length
+    type('do it')
+    const receipt = await screen.findByTestId('agent-receipt', {}, { timeout: 4000 })
+    expect(receipt.textContent).toContain('Added 4 Charts (not linked — each keeps its own symbol) · All 4 new: Switched timeframe to 5 minutes · New chart 1: Changed symbol to SPY')
+    expect(turnBodies.length).toBe(calls)                              // the stored plan, no regeneration
+    expect(state.widgets.map(w => host.charts.read(w.id).symbol)).toEqual(['SPY', 'QQQ', 'NVDA', 'TSLA'])
+    expect(state.widgets.every(w => w.opts.tf === '5')).toBe(true)
+    type('undo')
+    await screen.findByText(/Undid: Added 4 Charts/, {}, { timeout: 4000 })
+    expect(state.widgets).toHaveLength(0)
   })
 
   it('keys typed in the panel never reach chart shortcuts', () => {

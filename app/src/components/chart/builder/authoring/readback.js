@@ -48,6 +48,13 @@ const COLOUR_NAMES = Object.freeze({
   '#FFA500': 'orange', '#FF9800': 'orange', '#FFFF00': 'yellow', '#FFEB3B': 'yellow',
   '#800080': 'purple', '#9C27B0': 'purple', '#808080': 'grey', '#787B86': 'grey',
   '#00FFFF': 'cyan', '#00BCD4': 'cyan', '#FFC0CB': 'pink', '#E91E63': 'pink',
+  // ⭐ ROLLOUT — EXACT standard names for colours the model picks (P3R: "#D4AF37" for
+  // "gold" is CSS/print metallic gold). Exact matches only: an unlisted colour stays
+  // its hex, never a nearest guess.
+  '#D4AF37': 'gold', '#DAA520': 'goldenrod', '#FFC107': 'amber', '#C0C0C0': 'silver',
+  '#8B0000': 'dark red', '#006400': 'dark green', '#008000': 'green', '#00C853': 'green',
+  '#FF1744': 'red', '#D50000': 'red', '#FF00FF': 'magenta', '#AA00FF': 'purple',
+  '#FF6D00': 'orange', '#ADD8E6': 'light blue', '#90EE90': 'light green', '#A9A9A9': 'dark grey',
 })
 
 /** A colour value → its palette name, else the value exactly as stored. */
@@ -154,18 +161,17 @@ const LINE_DRAWN = Object.freeze(['line', 'stepline', 'area', 'baseline'])
 export function vocabularyLines(def) {
   const out = []
   const plots = (def && def.plots) || []
-  const labelOf = (key) => {
-    const p = plots.find((x) => x && x.key === key)
-    return (p && (p.label || p.key)) || key
-  }
+  // ⭐ ROLLOUT — the SAME member-facing name every other readback line uses (a
+  // one-output definition's 12-character chip label read "TC2000: drawn dashed").
+  const labelOf = outputNamer(def)
   for (const p of plots) {
     if (!p || p.style === 'hlines') continue
-    const label = p.label || p.key
+    const label = labelOf(p.key)
     if (!p.hidden && LINE_STYLE_WORDS[p.lineStyle] && LINE_DRAWN.includes(p.style || 'line')) {
       out.push(`${label}: drawn ${LINE_STYLE_WORDS[p.lineStyle]}`)
     }
     if (p.fill && typeof p.fill.with === 'string') {
-      const colour = typeof p.fillColor === 'string' ? `, colour ${p.fillColor}` : ''
+      const colour = typeof p.fillColor === 'string' ? `, colour ${colourWords(p.fillColor)}` : ''
       const opacity = Number.isFinite(p.fillOpacity) ? `, ${Math.round(p.fillOpacity * 100)}% opaque` : ''
       const how = p.fill.colorMode ? ' (its colour follows an imported rule)' : (colour || opacity ? '' : ' in its own colour')
       out.push(`area between ${label} and ${labelOf(p.fill.with)} shaded${how}${colour}${opacity}`)

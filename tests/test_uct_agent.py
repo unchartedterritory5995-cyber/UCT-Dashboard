@@ -387,3 +387,68 @@ def test_talk_is_general_purpose_not_trading_only():
     "outside my wheelhouse" — the opening line scoped TALK to trading."""
     p = turn.system_prompt(turn.validate_manifest(CAPS))
     assert "general-purpose assistant" in p and "answer ANY question" in p
+
+
+def test_a_target_declared_earlier_in_the_plan_by_as_is_accepted_and_not_before():
+    add = {"name": "widget.add", "domain": "widget", "target": "workspace", "summary": "Add a widget.", "hints": None,
+           "risk": "local", "reversible": True,
+           "args": {"type": "object", "properties": {"type": {"type": "string", "enum": ["chart"]}, "as": {"type": ["string", "null"]}},
+                    "required": ["type", "as"], "additionalProperties": False}}
+    ctx = {"surface": "charts", "workspace": [{"ref": "w1"}], "charts": [{"ref": "c1"}]}
+    ops = [{"action": "widget.add", "target": "w1", "args": {"type": "chart", "as": "new1"}},
+           {"action": "chart.setType", "target": "new1", "args": {"type": "bars"}}]
+    c = caller_of(_resp(env("propose", ops=ops)))
+    out = turn.run_turn(message="add a bar chart", context=ctx, history=[], capabilities=CAPS + [add], caller=c)
+    assert out["envelope"]["ops"] == ops
+    # an alias used BEFORE it is declared is a question, never a guess
+    c2 = caller_of(_resp(env("propose", ops=list(reversed(ops)))))
+    out2 = turn.run_turn(message="add a bar chart", context=ctx, history=[], capabilities=CAPS + [add], caller=c2)
+    assert out2["envelope"]["disposition"] == "clarify"
+
+
+# ── COMPACT ops: past the provider's grammar budget (measured: 12 strict variants
+# do not compile) the op shape is {action, target, args_json}, checked here ──
+
+def _many_caps(n):
+    out = []
+    for i in range(n):
+        out.append({"name": f"example.set{i}", "domain": "example", "target": "chart", "summary": f"Set thing {i}.",
+                    "hints": None, "risk": "local", "reversible": True,
+                    "args": {"type": "object", "properties": {"level": {"type": "string", "enum": ["low", "high"]},
+                                                               "note": {"type": ["string", "null"]}},
+                             "required": ["level", "note"], "additionalProperties": False}})
+    return out
+
+
+def test_up_to_the_budget_the_schema_stays_strict_per_action():
+    caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX))
+    assert not turn.compact_ops(caps)
+    assert "anyOf" in turn.envelope_schema(caps)["properties"]["ops"]["items"]
+
+
+def test_past_the_budget_the_op_shape_is_compact_and_still_closed():
+    caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX + 3))
+    items = turn.envelope_schema(caps)["properties"]["ops"]["items"]
+    assert items["properties"]["action"]["enum"] == [c["name"] for c in caps]
+    assert set(items["required"]) == {"action", "target", "args_json"} and items["additionalProperties"] is False
+    assert "args_json" in turn.system_prompt(caps)
+
+
+def test_compact_args_are_parsed_and_checked_against_the_capabilitys_own_schema():
+    many = _many_caps(turn.STRICT_OP_VARIANTS_MAX + 3)
+    good = {"action": "example.set2", "target": "c1", "args_json": json.dumps({"level": "high", "note": None})}
+    c = caller_of(_resp(env("apply", ops=[good])))
+    out = turn.run_turn(message="set it", context=CTX, history=[], capabilities=many, caller=c)
+    assert out["envelope"]["ops"] == [{"action": "example.set2", "target": "c1", "args": {"level": "high", "note": None}}]
+
+
+@pytest.mark.parametrize("args_json", [
+    "not json", json.dumps({"level": "max", "note": None}), json.dumps({"level": "high"}),
+    json.dumps({"level": "high", "note": None, "extra": 1}), json.dumps({"level": 3, "note": None}),
+])
+def test_compact_args_that_do_not_match_are_unreadable_never_guessed(args_json):
+    many = _many_caps(turn.STRICT_OP_VARIANTS_MAX + 3)
+    bad = {"action": "example.set2", "target": "c1", "args_json": args_json}
+    c = caller_of(_resp(env("apply", ops=[bad])))
+    with pytest.raises(turn.TurnError):
+        turn.run_turn(message="set it", context=CTX, history=[], capabilities=many, caller=c)

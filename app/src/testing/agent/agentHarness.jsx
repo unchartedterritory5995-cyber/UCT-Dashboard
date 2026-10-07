@@ -34,7 +34,10 @@ else root.dataset.theme = THEME === 'light' ? 'light' : THEME === 'oled' ? 'oled
 
 // ── fixture board ──
 const BOARD = params.get('board') || ''
-const widgets = BOARD === 'gap'
+const widgets = BOARD === 'rail'
+  // a Watchlist rail on the right; the product places up to four charts left of it
+  ? [{ id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: {} }]
+  : BOARD === 'gap'
   // half the board empty, so widget.add has somewhere to land without resizing anything
   ? [{ id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: 'D' } }]
   : NCHARTS === 1
@@ -48,13 +51,31 @@ const widgets = BOARD === 'gap'
       { id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 10, opts: {} },
       { id: 'w-themes', type: 'themes', color: 'A', x: 18, y: 10, w: 6, h: 10, opts: {} },
     ]
+// ?layouts=1 — a FIXTURE layout library (in-page only): two of "your" layouts with
+// different boards, similar names, a prebuilt, and a fixture named "Main Trading"
+// (a stand-in: the real one is never read or written by this page).
+const LAYOUTS = params.get('layouts') === '1'
+const lw = (id, type, color, x, y, w, h, opts = {}) => ({ id, type, color, x, y, w, h, opts })
+const LIB = LAYOUTS ? {
+  global: [{ id: 5, scope: 'global', name: '1-Chart', layout: { version: 1, cols: 24, widgets: [lw('g-one', 'chart', 'A', 0, 0, 24, 20, { tf: 'D' })] } }],
+  mine: [
+    { id: 11, scope: 'user', name: 'Agent Test', layout: { version: 1, cols: 24, widgets: widgets } },
+    { id: 12, scope: 'user', name: 'Intraday Scan', layout: { version: 1, cols: 24, widgets: [lw('i-one', 'chart', 'C', 0, 0, 12, 20, { tf: '5' }), lw('i-two', 'chart', 'D', 12, 0, 12, 20, { tf: '5' })] } },
+    { id: 13, scope: 'user', name: 'Momentum', layout: { version: 1, cols: 24, widgets: [lw('m-one', 'chart', 'A', 0, 0, 24, 20)] } },
+    { id: 14, scope: 'user', name: 'Momentum 2', layout: { version: 1, cols: 24, widgets: [lw('m2-one', 'chart', 'A', 0, 0, 24, 20)] } },
+    { id: 15, scope: 'user', name: 'Momentum Swing', layout: { version: 1, cols: 24, widgets: [lw('ms-one', 'chart', 'A', 0, 0, 24, 20)] } },
+    { id: 16, scope: 'user', name: 'Main Trading', layout: { version: 1, cols: 24, widgets: [lw('mt-one', 'chart', 'A', 0, 0, 18, 20), lw('mt-watch', 'watchlist', 'A', 18, 0, 6, 20)] } },
+  ],
+} : { global: [], mine: [] }
+let layoutSeq = 100
 const PREFS = {
   charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }),
-  charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: null, D: null }),
+  charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: 'AAPL', D: 'MSFT' }),
   theme: THEME,
+  ...(LAYOUTS ? { charts_active_template: JSON.stringify({ id: 11, name: 'Agent Test', scope: 'user' }) } : {}),
 }
 
-const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map() })
+const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [] })
 setAgentFlag(true)
 // Only an explicit ?open= seeds the remembered state; otherwise the Agent's own
 // persistence decides (so the harness can prove it survives a reload).
@@ -70,6 +91,33 @@ window.fetch = async (input, init) => {
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 1, email: 'harness@local', role: 'admin', display_name: 'Harness' }, plan: 'pro', subscription: null, trial: null })
   }
+  // The fixture layout library answers in-page (nothing reaches a server): POST with
+  // create_only refuses an existing name (409), as the real route does; PATCH renames
+  // by id and refuses a duplicate (409).
+  if (LAYOUTS && path.startsWith('/api/charts/layouts')) {
+    let body = null
+    try { body = init && init.body ? JSON.parse(init.body) : null } catch { /* */ }
+    if (method !== 'GET') H.layoutWrites.push({ method, path, body, at: Date.now() })
+    if (method === 'GET') return json(LIB)
+    if (method === 'POST' && path === '/api/charts/layouts') {
+      const list = body.scope === 'global' ? LIB.global : LIB.mine
+      const hit = list.find(r => r.name === body.name)
+      if (hit && body.create_only) return json({ detail: 'You already have a layout with that name' }, 409)
+      if (hit) { hit.layout = body.layout; return json(hit) }
+      const row = { id: ++layoutSeq, scope: body.scope || 'user', name: body.name, layout: body.layout }
+      list.push(row)
+      return json(row)
+    }
+    const m = /^\/api\/charts\/layouts\/(\d+)$/.exec(path)
+    if (method === 'PATCH' && m) {
+      const row = [...LIB.global, ...LIB.mine].find(r => r.id === Number(m[1]))
+      if (!row) return json({ detail: 'Not found' }, 404)
+      if (LIB.mine.some(r => r.id !== row.id && r.name === body.name)) return json({ detail: 'You already have a layout with that name' }, 409)
+      row.name = body.name
+      return json(row)
+    }
+    return json({ detail: 'refused by harness' }, 403)
+  }
   if (path.startsWith('/api/auth/preferences') || path.startsWith('/api/charts/layouts') || path.startsWith('/api/workspace')) {
     if (method !== 'GET') {
       // Refused — but the BODY is kept, so the harness can see exactly what the
@@ -77,6 +125,9 @@ window.fetch = async (input, init) => {
       let body = null
       try { body = init && init.body ? JSON.parse(init.body) : null } catch { /* */ }
       H.refused.push({ method, path, body, at: Date.now() })
+      // Keep the page's OWN view consistent (a refetch must not undo a switch); the
+      // write still never leaves this page.
+      if (path.startsWith('/api/auth/preferences') && body && typeof body.key === 'string') PREFS[body.key] = body.value
       return json({ ok: true })
     }
     if (path.startsWith('/api/auth/preferences')) return json(PREFS)
@@ -98,7 +149,7 @@ window.fetch = async (input, init) => {
   if (path.startsWith('/api/agent/conversations')) return json(path === '/api/agent/conversations' ? { conversations: [] } : {}, path === '/api/agent/conversations' ? 200 : 404)
   if (path.startsWith('/api/ticker-search')) {
     const q = new URL(url, location.origin).searchParams.get('q') || ''
-    return json({ results: /^(SPY|NVDA|AAPL|MSFT|AMD|TSLA)$/i.test(q) ? [{ ticker: q.toUpperCase() }] : [] })
+    return json({ results: /^(SPY|QQQ|IBM|DIA|NVDA|AAPL|MSFT|AMD|TSLA)$/i.test(q) ? [{ ticker: q.toUpperCase() }] : [] })
   }
   if (path.startsWith('/api/voice/transcribe')) return json({ text: SAY, seconds_billed: 1 })
   if (path.startsWith('/api/')) {

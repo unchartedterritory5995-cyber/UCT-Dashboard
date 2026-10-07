@@ -43,7 +43,11 @@ export function registerCapability(cap) {
       || JSON.stringify([...(a.required || [])].sort()) !== JSON.stringify(Object.keys(a.properties || {}).sort())) {
     throw new Error(`${cap.name}: args must be a closed object whose properties are all required`)
   }
-  for (const fn of ['check', 'apply', 'describe']) {
+  // A QUERY capability only reads: `answer(snapshot, args)` returns the reply, and
+  // nothing is planned or committed. The model may route to it (so the answer comes
+  // from real state, not the model's reading of the context); the fast path too.
+  const fns = cap.query ? ['answer'] : ['check', 'apply', 'describe']
+  for (const fn of fns) {
     if (typeof cap[fn] !== 'function') throw new Error(`${cap.name}: ${fn}() required`)
   }
   CAPS.set(cap.name, { risk: 'local', reversible: true, domain: cap.name.split('.')[0], ...cap })
@@ -70,6 +74,29 @@ export function registerTargetKind(kind) {
   KINDS.set(kind.name, kind)
   return () => KINDS.delete(kind.name)
 }
+
+// OPTIONAL hooks for compound CREATION (a plan that makes new targets and then
+// configures them in the same request):
+//   capability.creates(args) -> null | { kind, alias, spec }
+//        this op makes a new target of `kind`; later ops in the SAME plan may
+//        target `alias` (transaction-local — never persisted, never an id)
+//   kind.virtual({ alias, n, spec }) -> snapshot
+//        a planning stand-in for a target that does not exist yet (its defaults)
+//   kind.createFlags(ops on that alias) -> object
+//        anything the creator must do at creation time for those ops to be safe
+//        (charts: unlink when the plan gives the new chart its own symbol)
+//   kind.fingerprintFor(host, snap, undoItem) -> string
+//        narrow the stale-undo check to what this item actually owns
+//   kind.commit may be async and may return { created: { alias: realRef } }
+//
+// OPTIONAL policy / undo hooks:
+//   capability.confirmIf(state, args, env) -> boolean
+//        this op, in THIS state, must be proposed rather than applied (e.g. a
+//        switch that would discard unsaved edits)
+//   kind.undoPatch(item) may return null: that change has no Undo (the receipt
+//        then offers none)
+//   host.epoch() -> string   which board the targets belong to; a plan proposed
+//        on one board is never applied to another, and undo never crosses it
 
 /** provider = { key, kind?, build(host, refFor) -> JSON-able context section } */
 export function registerContextProvider(p) {

@@ -28,6 +28,8 @@ import { AGENT_CONVERSATION_KEY, readLocal, writeLocal } from './agentFlag'
 registerBuiltins()
 
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
+// Which board the host is showing (null for hosts without layouts).
+const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
 
 let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
@@ -84,8 +86,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const execute = useCallback(async (ops, { path, mode: suggested, member, voice }) => {
-    const targets = collectTargets(host, kindsOf(ops))
+  const execute = useCallback(async (allOps, { path, mode: suggested, member, voice }) => {
+    const targets = collectTargets(host, kindsOf(allOps))
+    // QUERIES only read: answered from the target's own snapshot, never planned. A
+    // plan that also changes something answers its queries and plans the rest.
+    const queries = allOps.filter(o => getCapability(o?.action)?.query)
+    if (queries.length) {
+      const text = queries.map(o => getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {})).join('\n\n')
+      push({ role: 'agent', text })
+      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+    }
+    const ops = allOps.filter(o => !getCapability(o?.action)?.query)
+    if (!ops.length) return
     const env = await prepareOps(ops)
     const plan = planOps(targets, ops, env, capCtx)
     const actions = ops.map(o => o.action)
@@ -98,7 +110,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const mode = suggested === 'approved' ? 'apply' : decideMode(suggested, plan)
     if (mode === 'propose') {
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops }
+      pendingRef.current = { kind: 'proposal', id: pid, ops, epoch: epochOf(host) }
       push({ id: pid, role: 'proposal', lines: plan.lines.length ? plan.lines : plan.noops, status: 'pending' })
       record({ member, outcome: `Proposed: ${plan.lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -109,7 +121,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
       return
     }
-    const res = await commitPlan(host, plan)
+    const res = await commitPlan(host, plan, { env, ctx: capCtx })
     if (res.undo) {
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
     }
@@ -154,10 +166,19 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       return
     }
     pendingRef.current = null
+    // A proposal belongs to the board it was made on. If another layout is open now,
+    // its refs (and "the workspace") would mean a different board: never apply it there.
+    if (p.epoch !== epochOf(host)) {
+      patchItem(p.id, { status: 'dismissed' })
+      const text = "A different layout is open now, so I didn't apply that proposal — it was for the board you had open then. Nothing was changed. Ask again if you still want it."
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-stale' }, telemetry: { path: 'approved', refused: true, voice } })
+      return
+    }
     patchItem(p.id, { status: 'approved' })
     const ops = count ? p.ops.slice(0, count) : p.ops
     await execute(ops, { path: 'approved', mode: 'approved', member, voice })
-  }, [execute, patchItem, push])
+  }, [execute, patchItem, push, record, host])
 
   const dismiss = useCallback(({ member } = {}) => {
     const p = pendingRef.current
@@ -174,8 +195,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!p || p.kind !== 'target') return
     pendingRef.current = null
     push({ role: 'member', text: label })
+    if (p.epoch !== epochOf(host)) {
+      push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
+      return
+    }
     await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: 'apply', member: `${p.member} → ${label}`, voice: p.voice })
-  }, [execute, push])
+  }, [execute, push, host])
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
@@ -192,7 +217,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // A choice clicked under the MODEL's own question answers that question:
       // it goes back to the model (which has the conversation), never through the
       // fast path, which would act on the bare label ("Hide volume") out of context.
-      const fast = answering ? null : fastParse(text)
+      const fast = answering ? null : fastParse(text, { host })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
@@ -233,7 +258,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint) {
-          pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice }
+          pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
           push({ role: 'question', text: ask, choices: candidates.map(c => ({ ref: c.ref, label: c.label })), local: true })
           record({ member: text, outcome: 'Asked which target.', telemetry: { path: 'fast', clarified: true, voice } })
           return
@@ -248,7 +273,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const p = pendingRef.current
       const pending = p?.kind === 'proposal'
-        ? { ops: p.ops.filter(o => back[o.target]).map(o => ({ ...o, target: back[o.target] })) }
+        // Transaction-local aliases (new1…) are not context refs: they pass through.
+        ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
         : null
       const res = await agentTurn({
         conversationId: conversationRef.current, message: text, voice, pending,

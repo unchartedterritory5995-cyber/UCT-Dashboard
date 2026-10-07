@@ -10,9 +10,10 @@
 // A chart's ref is its persisted widget id (+ "~tabId" for an extra chart tab).
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 
-import { planPlacement } from '../pages/charts/placement/place'
+import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
+import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -84,26 +85,88 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
       const all = layout.widgets || []
       const visible = getWidgets() || []
       const count = boardWidgetCount(layout) ?? 0
-      const fits = {}
-      for (const t of WORKSPACE_MENU_TYPES) {
-        try { fits[t] = !(planPlacement(all, t).mutations || []).length } catch { fits[t] = false }
+      // planPlacement is pure: simulate a SEQUENCE of adds exactly as the product
+      // would place them one after another, and say whether every one lands in
+      // empty space (no `mutations` = nothing else resized or moved).
+      // Several new widgets of ONE type are planned as a group (equal cells in one
+      // empty region, nothing else touched); only when no such region exists does
+      // the one-after-another simulation decide.
+      const groupPlan = (type, n) => {
+        try { return planGroupPlacement(all, type, n) } catch { return null }
       }
+      const fitsSequence = (types) => {
+        if (types.length > 1 && types.every(t => t === types[0]) && groupPlan(types[0], types.length)) return true
+        let board = all.map(w => ({ ...w }))
+        for (let i = 0; i < types.length; i++) {
+          let plan
+          try { plan = planPlacement(board, types[i]) } catch { return false }
+          if (!plan || !plan.place || (plan.mutations || []).length) return false
+          board = [...board, { id: `__sim${i}`, type: types[i], ...plan.place }]
+        }
+        return true
+      }
+      const capacity = (type, limit) => {
+        let n = 0
+        while (n < limit && fitsSequence(Array(n + 1).fill(type))) n++
+        return n
+      }
+      const fits = {}
+      for (const t of WORKSPACE_MENU_TYPES) fits[t] = fitsSequence([t])
       return {
         ref: 'workspace', label: 'Workspace',
-        widgets: all.map(w => ({ id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h })),
+        widgets: all.map(w => ({
+          id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, color: w.color,
+          optsSig: JSON.stringify(w.opts ?? null),
+        })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
-        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits,
+        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
       }
     },
-    add: (type) => widgetOps.add(type),
+    add: (type, place) => widgetOps.add(type, place),
     remove: (id) => widgetOps.remove(id),
+    color: (id, color) => widgetOps.color?.(id, color),
+    cancelPending: () => widgetOps.cancelPending?.(),
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps }) {
+/**
+ * Named layouts, read through the Layout Dock's own catalog and active pointer and
+ * changed only through its handlers (see ChartsWorkspace's agentLayoutsRef). The
+ * Agent never writes a layout record itself.
+ */
+export function buildLayoutSource(getLayouts) {
+  const kindWord = (scope, id) => (id === UCT_DEFAULT_ID ? 'built-in' : scope === 'global' ? 'prebuilt' : 'yours')
+  return {
+    snapshot() {
+      const L = getLayouts() || { entries: [], active: null }
+      return {
+        entries: (L.entries || []).map(e => ({ id: e.id, name: e.name, scope: e.scope || 'user', kind: kindWord(e.scope, e.id) })),
+        active: L.active || null,
+        unsaved: !!L.unsaved,
+        arrangement: L.arrangement || '',
+      }
+    },
+    open: (entry) => getLayouts()?.open(entry),
+    rename: (id, name) => getLayouts()?.rename(id, name),
+    saveAs: (name) => getLayouts()?.saveAs(name),
+    refresh: () => getLayouts()?.refresh?.(),
+  }
+}
+
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts }) {
+  const layoutSource = layouts ? buildLayoutSource(layouts) : null
   return {
     charts: buildChartSource({ chartApiById, getWidgets }),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
+    ...(layoutSource ? {
+      layouts: layoutSource,
+      // WHICH board this is: the open layout's identity. A plan proposed on one board
+      // must never be applied to another, and an undo never reaches across a switch.
+      epoch: () => {
+        const a = layoutSource.snapshot().active
+        return a ? `${a.scope}:${a.id}` : 'unsaved'
+      },
+    } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
   }
 }

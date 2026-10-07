@@ -24,7 +24,7 @@ const TAIL = /\s+(chart|timeframe|time frame|view|please)$/
 const clean = (s) => s.toLowerCase().replace(/[.!?]+$/g, '').replace(/\s+/g, ' ').trim()
 const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }
 
-function matchClause(raw) {
+function matchClause(raw, host) {
   const lower = clean(raw)
   if (!lower) return null
   const core = lower.replace(LEAD, '').replace(TAIL, '').trim()
@@ -32,7 +32,9 @@ function matchClause(raw) {
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (typeof cap.fast !== 'function') continue
-    const args = cap.fast({ raw: raw.trim(), lower, core })
+    // `host` lets a phrase resolve against REAL state (a layout name in the member's
+    // catalog); a capability that can't resolve it with certainty returns null.
+    const args = cap.fast({ raw: raw.trim(), lower, core, host })
     if (args) hits.push({ action: name, args })
   }
   return hits.length === 1 ? hits[0] : null      // ambiguous phrase -> let the model decide
@@ -69,7 +71,7 @@ export function matchPosition(snaps, position) {
   return snaps.filter(s => s.position && parts.every(p => s.position.split('-').includes(p)))
 }
 
-export function fastParse(text) {
+export function fastParse(text, { host = null } = {}) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
   if (/^(undo|undo (that|it|this|the last (one|change))|revert( that| it)?|go back|put it back)$/.test(t)) return { kind: 'undo' }
@@ -85,7 +87,7 @@ export function fastParse(text) {
   if (!clauses.length || clauses.length > 6) return null
   const ops = []
   for (const c of clauses) {
-    const op = matchClause(c)
+    const op = matchClause(c, host)
     if (!op) return null
     ops.push(op)
   }
