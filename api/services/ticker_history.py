@@ -68,6 +68,7 @@ import os
 import time
 import threading
 import re
+import weakref
 import sqlite3
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -83,13 +84,16 @@ LANES = ("wire", "book", "catalysts", "room", "flow", "setups", "journal")
 #: thousands of prints; one narrow column keeps it to a few MB. Past this the lane is
 #: `unavailable` -- a timeout is not a quiet tape.
 FLOW_TIMEOUT_S = 12.0
-#: How long one HIS request waits for a lane in ``SLOW_LANES`` before answering without it.
-#: First open of HIS took 5-6 s, all of it the flow lane's cross-service tape read; every
-#: other lane is a local store. Past this budget the lane answers ``pending`` (said, never
-#: shown as "no prints"), the read keeps going in the background, and the panel asks again.
-SLOW_LANE_WAIT_S = float(os.environ.get("HIS_SLOW_LANE_WAIT_S", "1.0") or 1.0)
-#: Lanes that live behind another service. Only these may answer ``pending``.
-SLOW_LANES = ("flow",)
+#: How long one HIS request waits for its lanes before answering without the ones still
+#: reading. First open of HIS took 5-6 s; after the flow lane got this budget (fn4) live
+#: reads were still 3.2-6.2 s, so EVERY lane now has it. Past it a lane answers ``pending``
+#: (said, never shown as "nothing"), its read keeps going in the background and parks its
+#: answer, and the panel asks again. `HIS_SLOW_LANE_WAIT_S` is the fn4 name, still read.
+LANE_WAIT_S = float(os.environ.get("HIS_LANE_WAIT_S") or os.environ.get("HIS_SLOW_LANE_WAIT_S") or 1.0)
+#: A late lane's answer is kept this long for the panel's re-ask, then dropped.
+_LANE_PARKED_TTL_S = 120.0
+#: A whole HIS read slower than this logs one line naming every lane's time.
+SLOW_HISTORY_LOG_S = 1.5
 
 
 #: The slice-2 lanes ride their OWN gate. `TICKER_HISTORY_ENABLED` is armed in production, so
@@ -169,20 +173,63 @@ def _is_ambiguous(sym: str) -> bool:
         return False
 
 
+def _wire_doc(rundown_html: str) -> tuple[str, tuple[str, ...], str]:
+    """The ticker-independent half of `_wire_mentions`, done once per archived wire:
+    (plain text, the bodies of the ticker-markup cells, plain text with those cells removed)."""
+    plain = re.sub(r"<[^>]+>", " ", rundown_html)
+    cells = tuple(re.sub(r"<[^>]+>", " ", m.group("body")).strip().lstrip("$").upper()
+                  for m in _WIRE_SYM_CELL.finditer(rundown_html))
+    without_cells = re.sub(r"<[^>]+>", " ", _WIRE_SYM_CELL.sub(" ", rundown_html))
+    return plain, cells, without_cells
+
+
+def _wire_doc_mentions(sym: str, doc: tuple[str, tuple[str, ...], str]) -> int:
+    plain, cells, without_cells = doc
+    # Every pattern below contains `sym` literally: a text without it holds no mention, and
+    # the substring test is far cheaper than the regex scan it skips.
+    if not _is_ambiguous(sym):
+        return len(_mention_regex(sym).findall(plain)) if sym in plain else 0
+    if sym not in without_cells:
+        return sum(1 for c in cells if c == sym)
+    cashtags = len(re.findall(r"(?<![A-Za-z0-9.$-])\$" + re.escape(sym) + r"(?![A-Za-z0-9])", without_cells))
+    return sum(1 for c in cells if c == sym) + cashtags
+
+
 def _wire_mentions(sym: str, rundown_html: str) -> int:
     """How many times the Wire names `sym`. For an ambiguous ticker only a
     cashtag or a ticker-markup cell counts; otherwise a whole-word match."""
-    if not _is_ambiguous(sym):
-        text = re.sub(r"<[^>]+>", " ", rundown_html)
-        return len(_mention_regex(sym).findall(text))
-    cells = 0
-    for m in _WIRE_SYM_CELL.finditer(rundown_html):
-        body = re.sub(r"<[^>]+>", " ", m.group("body")).strip().lstrip("$").upper()
-        if body == sym:
-            cells += 1
-    text = re.sub(r"<[^>]+>", " ", _WIRE_SYM_CELL.sub(" ", rundown_html))
-    cashtags = len(re.findall(r"(?<![A-Za-z0-9.$-])\$" + re.escape(sym) + r"(?![A-Za-z0-9])", text))
-    return cells + cashtags
+    return _wire_doc_mentions(sym, _wire_doc(rundown_html))
+
+
+#: Parsed archived wires, keyed by (file, mtime, size) so a re-archived day is re-read.
+#: Measured 2026-10-06 on 90 synthetic 135 KB wires: the lane re-read and re-stripped every
+#: file on every HIS open, 0.45-2.5 s; with this it pays that once per file.
+_WIRE_DOC_MEMO: "dict" = {}
+_WIRE_DOC_MEMO_MAX = 400
+_WIRE_DOC_LOCK = threading.Lock()
+
+
+def _archived_wire_doc(ymd: str):
+    """`_wire_doc` of the archived wire for `ymd`, or None. Same answer as reading the file."""
+    from api.services import wire_archive
+    try:
+        st = wire_archive.path_for(ymd).stat()
+    except (OSError, ValueError):
+        return None
+    key = (str(wire_archive.archive_dir()), ymd, st.st_mtime_ns, st.st_size)
+    with _WIRE_DOC_LOCK:
+        hit = _WIRE_DOC_MEMO.get(key)
+    if hit is not None:
+        return hit
+    entry = wire_archive.read(ymd)
+    if not entry:
+        return None
+    doc = _wire_doc(entry.get("rundown_html") or "")
+    with _WIRE_DOC_LOCK:
+        if len(_WIRE_DOC_MEMO) >= _WIRE_DOC_MEMO_MAX:
+            _WIRE_DOC_MEMO.clear()
+        _WIRE_DOC_MEMO[key] = doc
+    return doc
 
 
 # ── lanes ────────────────────────────────────────────────────────────────────
@@ -198,14 +245,13 @@ def wire_lane(sym: str, since: date) -> list[dict]:
             continue
         if d < since:
             continue
-        entry = wire_archive.read(ymd)
-        if not entry:
+        doc = _archived_wire_doc(ymd)
+        if doc is None:
             continue
         # The wire's prose is written by the engine, which spells a class share both ways
         # (morning-wire `substack/lead.py` lists BRK.B AND BRK-B), so both are counted. The two
         # patterns cannot match the same characters, so no mention is counted twice.
-        html = entry.get("rundown_html") or ""
-        hits = sum(_wire_mentions(s, html) for s in _class_spellings(sym))
+        hits = sum(_wire_doc_mentions(s, doc) for s in _class_spellings(sym))
         if hits:
             rows.append({"date": d.isoformat(), "lane": "wire", "mentions": hits,
                          "text": f"Named in the Morning Wire ({hits} mention{'s' if hits != 1 else ''})",
@@ -479,12 +525,14 @@ def setups_lane(sym: str, since: date) -> list[dict]:
     # morning wire handed it -- the Finviz leadership export's spelling, not visible from this
     # repo. Both class spellings are read; a setup recorded under both repeats the same
     # (date, lane, text) and `history()` keeps one.
+    # The writer upper-cases the symbol, so the column is compared bare: wrapping it in UPPER()
+    # hid it from the ledger's own UNIQUE(symbol, ...) index and scanned the whole table per open.
     spellings = _class_spellings(sym)
     marks = ",".join("?" * len(spellings))
     with contextlib.closing(_engine_ro()) as c:
         for r in c.execute(
                 "SELECT trigger_date, setup_name, source, status, resolved_at, r_multiple "
-                f"FROM setup_triggers WHERE UPPER(symbol) IN ({marks}) "
+                f"FROM setup_triggers WHERE symbol IN ({marks}) "
                 "AND (trigger_date >= ? OR substr(resolved_at, 1, 10) >= ?) "
                 "ORDER BY trigger_date, setup_name", (*spellings, lo, lo)):
             td, name = r["trigger_date"], r["setup_name"]
@@ -512,14 +560,26 @@ def setups_lane(sym: str, since: date) -> list[dict]:
 JOURNAL_RESULT_TEXT = {"win": "win", "loss": "loss", "breakeven": "breakeven", "be": "breakeven"}
 
 
+#: Per-thread memo for ONE lane run (set by `history()._one`, None outside a run): the journal
+#: lane and its coverage read the member's journal once between them, not twice.
+_RUN_MEMO = threading.local()
+
+
 def _member_journal(user_id: Optional[str]) -> tuple[list[dict], list[dict]]:
     """(closed trades, open positions) for ONE member, through the journal_two service
     functions keyed on that member's id. No id raises: the lane is then `unavailable`,
     and there is no code path that reads a journal without the caller's own id."""
     if not user_id:
         raise LaneUnreadable("no member id: the journal lane is the caller's own or nothing")
+    memo = getattr(_RUN_MEMO, "d", None)
+    key = ("journal", str(user_id))
+    if memo is not None and key in memo:
+        return memo[key]                 # the lane and its coverage share ONE read per run
     from api.services.journal_two import positions, trades
-    return trades.list_trades_for_user(str(user_id)), positions.list_open_positions(str(user_id))
+    out = trades.list_trades_for_user(str(user_id)), positions.list_open_positions(str(user_id))
+    if memo is not None:
+        memo[key] = out
+    return out
 
 
 def _day(v) -> Optional[str]:
@@ -695,9 +755,63 @@ def _in_era(d: str, valid_from: Optional[str], valid_to: Optional[str]) -> bool:
 
 
 #: One small pool for the lanes (seven at most per request), off the shared anyio threadpool.
+#: A lane that misses the budget keeps its thread until it finishes, so the pool has room for
+#: a few requests' worth of late lanes; a repeat ask JOINS a running read rather than adding one.
 from concurrent.futures import ThreadPoolExecutor as _TPE
 from concurrent.futures import TimeoutError as FutureTimeout
-_LANE_POOL = _TPE(max_workers=14, thread_name_prefix="his-lane")
+_LANE_POOL = _TPE(max_workers=21, thread_name_prefix="his-lane")
+#: key -> Future of a lane read still running (joined by a repeat ask).
+_LANE_INFLIGHT: dict = {}
+#: key -> (finished_at, Future) of a lane read that finished after its request answered.
+_LANE_PARKED: dict = {}
+#: Futures whose answer a request already used, so their late callback parks nothing.
+_LANE_CONSUMED = weakref.WeakSet()
+_LANE_LOCK = threading.Lock()
+
+
+def _lane_done(key, fut) -> None:
+    """Runs when a lane read finishes: unless its request used the answer, park it."""
+    with _LANE_LOCK:
+        if _LANE_INFLIGHT.get(key) is fut:
+            del _LANE_INFLIGHT[key]
+        if fut in _LANE_CONSUMED:
+            _LANE_CONSUMED.discard(fut)
+            return
+        now = time.monotonic()
+        for k in [k for k, (at, _f) in _LANE_PARKED.items() if now - at > _LANE_PARKED_TTL_S]:
+            del _LANE_PARKED[k]
+        _LANE_PARKED[key] = (now, fut)
+    try:
+        name, _status, _rows, ms = fut.result()
+        if ms >= SLOW_HISTORY_LOG_S * 1000:
+            logger.warning("[ticker-history] late lane %s for %s took %d ms", name, key[1], ms)
+    except Exception:  # noqa: BLE001 -- _one never raises; this is only the log line
+        pass
+
+
+def _lane_consumed(key, fut) -> None:
+    """A request used this read's answer: nothing of it may be parked for a later ask."""
+    with _LANE_LOCK:
+        held = _LANE_PARKED.get(key)
+        if held is not None and held[1] is fut:
+            del _LANE_PARKED[key]
+        elif not fut.done() or _LANE_INFLIGHT.get(key) is fut:
+            _LANE_CONSUMED.add(fut)
+
+
+def _lane_future(key, run):
+    """(future, how) for one lane: a parked late answer, a running read to join, or a new read."""
+    with _LANE_LOCK:
+        held = _LANE_PARKED.pop(key, None)
+        if held is not None and time.monotonic() - held[0] <= _LANE_PARKED_TTL_S:
+            return held[1], "parked"
+        fut = _LANE_INFLIGHT.get(key)
+        if fut is not None:
+            return fut, "joined"
+        fut = _LANE_POOL.submit(run)
+        _LANE_INFLIGHT[key] = fut
+    fut.add_done_callback(lambda f, k=key: _lane_done(k, f))
+    return fut, "read"
 
 
 def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -> dict:
@@ -711,7 +825,9 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
     sym = _canon(sym)
     days = max(1, min(int(days or DEFAULT_DAYS), MAX_DAYS))
     since = _since(days)
+    t_start = time.monotonic()
     entity, eras = _entity_eras(sym)
+    timing = [("entity", (time.monotonic() - t_start) * 1000, "ok")]
     lanes, timeline = {}, []
     not_rendered = {}
     armed2 = lanes2_enabled()
@@ -721,6 +837,15 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
     # Live sweep 2026-10-05: the lanes read independent stores, so they run side by side and
     # HIS costs its slowest lane instead of the sum. Each keeps its own failure as before.
     def _one(name):
+        t_lane = time.monotonic()
+        _RUN_MEMO.d = {}
+        try:
+            name_, status, rows = _one_lane(name)
+            return name_, status, rows, (time.monotonic() - t_lane) * 1000
+        finally:
+            _RUN_MEMO.d = None
+
+    def _one_lane(name):
         try:
             rows, seen = [], set()
             for alias, valid_from, valid_to in eras:
@@ -753,26 +878,50 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
             return name, {"status": "unavailable", "count": None}, []
 
     wanted = [n for n in LANES if not (n in LANES2 and not armed2)]
-    futures = [(n, _LANE_POOL.submit(_one, n)) for n in wanted]
+    eras_key = tuple(eras)
+    futures = []
+    for n in wanted:
+        # Everything the answer depends on is in the key, including WHICH functions read the
+        # store, so a swapped reader (a test, a re-pointed store) never gets another's answer.
+        key = (n, sym, since.isoformat(), user_id if n in MEMBER_LANES else None, eras_key,
+               _LANE_FNS[n], _COVERAGE_FNS[n], _flow_request if n == "flow" else None)
+        fut, how = _lane_future(key, lambda n=n: _one(n))
+        futures.append((n, key, fut, how))
     t0 = time.monotonic()
-    for n, f in futures:
-        if n in SLOW_LANES:
-            # The budget is counted from when the lanes started, so the local lanes'
-            # time is not added on top of it.
-            budget = max(0.0, SLOW_LANE_WAIT_S - (time.monotonic() - t0))
-            try:
-                name, status, rows = f.result(timeout=budget)
-            except FutureTimeout:
-                # Still reading. The read keeps going and fills the memo, so the panel's
-                # next ask is answered at once. Not "no prints" and not "unavailable":
-                # the lane has not answered YET, and says so.
-                lanes[n] = {"status": "pending", "count": None, "retry_after_s": 2}
-                continue
-        else:
-            name, status, rows = f.result()
+    for n, key, f, how in futures:
+        # One budget for the whole request, counted from when the lanes started, so the
+        # lanes' times are not added on top of each other.
+        budget = max(0.0, LANE_WAIT_S - (time.monotonic() - t0))
+        try:
+            name, status, rows, ms = f.result(timeout=budget)
+        except FutureTimeout:
+            # Still reading. The read keeps going and parks its answer, so the panel's next
+            # ask is answered at once. Not "nothing" and not "unavailable": the lane has not
+            # answered YET, and says so.
+            lanes[n] = {"status": "pending", "count": None, "retry_after_s": 2}
+            timing.append((n, (time.monotonic() - t0) * 1000, "pending"))
+            continue
+        if how != "parked":
+            _lane_consumed(key, f)
         lanes[name] = status
         timeline.extend(rows)
+        timing.append((n, 0.0 if how == "parked" else ms, status["status"] if how == "read" else how))
     timeline.sort(key=lambda r: (r["date"], LANES.index(r["lane"])), reverse=True)
+    total_ms = (time.monotonic() - t_start) * 1000
+    if total_ms >= SLOW_HISTORY_LOG_S * 1000:
+        logger.warning("[ticker-history] slow %s %d ms: %s", sym, total_ms,
+                       " ".join(f"{n}={ms:.0f}({st})" for n, ms, st in timing))
     return {"ticker": sym, "key": "entity" if entity["status"] == "resolved" else "ticker",
             "entity": entity, "since": since.isoformat(), "days": days, "lanes": lanes,
-            "not_rendered": not_rendered, "timeline": timeline}
+            "not_rendered": not_rendered, "timeline": timeline,
+            "_timing": timing + [("total", total_ms, "ok")]}
+
+
+def server_timing(timing) -> str:
+    """The `Server-Timing` header for one history read: `his-<lane>;dur=<ms>;desc="<state>"`."""
+    parts = []
+    for name, ms, state in timing or []:
+        safe = re.sub(r"[^A-Za-z0-9_-]", "", str(name)) or "lane"
+        st = re.sub(r"[^A-Za-z0-9_ -]", "", str(state))
+        parts.append(f'his-{safe};dur={float(ms):.0f};desc="{st}"')
+    return ", ".join(parts)
