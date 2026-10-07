@@ -35,6 +35,7 @@
 import { useEffect, useId, useRef } from 'react'
 import useFocusTrap from '../../../components/mobile/useFocusTrap'
 import { firstFocusable } from '../lib/focusAfterRemoval'
+import useBodyScrollLock from '../lib/useBodyScrollLock'
 import shellStyles from './ModalShell.module.css'
 
 export default function ConfirmModal({
@@ -79,6 +80,9 @@ export default function ConfirmModal({
   }, [])
 
   useFocusTrap(true, dialogRef)
+  // The floating voice orb and feedback button hide on this lock; without it the orb sat on the
+  // confirm button on a phone and took its tap (lib/useBodyScrollLock.js).
+  useBodyScrollLock()
 
   return (
     <div

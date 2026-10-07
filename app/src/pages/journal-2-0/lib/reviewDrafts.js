@@ -155,6 +155,9 @@ function numbersSection(aggregates) {
   ]
 }
 
+/** What a draft says in place of the discipline section while plan grading is off. */
+export const DISCIPLINE_OFF_IN_DRAFT = 'Not in this draft. The discipline record comes from plan grading, which is not switched on for your account.'
+
 function disciplineSection(discipline) {
   const d = discipline || {}
   return [
@@ -343,6 +346,11 @@ export function buildDraftBlocks(payload) {
       blocks.push(p(`${cap.ungraded} older trade${cap.ungraded === 1 ? '' : 's'} this period `
         + `${cap.ungraded === 1 ? 'was' : 'were'} not graded against a plan (the newest ${cap.limit} are).`))
     }
+  } else {
+    // Said, never silently missing: the member was told the draft covers discipline.
+    // The server's own sentence when it sends one (`disciplineOmitted`, lane DATA2); an older
+    // answer without it still gets a plain reason.
+    blocks.push(h(2, 'Discipline record'), p(payload.disciplineOmitted?.sentence || DISCIPLINE_OFF_IN_DRAFT))
     blocks.push(hr())
   }
   blocks.push(...setupChangesSection(payload.setupChanges))
