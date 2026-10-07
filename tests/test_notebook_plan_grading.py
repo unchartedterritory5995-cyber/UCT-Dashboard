@@ -750,8 +750,13 @@ def fresh_limiter():
     limiter.reset()
 
 
-def _as(app, uid):
-    app.dependency_overrides[authmw.get_current_user] = lambda: {"id": uid, "role": "member"}
+def _as(app, uid, plan="pro"):
+    """Sign in as `uid`. The plan-grade routes take a PAID member (security review I-7), then
+    charge the rate, so the stand-in carries a plan on both session dependencies, exactly as
+    this file's `app` fixture does. `plan="free"` is the member the paid check refuses."""
+    member = {"id": uid, "role": "member", "plan": plan}
+    app.dependency_overrides[authmw.get_current_user] = lambda: member
+    app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: member
 
 
 def test_the_read_routes_answer_429_past_the_members_rate_and_another_member_is_untouched(
@@ -790,6 +795,10 @@ def test_the_limit_is_charged_after_the_gate_and_the_session_never_before(app, c
     monkeypatch.setenv(FLAG, "1")
     app.dependency_overrides.clear()
     assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(3)] == [401, 401, 401]
+    # Landing 12-15: the paid check sits between the session and the rate. A member with no paid
+    # plan answers 402 every time and spends none of their budget (the next line still gets a 200).
+    _as(app, U, plan="free")
+    assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(3)] == [402, 402, 402]
     _as(app, U)
     assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(2)] == [200, 429]
 
