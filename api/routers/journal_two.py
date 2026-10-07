@@ -580,10 +580,14 @@ def create_position(
         )
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    # Wave 13 lane 13E-1: freeze the market context at the fill. Runs after the response,
-    # reads only the position just returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is
-    # off, and never raises -- the add has already succeeded and nothing here can change it.
-    background_tasks.add_task(entry_context_service.on_position_added, user["id"], created)
+    # Wave 13 lane 13E-1: freeze the market context at the fill. Reads only the position just
+    # returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is off, and never raises -- the
+    # add has already succeeded and nothing here can change it.
+    # ⛔ QUEUED, NEVER A STARLETTE BACKGROUND TASK (fin-security I-1): a sync background task
+    # runs on the same thread pool every sync route uses, and this capture can wait on a
+    # vendor. `schedule_position_capture` does no I/O here; the capture runs on its own two
+    # threads, bounded per member and in total, and only for a paid member.
+    entry_context_service.schedule_position_capture(user["id"], created)
     return created
 
 
