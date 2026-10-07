@@ -1137,3 +1137,44 @@ def test_the_boot_warm_runs_the_wire_archive_warm(monkeypatch):
             break
         _time.sleep(0.05)
     assert calls, "the boot warm never warmed the HIS wire archive"
+
+
+# ── 2026-10-07: a cold Entity Master held HIS for 108 s (entity=107827 ms) ──
+
+def test_a_slow_entity_resolve_never_holds_the_request(monkeypatch):
+    import threading as _th
+    import time as _t
+    gate = _th.Event()
+    calls = []
+
+    def slow_entity(s):
+        calls.append(s)
+        gate.wait(10)
+        return ({"status": "resolved", "entity_id": "ent_x", "aliases": []}, [(s, None, None)])
+
+    monkeypatch.setattr(th, "_entity_eras", slow_entity)
+    monkeypatch.setattr(th, "ENTITY_WAIT_S", 0.2)
+    monkeypatch.setattr(th, "_LANE_FNS", {n: (lambda *a: []) for n in th.LANES})
+    monkeypatch.setattr(th, "_COVERAGE_FNS", {n: (lambda *a: (None, None)) for n in th.LANES})
+    try:
+        t0 = _t.monotonic()
+        out = th.history("ZZEN", days=30)
+        took = _t.monotonic() - t0
+        assert took < 2.0, f"HIS waited {took:.1f}s on the entity step"
+        assert out["entity"]["status"] == "pending"
+        assert out["key"] == "ticker"
+        assert out["lanes"], "the lanes still answered"
+        # a second ask while the first resolve is still running joins it, never starts another
+        th.history("ZZEN", days=30)
+        assert calls == ["ZZEN"], calls
+    finally:
+        gate.set()
+
+
+def test_a_fast_entity_resolve_is_used_as_before(monkeypatch):
+    monkeypatch.setattr(th, "_entity_eras", lambda s: (
+        {"status": "resolved", "entity_id": "ent_y", "aliases": []}, [(s, None, None)]))
+    monkeypatch.setattr(th, "_LANE_FNS", {n: (lambda *a: []) for n in th.LANES})
+    monkeypatch.setattr(th, "_COVERAGE_FNS", {n: (lambda *a: (None, None)) for n in th.LANES})
+    out = th.history("ZZEF", days=30)
+    assert out["entity"]["status"] == "resolved" and out["key"] == "entity"

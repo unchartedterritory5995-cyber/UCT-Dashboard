@@ -928,6 +928,50 @@ def _entity_eras(sym: str) -> tuple[dict, list[tuple[str, Optional[str], Optiona
              "aliases": [{"alias": a, "valid_from": f, "valid_to": t} for a, f, t in eras]}, eras)
 
 
+#: The entity step's own budget. Measured 2026-10-07 after a market-hours boot:
+#: `[ticker-history] slow ORCL 108843 ms: entity=107827(ok)` -- identity resolved BEFORE the
+#: lanes' budget started, so a cold Entity Master held the whole request for 108 s. Identity
+#: is an enrichment: past this budget the request proceeds keyed by the ticker and says so.
+ENTITY_WAIT_S = float(os.environ.get("HIS_ENTITY_WAIT_S") or 0.5)
+_ENTITY_POOL = None
+_ENTITY_INFLIGHT: dict = {}
+_ENTITY_LOCK = threading.Lock()
+
+
+def _entity_eras_bounded(sym: str):
+    """(`entity` block, eras, timing status). A repeat ask JOINS a resolve still running
+    rather than starting another; one that misses `ENTITY_WAIT_S` answers `pending`."""
+    global _ENTITY_POOL
+    started = False
+    with _ENTITY_LOCK:
+        fut = _ENTITY_INFLIGHT.get(sym)
+        if fut is None:
+            if _ENTITY_POOL is None:
+                from concurrent.futures import ThreadPoolExecutor
+                _ENTITY_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="his-entity")
+            fut = _ENTITY_POOL.submit(_entity_eras, sym)
+            _ENTITY_INFLIGHT[sym] = fut
+            started = True
+    if started:
+        # Registered OUTSIDE the lock: on an already-finished future the callback runs inline,
+        # and it takes the same (non-reentrant) lock.
+        def _clear(f, s=sym):
+            with _ENTITY_LOCK:
+                if _ENTITY_INFLIGHT.get(s) is f:
+                    del _ENTITY_INFLIGHT[s]
+        fut.add_done_callback(_clear)
+    try:
+        entity, eras = fut.result(timeout=ENTITY_WAIT_S)
+        return entity, eras, "ok"
+    except FutureTimeout:
+        return ({"status": "pending",
+                 "reason": f"entity resolution did not answer within {ENTITY_WAIT_S:g}s; "
+                           "keyed by the ticker for this request"},
+                [(sym, None, None)], "late")
+    except Exception as e:  # noqa: BLE001 -- _entity_eras never raises; belt and braces
+        return ({"status": "unavailable", "reason": type(e).__name__}, [(sym, None, None)], "error")
+
+
 def _in_era(d: str, valid_from: Optional[str], valid_to: Optional[str]) -> bool:
     # Half-open [valid_from, valid_to), the store's own interval rule (spec §8.4).
     return (valid_from is None or d >= valid_from) and (valid_to is None or d < valid_to)
@@ -1005,8 +1049,8 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
     days = max(1, min(int(days or DEFAULT_DAYS), MAX_DAYS))
     since = _since(days)
     t_start = time.monotonic()
-    entity, eras = _entity_eras(sym)
-    timing = [("entity", (time.monotonic() - t_start) * 1000, "ok")]
+    entity, eras, entity_how = _entity_eras_bounded(sym)
+    timing = [("entity", (time.monotonic() - t_start) * 1000, entity_how)]
     lanes, timeline = {}, []
     not_rendered = {}
     armed2 = lanes2_enabled()
