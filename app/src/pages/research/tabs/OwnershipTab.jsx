@@ -56,6 +56,9 @@ function TrustStrip({ meta, sessionContext }) {
 const reported = (v) => (v == null || Number(v) === 0 || !Number.isFinite(Number(v)) ? null : Number(v))
 
 const fmtShares = (v) => formatCompactTerminal(v)
+// Holder values are US dollars by construction (13F market values, Form 4 prices on the US
+// listing), so the "$" stays -- and the column says USD, so a foreign filer's holder table never
+// reads as its reporting currency.
 const fmtMoney = (v) => formatCompactTerminal(v, { money: true })
 const fmtPct = (v) => pctUpTo(v, 2)
 const fmtNum = (v) => formatNumber(v == null ? null : Math.round(v))
@@ -233,7 +236,7 @@ export default function OwnershipTab({ sym }) {
           {!!inst.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
               <table className={styles.fgrid} aria-label="Institutional ownership">
-                <thead><tr><th scope="col">Holder</th><th scope="col">Shares</th><th scope="col">% Out</th><th scope="col">Value</th><th scope="col">Reported</th></tr></thead>
+                <thead><tr><th scope="col">Holder</th><th scope="col">Shares</th><th scope="col">% Out</th><th scope="col">Value (USD)</th><th scope="col">Reported</th></tr></thead>
                 <tbody>
                   {inst.holders.map((h, i) => (
                     <tr key={`${h.holder}-${i}`}>
@@ -292,7 +295,7 @@ export default function OwnershipTab({ sym }) {
               <div>{fmtNum(tfs.investors_holding)} {fmtChgInt(tfs.investors_change) && <span className={`${chgClass(tfs.investors_change)} ${styles.statChg}`}>{fmtChgInt(tfs.investors_change)}</span>}</div>
             </div>
             <div>
-              <div className={styles.muted}>Total invested</div>
+              <div className={styles.muted}>Total invested (USD)</div>
               <div>{fmtMoney(tfs.total_invested)} {fmtChgInt(tfs.total_invested_change) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{fmtMoney(tfs.total_invested_change)}</span>}</div>
             </div>
           </div>
@@ -307,7 +310,7 @@ export default function OwnershipTab({ sym }) {
           {!!tf.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
               <table className={styles.fgrid} aria-label={`Form 13F top holders, ${tf.quarter}`}>
-                <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value</th></tr></thead>
+                <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value (USD)</th></tr></thead>
                 <tbody>
                   {tf.holders.map((h, i) => (
                     <tr key={`${h.name}-${i}`}>

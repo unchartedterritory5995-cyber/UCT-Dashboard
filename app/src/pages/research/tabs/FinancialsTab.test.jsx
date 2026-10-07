@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 
 const fin = {
   sym: 'AAPL',
+  currency: 'USD', // a US filer whose reporting currency is STATED -- known USD renders "$"
   quarterly: [
     { period: 'Q4 2024', revenue: 1.1e11, net_income: 3e10, eps: 2.2, gross_margin: 46.2, operating_margin: 31.5, net_margin: 27.3, revenue_yoy: 10.0, eps_yoy: -5.0 },
   ],

@@ -11,7 +11,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { EmptyState } from '../../research-kit'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
-import { STATEMENTS, buildTable, rowLabel } from './depthFormat'
+import { STATEMENTS, UNKNOWN_CCY, buildTable, rowLabel } from './depthFormat'
 import { reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 import styles from './FmpDepth.module.css'
 
@@ -37,8 +37,10 @@ export default function StatementTables({ sym }) {
   if (!sym) return null
   const shownPeriod = data?.period === 'annual' ? 'annual' : 'quarter'
   const table = buildTable(data, statement)
-  // FMP states each statement's currency (`currency`: TSM "TWD"); the cells carry it.
-  const currencyNote = reportingCurrencyNote(data?.currency)
+  // FMP states each statement's currency (`currency`: TSM "TWD"); the cells carry it. When it
+  // does not, the cells carry no symbol and the card says so — never a guessed "$".
+  const hasFigures = !error && data !== undefined && table.columns.length > 0 && table.rows.length > 0
+  const currencyNote = hasFigures ? reportingCurrencyNote(data?.currency, UNKNOWN_CCY) : null
 
   let body
   if (error) {
@@ -81,7 +83,7 @@ export default function StatementTables({ sym }) {
         <Seg label="Reporting period" value={period} onChange={setPeriod}
              options={[['quarter', 'Quarterly'], ['annual', 'Annual']]} />
       </div>
-      {currencyNote && <p className={styles.note} data-testid="fa-currency" data-currency={data.currency}>{currencyNote}</p>}
+      {currencyNote && <p className={styles.note} data-testid="fa-currency" data-currency={data.currency ?? 'unknown'}>{currencyNote}</p>}
       {body}
     </section>
   )

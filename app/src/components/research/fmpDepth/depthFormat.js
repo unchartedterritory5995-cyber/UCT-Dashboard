@@ -19,10 +19,13 @@ import {
  *  here and on the FA/EE tabs. */
 export const MONEY_TIERS = TERMINAL_COMPACT_TIERS
 
-// `ccy` is the payload's reporting currency ("TWD" for TSM). USD or unknown
-// renders "$" exactly as before; anything else is labelled with its own code.
-export const fmtMoney = (v, ccy) => formatCompact(v, { tiers: MONEY_TIERS, prefix: currencyPrefix(ccy) })
-export const fmtEps = (v, ccy) => formatCurrencyIn(v, ccy)
+// `ccy` is the payload's reporting currency ("TWD" for TSM). Known USD renders "$",
+// a known foreign currency its own code, and an UNKNOWN one no symbol at all (owner
+// decision 2026-10-07): these are a filer's own statements and consensus, so a "$"
+// on a currency nobody stated is a guess. The panel carries "Currency not reported."
+export const UNKNOWN_CCY = Object.freeze({ unknown: 'none' })
+export const fmtMoney = (v, ccy) => formatCompact(v, { tiers: MONEY_TIERS, prefix: currencyPrefix(ccy, UNKNOWN_CCY) })
+export const fmtEps = (v, ccy) => formatCurrencyIn(v, ccy, UNKNOWN_CCY)
 export const fmtShares = (v) => formatCompactTerminal(v)
 export const fmtPct = (v) => formatPercent(v, { decimals: 1 })
 export const fmtGrowth = (v) => formatPercent(v, { decimals: 1, signed: true })
