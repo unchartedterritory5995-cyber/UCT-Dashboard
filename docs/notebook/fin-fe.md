@@ -125,6 +125,51 @@ New rail `onboarding/NotebookTour.back.test.jsx`, real tour over real history en
 is spent when read and other state is kept; one Back returns to Help; Forward does not reopen the
 tour; a reload does not replay it. It passed on first run, so nothing was changed.
 
+## The sample plan note and the Plan panel (round 2)
+
+Question from another walk: with all flags on, the sample notebook's AAPL plan note showed the
+fingerprint panel but no entry, stop or target rows in the Plan panel. Instrument or product?
+
+Both. Probe: `tools/notebook_fin_fe_sample_plan_probe.py`, evidence
+`docs/notebook/evidence/fin-fe/sample-plan-probe-run1-55dc56c7aa/` (`SAMPLE.json`, `COMPARISON.json`).
+
+- The levels ARE stored and the panel DOES render them: three rows (205.00 Target, 180.00 Entry,
+  170.00 Stop), R:R 2.50R, risk per share $10.00. The server's own reading
+  (`POST /api/j2/chart-plan/size`) agrees: entry 180, stop 170, target 205, 100 shares, long.
+- The rows carry no `data-level-id`, so a walk that looks for `li[data-level-id]` finds none. That
+  was the instrument.
+- The reason they carry none is a product defect in the sample content. The sample stores each
+  level as `{role, type: "horizontal", price}`: no `id` and no `points`. A line a member draws is
+  stored as `{id, type, role, points: [{time, price}]}`. A comparison note with the same three
+  levels in that shape rendered the same rows WITH ids.
+
+What the missing fields break:
+- Role buttons. `setPlanRole` matched by `d.id === drawingId`; with no id on either side that is
+  true for every line, so pressing Stop on one row marked all three as the stop. **Fixed here**
+  (`lib/chartPlan.js`: no id, no change; `lib/chartPlan.finFe.test.js`, red first, mutation-checked).
+  After the fix the buttons do nothing on the sample note until the content is corrected.
+- "Arm alert at this level" needs `points[0].price` and answers "This level cannot carry an alert
+  yet." (read in code, `ChartPlanPanel.jsx` `armAlert`; not pressed in the probe).
+- The chart overlay draws a line from its `points`, so the three lines the note's text promises are
+  not expected to be drawn on the chart (read in code; not checked by pixel).
+
+**Change needed in `api/services/journal_two/sample_examples.py` (lane DATA owns it; not edited
+here).** In `_plan_note_body` and the second builder near line 236, write each level in the drawn
+shape, with the time the chart block is frozen at:
+
+```python
+to = _unix_seconds_et_close(date.fromisoformat(as_of_day))
+annotations = [
+    {"id": "ex-plan-entry", "type": "horizontal", "role": "entry", "points": [{"time": to, "price": entry}]},
+    {"id": "ex-plan-stop", "type": "horizontal", "role": "stop", "points": [{"time": to, "price": stop}]},
+    {"id": "ex-plan-target", "type": "horizontal", "role": "target", "points": [{"time": to, "price": target}]},
+]
+```
+
+No top-level `price`: `plan_extract` reads `price` first when present, and the frontend removes it
+whenever a role is set (`lib/chartPlan.js` `withPlanRole`). Ids must be unique within the block.
+Members who already added the sample keep the old shape until it is re-seeded.
+
 ## Bytes
 
 Static import closure of `tabs/NotebookTab.jsx`, source bytes: 3,612,090 before, 3,555,477 after.

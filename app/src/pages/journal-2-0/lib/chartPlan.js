@@ -165,6 +165,9 @@ export function withPlanRole(drawing, role) {
  */
 export function setPlanRole(annotations, drawingId, role) {
   const list = Array.isArray(annotations) ? annotations : []
+  // ⛔ No id, no change. `undefined === undefined` matched EVERY drawing that carries no id (the
+  // sample plan note's levels), so one press re-marked all of them.
+  if (drawingId == null || drawingId === '') return list
   if (!list.some((d) => d?.id === drawingId)) return list
   return list.map((d) => {
     if (d?.id === drawingId) return withPlanRole(d, role)
