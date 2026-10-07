@@ -220,3 +220,86 @@ describe('keyboard rows (F4, A2R-02)', () => {
     expect(document.activeElement).toBe(document.body)
   })
 })
+
+/**
+ * Finish program, lane KEYS3: `oneTabStop`, an OPT-IN prop. With it the body of the table is
+ * ONE Tab stop (the Notebook's card list already is, lib/useGridRoving.js): Down and Up go row
+ * to row, Right and Left reach the controls inside a row, Home and End the ends. Without it the
+ * component is exactly what it was (every clickable row its own stop), which is what every
+ * other caller gets.
+ */
+describe('oneTabStop (opt-in): the rows are one Tab stop', () => {
+  const inner = [
+    ...columns,
+    { key: 'act', header: 'Act', render: (r) => <button type="button" onClick={(e) => e.stopPropagation()}>{`Filter ${r.sym}`}</button> },
+  ]
+  const three = [...rows, { id: 'NVDA', sym: 'NVDA', price: 120, vol: '90M' }]
+  const stops = (c) => [...c.querySelectorAll('[tabindex="0"]')]
+  const rowOf = (sym) => screen.getByText(sym).closest('tr')
+  const key = (k) => fireEvent.keyDown(document.activeElement, { key: k })
+
+  test('⛔ CONTROL: without the prop every row is its own Tab stop, as before, and nothing is marked', () => {
+    setViewport(false)
+    const { container } = render(<ResponsiveTable columns={inner} rows={three} onRowClick={vi.fn()} />)
+    expect(stops(container)).toHaveLength(3)
+    expect(container.querySelectorAll('[data-grid-roving], [data-rt-row]')).toHaveLength(0)
+    expect(container.querySelectorAll('[tabindex="-1"]')).toHaveLength(0)
+  })
+
+  test('with the prop, one element of the whole body is in the Tab order: the first row', () => {
+    setViewport(false)
+    const { container } = render(<ResponsiveTable columns={inner} rows={three} onRowClick={vi.fn()} oneTabStop />)
+    expect(stops(container)).toEqual([rowOf('AAPL')])
+    expect(rowOf('MSFT').getAttribute('tabindex')).toBe('-1')
+    expect(screen.getByRole('button', { name: 'Filter AAPL' }).getAttribute('tabindex')).toBe('-1')
+  })
+
+  test('Down, Up, End and Home move row to row and the stop follows; one Tab leaves the table', async () => {
+    setViewport(false)
+    const user = userEvent.setup()
+    const { container } = render(
+      <div><ResponsiveTable columns={inner} rows={three} onRowClick={vi.fn()} oneTabStop /><button type="button">after</button></div>)
+    await user.tab()
+    expect(document.activeElement).toBe(rowOf('AAPL'))
+    key('ArrowDown')
+    expect(document.activeElement).toBe(rowOf('MSFT'))
+    expect(stops(container)).toEqual([rowOf('MSFT')])
+    key('End')
+    expect(document.activeElement).toBe(rowOf('NVDA'))
+    key('ArrowUp')
+    expect(document.activeElement).toBe(rowOf('MSFT'))
+    key('Home')
+    expect(document.activeElement).toBe(rowOf('AAPL'))
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'after' }))
+  })
+
+  test('Right reaches the control inside the row, Left comes back, and Enter still belongs to each', async () => {
+    setViewport(false)
+    const user = userEvent.setup()
+    const onRowClick = vi.fn()
+    render(<ResponsiveTable columns={inner} rows={three} onRowClick={onRowClick} oneTabStop />)
+    await user.tab()
+    key('ArrowRight')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Filter AAPL' }))
+    await user.keyboard('{Enter}')
+    expect(onRowClick).not.toHaveBeenCalled()
+    key('ArrowDown')                       // the same control, one row down
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Filter MSFT' }))
+    key('ArrowLeft')
+    expect(document.activeElement).toBe(rowOf('MSFT'))
+    await user.keyboard('{Enter}')
+    expect(onRowClick).toHaveBeenCalledWith(three[1], 1)
+  })
+
+  test('phone cards: the same one stop, moved with Down', async () => {
+    setViewport(true)
+    const user = userEvent.setup()
+    const { container } = render(<ResponsiveTable columns={columns} rows={three} mode="card" onRowClick={vi.fn()} oneTabStop />)
+    const card = (sym) => screen.getByText(sym).closest('[data-rt-row]')
+    expect(stops(container)).toEqual([card('AAPL')])
+    await user.tab()
+    key('ArrowDown')
+    expect(document.activeElement).toBe(card('MSFT'))
+  })
+})

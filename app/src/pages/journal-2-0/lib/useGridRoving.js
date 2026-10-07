@@ -24,6 +24,10 @@
  *
  * Rows are found by `rowSelector` inside the container. Controls are the row's buttons, links,
  * tick boxes and selects that are on screen. Tabindex only: nothing here changes a click or a tap.
+ *
+ * Lane KEYS3: a row that carries a tabindex of its own (a table row that opens its note on
+ * Enter) counts as the first control of that row. `components/mobile/ResponsiveTable.jsx` uses
+ * this hook for its opt-in `oneTabStop`, so the table view and the card view share one model.
  */
 import { useCallback, useLayoutEffect, useRef } from 'react'
 
@@ -44,7 +48,10 @@ export function gridRows(root, rowSelector) {
     .map((row) => {
       // a row that is itself one control (a card with no tick box beside it) is its own cell
       if (row.matches(CONTROLS)) return live.has(row) ? [row] : []
-      return [...row.querySelectorAll(CONTROLS)].filter((el) => live.has(el) && el.closest(rowSelector) === row)
+      const inside = [...row.querySelectorAll(CONTROLS)].filter((el) => live.has(el) && el.closest(rowSelector) === row)
+      // a row that is itself focusable (a table row that opens on Enter: the shared
+      // ResponsiveTable with `oneTabStop`) is the first cell of its own row
+      return row.hasAttribute('tabindex') ? [row, ...inside] : inside
     })
     .filter((cells) => cells.length > 0)
 }
