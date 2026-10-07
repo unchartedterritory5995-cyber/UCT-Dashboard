@@ -28,6 +28,9 @@ Nothing here turns a feature on. Every route named is still dark behind its flag
 | Round 2: a takedown is never paywalled | Ruling applied | `26124b23f5` | `tests/test_paywall_gate_free_tier.py`, `test_a_TAKEDOWN_is_never_paywalled_but_still_needs_a_session` |
 | Round 2: share links and published pages kept every attribute | Verified on the rendered page, fixed | `4b8a5a68cd` | `tests/test_notebook_fin_sec_public_attrs.py`, `public/ReadOnlyNote.hostile.test.jsx` |
 | Round 2: the editor rendered a stored font value as CSS | Verified, fixed | `756484b787` | `lib/tiptap.textStyleGuard.test.js` |
+| Round 3: a font named in a non-Latin script lost its font | Fixed on both sides | `165efca3f5` | the shared case table, read by both tests |
+| Round 3: a link rendered any stored class and title | Verified, fixed | `f0effd5355` | `lib/tiptap.linkGuard.test.js` |
+| Round 3: the first-open byte budget | Measured: under | none | `tools/notebook_perf_budgets.py` |
 
 Round 2 (2026-10-07) is at the end of this file. It reverses one decision of round 1
 (unpublish is session-only again) and closes two items round 1 left open (the public pages
@@ -478,16 +481,9 @@ Each renders exactly as before. Each hostile case renders no style at all.
 - One import path does not parse HTML: a note from our own JSON export is taken as its stored
   body (`heldBody`). That body is still checked when it is rendered.
 
-**Limits, stated plainly.**
-- A font name with non-Latin letters (for example a Japanese font name) does not match the
-  shape and is not rendered as a font. The text itself is untouched.
-- The Link mark still renders any `class` and `title` a stored link carries. The public
-  reducers and the gallery now remove both before they are served, so this only affects a
-  member's own notes in their own editor. Narrowing it means reconfiguring the Link
-  extension; not done here.
-- The Notebook's first-open byte budget was not measured. This adds about 3 KB of source to
-  `lib/tiptap.js` and no new dependency. A build was not run (disk space). The byte check is a
-  promotion gate, so it needs one run before this lands.
+**Limits at the end of round 2, all three closed in round 3 (below):** a font named in a
+non-Latin script lost its font; the Link mark rendered any stored class and title; the
+first-open byte budget had not been measured.
 
 ## Round 2 tests
 
@@ -502,3 +498,153 @@ Mutation checks, all red: 1 for the takedown, 7 for the public reducers, 6 for t
 One round 1 test was replaced: the gallery attribute test's control read share mode to show
 the hostile fixture really carried the value. Share mode now filters it, so the control counts
 the value in the fixture itself.
+
+# Round 3 (2026-10-07)
+
+## A font named in any script
+
+The safe shape accepted ASCII names only, so a font name written in Chinese, Japanese, Korean,
+Cyrillic, Greek, Arabic, Hebrew or Thai failed it and lost its font.
+
+**The shape now.** One to eight names separated by commas (up to two spaces each side). A name
+is Unicode letters, marks and digits (general categories L, M and N), plus the ASCII space,
+underscore and hyphen, at most 40 characters. Unquoted it starts with a letter, or a hyphen
+then a letter. Inside double quotes it may also hold an apostrophe; inside single quotes, a
+double quote. The whole value is at most 200 characters, counted by code point.
+
+It is an allow-list by category, so what could start a second CSS declaration or a function
+is out without being named:
+
+- `; : ( ) { } \ / < > ! @` are punctuation or symbols;
+- control characters are category Cc;
+- the look-alikes: the full-width semicolon, colon, parentheses, solidus, backslash,
+  exclamation mark and at sign are punctuation; the Greek question mark and the ratio sign
+  (which look like `;` and `:`) are punctuation and a symbol; bidirectional overrides,
+  isolates and zero-width characters are format characters (Cf); a no-break space and an
+  ideographic space are space separators, and only U+0020 counts as a space here.
+
+Full-width LETTERS (as in the Japanese font name written with full-width "MS") are letters
+and are accepted.
+
+**One algorithm, two languages.** `public_note_payload.safe_font_family` and
+`lib/tiptap.js` `safeFontFamily` are the same steps, and both count by code point. The shared
+case table, `tests/fixtures/notebook_text_style_cases.json`, gained eleven names to accept and
+twenty-four attacks to reject (and five for sizes, such as full-width and Arabic-Indic
+digits, which a size does not accept). Both tests read that one file.
+
+Not accepted, on purpose: a zero-width joiner or non-joiner inside a font name. A few scripts
+use them inside words, but they are format characters, the same category as the
+bidirectional overrides, so they stay out. Such a name is not rendered as a font; the text
+is untouched.
+
+## Links carry no class
+
+**Verified** in round 1 and again here: the stock Link mark rendered any stored `class` and
+`title` (14 failing tests before the change).
+
+**What changed, in `lib/tiptap.js` only.** The Notebook's Link is `Link.extend(...)` with two
+attributes replaced:
+
+- `class` is never read from pasted or imported HTML and never rendered;
+- `title` is kept only as plain, bounded text: at most 200 characters, no control character
+  and no format character. It is checked on the way in and on the way out.
+
+`href`, `target`, `rel` and every Link option are unchanged, and an ordinary link renders
+exactly as it did. Nothing in the app sets a class on a note's link. Paste goes through the
+same `parseHTML`; the importer builds with the same extension list (tested).
+
+## The first-open byte budget
+
+Measured after rounds 2 and 3, with every guard in place:
+
+```
+cd app && npm run build
+python tools/notebook_perf_budgets.py --dist app/dist
+
+bytes.notebook_first_open: 2,256,073 B across 66 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+It is under the budget by 4,720 B, so the guard code stays where it is, on the first-open
+path. Two things to know:
+
+- How much of that the guards added was not measured (that would need a second build of the
+  commit before them). The headroom is thin either way.
+- This is this branch alone. Another lane that adds to the first-open path could take the
+  merged result over the line, so the number should be read again on the merged tree.
+
+The build output was removed afterwards; nothing from it is committed.
+
+## Follow-up: a Content-Security-Policy for the public pages
+
+Not done here, by decision. Recorded so it can be picked up as its own task.
+
+**What a public note page serves today.**
+
+| Response | Headers that limit the browser |
+|---|---|
+| The page (`/share/n/<token>`, `/p/<slug>`): the app shell `index.html`, from `spa_index_response` in `api/main.py` | `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer`, `Cache-Control: no-cache, no-store, must-revalidate`. No Content-Security-Policy, no frame rule. |
+| The note JSON (`/api/j2/shared/{token}`, `/api/j2/published/{slug}`) | `Cache-Control: no-store, private`, `X-Robots-Tag`, `Referrer-Policy`, `X-Content-Type-Options: nosniff`. No Content-Security-Policy. |
+| A public image | the four above plus `Content-Security-Policy: default-src 'none'` |
+
+No other code in `api/` sets the header and `app/index.html` has no policy tag. Whether
+Cloudflare adds one at the edge was not checked. So today nothing at the browser level limits
+what a public note page may load or where it may be framed. The reducer and the editor guards
+are the whole defence.
+
+**The policy I would recommend, for the two public paths only.**
+
+```
+default-src 'self';
+script-src 'self';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+font-src 'self';
+connect-src 'self';
+frame-src https://www.youtube-nocookie.com https://s.tradingview.com;
+frame-ancestors 'none';
+base-uri 'none';
+form-action 'none';
+object-src 'none'
+```
+
+Why each choice:
+
+- `script-src 'self'` is the one that matters most: even if some future path let markup
+  through, no inline or outside script would run.
+- `style-src` has to keep `'unsafe-inline'`. TipTap writes fonts, sizes, column widths and
+  image widths as inline styles, and the app's own components do too. So this policy does
+  NOT stop an inline style. That is why the attribute checks in rounds 1 to 3 were needed,
+  and why they stay the defence for styles.
+- `img-src https:` because a member may place an outside image in a note and the reducer
+  keeps it. Narrowing it to our own host would hide those images; that is a product choice.
+- `frame-src` names the two players the embed allow-list can build (`lib/webEmbeds.js`).
+- `frame-ancestors 'none'` stops another site framing a public note.
+- `connect-src 'self'` stops the page calling out anywhere but our own API.
+
+**Why it needs a real-browser pass before it can ship.**
+
+- The page is the SAME app shell every other page uses. The policy must be set by path, and
+  the shell still boots the whole app on a public path: the auth check, the intro, fonts,
+  any analytics or error reporting, the chart library. Any of those that uses an inline
+  script, an outside host, `eval`, a web worker or a blob address would break, and it would
+  break only for visitors, where nobody on the team is looking.
+- Vite may emit an inline module-preload helper or inline styles in the built `index.html`.
+  That needs reading from a real build, not from source.
+- jsdom does not enforce a policy at all, so no test in this repo can show a violation. The
+  honest way is to ship it first as `Content-Security-Policy-Report-Only`, open a share link
+  and a published page in a real browser (desktop and a phone), read the console for
+  violations, fix or allow each one on purpose, and only then enforce.
+- Cloudflare sits in front. If it injects a script (for example bot checks or email
+  obfuscation), the policy has to allow it or that feature has to be turned off for these
+  paths.
+
+## Round 3 tests
+
+| Command | Totals line |
+|---|---|
+| `python -m pytest` on the public-payload, share, publish, gallery and capture-auth-boundary suites, by name (8 files) | 822 passed |
+| `npx vitest run` on the 63 Notebook test files that use the extension config or a link, plus the two public page tests (64 files) | 1431 passed |
+| `python tools/notebook_perf_budgets.py --dist app/dist` | PASS, 2,256,073 B of 2,260,793 B |
+
+Mutation checks, all red: 3 on the server shape, 3 on the editor shape, 4 on the link guard.
