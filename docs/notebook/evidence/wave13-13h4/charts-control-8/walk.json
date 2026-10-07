@@ -1,0 +1,121 @@
+{
+ "tool": "tools/notebook_w13h4_charts_control.py",
+ "base": "http://127.0.0.1:8694",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13h4\\charts-control-8\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 21:47:33",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 21:49:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 21:49:19",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13h4\\charts-control-8\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h4\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T21-47-23.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "raw": {
+  "bare_V390_canvas_box": [
+   0,
+   53,
+   300,
+   150
+  ],
+  "bare_V390_armed_after_press": {
+   "ariaPressed": "true",
+   "boxShadow": "none"
+  },
+  "bare_V390_mobile_draw_bar_present": true,
+  "bare_V390_repeat_flag": "true",
+  "bare_V390_taps": [
+   {
+    "frac": 0.28,
+    "box": [
+     0,
+     53,
+     390,
+     736
+    ],
+    "x": 175.5,
+    "y": 259.1,
+    "armed_before_tap": {
+     "ariaPressed": "true",
+     "boxShadow": "none"
+    },
+    "armed_after_tap": {
+     "ariaPressed": "true",
+     "boxShadow": "none"
+    },
+    "count_after_tap": 1
+   },
+   {
+    "frac": 0.5,
+    "box": [
+     0,
+     53,
+     390,
+     736
+    ],
+    "x": 175.5,
+    "y": 421.0,
+    "armed_before_tap": {
+     "ariaPressed": "true",
+     "boxShadow": "none"
+    },
+    "armed_after_tap": {
+     "ariaPressed": "true",
+     "boxShadow": "none"
+    },
+    "count_after_tap": 2
+   },
+   {
+    "frac": 0.72,
+    "box": [
+     0,
+     53,
+     390,
+     736
+    ],
+    "x": 175.5,
+    "y": 582.9,
+    "armed_before_tap": {
+     "ariaPressed": "true",
+     "boxShadow": "none"
+    },
+    "armed_after_tap": {
+     "ariaPressed": "true",
+     "boxShadow": "none"
+    },
+    "count_after_tap": 3
+   }
+  ],
+  "bare_V390_drawings_stored": 3,
+  "bare_V390_drawings_settle_tries": 0,
+  "bare_V390_errors": []
+ }
+}

@@ -120,4 +120,12 @@
     align-items: center;
     min-height: var(--tap-min);
   }
+  /* FIN-A11Y (review R4, I-8): the card is fixed to the bottom edge here (about 200px tall),
+     and a target scrolled into view with block: 'nearest' came to rest at the bottom edge,
+     UNDER it. The margin keeps the target clear of the card and of the top bar. Both tours
+     (this one and the generic engine) mark their anchor with this attribute. */
+  :global([data-tour-active='true']) {
+    scroll-margin-top: 64px;
+    scroll-margin-bottom: calc(260px + env(safe-area-inset-bottom));
+  }
 }

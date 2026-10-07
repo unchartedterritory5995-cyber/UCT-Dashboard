@@ -28,10 +28,14 @@ const TOKEN = /aria-|role=/
 export const EXEMPT = Object.freeze({
   'components/notebook/NotebookFlagGate.jsx':
     'renders its children or null; no markup or control of its own',
+  'components/notebook/GettingStartedChecklist.jsx':
+    'the eager gate: renders the lazy GettingStartedList (a named section) or null; no markup or control of its own',
   'components/notebook/CaptureHost.jsx':
     'mounts CaptureDialog (itself a named dialog) and a global key listener; no markup of its own',
   'components/notebook/NoteStats.jsx':
     'one line of plain text (word count, reading time) read as text; deliberately NOT a live region, which would talk over typing',
+  'components/notebook/TranscriptDoors.jsx':
+    'a native <button> named by its visible text ("Save from a transcript") plus a host that mounts SaveTranscriptPassage (itself a named dialog); no markup that needs aria',
 })
 
 /** Another lane's file in the population. Classified, but its staleness is the

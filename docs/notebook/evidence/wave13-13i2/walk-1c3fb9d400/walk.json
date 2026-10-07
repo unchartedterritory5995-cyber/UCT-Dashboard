@@ -1,0 +1,35 @@
+{
+ "wave": 13,
+ "lane": "13I-2",
+ "checks": {},
+ "errors": [],
+ "requests": [],
+ "seeded": {
+  "market_stores": {
+   "rc": 0,
+   "line": "SEED {\"bars_written\": {\"NVDA\": 320, \"SPY\": 320}, \"first_day\": \"2025-07-14\", \"last_day\": \"2026-10-02\", \"confirmed_verdicts\": [{\"setup\": \"vcp\", \"asof_date\": \"2026-10-02\", \"vision_confidence\": 82.0}], \"bars_db\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\\\scratchpad\\\\w13i2-data-2\\\\bars.db\", \"pattern_db\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\\\scratchpad\\\\w13i2-data-2\\\\pattern_vision.db\"}",
+   "stderr_tail": ""
+  }
+ },
+ "tip": "1c3fb9d400",
+ "base": "http://127.0.0.1:8640",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13i2-data-2",
+ "instrument": "tools\\notebook_w13i2_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0 payload_flags)",
+ "stop": "exited-on-its-own (rc 1)",
+ "first_line": "SANDBOX INTEGRITY: NOT RUN (the sandbox never answered /api/health) -- the sandbox's checkpoints: MISSING -- no checkpoints; the launcher's integrity log was never found; log: (none)",
+ "integrity": {
+  "path": null,
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [],
+  "status": "MISSING",
+  "clean": false,
+  "why": "the launcher's integrity log was never found"
+ },
+ "not_run": "the sandbox never answered /api/health"
+}

@@ -1,0 +1,56 @@
+{
+ "result": {
+  "enabled": true,
+  "scanned_users": 1,
+  "fired": 0,
+  "regime_degraded": false,
+  "resurface": {
+   "members": 1,
+   "priced_symbols": 1,
+   "fired": 0,
+   "sides_moved": 2,
+   "notes_projected": 1,
+   "notes_removed": 0,
+   "rows_written": 3,
+   "notes_behind": 0
+  }
+ },
+ "insights": [],
+ "levels": [
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "level_id": "note",
+   "symbol": "NVDA",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "level_id": "stop@100.0",
+   "symbol": "NVDA",
+   "role": "stop",
+   "price": 100.0,
+   "on_date": null,
+   "version_id": "3b7707661b084565a5704c29b643a27f",
+   "last_side": "above"
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "level_id": "target@130.0",
+   "symbol": "NVDA",
+   "role": "target",
+   "price": 130.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": "below"
+  }
+ ],
+ "fires": [],
+ "deliver_calls": 0
+}

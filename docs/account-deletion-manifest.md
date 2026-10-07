@@ -49,12 +49,14 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**77 tables** (74 direct by `user_id`, 1 direct by another member key, 2 indirect).
+**92 tables** (87 direct by `user_id`, 1 direct by another member key, 4 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
 | `j2_option_legs` | `strategy_id` → `j2_option_strategies.user_id` | **Indirect** | join delete through `j2_option_strategies`, run before the direct deletes |
 | `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | join delete through `j2_broker_accounts`, run before the direct deletes |
+| `j2_template_gallery_reports` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
+| `j2_template_gallery_uses` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_settings` | `user_id` | Direct | `DELETE FROM j2_settings WHERE user_id = ?` |
 | `j2_positions` | `user_id` | Direct | `DELETE FROM j2_positions WHERE user_id = ?` |
 | `j2_trades` | `user_id` | Direct | `DELETE FROM j2_trades WHERE user_id = ?` |
@@ -108,6 +110,8 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_trade_attachments` | `user_id` | Direct | `DELETE FROM j2_trade_attachments WHERE user_id = ?` |
 | `j2_trade_excursions` | `user_id` | Direct | `DELETE FROM j2_trade_excursions WHERE user_id = ?` |
 | `j2_trade_adherence` | `user_id` | Direct | `DELETE FROM j2_trade_adherence WHERE user_id = ?` |
+| `j2_trade_plan_links` | `user_id` | Direct | `DELETE FROM j2_trade_plan_links WHERE user_id = ?` |
+| `j2_trade_plan_misses` | `user_id` | Direct | `DELETE FROM j2_trade_plan_misses WHERE user_id = ?` |
 | `j2_broker_users` | `user_id` | Direct | `DELETE FROM j2_broker_users WHERE user_id = ?` |
 | `j2_broker_accounts` | `user_id` | Direct | `DELETE FROM j2_broker_accounts WHERE user_id = ?` |
 | `j2_broker_equity_snapshots` | `user_id` | Direct | `DELETE FROM j2_broker_equity_snapshots WHERE user_id = ?` |
@@ -128,6 +132,17 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_note_embeddings` | `user_id` | Direct | `DELETE FROM j2_note_embeddings WHERE user_id = ?` |
 | `j2_ai_change_sets` | `user_id` | Direct | `DELETE FROM j2_ai_change_sets WHERE user_id = ?` |
 | `j2_ai_change_items` | `user_id` | Direct | `DELETE FROM j2_ai_change_items WHERE user_id = ?` |
+| `j2_template_gallery` | `user_id` | Direct | `DELETE FROM j2_template_gallery WHERE user_id = ?` |
+| `j2_template_gallery_reports` | `user_id` | Direct | `DELETE FROM j2_template_gallery_reports WHERE user_id = ?` |
+| `j2_template_gallery_uses` | `user_id` | Direct | `DELETE FROM j2_template_gallery_uses WHERE user_id = ?` |
+| `j2_chart_blocks` | `user_id` | Direct | `DELETE FROM j2_chart_blocks WHERE user_id = ?` |
+| `j2_chart_fingerprints` | `user_id` | Direct | `DELETE FROM j2_chart_fingerprints WHERE user_id = ?` |
+| `j2_entry_context` | `user_id` | Direct | `DELETE FROM j2_entry_context WHERE user_id = ?` |
+| `j2_entry_context_bell_log` | `user_id` | Direct | `DELETE FROM j2_entry_context_bell_log WHERE user_id = ?` |
+| `j2_passed_setups` | `user_id` | Direct | `DELETE FROM j2_passed_setups WHERE user_id = ?` |
+| `j2_note_levels` | `user_id` | Direct | `DELETE FROM j2_note_levels WHERE user_id = ?` |
+| `j2_note_resurface_fires` | `user_id` | Direct | `DELETE FROM j2_note_resurface_fires WHERE user_id = ?` |
+| `j2_similar_matches` | `user_id` | Direct | `DELETE FROM j2_similar_matches WHERE user_id = ?` |
 | `options_spread_book` | `user_id` | Direct | `DELETE FROM options_spread_book WHERE user_id = ?` |
 | `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
 

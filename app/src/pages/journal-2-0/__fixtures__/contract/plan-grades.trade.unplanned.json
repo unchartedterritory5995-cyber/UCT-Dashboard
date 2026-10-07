@@ -1,0 +1,23 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/plan-grades/trades/pg-unplanned",
+    "note": "A trade with no plan: the empty state of the card.",
+    "path": "/api/j2/plan-grades/trades/pg-unplanned",
+    "status": 200
+  },
+  "body": {
+    "candidates": [],
+    "checks": null,
+    "dateOnly": false,
+    "entryDay": "2026-09-10",
+    "labels": [],
+    "plan": null,
+    "setupChip": null,
+    "side": "Long",
+    "status": "unplanned",
+    "symbol": "PGUN",
+    "tradeId": "pg-unplanned",
+    "tradeRef": "id:pg-unplanned"
+  }
+}

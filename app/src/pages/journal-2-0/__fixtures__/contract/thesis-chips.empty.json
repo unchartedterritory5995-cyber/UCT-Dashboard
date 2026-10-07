@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "POST /api/j2/thesis-chips",
+    "note": "No note on any symbol asked for: an empty object, never a blank chip.",
+    "path": "/api/j2/thesis-chips",
+    "requestBody": {
+      "symbols": [
+        "TCNV"
+      ]
+    },
+    "status": 200
+  },
+  "body": {}
+}

@@ -1,0 +1,212 @@
+<<<<<<< OURS(prev)
+// ⛔ ONE LABEL PER KIND. This used to be a single ticker template applied to
+// every row, so a screen reader announced a note or a command as
+// "undefined. Enter for Research…" — invisible on screen, wrong out loud.
+function rowAriaLabel(r) {
+  if (r._typed) return undefined // the visible "Go to NVDA" text is the name
+  if (r.kind === 'saved') return `${r.kindLabel}: ${r.name}. Enter to open.`
+  if (r.kind === 'command') return r.label
+  if (r.kind === 'terminal') return `Run in UCT Terminal: ${r.command}. ${r.label}.`
+  if (r.kind === 'note') {
+    const where = r.context ? `, in ${r.context}` : ''
+    const badge = r.badge ? ` (${r.badge})` : ''
+    return `Note: ${r.title}${where}${badge}. Enter to open.`
+  }
+  return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`
+}
+
+=======
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+  // Quick switcher: notes whose TITLE matches, across the whole library. Its
+  // own loading/error pair — a notes outage must not read as "no securities"
+  // and a ticker outage must not hide the notes that did come back.
+  const [noteMatches, setNoteMatches] = useState([])
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [notesError, setNotesError] = useState(false)
+  // The query `noteMatches` answers (an error or a skipped ask answers too:
+  // "no note"). R1-N2: Enter waits on it — see enterMustWait.
+  const [notesFor, setNotesFor] = useState(null)
+  // R1-N2: an Enter pressed before the answers that decide its target are in.
+  // { query, ask, at } — it lands once they are, or at ENTER_WAIT_MS.
+  const [pendingEnter, setPendingEnter] = useState(null)
+  // TERM-038: saved things as names -- chart layouts and watchlists the member owns,
+  // from /api/address/search. Asked ONLY while the flag rides the auth payload, so a
+  // dark deploy sends no extra request (the palette's request-count rails hold).
+  // Notes are left to the quick switcher above, which already searches titles.
+  // useContext, not useAuth(): the palette must render (flag off) outside a provider.
+  const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  const [savedRows, setSavedRows] = useState([])
+  const [savedFor, setSavedFor] = useState(null)
+  const [savedError, setSavedError] = useState(false)
+  const savedAbortRef = useRef(null)
+
+  // Lane T3 (V4): the palette is a second front end of the TERMINAL grammar. Only while
+  // the shell is released to this member (the server's cohort answer) — a closed shell
+  // would bounce `/terminal?cmd=` back to /calendar, so the palette never offers it.
+  const terminalOpen = useTerminalNext()
+  const terminalOpenRef = useRef(terminalOpen)
+  terminalOpenRef.current = terminalOpen
+  const locationRef = useRef(location)
+  locationRef.current = location
+=======
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+      setResultsFor(null)
+      setNoteMatches([])
+      setNotesFor(null)
+      setSavedRows([])
+      setSavedFor(null)
+      setSavedError(false)
+      if (savedAbortRef.current) savedAbortRef.current.abort()
+      setPendingEnter(null)
+      flushRef.current = null
+      exhaustedRef.current = null
+=======
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+    const run = () => {
+      flushRef.current = null
+      // Quick switcher: the SAME debounced keystroke asks the notes index for
+      // titles, in parallel with the ticker search — never a second timer, so
+      // the two lists always describe the same query.
+      if (noteAbortRef.current) noteAbortRef.current.abort()
+      if (extendsExhausted(exhaustedRef.current, q)) {
+        // The server already said no longer query can match a note: a ticker
+        // search typed past a non-note prefix costs the notes index nothing.
+        setNoteMatches([])
+        setNotesFor(q)
+        setNotesLoading(false)
+        setNotesError(false)
+      } else {
+        const nac = new AbortController()
+        noteAbortRef.current = nac
+        setNotesLoading(true)
+        setNotesError(false)
+        jsonFetcher(noteSwitcherUrl(q), { signal: nac.signal })
+          .then((data) => {
+            if (reqIdRef.current !== myReqId) return
+            setNoteMatches(Array.isArray(data?.notes) ? data.notes.map(toNoteRow) : [])
+            if (data?.prefixExhausted === true) exhaustedRef.current = normalizeSwitcherQuery(q)
+            setNotesFor(q)
+            setNotesLoading(false)
+          })
+          .catch((err) => {
+            if (err?.name === 'AbortError') return
+            if (reqIdRef.current !== myReqId) return
+            setNoteMatches([])
+            setNotesFor(q)
+            setNotesError(true)
+            setNotesLoading(false)
+          })
+      }
+
+      if (savedAbortRef.current) savedAbortRef.current.abort()
+      if (addressSpaceEnabled && q.length >= 2) {
+        const sac = new AbortController()
+        savedAbortRef.current = sac
+        jsonFetcher(`/api/address/search?q=${encodeURIComponent(q)}`, { signal: sac.signal })
+          .then((data) => {
+            if (reqIdRef.current !== myReqId) return
+            const rows = Array.isArray(data?.results) ? data.results : []
+            setSavedRows(rows.filter((r) => r.kind !== 'note').slice(0, 6).map((r) => ({
+              kind: 'saved', id: r.address, name: r.name, kindLabel: r.kind_label,
+              savedKind: r.kind, to: r.to,
+            })))
+            setSavedError(Array.isArray(data?.unavailable) && data.unavailable.some((k) => k !== 'note'))
+            setSavedFor(q)
+          })
+          .catch((err) => {
+            if (err?.name === 'AbortError') return
+            if (reqIdRef.current !== myReqId) return
+            setSavedRows([])
+            setSavedError(true)
+            setSavedFor(q)
+          })
+      } else {
+        setSavedRows([])
+        setSavedFor(q)
+      }
+
+=======
+    debounceRef.current = setTimeout(() => {
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+    }
+    debounceRef.current = setTimeout(run, 150)
+    flushRef.current = () => { clearTimeout(debounceRef.current); run() }
+    return () => { clearTimeout(debounceRef.current); flushRef.current = null }
+  }, [query, open, addressSpaceEnabled])
+=======
+    }, 150)
+    return () => clearTimeout(debounceRef.current)
+  }, [query, open])
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+  // Notebook COMMAND rows first — matching "trash"/"note"/"recent" etc. is a
+  // far more deliberate signal than an incidental ticker-name substring
+  // match, so a command a member clearly asked for should never be buried
+  // below ticker noise.
+  // ⛔ Quick-switcher note matches are placed by `orderPaletteRows`, and the
+  // rule is written there, not here: a short ticker-shaped query keeps every
+  // ticker row (incl. the zero-network "Go to NVDA") above the notes, so Enter
+  // on "nvda" still opens NVDA's research page however fast the notes answer.
+  const noteMatchRows = isHelp ? [] : noteMatches
+  const tickersSettled = !loading && resultsFor === trimmedQuery
+  const notesSettled = !notesLoading && notesFor === trimmedQuery
+  const orderedRows = useMemo(
+    () => orderPaletteRows({
+      commands: notebookCommandRows,
+      keywordNotes: notebookNoteRows,
+      tickers: tickerRows,
+      noteMatches: noteMatchRows,
+      qUpper,
+      tickerLead: tickerLeads(qUpper, TICKER_LIKE),
+      tickersSettled,
+    }),
+    [notebookCommandRows, notebookNoteRows, tickerRows, noteMatchRows, qUpper, tickersSettled],
+  )
+  // TERM-038: saved rows go LAST, and only for the query as typed -- they never sit above
+  // a ticker or a note, so what a bare Enter opens is decided exactly as before.
+  const savedFresh = !isHelp && savedFor === trimmedQuery ? savedRows : []
+  // V4: one terminal-command row from the shell's own parser (paletteGrammar.js says where).
+  const terminalRow = useMemo(
+    () => (terminalOpen && !isHelp ? terminalCommandRow(trimmedQuery) : null),
+    [terminalOpen, isHelp, trimmedQuery],
+  )
+  const displayRows = useMemo(() => {
+    if (terminalRow?.placement === 'lead') return [terminalRow.row, ...orderedRows, ...savedFresh]
+    if (terminalRow) return [...orderedRows, ...savedFresh, terminalRow.row]
+    return [...orderedRows, ...savedFresh]
+  }, [orderedRows, savedFresh, terminalRow])
+  // R1-N2 / R23-N4: does an Enter on the top row have to wait for the answers
+  // first? For a ticker-led query, for BOTH of them.
+  const mustWait = enterMustWait({
+    hasFixedLeaders: notebookCommandRows.length > 0 || notebookNoteRows.length > 0
+      || terminalRow?.placement === 'lead',
+    tickerLead: tickerLeads(qUpper, TICKER_LIKE),
+    notesSettled,
+    tickersSettled,
+  })
+=======
+  // Notebook rows first — matching "trash"/"note"/"recent" etc. is a far
+  // more deliberate signal than an incidental ticker-name substring match,
+  // so a command a member clearly asked for should never be buried below
+  // ticker noise.
+  const displayRows = useMemo(
+    () => [...notebookCommandRows, ...notebookNoteRows, ...tickerRows],
+    [notebookCommandRows, notebookNoteRows, tickerRows],
+  )
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+          {savedError && !isHelp && <div className={styles.resultError} data-testid="palette-saved-error">Saved layouts and watchlists are briefly unavailable — they are still there.</div>}
+          {notesError && !isHelp && <div className={styles.resultError}>Note search is briefly unavailable — your notes are safe; try again in a moment.</div>}
+=======
+>>>>>>> THEIRS(pre-landing)
+

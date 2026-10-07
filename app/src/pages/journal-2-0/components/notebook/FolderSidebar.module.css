@@ -7,6 +7,39 @@
   flex-direction: column;
   gap: 16px;
 }
+/* Wave 13 lane 13Q-3: "Skip to folder navigation" -- same H14-safe recipe as every other skip
+   link in this feature (NotebookTab.module.css .skipLink, Layout.module.css .skipLink):
+   invisible and pointer-transparent unless focused, so it can never paint over a tap target at
+   narrow widths, and portaled so it lands as an early Tab stop rather than after the sidebar
+   content it exists to bypass. */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none;
+}
+.skipLink:focus {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+@media (max-width: 1024px) {
+  .skipLink {
+    min-height: var(--tap-min);
+  }
+}
 .section { display: flex; flex-direction: column; gap: 2px; }
 .sectionLabel {
   font-size: 10px;

@@ -1,0 +1,30 @@
+{
+ "windowDays": 7,
+ "today": "2026-10-02",
+ "items": [
+  {
+   "symbol": "AMD",
+   "date": "2026-10-05",
+   "daysAway": 3,
+   "timing": null,
+   "sources": [
+    "watchlist"
+   ],
+   "prepNote": null
+  },
+  {
+   "symbol": "NVDA",
+   "date": "2026-10-07",
+   "daysAway": 5,
+   "timing": "amc",
+   "sources": [
+    "positions"
+   ],
+   "prepNote": null
+  }
+ ],
+ "partial": false,
+ "source": "UCT earnings calendar",
+ "asOf": "2026-10-02T22:54:29+00:00",
+ "watched": 2
+}

@@ -40,3 +40,33 @@ def test_an_edited_quote_is_refused():
     sources = {pid: {'vendor': 'evernote', 'kind': 'browser-read', 'public_url': q['url']}}
     got = S.browser_read_problems(quotes={'E_planted': [pid, q['quote'] + ' and more']}, sources=sources, evidence=ev)
     assert got, 'a quote that is not the evidence file\'s exact words passed'
+
+
+# ── wave 12, lane 12C phase 1: a FETCHED verbatim quote supersedes a paraphrase; nothing else does ──
+
+def test_a_fetched_quote_supersedes_a_paraphrase_and_a_browser_read_or_a_string_does_not():
+    fetched = {'src_f': {'vendor': 'evernote', 'status': 200, 'sha256': 'ab' * 32, 'public_url': 'https://x/f'}}
+    browser = {'src_b': {'vendor': 'evernote', 'kind': 'browser-read', 'status': 200, 'sha256': 'cd' * 32,
+                          'public_url': 'https://x/b'}}   # 200 + sha on purpose: only the kind may refuse it
+    unhashed = {'src_u': {'vendor': 'evernote', 'status': 200, 'sha256': None, 'public_url': 'https://x/u'}}
+    sources = {**fetched, **browser, **unhashed}
+    quotes = {'Q_f': ['src_f', 'a sentence'], 'Q_b': ['src_b', 'a sentence'], 'Q_u': ['src_u', 'a sentence']}
+    sup = lambda cited: S.paraphrase_superseded(cited, quotes=quotes, sources=sources)
+    assert sup(['Q_f'])                                   # the control: the one case that supersedes
+    assert not sup(['Q_b'])                               # a browser read is checked against the evidence file instead
+    assert not sup(['Q_f', 'Q_b'])                        # one browser-read quote is enough to keep the old rule
+    assert not sup(['Q_u'])                               # a 200 with no sha256 of the bytes is not a recorded fetch
+    assert not sup('not verified — a reason')             # a string cell never supersedes anything
+    assert not sup([])
+
+
+def test_every_r18_quote_is_cut_from_a_recorded_fetch():
+    r18 = {pid: m for pid, m in S.SOURCES.items() if m.get('rrow') == 'R18'}
+    assert len(r18) >= 20, len(r18)                      # non-vacuity: lane 12C's pass is in the manifest
+    for pid, m in r18.items():
+        assert m['status'] == 200 and m.get('kind') != 'browser-read', pid
+        assert len(m['sha256']) == 64 and int(m['sha256'], 16) >= 0, pid
+        assert m['fetched_utc'].startswith('2026-10-02T') and m['fetched_utc'].endswith('Z'), pid
+    keys = [k for k, (pid, _q) in S.QUOTES.items() if pid in r18]
+    assert len(keys) >= 30, len(keys)
+    assert all(len(S.QUOTES[k][1].split()) <= 25 for k in keys)

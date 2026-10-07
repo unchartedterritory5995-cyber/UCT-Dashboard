@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {},
+    "status": 401
+  },
+  "body": {
+    "detail": "Not authenticated"
+  }
+}

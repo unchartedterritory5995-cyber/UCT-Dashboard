@@ -68,10 +68,23 @@ export default function WidgetPalette({ editor, onClose }) {
   const [inserted, setInserted] = useState(null)
   const symRef = useRef(null)
   const panelRef = useRef(null)
+  const firstTypeRef = useRef(null)
 
-  // Opening a form focuses the ticker — the whole point is speed.
+  // Opening a form focuses the ticker — the whole point is speed. Returning to the type
+  // list (mount, or "Back") focuses its FIRST button, for the same reason and one more:
+  // this dialog is mounted from inside the editor's phone "Format" disclosure
+  // (NoteEditorPage.jsx's `.formatRun` spans toggle `display:none` -> `display:contents`
+  // on open), and a real-browser keyboard walk measured that a plain forward Tab out of
+  // that just-revealed region does NOT reliably land inside this dialog at phone width —
+  // it can wrap back into the toolbar's own controls instead of advancing into the panel,
+  // running out a capped Tab budget hunting for a control that was one real press away on
+  // desktop (docs/notebook/evidence/wave13-13q3/q20-dialog-diagnosis/). Moving focus here
+  // explicitly removes the dependency on that natural tab order entirely, at every width,
+  // and is also what makes the Escape/Tab trap below correct from the very first key press
+  // (it only wraps correctly once `document.activeElement` is already inside the panel).
   useEffect(() => {
-    if (kind) symRef.current?.focus()
+    if (kind) { symRef.current?.focus(); return }
+    firstTypeRef.current?.focus()
   }, [kind])
 
   // ⛔⛔ THIS WAS A role="dialog" WITH NO KEYBOARD ESCAPE HATCH AT ALL -- a
@@ -145,14 +158,28 @@ export default function WidgetPalette({ editor, onClose }) {
           {/* Registry half of the roster — every menus.journal type, labeled
               by the registry (today: chart; a new journal-menu type appears
               here the day it lands). */}
-          {JOURNAL_MENU_TYPES.map((id) => (
-            <button key={id} type="button" className={styles.typeBtn} onClick={() => setKind(id)}>
+          {JOURNAL_MENU_TYPES.map((id, i) => (
+            <button
+              key={id}
+              ref={i === 0 ? firstTypeRef : undefined}
+              type="button"
+              className={styles.typeBtn}
+              onClick={() => setKind(id)}
+            >
               <span className={styles.typeLabel}>{widgetMeta(id)?.labels?.menu || id}</span>
               <span className={styles.typeHint}>Frozen snapshot — your chart settings and drawings</span>
             </button>
           ))}
-          {PRESETS.map((p) => (
-            <button key={p.kind} type="button" className={styles.typeBtn} onClick={() => setKind(p.kind)}>
+          {PRESETS.map((p, i) => (
+            <button
+              key={p.kind}
+              // JOURNAL_MENU_TYPES is never empty today, but the first-focus target must
+              // never silently become nothing if it ever were.
+              ref={JOURNAL_MENU_TYPES.length === 0 && i === 0 ? firstTypeRef : undefined}
+              type="button"
+              className={styles.typeBtn}
+              onClick={() => setKind(p.kind)}
+            >
               <span className={styles.typeLabel}>{p.label}</span>
               <span className={styles.typeHint}>{p.hint}</span>
             </button>

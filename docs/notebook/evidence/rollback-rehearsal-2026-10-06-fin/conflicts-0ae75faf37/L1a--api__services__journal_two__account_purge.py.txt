@@ -1,0 +1,67 @@
+<<<<<<< OURS(prev)
+    from api.services import account_tombstones
+    tomb = tombstone if tombstone is not None else account_tombstones.record_tombstone(user_id, conn)
+    if not tomb.get("recorded"):
+        why = f"tombstone: {tomb.get('why')}"
+        log.warning("journal_two account purge ABORTED for %s -- %s", user_id, why)
+        return {"ok": False, "aborted": True, "user_id": user_id, "rows_deleted": {},
+                "total_rows_deleted": 0, "attachment_dirs_removed": 0,
+                "errors": [why + " -- nothing was deleted"], "tombstone": tomb}
+
+    report = purge_user_rows(user_id, conn)
+    errors = report["errors"]
+
+    # On-disk attachments: notebook inline/hero images AND trade screenshots
+    # both nest under one per-user directory (attachment_root()/user_id) by
+    # construction — see attachment_gc.py's own `root / user_id` walk and
+    # trade_attachments.py's `_ATTACHMENT_ROOT / user_id / "trades"`. One
+    # directory removal covers every attachment sub-type, present or future.
+    freed_dirs = 0
+    try:
+        from api.services.journal_two.attachment_root import (
+            LEGACY_ATTACHMENT_ROOT,
+            attachment_root,
+        )
+
+        for root in (attachment_root(), LEGACY_ATTACHMENT_ROOT):
+            udir = root / user_id
+            if udir.is_dir():
+                shutil.rmtree(udir, ignore_errors=True)
+                freed_dirs += 1
+    except Exception as e:  # noqa: BLE001 — disk cleanup must never mask the DB purge's result
+        errors.append(f"attachments: {e}")
+        log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
+
+    # Wave 11 lane 11A: a voice note still on its way to a transcript holds the
+    # member's AUDIO (and the transcript so far) in this process's temp directory
+    # and memory -- never a table, so it is not in the manifest above. It goes now,
+    # not at the 2-hour sweep.
+    voice_jobs = 0
+    try:
+        from api.services.journal_two import voice_notes
+        voice_jobs = voice_notes.purge_user(user_id)
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"voice notes: {e}")
+        log.warning("journal_two voice-note purge failed for %s: %s", user_id, e)
+
+    # The tombstone (R-9) was recorded before the first delete above: the live purge is
+    # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
+    # an object beside the backups -- is what makes every restore delete them again.
+    return {
+        **report,
+        "ok": not errors,
+        "attachment_dirs_removed": freed_dirs,
+        "voice_jobs_removed": voice_jobs,
+        "errors": errors,
+        "tombstone": tomb,
+    }
+
+
+def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
+    """The DATABASE half of `purge_user_data`: every row of the family, and nothing on
+    disk, and no tombstone. ⛔ This is what a RESTORE replays (account_tombstones.replay_on_db):
+    on the machine running a restore drill the attachment directories are not the
+    deleted member's, so a replay must never touch a filesystem."""
+=======
+>>>>>>> THEIRS(pre-landing)
+

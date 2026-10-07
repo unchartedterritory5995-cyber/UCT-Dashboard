@@ -1,0 +1,7 @@
+== Mo1-gate-says-every-tour-opened  (app/src/pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.jsx)
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.jsx (blob 08725a81a19e)
+× a tour with nothing to show closes without opening; the offer moves on and nothing is recorded 4052ms
+Test Files  1 failed (1)
+Tests  1 failed | 22 passed (23)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > W14-Q1 S6 end to end: the REAL registry gate and engine report the tour that never opened > a tour with nothing to show closes without opening; the offer moves on and nothing is recorded

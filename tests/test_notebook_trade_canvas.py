@@ -104,10 +104,25 @@ def test_the_gate_is_DARK_unless_set_and_rides_the_auth_payload():
     assert _find(_payload(**{FLAG: "maybe"}), KEY) is False
 
 
-def test_the_ledger_declares_the_gate_dark_with_a_reason():
+def test_the_ledger_entry_for_the_gate_is_decided_and_agrees_with_itself():
+    """The ledger is the record of what was decided; this test READS it and never restates it.
+
+    It used to assert `status == "dark"`. The gate was armed on web on 2026-10-03 (the owner's
+    flip, recorded in the entry by PR #267, a0509fae96), and the test stayed red from that day:
+    a second copy of a status is wrong the moment the first one moves. What is held here is
+    that the entry is a decided state that agrees with itself, whichever state that is:
+      * dark:  set on no service;
+      * armed: names the service it is set on, and the note records when it was armed.
+    The code default is NOT the ledger's business and is railed above (unset reads False)."""
     ledger = json.loads(open("docs/feature_flags.json", encoding="utf-8").read())["flags"]
     row = ledger[FLAG]
-    assert row["status"] == "dark" and row["where"] == []
+    assert row["status"] in ("dark", "armed"), row["status"]
+    if row["status"] == "dark":
+        assert row["where"] == []
+    else:
+        assert row["where"], "an armed gate names the service it is set on"
+        import re
+        assert re.search(r"ARMED on \w+ \d{4}-\d{2}-\d{2}", row["note"]), "an armed gate records when it was armed"
     assert "never-revert" in row["note"].lower() and "tradeCanvas" in row["note"]
 
 

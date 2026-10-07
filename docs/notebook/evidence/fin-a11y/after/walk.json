@@ -1,0 +1,1100 @@
+{
+ "tool": "tools/notebook_fin_a11y_overflow_walk.py",
+ "sha": "21db9ae95f+worktree",
+ "base": "http://127.0.0.1:8135",
+ "data_dir": "C:\\data-fin-a11y",
+ "boots": {
+  "off": {
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-a11y\\after\\integrity-off.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-07 07:24:45",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-07 07:25:29",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-07 07:27:27",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-07 07:29:18",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": "",
+    "copy": "docs\\notebook\\evidence\\fin-a11y\\after\\integrity-off.md",
+    "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-a11y\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T07-24-37.md"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "port_released": true
+  },
+  "on": {
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-a11y\\after\\integrity-on.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-07 07:30:06",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-07 07:31:18",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-07 07:33:11",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-07 07:34:52",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": "",
+    "copy": "docs\\notebook\\evidence\\fin-a11y\\after\\integrity-on.md",
+    "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-a11y\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T07-29-52.md"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "port_released": true
+  }
+ },
+ "failure": null,
+ "not_run": null,
+ "driver_imported_api": [],
+ "summary": [
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "research workspace",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "closed trades",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "trade page",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "help",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "research workspace",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "closed trades",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "trade page",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "help",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "research workspace",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "closed trades",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "trade page",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "help",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "research workspace",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "closed trades",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "trade page",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "help",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": {
+    "found": true,
+    "width": 44,
+    "height": 44
+   }
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "research workspace",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "closed trades",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "trade page",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "help",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": {
+    "found": true,
+    "width": 44,
+    "height": 44
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "research workspace",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "closed trades",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "trade page",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "help",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 19.2
+   }
+  }
+ ],
+ "rows": [
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "off-390-research-workspace.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "off-390-closed-trades.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "off-390-trade-page.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "off-390-help.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/NVDA",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": null,
+   "screenshot": "off-390-position-page.png"
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/NVDA",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/NVDA",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "on-390-research-workspace.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "on-390-closed-trades.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "on-390-trade-page.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "on-390-help.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/MSFT",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": {
+    "found": true,
+    "width": 44,
+    "height": 44
+   },
+   "screenshot": "on-390-position-page.png"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/MSFT",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": {
+    "found": true,
+    "width": 44,
+    "height": 44
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/MSFT",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 19.2
+   }
+  }
+ ],
+ "raw": {
+  "off_auth_me": {
+   "notebook_transcript_capture_enabled": false,
+   "notebook_entry_context_enabled": false,
+   "paid_equiv": true,
+   "role": null
+  },
+  "off_seed": {
+   "tradeId": "8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c"
+  },
+  "on_auth_me": {
+   "notebook_transcript_capture_enabled": true,
+   "notebook_entry_context_enabled": true,
+   "paid_equiv": true,
+   "role": null
+  },
+  "on_seed": {
+   "why": 200,
+   "tradeId": "8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c"
+  }
+ }
+}

@@ -1,0 +1,337 @@
+{
+ "tool": "tools/notebook_w12d_walk.py",
+ "phase": "sandbox",
+ "base": "http://127.0.0.1:8590",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\w12d\\sandbox-1ad04a0383\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 12:36:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 12:37:40",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 12:38:09",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\w12d\\sandbox-1ad04a0383\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w12d\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T12-36-18.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "G-003.D1_signup_through_the_form",
+   "verdict": "PASS",
+   "detail": "POST /api/auth/signup 200 from the /signup form; /api/auth/me 200 names w12d-del-eafb23@local.dev (id 9cba249f-e7cd-4ceb-8be5-d54b1dd452b9)"
+  },
+  {
+   "id": "G-003.D2_note_with_attachment",
+   "verdict": "PASS",
+   "detail": "note 5614605989f94d52998e3dd09218e430: chip shown=True, stored body carries the text and the chip=True; 1 attachment file(s) on disk under ['j2_attachments\\\\9cba249f-e7cd-4ceb-8be5-d54b1dd452b9']; j2 rows {'j2_settings': 1, 'j2_accounts': 1, 'j2_notes': 1, 'j2_notes_fts': 1, 'j2_note_recents': 1, 'j2_note_versions': 1, 'j2_note_documents': 1, 'j2_note_document_pages': 1, 'j2_note_document_pages_fts': 1}; users row 1; tombstone none=True"
+  },
+  {
+   "id": "G-003.D3_member_requests_deletion",
+   "verdict": "PASS",
+   "detail": "POST /api/auth/request-deletion 200; 'A deletion request is on file' shown=True; GET /api/auth/deletion-request id=ac5da4fa-73f3-499d-883d-7621ef2d853a"
+  },
+  {
+   "id": "G-003.D4_owner_deletes_on_the_admin_page",
+   "verdict": "PASS",
+   "detail": "confirm dialog ['Permanently delete w12d-del-eafb23@local.dev? This cannot be undone.'] accepted; DELETE 200; purge ok=True, rows 3, attachment dirs 1, tombstone {'recorded': True, 'offsite': True, 'why': ''}; the row left the list=True"
+  },
+  {
+   "id": "G-003.D5_data_gone_tombstone_kept",
+   "verdict": "PASS",
+   "detail": "/api/auth/me 401; sign-in 401; admin lookup 404; users row 0; j2 rows 0 across 72 j2 tables (were 9); attachment dirs 0 (were 1); tombstone row ['9cba249f-e7cd-4ceb-8be5-d54b1dd452b9', '2026-10-02T17:37:22+00:00', '2026-10-02T17:37:22+00:00']; off-site object present {'v': 1, 'user_id': '9cba249f-e7cd-4ceb-8be5-d54b1dd452b9', 'deleted_at': '2026-10-02T17:37:22+00:00'}"
+  },
+  {
+   "id": "G-045.S0_engine_present",
+   "verdict": "PASS",
+   "detail": "startup fingerprint: '[startup] j2-ocr: flag=1 binary=C:\\\\Program Files\\\\Tesseract-OCR\\\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1'"
+  },
+  {
+   "id": "G-045.S1_fixture_is_a_scan",
+   "verdict": "PASS",
+   "detail": "{'pages': 1, 'extractable_text_chars': 0, 'images_on_page': 1, 'word_in_file_bytes': False, 'bytes': 115467}; attached through the editor (chip=True, stored=True); the note's own title/body contain 'tourmaline'=False"
+  },
+  {
+   "id": "G-045.S2_ocr_read_the_page",
+   "verdict": "PASS",
+   "detail": "document 6d42cb2af7a6471ea1a1ee920b9a9bed status 'ready': pagesTotal 1, pagesFromOcr 1, pagesAwaitingOcr 0, ocrUnavailable False"
+  },
+  {
+   "id": "G-045.S3_search_finds_image_word",
+   "verdict": "PASS",
+   "detail": "sidebar search 'tourmaline': '1 DOCUMENT PAGE', Scanned-text rows ['w12d-scan-eafb23.pdf · p.1SCANNED TEXT\\n…14 percent The vault password is TOURMALINE Review again before March 31'], the row opened note ff6c240279e647a49572be8bb4bedafc (the scan's note ff6c240279e647a49572be8bb4bedafc) with the page preview shown=True; API [('ff6c240279e647a49572be8bb4bedafc', 1, 'ocr')]; control 'zqxjvoobleck': 0 UI count lines, 0 API results"
+  },
+  {
+   "id": "W_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "run": "eafb23",
+  "tip": "1ad04a0383",
+  "port": 8590,
+  "tombstone_store": "w12d-data-ev2-tombstone-store",
+  "started_utc": "2026-10-02T17:36:16+00:00",
+  "g003": {
+   "email": "w12d-del-eafb23@local.dev",
+   "signup_status": 200,
+   "uid": "9cba249f-e7cd-4ceb-8be5-d54b1dd452b9",
+   "comp_status": 200,
+   "verify_status": 200,
+   "paid_equiv": true,
+   "note_id": "5614605989f94d52998e3dd09218e430",
+   "auth_db": "auth.db",
+   "before": {
+    "attachments": [
+     {
+      "dir": "j2_attachments\\9cba249f-e7cd-4ceb-8be5-d54b1dd452b9",
+      "files": [
+       "j2_attachments\\9cba249f-e7cd-4ceb-8be5-d54b1dd452b9\\notes\\5614605989f94d52998e3dd09218e430\\file\\cc8d3b8d1af04fdfa1479031fc7b790f.pdf"
+      ]
+     }
+    ],
+    "footprint": {
+     "j2_rows": {
+      "j2_settings": 1,
+      "j2_accounts": 1,
+      "j2_notes": 1,
+      "j2_notes_fts": 1,
+      "j2_note_recents": 1,
+      "j2_note_versions": 1,
+      "j2_note_documents": 1,
+      "j2_note_document_pages": 1,
+      "j2_note_document_pages_fts": 1
+     },
+     "users_row": 1,
+     "tombstone": null,
+     "j2_tables_with_user_id": 72,
+     "j2_total": 9
+    }
+   },
+   "request_deletion_status": 200,
+   "deletion_request": {
+    "id": "ac5da4fa-73f3-499d-883d-7621ef2d853a",
+    "created_at": "2026-10-02 17:37:14",
+    "processed_at": null,
+    "ticket_id": "7bb5ac5b-958a-44f4-9dea-973f8f83193e"
+   },
+   "delete_status": 200,
+   "delete_body": {
+    "ok": true,
+    "user_id": "9cba249f-e7cd-4ceb-8be5-d54b1dd452b9",
+    "deleted": true,
+    "journal_two_purge": {
+     "ok": true,
+     "user_id": "9cba249f-e7cd-4ceb-8be5-d54b1dd452b9",
+     "rows_deleted": {
+      "j2_option_legs": 0,
+      "j2_broker_member_stale_notify": 0,
+      "j2_settings": 1,
+      "j2_positions": 0,
+      "j2_trades": 0,
+      "j2_day_notes": 0,
+      "j2_accounts": 1,
+      "j2_option_strategies": 0,
+      "j2_playbook_entries": 0,
+      "j2_coach_outputs": 0,
+      "j2_chat_messages": 0,
+      "j2_onboarding_responses": 0,
+      "j2_verdicts": 0,
+      "j2_trade_reviews": 0,
+      "j2_interventions": 0,
+      "j2_profile_suggestions": 0,
+      "j2_journal_rules": 0,
+      "j2_unified_coach_state": 0,
+      "j2_weekly_email_log": 0,
+      "j2_notes": 1,
+      "j2_note_folders": 0,
+      "j2_note_embeds": 0,
+      "j2_note_mentions": 0,
+      "j2_note_favorites": 0,
+      "j2_note_recents": 0,
+      "j2_note_versions": 0,
+      "j2_note_links": 0,
+      "j2_note_properties": 0,
+      "j2_note_saved_views": 0,
+      "j2_fact_observations": 0,
+      "j2_note_fact_refs": 0,
+      "j2_thesis_evidence": 0,
+      "j2_thesis_reviews": 0,
+      "j2_note_documents": 0,
+      "j2_note_document_pages": 0,
+      "j2_note_document_ocr_pages": 0,
+      "j2_note_excerpts": 0,
+      "j2_note_excerpt_refs": 0,
+      "j2_capture_inbox": 0,
+      "j2_capture_tokens": 0,
+      "j2_capture_auth_codes": 0,
+      "j2_public_profiles": 0,
+      "j2_note_shares": 0,
+      "j2_note_publications": 0,
+      "j2_note_connectors": 0,
+      "j2_note_sources": 0,
+      "j2_note_sync_log": 0,
+      "j2_note_remote_index": 0,
+      "j2_obsidian_devices": 0,
+      "j2_obsidian_staging": 0,
+      "j2_obsidian_manifest": 0,
+      "j2_obsidian_connect_epoch": 0,
+      "j2_trade_attachments": 0,
+      "j2_trade_excursions": 0,
+      "j2_trade_adherence": 0,
+      "j2_broker_users": 0,
+      "j2_broker_accounts": 0,
+      "j2_broker_equity_snapshots": 0,
+      "j2_broker_activities": 0,
+      "j2_broker_sync_log": 0,
+      "j2_broker_dup_flags": 0,
+      "j2_broker_cash_flows": 0,
+      "j2_broker_opt_holdings_memo": 0,
+      "j2_broker_mirror_checks": 0,
+      "j2_broker_drift_series": 0,
+      "j2_broker_precise_times": 0,
+      "j2_broker_live_checks": 0,
+      "j2_note_templates": 0,
+      "j2_task_reminder_log": 0,
+      "j2_inbound_addresses": 0,
+      "j2_inbound_usage": 0,
+      "j2_inbound_drops": 0,
+      "j2_note_embeddings": 0,
+      "j2_ai_change_sets": 0,
+      "j2_ai_change_items": 0,
+      "daily_usage_counters": 0
+     },
+     "total_rows_deleted": 3,
+     "attachment_dirs_removed": 1,
+     "errors": [],
+     "voice_jobs_removed": 0,
+     "tombstone": {
+      "recorded": true,
+      "offsite": true,
+      "why": ""
+     }
+    }
+   },
+   "dialogs": [
+    "Permanently delete w12d-del-eafb23@local.dev? This cannot be undone."
+   ],
+   "after": {
+    "me_status": 401,
+    "login_status": 401,
+    "admin_user_status": 404,
+    "footprint": {
+     "j2_rows": {},
+     "users_row": 0,
+     "tombstone": [
+      "9cba249f-e7cd-4ceb-8be5-d54b1dd452b9",
+      "2026-10-02T17:37:22+00:00",
+      "2026-10-02T17:37:22+00:00"
+     ],
+     "j2_tables_with_user_id": 72,
+     "j2_total": 0
+    },
+    "attachments": [],
+    "tombstone_object": "w12d-data-ev2-tombstone-store\\authdb\\tombstones\\9cba249f-e7cd-4ceb-8be5-d54b1dd452b9.json",
+    "tombstone_object_body": {
+     "v": 1,
+     "user_id": "9cba249f-e7cd-4ceb-8be5-d54b1dd452b9",
+     "deleted_at": "2026-10-02T17:37:22+00:00"
+    }
+   }
+  },
+  "g045": {
+   "ocr_fingerprint": "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1",
+   "email": "w12d-ocr-eafb23@local.dev",
+   "fixture": {
+    "pages": 1,
+    "extractable_text_chars": 0,
+    "images_on_page": 1,
+    "word_in_file_bytes": false,
+    "bytes": 115467
+   },
+   "note_id": "ff6c240279e647a49572be8bb4bedafc",
+   "documents": [
+    {
+     "id": "6d42cb2af7a6471ea1a1ee920b9a9bed",
+     "attachmentUrl": "/api/j2/notes/attachments/6b2e6b79-15be-43c9-913b-08e454d762ad/ff6c240279e647a49572be8bb4bedafc/file/4594be7cd6ad4062ae9ea9afb9d7895d.pdf",
+     "name": "w12d-scan-eafb23.pdf",
+     "status": "ready",
+     "pageCount": 1,
+     "createdAt": "2026-10-02T17:37:43.357764+00:00",
+     "processedAt": "2026-10-02T17:37:47.013583+00:00",
+     "pagesTotal": 1,
+     "pagesWithText": 1,
+     "pagesFromOcr": 1,
+     "pagesAwaitingOcr": 0,
+     "ocrUnavailable": false,
+     "pagesUnreadable": 0,
+     "textComplete": true,
+     "sourceKind": "attachment",
+     "kind": "pdf",
+     "capturePassages": []
+    }
+   ],
+   "preview_opened": true,
+   "search": {
+    "ui_count": "1 DOCUMENT PAGE",
+    "ui_rows": [
+     "w12d-scan-eafb23.pdf · p.1SCANNED TEXT\n…14 percent The vault password is TOURMALINE Review again before March 31"
+    ],
+    "api": {
+     "results": [
+      {
+       "documentId": "6d42cb2af7a6471ea1a1ee920b9a9bed",
+       "pageNumber": 1,
+       "snippet": "…14 percent\r\nThe vault password is <mark>TOURMALINE</mark>\r\n\r\nReview again before March 31",
+       "noteId": "ff6c240279e647a49572be8bb4bedafc",
+       "noteTitle": "W12D scan probe eafb23",
+       "name": "w12d-scan-eafb23.pdf",
+       "attachmentUrl": "/api/j2/notes/attachments/6b2e6b79-15be-43c9-913b-08e454d762ad/ff6c240279e647a49572be8bb4bedafc/file/4594be7cd6ad4062ae9ea9afb9d7895d.pdf",
+       "sourceKind": "attachment",
+       "sourceUrl": null,
+       "textOrigin": "ocr"
+      }
+     ]
+    },
+    "row_opened_note": "ff6c240279e647a49572be8bb4bedafc",
+    "control_ui_count_elements": 0,
+    "control_api": {
+     "results": []
+    }
+   }
+  },
+  "page_errors": []
+ },
+ "finished_utc": "2026-10-02T17:38:40+00:00"
+}

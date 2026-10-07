@@ -15,9 +15,14 @@
  * a real client function put on a real `fetch` call, never on an argument a mock
  * was handed.
  */
-import { NOTEBOOK_SCHEMA_HEADER, NOTEBOOK_TYPE_SCHEMA, SCHEMA_REFUSAL_DETAIL } from '../../notebookSchema'
+import { NOTEBOOK_ATTR_SCHEMA, NOTEBOOK_SCHEMA_HEADER, NOTEBOOK_TYPE_SCHEMA, SCHEMA_REFUSAL_DETAIL } from '../../notebookSchema'
 
-/** The newest level any node or mark in `body` needs (unknown type ⇒ 0). */
+// An attribute value an older editor could lose (`notebook_schema._carries`).
+const carries = (v) => v != null && v !== '' && !(Array.isArray(v) && !v.length) &&
+  !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)
+
+/** The newest level any node or mark in `body` needs (unknown type ⇒ 0), and
+ *  any attribute row it carries a value for (`NOTEBOOK_ATTR_SCHEMA`). */
 export function requiredLevel(body) {
   let need = 0
   const stack = [body]
@@ -25,6 +30,12 @@ export function requiredLevel(body) {
     const n = stack.pop()
     if (!n || typeof n !== 'object') continue
     if (typeof n.type === 'string') need = Math.max(need, NOTEBOOK_TYPE_SCHEMA[n.type] ?? 0)
+    if (typeof n.type === 'string' && n.attrs && typeof n.attrs === 'object') {
+      for (const [key, level] of Object.entries(NOTEBOOK_ATTR_SCHEMA)) {
+        const [type, attr] = key.split('.')
+        if (type === n.type && carries(n.attrs[attr])) need = Math.max(need, level)
+      }
+    }
     for (const m of Array.isArray(n.marks) ? n.marks : []) {
       if (m && typeof m.type === 'string') need = Math.max(need, NOTEBOOK_TYPE_SCHEMA[m.type] ?? 0)
     }

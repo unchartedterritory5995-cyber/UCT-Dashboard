@@ -1,0 +1,93 @@
+{
+ "tool": "tools/notebook_w13h4_charts_control.py",
+ "base": "http://127.0.0.1:8692",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13h4\\charts-control-6\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 21:39:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 21:40:46",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 21:41:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13h4\\charts-control-6\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h4\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T21-38-53.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "raw": {
+  "bare_V390_canvas_box": [
+   0,
+   53,
+   390,
+   736
+  ],
+  "bare_V390_armed_after_press": {
+   "ariaPressed": "true",
+   "boxShadow": "none"
+  },
+  "bare_V390_mobile_draw_bar_present": true,
+  "bare_V390_taps": [
+   {
+    "frac": 0.28,
+    "box": [
+     0,
+     53,
+     390,
+     736
+    ],
+    "x": 175.5,
+    "y": 259.1
+   },
+   {
+    "frac": 0.5,
+    "box": [
+     0,
+     53,
+     390,
+     736
+    ],
+    "x": 175.5,
+    "y": 421.0
+   },
+   {
+    "frac": 0.72,
+    "box": [
+     0,
+     53,
+     390,
+     736
+    ],
+    "x": 175.5,
+    "y": 582.9
+   }
+  ],
+  "bare_V390_drawings_stored": 1,
+  "bare_V390_drawings_settle_tries": 20,
+  "bare_V390_errors": []
+ }
+}

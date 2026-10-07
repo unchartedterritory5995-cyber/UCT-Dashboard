@@ -158,11 +158,20 @@ def get_or_migrate_default_account(
 
         new_id = str(uuid.uuid4())
         now = _now_iso()
+        # ⛔ INSERT-OR-IGNORE THEN READ, IN ONE SHORT TRANSACTION. A brand-new member's first
+        # page fires several requests at once and every one of them comes through here. Each
+        # read "no account yet" above, each INSERTed 'Default', and all but the first met
+        # UNIQUE(user_id, name): an IntegrityError answered as a 500 (seen on
+        # GET /accounts/comparison). Now the write lock is taken first (BEGIN IMMEDIATE, so the
+        # second request waits for the first's commit), the insert is OR IGNORE, and the row
+        # that is THERE is read back and used -- for the answer and for the legacy rows below,
+        # which must never be assigned to an id that was not stored.
         try:
-            conn.execute("BEGIN")
+            if not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
             conn.execute(
                 """
-                INSERT INTO j2_accounts (
+                INSERT OR IGNORE INTO j2_accounts (
                     id, user_id, name, color, broker, starting_balance,
                     account_size, default_stop, position_closing,
                     breakeven_range, setups, share_journal_data,
@@ -183,25 +192,36 @@ def get_or_migrate_default_account(
                     now, now,
                 ),
             )
+            # The account that is stored: ours, or the one another request made first.
+            row = conn.execute(
+                "SELECT * FROM j2_accounts WHERE user_id = ? AND name = 'Default'", (user_id,),
+            ).fetchone()
+            stored_id = row["id"]
             # Bulk-assign legacy rows
             conn.execute(
                 "UPDATE j2_positions SET account_id = ? "
                 "WHERE user_id = ? AND account_id IS NULL",
-                (new_id, user_id),
+                (stored_id, user_id),
             )
             conn.execute(
                 "UPDATE j2_trades SET account_id = ? "
                 "WHERE user_id = ? AND account_id IS NULL",
-                (new_id, user_id),
+                (stored_id, user_id),
             )
             conn.commit()
         except Exception:
             conn.rollback()
-            raise
+            # The lock could not be had in time (another first request holds it), or the
+            # write failed. If the account exists by now, that IS the answer; only a member
+            # who still has none sees the error.
+            row = conn.execute(
+                "SELECT * FROM j2_accounts WHERE user_id = ?"
+                " ORDER BY (CASE WHEN name='Default' THEN 0 ELSE 1 END), created_at ASC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if row is None:
+                raise
 
-        row = conn.execute(
-            "SELECT * FROM j2_accounts WHERE id = ?", (new_id,)
-        ).fetchone()
         return _row_to_account(row)
     finally:
         if owned:

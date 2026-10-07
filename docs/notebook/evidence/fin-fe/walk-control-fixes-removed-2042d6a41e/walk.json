@@ -1,0 +1,321 @@
+{
+ "tool": "tools/notebook_fin_fe_walk.py",
+ "base": "http://127.0.0.1:8133",
+ "expect_defects": true,
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\notebook\\evidence\\fin-fe\\walk-control-fixes-removed-2042d6a41e\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-06 23:13:44",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-06 23:14:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-06 23:16:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-06 23:16:34",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\notebook\\evidence\\fin-fe\\walk-control-fixes-removed-2042d6a41e\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-06T23-13-36.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_admin_paid_flags_on",
+   "verdict": "PASS",
+   "detail": "/api/auth/me {'paid_equiv': True, 'notebook_chart_plan_enabled': True, 'notebook_ta_fingerprint_enabled': True, 'role': 'admin', 'comp_status': 200, 'payload_keys': ['address_space_enabled', 'awareness_note_resurface_enabled', 'billing', 'breadth_dc_v2_2_enabled', 'breadth_dc_v2_3_enabled', 'cohorts', 'cohorts_withdrawn', 'decision_record_enabled', 'estimate_history_enabled', 'feature_status', 'filings_feed_enabled', 'hub_preview_enabled', 'j2_share_links_enabled', 'notebook_ai_actions_enabled', 'notebook_ask_insert_on', 'notebook_attachments_on', 'notebook_chart_plan_enabled', 'notebook_conflict_ux_on', 'notebook_door_guard', 'notebook_earnings_prep_enabled', 'notebook_entry_context_enabled', 'notebook_find_similar_enabled', 'notebook_formulas_enabled', 'notebook_getting_started_enabled', 'notebook_image_docx_documents_enabled', 'notebook_offline_default_on', 'notebook_offline_read_on', 'notebook_onboarding_enabled', 'notebook_passed_setups_enabled', 'notebook_plan_grading_enabled', 'notebook_playbook_enabled', 'notebook_publish_enabled', 'notebook_review_drafts_enabled', 'notebook_semantic_search_enabled', 'notebook_setups_board_enabled', 'notebook_ta_fingerprint_enabled', 'notebook_task_reminders_enabled', 'notebook_template_gallery_enabled', 'notebook_thesis_chips_enabled', 'notebook_trade_canvas_enabled', 'notebook_transcript_capture_enabled', 'notebook_visual_playbook_enabled', 'notebook_voice_notes_enabled', 'notebook_writing_help_enabled', 'options_backtest_enabled', 'options_chain_enabled', 'options_vol_surface_enabled', 'paid_equiv', 'pine_runtime_pane_enabled', 'plan', 'research_flow_tab_enabled', 'research_people_enabled', 'research_technical_tab_enabled', 's7_filing_watch_enabled', 'seasonality_enabled', 'subscription', 'ticker_history_enabled', 'trial', 'user']}"
+  },
+  {
+   "id": "A1_note_chart_live_and_alert_sync_running",
+   "verdict": "PASS",
+   "detail": "chart canvas mounted; GET /api/watchlist-alerts seen=True; Charts line in the drawing store=True"
+  },
+  {
+   "id": "A2_plan_alert_armed_and_alert_list_reread",
+   "verdict": "PASS",
+   "detail": "POST /api/j2/chart-plan/alerts -> 200; alert list re-read after it=True (without the re-read the rows below would prove nothing)"
+  },
+  {
+   "id": "A3_no_alert_DELETE_sent",
+   "verdict": "FAIL",
+   "detail": "DELETE sent: ['/api/watchlist-alerts/bound/charts-line-1', '/api/watchlist-alerts/bound/nb%3Aemb-a%3Anote-line-1']"
+  },
+  {
+   "id": "A4_charts_alert_still_exists",
+   "verdict": "FAIL",
+   "detail": "active alerts bound to charts-line-1: 0 (of 0 active)"
+  },
+  {
+   "id": "A5_plan_alert_still_exists",
+   "verdict": "FAIL",
+   "detail": "active alerts bound to nb:emb-a:note-line-1: 0"
+  },
+  {
+   "id": "B1_fingerprint_panel_was_on_screen",
+   "verdict": "PASS",
+   "detail": "panel text: 'TECHNICAL FINGERPRINT\\nWaiting for this note to save, then the fingerprint freezes…\\nSetup\\nNo setup tag\\nFlat Base Breakout\\nBull Flag\\nIPO Base\\n'"
+  },
+  {
+   "id": "B2_zero_writes_to_the_note",
+   "verdict": "FAIL",
+   "detail": "writes: [('PUT', '/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4', 200)]"
+  },
+  {
+   "id": "B3_no_fingerprint_freeze_request",
+   "verdict": "FAIL",
+   "detail": "freeze requests: [('POST', '/api/j2/notebook-fingerprint/blocks/69982b3ab4bc4abea60789fb313ad5a4/emb-b/freeze', 200)]"
+  },
+  {
+   "id": "B4_note_not_redated_or_changed",
+   "verdict": "FAIL",
+   "detail": "updatedAt before='2026-10-07T04:14:11.881953+00:00' after='2026-10-07T04:14:30.651385+00:00'; chart block identical=False"
+  },
+  {
+   "id": "C1_keyboard_selects_deletes_and_restores_a_chart_block",
+   "verdict": "PASS",
+   "detail": "arrow selects={'selected': True, 'arrow_right_presses': 1}; after Backspace=0; after undo=1"
+  },
+  {
+   "id": "W9_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "port 8133 has a listener after stop: False"
+  }
+ ],
+ "raw": {
+  "me": {
+   "paid_equiv": true,
+   "notebook_chart_plan_enabled": true,
+   "notebook_ta_fingerprint_enabled": true,
+   "role": "admin",
+   "comp_status": 200,
+   "payload_keys": [
+    "address_space_enabled",
+    "awareness_note_resurface_enabled",
+    "billing",
+    "breadth_dc_v2_2_enabled",
+    "breadth_dc_v2_3_enabled",
+    "cohorts",
+    "cohorts_withdrawn",
+    "decision_record_enabled",
+    "estimate_history_enabled",
+    "feature_status",
+    "filings_feed_enabled",
+    "hub_preview_enabled",
+    "j2_share_links_enabled",
+    "notebook_ai_actions_enabled",
+    "notebook_ask_insert_on",
+    "notebook_attachments_on",
+    "notebook_chart_plan_enabled",
+    "notebook_conflict_ux_on",
+    "notebook_door_guard",
+    "notebook_earnings_prep_enabled",
+    "notebook_entry_context_enabled",
+    "notebook_find_similar_enabled",
+    "notebook_formulas_enabled",
+    "notebook_getting_started_enabled",
+    "notebook_image_docx_documents_enabled",
+    "notebook_offline_default_on",
+    "notebook_offline_read_on",
+    "notebook_onboarding_enabled",
+    "notebook_passed_setups_enabled",
+    "notebook_plan_grading_enabled",
+    "notebook_playbook_enabled",
+    "notebook_publish_enabled",
+    "notebook_review_drafts_enabled",
+    "notebook_semantic_search_enabled",
+    "notebook_setups_board_enabled",
+    "notebook_ta_fingerprint_enabled",
+    "notebook_task_reminders_enabled",
+    "notebook_template_gallery_enabled",
+    "notebook_thesis_chips_enabled",
+    "notebook_trade_canvas_enabled",
+    "notebook_transcript_capture_enabled",
+    "notebook_visual_playbook_enabled",
+    "notebook_voice_notes_enabled",
+    "notebook_writing_help_enabled",
+    "options_backtest_enabled",
+    "options_chain_enabled",
+    "options_vol_surface_enabled",
+    "paid_equiv",
+    "pine_runtime_pane_enabled",
+    "plan",
+    "research_flow_tab_enabled",
+    "research_people_enabled",
+    "research_technical_tab_enabled",
+    "s7_filing_watch_enabled",
+    "seasonality_enabled",
+    "subscription",
+    "ticker_history_enabled",
+    "trial",
+    "user"
+   ]
+  },
+  "bound_alert_create": {
+   "status": 200,
+   "body": "{\"id\":\"c86aa8e4-5df\",\"user_id\":\"50826320-fdc4-42c9-bba3-f86391d749cd\",\"sym\":\"AMD\",\"target_price\":91.5,\"direction\":\"above\",\"is_active\":1,\"created_at\":\"2026-10-07T04:14:12.094515+00:00\",\"alert_type\":\"line\",\"anchor_t1\":null,\"anchor_p1\":null,\"anchor_t2\":null,\"anchor_p2\":null,\"drawing_id\":\"charts-line-1\"}"
+  },
+  "A_charts_drawing_in_store": "{\"AMD\": [{\"id\": \"charts-line-1\", \"type\": \"horizontal\", \"points\": [{\"time\": 1750000000, \"price\": 91.5}]}]}",
+  "A_arm_post": [
+   {
+    "method": "POST",
+    "url": "/api/j2/chart-plan/alerts",
+    "status": 200
+   }
+  ],
+  "B_recents_beacon_seen": [
+   "POST /api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/opened -> 200"
+  ],
+  "B_all_non_GET_requests": [
+   "POST /api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/opened -> 200",
+   "POST /api/j2/telemetry -> 200",
+   "POST /api/j2/notebook-fingerprint/blocks/69982b3ab4bc4abea60789fb313ad5a4/emb-b/freeze -> 200",
+   "PUT /api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4 -> 200",
+   "POST /api/j2/telemetry -> 200"
+  ],
+  "B_fingerprint_panel_text": "TECHNICAL FINGERPRINT\nWaiting for this note to save, then the fingerprint freezes…\nSetup\nNo setup tag\nFlat Base Breakout\nBull Flag\nIPO Base\nLaunchpad\nCup & Handle\nHigh Tight Flag (Powerplay)\nVCP\n4B Setup (Stan Weinstein)\nEpisodic Pivot\nPower Earnings Gap\nNews/Earnings Gapper\nHigh Volume Edge\nGap Support\nKicker Candle\nHVC\n20 EMA Pullback\nEMA Crossback\nWedge Pop\nWedge Drop\nClassic Flag/Pullback\n2B Reversal\nU&R (Undercut & Rally)\nSlingshot\nOops Reversal\nRemount\nFailed H&S / Rounded Top\nParabolic Long\nParabolic Short\nWick Play\nNews Failure\nRed to Green\nORB (Opening Range Break)\n30-Minute Pivot\nGo Signal\nOpening Range Breakdown\nRed to Green (Intraday)\nGreen to Red\nMean Reversion L/S",
+  "C_observations": {
+   "click_on_chart_body_selects_block": false,
+   "geometry": {
+    "host": [
+     414,
+     602.28125,
+     778,
+     568.171875
+    ],
+    "body": [
+     415,
+     603.28125,
+     776,
+     427
+    ],
+    "caption": null
+   },
+   "mouse_click_outside_body": [
+    {
+     "where": "frame_top_edge",
+     "selected": false
+    },
+    {
+     "where": "frame_left_edge",
+     "selected": false
+    }
+   ],
+   "keyboard_arrow_selects_block": {
+    "selected": true,
+    "arrow_right_presses": 1
+   },
+   "after_backspace_block_count": 0,
+   "after_undo_block_count": 1,
+   "after_cut_block_count": 0,
+   "after_paste_block_count": 1,
+   "order_after_cut_paste": [
+    "before the chart",
+    "after the chart",
+    "CHART",
+    ""
+   ],
+   "remove_button_present": 1,
+   "mouse_surfaces_outside_body_no_caption": [
+    {
+     "what": "panel",
+     "tag": "SECTION",
+     "text": "Technical fingerprintAMD · as of 2026-06",
+     "x": 420,
+     "y": 1078.171875,
+     "selected": true
+    },
+    {
+     "what": "title",
+     "tag": "H3",
+     "text": "Technical fingerprint",
+     "x": 457,
+     "y": 1087.171875,
+     "selected": true
+    },
+    {
+     "what": "meta",
+     "tag": "SPAN",
+     "text": "AMD · as of 2026-06-15 · stored bars · f",
+     "x": 605,
+     "y": 1087.171875,
+     "selected": true
+    },
+    {
+     "what": "head",
+     "tag": "DIV",
+     "text": "Technical fingerprintAMD · as of 2026-06",
+     "x": 864,
+     "y": 1087.171875,
+     "selected": true
+    },
+    {
+     "what": "chipLabel",
+     "tag": "SPAN",
+     "text": "RS rank",
+     "x": 457,
+     "y": 1114.171875,
+     "selected": true
+    },
+    {
+     "what": "missing",
+     "tag": "SPAN",
+     "text": "n/a",
+     "x": 494,
+     "y": 1114.171875,
+     "selected": true
+    },
+    {
+     "what": "value",
+     "tag": "SPAN",
+     "text": "5.9%",
+     "x": 568,
+     "y": 1114.171875,
+     "selected": true
+    },
+    {
+     "what": "chip",
+     "tag": "LI",
+     "text": "Base depth n/a",
+     "x": 605,
+     "y": 1114.171875,
+     "selected": true
+    }
+   ]
+  },
+  "bars_fixture_served": 23,
+  "page_errors": []
+ }
+}

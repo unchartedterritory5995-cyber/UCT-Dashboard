@@ -28,8 +28,58 @@ import os
 import tempfile
 import uuid
 
+from pathlib import Path
+
 import pytest
 from fastapi import HTTPException
+
+_J2_SERVICES = Path(__file__).resolve().parents[1] / "api" / "services" / "journal_two"
+
+# ⛔ ROLLBACK-SAFE (lane ROLLBACK, 2026-10-06). A rollback of the wave 12-15 landing keeps
+# `account_purge.py` AND this file at the tip (tools/notebook_rollback_chain.py,
+# KEEP_WITH_LANDING), so the deletion list goes on naming the landing's thirteen tables while the
+# modules that create them are gone. On that tree this file cannot create those tables, and the
+# purge treats a table that does not exist as a no-op -- which is correct there, and is measured
+# with the tables present in tests/test_notebook_rollback_never_revert.py.
+# The tolerance is keyed on the owning module's FILE being absent, table by table, and on nothing
+# else: on the tip every file exists, so nothing is tolerated and a table this file cannot seed
+# still fails exactly as it always has (the control is the last test in this file).
+# {table: the module, under api/services/journal_two/, whose removal means the table cannot exist}
+_WAVE_12_15_TABLE_OWNERS = {
+    "j2_trade_plan_links": "plan_grading",
+    "j2_template_gallery": "template_gallery",
+    "j2_template_gallery_reports": "template_gallery",
+    "j2_template_gallery_uses": "template_gallery",
+    "j2_chart_blocks": "chart_blocks",
+    "j2_chart_fingerprints": "chart_blocks",
+    "j2_entry_context": "entry_context",
+    "j2_entry_context_bell_log": "entry_context",
+    "j2_passed_setups": "passed_setups",
+    "j2_note_levels": "note_levels",
+    "j2_note_resurface_fires": "note_levels",
+    "j2_similar_matches": "similar_matches",
+    # Finish program, lane DATA: plan grading's "unplanned" memo. Its DDL sits in db.py, which a
+    # rollback reverts; the module that reads and writes it is plan_grading, so that is the file
+    # whose absence means the table cannot exist. Found by the rollback rehearsal on 2026-10-07:
+    # without this row the kept copy of this file failed twice on the rolled-back tree.
+    "j2_trade_plan_misses": "plan_grading",
+}
+
+
+def _module_on_disk(name: str) -> bool:
+    return (_J2_SERVICES / f"{name}.py").is_file()
+
+
+def _rolled_back_tables() -> set[str]:
+    """The landing's tables this TREE cannot create: the module that owns each is not on disk."""
+    return {t for t, owner in _WAVE_12_15_TABLE_OWNERS.items() if not _module_on_disk(owner)}
+
+
+def _manifest_tables(ap) -> list[str]:
+    """`_DIRECT_USER_TABLES` minus the tables a rolled-back tree cannot create. On the tip that
+    is the whole list."""
+    gone = _rolled_back_tables()
+    return [t for t in ap._DIRECT_USER_TABLES if t not in gone]
 
 # ── enum/CHECK-constrained columns the generic filler can't guess safely ──────
 _ENUM_OVERRIDES: dict[str, dict[str, str]] = {
@@ -45,6 +95,7 @@ _ENUM_OVERRIDES: dict[str, dict[str, str]] = {
     "j2_broker_accounts": {"status": "active"},
     "j2_broker_dup_flags": {"status": "pending"},
     "j2_note_publications": {"kind": "note"},
+    "j2_entry_context": {"capture_kind": "at_entry"},
 }
 
 
@@ -118,6 +169,14 @@ def _seed_user(conn, user_id: str, email: str) -> None:
     )
 
 
+def _self_ensure(conn, module: str) -> None:
+    """Run one feature module's own `ensure_schema`. Skipped ONLY when the module's file is not
+    on disk (a rolled-back tree); a module that exists is imported, and any failure is raised."""
+    if not _module_on_disk(module):
+        return
+    importlib.import_module(f"api.services.journal_two.{module}").ensure_schema(conn)
+
+
 def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     """Populate one row per direct table, plus the two indirect-ownership
     tables wired to a real parent row. Returns the ids needed to assert
@@ -147,12 +206,29 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # them on the first plan or read (wave 11 lane 11C).
     from api.services.journal_two import ai_actions as aia
     aia.ensure_schema(conn)
+    # j2_chart_blocks / j2_chart_fingerprints, likewise: chart_blocks.py self-ensures
+    # them on the first fingerprint read (wave 13 lane 13I-1).
+    # (these five wave-13 modules are asked for by NAME, not imported at the top of a block:
+    # on a tree rolled back with this file kept, the module is not on disk -- see the note at
+    # the top of this file. A module that IS on disk and fails to import still fails here.)
+    _self_ensure(conn, "chart_blocks")
+    # j2_entry_context, likewise: entry_context.py self-ensures it on the first capture or
+    # read (wave 13 lane 13E-1).
+    _self_ensure(conn, "entry_context")
+    # j2_passed_setups, likewise: passed_setups.py self-ensures it (wave 13 lane 13G-1).
+    _self_ensure(conn, "passed_setups")
+    # j2_note_levels / j2_note_resurface_fires, likewise: note_levels.py self-ensures them
+    # on the awareness scan's resurfacing pass (wave 13 lane 13D).
+    _self_ensure(conn, "note_levels")
+    # j2_similar_matches, likewise: similar_matches.py self-ensures it on the first nightly
+    # run or read (wave 13 lane 13J).
+    _self_ensure(conn, "similar_matches")
     # options_spread_book, likewise: spread_book.py self-ensures it on the first
     # list / save (FT-072, lane/o-options-remainders).
     from api.services.options_analytics import spread_book as sbk
     sbk.ensure_schema(conn)
 
-    for table in ap._DIRECT_USER_TABLES:
+    for table in _manifest_tables(ap):
         _insert_minimal_row(conn, table, user_id, tag)
 
     strategy_id = conn.execute(
@@ -181,7 +257,7 @@ def _row_counts(conn, user_id: str) -> dict[str, int]:
     from api.services.journal_two import account_purge as ap
 
     counts = {}
-    for table in ap._DIRECT_USER_TABLES:
+    for table in _manifest_tables(ap):
         counts[table] = conn.execute(
             f'SELECT COUNT(*) FROM "{table}" WHERE user_id = ?', (user_id,)
         ).fetchone()[0]
@@ -468,3 +544,25 @@ def test_admin_delete_user_by_id_404s_for_an_unknown_user_without_raising_anythi
             user={"id": "admin_1", "role": "admin", "email": "admin@test"},
         )
     assert exc.value.status_code == 404
+
+
+def test_no_table_is_excused_while_the_module_that_owns_it_is_on_disk():
+    """The control for this file's one tolerance (the note at its top). A table is left out of
+    the seeded manifest only when its owning module's file is gone; with every file present --
+    the tip -- nothing is left out, so the manifest rails above cover the whole list."""
+    from api.services.journal_two import account_purge as ap
+
+    assert len(_WAVE_12_15_TABLE_OWNERS) == 13
+    not_listed = sorted(set(_WAVE_12_15_TABLE_OWNERS) - set(ap._DIRECT_USER_TABLES))
+    assert not not_listed, f"the deletion list no longer names: {not_listed}"
+    gone = _rolled_back_tables()
+    for table in gone:
+        assert not _module_on_disk(_WAVE_12_15_TABLE_OWNERS[table]), table
+    present_owners = {o for o in _WAVE_12_15_TABLE_OWNERS.values() if _module_on_disk(o)}
+    excused_with_owner_present = sorted(t for t in gone if _WAVE_12_15_TABLE_OWNERS[t] in present_owners)
+    assert not excused_with_owner_present
+    if len(present_owners) == len(set(_WAVE_12_15_TABLE_OWNERS.values())):
+        assert gone == set() and _manifest_tables(ap) == list(ap._DIRECT_USER_TABLES)
+    else:
+        # a rolled-back tree: the list still names them, and that is the point of keeping it
+        assert gone and set(_manifest_tables(ap)) == set(ap._DIRECT_USER_TABLES) - gone

@@ -151,3 +151,71 @@ def test_export_route_registered_before_dynamic_detail():
     assert paths.index("/api/j2/trades/export") < paths.index(
         "/api/j2/trades/{trade_id}"
     )
+
+
+# ── fin-data I5: the member's "why did you take it" words leave with the trade export ──────
+
+def _why(db_path, symbol, day, text, user="u1"):
+    from api.services.journal_two import entry_context as ectx
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    ectx.ensure_schema(conn)
+    conn.execute(
+        "INSERT INTO j2_entry_context (user_id, symbol, entry_day_et, capture_kind, capture_day_et,"
+        " captured_at, trigger_source, version, context, why_text, why_updated_at)"
+        " VALUES (?,?,?,'at_entry',?,?,'manual_add',1,'{}',?,?)",
+        (user, symbol, day, day, day + "T15:00:00+00:00", text, day + "T16:00:00+00:00"))
+    conn.commit()
+    conn.close()
+
+
+def test_with_no_why_written_the_export_is_exactly_what_it_was(route_client, tmp_path):
+    """Flags never armed, nothing written: same header, same bytes, and no table created."""
+    r = route_client.get("/api/j2/trades/export?format=csv")
+    rows = list(csv.reader(io.StringIO(r.text)))
+    assert rows[0] == [
+        "symbol", "side", "entryDate", "entryTime", "exitDate", "exitTime",
+        "shares", "entryPrice", "exitPrice", "pnlDollarNet", "rMultiple",
+        "setup", "mistakeTags", "emotionTags", "source",
+    ]
+    assert all(len(row) == 15 for row in rows)
+    j = route_client.get("/api/j2/trades/export?format=json").json()
+    assert all("entryWhy" not in row for row in j)
+    conn = sqlite3.connect(str(tmp_path / "j2_export.db"))
+    try:
+        assert conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'j2_entry_context'").fetchone() is None
+    finally:
+        conn.close()
+
+
+def test_the_why_text_is_exported_next_to_its_own_trade(route_client, tmp_path):
+    db = str(tmp_path / "j2_export.db")
+    _why(db, "NVDA", "2026-04-19", 'Tight flag, "RS new high", held the 21EMA')
+    _why(db, "TSLA", "2026-04-20", "another member's words", user="u2")
+
+    rows = list(csv.reader(io.StringIO(route_client.get("/api/j2/trades/export?format=csv").text)))
+    assert rows[0][-2:] == ["entryWhy", "entryWhyUpdatedAt"] and rows[0][14] == "source"
+    by_symbol = {row[0]: row for row in rows[1:]}
+    assert by_symbol["NVDA"][-2:] == ['Tight flag, "RS new high", held the 21EMA', "2026-04-19T16:00:00+00:00"]
+    assert by_symbol["TSLA"][-2:] == ["", ""], "another member's words reached this member's export"
+    assert by_symbol["NVAX"][-2:] == ["", ""]
+
+    j = {row["symbol"]: row for row in route_client.get("/api/j2/trades/export?format=json").json()}
+    assert j["NVDA"]["entryWhy"] == {"text": 'Tight flag, "RS new high", held the 21EMA',
+                                     "updatedAt": "2026-04-19T16:00:00+00:00"}
+    assert j["TSLA"]["entryWhy"] is None and j["NVAX"]["entryWhy"] is None
+
+
+def test_the_why_is_exported_even_while_the_entry_context_switch_is_off(route_client, tmp_path, monkeypatch):
+    """They are the member's words. Turning the feature off must not hide them from their export."""
+    monkeypatch.delenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", raising=False)
+    _why(str(tmp_path / "j2_export.db"), "NVDA", "2026-04-19", "still mine")
+    rows = list(csv.reader(io.StringIO(route_client.get("/api/j2/trades/export?format=csv&symbol=NVDA").text)))
+    assert rows[1][-2] == "still mine"
+
+
+def test_a_filter_that_excludes_the_trade_excludes_its_why(route_client, tmp_path):
+    """The file is what is on screen: a why whose trade is filtered out adds no column."""
+    _why(str(tmp_path / "j2_export.db"), "NVDA", "2026-04-19", "only on NVDA")
+    rows = list(csv.reader(io.StringIO(route_client.get("/api/j2/trades/export?format=csv&symbol=TSLA").text)))
+    assert len(rows[0]) == 15 and "only on NVDA" not in str(rows)

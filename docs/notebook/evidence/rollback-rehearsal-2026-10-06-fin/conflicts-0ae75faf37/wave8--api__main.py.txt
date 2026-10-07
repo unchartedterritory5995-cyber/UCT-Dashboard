@@ -1,0 +1,122 @@
+<<<<<<< OURS(prev)
+# Wave 8 seam S8-2: the share routes' own router, BEFORE journal_two (same family,
+# same pre-journal_two slot; tests/test_notebook_share_routes.py +
+# tests/test_main_router_order.py).
+app.include_router(notebook_shares_router.router)
+app.include_router(journal_two_router.router, dependencies=_OPEN_READS)
+# Wave 8 seam S8-2: three STUB routers (prefix, no routes yet) for lanes 8B/8C --
+# /api/j2/publish*|published* (8B), /api/j2/export (8C), /api/j2/onboarding (8C).
+# Outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_publish_router.router)
+app.include_router(notebook_export_router.router)
+app.include_router(notebook_onboarding_router.router)
+=======
+app.include_router(journal_two_router.router)
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+
+
+# StaticFiles types a file by `mimetypes.guess_type`, and an unknown extension
+# falls back to `text/plain`. Production runs Python 3.12, whose built-in table
+# has NO `.webp` (added in 3.13), and the nix container ships no
+# /etc/mime.types -- so every /live-trading-room/*.webp went out as
+# `text/plain; charset=utf-8`. Register it explicitly so the answer does not
+# depend on the interpreter version or the image's OS files.
+# (tests/test_live_trading_room_page.py serves the mount under a 3.12-shaped table.)
+def register_static_mime_types() -> None:
+    import mimetypes
+    mimetypes.add_type("image/webp", ".webp")
+
+
+register_static_mime_types()
+
+# ── Wave 8 seam S8-4: public-note pages -- noindex, and no Referer out of them ──
+# A share link (`/share/n/<token>`) and a published page (`/p/...`) are client routes, so
+# the SPA catch-all below answers them with index.html like every other page. That
+# response gets two headers, for those paths and no others:
+#   * X-Robots-Tag: noindex, nofollow -- ruling D-B10: wave 8 is ALWAYS noindex, no
+#     toggle. It is set by PATH, so the HTML cannot differ per publication.
+#   * Referrer-Policy: no-referrer -- ruling D-B1: the token is the credential and it
+#     rides the path, so a click out must not hand the URL to another site.
+# ⛔ ONE FACT IN TWO LANGUAGES: these prefixes ARE `SHARED_NOTE_PATH` (lib/noteShareLink.js)
+# and `PUBLISHED_PATH` (lib/notePublishLink.js). tests/test_public_note_headers.py parses
+# both files and fails if this tuple stops equalling them. The match is by path SEGMENT:
+# a bare startswith("/p") would also mark /pricing and /portfolio-heat.
+# ⚠️ robots.txt must NOT disallow these paths: a crawler that may not fetch a page never
+# sees its noindex.
+PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
+PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+
+
+def is_public_note_path(full_path: str) -> bool:
+    """Is this SPA path a public note page (a share link or a published page)?"""
+    path = "/" + (full_path or "").lstrip("/")
+    return any(path == p or path.startswith(p + "/") for p in PUBLIC_NOTE_PATH_PREFIXES)
+
+
+def spa_index_response(full_path: str):
+    """The SPA catch-all's response: index.html, never cached, plus the public-note
+    headers on a public-note path. Defined OUTSIDE the DIST guard so the rail can serve
+    it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
+    (tests/test_public_note_headers.py pins that by AST)."""
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    if is_public_note_path(full_path):
+        headers.update(PUBLIC_NOTE_HEADERS)
+    return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
+
+
+# ── Public landing page: /live-trading-room ─────────────────────────────────
+# A REAL static HTML page (app/public/live-trading-room/index.html, copied into
+# dist/ by `vite build`), not a client route: the SPA shell gives a crawler only
+# the shell's own title/meta, so this page is served before the catch-all with
+# its own <title>, description, canonical, Open Graph tags and JSON-LD. No JS,
+# no member data. Its images live beside it and are served by the
+# /live-trading-room/ static mount below. The canonical URL has NO trailing
+# slash; the slash form 301s to it. Defined OUTSIDE the DIST guard so the rail
+# (tests/test_live_trading_room_page.py) can serve it from a temp DIST.
+LIVE_TRADING_ROOM_PATH = "/live-trading-room"
+LIVE_TRADING_ROOM_DIR = "live-trading-room"
+
+
+def live_trading_room_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "index.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+# The room's own terms page (app/public/live-trading-room/terms.html), served the
+# same way as the room page: static, server-readable, no trailing slash (the slash
+# form 301s to it). It must be registered BEFORE the /live-trading-room static
+# mount below, which would otherwise look for a file called `terms` and 404.
+LIVE_TRADING_ROOM_TERMS_PATH = LIVE_TRADING_ROOM_PATH + "/terms"
+
+
+def live_trading_room_terms_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "terms.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+# The room's own privacy page (app/public/live-trading-room/privacy.html), served
+# exactly like the terms page above and for the same reason registered BEFORE the
+# /live-trading-room static mount (which would otherwise look for a file called
+# `privacy` and 404). The slash form 301s to the no-slash URL.
+LIVE_TRADING_ROOM_PRIVACY_PATH = LIVE_TRADING_ROOM_PATH + "/privacy"
+
+
+def live_trading_room_privacy_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "privacy.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+=======
+>>>>>>> THEIRS(pre-landing)
+

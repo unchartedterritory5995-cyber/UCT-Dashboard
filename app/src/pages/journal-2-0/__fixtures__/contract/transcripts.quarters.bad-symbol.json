@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/research-capture/transcripts/no%20way/quarters",
+    "path": "/api/j2/research-capture/transcripts/no%20way/quarters",
+    "status": 400
+  },
+  "body": {
+    "detail": "That is not a ticker symbol."
+  }
+}

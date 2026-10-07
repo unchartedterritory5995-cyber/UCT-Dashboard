@@ -43,6 +43,7 @@ from api.middleware.auth_middleware import (
     require_plan,
 )
 from api.services import auth_service, crypto_box
+from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.note_connectors import (
@@ -55,6 +56,27 @@ log = logging.getLogger("note_connectors.router")
 router = APIRouter(prefix="/api/j2/notes/connectors", tags=["note-connectors"])
 
 _paid = require_plan(list(PAID_PLANS))
+
+# ⛔ FIN (2026-10-06): no route here declares a JSON body parameter. FastAPI reads a
+# declared body BEFORE it solves any dependency -- before the gate or the session,
+# and with no size limit. Each door takes its body through `_json(...)`: a
+# dependency that runs the session check first and caps the body WHILE it is read.
+# Rail: tests/test_notebook_body_census.py.
+# A connect body is a token or a capability URL; the rest are ids and a label.
+JSON_BODY_MAX_BYTES = 64 * 1024
+JSON_TOO_LARGE_SENTENCE = "Request too large"
+
+
+# ⛔ ON THESE ROUTES THE PLAN GATE PARAMETER COMES BEFORE THE BODY PARAMETER.
+# FastAPI solves a route's dependencies in the order its parameters are written,
+# so `user: dict = Depends(_paid)` first means a member without a plan is refused
+# (403) before the body is read or validated. `after` is the SESSION, not `_paid`,
+# on purpose: the plan gate stays in ONE place per route, so removing it still
+# opens the route in the eyes of tests/test_exposed_routes_gated.py.
+def _json(annotation, *, after=get_current_user):
+    return body_cap.capped_json(annotation, lambda: JSON_BODY_MAX_BYTES,
+                                lambda: JSON_TOO_LARGE_SENTENCE, after=after)
+
 
 _STATE_TTL_SECONDS = 600  # 10 minutes -- long enough to complete an OAuth consent screen
 
@@ -441,7 +463,7 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
 
 
 @router.post("/{provider}/connect")
-async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid)) -> dict[str, Any]:
+async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody = Depends(_json(ConnectBody))) -> dict[str, Any]:
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
     if not body.consent:
@@ -705,7 +727,7 @@ async def list_provider_folders(
 # ── POST /{provider}/sources (add an additional source) ──────────────────────
 
 @router.post("/{provider}/sources")
-async def add_source(provider: str, body: AddSourceBody, user: dict = Depends(_paid)) -> dict[str, Any]:
+async def add_source(provider: str, user: dict = Depends(_paid), body: AddSourceBody = Depends(_json(AddSourceBody))) -> dict[str, Any]:
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
     if connections.get_connector(user["id"], provider) is None:
@@ -763,7 +785,7 @@ async def sync_source_now(
 # ── PUT /sources/{id} ──────────────────────────────────────────────────────────
 
 @router.put("/sources/{source_id}")
-def update_source(source_id: str, body: SourceUpdateBody, user: dict = Depends(_paid)) -> dict[str, Any]:
+def update_source(source_id: str, user: dict = Depends(_paid), body: SourceUpdateBody = Depends(_json(SourceUpdateBody))) -> dict[str, Any]:
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
@@ -885,7 +907,7 @@ class ObsidianRedeemBody(BaseModel):
 
 
 @router.post("/obsidian/redeem")
-def obsidian_redeem(body: ObsidianRedeemBody) -> dict[str, Any]:
+def obsidian_redeem(body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody, after=None))) -> dict[str, Any]:
     """Exchanges a connect code for a device token + creates (or reuses) the
     `j2_note_sources` row that makes the sync engine pull this vault.
 

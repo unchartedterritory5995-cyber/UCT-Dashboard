@@ -431,11 +431,13 @@ import io
 import re
 import uuid as _uuid
 
-from fastapi import File, Request, UploadFile
+from fastapi import Request, UploadFile
+from api.services import request_body_cap as body_cap
 from fastapi.responses import FileResponse
 
 _ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
+IMAGE_SIZE_SENTENCE = "Image must be 1 byte – 5 MB"
 _MAX_DIM = 1920
 _SAFE_NAME = re.compile(r"^[a-f0-9]{32}\.webp$")
 
@@ -449,24 +451,29 @@ def _upload_dir() -> str:
     return os.path.join(os.path.dirname(__file__), "..", "..", "data", "community_uploads")
 
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+# (The declared-Content-Length check that stood here is the helper's now, and it
+# also stops a body that lied or declared nothing.)
+_COMMUNITY_IMAGE_UPLOAD = body_cap.capped_upload(
+    "file", lambda: _MAX_IMAGE_BYTES, lambda: IMAGE_SIZE_SENTENCE)
+
+
 @router.post("/images")
-async def upload_image(request: Request, file: UploadFile = File(...),
-                       user: dict = Depends(require_community)):
+async def upload_image(request: Request, user: dict = Depends(require_community),
+                       file: UploadFile = Depends(_COMMUNITY_IMAGE_UPLOAD)):
     _writer(user)
     if file.content_type not in _ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Images only (png/jpg/webp/gif)")
-    # Reject oversize up front by declared length, so we never buffer a huge body.
-    try:
-        declared = int(request.headers.get("content-length") or 0)
-    except (TypeError, ValueError):
-        declared = 0
-    if declared > _MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=400, detail="Image must be 1 byte – 5 MB")
     # Bounded read: cap RAM at ~5 MB regardless of the on-disk spool size. Reading
     # one extra byte lets us detect an over-cap file that lied about Content-Length.
     raw = await file.read(_MAX_IMAGE_BYTES + 1)
     if not raw or len(raw) > _MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=400, detail="Image must be 1 byte – 5 MB")
+        raise HTTPException(status_code=400, detail=IMAGE_SIZE_SENTENCE)
     from PIL import Image
     try:
         img = Image.open(io.BytesIO(raw))

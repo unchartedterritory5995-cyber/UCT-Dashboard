@@ -1,0 +1,4229 @@
+{
+ "tool": "tools/notebook_w14q2_tours_walk.py",
+ "tree": "6852c3927bebbd80eb3309a035e9121abec223ee",
+ "started": "2026-10-05T08:59:37+00:00",
+ "widths": [
+  [
+   1200,
+   900
+  ],
+  [
+   390,
+   844
+  ]
+ ],
+ "status": "COMPLETE",
+ "registry": [
+  {
+   "id": "writing-help",
+   "title": "Writing help",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "open",
+     "anchor": "writing-help",
+     "waitFor": null
+    },
+    {
+     "id": "scope",
+     "anchor": "note-body",
+     "waitFor": null
+    },
+    {
+     "id": "preview",
+     "anchor": "writing-help",
+     "waitFor": null
+    },
+    {
+     "id": "undo",
+     "anchor": "note-body",
+     "waitFor": null
+    }
+   ],
+   "module": "b1WritingHelp.steps"
+  },
+  {
+   "id": "image-docx-import",
+   "title": "Add an image or Word document",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "add",
+     "anchor": "note-toolbar",
+     "waitFor": null
+    },
+    {
+     "id": "format",
+     "anchor": "note-format",
+     "waitFor": "note-scan"
+    },
+    {
+     "id": "scan",
+     "anchor": "note-scan",
+     "waitFor": null
+    },
+    {
+     "id": "back",
+     "anchor": "note-phone-back",
+     "waitFor": null
+    },
+    {
+     "id": "find",
+     "anchor": "search",
+     "waitFor": null
+    }
+   ],
+   "module": "b1ImageDocx.steps"
+  },
+  {
+   "id": "publish-share",
+   "title": "Publish and share a note",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "door",
+     "anchor": "note-share",
+     "waitFor": null
+    },
+    {
+     "id": "note",
+     "anchor": "note-share",
+     "waitFor": null
+    },
+    {
+     "id": "folder",
+     "anchor": "note-share",
+     "waitFor": null
+    },
+    {
+     "id": "unpublish",
+     "anchor": "note-share",
+     "waitFor": null
+    }
+   ],
+   "module": "b1Publish.steps"
+  },
+  {
+   "id": "task-reminders",
+   "title": "Task reminders",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "list",
+     "anchor": "tasks-list",
+     "waitFor": null
+    },
+    {
+     "id": "due",
+     "anchor": "tasks-group",
+     "waitFor": null
+    },
+    {
+     "id": "remind",
+     "anchor": "tasks-tick",
+     "waitFor": null
+    }
+   ],
+   "module": "b1TaskReminders.steps"
+  },
+  {
+   "id": "template-gallery",
+   "title": "Template gallery",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "templates",
+     "anchor": "templates",
+     "waitFor": "template-gallery-door"
+    },
+    {
+     "id": "door",
+     "anchor": "template-gallery-door",
+     "waitFor": null
+    },
+    {
+     "id": "use",
+     "anchor": "template-gallery-door",
+     "waitFor": null
+    },
+    {
+     "id": "share",
+     "anchor": "template-gallery-door",
+     "waitFor": null
+    }
+   ],
+   "module": "b1TemplateGallery.steps"
+  },
+  {
+   "id": "meaning-search",
+   "title": "Search by meaning",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "search",
+     "anchor": "search",
+     "waitFor": "search-count"
+    },
+    {
+     "id": "count",
+     "anchor": "search-count",
+     "waitFor": null
+    },
+    {
+     "id": "related",
+     "anchor": "search",
+     "waitFor": null
+    }
+   ],
+   "module": "b1MeaningSearch.steps"
+  },
+  {
+   "id": "formulas-rollups",
+   "title": "Formulas and rollups",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "add-first",
+     "anchor": "properties-add-empty",
+     "waitFor": null
+    },
+    {
+     "id": "add",
+     "anchor": "properties-add",
+     "waitFor": null
+    },
+    {
+     "id": "formula",
+     "anchor": "computed-value",
+     "waitFor": null
+    },
+    {
+     "id": "edit",
+     "anchor": "computed-edit",
+     "waitFor": null
+    },
+    {
+     "id": "rollup",
+     "anchor": "properties-add",
+     "waitFor": null
+    }
+   ],
+   "module": "b1Formulas.steps"
+  },
+  {
+   "id": "plan-grading",
+   "title": "Plan versus execution grading",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "card",
+     "anchor": "plan-grade-card",
+     "waitFor": null
+    },
+    {
+     "id": "source",
+     "anchor": "plan-grade-source",
+     "waitFor": null
+    },
+    {
+     "id": "checks",
+     "anchor": "plan-grade-checks",
+     "waitFor": null
+    },
+    {
+     "id": "frozen",
+     "anchor": "plan-grade-frozen",
+     "waitFor": null
+    },
+    {
+     "id": "actions",
+     "anchor": "plan-grade-actions",
+     "waitFor": null
+    }
+   ],
+   "module": "planGrading.steps"
+  },
+  {
+   "id": "entry-context",
+   "title": "Entry context card",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "card",
+     "anchor": "entry-context-card",
+     "waitFor": null
+    },
+    {
+     "id": "fields",
+     "anchor": "entry-context-fields",
+     "waitFor": null
+    },
+    {
+     "id": "why",
+     "anchor": "entry-context-why",
+     "waitFor": null
+    },
+    {
+     "id": "save",
+     "anchor": "entry-context-why-save",
+     "waitFor": null
+    }
+   ],
+   "module": "entryContext.steps"
+  },
+  {
+   "id": "review-drafts",
+   "title": "Reviews that write themselves",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "home",
+     "anchor": "review-drafts-home",
+     "waitFor": null
+    },
+    {
+     "id": "daily",
+     "anchor": "review-drafts-daily",
+     "waitFor": null
+    },
+    {
+     "id": "weekly",
+     "anchor": "review-drafts-weekly",
+     "waitFor": null
+    },
+    {
+     "id": "monthly",
+     "anchor": "review-drafts-monthly",
+     "waitFor": null
+    }
+   ],
+   "module": "reviewDrafts.steps"
+  },
+  {
+   "id": "my-playbook",
+   "title": "My Playbook",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "intro",
+     "anchor": "my-playbook-intro",
+     "waitFor": null
+    },
+    {
+     "id": "setup-card",
+     "anchor": "my-playbook-setup-card",
+     "waitFor": null
+    },
+    {
+     "id": "notes",
+     "anchor": "my-playbook-notes",
+     "waitFor": null
+    },
+    {
+     "id": "patterns",
+     "anchor": "my-playbook-patterns",
+     "waitFor": null
+    },
+    {
+     "id": "snapshot",
+     "anchor": "my-playbook-snapshot",
+     "waitFor": null
+    }
+   ],
+   "module": "myPlaybook.steps"
+  },
+  {
+   "id": "chart-plan-basics",
+   "title": "Chart plan basics",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "chart",
+     "anchor": "chart-embed",
+     "waitFor": null
+    },
+    {
+     "id": "draw",
+     "anchor": "chart-plan-draw",
+     "waitFor": null
+    },
+    {
+     "id": "plan",
+     "anchor": "chart-plan-open",
+     "waitFor": "chart-plan-panel"
+    },
+    {
+     "id": "roles",
+     "anchor": "chart-plan-panel",
+     "waitFor": null
+    },
+    {
+     "id": "numbers",
+     "anchor": "chart-plan-numbers",
+     "waitFor": null
+    },
+    {
+     "id": "alert",
+     "anchor": "chart-plan-alert",
+     "waitFor": null
+    }
+   ],
+   "module": "chartPlanBasics.steps"
+  },
+  {
+   "id": "chart-plan-replay",
+   "title": "Chart plan replay and context",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "chart",
+     "anchor": "chart-embed",
+     "waitFor": null
+    },
+    {
+     "id": "replay",
+     "anchor": "chart-plan-replay",
+     "waitFor": "chart-replay-controls"
+    },
+    {
+     "id": "controls",
+     "anchor": "chart-replay-controls",
+     "waitFor": null
+    },
+    {
+     "id": "context",
+     "anchor": "chart-embed-timeframe",
+     "waitFor": null
+    }
+   ],
+   "module": "chartPlanReplay.steps"
+  },
+  {
+   "id": "ta-fingerprint",
+   "title": "The technical fingerprint",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "summary",
+     "anchor": "fp-summary",
+     "waitFor": null
+    },
+    {
+     "id": "fields",
+     "anchor": "fp-all-fields",
+     "waitFor": null
+    },
+    {
+     "id": "tag",
+     "anchor": "fp-setup-tag",
+     "waitFor": null
+    },
+    {
+     "id": "plan",
+     "anchor": "fp-plan",
+     "waitFor": null
+    }
+   ],
+   "module": "taFingerprint.steps"
+  },
+  {
+   "id": "visual-playbook",
+   "title": "Visual playbook",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "open",
+     "anchor": "fp-visual-playbook",
+     "waitFor": "vp-grid"
+    },
+    {
+     "id": "grid",
+     "anchor": "vp-grid",
+     "waitFor": null
+    },
+    {
+     "id": "fields",
+     "anchor": "vp-card-fields",
+     "waitFor": null
+    },
+    {
+     "id": "outcome",
+     "anchor": "vp-card-outcome",
+     "waitFor": null
+    },
+    {
+     "id": "stats",
+     "anchor": "vp-stats",
+     "waitFor": null
+    },
+    {
+     "id": "filters",
+     "anchor": "vp-filters",
+     "waitFor": null
+    }
+   ],
+   "module": "visualPlaybook.steps"
+  },
+  {
+   "id": "setups-board",
+   "title": "Active setups and find more like this",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "card",
+     "anchor": "setups-card",
+     "waitFor": null
+    },
+    {
+     "id": "distance",
+     "anchor": "setups-distance",
+     "waitFor": null
+    },
+    {
+     "id": "note",
+     "anchor": "setups-note",
+     "waitFor": null
+    },
+    {
+     "id": "similar",
+     "anchor": "setups-similar",
+     "waitFor": null
+    },
+    {
+     "id": "templates",
+     "anchor": "setups-templates",
+     "waitFor": null
+    }
+   ],
+   "module": "setupsBoard.steps"
+  },
+  {
+   "id": "earnings-prep",
+   "title": "Reporting soon and earnings prep",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "list",
+     "anchor": "reporting-soon-list",
+     "waitFor": null
+    },
+    {
+     "id": "when",
+     "anchor": "reporting-soon-when",
+     "waitFor": null
+    },
+    {
+     "id": "sources",
+     "anchor": "reporting-soon-sources",
+     "waitFor": null
+    },
+    {
+     "id": "prep",
+     "anchor": "reporting-soon-prep",
+     "waitFor": null
+    }
+   ],
+   "module": "earningsPrep.steps"
+  },
+  {
+   "id": "transcript-capture",
+   "title": "Transcript passages",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "open",
+     "anchor": "note-body",
+     "waitFor": "transcript-turns"
+    },
+    {
+     "id": "turns",
+     "anchor": "transcript-turns",
+     "waitFor": null
+    },
+    {
+     "id": "quote",
+     "anchor": "transcript-quote",
+     "waitFor": null
+    },
+    {
+     "id": "call",
+     "anchor": "transcript-call",
+     "waitFor": null
+    },
+    {
+     "id": "find",
+     "anchor": "transcript-find",
+     "waitFor": null
+    }
+   ],
+   "module": "transcriptCapture.steps"
+  },
+  {
+   "id": "passed-setups",
+   "title": "Passed setups",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "list",
+     "anchor": "passed-list",
+     "waitFor": null
+    },
+    {
+     "id": "outcomes",
+     "anchor": "passed-outcomes",
+     "waitFor": null
+    },
+    {
+     "id": "add",
+     "anchor": "passed-add",
+     "waitFor": null
+    }
+   ],
+   "module": "passedSetups.steps"
+  },
+  {
+   "id": "note-resurfaces",
+   "title": "A note resurfaces",
+   "replayable": false,
+   "steps": [
+    {
+     "id": "then",
+     "anchor": "resurface-then",
+     "waitFor": null
+    },
+    {
+     "id": "back",
+     "anchor": "resurface-back",
+     "waitFor": null
+    }
+   ],
+   "module": "noteResurfaces.steps"
+  }
+ ],
+ "rows": [
+  {
+   "tour": "image-docx-import",
+   "width": 1200,
+   "declared": 5,
+   "opens": true,
+   "start": "/journal/notebook?note=d63c1722edc14565a75294c397cf02ed",
+   "shown": [
+    1,
+    5
+   ],
+   "skipped": [
+    {
+     "step": 2,
+     "id": "format",
+     "anchor": "note-format",
+     "why": "anchor present but has no box",
+     "count": 1,
+     "withBox": 0,
+     "hidden": false
+    },
+    {
+     "step": 3,
+     "id": "scan",
+     "anchor": "note-scan",
+     "why": "anchor present but has no box",
+     "count": 1,
+     "withBox": 0,
+     "hidden": false
+    },
+    {
+     "step": 4,
+     "id": "back",
+     "anchor": "note-phone-back",
+     "why": "anchor present but has no box",
+     "count": 1,
+     "withBox": 0,
+     "hidden": false
+    }
+   ],
+   "clicked": [],
+   "modes": [
+    "modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "image-docx-import-1200.png",
+   "battery": {
+    "overflow": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "modal": true
+   },
+   "escape_ok": true,
+   "complete": false
+  },
+  {
+   "tour": "template-gallery",
+   "width": 1200,
+   "declared": 4,
+   "opens": true,
+   "start": "/journal/notebook?view=all",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "modes": [
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "template-gallery-1200.png",
+   "battery": {
+    "overflow": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "meaning-search",
+   "width": 1200,
+   "declared": 3,
+   "opens": true,
+   "start": "/journal/notebook?view=all",
+   "shown": [
+    1,
+    2,
+    3
+   ],
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "modes": [
+    "non-modal",
+    "modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "meaning-search-1200.png",
+   "battery": {
+    "overflow": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "non-modal": true,
+    "modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "chart-plan-basics",
+   "width": 1200,
+   "declared": 6,
+   "opens": true,
+   "start": "/journal/notebook?note=7fac20cc790d4f4194e9570463f67b24",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "skipped": [],
+   "clicked": [
+    3
+   ],
+   "modes": [
+    "modal",
+    "modal",
+    "non-modal",
+    "modal",
+    "modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "chart-plan-basics-1200.png",
+   "battery": {
+    "overflow": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "modal": true,
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "chart-plan-replay",
+   "width": 1200,
+   "declared": 4,
+   "opens": true,
+   "start": "/journal/notebook?note=7fac20cc790d4f4194e9570463f67b24",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "skipped": [],
+   "clicked": [
+    2
+   ],
+   "modes": [
+    "modal",
+    "non-modal",
+    "non-modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "chart-plan-replay-1200.png",
+   "battery": {
+    "overflow": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "modal": true,
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "visual-playbook",
+   "width": 1200,
+   "declared": 6,
+   "opens": true,
+   "start": "/journal/notebook?note=7fac20cc790d4f4194e9570463f67b24",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "modes": [
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "visual-playbook-1200.png",
+   "battery": {
+    "overflow": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "image-docx-import",
+   "width": 390,
+   "declared": 5,
+   "opens": true,
+   "start": "/journal/notebook?note=a4e21a3cf2864eb3a96266c711776203",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "skipped": [],
+   "clicked": [
+    2,
+    4
+   ],
+   "modes": [
+    "modal",
+    "non-modal",
+    "modal",
+    "non-modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "image-docx-import-390.png",
+   "battery": {
+    "overflow": true,
+    "tap": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "modal": true,
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "template-gallery",
+   "width": 390,
+   "declared": 4,
+   "opens": true,
+   "start": "/journal/notebook?view=all",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "modes": [
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "template-gallery-390.png",
+   "battery": {
+    "overflow": true,
+    "tap": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "meaning-search",
+   "width": 390,
+   "declared": 3,
+   "opens": true,
+   "start": "/journal/notebook?view=all",
+   "shown": [
+    1,
+    2,
+    3
+   ],
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "modes": [
+    "non-modal",
+    "modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "meaning-search-390.png",
+   "battery": {
+    "overflow": true,
+    "tap": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "non-modal": true,
+    "modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "chart-plan-basics",
+   "width": 390,
+   "declared": 6,
+   "opens": true,
+   "start": "/journal/notebook?note=29a0389543314a9ba952b41a0ebbfbb7",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "skipped": [],
+   "clicked": [
+    3
+   ],
+   "modes": [
+    "modal",
+    "modal",
+    "non-modal",
+    "modal",
+    "modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "chart-plan-basics-390.png",
+   "battery": {
+    "overflow": true,
+    "tap": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "modal": true,
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "chart-plan-replay",
+   "width": 390,
+   "declared": 4,
+   "opens": true,
+   "start": "/journal/notebook?note=29a0389543314a9ba952b41a0ebbfbb7",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "skipped": [],
+   "clicked": [
+    2
+   ],
+   "modes": [
+    "modal",
+    "non-modal",
+    "non-modal",
+    "modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "chart-plan-replay-390.png",
+   "battery": {
+    "overflow": true,
+    "tap": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "modal": true,
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  },
+  {
+   "tour": "visual-playbook",
+   "width": 390,
+   "declared": 6,
+   "opens": true,
+   "start": "/journal/notebook?note=29a0389543314a9ba952b41a0ebbfbb7",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "modes": [
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal",
+    "non-modal"
+   ],
+   "notes": [],
+   "reached_start_at_step": 1,
+   "shot": "visual-playbook-390.png",
+   "battery": {
+    "overflow": true,
+    "tap": true,
+    "axe": true,
+    "axe_ids": [],
+    "keys": true
+   },
+   "trap": {
+    "non-modal": true
+   },
+   "back_ok": true,
+   "escape_ok": true,
+   "complete": true
+  }
+ ],
+ "phases": {
+  "on": {
+   "base": "http://127.0.0.1:8730",
+   "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+   "not_run": null,
+   "armed": [
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED"
+   ]
+  }
+ },
+ "finished": "2026-10-05T09:01:48+00:00",
+ "not_run": [],
+ "checks": [
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "setup",
+   "check": "member with the sample notebook and one trade",
+   "verdict": "PASS",
+   "email": "q1q2t1200798092@local.dev",
+   "sample": {
+    "status": 200,
+    "body": "{\"folderId\":\"248858f1ca9f425fb7612287dbfe7fbc\",\"welcomeNoteId\":\"6abc840ec7004f60be806bfcf66e24ab\"}"
+   },
+   "trade": {
+    "status": 200,
+    "body": "{\"id\":\"d708f775-4ba2-48df-b58f-df893fade9b9\",\"userId\":\"ea399d36-88dc-4343-9899-a979bdc5e07c\",\"positionId\":\"manual-c3574fcc-9412-41a7-8099-386d62bb5104\",\"symbol\""
+   },
+   "payload_flags_off": [
+    "research_technical_tab_enabled",
+    "research_flow_tab_enabled",
+    "decision_record_enabled",
+    "ticker_history_enabled",
+    "address_space_enabled",
+    "options_chain_enabled",
+    "options_vol_surface_enabled",
+    "options_backtest_enabled",
+    "seasonality_enabled",
+    "research_people_enabled",
+    "estimate_history_enabled",
+    "filings_feed_enabled",
+    "s7_filing_watch_enabled",
+    "j2_share_links_enabled",
+    "notebook_voice_notes_enabled",
+    "notebook_ai_actions_enabled",
+    "notebook_trade_canvas_enabled",
+    "breadth_dc_v2_2_enabled",
+    "breadth_dc_v2_3_enabled"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S0 Help",
+   "check": "Walkthroughs lists the base tour and every replayable tour",
+   "verdict": "PASS",
+   "listed": [
+    "Notebook basics",
+    "Writing help",
+    "Add an image or Word document",
+    "Publish and share a note",
+    "Task reminders",
+    "Template gallery",
+    "Search by meaning",
+    "Formulas and rollups",
+    "Plan versus execution grading",
+    "Entry context card",
+    "Reviews that write themselves",
+    "My Playbook",
+    "Chart plan basics",
+    "Chart plan replay and context",
+    "The technical fingerprint",
+    "Visual playbook",
+    "Active setups and find more like this",
+    "Reporting soon and earnings prep",
+    "Transcript passages",
+    "Passed setups"
+   ],
+   "expected": [
+    "Writing help",
+    "Add an image or Word document",
+    "Publish and share a note",
+    "Task reminders",
+    "Template gallery",
+    "Search by meaning",
+    "Formulas and rollups",
+    "Plan versus execution grading",
+    "Entry context card",
+    "Reviews that write themselves",
+    "My Playbook",
+    "Chart plan basics",
+    "Chart plan replay and context",
+    "The technical fingerprint",
+    "Visual playbook",
+    "Active setups and find more like this",
+    "Reporting soon and earnings prep",
+    "Transcript passages",
+    "Passed setups"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 5,
+   "url": "/journal/notebook?note=d63c1722edc14565a75294c397cf02ed",
+   "title": "Add an image or a Word file"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 5,
+   "declared": 5
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "modal",
+   "active": "note-toolbar",
+   "activeOpacity": 1,
+   "activeRect": [
+    370,
+    182,
+    786,
+    98
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "step 5 shown",
+   "verdict": "INFO",
+   "n": 5,
+   "mode": "modal",
+   "active": "search",
+   "activeOpacity": 1,
+   "activeRect": [
+    169,
+    144,
+    28,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "find"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "image-docx-import",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    5
+   ],
+   "declared": 5,
+   "skipped": [
+    {
+     "step": 2,
+     "id": "format",
+     "anchor": "note-format",
+     "why": "anchor present but has no box",
+     "count": 1,
+     "withBox": 0,
+     "hidden": false
+    },
+    {
+     "step": 3,
+     "id": "scan",
+     "anchor": "note-scan",
+     "why": "anchor present but has no box",
+     "count": 1,
+     "withBox": 0,
+     "hidden": false
+    },
+    {
+     "step": 4,
+     "id": "back",
+     "anchor": "note-phone-back",
+     "why": "anchor present but has no box",
+     "count": 1,
+     "withBox": 0,
+     "hidden": false
+    }
+   ],
+   "clicked": [],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 4,
+   "url": "/journal/notebook?view=all",
+   "title": "Start from a template"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 4,
+   "declared": 4
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "non-modal",
+   "active": "templates",
+   "activeOpacity": 1,
+   "activeRect": [
+    970,
+    199,
+    93,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "step 1: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "template-gallery-door",
+   "activeOpacity": 1,
+   "activeRect": [
+    257,
+    206,
+    220,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "template-gallery-door",
+   "activeOpacity": 1,
+   "activeRect": [
+    257,
+    206,
+    220,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "non-modal",
+   "active": "template-gallery-door",
+   "activeOpacity": 1,
+   "activeRect": [
+    257,
+    206,
+    220,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "door"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "template-gallery",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "declared": 4,
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 3,
+   "url": "/journal/notebook?view=all",
+   "title": "Search by meaning"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 3,
+   "declared": 3
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "non-modal",
+   "active": "search",
+   "activeOpacity": 1,
+   "activeRect": [
+    169,
+    144,
+    28,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "step 1: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "modal",
+   "active": "search-count",
+   "activeOpacity": 1,
+   "activeRect": [
+    96,
+    239,
+    236,
+    22
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "modal",
+   "active": "search",
+   "activeOpacity": 1,
+   "activeRect": [
+    169,
+    144,
+    28,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "related"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "meaning-search",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3
+   ],
+   "declared": 3,
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 6,
+   "url": "/journal/notebook?note=7fac20cc790d4f4194e9570463f67b24",
+   "title": "The chart is your plan"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 6,
+   "declared": 6
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "modal",
+   "active": "chart-embed",
+   "activeOpacity": 1,
+   "activeRect": [
+    414,
+    520,
+    698,
+    553
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "modal",
+   "active": "chart-plan-draw",
+   "activeOpacity": 1,
+   "activeRect": [
+    592,
+    528,
+    44,
+    20
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "chart-plan-open",
+   "activeOpacity": 1,
+   "activeRect": [
+    781,
+    486,
+    40,
+    20
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 3: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "modal",
+   "active": "chart-plan-panel",
+   "activeOpacity": 1,
+   "activeRect": [
+    415,
+    683,
+    696,
+    222
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 5 shown",
+   "verdict": "INFO",
+   "n": 5,
+   "mode": "modal",
+   "active": "chart-plan-numbers",
+   "activeOpacity": 1,
+   "activeRect": [
+    428,
+    787,
+    670,
+    69
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "step 6 shown",
+   "verdict": "INFO",
+   "n": 6,
+   "mode": "modal",
+   "active": "chart-plan-alert",
+   "activeOpacity": 1,
+   "activeRect": [
+    965,
+    684,
+    133,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "numbers"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-basics",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "declared": 6,
+   "skipped": [],
+   "clicked": [
+    3
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 4,
+   "url": "/journal/notebook?note=7fac20cc790d4f4194e9570463f67b24",
+   "title": "What happened next"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 4,
+   "declared": 4
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "modal",
+   "active": "chart-embed",
+   "activeOpacity": 1,
+   "activeRect": [
+    414,
+    511,
+    698,
+    553
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "chart-plan-replay",
+   "activeOpacity": 1,
+   "activeRect": [
+    825,
+    486,
+    52,
+    20
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "step 2: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "chart-replay-controls",
+   "activeOpacity": 1,
+   "activeRect": [
+    209,
+    639,
+    782,
+    31
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "modal",
+   "active": "chart-embed-timeframe",
+   "activeOpacity": 1,
+   "activeRect": [
+    449,
+    485,
+    54,
+    22
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "replay"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "chart-plan-replay",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "declared": 4,
+   "skipped": [],
+   "clicked": [
+    2
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 6,
+   "url": "/journal/notebook?note=7fac20cc790d4f4194e9570463f67b24",
+   "title": "Open the visual playbook"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 6,
+   "declared": 6
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "non-modal",
+   "active": "fp-visual-playbook",
+   "activeOpacity": 1,
+   "activeRect": [
+    653,
+    586,
+    108,
+    28
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 1: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "vp-grid",
+   "activeOpacity": 1,
+   "activeRect": [
+    67,
+    443,
+    1066,
+    332
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "vp-card-fields",
+   "activeOpacity": 1,
+   "activeRect": [
+    78,
+    651,
+    236,
+    42
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "non-modal",
+   "active": "vp-card-outcome",
+   "activeOpacity": 1,
+   "activeRect": [
+    78,
+    697,
+    236,
+    21
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 5 shown",
+   "verdict": "INFO",
+   "n": 5,
+   "mode": "non-modal",
+   "active": "vp-stats",
+   "activeOpacity": 1,
+   "activeRect": [
+    67,
+    382,
+    1066,
+    49
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "step 6 shown",
+   "verdict": "INFO",
+   "n": 6,
+   "mode": "non-modal",
+   "active": "vp-filters",
+   "activeOpacity": 1,
+   "activeRect": [
+    67,
+    179,
+    1066,
+    158
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "open"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "visual-playbook",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "declared": 6,
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "driver",
+   "check": "no uncaught page errors",
+   "verdict": "PASS",
+   "errors": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "setup",
+   "check": "member with the sample notebook and one trade",
+   "verdict": "PASS",
+   "email": "q1q2t390834257@local.dev",
+   "sample": {
+    "status": 200,
+    "body": "{\"folderId\":\"f62f6196245a4ea187b3a43c555653a1\",\"welcomeNoteId\":\"074098e77e89468fb6e1ade0ef686ab8\"}"
+   },
+   "trade": {
+    "status": 200,
+    "body": "{\"id\":\"adcfe6ad-c1f4-47cf-a7e7-75fcc463dc0a\",\"userId\":\"06d8415c-def1-4484-95a0-7ecadfdc6132\",\"positionId\":\"manual-685684f2-69bf-467a-8df5-331a73ef82b5\",\"symbol\""
+   },
+   "payload_flags_off": [
+    "research_technical_tab_enabled",
+    "research_flow_tab_enabled",
+    "decision_record_enabled",
+    "ticker_history_enabled",
+    "address_space_enabled",
+    "options_chain_enabled",
+    "options_vol_surface_enabled",
+    "options_backtest_enabled",
+    "seasonality_enabled",
+    "research_people_enabled",
+    "estimate_history_enabled",
+    "filings_feed_enabled",
+    "s7_filing_watch_enabled",
+    "j2_share_links_enabled",
+    "notebook_voice_notes_enabled",
+    "notebook_ai_actions_enabled",
+    "notebook_trade_canvas_enabled",
+    "breadth_dc_v2_2_enabled",
+    "breadth_dc_v2_3_enabled"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S0 Help",
+   "check": "Walkthroughs lists the base tour and every replayable tour",
+   "verdict": "PASS",
+   "listed": [
+    "Notebook basics",
+    "Writing help",
+    "Add an image or Word document",
+    "Publish and share a note",
+    "Task reminders",
+    "Template gallery",
+    "Search by meaning",
+    "Formulas and rollups",
+    "Plan versus execution grading",
+    "Entry context card",
+    "Reviews that write themselves",
+    "My Playbook",
+    "Chart plan basics",
+    "Chart plan replay and context",
+    "The technical fingerprint",
+    "Visual playbook",
+    "Active setups and find more like this",
+    "Reporting soon and earnings prep",
+    "Transcript passages",
+    "Passed setups"
+   ],
+   "expected": [
+    "Writing help",
+    "Add an image or Word document",
+    "Publish and share a note",
+    "Task reminders",
+    "Template gallery",
+    "Search by meaning",
+    "Formulas and rollups",
+    "Plan versus execution grading",
+    "Entry context card",
+    "Reviews that write themselves",
+    "My Playbook",
+    "Chart plan basics",
+    "Chart plan replay and context",
+    "The technical fingerprint",
+    "Visual playbook",
+    "Active setups and find more like this",
+    "Reporting soon and earnings prep",
+    "Transcript passages",
+    "Passed setups"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 5,
+   "url": "/journal/notebook?note=a4e21a3cf2864eb3a96266c711776203",
+   "title": "Add an image or a Word file"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 5,
+   "declared": 5
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "card controls >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "modal",
+   "active": "note-toolbar",
+   "activeOpacity": 1,
+   "activeRect": [
+    44,
+    411,
+    302,
+    99
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "note-format",
+   "activeOpacity": 1,
+   "activeRect": [
+    159,
+    400,
+    78,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 2: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "modal",
+   "active": "note-scan",
+   "activeOpacity": 1,
+   "activeRect": [
+    60,
+    584,
+    63,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "non-modal",
+   "active": "note-phone-back",
+   "activeOpacity": 1,
+   "activeRect": [
+    44,
+    201,
+    133,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 4: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "step 5 shown",
+   "verdict": "INFO",
+   "n": 5,
+   "mode": "modal",
+   "active": "search",
+   "activeOpacity": 1,
+   "activeRect": [
+    130,
+    206,
+    44,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "find"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "image-docx-import",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "declared": 5,
+   "skipped": [],
+   "clicked": [
+    2,
+    4
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 4,
+   "url": "/journal/notebook?view=all",
+   "title": "Start from a template"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 4,
+   "declared": 4
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "card controls >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "non-modal",
+   "active": "templates",
+   "activeOpacity": 1,
+   "activeRect": [
+    44,
+    400,
+    93,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "step 1: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "template-gallery-door",
+   "activeOpacity": 1,
+   "activeRect": [
+    17,
+    312,
+    220,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "template-gallery-door",
+   "activeOpacity": 1,
+   "activeRect": [
+    17,
+    312,
+    220,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "non-modal",
+   "active": "template-gallery-door",
+   "activeOpacity": 1,
+   "activeRect": [
+    17,
+    312,
+    220,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "templates"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "template-gallery",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "declared": 4,
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 3,
+   "url": "/journal/notebook?view=all",
+   "title": "Search by meaning"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 3,
+   "declared": 3
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "card controls >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "non-modal",
+   "active": "search",
+   "activeOpacity": 1,
+   "activeRect": [
+    130,
+    206,
+    44,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "step 1: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "modal",
+   "active": "search-count",
+   "activeOpacity": 1,
+   "activeRect": [
+    36,
+    328,
+    318,
+    22
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "modal",
+   "active": "search",
+   "activeOpacity": 1,
+   "activeRect": [
+    130,
+    206,
+    44,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "count"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "meaning-search",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3
+   ],
+   "declared": 3,
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 6,
+   "url": "/journal/notebook?note=29a0389543314a9ba952b41a0ebbfbb7",
+   "title": "The chart is your plan"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 6,
+   "declared": 6
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "card controls >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "modal",
+   "active": "chart-embed",
+   "activeOpacity": 1,
+   "activeRect": [
+    60,
+    32,
+    270,
+    671
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "modal",
+   "active": "chart-plan-draw",
+   "activeOpacity": 1,
+   "activeRect": [
+    261,
+    39,
+    44,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "chart-plan-open",
+   "activeOpacity": 1,
+   "activeRect": [
+    210,
+    400,
+    40,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 3: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "modal",
+   "active": "chart-plan-panel",
+   "activeOpacity": 1,
+   "activeRect": [
+    61,
+    332,
+    268,
+    590
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 5 shown",
+   "verdict": "INFO",
+   "n": 5,
+   "mode": "modal",
+   "active": "chart-plan-numbers",
+   "activeOpacity": 1,
+   "activeRect": [
+    74,
+    706,
+    242,
+    138
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "step 6 shown",
+   "verdict": "INFO",
+   "n": 6,
+   "mode": "modal",
+   "active": "chart-plan-alert",
+   "activeOpacity": 1,
+   "activeRect": [
+    74,
+    388,
+    137,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "alert"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-basics",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "declared": 6,
+   "skipped": [],
+   "clicked": [
+    3
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 4,
+   "url": "/journal/notebook?note=29a0389543314a9ba952b41a0ebbfbb7",
+   "title": "What happened next"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 4,
+   "declared": 4
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "card controls >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "modal",
+   "active": "chart-embed",
+   "activeOpacity": 1,
+   "activeRect": [
+    60,
+    32,
+    270,
+    671
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "focus trap (modal: kept)",
+   "verdict": "PASS",
+   "mode": "modal",
+   "stays_in_card": true,
+   "trail": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "chart-plan-replay",
+   "activeOpacity": 1,
+   "activeRect": [
+    254,
+    400,
+    52,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "step 2: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "chart-replay-controls",
+   "activeOpacity": 1,
+   "activeRect": [
+    29,
+    592,
+    332,
+    96
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "modal",
+   "active": "chart-embed-timeframe",
+   "activeOpacity": 1,
+   "activeRect": [
+    107,
+    352,
+    65,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "context"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "chart-plan-replay",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "declared": 4,
+   "skipped": [],
+   "clicked": [
+    2
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "opens",
+   "verdict": "PASS",
+   "step": 1,
+   "of": 6,
+   "url": "/journal/notebook?note=29a0389543314a9ba952b41a0ebbfbb7",
+   "title": "Open the visual playbook"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "progress counts the declared steps",
+   "verdict": "PASS",
+   "of": 6,
+   "declared": 6
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "card controls >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "axe on the card",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "keyboard reach inside the card",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 1 shown",
+   "verdict": "INFO",
+   "n": 1,
+   "mode": "non-modal",
+   "active": "fp-visual-playbook",
+   "activeOpacity": 1,
+   "activeRect": [
+    71,
+    400,
+    108,
+    44
+   ],
+   "cardInView": true,
+   "inSheet": false,
+   "waiting": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "focus trap (non-modal: absent)",
+   "verdict": "PASS",
+   "mode": "non-modal",
+   "stays_in_card": false,
+   "trail": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "as_designed": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 1: the control it asks for can be pressed",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 2 shown",
+   "verdict": "INFO",
+   "n": 2,
+   "mode": "non-modal",
+   "active": "vp-grid",
+   "activeOpacity": 1,
+   "activeRect": [
+    16,
+    86,
+    358,
+    758
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "Back returns to the previous shown step, and stays",
+   "verdict": "PASS",
+   "frm": 2,
+   "to": 1,
+   "after_2s": 1,
+   "onto_waitfor": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 3 shown",
+   "verdict": "INFO",
+   "n": 3,
+   "mode": "non-modal",
+   "active": "vp-card-fields",
+   "activeOpacity": 1,
+   "activeRect": [
+    27,
+    345,
+    336,
+    19
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 4 shown",
+   "verdict": "INFO",
+   "n": 4,
+   "mode": "non-modal",
+   "active": "vp-card-outcome",
+   "activeOpacity": 1,
+   "activeRect": [
+    27,
+    368,
+    336,
+    21
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 5 shown",
+   "verdict": "INFO",
+   "n": 5,
+   "mode": "non-modal",
+   "active": "vp-stats",
+   "activeOpacity": 1,
+   "activeRect": [
+    16,
+    53,
+    358,
+    70
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "step 6 shown",
+   "verdict": "INFO",
+   "n": 6,
+   "mode": "non-modal",
+   "active": "vp-filters",
+   "activeOpacity": 1,
+   "activeRect": [
+    16,
+    53,
+    358,
+    338
+   ],
+   "cardInView": true,
+   "inSheet": true,
+   "waiting": false
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "Escape closes the card and records the tour",
+   "verdict": "PASS",
+   "notebook_tours_row": {
+    "v": 1,
+    "state": "started",
+    "step": "filters"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "visual-playbook",
+   "check": "steps shown of declared",
+   "verdict": "INFO",
+   "shown": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "declared": 6,
+   "skipped": [],
+   "clicked": [
+    1
+   ],
+   "notes": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "driver",
+   "check": "no uncaught page errors",
+   "verdict": "PASS",
+   "errors": []
+  }
+ ]
+}

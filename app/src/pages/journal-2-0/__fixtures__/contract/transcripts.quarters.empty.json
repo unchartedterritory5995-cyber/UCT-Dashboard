@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/research-capture/transcripts/TRNV/quarters",
+    "note": "A name UCT holds no transcript for.",
+    "path": "/api/j2/research-capture/transcripts/TRNV/quarters",
+    "status": 200
+  },
+  "body": {
+    "quarters": [],
+    "source": "FMP transcript",
+    "symbol": "TRNV"
+  }
+}

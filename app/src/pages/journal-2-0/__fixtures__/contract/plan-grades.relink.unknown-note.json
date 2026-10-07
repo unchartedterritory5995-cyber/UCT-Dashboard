@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/plan-grades/trades/pg-pick/relink",
+    "path": "/api/j2/plan-grades/trades/pg-pick/relink",
+    "requestBody": {
+      "noteId": "nope"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Note not found"
+  }
+}

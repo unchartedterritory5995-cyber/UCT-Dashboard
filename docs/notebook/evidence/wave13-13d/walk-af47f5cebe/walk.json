@@ -1,0 +1,142 @@
+{
+ "tool": "tools/notebook_w13d_walk.py",
+ "base": "http://127.0.0.1:8622",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13d\\walk-af47f5cebe\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 22:29:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 22:31:37",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 22:33:33",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 22:35:54",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13d\\walk-af47f5cebe\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13d\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T22-29-11.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me awareness_note_resurface_enabled=True"
+  },
+  {
+   "id": "W1_note_and_version",
+   "verdict": "PASS",
+   "detail": "update HTTP 200; 1 version(s); version 88319e1e18fb4af9a1fe8792fd5b721b holds the stop and not the target; the live note holds both"
+  },
+  {
+   "id": "W2_first_sighting_is_silent",
+   "verdict": "PASS",
+   "detail": "fired 0; stop level indexed {'user_id': '05dd929a-5efa-4b30-a469-615fb85cfd90', 'note_id': '9afb6978621543ca8707b0555554e65f', 'level_id': 'stop@100.0', 'symbol': 'NVDA', 'role': 'stop', 'price': 100.0, 'on_date': None, 'version_id': '88319e1e18fb4af9a1fe8792fd5b721b', 'last_side': 'above'} (side recorded, version 88319e1e18fb4af9a1fe8792fd5b721b)"
+  },
+  {
+   "id": "W3_cross_fires_one_in_app_notice",
+   "verdict": "PASS",
+   "detail": "fired 1; insights [{'id': 1, 'kind': 'note_level_touch', 'symbol': 'NVDA', 'headline': 'NVDA reached 100.00, the stop you named', 'body': \"In “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-02. NVDA is at 98.00 now. Here's what you thought then.\", 'importance': 7}]; deliver_alert_payload calls 0"
+  },
+  {
+   "id": "W4_inbox_shows_the_notice",
+   "verdict": "PASS",
+   "detail": "door href /journal/notebook?note=9afb6978621543ca8707b0555554e65f&resurfaceVersion=88319e1e18fb4af9a1fe8792fd5b721b; inbox row text \"document\\nYOUR NOTES\\nNVDA\\nimportance 7/10\\nOct 3, 2026, 4:32 AM EDT\\nNVDA reached 100.00, the stop you named\\nIn “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-02. NVDA is at 98.00 now. Here's what you thought then.\\nOpen what you wrote\\nPENDING\\nDismiss\""
+  },
+  {
+   "id": "W5_opens_the_version_that_named_the_level",
+   "verdict": "PASS",
+   "detail": "opened http://127.0.0.1:8622/journal/notebook?note=9afb6978621543ca8707b0555554e65f; the sheet held the version that named the stop and no target; closing left ?note=9afb6978621543ca8707b0555554e65f with the live note showing the target"
+  },
+  {
+   "id": "W6_second_cross_is_silent",
+   "verdict": "PASS",
+   "detail": "fired 0; note_level_touch rows 1"
+  },
+  {
+   "id": "W7_review_date_of_today",
+   "verdict": "PASS",
+   "detail": "property PUT HTTP 200; fired 1; [{'id': 2, 'kind': 'note_date_due', 'symbol': 'AMD', 'headline': 'AMD: the review date you set is today', 'body': \"“AMD thesis (walk)” has a review date of 2026-10-02. Here's what you thought then.\", 'importance': 5}]"
+  },
+  {
+   "id": "W8_keyboard",
+   "verdict": "FAIL",
+   "detail": "67 Tab presses reached the door; Enter opened the sheet, Escape closed it=False"
+  },
+  {
+   "id": "W9_phone_390",
+   "verdict": "FAIL",
+   "detail": "geometry {'sw': 390, 'cw': 390, 'door_h': 44, 'door_right': 238.71875}"
+  },
+  {
+   "id": "W10_gate_off_client",
+   "verdict": "PASS",
+   "detail": "sheet absent=True; version requests=[]"
+  },
+  {
+   "id": "W11_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W12_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "today_et": "2026-10-02",
+  "auth_me_flag": true,
+  "W1": {
+   "create": 200,
+   "update": 200,
+   "version_id": "88319e1e18fb4af9a1fe8792fd5b721b",
+   "version_text": "The plan\nStop: 100",
+   "live_text": "The plan\nStop: 100\nTarget: 130"
+  },
+  "link": "/journal/notebook?note=9afb6978621543ca8707b0555554e65f&resurfaceVersion=88319e1e18fb4af9a1fe8792fd5b721b",
+  "W4_tile_text": "document\nYOUR NOTES\nNVDA\nimportance 7/10\nOct 3, 2026, 4:32 AM EDT\nNVDA reached 100.00, the stop you named\nIn “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-02. NVDA is at 98.00 now. Here's what you thought then.\nOpen what you wrote\nPENDING\nDismiss",
+  "W5_url": "http://127.0.0.1:8622/journal/notebook?note=9afb6978621543ca8707b0555554e65f&resurfaceVersion=88319e1e18fb4af9a1fe8792fd5b721b",
+  "W5_sheet_text": "What you wrote then\n×\n\nSaved 11:31 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nNVDA swing plan (walk)\n\nThe plan\n\nStop: 100\n\nBack to the note as it is now",
+  "W8_error": "Locator.wait_for: Timeout 60000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"What you wrote then\") to be visible\n",
+  "W9_error": "Locator.wait_for: Timeout 60000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"What you wrote then\") to be visible\n",
+  "W9_geometry": {
+   "sw": 390,
+   "cw": 390,
+   "door_h": 44,
+   "door_right": 238.71875
+  },
+  "version_requests_on": [
+   "http://127.0.0.1:8622/api/j2/notes/9afb6978621543ca8707b0555554e65f/versions/88319e1e18fb4af9a1fe8792fd5b721b"
+  ]
+ }
+}

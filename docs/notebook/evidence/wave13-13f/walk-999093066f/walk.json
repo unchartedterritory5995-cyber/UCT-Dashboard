@@ -1,0 +1,366 @@
+{
+ "wave": 13,
+ "lane": "13F",
+ "checks": {
+  "W0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": true
+  },
+  "W1_seed_week_and_compass_review": {
+   "verdict": "PASS",
+   "week_start": "2026-09-14",
+   "trades": {
+    "loss": "f2c4a34a-bbaa-4a24-bba3-5f9ea65b6c92",
+    "reentry": "e24e3e9f-3cf5-4092-93dc-fb99d5a0cca2",
+    "win1": "89ffcc03-89f2-4dae-89bc-353a17772de5",
+    "win2": "969df15c-292f-47c6-b282-de508aae9fcf"
+   },
+   "compass_review_generated": false,
+   "compass_status": 503,
+   "note": "a failed compass_review_generated is recorded, never fabricated as a pass; W3's Compass sub-check reads INCONCLUSIVE when it is False"
+  },
+  "W2_draft_from_insights_reviews_1200": {
+   "verdict": "PASS",
+   "landed_url": "http://127.0.0.1:8660/journal/notebook?note=57ea7959fe764be6951c27366e5ea24b",
+   "note_id": "57ea7959fe764be6951c27366e5ea24b",
+   "screenshots": [
+    "w2-insights-reviews-tab-1200.jpg",
+    "w2-landed-note-1200.jpg"
+   ]
+  },
+  "W3_note_numbers_leak_and_compass": {
+   "verdict": "FAIL",
+   "net_pnl": -200.0,
+   "numbers_on_page": false,
+   "api_has_revenge_leak": true,
+   "leak_opened": false,
+   "compass_ask_insert_present": false,
+   "compass_label_shows": false,
+   "compass_was_generated": false,
+   "screenshot": "w3-note-leak-opened-1200.jpg"
+  },
+  "W3b_compass_label_shows": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "the seeding call to the pre-existing Compass weekly-review generator did not succeed (HTTP 503); the review-drafts payload therefore has no compassText to quote, independent of this lane's own code"
+  },
+  "W4_keyboard": {
+   "verdict": "PASS",
+   "tabs_to_reach": 2,
+   "reached": true,
+   "screenshot": "w4-keyboard-draft.jpg"
+  },
+  "W5_phone_390": {
+   "verdict": "FAIL",
+   "probes": [
+    {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "Playbook",
+       "h": 40
+      },
+      {
+       "text": "Exit Quality",
+       "h": 40
+      },
+      {
+       "text": "Edge",
+       "h": 40
+      },
+      {
+       "text": "Psychology",
+       "h": 40
+      },
+      {
+       "text": "Regime",
+       "h": 40
+      },
+      {
+       "text": "Coach",
+       "h": 40
+      },
+      {
+       "text": "Reviews",
+       "h": 40
+      },
+      {
+       "text": "Add metric card",
+       "h": 33
+      },
+      {
+       "text": "consistency period",
+       "h": 25
+      },
+      {
+       "text": "Move consistency up",
+       "h": 25
+      },
+      {
+       "text": "Move consistency down",
+       "h": 25
+      },
+      {
+       "text": "Remove consistency",
+       "h": 25
+      },
+      {
+       "text": "payoff_kelly period",
+       "h": 25
+      },
+      {
+       "text": "Move payoff_kelly up",
+       "h": 25
+      },
+      {
+       "text": "Move payoff_kelly down",
+       "h": 25
+      },
+      {
+       "text": "Remove payoff_kelly",
+       "h": 25
+      },
+      {
+       "text": "time_intel period",
+       "h": 25
+      },
+      {
+       "text": "Move time_intel up",
+       "h": 25
+      },
+      {
+       "text": "Move time_intel down",
+       "h": 25
+      },
+      {
+       "text": "Remove time_intel",
+       "h": 25
+      },
+      {
+       "text": "",
+       "h": 34
+      },
+      {
+       "text": "",
+       "h": 34
+      },
+      {
+       "text": "KPI period",
+       "h": 28
+      },
+      {
+       "text": "Add",
+       "h": 28
+      },
+      {
+       "text": "?",
+       "h": 40
+      }
+     ]
+    },
+    {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "Playbook",
+       "h": 40
+      },
+      {
+       "text": "Exit Quality",
+       "h": 40
+      },
+      {
+       "text": "Edge",
+       "h": 40
+      },
+      {
+       "text": "Psychology",
+       "h": 40
+      },
+      {
+       "text": "Regime",
+       "h": 40
+      },
+      {
+       "text": "Coach",
+       "h": 40
+      },
+      {
+       "text": "Reviews",
+       "h": 40
+      },
+      {
+       "text": "Draft today’s recap",
+       "h": 19
+      },
+      {
+       "text": "Draft this week’s review",
+       "h": 19
+      },
+      {
+       "text": "Draft this month’s review",
+       "h": 19
+      },
+      {
+       "text": "Add metric card",
+       "h": 33
+      },
+      {
+       "text": "Consistency period",
+       "h": 25
+      },
+      {
+       "text": "Move Consistency up",
+       "h": 25
+      },
+      {
+       "text": "Move Consistency down",
+       "h": 25
+      },
+      {
+       "text": "Remove Consistency",
+       "h": 25
+      },
+      {
+       "text": "Payoff & Kelly period",
+       "h": 25
+      },
+      {
+       "text": "Move Payoff & Kelly up",
+       "h": 25
+      },
+      {
+       "text": "Move Payoff & Kelly down",
+       "h": 25
+      },
+      {
+       "text": "Remove Payoff & Kelly",
+       "h": 25
+      },
+      {
+       "text": "Time Intelligence period",
+       "h": 25
+      },
+      {
+       "text": "Move Time Intelligence up",
+       "h": 25
+      },
+      {
+       "text": "Move Time Intelligence down",
+       "h": 25
+      },
+      {
+       "text": "Remove Time Intelligence",
+       "h": 25
+      },
+      {
+       "text": "",
+       "h": 34
+      },
+      {
+       "text": "",
+       "h": 34
+      },
+      {
+       "text": "KPI period",
+       "h": 28
+      },
+      {
+       "text": "Add",
+       "h": 28
+      },
+      {
+       "text": "?",
+       "h": 40
+      }
+     ]
+    },
+    {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "?",
+       "h": 40
+      }
+     ]
+    }
+   ],
+   "screenshots": [
+    "w5-insights-reviews-390.jpg",
+    "w5-landed-note-390.jpg"
+   ]
+  },
+  "W6_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "GET /api/j2/review-drafts/weekly?weekStart=2026-09-28&accountId=55935acf-7188-4e31-91ef-df48ad64bad9",
+  "GET /api/j2/review-drafts/weekly?weekStart=2026-09-28&accountId=55935acf-7188-4e31-91ef-df48ad64bad9"
+ ],
+ "tip": "999093066f",
+ "base": "http://127.0.0.1:8660",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp/w13f-data-on2",
+ "mode": "flag-on",
+ "instrument": "tools\\notebook_w13f_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0/F0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8660 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13f\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T04-40-55.md (identity d2d0d5bee217..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\w13f-data-on2)"
+ },
+ "run": "r044144",
+ "accounts": {
+  "member": "w13f-member-r044144@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13f\\walk-999093066f\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13f\\walk-999093066f\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 04:41:01",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 04:41:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 04:43:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 04:43:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

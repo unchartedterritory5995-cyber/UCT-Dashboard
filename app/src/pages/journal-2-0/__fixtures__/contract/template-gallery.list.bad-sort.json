@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery?sort=loudest",
+    "status": 400
+  },
+  "body": {
+    "detail": "Sort by newest or most used."
+  }
+}

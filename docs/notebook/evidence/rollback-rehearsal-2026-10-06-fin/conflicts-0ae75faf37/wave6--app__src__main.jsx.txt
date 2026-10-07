@@ -1,0 +1,11 @@
+<<<<<<< OURS(prev)
+import { installErrorBeacon } from './lib/errorBeacon'
+import { legacyRegistrations } from './utils/webPush'
+
+// Wave 6 (controller wiring, lane F's beacon): window error / unhandledrejection
+// / pagehide listeners, installed BEFORE the first render so a crash during
+// mount is reported too. Scrubbed client-side; POSTs to /api/client-errors.
+installErrorBeacon()
+=======
+>>>>>>> THEIRS(pre-landing)
+

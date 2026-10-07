@@ -160,6 +160,23 @@
   }
 }
 
+/* Finish program, lane NAV: the door to the active setups board, beside the Today button.
+   It exists only while notebook_setups_board_enabled is on. The margins match the Today
+   button's own 10px gap below; the touch tier (<=1024, phone AND tablet) lifts it to the
+   44px floor, and inline-flex is what makes min-height bite on an <a>. */
+.setupsLink {
+  margin: 0 0 10px 8px;
+  text-decoration: none;
+}
+@media (max-width: 1024px) {
+  .setupsLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+}
+
 @media (max-width: 640px) {
   .home {
     padding: 4px 0 32px;

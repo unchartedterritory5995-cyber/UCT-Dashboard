@@ -1,0 +1,381 @@
+{
+ "wave": 13,
+ "lane": "13X",
+ "checks": {
+  "W0_every_flag_on_at_once": {
+   "verdict": "PASS",
+   "flags": {
+    "NOTEBOOK_PLAN_GRADING_ENABLED": true,
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": true,
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": true,
+    "NOTEBOOK_CHART_PLAN_ENABLED": true,
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": true,
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": true,
+    "NOTEBOOK_PLAYBOOK_ENABLED": true,
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": true,
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": true,
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": true,
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": true,
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": true,
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": true,
+    "AWARENESS_NOTE_RESURFACE_ENABLED": true,
+    "NOTEBOOK_TRADE_CANVAS_ENABLED": true,
+    "NOTEBOOK_AI_ACTIONS_ENABLED": true,
+    "NOTEBOOK_FORMULAS_ENABLED": true
+   }
+  },
+  "SEED_the_coherent_story": {
+   "verdict": "PASS",
+   "watchlist": "08c21c80-2d2",
+   "item": 200,
+   "note": "bd95ae549e684d0195c23a67e7a506c6",
+   "v1_version": "07ee55a971cc4723886114db6730ee00",
+   "zqva_note": "04208cc6ec5b42eb96d919c266a4dd33",
+   "position": "6346b6cd-0d44-4d79-83c2-39eedfce325d",
+   "how": "watchlist/notes/position seeded through the member's own API"
+  },
+  "SEED_post_boot_jobs": {
+   "verdict": "PASS",
+   "nightly": {
+    "ran": true,
+    "asOf": "2026-10-03",
+    "universe": 1,
+    "universeTruncated": false,
+    "members": 1,
+    "templates": 2,
+    "rows": 2,
+    "thin": 0,
+    "deferred": 0,
+    "errors": 0,
+    "patternReads": 1,
+    "seconds": 0.019
+   },
+   "passed_setups": {
+    "added": 1,
+    "scored": 1
+   },
+   "first_scan_fired": 0,
+   "cross_scan_fired": 1,
+   "deliver_calls": 0,
+   "resurface_version": {
+    "note_id": "bd95ae549e684d0195c23a67e7a506c6",
+    "level_id": "stop@170.0",
+    "role": "stop",
+    "price": 170.0,
+    "version_id": "07ee55a971cc4723886114db6730ee00",
+    "last_side": "below"
+   },
+   "expected_version": "07ee55a971cc4723886114db6730ee00"
+  },
+  "W1_research_home_1200": {
+   "verdict": "PASS",
+   "reporting_soon_text": "REPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$AMD\nWed, Oct 7, time not announced yet\nWatchlist\nCreate prep note",
+   "active_theses_text": "ACTIVE THESES\nNVDA thesis\n$NVDA\nACTIVE\ntoday",
+   "today_button_present": true,
+   "screenshot": "W1-home-1200.png",
+   "home_api_status": 200,
+   "home_api_active_theses": [
+    "bd95ae549e684d0195c23a67e7a506c6"
+   ],
+   "seeded_note_id": "bd95ae549e684d0195c23a67e7a506c6"
+  },
+  "W2_thesis_note_1200": {
+   "verdict": "PASS",
+   "fingerprint_text": "TECHNICAL FINGERPRINT\nNVDA · as of 2026-10-03 · nightly row · frozen\nRS rank 92\nADR % 5.0%\nBase depth 12.0%\nPrior run (pole) 60.0%\nMA stack full-bull\nShow all fields and sources\nSetup\nNo setup tag\nFlat Base Breakout\nBull Flag\nIPO Base\nLaunchpad\nCup & Handle\nHigh Tight Flag (Powerplay)\nVCP\n4B Setup (",
+   "applied_setup_tag": "VCP",
+   "chart_plan_rows": 3,
+   "chart_plan_panel_values": {
+    "rr": "3.00R",
+    "rps": "$10.00",
+    "acct": "—",
+    "shares": "—"
+   },
+   "chart_plan_panel_error": null,
+   "screenshot": "W2-note-1200.png"
+  },
+  "W3_resurfacing_door_on_the_note": {
+   "verdict": "PASS",
+   "sheet_text": "What you wrote then\n×\n\nSaved 10:13 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nNVDA thesis\n\nLong into the breakout; the data center number is the whole story.\n\nChart — NVDA D · captured Oct 3, 2026\nLIVE\n\n\n\n\nBack to the note as it is now",
+   "screenshot": "W3-resurface-1200.png"
+  },
+  "W4_position_and_thesis_chip_1200": {
+   "verdict": "PASS",
+   "entry_context_text": "Market context at the fill\nRegime\nAmber\nas of 2026-01-02\nExposure\n72 / 150\nas of 2026-01-02\n% above the 50-day\n61.0%\nas of 2026-01-02\nRS rank\nNot available\nDays to earnings\n46 days\nas of 2026-10-04\nUCT scans\nNot available\nWhy did you take it?\nSave",
+   "thesis_chip_present": true,
+   "thesis_chip_text": "+27.3% above stop\nNVDA thesis\nACTIVE\nEntry\n$180.00\nStop\n$170.00\nTarget\n$210.00\nOpen note",
+   "screenshot": "W4b-positions-list-chip-1200.png"
+  },
+  "W5_close_and_trade_page_1200": {
+   "verdict": "PASS",
+   "trade": "f3df7e87-358f-4292-8056-a1fb3b7b47e6",
+   "grade_status": "planned",
+   "grade_checks": {
+    "entry": "kept",
+    "stop": "kept",
+    "size": "none",
+    "target": "hit"
+   },
+   "checks_rendered": 4,
+   "grade_text": "Plan vs execution\n\nChart plan · written before entry · NVDA thesis · 1R = 10.00\n\nEntry\nKept\nPlanned 180.00 · filled 180.00 (0.00R)\nStop\nHonoured\nStop 170.00 · exit 207.50 · line 167.50\nSize\n—\nNo planned shares.\nTarget\nHit\nTarget 210.00 · exit 207.50\nEntry time unknown, so it is judged by day\n\nFrozen when it was first matched. Editing the plan does not change this grade.\n\nWrite review note\nRe-link",
+   "before_after_present": true,
+   "screenshot": "W5-trade-1200.png"
+  },
+  "W5b_unplanned_chip_and_review_note": {
+   "verdict": "PASS",
+   "unplanned_trade": "d587ab01-4c77-40c9-9378-f89f21f69d24",
+   "planned_status": "planned",
+   "unplanned_status": "unplanned",
+   "chip_present": true,
+   "badge_present": true,
+   "review_note_id": "21d72bf6246146f2bb4e225673bc7ad5",
+   "review_note_tags": [
+    "plan-review"
+   ],
+   "screenshots": [
+    "W5b-trades-unplanned-chip.png",
+    "W5b-unplanned-trade-1200.png",
+    "W5b-review-note.png"
+   ]
+  },
+  "W6_insights_1200": {
+   "verdict": "PASS",
+   "sections_present": {
+    "playbook": true,
+    "reviews": true,
+    "discipline": true
+   },
+   "discipline_dom": null,
+   "discipline_api": null
+  },
+  "W7_setups_board_1200": {
+   "verdict": "PASS",
+   "cards": [
+    "ZQVA"
+   ],
+   "nvda_excluded": true,
+   "crwd_matched": true,
+   "match_text": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared",
+   "screenshot": "W7-board-1200.png"
+  },
+  "W8_earnings_prep_1200": {
+   "verdict": "PASS",
+   "source_lines_present": true,
+   "screenshot": "W8-prep-1200.png"
+  },
+  "W9_transcript_capture_door_1200": {
+   "verdict": "PASS",
+   "door_opened": true,
+   "screenshot": "W9-transcript-1200.png",
+   "note": "mount-level check only; the quote-trim-save round trip is 13G-1's own proof"
+  },
+  "W10_passed_setups_1200": {
+   "verdict": "PASS",
+   "passed_setups_seed": {
+    "added": 1,
+    "scored": 1
+   },
+   "amd_row_present": true,
+   "screenshot": "W10-passed-1200.png"
+  },
+  "W11_phone_390": {
+   "verdict": "PASS",
+   "overflow_ok": {
+    "home": true,
+    "fingerprint-panel": true,
+    "plan-grade-card": true,
+    "entry-context-card": true,
+    "discipline-record": true,
+    "setups-board": true
+   },
+   "small_controls": {},
+   "board_find_button_h": 44,
+   "probes": {
+    "home": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "fingerprint-panel": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "plan-grade-card": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "entry-context-card": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "discipline-record": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "setups-board": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    }
+   },
+   "note": "scoped to wave-13-owned containers; StockChart/editor-header chrome excluded (13H-4's and pre-existing, not this lane's to fix -- see RUN 1 FINDINGS)"
+  },
+  "W12_no_unforced_errors": {
+   "verdict": "PASS",
+   "page_errors": [],
+   "unexpected_failed_requests": [],
+   "benign_failed_requests_count": 33,
+   "console_errors_sample": [
+    "W1-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W3-resurface: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W3-resurface: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W4-position: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W4-position: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W4-position: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W5b-trades-table: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "note": "benign = broker-sync-disabled or no-live-vendor (bars/stream/live-prices) in this sandbox, present in every lane's own sandbox boot -- see BENIGN_4XX_5XX"
+  },
+  "W13_driver_never_imported_api": {
+   "verdict": "PASS",
+   "imported": null
+  }
+ },
+ "errors": [],
+ "console_errors": [
+  "W1-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W3-resurface: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W3-resurface: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W4-position: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W4-position: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W4-position: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5b-trades-table: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5b-unplanned-trade-page: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5b-review-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W6-playbook: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W6-reviews: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W6-discipline: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W8-prep: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W9-transcript: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W10-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ ],
+ "failed_requests": [
+  "W1-home: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W2-note: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W2-note: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W3-resurface: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W3-resurface: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W4-position: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W4-position: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W4-position: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W5-trade: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W5b-trades-table: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W5b-unplanned-trade-page: 503 GET :8698/api/stream/bars?bars=IBM:1",
+  "W5b-review-note: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W6-playbook: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W6-reviews: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W6-discipline: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W7-board: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W8-prep: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W9-transcript: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W10-home: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W11-home: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W11-home: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W11-home: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=5&bars=1152&warm=1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=60&bars=1138&warm=1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=30&bars=1120&warm=1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=15&bars=1152&warm=1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=W&bars=600&warm=1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=M&bars=600&warm=1",
+  "W11-home: 503 GET :8698/api/bars/NVDA?tf=1&bars=960&warm=1",
+  "W11-home: 503 GET :8698/api/stream/bars?bars=NVDA:1",
+  "W11-home: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W11-home: 503 POST :8698/api/j2/broker/sync?background=1",
+  "W11-home: 503 GET :8698/api/stream/bars?bars=ZQVA:1"
+ ],
+ "requests": [],
+ "tip": "run6",
+ "base": "http://127.0.0.1:8698",
+ "data_dir": "C:\\data-w13x-run6",
+ "instrument": "tools\\notebook_w13x_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8698 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13x\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T21-11-37.md (identity 72719a8a0bae..., data dir C:\\data-w13x-run6)"
+ },
+ "accounts": {
+  "member": "w13x@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\wave13-13x\\walk-run6\\integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13x\\walk-run6\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 21:11:45",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 21:13:08",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 21:15:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 21:15:16",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "failure": null
+}

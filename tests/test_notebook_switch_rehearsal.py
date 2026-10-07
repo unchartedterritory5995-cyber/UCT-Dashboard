@@ -197,8 +197,10 @@ def test_the_off_set_follows_the_record_over_the_ledger(t, table):
     assert "NOTEBOOK_PERSONAL_API_ENABLED" in keys    # a route gate, switched when production has it on
     assert "NOTEBOOK_PUBLISH_ENABLED" not in keys     # OFF in production though the ledger says armed
     assert "NOTEBOOK_OFFLINE_DEFAULT_ON" in keys      # the kill switch always
+    # W14-C1: the task-reminder kill switch joined the payload table, so the window's "every
+    # kill switch" names it too (verified through its payload key, like every payload key).
     assert t.off_set(table, None, armed=["NOTEBOOK_PUBLISH_ENABLED"]) == [
-        "NOTEBOOK_OFFLINE_DEFAULT_ON", "NOTEBOOK_PUBLISH_ENABLED"]
+        "NOTEBOOK_OFFLINE_DEFAULT_ON", "NOTEBOOK_PUBLISH_ENABLED", "NOTEBOOK_TASK_REMINDERS_ENABLED"]
 
 
 def test_the_restore_deletes_first_then_one_set(t):
@@ -220,7 +222,8 @@ def test_the_production_text_is_one_off_command_and_names_the_record(t, table):
     sets = [ln for ln in text.splitlines() if ln.strip().startswith("railway variables --service web --set")]
     assert len(sets) == 1 and '"NOTEBOOK_OFFLINE_DEFAULT_ON=0"' in sets[0]
     assert "--check-record" in text and "--kv" in text and "NOTEBOOK_DOOR_GUARD" in text
-    assert "NOTEBOOK_TASK_REMINDERS_ENABLED:" in text   # a gate the window skips is NAMED, with why
+    assert "NOTEBOOK_INBOUND_EMAIL_ENABLED:" in text    # a gate the window skips is NAMED, with why
+    assert '"NOTEBOOK_TASK_REMINDERS_ENABLED=0"' in sets[0]  # W14-C1: a payload kill switch now
     for s in t.SWITCHES:                                # every door --verify reads is named
         if s.door and s.door[0] == "GET":
             assert s.door[1] in text, s.door[1]

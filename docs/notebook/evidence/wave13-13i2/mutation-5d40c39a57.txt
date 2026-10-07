@@ -1,0 +1,58 @@
+lane 13I-2 mutation proof at HEAD 5d40c39a5751a5e64e1cef27dc91acad649d4a42
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  3 passed (3)
+vitest: Tests  25 passed (25)
+pytest: 27 passed in 29.71s
+P1 save path: the freeze is written by a PUT to the note instead of updateAttributes: KILLED (rc=1, failed tests=1); restored sha cc78c16ee2fed1d1 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 6 passed (7)
+      × freezes after the save lands, and writes the result ONLY through updateAttributes 151ms
+      FAIL  src/pages/journal-2-0/components/notebook/FingerprintPanel.test.jsx > FingerprintPanel > freezes after the save lands, and writes the result ONLY through updateAttributes
+P2 after the save lands: a 404 (save not landed) stops instead of retrying: KILLED (rc=1, failed tests=1); restored sha cc78c16ee2fed1d1 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 6 passed (7)
+      × freezes after the save lands, and writes the result ONLY through updateAttributes 9339ms
+      FAIL  src/pages/journal-2-0/components/notebook/FingerprintPanel.test.jsx > FingerprintPanel > freezes after the save lands, and writes the result ONLY through updateAttributes
+S1 suggestion: the first confirmed detection is applied without a click: KILLED (rc=1, failed tests=1); restored sha cc78c16ee2fed1d1 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 6 passed (7)
+      × a confirmed detection is only SUGGESTED; the tag changes on the member's click 72ms
+      FAIL  src/pages/journal-2-0/components/notebook/FingerprintPanel.test.jsx > FingerprintPanel > a confirmed detection is only SUGGESTED; the tag changes on the member's click
+O1 stable key: the outcome joins on j2_trades.id (a broker resync reissues it): KILLED (rc=1, failed tests=3); restored sha c29d7539d985f5eb == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 24 passed in 12.81s
+      FAILED tests/test_notebook_visual_playbook.py::test_only_tagged_blocks_show_with_image_fingerprint_and_outcome
+      FAILED tests/test_notebook_visual_playbook.py::test_the_outcome_joins_on_the_stable_trade_ref_and_survives_a_broker_resync
+      FAILED tests/test_notebook_visual_playbook.py::test_filters_setup_outcome_timeframe
+A1 authority: the slice win rate re-derived over ALL trades (breakeven in the denominator): KILLED (rc=1, failed tests=1); restored sha c29d7539d985f5eb == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 26 passed in 16.69s
+      FAILED tests/test_notebook_visual_playbook.py::test_slice_stats_equal_the_per_setup_authority
+R1 R3: the band is read one trade high (9 reads thin): KILLED (rc=1, failed tests=2); restored sha c29d7539d985f5eb == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 25 passed in 20.01s
+      FAILED tests/test_notebook_visual_playbook.py::test_r3_bands_at_the_boundaries[9-too_few-too few to judge]
+      FAILED tests/test_notebook_visual_playbook.py::test_r3_bands_at_the_boundaries[24-thin-thin sample]
+X1 ranges: a block with no number for the field PASSES the range: KILLED (rc=1, failed tests=1); restored sha c29d7539d985f5eb == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 26 passed in 16.62s
+      FAILED tests/test_notebook_visual_playbook.py::test_a_range_filter_and_missing_values_are_excluded_and_counted
+G1 gate: the router dependency never refuses: KILLED (rc=1, failed tests=2); restored sha 73ea8648f118f967 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 25 passed in 24.01s
+      FAILED tests/test_notebook_visual_playbook.py::test_every_route_is_404_while_the_flag_is_off_even_signed_out
+      FAILED tests/test_notebook_visual_playbook.py::test_the_flag_is_read_per_request
+G2 gate: the gate's default flipped ON: KILLED (rc=1, failed tests=1); restored sha c29d7539d985f5eb == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 26 passed in 27.88s
+      FAILED tests/test_notebook_visual_playbook.py::test_every_route_is_404_while_the_flag_is_off_even_signed_out
+C1 checklist: the evidence lands on the LAST bullet list (Management), not the Checklist: KILLED (rc=1, failed tests=1); restored sha dd51596265b8c434 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 7 passed (8)
+      × marks every checklist item and nothing else, without mutating the template doc 10ms
+      FAIL  src/pages/journal-2-0/lib/fingerprintChecklist.test.js > annotating a built plan > marks every checklist item and nothing else, without mutating the template doc
+V1 R3 reveal: 'too few to judge' shows its numbers without the reveal: KILLED (rc=1, failed tests=1); restored sha db710d54dade3fd5 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 9 passed (10)
+      × too few to judge: the numbers sit behind a reveal 59ms
+      FAIL  src/pages/journal-2-0/components/notebook/VisualPlaybook.test.jsx > VisualPlaybookBody > too few to judge: the numbers sit behind a reveal
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  3 passed (3)
+vitest: Tests  25 passed (25)
+pytest: 27 passed in 21.51s
+git status over api/ and app/src after the run: clean
+VERDICT: PASS - every mutation killed, every restore verified against the committed blob

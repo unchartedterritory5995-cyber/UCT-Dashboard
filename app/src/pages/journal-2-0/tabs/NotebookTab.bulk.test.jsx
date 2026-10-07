@@ -347,6 +347,94 @@ describe('NotebookTab — selecting notes', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select all notes in view' }))
     expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
   })
+
+  // 13Q-5: selection itself stays keyboard-cheap. Space already ticks the
+  // focused row (NoteCard's own onChange); Shift+Arrow extends the range AND
+  // carries focus with it, so repeated Shift+Down selects a run with no Tab
+  // at all -- one keystroke per row instead of the 2 Tabs + Space the
+  // click-budget trail measured between adjacent rows.
+  it('Shift+ArrowDown extends the selection to the next note, and moves focus there', () => {
+    renderTab()
+    box('First note').focus()
+    fireEvent.click(box('First note'))
+    fireEvent.keyDown(box('First note'), { key: 'ArrowDown', shiftKey: true })
+    expect(box('Second note')).toBeChecked()
+    expect(document.activeElement).toBe(box('Second note'))
+    expect(within(toolbar()).getByText('2 selected')).toBeInTheDocument()
+    // a second Shift+Down from the NEW focus keeps extending the same run
+    fireEvent.keyDown(box('Second note'), { key: 'ArrowDown', shiftKey: true })
+    expect(box('Third note')).toBeChecked()
+    expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
+  })
+
+  it('Shift+ArrowUp extends upward', () => {
+    renderTab()
+    fireEvent.click(box('Third note'))
+    box('Third note').focus()
+    fireEvent.keyDown(box('Third note'), { key: 'ArrowUp', shiftKey: true })
+    expect(box('Second note')).toBeChecked()
+    expect(document.activeElement).toBe(box('Second note'))
+  })
+
+  it('Shift+Arrow past the first/last row is a no-op (no note to extend to)', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    box('First note').focus()
+    fireEvent.keyDown(box('First note'), { key: 'ArrowUp', shiftKey: true })
+    expect(within(toolbar()).getByText('1 selected')).toBeInTheDocument()
+    expect(document.activeElement).toBe(box('First note'))
+  })
+
+  it('⛔ CONTROL -- ArrowDown WITHOUT Shift does not select (plain Tab/Arrow browsing is unaffected)', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    box('First note').focus()
+    fireEvent.keyDown(box('First note'), { key: 'ArrowDown' })
+    expect(box('Second note')).not.toBeChecked()
+  })
+
+  // 13Q-5: the jump shortcut. Measured cost before this lane: 167-179 real Tab
+  // presses to reach "Tags"/"Move to select" from a just-ticked row
+  // (docs/notebook/evidence/wave13-13q3/run-remeasure-final/clicks.json, Q11).
+  it('Ctrl+Alt+B jumps focus straight into the bulk bar once a selection exists', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
+    // the bar's stable first control, not whichever action is roving-active --
+    // measured (Q11 keys@1200): landing on "Tags" reaches it fine the FIRST
+    // time, but a second press after tagging can never reach "Move to select"
+    // by forward Tab (it sits BEFORE Tags), so it wraps the whole page --
+    // 145 real presses. The Move select is reachable from every other control
+    // instead of needing to reach them.
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' }))
+    expect(document.activeElement.closest('[data-bulk-bar]')).not.toBeNull()
+  })
+
+  it('a second Ctrl+Alt+B after tagging still reaches "Move to select" cheaply (same stable anchor)', async () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }))
+    const input = screen.getByRole('combobox', { name: 'Tag to add to the selected notes' })
+    fireEvent.change(input, { target: { value: 'swing' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' }))
+  })
+
+  it('the shortcut does nothing without a selection (nothing to jump to)', () => {
+    renderTab()
+    const before = document.activeElement
+    fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
+    expect(toolbar()).toBeNull()
+    expect(document.activeElement).toBe(before)
+  })
+
+  it('the bar carries a visible hint naming the shortcut', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    expect(within(toolbar()).getByText(/Ctrl\+Alt\+B jumps here/)).toBeInTheDocument()
+  })
 })
 
 describe('NotebookTab — bulk actions', () => {

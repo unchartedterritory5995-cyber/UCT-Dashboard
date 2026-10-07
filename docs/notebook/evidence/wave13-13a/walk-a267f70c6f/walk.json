@@ -1,0 +1,168 @@
+{
+ "wave": 13,
+ "lane": "13A",
+ "checks": {
+  "P0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": true
+  },
+  "P1_make_a_plan_note_by_keyboard": {
+   "verdict": "PASS",
+   "note": "b3ed8865e1914e629387e3210c65a5bc",
+   "saved_at": "2026-10-03T01:50:04.316223+00:00",
+   "ticker": "NVDA",
+   "screenshot": "p1-plan-note-1200.jpg",
+   "how": "note created empty over the member's API, plan typed in the editor"
+  },
+  "P2_log_a_matching_trade": {
+   "verdict": "PASS",
+   "status": 200,
+   "trade": "efa984fd-80e6-44a5-8b5e-76a250e008be",
+   "entry": "2026-10-02 21:51 ET",
+   "plan_saved_at": "2026-10-03T01:50:04.316223+00:00",
+   "how": "logged over the member's API (the trade is the input; the walk is about the grade)"
+  },
+  "P3_see_the_grade_1200": {
+   "verdict": "PASS",
+   "card": {
+    "text": "Plan vs execution Plan note · written before entry · NVDA plan r204937 · 1R = 4.00 Entry Kept Planned 100.00 · filled 100.40 (+0.10R) Stop Honoured Stop 96.00 · exit 110.00 · line 95.00 Size Kept Planned 100 · entered 100 (0.0%) Target — Target 120.00 · the best price reached is computed overnight. Frozen when it was first matched. Editing the plan does not change this grade. Write review note Re-link",
+    "checks": {
+     "entry": "Entry Kept Planned 100.00 · filled 100.40 (+0.10R)",
+     "stop": "Stop Honoured Stop 96.00 · exit 110.00 · line 95.00",
+     "size": "Size Kept Planned 100 · entered 100 (0.0%)",
+     "target": "Target — Target 120.00 · the best price reached is computed overnight."
+    }
+   },
+   "status": "planned",
+   "plan": {
+    "entry": 100.0,
+    "stop": 96.0,
+    "target": 120.0,
+    "shares": 100.0,
+    "matchTier": "window",
+    "matchedAt": "2026-10-03T01:51:02.666582+00:00"
+   },
+   "checks": {
+    "entry": "kept",
+    "stop": "kept",
+    "size": "kept",
+    "target": "unknown"
+   },
+   "screenshot": "p3-grade-1200.jpg"
+  },
+  "P4_edit_the_plan_afterwards_grade_unchanged": {
+   "verdict": "PASS",
+   "note_now_says_130": true,
+   "api_entry_after": 100.0,
+   "matched_at_before": "2026-10-03T01:51:02.666582+00:00",
+   "matched_at_after": "2026-10-03T01:51:02.666582+00:00",
+   "card_identical": true,
+   "screenshots": [
+    "p4-plan-edited.jpg",
+    "p4-grade-after-edit.jpg"
+   ]
+  },
+  "P5_unplanned_trade_flagged": {
+   "verdict": "PASS",
+   "trade": "fe103b74-72a2-430f-8e1e-e7aba57c264a",
+   "chips": 1,
+   "amd_rows": 1,
+   "nvda_rows": 1,
+   "nvda_chip": 0,
+   "screenshots": [
+    "p5-unplanned-trade-page.jpg",
+    "p5-trade-journal-chip-1200.jpg"
+   ]
+  },
+  "P6_discipline_record_1200": {
+   "verdict": "PASS",
+   "text": "Discipline record Last 20 Last 60 2 closed trades: 1 planned, 1 unplanned. Plan checks over the last 20 closed trades Check How often Trades with a plan too few to judge Entry kept too few to judge Stop honoured too few to judge Size kept too few to judge Target hit no graded trades Followed the whole plan too few to judge",
+   "screenshot": "p6-discipline-1200.jpg"
+  },
+  "P7_keyboard_relink": {
+   "verdict": "PASS",
+   "tabs_to_reach": 53,
+   "aria_expanded": "true",
+   "screenshot": "p7-keyboard-relink.jpg"
+  },
+  "P8_phone_390": {
+   "verdict": "PASS",
+   "probe": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": []
+   },
+   "chips_on_phone": 1,
+   "screenshots": [
+    "p8-grade-390.jpg",
+    "p8-trade-journal-chip-390.jpg"
+   ]
+  },
+  "P9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "GET /api/j2/plan-grades/trades/efa984fd-80e6-44a5-8b5e-76a250e008be",
+  "GET /api/j2/plan-grades/trades/efa984fd-80e6-44a5-8b5e-76a250e008be",
+  "GET /api/j2/plan-grades/trades/fe103b74-72a2-430f-8e1e-e7aba57c264a",
+  "GET /api/j2/plan-grades/status?ids=efa984fd-80e6-44a5-8b5e-76a250e008be,fe103b74-72a2-430f-8e1e-e7aba57c264a",
+  "GET /api/j2/plan-grades/discipline?accountId=1111edf9-4224-4477-9f24-2554d7d1c1a8",
+  "GET /api/j2/plan-grades/trades/efa984fd-80e6-44a5-8b5e-76a250e008be"
+ ],
+ "tip": "a267f70c6f",
+ "base": "http://127.0.0.1:8602",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13a-data3",
+ "instrument": "tools\\notebook_w13a_plan_grade_walk.py",
+ "gate_source": "the sandbox's auth payload (row P0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8602 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T20-48-17.md (identity 6384437c1518..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13a-data3)"
+ },
+ "run": "r204937",
+ "accounts": {
+  "member": "w13a-member-r204937@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "FORCED after 120 s without a graceful exit",
+ "first_line": "SANDBOX INTEGRITY: INCOMPLETE -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; no checkpoint 'shutdown'; log: docs\\notebook\\evidence\\wave13-13a\\walk-a267f70c6f\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13a\\walk-a267f70c6f\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 20:48:25",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 20:49:36",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 20:51:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "INCOMPLETE",
+  "clean": false,
+  "why": "no checkpoint 'shutdown'"
+ },
+ "not_run": null
+}

@@ -1,0 +1,11 @@
+== Mo2-the-click-spends-the-offer  (app/src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.jsx)
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.jsx (blob e241821fb234)
+× "Take the tour" opens it through the registry door; the session is spent once the tour opens 48ms
+× an accepted offer whose tour NEVER OPENS is not spent: nothing recorded, the next tour is offered, it stays queued 2041ms
+× a tour with nothing to show closes without opening; the offer moves on and nothing is recorded 4055ms
+Test Files  1 failed (1)
+Tests  3 failed | 20 passed (23)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Take the tour" opens it through the registry door; the session is spent once the tour opens
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > an accepted offer whose tour NEVER OPENS is not spent: nothing recorded, the next tour is offered, it stays queued
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > W14-Q1 S6 end to end: the REAL registry gate and engine report the tour that never opened > a tour with nothing to show closes without opening; the offer moves on and nothing is recorded

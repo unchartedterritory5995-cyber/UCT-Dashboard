@@ -1,0 +1,90 @@
+{
+ "wave": 13,
+ "lane": "13F",
+ "checks": {
+  "F0_payload_flag_off": {
+   "verdict": "PASS",
+   "payload_flag": false
+  },
+  "F1_routes_404": {
+   "verdict": "PASS",
+   "statuses": {
+    "daily": 404,
+    "weekly": 404,
+    "monthly": 404
+   }
+  },
+  "F2_no_reviews_tab_in_insights": {
+   "verdict": "PASS",
+   "reviews_tabs": 0,
+   "screenshot": "f2-insights-no-reviews-tab.jpg"
+  },
+  "W6_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [],
+ "tip": "6c95593ca8de6597acf3b2066015854d1076ff6a",
+ "base": "http://127.0.0.1:8661",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\w13f-final-off-6c95593ca8de6597acf3b2066015854d1076ff6a",
+ "mode": "flag-off",
+ "instrument": "tools\\notebook_w13f_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0/F0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8661 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13f\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T05-24-21.md (identity c031b83856e3..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\w13f-final-off-6c95593ca8de6597acf3b2066015854d1076ff6a)"
+ },
+ "run": "r052513",
+ "accounts": {
+  "member": "w13f-member-r052513@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13f\\walk-6c95593ca8de6597acf3b2066015854d1076ff6a\\walk-off.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13f\\walk-6c95593ca8de6597acf3b2066015854d1076ff6a\\walk-off.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 05:24:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 05:25:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 05:27:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 05:27:13",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

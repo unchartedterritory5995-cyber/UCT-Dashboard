@@ -1,0 +1,31 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/chart-plan/benchmarks",
+    "path": "/api/j2/chart-plan/benchmarks?symbol=cpnv",
+    "status": 200
+  },
+  "body": {
+    "missing": {
+      "theme": "No theme ETF is known for CPNV"
+    },
+    "options": [
+      {
+        "key": "SPY",
+        "label": "S&P 500",
+        "symbol": "SPY"
+      },
+      {
+        "key": "QQQ",
+        "label": "Nasdaq 100",
+        "symbol": "QQQ"
+      },
+      {
+        "key": "sector",
+        "label": "Energy sector",
+        "symbol": "XLE"
+      }
+    ],
+    "symbol": "CPNV"
+  }
+}

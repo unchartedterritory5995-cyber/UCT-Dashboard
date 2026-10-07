@@ -1,0 +1,48 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/thesis-chips",
+    "path": "/api/j2/thesis-chips",
+    "requestBody": {
+      "symbols": [
+        "TCNV",
+        "TCAM",
+        "TCIN",
+        "NOPE"
+      ]
+    },
+    "status": 200
+  },
+  "body": {
+    "TCAM": {
+      "entry": null,
+      "link": "/journal/notebook?note=5fe862bb77924cd098fac269c442359a",
+      "noteId": "5fe862bb77924cd098fac269c442359a",
+      "noteUpdatedAt": "2026-10-05T14:30:00+00:00",
+      "stop": null,
+      "target": null,
+      "thesisStatus": "watching",
+      "title": "TCAM thesis"
+    },
+    "TCIN": {
+      "entry": 50.0,
+      "link": "/journal/notebook?note=7a211005989c487886d204da4979e368",
+      "noteId": "7a211005989c487886d204da4979e368",
+      "noteUpdatedAt": "2026-10-05T14:30:00+00:00",
+      "stop": 47.0,
+      "target": null,
+      "thesisStatus": "invalidated",
+      "title": "TCIN thesis"
+    },
+    "TCNV": {
+      "entry": 100.0,
+      "link": "/journal/notebook?note=fc7e91535da44924b12a2eb807659a71",
+      "noteId": "fc7e91535da44924b12a2eb807659a71",
+      "noteUpdatedAt": "2026-10-05T14:30:00+00:00",
+      "stop": 90.0,
+      "target": 120.0,
+      "thesisStatus": "active",
+      "title": "TCNV thesis"
+    }
+  }
+}

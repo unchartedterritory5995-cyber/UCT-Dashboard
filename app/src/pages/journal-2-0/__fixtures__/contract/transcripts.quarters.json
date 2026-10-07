@@ -1,0 +1,21 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/research-capture/transcripts/TRHD/quarters",
+    "path": "/api/j2/research-capture/transcripts/TRHD/quarters",
+    "status": 200
+  },
+  "body": {
+    "quarters": [
+      {
+        "callDate": "2026-08-27",
+        "held": "store",
+        "q": 2,
+        "quarter": "2026Q2",
+        "year": 2026
+      }
+    ],
+    "source": "FMP transcript",
+    "symbol": "TRHD"
+  }
+}

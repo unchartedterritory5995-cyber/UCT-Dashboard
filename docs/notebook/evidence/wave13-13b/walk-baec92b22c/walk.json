@@ -1,0 +1,268 @@
+{
+ "wave": 13,
+ "lane": "13B",
+ "checks": {
+  "W0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": true,
+   "plan_grading_flag": true
+  },
+  "W1_seed_42_trades_3_setups": {
+   "verdict": "PASS",
+   "trades": 42,
+   "failures": [],
+   "breakout_entry": "2026-10-03 00:36 ET",
+   "plans_frozen": {
+    "AAPL": {
+     "status": "planned",
+     "noteId": "981f39aaeea8445ab7f2019356788ba6",
+     "expected": "981f39aaeea8445ab7f2019356788ba6"
+    },
+    "MSFT": {
+     "status": "planned",
+     "noteId": "d97e4275ed1544ffa7e158c755581386",
+     "expected": "d97e4275ed1544ffa7e158c755581386"
+    },
+    "AMZN": {
+     "status": "planned",
+     "noteId": "0c072b1960d34094ad54f622a7cd2e43",
+     "expected": "0c072b1960d34094ad54f622a7cd2e43"
+    },
+    "META": {
+     "status": "planned",
+     "noteId": "e3eb03bc66674186bef3a08e90fd7a4b",
+     "expected": "e3eb03bc66674186bef3a08e90fd7a4b"
+    },
+    "GOOGL": {
+     "status": "planned",
+     "noteId": "5dacc192ef594d93971ff24ed3b32513",
+     "expected": "5dacc192ef594d93971ff24ed3b32513"
+    },
+    "NFLX": {
+     "status": "planned",
+     "noteId": "9f1631d3228e48e98e11f80abaf6924b",
+     "expected": "9f1631d3228e48e98e11f80abaf6924b"
+    },
+    "CRM": {
+     "status": "planned",
+     "noteId": "161fd776de7f4c039c126e73d4923ebd",
+     "expected": "161fd776de7f4c039c126e73d4923ebd"
+    },
+    "ADBE": {
+     "status": "planned",
+     "noteId": "adaec8dd087347959940345f3d968b9c",
+     "expected": "adaec8dd087347959940345f3d968b9c"
+    },
+    "ORCL": {
+     "status": "planned",
+     "noteId": "ae348fa5dd614d19b6309b900d8681a3",
+     "expected": "ae348fa5dd614d19b6309b900d8681a3"
+    },
+    "AVGO": {
+     "status": "planned",
+     "noteId": "385cc7f09c1542679bbfaca3eb364ad4",
+     "expected": "385cc7f09c1542679bbfaca3eb364ad4"
+    },
+    "QCOM": {
+     "status": "planned",
+     "noteId": "6989898f4a724b1397fdd0ed22ebea16",
+     "expected": "6989898f4a724b1397fdd0ed22ebea16"
+    },
+    "TXN": {
+     "status": "planned",
+     "noteId": "a76cc4654c1c4e1b8a44fefe1fbdadb4",
+     "expected": "a76cc4654c1c4e1b8a44fefe1fbdadb4"
+    }
+   },
+   "how": "trades over the member's API; Breakout plan notes written first, frozen by 13A's grade read"
+  },
+  "W2_open_from_insights_1200": {
+   "verdict": "PASS",
+   "url": "http://127.0.0.1:8635/journal-2-0/playbook",
+   "setups": {
+    "Pullback": {
+     "api_band": "normal",
+     "api_n": 25,
+     "screen_head": "25 trades",
+     "win_rate_cell": {
+      "text": "Win rate 40% n=25",
+      "n": 25,
+      "behindReveal": false
+     },
+     "ok": true
+    },
+    "Breakout": {
+     "api_band": "thin",
+     "api_n": 12,
+     "screen_head": "12 trades · thin sample",
+     "win_rate_cell": {
+      "text": "Win rate 58% thin sample, likely 32% to 81% n=12",
+      "n": 12,
+      "behindReveal": false
+     },
+     "ok": true
+    },
+    "EP": {
+     "api_band": "too_few",
+     "api_n": 3,
+     "screen_head": "3 trades · too few to judge",
+     "win_rate_cell": {
+      "text": "Win rate too few to judge n=3",
+      "n": 3,
+      "behindReveal": true
+     },
+     "ok": true
+    }
+   },
+   "every_stat_has_n": true,
+   "untagged": {
+    "count": 2
+   },
+   "screenshots": [
+    "w2-insights-door-1200.jpg",
+    "w2-my-playbook-1200.jpg"
+   ]
+  },
+  "W3_drill_a_number_1200": {
+   "verdict": "PASS",
+   "rows": 12,
+   "api_n": 12,
+   "title": "Breakout win rate: the 12 wins and losses behind it",
+   "screenshot": "w3-drill-1200.jpg"
+  },
+  "W4_too_few_reveal": {
+   "verdict": "PASS",
+   "hidden_before": true,
+   "shown_after": true,
+   "value": "67%",
+   "screenshot": "w4-too-few-revealed.jpg"
+  },
+  "W5_cited_pattern_finding": {
+   "verdict": "PASS",
+   "api_finding": {
+    "term": "FOMO",
+    "leans": "losses",
+    "losses": {
+     "k": 4,
+     "n": 5
+    },
+    "wins": {
+     "k": 1,
+     "n": 7
+    }
+   },
+   "screen": "“FOMO”: before 4 of 5 losses and 1 of 7 wins (leans toward losses)",
+   "citations_on_screen": 5,
+   "note_links": 5,
+   "status": "ok",
+   "noted": {
+    "wins": 7,
+    "losses": 5
+   },
+   "screenshot": "w5-pattern-citations-1200.jpg"
+  },
+  "W6_frozen_snapshot_note": {
+   "verdict": "PASS",
+   "note": "59143ec31ceb4b569ea607fb117f5bec",
+   "title": "My Playbook snapshot 2026-10-03",
+   "has_wording": true,
+   "no_live_widget": true,
+   "screenshot": "w6-snapshot-saved.jpg"
+  },
+  "W7_keyboard_number_to_trades": {
+   "verdict": "PASS",
+   "tabs_to_reach": 28,
+   "reached": true,
+   "drill_open": 1,
+   "screenshot": "w7-keyboard-drill.jpg"
+  },
+  "W8_phone_390": {
+   "verdict": "PASS",
+   "probe": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": []
+   },
+   "drill_rows": 12,
+   "probe_after_drill": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": []
+   },
+   "screenshots": [
+    "w8-my-playbook-390.jpg",
+    "w8-drill-390.jpg"
+   ]
+  },
+  "W9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "GET /api/j2/my-playbook?accountId=915f62cb-de5a-439b-8f05-bdcd4e73ba94",
+  "GET /api/j2/my-playbook?accountId=915f62cb-de5a-439b-8f05-bdcd4e73ba94"
+ ],
+ "tip": "baec92b22c",
+ "base": "http://127.0.0.1:8635",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13b-data-on",
+ "mode": "flag-on",
+ "instrument": "tools\\notebook_w13b_playbook_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0/F0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8635 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T23-33-27.md (identity eed175a8bc54..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13b-data-on)"
+ },
+ "run": "r233516",
+ "accounts": {
+  "member": "w13b-member-r233516@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13b\\walk-baec92b22c\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13b\\walk-baec92b22c\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 23:33:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 23:35:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 23:37:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 23:38:01",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

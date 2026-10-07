@@ -1,0 +1,69 @@
+{
+  "tool": "notebook_w12b_templates_walk",
+  "base": "http://127.0.0.1:8586",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12b-walk2",
+  "started_utc": "2026-10-02T16:43:53+00:00",
+  "sandbox_env": {
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "rows": [
+    {
+      "row": "provision: a paid, verified member",
+      "result": "PASS"
+    },
+    {
+      "row": "the walk ran to the end",
+      "result": "FAIL",
+      "why": "TimeoutError: Page.wait_for_selector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror, [data-template-key], button:has-text('Templates')\") to be visible\n"
+    }
+  ],
+  "notes": [],
+  "screenshots": [],
+  "page_errors": [],
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T11-43-55.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-10-02 11:44:02",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-10-02 11:45:03",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-10-02 11:46:57",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-10-02 11:47:06",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T11-43-55.md",
+  "finished_utc": "2026-10-02T16:47:36+00:00"
+}

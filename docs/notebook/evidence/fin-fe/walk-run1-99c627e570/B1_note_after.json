@@ -1,0 +1,85 @@
+{
+ "id": "a750cf907ecb4dccb5c787fc1782823b",
+ "userId": "59ffec9a-d6bf-4bf2-b47c-131e085e8441",
+ "accountId": null,
+ "folderId": null,
+ "title": "fin-fe B: just looking",
+ "subtitle": null,
+ "bodyJson": {
+  "type": "doc",
+  "content": [
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "before the chart"
+     }
+    ]
+   },
+   {
+    "type": "widgetEmbed",
+    "attrs": {
+     "v": 1,
+     "widgetId": "chart",
+     "params": {
+      "symbol": "AMD",
+      "tf": "D",
+      "to": "2026-06-15"
+     },
+     "capturedAt": "2026-06-15T19:55:00.000Z",
+     "embedId": "emb-b",
+     "mode": "snapshot",
+     "fallback": {
+      "url": "/api/j2/notes/images/fin-fe-fixture.png",
+      "w": 1200,
+      "h": 600
+     },
+     "tradeRef": null,
+     "tradeRefType": null,
+     "annotations": [
+      {
+       "id": "note-line-2",
+       "type": "horizontal",
+       "points": [
+        {
+         "time": 1750000000,
+         "price": 87.0
+        }
+       ]
+      }
+     ],
+     "caption": "the plan chart",
+     "layout": {
+      "width": "full",
+      "height": null
+     },
+     "searchText": "AMD D chart",
+     "ta": null
+    }
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "after the chart"
+     }
+    ]
+   }
+  ]
+ },
+ "bodyPlain": "before the chart AMD D chart after the chart",
+ "heroImageUrl": null,
+ "firstImageUrl": "/api/j2/notes/images/fin-fe-fixture.png",
+ "ticker": null,
+ "tags": [],
+ "createdAt": "2026-10-07T03:56:11.555140+00:00",
+ "updatedAt": "2026-10-07T03:56:11.555140+00:00",
+ "deletedAt": null,
+ "archivedAt": null,
+ "locked": false,
+ "dailyDate": null,
+ "propertiesJson": {},
+ "isFavorite": false
+}

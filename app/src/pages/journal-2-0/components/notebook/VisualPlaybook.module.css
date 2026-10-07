@@ -1,0 +1,106 @@
+/* Wave 13 lane 13I-2 — the visual playbook (a sheet over the note; a page body later). */
+.body {
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 13px;
+  color: var(--text);
+  display: grid;
+  gap: 12px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.field { display: grid; gap: 4px; }
+.field > span:first-child { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.field select,
+.field input {
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 5px 8px;
+  min-width: 0;
+}
+.field select:disabled { opacity: 0.6; }
+.hint { color: var(--text-muted); font-size: 11px; }
+
+.stats {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  padding: 10px 12px;
+}
+.statHead { margin: 0 0 6px; }
+.band { color: var(--warn); font-weight: 600; }
+.statNumbers { display: flex; flex-wrap: wrap; gap: 16px; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+.statNumbers div { display: grid; gap: 2px; }
+.statNumbers dt { color: var(--text-muted); font-size: 11px; }
+.statNumbers dd { margin: 0; }
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.cardImg { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; object-fit: cover; background: var(--bg); }
+.cardImgEmpty {
+  aspect-ratio: 2 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: var(--bg);
+  font-size: 12px;
+}
+.cardBody { padding: 8px 10px 10px; display: grid; gap: 4px; }
+.cardTitle { margin: 0; }
+.sym { font-weight: 700; color: var(--text); }
+.tag { color: var(--ut-gold); }
+.cardMeta { margin: 0; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.cardFields { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-muted); }
+.outcome { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.o_win { color: var(--gain); }
+.o_loss { color: var(--danger-ink); }
+.o_breakeven { color: var(--text); }
+
+.muted { margin: 0; color: var(--text-muted); }
+.error { margin: 0; color: var(--danger-ink); }
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ut-gold);
+  text-decoration: underline;
+  cursor: pointer;
+  justify-self: start;
+}
+
+/* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
+@media (max-width: 1024px) {
+  .field select,
+  .field input,
+  .linkBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  .linkBtn { display: inline-flex; align-items: center; }
+}
+@media (max-width: 640px) {
+  .filters { grid-template-columns: 1fr 1fr; }
+  .grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/4525cdb4ca5047a49587a3305069e54d",
+    "note": "An approval that does not name the version the reviewer saw is refused.",
+    "path": "/api/j2/template-gallery/admin/items/4525cdb4ca5047a49587a3305069e54d",
+    "requestBody": {
+      "action": "approve"
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "This template changed after you opened it. Nothing was listed. Look at it again, then approve."
+  }
+}

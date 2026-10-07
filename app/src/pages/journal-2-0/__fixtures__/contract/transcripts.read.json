@@ -1,0 +1,45 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/research-capture/transcripts/TRHD/2026Q2",
+    "note": "A held transcript as numbered turns.",
+    "path": "/api/j2/research-capture/transcripts/TRHD/2026Q2",
+    "status": 200
+  },
+  "body": {
+    "callDate": "2026-08-27",
+    "held": "store",
+    "q": 2,
+    "quarter": "2026Q2",
+    "source": "FMP transcript",
+    "symbol": "TRHD",
+    "turns": [
+      {
+        "speaker": "Operator",
+        "text": "Operator: Good afternoon. Welcome to the second quarter call.",
+        "turn": 1
+      },
+      {
+        "speaker": "Chief Financial Officer",
+        "text": "Chief Financial Officer: Revenue was a record, up 56% year over year. Data center revenue grew\nsequentially, and gross margin was 72.4%.",
+        "turn": 2
+      },
+      {
+        "speaker": "Chief Executive Officer",
+        "text": "Chief Executive Officer: Demand is extraordinary. We are sold out through next year.",
+        "turn": 3
+      },
+      {
+        "speaker": "Analyst One",
+        "text": "Analyst One: Can you talk about supply?",
+        "turn": 4
+      },
+      {
+        "speaker": "Chief Executive Officer",
+        "text": "Chief Executive Officer: Supply is improving every quarter.",
+        "turn": 5
+      }
+    ],
+    "year": 2026
+  }
+}

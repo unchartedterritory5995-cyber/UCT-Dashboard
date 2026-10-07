@@ -1,0 +1,66 @@
+/* The generic engine's own additions (wave 14, lane W14-C1). The card's look is still
+   NotebookTour.module.css (one visual language); this file only adds what the base tour
+   never needed, so the base tour's stylesheet stays byte-identical. Lazy: it ships in the
+   engine's chunk, never in the Notebook's first-open bytes. */
+
+/* A non-modal card: no full-screen layer holding the page still, so the member can click
+   the thing the step asks for (a "do this to continue" step) or work in the sheet the step
+   points into. It keeps the card's fixed seat. */
+.floating {
+  z-index: var(--z-modal);
+}
+
+/* "Do this to continue": the instruction the step is waiting on. */
+.waiting {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ut-gold);
+}
+
+/* The passive explainer (a `replayable: false` entry): a light note, not a stepper.
+   Smaller, quieter, and it never takes focus or holds the page. */
+.explainer {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: var(--z-modal);
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-bright);
+}
+.explainerTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.explainerBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-bright);
+}
+.explainerActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+@media (max-width: 1024px) {
+  .explainer {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+  }
+}

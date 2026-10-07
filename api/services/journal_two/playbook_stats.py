@@ -43,6 +43,16 @@ Design choices (documented for review):
   * Blank/untagged-setup trades are EXCLUDED (v1) so every card maps to a real
     named setup (mirrors `_attribution_section`'s `if setup:` guard).
 
+  * UNCERTAINTY (wave 13, lane 13B, ruling R3) -- additive fields only, worded by the ONE home
+    `sample_size.py`: `sample` (the setup's n and its band), `winRateStat` (Wilson range over the
+    decisive trades), `avgRStat` and `expectancyStat` (Student-t ranges over the means). Every
+    existing number is unchanged; this module stays THE per-setup authority and My Playbook reads
+    it rather than computing a fourth time.
+  * DRILL (13B): `with_trades=True` attaches each setup's trades FROM THE SAME ROWS the numbers
+    were computed from, so the list a number opens can never disagree with the count beside it
+    (a second query would drift the day a filter moved). Off by default; the Insights cards never
+    ask for it.
+
 Pure read against j2_trades (+ the j2_trade_excursions join). Parameterized SQL;
 Scope applied via `filters.trades_where(spec)` spliced after the base predicate,
 mirroring the Milestone A adapters.
@@ -54,7 +64,7 @@ import sqlite3
 from typing import Any
 
 from api.services.auth_db import get_connection
-from api.services.journal_two import adherence_store, excursions_store
+from api.services.journal_two import adherence_store, excursions_store, sample_size
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
@@ -95,6 +105,7 @@ def get_playbook_stats(
     *,
     spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
+    with_trades: bool = False,
 ) -> list[dict[str, Any]]:
     """All-setups Playbook aggregate, sorted by total P&L (desc).
 
@@ -108,7 +119,8 @@ def get_playbook_stats(
     try:
         sql = (
             "SELECT setup, result, pnl_dollar, r_multiple, exit_date, "
-            "       id, external_id, source "  # for trade_ref → excursion join
+            "       id, external_id, source, "  # for trade_ref → excursion join
+            "       symbol, side, entry_date "  # the drill row (13B), read from the same rows
             "  FROM j2_trades "
             " WHERE user_id = ? "
             "   AND setup IS NOT NULL AND TRIM(setup) != ''"
@@ -143,7 +155,7 @@ def get_playbook_stats(
             by_setup.setdefault(r["setup"], []).append(r)
 
         out = [
-            _setup_record(setup, setup_rows, excursions_map, adherence_map)
+            _setup_record(setup, setup_rows, excursions_map, adherence_map, with_trades=with_trades)
             for setup, setup_rows in by_setup.items()
         ]
         # Rank most-profitable first (mirrors attribution.bySetup ordering).
@@ -154,11 +166,36 @@ def get_playbook_stats(
             conn.close()
 
 
+def untagged_count(
+    user_id: str,
+    account_id: str | None = None,
+    *,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """How many of the member's closed trades carry NO setup, and so sit on no card (13B labels
+    them; it never hides them). The exact complement of the base predicate above."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        sql = ("SELECT COUNT(*) AS n FROM j2_trades WHERE user_id = ?"
+               " AND (setup IS NULL OR TRIM(setup) = '')")
+        params: list[Any] = [user_id]
+        if account_id:
+            sql += " AND account_id = ?"
+            params.append(account_id)
+        return int(conn.execute(sql, params).fetchone()["n"] or 0)
+    finally:
+        if owned:
+            conn.close()
+
+
 def _setup_record(
     setup: str,
     rows: list[sqlite3.Row],
     excursions_map: dict[str, dict],
     adherence_map: dict[str, dict],
+    *,
+    with_trades: bool = False,
 ) -> dict[str, Any]:
     """Compute one setup's aggregate from its (chronological) trade rows."""
     pnls = [float(r["pnl_dollar"] or 0) for r in rows]
@@ -229,7 +266,7 @@ def _setup_record(
 
     last_five = [_RESULT_LETTER.get(r["result"], "?") for r in rows[-5:]]
 
-    return {
+    record = {
         "setup": setup,
         "tradeCount": trade_count,
         "winCount": wins,
@@ -253,4 +290,28 @@ def _setup_record(
             "notAdhered": _adh_bucket(not_adhered_pnls),
         },
         "lastFive": last_five,
+        # ── uncertainty (13B, R3; `sample_size` is the one home of the wording) ──
+        "sample": sample_size.sample(trade_count),
+        "winRateStat": sample_size.rate_stat(wins, decisive),
+        "avgRStat": sample_size.mean_stat(rs),
+        "expectancyStat": sample_size.mean_stat(pnls),
+    }
+    if with_trades:
+        record["trades"] = [_drill_row(r) for r in rows]
+    return record
+
+
+def _drill_row(r: sqlite3.Row) -> dict[str, Any]:
+    """One trade behind a setup's numbers, as the drill lists it (13B)."""
+    return {
+        "id": r["id"],
+        "tradeRef": trade_ref_for_row(r),
+        "symbol": r["symbol"],
+        "side": r["side"],
+        "result": r["result"],
+        "entryDate": r["entry_date"],
+        "exitDate": r["exit_date"],
+        "rMultiple": float(r["r_multiple"]) if r["r_multiple"] is not None else None,
+        "pnlDollar": round(float(r["pnl_dollar"] or 0), 2),
+        "source": r["source"],
     }

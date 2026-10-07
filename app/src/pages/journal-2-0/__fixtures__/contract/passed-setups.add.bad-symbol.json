@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "symbol": "<script>"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "That is not a ticker symbol."
+  }
+}

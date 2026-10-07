@@ -1,0 +1,603 @@
+{
+ "tool": "tools/notebook_fin_nav_walk.py",
+ "sha": "de95cc2b5f",
+ "base": "http://127.0.0.1:8131",
+ "data_dir": "C:\\data-fin-nav",
+ "boots": {
+  "off": {
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-nav\\integrity-off.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-06 22:12:13",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-06 22:12:59",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-06 22:13:31",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": "",
+    "copy": "docs\\notebook\\evidence\\fin-nav\\integrity-off.md",
+    "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-06T22-12-05.md"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "port_released": true
+  },
+  "on": {
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-nav\\integrity-on.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-06 22:14:12",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-06 22:14:48",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-06 22:15:39",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": "",
+    "copy": "docs\\notebook\\evidence\\fin-nav\\integrity-on.md",
+    "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-06T22-14-05.md"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "port_released": true
+  }
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "OFF_0_flag_on_the_auth_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_setups_board_enabled=False (wanted not True), paid_equiv=True"
+  },
+  {
+   "id": "C_off_1200_notebook_skip_links_unchanged",
+   "verdict": "PASS",
+   "detail": "skip links on /journal/notebook: slot ['Skip to notes list', 'Skip to folder navigation']; all ['Skip to main content', 'Skip to notes list', 'Skip to folder navigation'] ('Skip to save results' is not among them)"
+  },
+  {
+   "id": "A_door_off_1200",
+   "verdict": "PASS",
+   "detail": "flag off: 0 link(s) named 'Active setups', 0 link(s) to /journal/notebook/setups; control: 1 visible Today button(s) on the same screen"
+  },
+  {
+   "id": "B_screener_1200_control_without_the_link_is_over_budget",
+   "verdict": "PASS",
+   "detail": "Tab, Enter (Skip to main content), 311 Tabs, Enter = 314 keys (budget 10)"
+  },
+  {
+   "id": "B_screener_1200_unfocused_link_cannot_take_a_tap",
+   "verdict": "PASS",
+   "detail": "unfocused: {'rect': [8, -66, 145, 37], 'bottom': -29, 'opacity': '0', 'pointerEvents': 'none', 'hitAtAnyProbe': False, 'inSlot': True}"
+  },
+  {
+   "id": "B_screener_1200_keys_within_budget",
+   "verdict": "PASS",
+   "detail": "5 keys (Tab, Tab, Enter, Tab, Enter; budget 10); stops: ['Skip to main content', 'Skip to save results', 'Save results to Notebook', 'Save these results to Notebook', 'Skip to main content\\nSkip to save results\\nUCT\\nINTELLIGENCE\\nSearch\\n⌘K\\nUCT Termina']; focused link visible=True opacity=1; saved: toast 'Screener results captured → Notebook inbox', inbox 4->5, notes changed 0"
+  },
+  {
+   "id": "B_screener_1200_no_page_errors",
+   "verdict": "PASS",
+   "detail": "none"
+  },
+  {
+   "id": "C_off_390_notebook_skip_links_unchanged",
+   "verdict": "PASS",
+   "detail": "skip links on /journal/notebook: slot ['Skip to notes list', 'Skip to folder navigation']; all ['Skip to main content', 'Skip to notes list', 'Skip to folder navigation'] ('Skip to save results' is not among them)"
+  },
+  {
+   "id": "A_door_off_390",
+   "verdict": "PASS",
+   "detail": "flag off: 0 link(s) named 'Active setups', 0 link(s) to /journal/notebook/setups; control: 1 visible Today button(s) on the same screen"
+  },
+  {
+   "id": "B_screener_390_control_without_the_link_is_over_budget",
+   "verdict": "PASS",
+   "detail": "Tab, Enter (Skip to main content), 25 Tabs, Enter = 28 keys (budget 10)"
+  },
+  {
+   "id": "B_screener_390_unfocused_link_cannot_take_a_tap",
+   "verdict": "PASS",
+   "detail": "unfocused: {'rect': [8, -66, 145, 37], 'bottom': -29, 'opacity': '0', 'pointerEvents': 'none', 'hitAtAnyProbe': False, 'inSlot': True}"
+  },
+  {
+   "id": "B_screener_390_keys_within_budget",
+   "verdict": "PASS",
+   "detail": "5 keys (Tab, Tab, Enter, Tab, Enter; budget 10); stops: ['Skip to main content', 'Skip to save results', 'Save results to Notebook', 'Save these results to Notebook', 'Skip to main content\\nSkip to save results\\nScreener\\nScreener\\nUNIVERSE\\nGlobal Univ']; focused link visible=True opacity=1; saved: toast 'Screener results captured → Notebook inbox', inbox 5->6, notes changed 0"
+  },
+  {
+   "id": "B_screener_390_no_page_errors",
+   "verdict": "PASS",
+   "detail": "none"
+  },
+  {
+   "id": "OFF_9_sandbox_stopped_and_port_released",
+   "verdict": "PASS",
+   "detail": "stop: graceful to the shutdown checkpoint, then forced exit; port 8131 listener after stop: False; integrity CLEAN"
+  },
+  {
+   "id": "ON_0_flag_on_the_auth_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_setups_board_enabled=True (wanted True), paid_equiv=True"
+  },
+  {
+   "id": "C_on_1200_notebook_skip_links_unchanged",
+   "verdict": "PASS",
+   "detail": "skip links on /journal/notebook: slot ['Skip to notes list', 'Skip to folder navigation']; all ['Skip to main content', 'Skip to notes list', 'Skip to folder navigation'] ('Skip to save results' is not among them)"
+  },
+  {
+   "id": "A_door_on_1200_visible",
+   "verdict": "PASS",
+   "detail": "1 link, href /journal/notebook/setups, box 120x33 px, keyboard-focusable True, sideways overflow 0 px"
+  },
+  {
+   "id": "A_door_on_1200_navigates",
+   "verdict": "PASS",
+   "detail": "click -> http://127.0.0.1:8131/journal/notebook/setups; the board page mounted (1 [data-setups-page])"
+  },
+  {
+   "id": "A_door_on_1200_no_page_errors",
+   "verdict": "PASS",
+   "detail": "none"
+  },
+  {
+   "id": "C_on_390_notebook_skip_links_unchanged",
+   "verdict": "PASS",
+   "detail": "skip links on /journal/notebook: slot ['Skip to notes list', 'Skip to folder navigation']; all ['Skip to main content', 'Skip to notes list', 'Skip to folder navigation'] ('Skip to save results' is not among them)"
+  },
+  {
+   "id": "A_door_on_390_visible",
+   "verdict": "PASS",
+   "detail": "1 link, href /journal/notebook/setups, box 126x44 px (44 px floor applies), keyboard-focusable True, sideways overflow 0 px"
+  },
+  {
+   "id": "A_door_on_390_navigates",
+   "verdict": "PASS",
+   "detail": "tap -> http://127.0.0.1:8131/journal/notebook/setups; the board page mounted (1 [data-setups-page])"
+  },
+  {
+   "id": "A_door_on_390_no_page_errors",
+   "verdict": "PASS",
+   "detail": "none"
+  },
+  {
+   "id": "ON_9_sandbox_stopped_and_port_released",
+   "verdict": "PASS",
+   "detail": "stop: graceful to the shutdown checkpoint, then forced exit; port 8131 listener after stop: False; integrity CLEAN"
+  },
+  {
+   "id": "Z_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "off_auth_me": {
+   "notebook_setups_board_enabled": false,
+   "paid_equiv": true,
+   "role": null
+  },
+  "A_door_off_1200": {
+   "links_by_name": 0,
+   "links_by_href": 0,
+   "today_buttons_visible": 1
+  },
+  "C_off_1200": {
+   "slot": [
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ],
+   "all": [
+    "Skip to main content",
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ]
+  },
+  "B_screener_1200": {
+   "door_disabled_at_start": false,
+   "skip_link_unfocused": {
+    "rect": [
+     8,
+     -66,
+     145,
+     37
+    ],
+    "bottom": -29,
+    "opacity": "0",
+    "pointerEvents": "none",
+    "hitAtAnyProbe": false,
+    "inSlot": true
+   },
+   "without_skip_link": {
+    "first_stop": {
+     "tag": "a",
+     "id": null,
+     "name": "Skip to main content",
+     "saveAnchor": false,
+     "disabled": false,
+     "rect": [
+      8,
+      -66,
+      154,
+      37
+     ],
+     "opacity": "1",
+     "pointerEvents": "auto",
+     "inViewport": false
+    },
+    "tabs_after_skip_to_main": 311,
+    "reached": true,
+    "keys_total": 314,
+    "cap": 700
+   },
+   "with_skip_link": {
+    "trail": [
+     {
+      "key": "Tab",
+      "focus": {
+       "tag": "a",
+       "id": null,
+       "name": "Skip to main content",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        8,
+        -66,
+        154,
+        37
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": false
+      }
+     },
+     {
+      "key": "Tab",
+      "focus": {
+       "tag": "a",
+       "id": null,
+       "name": "Skip to save results",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        8,
+        8,
+        145,
+        37
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Enter",
+      "focus": {
+       "tag": "span",
+       "id": "screener-save",
+       "name": "Save results to Notebook",
+       "saveAnchor": true,
+       "disabled": false,
+       "rect": [
+        361,
+        357,
+        1,
+        1
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Tab",
+      "focus": {
+       "tag": "button",
+       "id": null,
+       "name": "Save these results to Notebook",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        855,
+        346,
+        135,
+        23
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Enter",
+      "focus": {
+       "tag": "body",
+       "id": null,
+       "name": "Skip to main content\nSkip to save results\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Termina",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        0,
+        0,
+        1200,
+        900
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     }
+    ],
+    "keys": 5,
+    "toast": "Screener results captured → Notebook inbox",
+    "notes_changed": [],
+    "inbox": [
+     4,
+     5
+    ]
+   }
+  },
+  "A_door_off_390": {
+   "links_by_name": 0,
+   "links_by_href": 0,
+   "today_buttons_visible": 1
+  },
+  "C_off_390": {
+   "slot": [
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ],
+   "all": [
+    "Skip to main content",
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ]
+  },
+  "B_screener_390": {
+   "door_disabled_at_start": false,
+   "skip_link_unfocused": {
+    "rect": [
+     8,
+     -66,
+     145,
+     37
+    ],
+    "bottom": -29,
+    "opacity": "0",
+    "pointerEvents": "none",
+    "hitAtAnyProbe": false,
+    "inSlot": true
+   },
+   "without_skip_link": {
+    "first_stop": {
+     "tag": "a",
+     "id": null,
+     "name": "Skip to main content",
+     "saveAnchor": false,
+     "disabled": false,
+     "rect": [
+      8,
+      -80,
+      154,
+      44
+     ],
+     "opacity": "1",
+     "pointerEvents": "auto",
+     "inViewport": false
+    },
+    "tabs_after_skip_to_main": 25,
+    "reached": true,
+    "keys_total": 28,
+    "cap": 700
+   },
+   "with_skip_link": {
+    "trail": [
+     {
+      "key": "Tab",
+      "focus": {
+       "tag": "a",
+       "id": null,
+       "name": "Skip to main content",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        8,
+        8,
+        154,
+        44
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Tab",
+      "focus": {
+       "tag": "a",
+       "id": null,
+       "name": "Skip to save results",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        8,
+        8,
+        145,
+        37
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Enter",
+      "focus": {
+       "tag": "span",
+       "id": "screener-save",
+       "name": "Save results to Notebook",
+       "saveAnchor": true,
+       "disabled": false,
+       "rect": [
+        19,
+        525,
+        1,
+        1
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Tab",
+      "focus": {
+       "tag": "button",
+       "id": null,
+       "name": "Save these results to Notebook",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        255,
+        504,
+        135,
+        44
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     },
+     {
+      "key": "Enter",
+      "focus": {
+       "tag": "body",
+       "id": null,
+       "name": "Skip to main content\nSkip to save results\nScreener\nScreener\nUNIVERSE\nGlobal Univ",
+       "saveAnchor": false,
+       "disabled": false,
+       "rect": [
+        0,
+        0,
+        390,
+        844
+       ],
+       "opacity": "1",
+       "pointerEvents": "auto",
+       "inViewport": true
+      }
+     }
+    ],
+    "keys": 5,
+    "toast": "Screener results captured → Notebook inbox",
+    "notes_changed": [],
+    "inbox": [
+     5,
+     6
+    ]
+   }
+  },
+  "on_auth_me": {
+   "notebook_setups_board_enabled": true,
+   "paid_equiv": true,
+   "role": null
+  },
+  "C_on_1200": {
+   "slot": [
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ],
+   "all": [
+    "Skip to main content",
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ]
+  },
+  "A_door_on_1200": {
+   "count": 1,
+   "box": {
+    "x": 474.921875,
+    "y": 194.390625,
+    "width": 119.515625,
+    "height": 33
+   },
+   "href": "/journal/notebook/setups",
+   "h_overflow_px": 0,
+   "focusable": true,
+   "landed": {
+    "url": "http://127.0.0.1:8131/journal/notebook/setups",
+    "setups_page_marker": 1
+   }
+  },
+  "C_on_390": {
+   "slot": [
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ],
+   "all": [
+    "Skip to main content",
+    "Skip to notes list",
+    "Skip to folder navigation"
+   ]
+  },
+  "A_door_on_390": {
+   "count": 1,
+   "box": {
+    "x": 151.765625,
+    "y": 642,
+    "width": 125.90625,
+    "height": 44
+   },
+   "href": "/journal/notebook/setups",
+   "h_overflow_px": 0,
+   "focusable": true,
+   "landed": {
+    "url": "http://127.0.0.1:8131/journal/notebook/setups",
+    "setups_page_marker": 1
+   }
+  }
+ }
+}

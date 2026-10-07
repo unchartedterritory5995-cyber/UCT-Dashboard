@@ -1,0 +1,215 @@
+{
+ "wave": 15,
+ "lane": "uct",
+ "checks": {
+  "G041_capture_desktop_1200": {
+   "verdict": "PASS",
+   "note_id": "c2eefe41d9f046edba92cba0e62d22f4",
+   "destination_label": "This note",
+   "save_enabled_before_click": true,
+   "saved_message": "Saved passage to This note\nOpen",
+   "capture_response": {
+    "documentId": "de4e249ff6554dca9f511904733d8189",
+    "noteId": "c2eefe41d9f046edba92cba0e62d22f4",
+    "captureType": "web_passage",
+    "coverage": "selected_passage_only",
+    "sourceUrl": "https://example.com/w15-uct-capture-walk/r103146-1200",
+    "title": "W15 UCT capture walk source",
+    "passageIndex": 1,
+    "excerptId": "f8552a9a5f56478181c9e4d3fb65f6a5",
+    "deduped": false
+   },
+   "excerpt_search_hit": {
+    "excerptId": "f8552a9a5f56478181c9e4d3fb65f6a5",
+    "snippet": "…<mark>W15</mark>-<mark>UCT</mark>-<mark>G041</mark>-<mark>r103146</mark>-<mark>1200</mark> -- why this matters",
+    "noteId": "c2eefe41d9f046edba92cba0e62d22f4",
+    "noteTitle": "G041 capture target desktop r103146",
+    "documentId": "de4e249ff6554dca9f511904733d8189",
+    "documentName": "W15 UCT capture walk source",
+    "pageNumber": 1,
+    "annotation": "W15-UCT-G041-r103146-1200 -- why this matters",
+    "sourceKind": "web",
+    "sourceUrl": "https://example.com/w15-uct-capture-walk/r103146-1200"
+   },
+   "annotation_sent": "W15-UCT-G041-r103146-1200 -- why this matters",
+   "source_url": "https://example.com/w15-uct-capture-walk/r103146-1200",
+   "screenshot": "r103146-g041-desktop-saved.png"
+  },
+  "G041_capture_mobile_390": {
+   "verdict": "PASS",
+   "note_id": "bf3d9c188fea4ba3b9300cc2026e52fb",
+   "dialog_fits_width": true,
+   "field_on_screen": true,
+   "save_reachable_on_screen": true,
+   "save_enabled_before_tap": true,
+   "saved_message": "Saved passage to This note\nOpen",
+   "capture_response": {
+    "documentId": "ce63e6a492af41d4acd6316fd5c3fc7a",
+    "noteId": "bf3d9c188fea4ba3b9300cc2026e52fb",
+    "captureType": "web_passage",
+    "coverage": "selected_passage_only",
+    "sourceUrl": "https://example.com/w15-uct-capture-walk/r103146-390",
+    "title": "W15 UCT capture walk source (mobile)",
+    "passageIndex": 1,
+    "excerptId": "8a8b1217d75f439db1088eff36115d7a",
+    "deduped": false
+   },
+   "excerpt_search_hit": {
+    "excerptId": "8a8b1217d75f439db1088eff36115d7a",
+    "snippet": "…<mark>W15</mark>-<mark>UCT</mark>-<mark>G041</mark>-<mark>r103146</mark>-<mark>390</mark> -- why this matters",
+    "noteId": "bf3d9c188fea4ba3b9300cc2026e52fb",
+    "noteTitle": "G041 capture target mobile r103146",
+    "documentId": "ce63e6a492af41d4acd6316fd5c3fc7a",
+    "documentName": "W15 UCT capture walk source (mobile)",
+    "pageNumber": 1,
+    "annotation": "W15-UCT-G041-r103146-390 -- why this matters",
+    "sourceKind": "web",
+    "sourceUrl": "https://example.com/w15-uct-capture-walk/r103146-390"
+   },
+   "annotation_sent": "W15-UCT-G041-r103146-390 -- why this matters",
+   "source_url": "https://example.com/w15-uct-capture-walk/r103146-390",
+   "screenshot": "r103146-g041-mobile-390-saved.png"
+  },
+  "G153_reminder_delivered_server": {
+   "verdict": "PASS",
+   "waited_s": 48.7,
+   "alert": {
+    "id": "notebook_task_reminder_1791127964687",
+    "type": "notebook_task_reminder",
+    "severity": "info",
+    "title": "An overdue task",
+    "message": "You have 1 overdue task in your Notebook.",
+    "timestamp": "2026-10-04T11:32:44.687582-04:00",
+    "read": false,
+    "user_id": "a882039d-1838-4e84-9728-82faba7b66dd",
+    "data": {
+     "source": "notebook_task_reminder",
+     "research_url": "/journal/notebook?view=tasks",
+     "due_today": 0,
+     "overdue": 1,
+     "day": "2026-10-04"
+    }
+   },
+   "note_id": "bdf34d2065e74b4b8fee0d128324bee8",
+   "overdue_date": "2026-10-03",
+   "wait_budget_s": 240.0
+  },
+  "G153_reminder_bell_mobile_390": {
+   "verdict": "PASS",
+   "bell_on_screen": true,
+   "item_on_screen": false,
+   "badge_text": "1",
+   "bell_box": {
+    "x": 334,
+    "y": 1.5,
+    "width": 44,
+    "height": 44
+   },
+   "item_box": {
+    "x": 99,
+    "y": 85.09375,
+    "width": 318,
+    "height": 54.984375
+   },
+   "text_delivered_correctly": true,
+   "dropdown_item_text": "An overdue task\nYou have 1 overdue task in your Notebook.\nnow",
+   "landed_url": "http://127.0.0.1:8700/journal/notebook?view=tasks",
+   "alert": {
+    "id": "notebook_task_reminder_1791127964687",
+    "type": "notebook_task_reminder",
+    "severity": "info",
+    "title": "An overdue task",
+    "message": "You have 1 overdue task in your Notebook.",
+    "timestamp": "2026-10-04T11:32:44.687582-04:00",
+    "read": false,
+    "user_id": "a882039d-1838-4e84-9728-82faba7b66dd",
+    "data": {
+     "source": "notebook_task_reminder",
+     "research_url": "/journal/notebook?view=tasks",
+     "due_today": 0,
+     "overdue": 1,
+     "day": "2026-10-04"
+    }
+   },
+   "screenshots": [
+    "r103146-g153-390-dropdown.png",
+    "r103146-g153-390-landed.png"
+   ],
+   "finding": "AlertBell's dropdown overflows the 390px viewport on touch (`right: -40px` in AlertBell.module.css's @media (max-width: 640px) block pushes it further right, off-screen, rather than pulling it on screen -- screenshot evidence attached). This is a pre-existing, cross-cutting bug in a SHARED component (every alert type uses this dropdown), not specific to the reminder and not a Notebook-owned file -- reported, not fixed, per this lane's scope."
+  },
+  "B_no_page_errors": {
+   "verdict": "PASS",
+   "page_errors": 0,
+   "first": []
+  }
+ },
+ "errors": [],
+ "instrument_notes": [],
+ "only": [],
+ "tip": "674012eb1",
+ "base": "http://127.0.0.1:8700",
+ "data_dir": "C:\\data-w15uct4",
+ "instrument": "tools\\notebook_w15_uct_walk.py",
+ "walk_process_env": {
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8700 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w15-uct\\docs\\plans\\joystick\\sandbox-runs\\2026-10-04T10-30-43.md (identity 65f7a5d90e69..., data dir C:\\data-w15uct4)"
+ },
+ "run": "r103146",
+ "member": "w15uct-r103146@local.dev",
+ "g153_seed": {
+  "note_id": "bdf34d2065e74b4b8fee0d128324bee8",
+  "overdue_date": "2026-10-03",
+  "seeded_at": 1791127916.5033886,
+  "catch_up_delay_s": 90
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\gate-runs\\wave15\\walk-uct-674012eb1.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\gate-runs\\wave15\\walk-uct-674012eb1.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-04 10:30:50",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-04 10:31:45",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-04 10:33:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-04 10:33:46",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

@@ -1,0 +1,92 @@
+{
+  "tool": "tools/notebook_w14_0_walk.py",
+  "base": "http://127.0.0.1:8713",
+  "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+  "not_run": null,
+  "checks": [
+    {
+      "key": "1200x900: provisioning",
+      "ok": true
+    },
+    {
+      "key": "1200x900: first-run screen renders",
+      "ok": true
+    },
+    {
+      "key": "1200x900: tour auto-starts on step 1",
+      "ok": false,
+      "title": "Welcome to your Notebook",
+      "progress_count": 0
+    },
+    {
+      "key": "1200x900: Next/Back walk the real step copy and outline the anchor",
+      "ok": true,
+      "titles": [
+        "Folders and tags",
+        "Search",
+        "Folders and tags"
+      ],
+      "anchor_outline": "true"
+    },
+    {
+      "key": "1200x900: Skip tour dismisses the dialog",
+      "ok": true
+    },
+    {
+      "key": "1200x900: a dismissed tour does not auto-reopen",
+      "ok": true
+    },
+    {
+      "key": "1200x900: Help > Walkthroughs lists the base tour",
+      "ok": true
+    },
+    {
+      "key": "1200x900: Replay reopens the tour at step one, dismissed state notwithstanding",
+      "ok": false,
+      "title": "Folders and tags",
+      "progress_count": 0
+    },
+    {
+      "key": "390x844: provisioning",
+      "ok": true
+    },
+    {
+      "key": "390x844: first-run screen renders",
+      "ok": true
+    },
+    {
+      "key": "390x844: tour auto-starts on step 1",
+      "ok": false,
+      "title": "Welcome to your Notebook",
+      "progress_count": 0
+    },
+    {
+      "key": "390x844: Next/Back walk the real step copy and outline the anchor",
+      "ok": true,
+      "titles": [
+        "Folders and tags",
+        "Search",
+        "Folders and tags"
+      ],
+      "anchor_outline": "true"
+    },
+    {
+      "key": "390x844: Skip tour dismisses the dialog",
+      "ok": true
+    },
+    {
+      "key": "390x844: a dismissed tour does not auto-reopen",
+      "ok": true
+    },
+    {
+      "key": "390x844: Help > Walkthroughs lists the base tour",
+      "ok": true
+    },
+    {
+      "key": "390x844: Replay reopens the tour at step one, dismissed state notwithstanding",
+      "ok": false,
+      "title": "Folders and tags",
+      "progress_count": 0
+    }
+  ]
+}

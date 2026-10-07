@@ -188,3 +188,36 @@ describe('WidgetPalette keyboard escape (UX #13)', () => {
     expect(document.activeElement).toBe(first)
   })
 })
+
+/**
+ * 13Q-3 (Q20 click-budget fix): this dialog is mounted from inside the note editor's phone
+ * "Format" disclosure (NoteEditorPage.jsx's `.formatRun` spans toggle `display:none` ->
+ * `display:contents` on open). A real-browser keyboard walk measured that a plain forward
+ * Tab out of that just-revealed region does not reliably land inside this dialog at phone
+ * width -- it ran out a 600-press Tab budget hunting for "Chart" that cost 2 presses on
+ * desktop (docs/notebook/evidence/wave13-13q3/q20-dialog-diagnosis/). Moving focus into the
+ * dialog on open removes the dependency on that natural tab order at every width.
+ */
+describe('WidgetPalette autofocus on open (13Q-3, Q20)', () => {
+  it('focuses the first type button the moment the dialog opens -- no Tab required', () => {
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    expect(document.activeElement).toBe(screen.getByText('Chart').closest('button'))
+  })
+
+  it('"Back" from the ticker form returns focus to the first type button', () => {
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    fireEvent.click(screen.getByText('Chart'))
+    expect(document.activeElement).toBe(screen.getByLabelText('Ticker'))
+    fireEvent.click(screen.getByRole('button', { name: '‹ Back' }))
+    expect(document.activeElement).toBe(screen.getByText('Chart').closest('button'))
+  })
+
+  it('opening the ticker form still focuses the ticker field (unchanged)', () => {
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    fireEvent.click(screen.getByText('MTF stack'))
+    expect(document.activeElement).toBe(screen.getByLabelText('Ticker'))
+  })
+})

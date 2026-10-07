@@ -1,0 +1,26 @@
+[
+  {
+    "id": "M1-batch-query",
+    "desc": "thesis_chips.batch_chips issues ONE query per symbol instead of one batch query",
+    "path": "api/services/journal_two/thesis_chips.py",
+    "killed": true
+  },
+  {
+    "id": "M2-index-not-recomputed",
+    "desc": "the chip's stop is hardcoded instead of read from the j2_note_levels row",
+    "path": "api/services/journal_two/thesis_chips.py",
+    "killed": true
+  },
+  {
+    "id": "M3-flag-gate",
+    "desc": "the router-level flag gate is removed -- the route answers even while the flag is off",
+    "path": "api/routers/notebook_thesis_chips.py",
+    "killed": true
+  },
+  {
+    "id": "M4-frontend-one-request",
+    "desc": "the hook keys SWR per-symbol instead of on the whole deduped set -- N rows, N requests",
+    "path": "app/src/pages/journal-2-0/hooks/useThesisChips.js",
+    "killed": true
+  }
+]

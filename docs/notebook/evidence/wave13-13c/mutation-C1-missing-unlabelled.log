@@ -1,0 +1,92 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w13c/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/earningsPrep.test.js [2m([22m[2m10 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 98[2mms[22m[39m
+     [32m✓[39m builds in the REAL editor schema, full and all-missing[32m 44[2mms[22m[39m
+     [32m✓[39m CONTROL: the schema check can fail (an empty text node is refused)[32m 2[2mms[22m[39m
+     [32m✓[39m every value the server sent arrives with its source and as-of[32m 5[2mms[22m[39m
+[31m     [31m×[31m a source with nothing reads as a labelled dash, and no number is invented[39m[32m 21[2mms[22m[39m
+     [32m✓[39m the member's own notes are cited by id; trades link to the trade page[32m 5[2mms[22m[39m
+     [32m✓[39m a broker placeholder stop (stop == entry) is never written as a stop[32m 4[2mms[22m[39m
+     [32m✓[39m titles the note with the symbol and the report day[32m 1[2mms[22m[39m
+     [32m✓[39m drafts, then creates through POST /api/j2/notes with the prep tags and the ticker[32m 9[2mms[22m[39m
+     [32m✓[39m a refused draft (the daily cap) creates NOTHING and carries the server sentence[32m 3[2mms[22m[39m
+     [32m✓[39m reads the latched flag, and nothing latched is OFF[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m9 passed[39m[22m[90m (10)[39m
+[2m   Start at [22m 17:43:08
+[2m   Duration [22m 43.27s[2m (transform 3.87s, setup 7.42s, import 7.51s, tests 98ms, environment 26.91s)[22m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/earningsPrep.test.js[2m > [22mthe prep note body[2m > [22ma source with nothing reads as a labelled dash, and no number is invented
+[31m[1mAssertionError[22m: expected 'Drafted by UCT on Oct 2, 2026, 9:00 A…' to contain '— not available: No report date on th…'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [7m— not available: No report date on the UCT calendar or in UCT's earnings data[27m.[39m
+[31m+ Drafted by UCT on Oct 2, 2026, 9:00 AM from the sources named under each value. The values are frozen in this note: they will not change when the data does.[39m
+[31m+ The report[39m
+[31m+ Date:[39m
+[31m+  —[39m
+[31m+ Source: UCT earnings calendar.[39m
+[31m+ Before or after the bell:[39m
+[31m+  —[39m
+[31m+ Source: UCT earnings calendar.[39m
+[31m+ Expected move (from options):[39m
+[31m+  —[39m
+[31m+ Source: Options-implied move, captured by UCT before the report.[39m
+[31m+ What the Street expects[39m
+[31m+ Estimate[39m
+[31m+ A year ago[39m
+[31m+ Growth[39m
+[31m+ EPS[39m
+[31m+ —[39m
+[31m+ —[39m
+[31m+ —[39m
+[31m+ Revenue[39m
+[31m+ —[39m
+[31m+ —[39m
+[31m+ —[39m
+[31m+ EPS estimate: —[39m
+[31m+ Revenue estimate: —[39m
+[31m+ EPS a year ago: —[39m
+[31m+ Revenue a year ago: —[39m
+[31m+ The last four reactions[39m
+[31m+ —[39m
+[31m+ Source: UCT earnings data, reactions from UCT daily bars.[39m
+[31m+ Last call recap[39m
+[31m+ —[39m
+[31m+ Source: UCT call recap (stored).[39m
+[31m+ What the market will listen for[39m
+[31m+ Guidance: —[39m
+[31m+ The metric that moves this stock: —[39m
+[31m+ Anything new: —[39m
+[31m+ My history on the name[39m
+[31m+ My notes[39m
+[31m+ —[39m
+[31m+ Source: Your Notebook.[39m
+[31m+ My trades[39m
+[31m+ —[39m
+[31m+ Source: Your trade journal.[39m
+[31m+ My position going in[39m
+[31m+ —[39m
+[31m+ Source: Your open positions.[39m
+[31m+ Holding through it, trimming, or flat? Say why before the print, not after.[39m
+[31m+ Where the stock sits going in[39m
+[31m+ In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.[39m
+[31m+ After the report[39m
+[31m+ [7mThe numbers, the reaction, and whether the setup you described held[27m.[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/earningsPrep.test.js:[2m129:20[22m[39m
+    [90m127| [39m    [35mconst[39m text [33m=[39m [34mflat[39m([34mbuildPrepDoc[39m([33mEMPTY[39m))
+    [90m128| [39m    [35mfor[39m ([35mconst[39m sentence [35mof[39m [33mObject[39m[33m.[39m[34mvalues[39m([33mMISSING_SENTENCES[39m)) {
+    [90m129| [39m      expect(text).toContain(`${MISSING_DASH} not available: ${sentenc…
+    [90m   | [39m                   [31m^[39m
+    [90m130| [39m    }
+    [90m131| [39m    // nothing numeric beyond the frozen-at stamp and the window's own…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m

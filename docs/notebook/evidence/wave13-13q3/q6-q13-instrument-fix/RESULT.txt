@@ -1,0 +1,46 @@
+13Q-3 Q6/Q13 diagnosis: why does `_trade_row` (tools/notebook_w13q_clicks.py) never find the
+seeded trade row at 390 px, in any mode, while it works at 1200 px?
+
+Measured directly against the real file on disk (not a copy): the committed `alt` locator
+read, to a human and to every earlier reading of this file (including Claude's own Read
+tool, which renders it invisibly), as:
+
+    alt = pg.locator("a, button, [role=button], [role=row], li",
+                      has_text=re.compile(rf"\b{sym}\b")).filter(visible=True)
+
+A byte-level read of the file (`od -c`, then a Python byte count) showed the committed bytes
+around `{sym}` were NOT the two characters backslash+b -- they were two literal BACKSPACE
+control bytes (0x08):
+
+    $ python -c "..." (byte dump)
+    b'li", has_text=re.compile(rf"\x08{sym}\x08")).filter(visible=True)\r\n    end = time'
+    count of 0x08 bytes in file: 2
+
+`git cat-file blob HEAD:tools/notebook_w13q_clicks.py` confirmed this is PRE-EXISTING,
+committed in 13Q-1's own commit (f75f2d8f1b) -- not introduced by this lane and not a
+transcription artifact of reading it now.
+
+A regex pattern of "<backspace>CRWD<backspace>" can never match ordinary page text, so `alt`
+was permanently dead. At 1200px this was invisible because `row` (a real `<tr>`) always
+matched FIRST (the trades table renders a real `<table>` at desktop widths); at 390px the
+Trades surface renders `TradeCard` BUTTONS, never `<tr>` (confirmed: `[data-testid=trade-card]
+count=1, <tr> count=0`), so `alt` was the ONLY path to the row and it was permanently dead --
+exactly the "never once varies" signature 13Q-2 recorded.
+
+debug_trade_row_locator_bug.py (one of several probes run) proves this against the REAL
+function and a REAL sandbox, side by side with an identical LOCAL COPY of the same logic
+typed fresh (so it carries no backspace bytes):
+
+  focusable nodes dump confirms the card exists with matching text "CRWD\nUNPLANNED\nWin\n..."
+  iter 1: row.count()=0  alt.count()=1          <- the LOCAL COPY (no backspace) finds it immediately
+  copy result .count() = 1
+
+  (the REAL `w13q._trade_row` called on the SAME settled page, same moment, returns count=0 --
+  shown in a companion probe not kept as a separate file; the byte dump above is the direct
+  proof of why.)
+
+FIX: `has_text=sym` (the plain string -- the SAME substring semantics `row`'s own `has_text`
+already uses), never a regex, removing any backslash-escape sequence from the file that a
+future transcription step could corrupt the same way again. The now-unused `import re` inside
+`_trade_row` was removed with it. This is an INSTRUMENT fix only -- no journal-2-0 file was
+touched; the product's Trades surface renders the seeded trade correctly at every width.

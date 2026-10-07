@@ -1,0 +1,132 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/notebook-fingerprint/blocks/0ae06633f8af4b5cbceaedb49be3bd16/vp-z/freeze",
+    "note": "Frozen is frozen: the second call returns the stored one.",
+    "path": "/api/j2/notebook-fingerprint/blocks/0ae06633f8af4b5cbceaedb49be3bd16/vp-z/freeze",
+    "status": 200
+  },
+  "body": {
+    "block": {
+      "asOf": "2026-09-30",
+      "embedId": "vp-z",
+      "embedKey": "vp-z",
+      "fingerprint": {
+        "as_of": "2026-09-30",
+        "fields": {
+          "adr_pct": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "base_depth_pct": {
+            "missing": null,
+            "source": "screener_row",
+            "value": 14.0
+          },
+          "base_length_bars": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "close_cv_pct": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "ema_stack_intact": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "ma_stack": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "patterns": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "pct_vs_sma10": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "pct_vs_sma20": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "pct_vs_sma200": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "pct_vs_sma50": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "pole_pct": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "pullback_depth_pct": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "rs_line_trend": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          },
+          "rs_rank": {
+            "missing": null,
+            "source": "screener_row",
+            "value": 88
+          },
+          "vol_nweek_low": {
+            "missing": "not_in_screener_row",
+            "source": "screener_row",
+            "value": null
+          }
+        },
+        "mode": "nightly",
+        "requested_as_of": "2026-09-30",
+        "symbol": "X",
+        "v": 1
+      },
+      "fingerprintSource": "ledger",
+      "frozenAt": "2026-10-05T14:30:00+00:00",
+      "mode": "snapshot",
+      "noteId": "0ae06633f8af4b5cbceaedb49be3bd16",
+      "noteTitle": "VPFZ plan",
+      "position": 0,
+      "setupTag": "VCP",
+      "symbol": "VPFZ",
+      "timeframe": "D",
+      "values": {
+        "adr_pct": null,
+        "base_depth_pct": 14.0,
+        "base_length_bars": null,
+        "close_cv_pct": null,
+        "ema_stack_intact": null,
+        "ma_stack": null,
+        "patterns": null,
+        "pct_vs_sma10": null,
+        "pct_vs_sma20": null,
+        "pct_vs_sma200": null,
+        "pct_vs_sma50": null,
+        "pole_pct": null,
+        "pullback_depth_pct": null,
+        "rs_line_trend": null,
+        "rs_rank": 88,
+        "vol_nweek_low": null
+      }
+    }
+  }
+}

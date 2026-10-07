@@ -1,0 +1,66 @@
+{
+  "id": "M6-citation-drops-the-date",
+  "rail": "the excerpt cites source, date and position",
+  "path": "api/services/journal_two/transcript_capture.py",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:49:56"
+}
+
+--- CONTROL (unmutated) ---
+.                                                                        [100%]
+1 passed in 20.92s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+--- MUTANT ---
+F                                                                        [100%]
+================================== FAILURES ===================================
+____________ test_the_saved_excerpt_cites_source_date_and_position ____________
+
+client = <starlette.testclient.TestClient object at 0x000001C3878CB230>
+app = <fastapi.applications.FastAPI object at 0x000001C3878CB620>
+gate_on = None
+index_db = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-15939/test_the_saved_excerpt_cites_s0/transcript_index.db')
+
+    def test_the_saved_excerpt_cites_source_date_and_position(client, app, gate_on, index_db):
+        _store()
+        note_id = _note(A)
+        as_user(app, A)
+        r = _save(client, note_id, annotation="margin held up")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        ex = body["excerpt"]
+        # SOURCE and DATE are in the cited document's name; POSITION is the page (= the turn).
+>       assert ex["documentName"] == "NVDA earnings call FY2026 Q2 � 2026-08-27 � FMP transcript"
+E       AssertionError: assert 'NVDA earning...MP transcript' == 'NVDA earning...MP transcript'
+E         
+E         - NVDA earnings call FY2026 Q2 � 2026-08-27 � FMP transcript
+E         ?                               -------------
+E         + NVDA earnings call FY2026 Q2 � FMP transcript
+
+tests\test_notebook_transcript_capture.py:245: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp9supo24r.db
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_transcript_capture.py::test_the_saved_excerpt_cites_source_date_and_position
+1 failed in 10.30s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

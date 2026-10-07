@@ -1,0 +1,626 @@
+{
+  "meta": {
+    "settle_s": 3.0,
+    "stop_how": "graceful to the shutdown checkpoint, then forced exit"
+  },
+  "rows": [
+    {
+      "width": "1200",
+      "rep": 1,
+      "note_id": "a4848c528cf4448bb4c4eb11c1f45d50",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 151.3
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 2734.7
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 2742.1
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 3478.6
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 3478.6
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-1200-r1.png"
+    },
+    {
+      "width": "1200",
+      "rep": 2,
+      "note_id": "87fbb113ccfa478a87f388fc3c6a247e",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 69.6
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1119
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1123
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-1200-r2.png"
+    },
+    {
+      "width": "1200",
+      "rep": 3,
+      "note_id": "567d32bcf3ba42789d6f3fbf24e84874",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 97
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1363.4
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1370
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 4702.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 4702.3
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-1200-r3.png"
+    },
+    {
+      "width": "1200",
+      "rep": 4,
+      "note_id": "dad967ccbeb546de9a0bc415a2b18aab",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 178
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1366.8
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1371.5
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2130.6
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2130.6
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-1200-r4.png"
+    },
+    {
+      "width": "1200",
+      "rep": 5,
+      "note_id": "beba2b2fcce24347bd7f507b3d9b0970",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 48.8
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 5076.6
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 5081.2
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 5854.7
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 5854.7
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-1200-r5.png"
+    },
+    {
+      "width": "390",
+      "rep": 1,
+      "note_id": "f4cf4c3fc1d14e8fb5833a636f4015b0",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 353
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 3291.2
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 3296.8
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 3799.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 3799.4
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-390-r1.png"
+    },
+    {
+      "width": "390",
+      "rep": 2,
+      "note_id": "1bb446c5bcb9474fa9fada4c67833f56",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 230.6
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1427.7
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1432.5
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2361.4
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2361.4
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-390-r2.png"
+    },
+    {
+      "width": "390",
+      "rep": 3,
+      "note_id": "d2a04e06d4854edf808841bcaa6a87b3",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 309.9
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 2103.1
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 2108.1
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2400.6
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2400.6
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-390-r3.png"
+    },
+    {
+      "width": "390",
+      "rep": 4,
+      "note_id": "a515f0e80fee457590bb6e3a3f68fa74",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 358.3
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 2375.8
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 2380.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 3444.7
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 3444.7
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-390-r4.png"
+    },
+    {
+      "width": "390",
+      "rep": 5,
+      "note_id": "1bb50e15e0074036a3f98c30a35050b9",
+      "trace": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 595
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1787.2
+          },
+          {
+            "k": "focusout",
+            "target": {
+              "tag": "BUTTON",
+              "isBody": false,
+              "isPM": false,
+              "inPM": false,
+              "pmId": null,
+              "testid": null,
+              "noteTitle": false,
+              "noteLandmark": null,
+              "cls": "btn btn-primary btn-sm"
+            },
+            "related": null,
+            "t": 1791.6
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2402.8
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "testid": null,
+            "t": 2402.8
+          }
+        ],
+        "hasFocusDoc": true,
+        "visibilityState": "visible",
+        "activeElementTag": "BODY",
+        "activeElementInPM": false
+      },
+      "page_errors": [],
+      "screenshot": "remount-390-r5.png"
+    }
+  ]
+}

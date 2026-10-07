@@ -1,0 +1,26 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The touch tier: the one button is full width and at the 44px floor. */
+@media (max-width: 1024px) {
+  .footer :global(.btn) {
+    width: 100%;
+    min-height: var(--tap-min, 44px);
+  }
+}

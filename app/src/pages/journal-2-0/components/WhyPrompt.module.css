@@ -1,0 +1,88 @@
+/* Wave 13 lane 13E-2 — the "Why did you take it?" prompt on the Entry-context card. */
+.wrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border, #2a2a2e); }
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #8a8a8a);
+  margin-bottom: 6px;
+}
+
+.savedText {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--text, #e8e6e1);
+  white-space: pre-wrap;
+}
+
+.row { display: flex; align-items: flex-start; gap: 8px; }
+
+.textarea {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  background: var(--bg-base, #1a1a1a);
+  color: var(--text, #e8e6e1);
+  /* --field-edge: an input's border has to be 3:1 against the page (--border is 1.2:1). */
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.voiceWrap { display: inline-flex; align-items: flex-start; padding-top: 2px; }
+
+.actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.saveBtn,
+.cancelBtn {
+  border: 1px solid var(--border, #2a2a2e);
+  background: transparent;
+  color: var(--text, #e8e6e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.saveBtn { border-color: var(--accent, #dcbb5e); color: var(--accent, #dcbb5e); }
+.saveBtn:hover:not(:disabled),
+.cancelBtn:hover:not(:disabled) { border-color: var(--accent, #dcbb5e); }
+.saveBtn:disabled,
+.cancelBtn:disabled { opacity: 0.6; cursor: default; }
+
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent, #dcbb5e);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error { color: var(--danger-ink); font-size: 12px; margin: 8px 0 0; }
+/* "Saved." Always in the tree (see WhyPrompt.jsx); it takes no room while it is empty. */
+.notice { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+.notice:empty { margin: 0; }
+
+/* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
+@media (max-width: 1024px) {
+  .saveBtn,
+  .cancelBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  /* 44 in BOTH dimensions: "Edit" alone measured 21.8 x 44 px (FIN-A11Y round 3). */
+  .linkBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+  .row { flex-direction: column; }
+  .voiceWrap { align-self: flex-end; }
+}

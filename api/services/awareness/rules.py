@@ -277,3 +277,202 @@ def rule_earnings_proximity(scan_ctx: dict, user_ctx: dict) -> list[InsightCandi
             dedup_key=f"{sym}:earnings",
         ))
     return out
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Wave 13 lane 13D -- RESURFACING: R7 (a level named in a note), R8 (a large
+# move), R9 (a named date). Everything ABOVE this banner is R1-R6, byte for byte
+# as it was (tests/test_awareness_resurface.py pins those bytes); S7 is absorbing
+# R1-R6 and nothing here edits them.
+#
+# The same shape as every rule above: pure (scan_ctx, user_ctx) -> candidates.
+# What differs is the INPUT: user_ctx["note_levels"] is the member's rows of the
+# level index (`journal_two/note_levels.py`, a projection of plan_extract's
+# output -- never a second reader of a note), and scan_ctx["note_quotes"] is
+# {SYMBOL: {"price", "change_pct"}} read from the SHARED live-price cache by
+# engine.py (never a per-note fetch).
+#
+# ⛔ DELIVERY IS IN-APP ONLY. Every importance below is <= 7, under the away
+# floor of 8, and engine.py fires these through `_fire_resurface`, which has no
+# delivery branch at all. "One per level per day" and the 2-a-day sub-cap are
+# I/O and live in engine.py / voice_proactive_service.add_insight.
+# ════════════════════════════════════════════════════════════════════════════
+
+#: R7: a price within this fraction of a named level "touches" it (0.5%).
+NOTE_TOUCH_BAND_PCT = 0.005
+#: R8: the mover insight's top tier (voice_proactive_service.scan_premarket's
+#: `abs(pct_val) >= 8`), the day's change from the cached quote, in percent.
+NOTE_BIG_MOVE_PCT = 8.0
+#: R9: a named date fires on the day, or within this many days after it (the
+#: scan runs on weekdays only, so a Saturday review date is still reached).
+NOTE_DATE_LOOKBACK_DAYS = 3
+
+#: The price roles an index row can carry (plan_extract.PRICE_ROLES).
+NOTE_PRICE_ROLES = ("entry", "stop", "target")
+#: The date roles (a Review Date property; a catalyst/event/earnings date property).
+NOTE_DATE_ROLES = ("review_date", "catalyst_date")
+
+_ROLE_WORD = {"entry": "entry", "stop": "stop", "target": "target"}
+_DATE_WORD = {"review_date": "review date", "catalyst_date": "catalyst date"}
+
+
+@dataclass(frozen=True)
+class ResurfaceCandidate(InsightCandidate):
+    """An InsightCandidate that also names the note to open. `fire_key` is the
+    "one per level per day" key; `once` makes it once EVER (a date is reached
+    once); `rank` orders a member's candidates so the 2-a-day sub-cap goes to
+    the most useful first (lower first)."""
+    note_id: str = ""
+    version_id: str | None = None
+    fire_key: str = ""
+    once: bool = False
+    rank: int = 9
+
+
+def level_side(price: float, level: float) -> str:
+    """Which side of `level` a price is on: 'above' (at counts as above) or
+    'below'. The ONE definition: R7 compares against the stored previous side,
+    and note_levels records the side this function says."""
+    return "above" if float(price) >= float(level) else "below"
+
+
+def _fmt_px(v) -> str:
+    return f"{float(v):,.2f}"
+
+
+def _quote(scan_ctx: dict, sym: str) -> dict:
+    q = (scan_ctx.get("note_quotes") or {}).get(sym)
+    return q if isinstance(q, dict) else {}
+
+
+def _real_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _title(lv: dict) -> str:
+    t = (lv.get("note_title") or "").strip()
+    return t[:80] if t else "Untitled"
+
+
+def _named_day(lv: dict) -> str:
+    """The ET calendar day the note named it ("on 2026-09-12"). A stored stamp is UTC ISO;
+    a UTC date would name tomorrow for an evening edit, so it is converted, never sliced."""
+    v = lv.get("named_at")
+    if not v:
+        return "earlier"
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(ZoneInfo("America/New_York"))
+        return f"on {dt.date().isoformat()}"
+    except (ValueError, TypeError):
+        return f"on {str(v)[:10]}"
+
+
+def rule_note_level_touch(scan_ctx: dict, user_ctx: dict) -> list[ResurfaceCandidate]:
+    """R7: the price TOUCHES a level a note named -- within NOTE_TOUCH_BAND_PCT of
+    it, or on the other side of it from the last cycle (a cross between scans).
+    A level with no previous side (first sighting) fires only inside the band.
+    Placeholder stops never reach here: the index never stores one."""
+    out: list[ResurfaceCandidate] = []
+    for lv in user_ctx.get("note_levels") or []:
+        role = lv.get("role")
+        if role not in NOTE_PRICE_ROLES:
+            continue
+        sym = (lv.get("symbol") or "").upper()
+        level = lv.get("price")
+        if not sym or not _real_number(level) or level <= 0:
+            continue
+        px = _quote(scan_ctx, sym).get("price")
+        if not _real_number(px) or px <= 0:
+            continue  # no cached price this cycle -- never fetched per note
+        dist = abs(float(px) - float(level)) / float(level)
+        prev = lv.get("last_side")
+        crossed = prev in ("above", "below") and prev != level_side(px, level)
+        if dist > NOTE_TOUCH_BAND_PCT and not crossed:
+            continue
+        word = _ROLE_WORD[role]
+        out.append(ResurfaceCandidate(
+            kind="note_level_touch", symbol=sym,
+            headline=f"{sym} reached {_fmt_px(level)}, the {word} you named",
+            body=(f"In “{_title(lv)}” you named {_fmt_px(level)} as your {word} "
+                  f"{_named_day(lv)}. {sym} is at {_fmt_px(px)} now. "
+                  f"Here's what you thought then."),
+            # 0.6 x 1.0 x 1.0 -> 6; a stop 0.6 x 1.0 x 1.15 -> 7. Never 8.
+            base_signal=0.6, personal_multiplier=1.0,
+            urgency=1.15 if role == "stop" else 1.0,
+            dedup_key=f"{sym}:note_level",
+            note_id=str(lv.get("note_id") or ""), version_id=lv.get("version_id"),
+            fire_key=f"{lv.get('note_id')}|{lv.get('level_id')}",
+            rank=0 if role == "stop" else 1,
+        ))
+    return out
+
+
+def rule_note_big_move(scan_ctx: dict, user_ctx: dict) -> list[ResurfaceCandidate]:
+    """R8: a ticker the member wrote a note on moves NOTE_BIG_MOVE_PCT or more on
+    the day (the cached quote's change). One per symbol, opening the member's most
+    recently edited note on it."""
+    latest: dict[str, dict] = {}
+    for lv in user_ctx.get("note_levels") or []:
+        sym = (lv.get("symbol") or "").upper()
+        if not sym:
+            continue
+        cur = latest.get(sym)
+        if cur is None or str(lv.get("note_updated_at") or "") > str(cur.get("note_updated_at") or ""):
+            latest[sym] = lv
+    out: list[ResurfaceCandidate] = []
+    for sym, lv in sorted(latest.items()):
+        chg = _quote(scan_ctx, sym).get("change_pct")
+        if not _real_number(chg) or abs(float(chg)) < NOTE_BIG_MOVE_PCT:
+            continue
+        direction = "up" if chg > 0 else "down"
+        out.append(ResurfaceCandidate(
+            kind="note_big_move", symbol=sym,
+            headline=f"{sym} is {direction} {abs(float(chg)):.1f}% today, and you wrote about it",
+            body=(f"Your note “{_title(lv)}” is on {sym}. "
+                  f"Here's what you thought then, before today's move."),
+            base_signal=0.6, personal_multiplier=1.0, urgency=1.0,   # -> 6
+            dedup_key=f"{sym}:note_move",
+            note_id=str(lv.get("note_id") or ""), version_id=None,
+            fire_key=f"move|{sym}", rank=2,
+        ))
+    return out
+
+
+def rule_note_date_due(scan_ctx: dict, user_ctx: dict) -> list[ResurfaceCandidate]:
+    """R9: a date the member set on a note (its Review Date, or a catalyst / event
+    / earnings date property) is today, or passed at most NOTE_DATE_LOOKBACK_DAYS
+    ago. Once ever per (note, date): `once=True`."""
+    today = scan_ctx.get("today")
+    if not isinstance(today, date):
+        return []
+    out: list[ResurfaceCandidate] = []
+    for lv in user_ctx.get("note_levels") or []:
+        role = lv.get("role")
+        if role not in NOTE_DATE_ROLES:
+            continue
+        try:
+            on = date.fromisoformat(str(lv.get("on_date") or "")[:10])
+        except ValueError:
+            continue
+        days = (today - on).days
+        if days < 0 or days > NOTE_DATE_LOOKBACK_DAYS:
+            continue
+        sym = (lv.get("symbol") or "").upper()
+        word = _DATE_WORD[role]
+        when = "is today" if days == 0 else ("was yesterday" if days == 1 else f"was {days} days ago")
+        out.append(ResurfaceCandidate(
+            kind="note_date_due", symbol=sym or None,
+            headline=f"{sym + ': ' if sym else ''}the {word} you set {when}",
+            body=(f"“{_title(lv)}” has a {word} of {on.isoformat()}. "
+                  f"Here's what you thought then."),
+            base_signal=0.5, personal_multiplier=1.0, urgency=1.0,   # -> 5
+            dedup_key=f"{sym}:note_date",
+            note_id=str(lv.get("note_id") or ""), version_id=lv.get("version_id"),
+            fire_key=f"{lv.get('note_id')}|{lv.get('level_id')}",
+            once=True, rank=3,
+        ))
+    return out

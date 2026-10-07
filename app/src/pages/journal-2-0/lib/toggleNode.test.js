@@ -5,6 +5,13 @@ import { Toggle, ToggleSummary, ToggleContent } from './toggleNode'
 
 const EXT = [StarterKit, Toggle, ToggleSummary, ToggleContent]
 
+// jsdom has no layout; ProseMirror's scroll-into-view after a keyboard
+// command measures rects (same stub the a11y editor tests use).
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+}
+
 let editor
 afterEach(() => { editor?.destroy(); editor = null })
 
@@ -106,5 +113,154 @@ describe('Toggle node (toggle / toggleSummary / toggleContent)', () => {
     summary.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
 
     expect(wrapper.getAttribute('data-open')).toBe('true')
+  })
+
+  // Lane 12T (finding from lane 12B's real-browser walk, run 5): with focus
+  // on the chevron, Enter did NOT open the toggle and an empty paragraph
+  // appeared in the note. The node view had no `stopEvent`, so ProseMirror
+  // treated a keydown on the chevron as its own: its Enter command ran
+  // against the document selection (wherever the member last typed), and any
+  // other key the editor binds (Mod-b, Mod-z) edited text the member could not
+  // see the caret in. The chevron is chrome: a key on it belongs to the
+  // button, never to the editor.
+  //
+  // The doc ends with the empty paragraph StarterKit's TrailingNode puts
+  // there at mount in the real page (NoteEditorPage `stripTrailingEmptyParagraph`),
+  // so every node counted below is one a keystroke added.
+  const PROD_DOC = {
+    type: 'doc',
+    content: [
+      { ...structuredClone(TOGGLE_DOC.content[0]), attrs: { open: false } },
+      { type: 'paragraph' },
+    ],
+  }
+
+  function mountProdDoc() {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: EXT, content: PROD_DOC })
+    return el
+  }
+
+  const key = (k) => new KeyboardEvent('keydown', {
+    key: k, code: k === ' ' ? 'Space' : k, bubbles: true, cancelable: true,
+  })
+
+  // Where the member's caret was before they tabbed to the chevron.
+  const CARETS = {
+    'the empty last line': () => editor.state.doc.content.size - 1,
+    'the end of the summary': () => 1 + 1 + 'More detail'.length,
+  }
+
+  for (const [where, caretAt] of Object.entries(CARETS)) {
+    it(`Enter on the chevron opens and closes the toggle and never edits the text (caret on ${where})`, () => {
+      const el = mountProdDoc()
+      editor.commands.setTextSelection(caretAt())
+      const chevron = el.querySelector('button.uctToggleChevron')
+      chevron.focus()
+
+      const down = key('Enter')
+      chevron.dispatchEvent(down)
+      // The button consumed it: a browser must not ALSO fire its own
+      // activation click, which would toggle a second time.
+      expect(down.defaultPrevented).toBe(true)
+      // No paragraph added (the walk's symptom), no character changed.
+      expect(editor.getJSON().content).toHaveLength(PROD_DOC.content.length)
+      expect(el.querySelector('[data-type="toggle"]').getAttribute('data-open')).toBe('true')
+      expect(chevron.getAttribute('aria-expanded')).toBe('true')
+      // Only `open` moved.
+      expect(editor.getJSON()).toEqual({
+        ...PROD_DOC, content: [{ ...PROD_DOC.content[0], attrs: { open: true } }, PROD_DOC.content[1]],
+      })
+
+      chevron.dispatchEvent(key('Enter'))
+      expect(editor.getJSON()).toEqual(PROD_DOC)
+    })
+  }
+
+  it('Space on the chevron is left to the button: the editor does not act on it, and the activation click toggles', () => {
+    const el = mountProdDoc()
+    editor.commands.setTextSelection(CARETS['the empty last line']())
+    const chevron = el.querySelector('button.uctToggleChevron')
+    chevron.focus()
+    let editorTransactions = 0
+    editor.on('transaction', () => { editorTransactions += 1 })
+
+    const down = key(' ')
+    chevron.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(false)
+    expect(editorTransactions).toBe(0)
+    // jsdom does not perform a button's keyup activation; fire the click a
+    // browser fires for an uncancelled Space.
+    chevron.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect(editor.getJSON().content[0].attrs.open).toBe(true)
+    expect(editor.getJSON().content).toHaveLength(2)
+  })
+
+  // The same root cause without Enter: every key the editor binds, pressed
+  // with focus on the chevron, ran at the document selection -- an edit the
+  // member cannot see, made while they were operating a button. These keys
+  // are ones the chevron's own Enter handler does not touch, so only
+  // `stopEvent` keeps them out of the editor.
+  const ctrl = (k) => () => new KeyboardEvent('keydown', { key: k, ctrlKey: true, bubbles: true, cancelable: true })
+  const CHEVRON_KEYS = {
+    'Mod-b bolding the selected summary word': {
+      prepare: () => editor.commands.setTextSelection({ from: 2, to: 2 + 'More'.length }),
+      event: ctrl('b'),
+    },
+    'Mod-z undoing the last edit': {
+      prepare: () => editor.commands.insertContentAt(1 + 1 + 'More detail'.length, '!'),
+      event: ctrl('z'),
+    },
+  }
+
+  for (const [what, { prepare, event }] of Object.entries(CHEVRON_KEYS)) {
+    it(`a key on the chevron never reaches the editor (${what})`, () => {
+      const el = mountProdDoc()
+      prepare()
+      const before = editor.getJSON()
+      const chevron = el.querySelector('button.uctToggleChevron')
+      chevron.focus()
+
+      chevron.dispatchEvent(event())
+      expect(editor.getJSON()).toEqual(before)
+    })
+  }
+
+  // Control: the same key from the same state, pressed inside the text, DOES
+  // edit -- so the assertion above can fail, and a pass there means the
+  // chevron kept the key, not that the key does nothing.
+  for (const [what, { prepare, event }] of Object.entries(CHEVRON_KEYS)) {
+    it(`control: the same key inside the text edits the document (${what})`, () => {
+      const el = mountProdDoc()
+      prepare()
+      const before = editor.getJSON()
+      el.querySelector('summary').dispatchEvent(event())
+      expect(editor.getJSON()).not.toEqual(before)
+    })
+  }
+
+  it('keys typed inside the summary and the body still belong to the editor', () => {
+    const el = mountProdDoc()
+    editor.commands.setContent({ ...PROD_DOC, content: [{ ...PROD_DOC.content[0], attrs: { open: true } }, PROD_DOC.content[1]] })
+
+    // Body: Enter at the end of the body paragraph splits it.
+    let bodyEnd = null
+    editor.state.doc.descendants((n, pos) => {
+      if (n.isText && n.text === 'Hidden until expanded.') bodyEnd = pos + n.nodeSize
+    })
+    editor.commands.setTextSelection(bodyEnd)
+    const enter = key('Enter')
+    el.querySelector('[data-type="toggleContent"] p').dispatchEvent(enter)
+    expect(enter.defaultPrevented).toBe(true)
+    expect(editor.getJSON().content[0].content[1].content).toHaveLength(2)
+
+    // Summary: Mod-b on a selected word bolds it (jsdom is not a Mac, so Mod is Ctrl).
+    editor.commands.setTextSelection({ from: 2, to: 2 + 'More'.length })
+    const bold = new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true, cancelable: true })
+    el.querySelector('summary').dispatchEvent(bold)
+    expect(bold.defaultPrevented).toBe(true)
+    const summaryText = editor.getJSON().content[0].content[0].content
+    expect(summaryText[0]).toEqual({ type: 'text', text: 'More', marks: [{ type: 'bold' }] })
   })
 })

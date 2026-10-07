@@ -1,0 +1,62 @@
+{
+  "id": "M8-client-gap-rendered-as-zero",
+  "rail": "a missing horizon is worded by the server's label, never 0.0%",
+  "path": "app/src/pages/journal-2-0/lib/researchCapture.js",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:52:16"
+}
+
+--- CONTROL (unmutated) ---
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w13g1/app[39m
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/PassedSetups.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1182[2mms[22m[39m
+     [33m[2m✓[22m[39m a name with no stored bars says so, and traded names are counted [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m Add sends the symbol and the day; Remove sends a DELETE for that row [33m 530[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 21:51:53
+[2m   Duration [22m 6.42s[2m (transform 2.53s, setup 604ms, import 2.45s, tests 1.18s, environment 1.46s)[22m
+
+
+
+--- MUTANT ---
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w13g1/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/components/notebook/PassedSetups.test.jsx [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1030[2mms[22m[39m
+     [32m✓[39m renders nothing and fetches nothing while the gate is off[32m 41[2mms[22m[39m
+[31m     [31m×[31m words a scored horizon as a signed percentage and a missing one by the server's label[39m[32m 150[2mms[22m[39m
+     [33m[2m✓[22m[39m a name with no stored bars says so, and traded names are counted [33m 368[2mms[22m[39m
+     [33m[2m✓[22m[39m Add sends the symbol and the day; Remove sends a DELETE for that row [33m 353[2mms[22m[39m
+     [32m✓[39m a refused add shows the server's sentence[32m 111[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 21:52:11
+[2m   Duration [22m 4.41s[2m (transform 550ms, setup 445ms, import 538ms, tests 1.03s, environment 1.63s)[22m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/components/notebook/PassedSetups.test.jsx[2m > [22mPassedSetups[2m > [22mwords a scored horizon as a signed percentage and a missing one by the server's label
+[31m[1mAssertionError[22m: expected '+5 days0.0%' to be '+5 daysBars missing from the store' // Object.is equality[39m
+
+Expected: [32m"+5 days[7mBars missing from the store[27m"[39m
+Received: [31m"+5 days[7m0.0%[27m"[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/components/notebook/PassedSetups.test.jsx:[2m84:37[22m[39m
+    [90m 82| [39m    const amdCells = Object.fromEntries([...amd.querySelectorAll('[dat…
+    [90m 83| [39m    expect(amdCells.r1.textContent).toBe('+1 day0.0%')       // a real…
+    [90m 84| [39m    expect(amdCells.r5.textContent).toBe('+5 daysBars missing from the…
+    [90m   | [39m                                    [31m^[39m
+    [90m 85| [39m    [34mexpect[39m(amdCells[33m.[39mr5[33m.[39mdataset[33m.[39mmissing)[33m.[39m[34mtoBe[39m([32m'missing'[39m)
+    [90m 86| [39m    [34mexpect[39m(amdCells[33m.[39mr20[33m.[39mtextContent)[33m.[39m[34mtoBe[39m([32m'+20 daysNot yet'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+

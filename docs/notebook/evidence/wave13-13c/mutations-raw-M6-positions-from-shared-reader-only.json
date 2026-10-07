@@ -1,0 +1,13 @@
+[
+  {
+    "id": "M6-positions-from-shared-reader-only",
+    "file": "api/services/journal_two/earnings_prep.py",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      "FAILED tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader",
+      "1 failed, 30 deselected, 1403 warnings in 3.59s"
+    ],
+    "restored_sha_matches_head": true
+  }
+]

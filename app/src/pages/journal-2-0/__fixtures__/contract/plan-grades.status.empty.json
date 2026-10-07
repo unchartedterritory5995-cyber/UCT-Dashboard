@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/plan-grades/status",
+    "note": "A member with no trades: every id asked for is simply absent.",
+    "path": "/api/j2/plan-grades/status?ids=pg-planned",
+    "status": 200
+  },
+  "body": {
+    "statuses": {}
+  }
+}

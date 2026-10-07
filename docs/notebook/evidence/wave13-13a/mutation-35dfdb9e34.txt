@@ -1,0 +1,89 @@
+lane 13A mutation proof at HEAD 35dfdb9e346fd58f48bd753509d0fd674ef4524c
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  1 passed (1)
+vitest: Tests  2 passed (2)
+pytest: 116 passed in 74.60s (0:01:14)
+C1 constants: ENTRY_TOL_R 0.25 -> 0.30: KILLED (rc=1, failed tests=5); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 5 failed, 42 passed in 78.07s (0:01:18)
+      FAILED tests/test_notebook_plan_grading.py::test_the_constants_block_is_pinned_value_by_value
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan0-Long-101.0-101.01]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan1-Long-99.0-98.99]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan2-Short-99.0-98.99]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan3-Short-101.0-101.01]
+C2 constants: ENTRY_TOL_PCT 0.5% -> 0.4%: KILLED (rc=1, failed tests=2); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 45 passed in 61.01s (0:01:01)
+      FAILED tests/test_notebook_plan_grading.py::test_the_constants_block_is_pinned_value_by_value
+      FAILED tests/test_notebook_plan_grading.py::test_entry_tolerance_is_the_larger_of_quarter_r_and_half_a_percent
+B1 boundary: entry ON the tolerance reads missed (<= turned <): KILLED (rc=1, failed tests=5); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 5 failed, 42 passed in 52.07s
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan0-Long-101.0-101.01]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan1-Long-99.0-98.99]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan2-Short-99.0-98.99]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_kept_on_the_boundary_missed_one_tick_past[plan3-Short-101.0-101.01]
+      FAILED tests/test_notebook_plan_grading.py::test_entry_tolerance_is_the_larger_of_quarter_r_and_half_a_percent
+B2 boundary: an exit ON the stop-slippage line reads not honoured (>= turned >): KILLED (rc=1, failed tests=2); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 45 passed in 58.18s
+      FAILED tests/test_notebook_plan_grading.py::test_stop_honoured_on_the_slippage_line_not_one_tick_past[plan0-Long-95.0-94.99]
+      FAILED tests/test_notebook_plan_grading.py::test_stop_honoured_on_the_slippage_line_not_one_tick_past[plan1-Short-105.0-105.01]
+B3 boundary: the slippage line's sign flipped (stop + 0.25R on the wrong side): KILLED (rc=1, failed tests=2); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 45 passed in 54.46s
+      FAILED tests/test_notebook_plan_grading.py::test_stop_honoured_on_the_slippage_line_not_one_tick_past[plan0-Long-95.0-94.99]
+      FAILED tests/test_notebook_plan_grading.py::test_stop_honoured_on_the_slippage_line_not_one_tick_past[plan1-Short-105.0-105.01]
+B4 boundary: size ON +/-10% reads missed (<= turned <): KILLED (rc=1, failed tests=2); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 45 passed in 58.23s
+      FAILED tests/test_notebook_plan_grading.py::test_size_within_ten_percent_on_the_boundary[110-110.01]
+      FAILED tests/test_notebook_plan_grading.py::test_size_within_ten_percent_on_the_boundary[90-89.99]
+B5 boundary: the target shortfall dropped (only an exit AT the target is a hit): KILLED (rc=1, failed tests=2); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 45 passed in 55.67s
+      FAILED tests/test_notebook_plan_grading.py::test_target_hit_reached_not_taken_not_reached[plan0-Long-119.0-118.99-120.0-119.99]
+      FAILED tests/test_notebook_plan_grading.py::test_target_hit_reached_not_taken_not_reached[plan1-Short-81.0-81.01-80.0-80.01]
+F1 freeze: INSERT OR IGNORE -> OR REPLACE (a second matcher overwrites the first): KILLED (rc=1, failed tests=1); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 46 passed in 78.54s (0:01:18)
+      FAILED tests/test_notebook_plan_grading.py::test_FREEZE_a_second_matcher_cannot_overwrite_the_first
+F2 freeze: the frozen link is ignored and the trade is re-matched on every read: KILLED (rc=1, failed tests=3); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 44 passed in 50.25s
+      FAILED tests/test_notebook_plan_grading.py::test_a_tie_is_the_members_pick_and_nothing_is_frozen
+      FAILED tests/test_notebook_plan_grading.py::test_relink_is_the_one_door_and_records_what_it_replaced
+      FAILED tests/test_notebook_plan_grading.py::test_the_routes_round_trip - Asse...
+F3 as-of-entry: the note is read as it stands NOW, not as it stood at entry: KILLED (rc=1, failed tests=3); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 44 passed in 54.26s
+      FAILED tests/test_notebook_plan_grading.py::test_the_plan_is_read_as_it_stood_at_entry
+      FAILED tests/test_notebook_plan_grading.py::test_a_plan_only_readable_after_entry_is_graded_and_labelled
+      FAILED tests/test_notebook_plan_grading.py::test_unplanned_is_labelled_and_matches_later_when_a_plan_is_linked
+K1 stable key: the link keyed on j2_trades.id (a broker purge reissues it): SURVIVED (rc=0, failed tests=0); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 47 passed in 49.06s
+M1 mirror: the status answer leaves broker trades out: KILLED (rc=1, failed tests=1); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 46 passed in 48.71s
+      FAILED tests/test_notebook_plan_grading.py::test_MIRROR_thirty_broker_trades_in_thirty_out_and_none_altered
+M2 mirror: the discipline record leaves broker trades out: KILLED (rc=1, failed tests=1); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 46 passed in 48.84s
+      FAILED tests/test_notebook_plan_grading.py::test_MIRROR_thirty_broker_trades_in_thirty_out_and_none_altered
+G1 gate: the route gate's default flipped ON: KILLED (rc=1, failed tests=1); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 46 passed in 53.72s
+      FAILED tests/test_notebook_plan_grading.py::test_the_gate_is_off_by_default_and_answers_404_before_the_session
+G2 gate: the auth payload's default flipped ON: KILLED (rc=1, failed tests=1); restored sha 268a2ff91243bb99 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 2.74s
+      FAILED tests/test_notebook_flags.py::test_the_kill_switch_defaults_ON_and_the_enablement_gates_default_OFF
+R1 R3 wording: 'too few to judge' ends at 9, not 10: KILLED (rc=1, failed tests=2); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 45 passed in 48.78s
+      FAILED tests/test_notebook_plan_grading.py::test_the_constants_block_is_pinned_value_by_value
+      FAILED tests/test_notebook_plan_grading.py::test_sample_wording_bands[9-too_few-too few to judge]
+X1 reader: two different entries read as the first one, not 'unreadable': KILLED (rc=1, failed tests=3); restored sha 757b2ea638225667 == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 48 passed in 2.19s
+      FAILED tests/test_notebook_plan_extract.py::test_conflicting_entries_read_unreadable_never_a_pick
+      FAILED tests/test_notebook_plan_extract.py::test_several_targets_are_scale_outs_the_nearest_is_the_target
+      FAILED tests/test_notebook_plan_extract.py::test_an_unreadable_higher_shape_is_not_passed_over_for_a_lower_one
+X2 review: a plan-review note is read as the next trade's plan: KILLED (rc=1, failed tests=1); restored sha d5dd85bd40ef07b3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 46 passed in 61.26s (0:01:01)
+      FAILED tests/test_notebook_plan_grading.py::test_a_review_note_is_never_read_as_the_next_trades_plan
+U1 client: the Unplanned chip never renders: KILLED (rc=1, failed tests=1); restored sha 390adec144fda768 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 1 passed (2)
+      × labels the unplanned trade, keeps every row, and never asks about an option 4041ms
+      FAIL  src/pages/journal-2-0/components/TradesTable.planGrade.test.jsx > TradesTable — the Unplanned chip > labels the unplanned trade, keeps every row, and never asks about an option
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  1 passed (1)
+vitest: Tests  2 passed (2)
+pytest: 116 passed in 53.68s
+git status over api/ and app/src after the run: clean
+VERDICT: FAIL

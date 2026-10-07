@@ -1,0 +1,172 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/plan-grades/discipline",
+    "note": "Thirty closed trades, twelve planned: every sample band in one record.",
+    "path": "/api/j2/plan-grades/discipline",
+    "status": 200
+  },
+  "body": {
+    "constants": {
+      "DISCIPLINE_WINDOWS": [
+        20,
+        60
+      ],
+      "ENTRY_TOL_PCT": 0.005,
+      "ENTRY_TOL_R": 0.25,
+      "MATCH_WINDOW_DAYS": 30,
+      "RANGE_Z": 1.96,
+      "SAMPLE_NORMAL_FROM": 25,
+      "SAMPLE_TOO_FEW_BELOW": 10,
+      "SIZE_TOL_PCT": 0.1,
+      "STOP_SLIP_R": 0.25,
+      "TARGET_SHORTFALL_R": 0.25
+    },
+    "totalClosed": 30,
+    "windows": [
+      {
+        "editedAfterEntry": 0,
+        "entry": {
+          "band": "too_few",
+          "k": 4,
+          "n": 6,
+          "range": null,
+          "rate": 0.6667,
+          "wording": "too few to judge"
+        },
+        "equity": 20,
+        "followedPlan": {
+          "band": "too_few",
+          "k": 2,
+          "n": 6,
+          "range": null,
+          "rate": 0.3333,
+          "wording": "too few to judge"
+        },
+        "needsPick": 0,
+        "options": 0,
+        "planRate": {
+          "band": "thin",
+          "k": 6,
+          "n": 20,
+          "range": [
+            0.145,
+            0.519
+          ],
+          "rate": 0.3,
+          "wording": "thin sample"
+        },
+        "planned": 6,
+        "size": 20,
+        "size_": {
+          "band": "too_few",
+          "k": 5,
+          "n": 6,
+          "range": null,
+          "rate": 0.8333,
+          "wording": "too few to judge"
+        },
+        "stop": {
+          "band": "too_few",
+          "k": 3,
+          "n": 6,
+          "range": null,
+          "rate": 0.5,
+          "wording": "too few to judge"
+        },
+        "target": {
+          "hit": 0,
+          "hitRate": {
+            "band": "too_few",
+            "k": 0,
+            "n": 0,
+            "range": null,
+            "rate": null,
+            "wording": "too few to judge"
+          },
+          "notReached": 0,
+          "reachedNotTaken": 0,
+          "unknown": 6
+        },
+        "trades": 20,
+        "unplanned": 14
+      },
+      {
+        "editedAfterEntry": 0,
+        "entry": {
+          "band": "thin",
+          "k": 8,
+          "n": 12,
+          "range": [
+            0.391,
+            0.862
+          ],
+          "rate": 0.6667,
+          "wording": "thin sample"
+        },
+        "equity": 30,
+        "followedPlan": {
+          "band": "thin",
+          "k": 4,
+          "n": 12,
+          "range": [
+            0.138,
+            0.609
+          ],
+          "rate": 0.3333,
+          "wording": "thin sample"
+        },
+        "needsPick": 0,
+        "options": 0,
+        "planRate": {
+          "band": "normal",
+          "k": 12,
+          "n": 30,
+          "range": null,
+          "rate": 0.4,
+          "wording": null
+        },
+        "planned": 12,
+        "size": 60,
+        "size_": {
+          "band": "thin",
+          "k": 9,
+          "n": 12,
+          "range": [
+            0.468,
+            0.911
+          ],
+          "rate": 0.75,
+          "wording": "thin sample"
+        },
+        "stop": {
+          "band": "thin",
+          "k": 6,
+          "n": 12,
+          "range": [
+            0.254,
+            0.746
+          ],
+          "rate": 0.5,
+          "wording": "thin sample"
+        },
+        "target": {
+          "hit": 0,
+          "hitRate": {
+            "band": "too_few",
+            "k": 0,
+            "n": 6,
+            "range": null,
+            "rate": 0.0,
+            "wording": "too few to judge"
+          },
+          "notReached": 3,
+          "reachedNotTaken": 3,
+          "unknown": 6
+        },
+        "trades": 30,
+        "unplanned": 18
+      }
+    ]
+  }
+}

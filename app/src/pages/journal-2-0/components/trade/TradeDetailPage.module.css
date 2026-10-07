@@ -59,6 +59,18 @@
   cursor: default;
 }
 
+/* The header's action group (Replay, Save to Notebook, Save image, Share, Research). It
+   wraps: as one no-wrap line it pushed the page sideways on a phone (FIN-A11Y round 3). */
+.headActions {
+  margin-left: auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 /* ── Outcome header ─────────────────────────────────────────────────── */
 .identityRow {
   display: flex;
@@ -469,6 +481,11 @@
   }
 
   .sym { font-size: 21px; }
+  .headActions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
   .chartWrap { height: 300px; }
   .outcomeGrid { grid-template-columns: repeat(2, 1fr); }
   .select { max-width: none; }

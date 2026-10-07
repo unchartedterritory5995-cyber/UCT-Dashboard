@@ -1,0 +1,25 @@
+<<<<<<< OURS(prev)
+.price  { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 600; color: var(--text); text-align: right; }
+.chg    { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; text-align: right; }
+.days   { font-family: var(--font-mono); font-size: var(--text-base); color: var(--text-muted); text-align: right; }
+.since  { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700; text-align: right; }
+.rating { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700; color: var(--ut-green-bright); text-align: right; }
+/* A2R-05 nesting fix: `.caret` is now a real <button>, so the usual browser
+   button chrome (border/background/padding/font) is reset to keep it looking
+   exactly like the plain span it replaces. */
+.caret  {
+  font-size: var(--text-base); color: var(--text-muted); text-align: center;
+  display: block; width: 100%;
+  background: none; border: none; margin: 0; padding: 0;
+  font-family: inherit; line-height: inherit;
+  cursor: pointer;
+}
+=======
+.price  { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
+.chg    { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-align: right; }
+.days   { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-align: right; }
+.since  { font-family: var(--font-mono); font-size: 13px; font-weight: 700; text-align: right; }
+.rating { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ut-green-bright); text-align: right; }
+.caret  { font-size: 12px; color: var(--text-muted); text-align: center; }
+>>>>>>> THEIRS(pre-landing)
+

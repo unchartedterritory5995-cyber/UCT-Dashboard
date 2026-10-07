@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "DELETE /api/j2/research-capture/passed-setups/nope",
+    "path": "/api/j2/research-capture/passed-setups/nope",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

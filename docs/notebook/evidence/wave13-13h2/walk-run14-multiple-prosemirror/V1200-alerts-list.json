@@ -1,0 +1,18 @@
+[
+ {
+  "id": "c7a76864-8de",
+  "user_id": "47e0fb0e-c713-4057-ac52-472ae5fc82fc",
+  "sym": "NVDA",
+  "target_price": 124.0572449358293,
+  "direction": "below",
+  "is_active": 1,
+  "triggered_at": null,
+  "created_at": "2026-10-03T05:12:23.014014+00:00",
+  "alert_type": "line",
+  "anchor_t1": null,
+  "anchor_p1": null,
+  "anchor_t2": null,
+  "anchor_p2": null,
+  "drawing_id": "nb:448662e7-db13-48f6-97e1-9d2e076a3ccf:2d271312-f902-411d-b763-291e7bbc21bb"
+ }
+]

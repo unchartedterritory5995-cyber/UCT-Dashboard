@@ -25,7 +25,6 @@ the process down or accumulate unbounded temp state.
 from __future__ import annotations
 
 import logging
-import os
 import re
 import threading
 import time
@@ -36,6 +35,7 @@ from io import BytesIO
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.notebook_flags import flag_on
 from api.services.journal_two.permit_pool import PermitPool
 
 log = logging.getLogger(__name__)
@@ -54,7 +54,6 @@ log = logging.getLogger(__name__)
 # `feature_flag_index` resolves (and therefore the form
 # tests/test_feature_flag_ledger.py can hold to its ledger row).
 IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"
-_GATE_ON_VALUES = {"1", "true", "yes", "on"}
 
 # `j2_note_documents.source_kind` is free text (`db.py` adds it with DEFAULT
 # 'attachment'). Two new values, both still FILESYSTEM attachments -- so
@@ -121,8 +120,10 @@ _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 def image_docx_documents_enabled() -> bool:
     """Is the wave-7 image/docx document path ON for this call? Read per call,
     never cached, so a flip needs no restart."""
-    raw = os.environ.get(IMAGE_DOCX_GATE)
-    return raw is not None and raw.strip().lower() in _GATE_ON_VALUES
+    # Wave 14 W14-C1: the ONE parse (`flag_on`), now that the auth payload carries this
+    # gate too. Same answer on every spelling as the old own parse (1/true/yes/on only):
+    # tests/test_notebook_flags.py::test_W14_C1_* compares the two per spelling.
+    return flag_on(IMAGE_DOCX_GATE, False)
 
 # Bounds worst-case per-document processing time/memory -- a 400-page filing
 # is real and expected; an unbounded page count is not. Text extraction past

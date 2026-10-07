@@ -1,0 +1,35 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w13h2/app
+
+ ❯ src/pages/journal-2-0/components/notebook/SlashMenu.chartPlan.test.jsx (10 tests | 1 failed) 70ms
+     × OFF (and never latched): no /vs, and /mtf refuses the weekly token 11ms
+     ✓ ON: a bare / lists Versus; /v discovers it; /mtf AMD W is the weekly stack 37ms
+     ✓ three charts W / D / 60, one symbol, one anchor 9ms
+     ✓ the strictness contract still holds — a second stack token or a tf is NOT accepted 0ms
+     ✓ parses SYMBOL [bench] [day] [tf]; prose and self-comparison parse as nothing 4ms
+     ✓ without a benchmark the menu offers the four; prose offers nothing 1ms
+     ✓ SPY inserts a half-width pair frozen at the SAME `to`, with no fetch 2ms
+     ✓ sector asks the server for the ETF and inserts it, labelled 2ms
+     ✓ a stock with no theme ETF, a refused lookup, or a network error inserts NOTHING 1ms
+     ✓ the builder refuses a pair with no benchmark or the stock against itself 0ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  21:30:10
+   Duration  3.42s (transform 675ms, setup 397ms, import 843ms, tests 70ms, environment 1.29s)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/SlashMenu.chartPlan.test.jsx > the gate > OFF (and never latched): no /vs, and /mtf refuses the weekly token
+AssertionError: expected [ 'Chart', 'MTF stack', …(2) ] to not include 'Versus'
+ ❯ src/pages/journal-2-0/components/notebook/SlashMenu.chartPlan.test.jsx:35:28
+     33| 
+     34|   it('OFF (and never latched): no /vs, and /mtf refuses the weekly tok…
+     35|     expect(titles('')).not.toContain('Versus')
+       |                            ^
+     36|     expect(titles('vs AMD')).toEqual([])
+     37|     expect(titles('mtf AMD W')).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

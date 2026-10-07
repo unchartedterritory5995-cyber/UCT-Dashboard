@@ -1,0 +1,7 @@
+1) product's own effect, natural, after 2s: False
+2) same call, injected via page.evaluate(): True
+   activeElement in PM now: True
+stop_how: graceful to the shutdown checkpoint, then forced exit
+WROTE-NIV-DONE
+
+[exited with code 0]

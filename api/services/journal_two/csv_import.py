@@ -872,11 +872,17 @@ def parse_with_mapping(
 MAX_BYTES = 10 * 1024 * 1024  # §15.9: reject files > 10 MB
 
 
+def too_big_sentence() -> str:
+    """The one sentence for a file over `MAX_BYTES`, read per call so it follows
+    the constant. The router's while-read cap (wave 14) answers 413 with it."""
+    return f"File exceeds {MAX_BYTES // (1024 * 1024)} MB limit"
+
+
 def parse_csv(raw: bytes) -> ParseResult:
     """Main entry. Decode → sanitize → detect → dispatch. Never raises
     on user errors; returns a ParseResult with errors[] populated."""
     if len(raw) > MAX_BYTES:
-        raise ValueError(f"File exceeds {MAX_BYTES // (1024 * 1024)} MB limit")
+        raise ValueError(too_big_sentence())
     if not raw:
         raise ValueError("File is empty")
 

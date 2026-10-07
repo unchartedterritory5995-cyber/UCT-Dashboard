@@ -1,0 +1,1513 @@
+{
+  "tool": "notebook_w12b2_walk",
+  "formulas": "on",
+  "base": "http://127.0.0.1:8595",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12b2-on2",
+  "started_utc": "2026-10-02T18:18:31+00:00",
+  "sandbox_env": {
+    "NOTEBOOK_FORMULAS_ENABLED": "1",
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "rows": [
+    {
+      "row": "provision: a paid, verified member",
+      "result": "PASS"
+    },
+    {
+      "row": "the auth payload carries notebook_formulas_enabled = true",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "a fresh member has no definitions of their own (the four built-ins aside)",
+      "result": "PASS",
+      "saw": []
+    },
+    {
+      "row": "picking Position Tracker creates a note and opens it in the editor",
+      "result": "PASS",
+      "saw": "7acebac924314408a61988f6656d6f03"
+    },
+    {
+      "row": "the member's definitions are exactly the template's",
+      "result": "PASS",
+      "saw": [
+        "Account size",
+        "Entry",
+        "Exit",
+        "Position size %",
+        "R-multiple",
+        "Risk per share",
+        "Shares",
+        "Stop"
+      ]
+    },
+    {
+      "row": "each definition has the declared type",
+      "result": "PASS",
+      "saw": {
+        "Entry": "number",
+        "Stop": "number",
+        "Exit": "number",
+        "Shares": "number",
+        "Account size": "number",
+        "R-multiple": "formula",
+        "Risk per share": "formula",
+        "Position size %": "formula"
+      }
+    },
+    {
+      "row": "the definitions were created BEFORE the note (one note create)",
+      "result": "PASS",
+      "saw": {
+        "def_posts": 8,
+        "note_posts": 1
+      }
+    },
+    {
+      "row": "every formula is stored by the ids of the template's numbers",
+      "result": "PASS",
+      "saw": {
+        "R-multiple": "({@dc8f77c5027d4d88a2e4d4117bee756f} - {@8d368a87eaac40d69d66c21c674d11d8}) / ({@8d368a87eaac40d69d66c21c674d11d8} - {@b59745c3934c4a0aab57df56a18a4d1a})",
+        "Risk per share": "abs({@8d368a87eaac40d69d66c21c674d11d8} - {@b59745c3934c4a0aab57df56a18a4d1a})",
+        "Position size %": "round({@70c32b552f3d4ffd91e3fa22ac954aaa} * {@8d368a87eaac40d69d66c21c674d11d8} / {@e3f5568f3132403bb0bf0ce08ee5a9a6} * 100, 2)"
+      }
+    },
+    {
+      "row": "no /api/ response so far is a 4xx or 5xx",
+      "result": "FAIL",
+      "saw": [
+        {
+          "method": "POST",
+          "path": "/api/j2/broker/sync?background=1",
+          "status": 503
+        }
+      ]
+    },
+    {
+      "row": "the new note shows the template's properties while they are empty",
+      "result": "PASS",
+      "saw": [
+        "Entry",
+        "Stop",
+        "Exit",
+        "Shares",
+        "Account size",
+        "R-multiple",
+        "Risk per share",
+        "Position size %"
+      ]
+    },
+    {
+      "row": "Risk per share computes to 5 (Entry 100, Stop 95)",
+      "result": "PASS",
+      "saw": "5"
+    },
+    {
+      "row": "Position size % computes to 50 (50 x 100 / 10,000)",
+      "result": "PASS",
+      "saw": "50"
+    },
+    {
+      "row": "R-multiple computes to 2 once Exit 110 is typed",
+      "result": "PASS",
+      "saw": "2"
+    },
+    {
+      "row": "the server holds every typed number on the tracker",
+      "result": "PASS",
+      "saw": {
+        "Entry": 100,
+        "Stop": 95,
+        "Shares": 50,
+        "Account size": 10000,
+        "Exit": 110
+      }
+    },
+    {
+      "row": "the server computes the same three values",
+      "result": "PASS",
+      "saw": {
+        "R-multiple": 2.0,
+        "Risk per share": 5.0,
+        "Position size %": 50.0
+      }
+    },
+    {
+      "row": "a second tracker (?new= deep link) reuses every definition: still eight, no duplicate name",
+      "result": "PASS",
+      "saw": [
+        "Account size",
+        "Entry",
+        "Exit",
+        "Position size %",
+        "R-multiple",
+        "Risk per share",
+        "Shares",
+        "Stop"
+      ]
+    },
+    {
+      "row": "the second tracker's R-multiple computes to -1 (stopped out)",
+      "result": "PASS",
+      "saw": "-1"
+    },
+    {
+      "row": "a third position (R 3) through the sandbox's HTTP doors",
+      "result": "PASS"
+    },
+    {
+      "row": "Enter on the R-multiple header sorts ascending: -1, 2, 3",
+      "result": "PASS",
+      "saw": [
+        "n2(R -1)",
+        "n1(R 2)",
+        "n3(R 3)"
+      ]
+    },
+    {
+      "row": "Enter again sorts descending: 3, 2, -1",
+      "result": "PASS",
+      "saw": [
+        "n3(R 3)",
+        "n1(R 2)",
+        "n2(R -1)"
+      ]
+    },
+    {
+      "row": "no /api/ response in the whole walk is a 4xx or 5xx",
+      "result": "FAIL",
+      "saw": [
+        {
+          "method": "POST",
+          "path": "/api/j2/broker/sync?background=1",
+          "status": 503
+        },
+        {
+          "method": "POST",
+          "path": "/api/j2/broker/sync?background=1",
+          "status": 503
+        },
+        {
+          "method": "POST",
+          "path": "/api/j2/broker/sync?background=1",
+          "status": 503
+        }
+      ]
+    },
+    {
+      "row": "no uncaught page error during the walk",
+      "result": "PASS",
+      "saw": []
+    }
+  ],
+  "keyboard": [
+    {
+      "step": "select Entry",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Entry",
+      "keys": [
+        "type 100"
+      ]
+    },
+    {
+      "step": "commit Entry = 100",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Stop",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Stop",
+      "keys": [
+        "type 95"
+      ]
+    },
+    {
+      "step": "commit Stop = 95",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Shares",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Shares",
+      "keys": [
+        "type 50"
+      ]
+    },
+    {
+      "step": "commit Shares = 50",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Account size",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Account size",
+      "keys": [
+        "type 10000"
+      ]
+    },
+    {
+      "step": "commit Account size = 10000",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Exit",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Exit",
+      "keys": [
+        "type 110"
+      ]
+    },
+    {
+      "step": "commit Exit = 110",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Entry",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Entry",
+      "keys": [
+        "type 50"
+      ]
+    },
+    {
+      "step": "commit Entry = 50",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Stop",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Stop",
+      "keys": [
+        "type 45"
+      ]
+    },
+    {
+      "step": "commit Stop = 45",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Exit",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Exit",
+      "keys": [
+        "type 45"
+      ]
+    },
+    {
+      "step": "commit Exit = 45",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Shares",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Shares",
+      "keys": [
+        "type 100"
+      ]
+    },
+    {
+      "step": "commit Shares = 100",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select Account size",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "type Account size",
+      "keys": [
+        "type 10000"
+      ]
+    },
+    {
+      "step": "commit Account size = 10000",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "switch to the table view",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "sort by R-multiple (ascending)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "sort by R-multiple (descending)",
+      "keys": [
+        "Enter"
+      ]
+    }
+  ],
+  "screenshots": [
+    "01-picker.png",
+    "02-tracker-open.png",
+    "03-tracker-filled.png",
+    "04-tracker2-filled.png",
+    "05-table.png",
+    "06-table-sorted-asc.png",
+    "07-table-sorted-desc.png"
+  ],
+  "api_log": [
+    {
+      "method": "GET",
+      "path": "/api/maintenance",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlist-alerts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/public",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/shared",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/community/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/preferences",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_prebuilt=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/pending",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_items=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts?limit=20",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/avatar/50d645fc-8095-4c42-aafe-9e8ba343f299",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/intradaypack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists/flagged",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/track",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/indicator-alerts/delivery-health?limit=10",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/fills/check",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/sync?background=1",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/bd105a0c-ec02-40d0-9021-368f5f946ce7/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/comparison",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions?account_id=bd105a0c-ec02-40d0-9021-368f5f946ce7",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/watchlists/flagged/sync",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/note-folders",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/favorites",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/folder-counts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/recents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/saved-views",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/connectors/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=title",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/note-templates",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Entry",
+        "type": "number"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Stop",
+        "type": "number"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Exit",
+        "type": "number"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Shares",
+        "type": "number"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Account size",
+        "type": "number"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "R-multiple",
+        "type": "formula",
+        "config": {
+          "expression": "({@dc8f77c5027d4d88a2e4d4117bee756f} - {@8d368a87eaac40d69d66c21c674d11d8}) / ({@8d368a87eaac40d69d66c21c674d11d8} - {@b59745c3934c4a0aab57df56a18a4d1a})"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Risk per share",
+        "type": "formula",
+        "config": {
+          "expression": "abs({@8d368a87eaac40d69d66c21c674d11d8} - {@b59745c3934c4a0aab57df56a18a4d1a})"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/property-defs",
+      "status": 200,
+      "body": {
+        "name": "Position size %",
+        "type": "formula",
+        "config": {
+          "expression": "round({@70c32b552f3d4ffd91e3fa22ac954aaa} * {@8d368a87eaac40d69d66c21c674d11d8} / {@e3f5568f3132403bb0bf0ce08ee5a9a6} * 100, 2)"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/notes",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=title",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/evidence-candidates",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/facts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/excerpts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/inbox",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/properties",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/thesis-summary",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/backlinks",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/related-from",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/trade-ref/resolve",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/unlinked-mentions",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/opened",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/recents",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/7acebac924314408a61988f6656d6f03/properties",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/avatar/50d645fc-8095-4c42-aafe-9e8ba343f299",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/community/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts?limit=20",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/preferences",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/pending",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/indicator-alerts/delivery-health?limit=10",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/track",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists/flagged",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_prebuilt=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/note-folders",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/comparison",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/bd105a0c-ec02-40d0-9021-368f5f946ce7/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/folder-counts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/favorites",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/recents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/saved-views",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook/home",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions?account_id=bd105a0c-ec02-40d0-9021-368f5f946ce7",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=title",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/fills/check",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/intradaypack/manifest",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/sync?background=1",
+      "status": 503
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlist-alerts",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/watchlists/flagged/sync",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/shared",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_items=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/public",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/notes",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=title",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/facts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/evidence-candidates",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/excerpts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/thesis-summary",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/inbox",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/backlinks",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/trade-ref/resolve",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/opened",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/unlinked-mentions",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/recents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/properties",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/related-from",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/properties",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/245da66a669f4c46b206184f65e11953/properties",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/unspoken",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/avatar/50d645fc-8095-4c42-aafe-9e8ba343f299",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/community/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_prebuilt=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/indicator-alerts/delivery-health?limit=10",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/track",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts?limit=20",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/intradaypack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/preferences",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/pending",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists/flagged",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/bd105a0c-ec02-40d0-9021-368f5f946ce7/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/note-folders",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/folder-counts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/comparison",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/recents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/connectors/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/favorites",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/saved-views",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions?account_id=bd105a0c-ec02-40d0-9021-368f5f946ce7",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/sync?background=1",
+      "status": 503
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/fills/check",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/watchlists/flagged/sync",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=title",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/public",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlist-alerts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_items=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/shared",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated&propertySort=%7B%22propertyId%22%3A%229bf70199d22a406daeee9b66489ffa44%22%2C%22direction%22%3A%22asc%22%7D",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated&propertySort=%7B%22propertyId%22%3A%229bf70199d22a406daeee9b66489ffa44%22%2C%22direction%22%3A%22desc%22%7D",
+      "status": 200
+    }
+  ],
+  "page_errors": [],
+  "notes": {
+    "n1": "7acebac924314408a61988f6656d6f03",
+    "n2": "245da66a669f4c46b206184f65e11953",
+    "n3": "3a0e79ad80004f65b1762987eb510735"
+  },
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T13-18-33.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-10-02 13:18:41",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-10-02 13:19:51",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-10-02 13:21:46",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-10-02 13:22:00",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T13-18-33.md",
+  "finished_utc": "2026-10-02T18:22:30+00:00"
+}

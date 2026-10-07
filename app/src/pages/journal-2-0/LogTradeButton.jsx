@@ -20,16 +20,25 @@
  * No emoji — the "+" is a `UIcon` glyph (feedback_no_generic_emoji).
  */
 
-import { useCallback, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import UIcon from '../../components/ui/UIcon'
 import useJ2Settings from './hooks/useJ2Settings'
 import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
-import AddPositionModal from './components/AddPositionModal'
-import AddTradeModal from './components/AddTradeModal'
+import lazyChunk from './lib/lazyChunk'
 import Toast from './components/Toast'
 import styles from './JournalLayout.module.css'
+
+// Landing 12-15, fourth master merge: the two log dialogs load on demand, the way
+// JournalLayout's three header dialogs do. Each is mounted only while `modal` names it, so
+// nothing about when it shows changes -- its code is fetched on the first open instead of
+// before the Journal (and so the Notebook) can render. This file and JournalLogFab.jsx were
+// the only static path from the Journal shell to both dialogs: ~36 kB of minified JS off
+// `bytes.notebook_first_open`. `lazyChunk`, not `lazyLeaf`: neither dialog has a boundary of
+// its own, so a second fetch failure takes the app's ordinary stale-chunk recovery.
+const AddPositionModal = lazyChunk(() => import('./components/AddPositionModal'))
+const AddTradeModal = lazyChunk(() => import('./components/AddTradeModal'))
 
 async function jsonPost(url, payload) {
   const res = await fetch(url, {
@@ -148,21 +157,25 @@ export default function LogTradeButton() {
       )}
 
       {modal === 'position' && settings && (
-        <AddPositionModal
-          settings={settings}
-          onSave={handleCreatePosition}
-          onClose={closeModal}
-          accountName={acctName}
-        />
+        <Suspense fallback={null}>
+          <AddPositionModal
+            settings={settings}
+            onSave={handleCreatePosition}
+            onClose={closeModal}
+            accountName={acctName}
+          />
+        </Suspense>
       )}
       {modal === 'trade' && settings && (
-        <AddTradeModal
-          settings={settings}
-          onSave={handleCreateTrade}
-          onClose={closeModal}
-          accountName={acctName}
-          accountId={accountId}
-        />
+        <Suspense fallback={null}>
+          <AddTradeModal
+            settings={settings}
+            onSave={handleCreateTrade}
+            onClose={closeModal}
+            accountName={acctName}
+            accountId={accountId}
+          />
+        </Suspense>
       )}
 
       <Toast

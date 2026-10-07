@@ -1,0 +1,12 @@
+W14-A mutation proof at 634dda3892fbfb6740bb6e1c6cb8f78114774ab7
+CONTROL before: rc=0 Tests  30 passed (30)
+M1 preview ignores the onboarding flag: KILLED (Tests  1 failed | 10 passed (11)); restore verified
+M2 every line shows whatever its flag says: KILLED (Tests  11 failed | 17 passed (28)); restore verified
+M3 truthy instead of === true: KILLED (Tests  1 failed | 9 passed (10)); restore verified
+M4 the sample button loses aria-describedby: KILLED (Tests  1 failed | 10 passed (11)); restore verified
+M5 the promotion shows without the sample button: KILLED (Tests  2 failed | 9 passed (11)); restore verified
+M6 one Home return drops the W14-D slot: KILLED (Tests  1 failed | 10 passed (11)); restore verified
+M7 the preview claims the first-run stage: KILLED (Tests  1 failed | 6 passed (7)); restore verified
+CONTROL after: rc=0 Tests  30 passed (30)
+git status app/src after: clean
+VERDICT: PASS

@@ -1,0 +1,2087 @@
+{
+ "tool": "tools/notebook_w14q_clicks.py",
+ "tree": "2583c23ee1da277150bb48d10c7c03d92879cf87",
+ "started": "2026-10-05T05:34:23+00:00",
+ "sandbox_flags": [
+  "NOTEBOOK_ONBOARDING_ENABLED",
+  "NOTEBOOK_GETTING_STARTED_ENABLED",
+  "NOTEBOOK_WRITING_HELP_ENABLED",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
+ ],
+ "budgets": {
+  "O1": {
+   "flow": "new member to first note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "derived_from": "Q1"
+  },
+  "O2": {
+   "flow": "open the sample notebook",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "derived_from": "Q1 shape"
+  },
+  "O3": {
+   "flow": "dismiss the get-started checklist",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "derived_from": "Q5"
+  },
+  "O4": {
+   "flow": "replay a walkthrough from Help",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "derived_from": "Q3"
+  },
+  "O5": {
+   "flow": "accept a tour offer (a tour opens)",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "derived_from": "Q5"
+  },
+  "O6": {
+   "flow": "decline a tour offer",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "derived_from": "Q5"
+  }
+ },
+ "rows": [
+  {
+   "flow": "O1",
+   "name": "new member to first note, cursor in body",
+   "derived_from": "Q1",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 4.0,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Skip tour"
+    },
+    {
+     "do": "click",
+     "on": "Start a note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "note": "5f222642020e4a3c90ce4ff81a2dd767",
+    "cursor_in_body": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O1",
+   "name": "new member to first note, cursor in body",
+   "derived_from": "Q1",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 3,
+   "measured": 6,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.32,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Escape",
+     "on": "close the base tour"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Start a note",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start a note",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Start a note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "note": "ea4941b050214cb39520e196a988f917",
+    "cursor_in_body": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O1",
+   "name": "new member to first note, cursor in body",
+   "derived_from": "Q1",
+   "mode": "keys",
+   "width": "390",
+   "budget": 3,
+   "measured": 6,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.32,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Escape",
+     "on": "close the base tour"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Start a note",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start a note",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Start a note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "note": "f7bd3dbad7cf46af9debede2a5e95579",
+    "cursor_in_body": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O1",
+   "name": "new member to first note, cursor in body",
+   "derived_from": "Q1",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 2.6,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Skip tour"
+    },
+    {
+     "do": "tap",
+     "on": "Start a note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "note": "16c04d9987e147548be4429ed33265f2",
+    "cursor_in_body": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O2",
+   "name": "open the sample notebook",
+   "derived_from": "Q1 shape",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 1.7,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Skip tour"
+    },
+    {
+     "do": "click",
+     "on": "Add a sample notebook"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "sample_notes": 10,
+    "first_run_gone": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O2",
+   "name": "open the sample notebook",
+   "derived_from": "Q1 shape",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 3,
+   "measured": 10,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 7,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 4.06,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Escape",
+     "on": "close the base tour"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Add a sample notebook",
+     "presses": 5,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start a note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Create a thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add a sample notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Add a sample notebook"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "sample_notes": 5,
+    "first_run_gone": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O2",
+   "name": "open the sample notebook",
+   "derived_from": "Q1 shape",
+   "mode": "keys",
+   "width": "390",
+   "budget": 3,
+   "measured": 10,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 7,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.33,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Escape",
+     "on": "close the base tour"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Add a sample notebook",
+     "presses": 5,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start a note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Create a thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add a sample notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Add a sample notebook"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "sample_notes": 10,
+    "first_run_gone": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O2",
+   "name": "open the sample notebook",
+   "derived_from": "Q1 shape",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 2.06,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Skip tour"
+    },
+    {
+     "do": "tap",
+     "on": "Add a sample notebook"
+    }
+   ],
+   "setup": [],
+   "outcome": {
+    "sample_notes": 5,
+    "first_run_gone": true
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O3",
+   "name": "dismiss the get-started checklist",
+   "derived_from": "Q5",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 1,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 0.6,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Hide (checklist)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "notebook_getting_started": {
+     "v": 1,
+     "state": "dismissed",
+     "at": "2026-10-05T05:39:35.861Z"
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O3",
+   "name": "dismiss the get-started checklist",
+   "derived_from": "Q5",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 2,
+   "measured": 11,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 9,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.14,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Hide (checklist)",
+     "presses": 7,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start a note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Create a thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add a sample notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Take the tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide the get started list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Hide (checklist)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "notebook_getting_started": {
+     "v": 1,
+     "state": "dismissed",
+     "at": "2026-10-05T05:39:49.040Z"
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O3",
+   "name": "dismiss the get-started checklist",
+   "derived_from": "Q5",
+   "mode": "keys",
+   "width": "390",
+   "budget": 2,
+   "measured": 11,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 9,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.56,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Hide (checklist)",
+     "presses": 7,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start a note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Create a thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add a sample notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Take the tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide the get started list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Hide (checklist)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "notebook_getting_started": {
+     "v": 1,
+     "state": "dismissed",
+     "at": "2026-10-05T05:39:58.995Z"
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O3",
+   "name": "dismiss the get-started checklist",
+   "derived_from": "Q5",
+   "mode": "taps",
+   "width": "390",
+   "budget": 1,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 0.74,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Hide (checklist)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "notebook_getting_started": {
+     "v": 1,
+     "state": "dismissed",
+     "at": "2026-10-05T05:40:26.706Z"
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O4",
+   "name": "replay a walkthrough from Help",
+   "derived_from": "Q3",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 1.62,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Support (nav)"
+    },
+    {
+     "do": "click",
+     "on": "Replay (Notebook basics)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "tour": "notebook-basics",
+    "title": "Welcome to your Notebook"
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O4",
+   "name": "replay a walkthrough from Help",
+   "derived_from": "Q3",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 4,
+   "measured": 57,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 55,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 7.8,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Support (nav)",
+     "presses": 25,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: q1clicks, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Support (nav)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Replay (Notebook basics)",
+     "presses": 30,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: q1clicks, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "System status: All systems operational",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "New Ticket",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "contact@uctintelligence.com",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Start the Writing help tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Start the Template gallery tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Replay",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Replay (Notebook basics)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "tour": "notebook-basics",
+    "title": "Welcome to your Notebook"
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O4",
+   "name": "replay a walkthrough from Help",
+   "derived_from": "Q3",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 36,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 33,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 4.62,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Open menu",
+     "presses": 4,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open menu",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open menu"
+    },
+    {
+     "do": "tab-run",
+     "to": "Support (nav)",
+     "presses": 18,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Close",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Formula reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Formula library",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Support (nav)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Replay (Notebook basics)",
+     "presses": 11,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open menu",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Market movers",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Notifications",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "System status: All systems operational",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "New Ticket",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "contact@uctintelligence.com",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Start the Writing help tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Start the Template gallery tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Replay",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Replay (Notebook basics)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "tour": "notebook-basics",
+    "title": "Welcome to your Notebook"
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O4",
+   "name": "replay a walkthrough from Help",
+   "derived_from": "Q3",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 3.25,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Open menu"
+    },
+    {
+     "do": "tap",
+     "on": "Support (nav)"
+    },
+    {
+     "do": "tap",
+     "on": "Replay (Notebook basics)"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)"
+   ],
+   "outcome": {
+    "tour": "notebook-basics",
+    "title": "Welcome to your Notebook"
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O5",
+   "name": "accept a tour offer (a tour opens)",
+   "derived_from": "Q5",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 1,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "'New in your Notebook: Writing help': Take the tour was pressed and no tour opened within 15 s (offer gone: True; notebook_tours=None)",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 15.47,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Take the tour"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": null,
+   "measured_before_stop": 1,
+   "page_errors": []
+  },
+  {
+   "flow": "O5",
+   "name": "accept a tour offer (a tour opens)",
+   "derived_from": "Q5",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 2,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "'New in your Notebook: Writing help': Take the tour was pressed and no tour opened within 15 s (offer gone: True; notebook_tours=None)",
+   "tabs": 2,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 16.48,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to main content",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to main content"
+    },
+    {
+     "do": "tab-run",
+     "to": "Take the tour",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Take the tour",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Take the tour"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "Meet Compass card closed (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": null,
+   "measured_before_stop": 4,
+   "page_errors": []
+  },
+  {
+   "flow": "O5",
+   "name": "accept a tour offer (a tour opens)",
+   "derived_from": "Q5",
+   "mode": "keys",
+   "width": "390",
+   "budget": 2,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "'New in your Notebook: Writing help': Take the tour was pressed and no tour opened within 15 s (offer gone: True; notebook_tours=None)",
+   "tabs": 2,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 18.4,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to main content",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to main content"
+    },
+    {
+     "do": "tab-run",
+     "to": "Take the tour",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Take the tour",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Take the tour"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": null,
+   "measured_before_stop": 4,
+   "page_errors": []
+  },
+  {
+   "flow": "O5",
+   "name": "accept a tour offer (a tour opens)",
+   "derived_from": "Q5",
+   "mode": "taps",
+   "width": "390",
+   "budget": 1,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "'New in your Notebook: Writing help': Take the tour was pressed and no tour opened within 15 s (offer gone: True; notebook_tours=None)",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 15.78,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Take the tour"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": null,
+   "measured_before_stop": 1,
+   "page_errors": []
+  },
+  {
+   "flow": "O6",
+   "name": "decline a tour offer",
+   "derived_from": "Q5",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 1,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 0.93,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Not now"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": {
+    "offered": "New in your Notebook: Writing help",
+    "declined": {
+     "writing-help": {
+      "v": 1,
+      "state": "dismissed",
+      "step": null
+     }
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O6",
+   "name": "decline a tour offer",
+   "derived_from": "Q5",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 2,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.02,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to main content",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to main content"
+    },
+    {
+     "do": "tab-run",
+     "to": "Not now",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Take the tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Not now",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Not now"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": {
+    "offered": "New in your Notebook: Writing help",
+    "declined": {
+     "writing-help": {
+      "v": 1,
+      "state": "dismissed",
+      "step": null
+     }
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O6",
+   "name": "decline a tour offer",
+   "derived_from": "Q5",
+   "mode": "keys",
+   "width": "390",
+   "budget": 2,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.97,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to main content",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to main content"
+    },
+    {
+     "do": "tab-run",
+     "to": "Not now",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Take the tour",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Not now",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Not now"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": {
+    "offered": "New in your Notebook: Writing help",
+    "declined": {
+     "writing-help": {
+      "v": 1,
+      "state": "dismissed",
+      "step": null
+     }
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "flow": "O6",
+   "name": "decline a tour offer",
+   "derived_from": "Q5",
+   "mode": "taps",
+   "width": "390",
+   "budget": 1,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 0.89,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Not now"
+    }
+   ],
+   "setup": [
+    "base tour closed with Escape (uncounted)",
+    "checklist hidden (uncounted)",
+    "page reloaded so focus navigation starts at the top (offer re-shown, same session)",
+    "offer on screen: New in your Notebook: Writing help"
+   ],
+   "outcome": {
+    "offered": "New in your Notebook: Writing help",
+    "declined": {
+     "writing-help": {
+      "v": 1,
+      "state": "dismissed",
+      "step": null
+     }
+    }
+   },
+   "page_errors": []
+  }
+ ],
+ "status": "COMPLETE",
+ "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+ "failure": null,
+ "driver_imported_api": [],
+ "finished": "2026-10-05T05:46:36+00:00"
+}

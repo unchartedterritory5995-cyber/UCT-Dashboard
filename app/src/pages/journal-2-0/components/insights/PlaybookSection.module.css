@@ -205,3 +205,17 @@
   line-height: 1.6;
   color: var(--text-muted);
 }
+
+/* Wave 13 lane 13B: the door to My Playbook. */
+.playbookLink {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 8px;
+  color: var(--accent, #dcbb5e);
+  font-size: 13px;
+  text-decoration: none;
+}
+.playbookLink:hover { text-decoration: underline; }
+@media (max-width: 1024px) {
+  .playbookLink { min-height: var(--tap-min, 44px); }
+}

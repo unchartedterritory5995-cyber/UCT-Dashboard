@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2027-01-04",
+      "symbol": "PSNV"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "A pass cannot be dated in the future."
+  }
+}

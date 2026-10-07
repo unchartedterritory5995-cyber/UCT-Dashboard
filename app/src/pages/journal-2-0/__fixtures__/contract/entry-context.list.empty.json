@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/entry-context/list",
+    "path": "/api/j2/entry-context/list",
+    "status": 200
+  },
+  "body": {
+    "contexts": [],
+    "count": 0
+  }
+}

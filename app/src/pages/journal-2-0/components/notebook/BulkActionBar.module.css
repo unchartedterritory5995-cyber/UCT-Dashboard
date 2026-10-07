@@ -26,6 +26,13 @@
   font-weight: 700;
   color: var(--text-bright);
 }
+/* 13Q-5: the jump-shortcut hint. The bar is `position: sticky` (above), so this
+   stays on screen next to the count while the member scrolls the list below
+   it -- a sighted keyboard user reads it without needing focus here first. */
+.shortcutHint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 .linkBtn {
   background: none;
   border: none;

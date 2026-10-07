@@ -1,0 +1,215 @@
+{
+ "wave": 12,
+ "lane": "12A",
+ "checks": {
+  "G0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": {
+    "author": true,
+    "member": true,
+    "admin": true
+   },
+   "firm_picks": [
+    "Weekly Review",
+    "Trade Review",
+    "Earnings Prep",
+    "Setup Checklist",
+    "Trade Plan",
+    "Pre-Market Plan"
+   ],
+   "member_is_admin": {
+    "admin": false
+   }
+  },
+  "G1_publish_by_mouse": {
+   "verdict": "FAIL",
+   "message": "Submitted “W12A plan r120324” for review. You'll see it under Your submissions in the community gallery.",
+   "status": "pending",
+   "leaks": [
+    "/journal/notebook?note=",
+    "7b9e5d52b30f46179295c0584f4bb8d2"
+   ],
+   "kept_heading": true,
+   "has_image": false,
+   "task_checked": [
+    false
+   ],
+   "texts": [
+    "Entry rules",
+    "Ask email address first",
+    "see ",
+    "linked note",
+    "pasted http://127.0.0.1:8580/journal/notebook?note=7b9e5d52b30f46179295c0584f4bb8d2"
+   ],
+   "screenshot": "g1-submitted.jpg"
+  },
+  "G2_invisible_before_review": {
+   "verdict": "PASS",
+   "in_member_list": false,
+   "member_read_status": 404
+  },
+  "G3_admin_approves_by_mouse": {
+   "verdict": "PASS",
+   "message": "Approved “W12A plan r120324”. It is listed now.",
+   "in_member_list": true,
+   "screenshot": "g3-approved.jpg"
+  },
+  "G4_browse_preview_use": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.inner_text: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"New note\").get_by_text(\"Added “W12A plan r120324” to Your templates.\")\n",
+   "traceback": "eout=timeout))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 476, in inner_text\n    return await self._frame.inner_text(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 712, in inner_text\n    return await self._channel.send(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n        \"innerText\", self._timeout, locals_to_params(locals())\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.inner_text: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"New note\").get_by_text(\"Added “W12A plan r120324” to Your templates.\")\n\n"
+  },
+  "G5_report": {
+   "verdict": "PASS",
+   "message": "Thanks. A moderator will review “W12A plan r120324”.",
+   "queue_reports": [
+    {
+     "id": "4e8916e7d86346bcb3d1d87eb5b70139",
+     "reason": "spam",
+     "note": "walk report",
+     "createdAt": "2026-10-02T17:04:34.525082+00:00"
+    }
+   ],
+   "reporter_named": false,
+   "screenshot": "g5-reported.jpg"
+  },
+  "G6_hide_then_unhide": {
+   "verdict": "PASS",
+   "member_sees_after_hide": false,
+   "author_row_after_hide": [
+    {
+     "status": "approved",
+     "hidden": true
+    }
+   ],
+   "member_sees_after_unhide": true,
+   "screenshots": [
+    "g6-hidden.jpg",
+    "g6-unhidden.jpg"
+   ]
+  },
+  "G7_keyboard": {
+   "verdict": "PASS",
+   "door_focused": true,
+   "focus_after_enter": "Community gallery",
+   "tab_order": [
+    "Browse",
+    "Your submissions",
+    "Search the community gallery",
+    "All"
+   ],
+   "focus_back_on_door": true,
+   "focus_on_body": false
+  },
+  "G8_phone_390": {
+   "verdict": "PASS",
+   "probe": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": []
+   },
+   "screenshot": "g8-phone-390.jpg"
+  },
+  "G9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "POST /api/j2/template-gallery",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery/admin/queue",
+  "PATCH /api/j2/template-gallery/admin/items/741326a5f889442ab71e2d1810554416",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery?q=W12A+plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan",
+  "GET /api/j2/template-gallery/741326a5f889442ab71e2d1810554416",
+  "POST /api/j2/template-gallery/741326a5f889442ab71e2d1810554416/use",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery?q=W12A+plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan",
+  "POST /api/j2/template-gallery/741326a5f889442ab71e2d1810554416/report",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery/admin/queue",
+  "PATCH /api/j2/template-gallery/admin/reports/4e8916e7d86346bcb3d1d87eb5b70139",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery/admin/queue",
+  "PATCH /api/j2/template-gallery/admin/items/741326a5f889442ab71e2d1810554416",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery"
+ ],
+ "tip": "0b80ee9945",
+ "base": "http://127.0.0.1:8580",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12a\\w12a-data2",
+ "instrument": "tools\\notebook_w12a_gallery_walk.py",
+ "gate_source": "the sandbox's auth payload (row G0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8580 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T12-02-11.md (identity b0c8542dbf19..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12a\\w12a-data2)"
+ },
+ "run": "r120324",
+ "accounts": {
+  "author": "w12a-author-r120324@local.dev",
+  "member": "w12a-member-r120324@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave12-12a\\walk-0b80ee9945\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave12-12a\\walk-0b80ee9945\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 12:02:20",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 12:03:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 12:05:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 12:05:29",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

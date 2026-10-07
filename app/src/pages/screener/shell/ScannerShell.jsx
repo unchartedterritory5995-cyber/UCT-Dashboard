@@ -39,6 +39,7 @@ import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import SaveToNotebookButton from '../../journal-2-0/components/SaveToNotebookButton'
 import { buildScreenerCapture } from './notebookCapture'
+import { SkipLinkPortal } from '../../../components/skipLinks'
 import styles from './ScannerShell.module.css'
 
 const densityKey = 'uct.screener.density'
@@ -325,6 +326,16 @@ export default function ScannerShell({ embedded = false }) {
     paintCursor(displayRows.map(r => root.querySelector(galleryCardSelector(r.ticker))))
   }, [s.view, displayRows, paintCursor])
 
+  /* Keyboard door to "Save these results to Notebook" (ruling P5 / Q7): that button is the last
+   * control in the toolbar, 339 Tab presses from the top at 1200 px. The skip link below is
+   * portaled into the app shell's skip-link slot, so it is the second Tab stop; Enter lands
+   * on a hidden target just before the button. Rail: ScannerShell.skipToSave.test.jsx. */
+  const saveAnchorRef = useRef(null)
+  const skipToSave = (e) => {
+    e.preventDefault()
+    saveAnchorRef.current?.focus()
+  }
+
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
       onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
@@ -335,6 +346,11 @@ export default function ScannerShell({ embedded = false }) {
 
   return (
     <div className={`${styles.shell} ${embedded ? styles.shellEmbedded : ''}`}>
+      {!embedded && (
+        <SkipLinkPortal>
+          <a href="#screener-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
+        </SkipLinkPortal>
+      )}
       {!isPhone && <div className={styles.railSlot}>{rail}</div>}
       <div className={styles.main}>
         {/* Universe = the base pool the scan runs against (UCT Universe / a
@@ -412,6 +428,10 @@ export default function ScannerShell({ embedded = false }) {
             <button type="button" className={styles.toolBtn} onClick={() => setSaveForkOpen(true)}>
               <UIcon name="save" size={13} /> Save…
             </button>
+            {!embedded && (
+              <span ref={saveAnchorRef} id="screener-save" tabIndex={-1} className="sr-only"
+                data-screener-save-anchor="">Save results to Notebook</span>
+            )}
             <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
               label="Screener results" ariaLabel="Save these results to Notebook"
               disabled={!result || total == null} />

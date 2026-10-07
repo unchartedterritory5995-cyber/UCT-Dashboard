@@ -1,0 +1,107 @@
+[
+  {
+    "id": "M1-recap-generator",
+    "file": "api/services/journal_two/earnings_prep.py",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      "FAILED tests/test_notebook_earnings_prep.py::test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator",
+      "FAILED tests/test_notebook_earnings_prep.py::test_neither_module_imports_a_model_client_directly",
+      "FAILED tests/test_notebook_earnings_prep.py::test_a_draft_never_reaches_alphavantage_at_runtime",
+      "3 failed, 27 deselected, 1343 warnings in 13.20s"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "M2-cap-removed",
+    "file": "api/routers/notebook_earnings_prep.py",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      "FAILED tests/test_notebook_earnings_prep.py::test_the_cap_admits_twenty_then_refuses_with_a_sentence",
+      "FAILED tests/test_notebook_earnings_prep.py::test_the_cap_holds_across_a_restart",
+      "2 failed, 4 passed, 24 deselected, 1392 warnings in 30.98s"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "M3-missing-invented",
+    "file": "api/services/journal_two/earnings_prep.py",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      "FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[implied]",
+      "FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[intel]",
+      "FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[notes]",
+      "FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[position]",
+      "FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[recap]",
+      "FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[trades]",
+      "FAILED tests/test_notebook_earnings_prep.py::test_every_source_failing_still_returns_a_whole_draft",
+      "8 failed, 22 deselected, 1413 warnings in 21.17s"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "M4-cites-another-member",
+    "file": "api/services/journal_two/earnings_prep.py",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      "FAILED tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers",
+      "1 failed, 29 deselected, 1343 warnings in 15.06s"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "M5-uct20-counted-as-own",
+    "file": "api/services/journal_two/earnings_prep.py",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      "FAILED tests/test_notebook_earnings_prep.py::test_reporting_soon_is_the_members_own_sets_crossed_with_the_window",
+      "1 failed, 29 deselected, 1343 warnings in 4.05s"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "C1-missing-unlabelled",
+    "file": "app/src/pages/journal-2-0/lib/earningsPrep.js",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      " \u001b[31m\u276f\u001b[39m src/pages/journal-2-0/lib/earningsPrep.test.js \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[31m1 failed\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 98\u001b[2mms\u001b[22m\u001b[39m",
+      "\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m",
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m9 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m",
+      "\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\u001b[1m\u001b[41m Failed Tests 1 \u001b[49m\u001b[22m\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "C2-gate-ignored",
+    "file": "app/src/pages/journal-2-0/components/notebook/ReportingSoon.jsx",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      " \u001b[31m\u276f\u001b[39m src/pages/journal-2-0/components/notebook/ReportingSoon.test.jsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[31m1 failed\u001b[39m\u001b[2m | \u001b[22m\u001b[33m6 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 100\u001b[2mms\u001b[22m\u001b[39m",
+      "     \u001b[2m\u001b[90m\u2193\u001b[39m\u001b[22m a failed read is said, never shown as a quiet week",
+      "\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m",
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m6 skipped\u001b[39m\u001b[90m (7)\u001b[39m",
+      "\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\u001b[1m\u001b[41m Failed Tests 1 \u001b[49m\u001b[22m\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m"
+    ],
+    "restored_sha_matches_head": true
+  },
+  {
+    "id": "C3-drafts-without-a-click",
+    "file": "app/src/pages/journal-2-0/components/notebook/ReportingSoon.jsx",
+    "rc": 1,
+    "verdict": "RED (rail caught it)",
+    "tail": [
+      " \u001b[31m\u276f\u001b[39m src/pages/journal-2-0/components/notebook/ReportingSoon.test.jsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[31m1 failed\u001b[39m\u001b[2m | \u001b[22m\u001b[33m6 skipped\u001b[39m\u001b[2m)\u001b[22m\u001b[33m 388\u001b[2mms\u001b[22m\u001b[39m",
+      "     \u001b[2m\u001b[90m\u2193\u001b[39m\u001b[22m a failed read is said, never shown as a quiet week",
+      "\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m",
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m6 skipped\u001b[39m\u001b[90m (7)\u001b[39m",
+      "\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\u001b[1m\u001b[41m Failed Tests 1 \u001b[49m\u001b[22m\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m"
+    ],
+    "restored_sha_matches_head": true
+  }
+]

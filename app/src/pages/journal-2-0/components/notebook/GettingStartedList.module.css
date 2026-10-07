@@ -1,0 +1,123 @@
+/* Wave 14 lane W14-D: the "get started" checklist on Research Home.
+   ⛔ IN FLOW, never fixed/absolute/sticky: the first-run stage coordinator
+   (components/firstRun/firstRunStage.js, plan 5.6) exists because two FLOATING
+   first-run surfaces once covered each other. A card that takes its own page space
+   can never stack on another one. GettingStartedChecklist.test.jsx reads this file
+   and fails on any positioning that would let it float.
+   Existing tokens only (no literal colour); the global :focus-visible ring is the
+   focus indicator. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 820px;
+  margin: 16px 0;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+}
+.header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-bright);
+  text-transform: uppercase;
+}
+.progress {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hide {
+  margin-left: auto;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+}
+.hide:hover {
+  color: var(--text-bright);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.markDone {
+  border-color: var(--ut-gold);
+}
+.action {
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--text-bright);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--ut-gold);
+  text-underline-offset: 3px;
+}
+.action:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+.label {
+  font-size: 13.5px;
+  color: var(--text-bright);
+}
+.doneLabel {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+/* The touch tier is <=1024px (phone AND tablet), never <=640 alone. */
+@media (max-width: 1024px) {
+  .action,
+  .hide {
+    min-height: var(--tap-min);
+  }
+  .hide {
+    min-width: var(--tap-min);
+  }
+  .item {
+    min-height: var(--tap-min);
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 10px 12px;
+  }
+}

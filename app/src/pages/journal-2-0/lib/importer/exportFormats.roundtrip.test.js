@@ -30,6 +30,7 @@ import { genericAdapter } from './adapters/generic'
 import { htmlToNote } from './convert'
 import { rewriteBody } from './commit'
 import { heldBody } from './uctJson'
+import { setPlanRole, withPlanShares, withSetupTag } from '../chartPlan'
 
 // ⛔ THE REAL mammoth, with ONE shim. The browser bundle resolves mammoth's `browser` field
 // (browser/unzip.js), which takes `{ arrayBuffer }` — the shape `generic.js` passes. Vitest
@@ -151,6 +152,22 @@ export const FIXTURES = {
     searchText: 'canvascardword' } }), probe: 'canvascardword' },
 }
 
+// Wave 13 lane 13H-1: a chart whose plan was DRAWN — roles written by lib/chartPlan.js (the
+// writer 13H-2's panel uses), planned shares in `ta`. Not a FIXTURES row: `ta` is an attribute,
+// not a type, and the fidelity table is per type.
+const planLine = (id, price) => ({ id, type: 'horizontal', points: [{ time: 1758000000, price }], color: '#c9a84c' })
+let planAnns = [planLine('d1', 101.5), planLine('d2', 97.25), planLine('d3', 112), planLine('d4', 120),
+  { id: 'd5', type: 'text', points: [{ time: 1758000000, price: 99 }], text: 'pivotnote' }]
+planAnns = setPlanRole(planAnns, 'd1', 'entry')
+planAnns = setPlanRole(planAnns, 'd2', 'stop')
+planAnns = setPlanRole(planAnns, 'd3', 'target')
+planAnns = setPlanRole(planAnns, 'd4', 'target')
+const PLAN_CHART_DOC = doc(p('planintroword'), { type: 'widgetEmbed', attrs: {
+  widgetId: 'chart', searchText: 'NVDA daily', params: { symbol: 'NVDA', tf: 'D' }, embedId: 'emb-plan-1',
+  annotations: planAnns,
+  ta: withSetupTag(withPlanShares(null, 200, 'starter'), 'High Tight Flag'),
+} })
+
 // ── measuring what came back ─────────────────────────────────────────────────
 
 function typesIn(node, out = new Set()) {
@@ -246,6 +263,12 @@ beforeAll(async () => {
     { type: 'bulletList', content: [{ type: 'listItem', content: [p('bullet one')] }, { type: 'listItem', content: [p('bullet two')] }] },
     { type: 'orderedList', attrs: { start: 1 }, content: [{ type: 'listItem', content: [p('first')] }] },
   ) })
+  // Wave 13 lane 13H-1: a chart whose plan was drawn (roles written by lib/chartPlan.js), in
+  // every format, appended AFTER the jobs above so their slices are unchanged.
+  jobs.push({ kind: 'md', doc: PLAN_CHART_DOC })
+  jobs.push({ kind: 'html', doc: PLAN_CHART_DOC })
+  jobs.push({ kind: 'docx', doc: PLAN_CHART_DOC, title: 'Plan chart' })
+  jobs.push({ kind: 'archive', fmt: 'json', notes: [{ id: 'plan1', title: 'Plan chart', doc: PLAN_CHART_DOC }] })
   const answers = exportFormatsMany(jobs)
   const perType = {}
   let k = 0
@@ -253,7 +276,7 @@ beforeAll(async () => {
     perType[type] = { md: answers[k].markdown, html: answers[k + 1].html, docx: answers[k + 2].docx }
     k += 3
   }
-  const [jsonArchive, linkArchive, htmlArchive, structure] = answers.slice(k)
+  const [jsonArchive, linkArchive, htmlArchive, structure, planMd, planHtml, planDocx, planJson] = answers.slice(k)
   const reimported = {}
   for (const type of typed) {
     reimported[type] = {
@@ -262,7 +285,8 @@ beforeAll(async () => {
       docx: await docxToNote(perType[type].docx),
     }
   }
-  RESULT = { typed, perType, reimported, jsonArchive, linkArchive, htmlArchive, structure }
+  RESULT = { typed, perType, reimported, jsonArchive, linkArchive, htmlArchive, structure,
+    plan: { md: planMd.markdown, html: planHtml.html, docx: planDocx.docx, json: planJson } }
 }, 240_000)
 
 const describePy = PY ? describe : describe.skip
@@ -279,6 +303,38 @@ describe('the node-type list is derived from lib/notebookSchema.js', () => {
     expect(missing, `no round-trip fixture for: ${missing.join(', ')}`).toEqual([])
     // and every fixture really contains its own type
     for (const type of ALL_TYPES) expect(typesIn(FIXTURES[type].doc).has(type), type).toBe(true)
+  })
+})
+
+describePy('wave 13 13H-1: a drawn plan keeps its levels in every export', () => {
+  const LINE = 'Plan levels: Entry 101.50 · Stop 97.25 · Target 112.00, 120.00 · Shares 200'
+
+  it('Markdown and the web page carry the Plan levels line', () => {
+    expect(RESULT.plan.md).toContain(LINE)
+    expect(RESULT.plan.html).toContain(LINE)
+    // non-vacuity: the chart's own label is there too, so the line sits beside the chart
+    expect(RESULT.plan.md).toContain('NVDA daily')
+  })
+
+  it('Word carries it as its own paragraph', () => {
+    const xml = new TextDecoder().decode(unzipSync(b64ToBytes(RESULT.plan.docx))['word/document.xml'])
+    expect(xml).toContain(LINE)
+  })
+
+  it('JSON keeps the drawn roles and the `ta` attr byte for byte, and says it needs schema 4', async () => {
+    const vfiles = vfilesOf(RESULT.plan.json.files)
+    const { docs } = await uctAdapter.parse(vfiles)
+    const got = docs.find((d) => d.importKey === 'uct:plan1')
+    expect(got.bodyJson).toEqual(PLAN_CHART_DOC)
+    const embed = got.bodyJson.content[1].attrs
+    expect(embed.ta.planBlock).toEqual({ shares: 200, sizedBy: 'starter' })
+    expect(embed.annotations.map((a) => a.role ?? null)).toEqual(['entry', 'stop', 'target', 'target', null])
+    const parsed = Object.entries(RESULT.plan.json.files).filter(([pth]) => pth.endsWith('.json')).map(([, b64]) => {
+      try { return JSON.parse(new TextDecoder().decode(b64ToBytes(b64))) } catch { return null }
+    })
+    const noteDoc = parsed.find((o) => o?.note?.id === 'plan1')
+    expect(noteDoc, 'the note document is in the archive').toBeTruthy()
+    expect(noteDoc.note.schemaLevel).toBe(4)
   })
 })
 

@@ -1,0 +1,23 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/research-capture/transcripts/save",
+    "note": "FastAPI's own validation answer: `detail` is a LIST here, not a sentence.",
+    "path": "/api/j2/research-capture/transcripts/save",
+    "status": 422
+  },
+  "body": {
+    "detail": [
+      {
+        "input": [
+          1
+        ],
+        "loc": [
+          "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "type": "dict_type"
+      }
+    ]
+  }
+}

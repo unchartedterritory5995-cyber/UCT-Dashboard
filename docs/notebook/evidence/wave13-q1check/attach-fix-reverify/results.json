@@ -1,0 +1,248 @@
+{
+  "meta": {
+    "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+    "typed": "the attach fix landed"
+  },
+  "rows": [
+    {
+      "width": "1200",
+      "rep": 1,
+      "note_id": "007d4bb983d84643ae16355201990289",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r1.png"
+    },
+    {
+      "width": "1200",
+      "rep": 2,
+      "note_id": "5424e83f490e4691b43380de36f48a3f",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r2.png"
+    },
+    {
+      "width": "1200",
+      "rep": 3,
+      "note_id": "23b221687ad24fa3aba9f739738443f9",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r3.png"
+    },
+    {
+      "width": "1200",
+      "rep": 4,
+      "note_id": "ddc0b09503d34f178682d04933f6c80a",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r4.png"
+    },
+    {
+      "width": "1200",
+      "rep": 5,
+      "note_id": "c5e29a8cd17a43299abea406b8a93322",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r5.png"
+    },
+    {
+      "width": "390",
+      "rep": 1,
+      "note_id": "ffc9b959dde44ea8b6be5af9467f9972",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-390-r1.png"
+    },
+    {
+      "width": "390",
+      "rep": 2,
+      "note_id": "933e41ce5a844cd09e9314a0e4412730",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-390-r2.png"
+    },
+    {
+      "width": "390",
+      "rep": 3,
+      "note_id": "27a70395a56f4104a3d5480d4e463ed3",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-390-r3.png"
+    },
+    {
+      "width": "390",
+      "rep": 4,
+      "note_id": "6758fcc08640439c835691f1159c067a",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-390-r4.png"
+    },
+    {
+      "width": "390",
+      "rep": 5,
+      "note_id": "ac3f36267e9a45a39665d7da5ee35f79",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": true,
+      "page_errors": [],
+      "screenshot": "postattachfix-390-r5.png"
+    }
+  ]
+}

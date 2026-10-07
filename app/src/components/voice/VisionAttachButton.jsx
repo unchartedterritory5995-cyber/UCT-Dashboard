@@ -51,8 +51,11 @@ export default function VisionAttachButton() {
         credentials: 'include',
       })
       if (!r.ok) {
-        const t = await r.text()
-        throw new Error(t || `HTTP ${r.status}`)
+        // The server's own sentence when it sends one ({detail: "image too large
+        // (max 5MB)"}). This used to show the reply's raw text, JSON and all.
+        const refusal = await r.json().catch(() => null)
+        const said = typeof refusal?.detail === 'string' ? refusal.detail : null
+        throw new Error(said || 'Could not read that image. Try again.')
       }
       const data = await r.json()
       setResult(data)

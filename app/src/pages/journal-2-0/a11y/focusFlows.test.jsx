@@ -10,7 +10,7 @@
 //
 //   open a note from the list          -> the note's heading, NEVER a field
 //                                         (final-review fix I-1)
-//   make a new note                    -> its title input
+//   make a new BLANK note              -> its body (13Q-2; a template -> its title)
 //   go back to the list (history Back) -> the row that opened it
 //   delete it through ConfirmModal     -> the NEXT row, or the pane heading
 //   close Ask                          -> the Ask toggle
@@ -61,7 +61,10 @@ const noteHeading = () => waitFor(() => {
   return h
 })
 /** Whether `el` takes typed text: a field, or anything editable. */
-const takesText = (el) => Boolean(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)))
+// (jsdom does not implement `isContentEditable`, so the attribute is read too --
+// otherwise the editor's own contenteditable root would read as "takes no text")
+const takesText = (el) => Boolean(el && (el.isContentEditable || el.getAttribute?.('contenteditable') === 'true'
+  || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)))
 
 async function openFromList(pane, id) {
   const row = rowFor(pane, id)
@@ -114,7 +117,17 @@ describe('focus in the Notebook tab', () => {
     expect(active().closest('[data-note-pane="main"]')).not.toBeNull()
   })
 
-  it('making a NEW note puts focus in its title (typing it is the next act)', async () => {
+  // ⛔ Wave 13Q-2 (`be4fcd588d`, decision Q1 "new blank note, cursor in body"):
+  // a BLANK new note has nothing in its title worth a look first, so it opens
+  // with focus in the note BODY, not the title -- NotebookTab passes
+  // `openFocus="body"` and NoteEditorPage's attach-polling effect places the
+  // caret. This rail used to assert the title and went red the day that
+  // decision landed (it fails identically on the clean base b06ec4fd85). The
+  // a11y property it guards is unchanged and still asserted in full: focus is
+  // NOT dropped on <body>, and it lands somewhere that takes typed text, inside
+  // the note that was just made. A TEMPLATE pick still lands on the title --
+  // NotebookTab.test.jsx pins both halves of that split.
+  it('making a NEW blank note puts focus in its body (typing it is the next act)', async () => {
     const fresh = noteDetail({ id: 'n9', title: '', subtitle: '' })
     installFetch([
       // POST /api/j2/notes answers the created note; the list GET reads `notes`
@@ -123,10 +136,20 @@ describe('focus in the Notebook tab', () => {
     ])
     const pane = await renderTab()
     fireEvent.click(within(pane).getByRole('button', { name: '+ New note' }))
-    const title = await titleInput()
-    await waitFor(() => expect(active()).toBe(title))
-    expect(title.tagName).toBe('INPUT')
+    // The note loads, its editor attaches, and the attach-polling effect places
+    // the caret across animation frames -- in jsdom that chain needs real time
+    // inside act() to advance, so this polls with `settle` (bounded, ~5 s)
+    // rather than waitFor. The ProseMirror root is found by its label: jsdom
+    // gives a contenteditable div no implicit textbox role.
+    const bodyEl = () => document.querySelector('[data-note-pane="main"] [aria-label="Note body"]')
+    for (let i = 0; i < 50 && !(bodyEl() && active() === bodyEl()); i += 1) await settle(100)
+    const body = bodyEl()
+    expect(body, 'the new note never rendered its body').not.toBeNull()
+    expect(document.querySelector('input[aria-label="Note title"]'), 'the new note never loaded').not.toBeNull()
+    expect(active()).toBe(body)
+    expect(active()).not.toBe(document.body)
     expect(takesText(active())).toBe(true)
+    expect(active().closest('[data-note-pane="main"]')).not.toBeNull()
   })
 
   it('going back to the list puts focus on the row that opened the note', async () => {

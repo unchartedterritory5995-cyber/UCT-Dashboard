@@ -51,6 +51,27 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_ai_actions_enabled: false,  // wave 11 lane 11C "Ask Notebook to do something" — absent ⇒ OFF
   notebook_formulas_enabled: false,    // wave 11 (lane 11B): formula + rollup properties — absent ⇒ OFF
   notebook_trade_canvas_enabled: false, // wave 11 lane 11D: the trade-plan canvas — absent ⇒ OFF
+  notebook_template_gallery_enabled: false, // wave 12 lane 12A: the community template gallery — absent ⇒ OFF
+  notebook_ta_fingerprint_enabled: false, // wave 13 lane 13I-1: the technical fingerprint — absent ⇒ OFF
+  notebook_earnings_prep_enabled: false, // wave 13 lane 13C: Reporting soon + earnings prep notes — absent ⇒ OFF
+  notebook_chart_plan_enabled: false, // wave 13 lane 13H-1: the chart plan (sizing, alerts at drawn levels) — absent ⇒ OFF
+  notebook_plan_grading_enabled: false, // wave 13 lane 13A: plan vs execution grading — absent ⇒ OFF
+  notebook_entry_context_enabled: false, // wave 13 lane 13E-1: the market context frozen at the fill — absent ⇒ OFF
+  notebook_transcript_capture_enabled: false, // wave 13 lane 13G-1: a transcript passage into a note — absent ⇒ OFF
+  notebook_passed_setups_enabled: false, // wave 13 lane 13G-1: the passed-setups journal — absent ⇒ OFF
+  notebook_thesis_chips_enabled: false, // wave 13 lane 13G-2: thesis chips on rows — absent ⇒ OFF
+  notebook_visual_playbook_enabled: false, // wave 13 lane 13I-2: visual playbook, tag suggestion, before/after — absent ⇒ OFF
+  awareness_note_resurface_enabled: false, // wave 13 lane 13D: resurfacing ("what you wrote then" sheet) — absent ⇒ OFF
+  notebook_setups_board_enabled: false, // wave 13 lane 13J: the active setups board — absent ⇒ OFF
+  notebook_find_similar_enabled: false, // wave 13 lane 13J: find more like this — absent ⇒ OFF
+  notebook_playbook_enabled: false, // wave 13 lane 13B: My Playbook — absent ⇒ OFF
+  notebook_review_drafts_enabled: false, // wave 13 lane 13F: reviews that write themselves — absent ⇒ OFF
+  notebook_getting_started_enabled: false, // wave 14 lane W14-D: the get started checklist — absent ⇒ OFF
+  // Wave 14 lane W14-C1: three capabilities whose gate was server-only, now on the payload so
+  // their walkthroughs can open. Each fallback is the capability's OWN polarity.
+  notebook_image_docx_documents_enabled: false, // wave 7 lane G: image/docx become documents — absent ⇒ OFF
+  notebook_task_reminders_enabled: true, // wave 6 lane F: the daily task reminder, a KILL switch — absent ⇒ ON
+  notebook_semantic_search_enabled: false, // wave 7 lane H3: search by meaning — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

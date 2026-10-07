@@ -4,6 +4,12 @@ import NavBar from './NavBar'
 import MobileNav from './MobileNav'
 import CommandPalette from './CommandPalette'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
+// Wave 14 (lane W14-C1): the ONE mount of the registered-tour gate. Tours start on Journal pages
+// (a trade, My Playbook, the setups board) as well as the Notebook, and a tour must survive the
+// navigation to its own start, so it lives here rather than in any one page. Eager and small:
+// the engine and every tour's steps stay lazy chunks fetched only when a tour is wanted.
+import RegistryToursGate from '../pages/journal-2-0/components/notebook/onboarding/RegistryToursGate'
+import { OTHER_TOURS } from '../pages/journal-2-0/components/notebook/onboarding/tourRegistry'
 import FeedbackWidget from './FeedbackWidget'
 import { registerFirstRunSlot } from './firstRun/firstRunStage'
 import HubRoot from '../hub/HubRoot'
@@ -233,6 +239,10 @@ export default function Layout({ children }) {
           {/* The ONE capture dialog, mounted once app-wide so every door -- palette,
               hotkey, note, research workspace, surfaces -- opens the same product. */}
           <CaptureHost />
+          {/* Wave 14 (W14-C1): registered tours, app-wide (Help's Replay, the offer, the
+              checklist and the resurfacing explainer all open through it). Renders nothing
+              until a tour is wanted and its capability's flag is on. */}
+          <RegistryToursGate tours={OTHER_TOURS} />
         </div>
       </MoreSheetContext.Provider>
     </TickerHubProvider>

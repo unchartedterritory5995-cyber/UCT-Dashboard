@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/chart-plan/benchmarks",
+    "path": "/api/j2/chart-plan/benchmarks?symbol=",
+    "status": 422
+  },
+  "body": {
+    "detail": "That request could not be read."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/research-capture/transcripts/save",
+    "path": "/api/j2/research-capture/transcripts/save",
+    "requestBody": {
+      "noteId": "nope",
+      "passage": "x",
+      "quarter": "2026Q2",
+      "symbol": "TRNV",
+      "turn": 0
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "UCT does not hold the TRNV 2026Q2 transcript yet. Open it in the UCT Terminal's transcript panel first, then save from it here."
+  }
+}

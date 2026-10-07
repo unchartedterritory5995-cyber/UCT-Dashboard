@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/entry-context/backfill",
+    "path": "/api/j2/entry-context/backfill",
+    "status": 200
+  },
+  "body": {
+    "backfill": {
+      "already": 2,
+      "capturedLate": 1,
+      "deferred": 0,
+      "failed": 0,
+      "frozen": 1,
+      "noEntryDay": 1
+    }
+  }
+}

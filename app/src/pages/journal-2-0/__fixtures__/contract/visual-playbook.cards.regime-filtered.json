@@ -1,0 +1,83 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/cards",
+    "note": "Filtered to a regime: charts with no frozen regime are left out, and counted.",
+    "path": "/api/j2/notebook-visual-playbook/cards?regime=green",
+    "status": 200
+  },
+  "body": {
+    "cards": [],
+    "count": 0,
+    "exampleCount": 0,
+    "excludedMissing": {},
+    "facets": {
+      "setups": {
+        "Bull Flag": 1,
+        "VCP": 3
+      },
+      "timeframes": {
+        "D": 3,
+        "W": 1
+      }
+    },
+    "pending": 0,
+    "rangeFields": [
+      "adr_pct",
+      "pct_vs_sma10",
+      "pct_vs_sma20",
+      "pct_vs_sma50",
+      "pct_vs_sma200",
+      "rs_rank",
+      "base_length_bars",
+      "base_depth_pct",
+      "pullback_depth_pct",
+      "vol_nweek_low",
+      "close_cv_pct",
+      "pole_pct"
+    ],
+    "regime": {
+      "available": true,
+      "excludedUnknown": 3,
+      "facets": {
+        "amber": 1,
+        "green": 0,
+        "orange": 0,
+        "red": 0
+      },
+      "selected": "green",
+      "source": "entry_context (13E, at_entry rows only)",
+      "unknown": 3,
+      "unknownReasons": {
+        "captured_late": "the context was frozen after the entry day, so it is not the market at the fill",
+        "no_trade": "no trade is linked to this chart, so there is no entry day",
+        "not_captured": "no market context was frozen on this trade's entry day",
+        "regime_missing": "the frozen context has no regime value"
+      },
+      "values": [
+        "green",
+        "amber",
+        "orange",
+        "red"
+      ]
+    },
+    "sampleSizeSource": "adapter:plan_grading (swap for 13B sample_size.py)",
+    "stats": {
+      "avgR": null,
+      "avgRRange": null,
+      "band": "too_few",
+      "breakeven": 0,
+      "charts": 0,
+      "losses": 0,
+      "n": 0,
+      "rTrades": 0,
+      "totalPnlDollar": 0.0,
+      "trades": 0,
+      "unlinkedCharts": 0,
+      "winRate": null,
+      "winRateRange": null,
+      "wins": 0,
+      "wording": "too few to judge"
+    }
+  }
+}

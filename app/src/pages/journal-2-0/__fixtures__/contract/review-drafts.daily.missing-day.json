@@ -1,0 +1,22 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/review-drafts/daily",
+    "note": "FastAPI's own validation answer: `detail` is a LIST here, not a sentence.",
+    "path": "/api/j2/review-drafts/daily",
+    "status": 422
+  },
+  "body": {
+    "detail": [
+      {
+        "input": null,
+        "loc": [
+          "query",
+          "day"
+        ],
+        "msg": "Field required",
+        "type": "missing"
+      }
+    ]
+  }
+}

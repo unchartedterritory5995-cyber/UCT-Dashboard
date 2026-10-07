@@ -25,13 +25,14 @@ the note already open, as an editor transaction.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import note_ask
+from api.services import request_body_cap as body_cap
 from api.services.journal_two import voice_notes as vn
 
 import logging
@@ -68,11 +69,6 @@ def _refuse(e: vn.VoiceNoteError) -> HTTPException:
     return HTTPException(status_code=e.status, detail=e.sentence)
 
 
-# Far above `MAX_UPLOAD_BYTES` plus multipart framing; refused before the body is
-# parsed, so a 2 GB post is never spooled to disk just to be measured.
-_MAX_REQUEST_BYTES = vn.MAX_UPLOAD_BYTES + 1024 * 1024
-
-
 @router.get("/status")
 def status(user: dict = Depends(require_paid)) -> dict[str, Any]:
     cap = vn.cap_state(user)
@@ -80,26 +76,38 @@ def status(user: dict = Depends(require_paid)) -> dict[str, Any]:
             "summariesLeft": max(0, note_ask.voice_note_peruser_cap() - note_ask.voice_note_used(user["id"]))}
 
 
-async def _read_audio(request: Request, _user: dict = Depends(require_paid)) -> tuple[Any, str]:
+async def _read_audio(request: Request, _user: dict = Depends(require_paid)) -> AsyncIterator[tuple[Any, str]]:
     """The multipart body, read INSIDE the dependency chain (writing help's M-1
     lesson): the gate (router level) and the paid check run first, so an off
-    gate or a free member never makes this process spool an upload. A declared
-    length past the limit is refused before a byte is parsed."""
+    gate or a free member never makes this process spool an upload.
+
+    ⛔ CAPPED WHILE IT IS READ (wave 14, census row :264). It used to check only
+    the DECLARED length, so a chunked upload or one with no Content-Length was
+    spooled to a temp file IN FULL before the service's 90 MiB read cap ever
+    ran. `request_body_cap` counts every byte as it arrives and stops at the cap
+    plus multipart framing; the file part's own size is then held to
+    `vn.MAX_UPLOAD_BYTES` exactly, read per request. Past either: 413, and every
+    spooled part is already closed."""
+    limit = vn.MAX_UPLOAD_BYTES
     try:
-        declared = int(request.headers.get("content-length") or 0)
-    except ValueError:
-        declared = 0
-    if declared > _MAX_REQUEST_BYTES:
-        raise HTTPException(status_code=413, detail=vn.TOO_BIG_SENTENCE)
-    try:
-        form = await request.form(max_files=1, max_fields=4)
+        form = await body_cap.read_capped_form(request, limit + body_cap.FRAMING_SLACK,
+                                               vn.TOO_BIG_SENTENCE, max_files=1, max_fields=4)
+    except HTTPException:
+        raise
     except Exception:  # noqa: BLE001 -- a body that is not multipart is the member's empty upload
         raise HTTPException(status_code=400, detail=vn.EMPTY_AUDIO_SENTENCE) from None
-    audio = form.get("audio")
-    if audio is None or isinstance(audio, str):
-        raise HTTPException(status_code=400, detail=vn.EMPTY_AUDIO_SENTENCE)
-    source = form.get("source")
-    return audio, (source if isinstance(source, str) else vn.SOURCE_UPLOAD)
+    try:
+        audio = form.get("audio")
+        if audio is None or isinstance(audio, str):
+            raise HTTPException(status_code=400, detail=vn.EMPTY_AUDIO_SENTENCE)
+        if audio.size is None or audio.size > limit:
+            raise HTTPException(status_code=413, detail=vn.TOO_BIG_SENTENCE)
+        source = form.get("source")
+        yield audio, (source if isinstance(source, str) else vn.SOURCE_UPLOAD)
+    finally:
+        # The spooled part is closed when the request ends, kept or refused --
+        # `create_job` copies it into the job's own directory first.
+        await form.close()
 
 
 @router.post("/jobs")

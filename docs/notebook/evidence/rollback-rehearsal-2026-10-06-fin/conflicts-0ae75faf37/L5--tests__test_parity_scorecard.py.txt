@@ -1,0 +1,42 @@
+<<<<<<< OURS(prev)
+    # Lane RS (2026-09-29) added 16 evidence paths the 3b/3c/6c/7a/9a/9d/14a/14b/14d cells now cite:
+    # AX's re-measurement at 2fb102c74, the quiet-slot command-1 and curve runs, the copied-in Sunday
+    # KEEP verdict and hand-run restore drill, lane R1's and R1b's rollback rehearsals, and the L2/L4-era
+    # layout proofs (L3/D3P/D5). 26 (F3's count) + 16 = 42.
+    # Lane RS2 (2026-09-29) added 3 more the 7b/12a cells now cite: L6's own landing record (PR #253)
+    # and the corrected production writing-help run. 42 + 3 = 45.
+    # Lane SC (2026-09-30) added 6 more the 9a/2b/5d/6c cells now cite: the L11 proof walk's README,
+    # run.json, census.json, silent.json, deadclick.json and axe.json. 45 + 6 = 51.
+    # Lane SC2 (2026-09-30) re-scored 2c and 6c on new evidence: the 2c cell no longer cites the L11
+    # proof walk's deadclick.json (-1) and now cites the L12 dead-click full sweep's run.json plus the
+    # targeted re-run's run.json and deadclick.json (+3); the 6c cell now also cites the L12 layout
+    # re-confirm's run-meta.json (+1) and both new cells cite the shared l12-READINGS.md (+1).
+    # 51 - 1 + 3 + 1 + 1 = 55.
+    # L13 (2026-09-30): the G-062 row now cites lane G62's walk report (run 3). 55 + 1 = 56.
+    # Quiet re-score QR (2026-10-02): the 14d cell now cites the quiet per-call curve's log, its box
+    # record and its reading (curve-d22-q2.log, curve-d22-q2-box.txt, README-quiet.md). 56 + 3 = 59.
+    assert len(paths) == 59, (len(paths), paths)
+=======
+    assert len(paths) == 26, (len(paths), paths)
+>>>>>>> THEIRS(pre-landing)
+
+<<<<<<< OURS(prev)
+              'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py',
+              'docs/notebook/proof/ax-2fb102c74/README.md',
+              'docs/notebook/proof/quiet-slot-2026-09-29/qs-50k.log',
+              'docs/notebook/proof/quiet-slot-2026-09-29/qs-curve.log',
+              'docs/notebook/proof/quiet-slot-2026-09-29/qs-curve2.log',
+              'docs/notebook/evidence/evidence-gate-soak-only-2026-09-28-KEEP.md',
+              'docs/notebook/evidence/evidence-restore-drill-2026-09-28-hand-PASS.md',
+              'docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox-results.md',
+              'docs/notebook/evidence/rollback-rehearsal-2026-09-29/objects.log',
+              'docs/notebook/proof/l3-layout-0e72ad573/r2-after/run.json',
+              'docs/notebook/proof/d3p-raw/after-r2/run.json',
+              'docs/notebook/proof/d5-after-round1-fix/probe.json',
+              'docs/notebook/gate-runs/wave10-L6/classification.md',
+              'docs/notebook/gate-runs/wave10-L6/pytest-l6.log',
+              'docs/notebook/proof/wh-2026-09-29b/README.md'):
+=======
+              'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py'):
+>>>>>>> THEIRS(pre-landing)
+

@@ -1,0 +1,47 @@
+0cfd54a412740978993e6f766a3326c/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56305 - "GET /api/j2/notes/80cfd54a412740978993e6f766a3326c/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61582 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-10-03 21:30:28,190 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Highs & Lows' with 10 tickers
+2026-10-03 21:30:28,453 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-10-03 21:30:28,454 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-10-03 21:30:28,493 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Score & Regime' with 12 tickers
+2026-10-03 21:30:28,795 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-10-03 21:30:28,795 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-10-03 21:30:29,380 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 27, 2026' with 49 tickers
+2026-10-03 21:30:29,755 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 20, 2026' with 69 tickers
+INFO:     127.0.0.1:50277 - "GET /api/j2/notes/80cfd54a412740978993e6f766a3326c HTTP/1.1" 200 OK
+2026-10-03 21:30:30,425 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 13, 2026' with 44 tickers
+2026-10-03 21:30:30,660 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 6, 2026' with 83 tickers
+2026-10-03 21:30:30,786 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 30, 2026' with 90 tickers
+INFO:     127.0.0.1:62920 - "GET /journal/notebook?view=all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62920 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52789 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63277 - "GET /assets/index-_ffPvuue.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55839 - "GET /assets/vendor-react-9O4lRsAt.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54924 - "GET /assets/vendor-swr-DMX8TUtE.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61819 - "GET /assets/index-CLGx-CiO.css HTTP/1.1" 200 OK
+[darkpool_agg] prewarm: cold windows [1, 5, 20, 60, 90, None] — building in background
+Exception in thread data-root-compare:
+Traceback (most recent call last):
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13q1check\scripts\hub_sandbox_boot.py", line 453, in _run
+    diffs = drs.compare(baseline, drs.snapshot())
+                                  ~~~~~~~~~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13q1check\scripts\data_root_snapshot.py", line 66, in snapshot
+    out[rel] = {"size": os.path.getsize(path), "sha256": _hash_file(path)}
+                                                         ~~~~~~~~~~^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13q1check\scripts\data_root_snapshot.py", line 50, in _hash_file
+    block = fh.read(chunk)
+MemoryError
+Exception ignored while finalizing file <http.client.HTTPResponse object at 0x0000021758A869B0>:
+Traceback (most recent call last):
+  File "C:\Python314\Lib\http\client.py", line 434, in close
+    if self.fp:
+AttributeError: 'HTTPResponse' object has no attribute 'fp'
+2026-10-03 21:30:31,565 WARNING api.services.yfinance_pool: [yfinance-pool] CLS {'period': 'max', 'interval': '1d', 'auto_adjust': False, 'raise_errors': False} failed within 20.0s (TypeError) — abandoning result
+[bars] yfinance daily fetch failed for CLS: 'Response' object is not subscriptable

@@ -1,0 +1,212 @@
+[
+ {
+  "t": 1791345863.515,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d",
+  "status": 200
+ },
+ {
+  "t": 1791345863.515,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/documents",
+  "status": 200
+ },
+ {
+  "t": 1791345863.515,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/excerpts",
+  "status": 200
+ },
+ {
+  "t": 1791345863.516,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/facts",
+  "status": 200
+ },
+ {
+  "t": 1791345863.516,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/evidence-candidates",
+  "status": 200
+ },
+ {
+  "t": 1791345863.518,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/thesis-summary",
+  "status": 200
+ },
+ {
+  "t": 1791345863.519,
+  "method": "GET",
+  "url": "/api/j2/note-folders",
+  "status": 200
+ },
+ {
+  "t": 1791345863.52,
+  "method": "GET",
+  "url": "/api/j2/notes/tags",
+  "status": 200
+ },
+ {
+  "t": 1791345863.657,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/trade-ref/resolve",
+  "status": 200
+ },
+ {
+  "t": 1791345863.657,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/properties",
+  "status": 200
+ },
+ {
+  "t": 1791345863.658,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/backlinks",
+  "status": 200
+ },
+ {
+  "t": 1791345863.659,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/related-from",
+  "status": 200
+ },
+ {
+  "t": 1791345863.66,
+  "method": "GET",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/unlinked-mentions",
+  "status": 200
+ },
+ {
+  "t": 1791345863.66,
+  "method": "POST",
+  "url": "/api/j2/notes/5d2c99f0f34141d9a016f3dad8d2919d/opened",
+  "status": 200
+ },
+ {
+  "t": 1791345863.667,
+  "method": "GET",
+  "url": "/api/j2/property-defs",
+  "status": 200
+ },
+ {
+  "t": 1791345863.668,
+  "method": "GET",
+  "url": "/api/j2/inbox",
+  "status": 200
+ },
+ {
+  "t": 1791345863.668,
+  "method": "GET",
+  "url": "/api/j2/notebook-fingerprint/meta",
+  "status": 200
+ },
+ {
+  "t": 1791345863.674,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791345863.732,
+  "method": "GET",
+  "url": "/api/bars-today-pack",
+  "status": 200
+ },
+ {
+  "t": 1791345863.77,
+  "method": "GET",
+  "url": "/api/j2/accounts",
+  "status": 200
+ },
+ {
+  "t": 1791345863.77,
+  "method": "GET",
+  "url": "/api/j2/positions?account_id=08c8ffb3-e27e-491b-9ac3-2e490a1e8f7b",
+  "status": 200
+ },
+ {
+  "t": 1791345863.771,
+  "method": "GET",
+  "url": "/api/j2/trades?account_id=08c8ffb3-e27e-491b-9ac3-2e490a1e8f7b",
+  "status": 200
+ },
+ {
+  "t": 1791345863.771,
+  "method": "GET",
+  "url": "/api/user-definitions?graph=1",
+  "status": 200
+ },
+ {
+  "t": 1791345863.771,
+  "method": "GET",
+  "url": "/api/ticker-meta/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791345863.771,
+  "method": "GET",
+  "url": "/api/ticker-ipo/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791345863.787,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791345863.844,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=D&bars=12500&to=2026-06-15",
+  "status": 200
+ },
+ {
+  "t": 1791345883.98,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=5&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345883.984,
+  "method": "GET",
+  "url": "/api/community/status",
+  "status": 200
+ },
+ {
+  "t": 1791345883.985,
+  "method": "GET",
+  "url": "/api/indicator-alerts/delivery-health?limit=10",
+  "status": 200
+ },
+ {
+  "t": 1791345884.013,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=60&bars=1138&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345884.033,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=30&bars=1120&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345884.049,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=15&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345884.063,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=1&bars=960&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345884.199,
+  "method": "GET",
+  "url": "/api/j2/notebook/home",
+  "status": null
+ }
+]

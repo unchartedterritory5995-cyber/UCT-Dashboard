@@ -99,13 +99,13 @@ neither can send anyone a second one.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sqlite3
 from datetime import date, datetime, timedelta
 from typing import Any
 
 from api.services import auth_db
+from api.services.notebook_flags import flag_on
 from api.services.journal_two.note_mentions import has_column
 from api.services.journal_two.timeutil import ET
 
@@ -120,7 +120,6 @@ SECOND_PASS_HOUR_ET = 9    # the ruled second daily trigger (S-2)
 MISFIRE_GRACE_S = 3600     # a late run still runs; the pass is idempotent per ET day
 CATCH_UP_DELAY_S = 90      # the boot catch-up waits for the process to settle
 KILL_SWITCH = "NOTEBOOK_TASK_REMINDERS_ENABLED"
-_OFF_VALUES = {"0", "false", "no", "off"}
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _NESTED_LISTS = ("taskList", "bulletList", "orderedList")
@@ -384,8 +383,9 @@ def list_tasks(
 # ── Reminders ───────────────────────────────────────────────────────────────
 
 def reminders_enabled() -> bool:
-    raw = os.environ.get(KILL_SWITCH)
-    return raw is None or raw.strip().lower() not in _OFF_VALUES
+    # Wave 14 W14-C1: the ONE parse (`flag_on`, default ON: a kill switch), now that the auth
+    # payload carries this switch. Off only for 0/false/no/off, exactly as before.
+    return flag_on(KILL_SWITCH, True)
 
 
 def ensure_reminder_schema(conn: sqlite3.Connection) -> None:

@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/review-drafts/weekly",
+    "path": "/api/j2/review-drafts/weekly?weekStart=2026-9-28",
+    "status": 422
+  },
+  "body": {
+    "detail": "weekStart must be YYYY-MM-DD"
+  }
+}

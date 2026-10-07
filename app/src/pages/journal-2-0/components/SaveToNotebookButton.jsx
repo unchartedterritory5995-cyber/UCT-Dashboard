@@ -104,7 +104,12 @@ export default function SaveToNotebookButton({
         type="button"
         className={styles.btn}
         onClick={onPress}
-        disabled={disabled || busy}
+        // BUSY is `aria-disabled`, never the native attribute: a natively disabled button
+        // cannot hold focus, so the browser dropped a keyboard member onto <body> the moment
+        // the save started and left them there when it finished. `onPress` already refuses
+        // a press while busy. The `disabled` PROP (nothing to save yet) stays native.
+        disabled={disabled}
+        aria-disabled={busy || undefined}
         aria-label={ariaLabel}
         title={ariaLabel}
       >

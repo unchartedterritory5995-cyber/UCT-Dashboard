@@ -1,0 +1,43 @@
+== flags-off render parity (MUTATION: wave-14 switch removed from tourLive)
+base b06ec4fd85 vs HEAD c89c5a4c2d
+pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+swapped 177 source files to the base blob; restored, git status unchanged
+28 identical | 12 differ (40 cases)
+  DIFFERS: help | prod-like: every capability on, getting-started off | fresh member
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
+  DIFFERS: notebook home | prod-like: every capability on, getting-started off | fresh member
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: notes list | prod-like: every capability on, getting-started off | fresh member
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: help | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
+  DIFFERS: notebook home | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: notes list | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: help | every capability on, onboarding off | fresh member
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
+  DIFFERS: notebook home | every capability on, onboarding off | fresh member
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: notes list | every capability on, onboarding off | fresh member
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: help | every capability on, onboarding off | base tour done, checklist closed
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
+  DIFFERS: notebook home | every capability on, onboarding off | base tour done, checklist closed
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+  DIFFERS: notes list | every capability on, onboarding off | base tour done, checklist closed
+    HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
+    BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
+VERDICT: PASS -- the mutation is caught

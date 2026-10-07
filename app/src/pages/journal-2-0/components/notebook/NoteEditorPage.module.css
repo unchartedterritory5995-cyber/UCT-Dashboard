@@ -12,6 +12,39 @@
   z-index: 40; /* above in-content embed controls (draw-mode Done = 30) */
   background: var(--bg);
 }
+/* Wave 13 lane 13Q-3: "Skip to editor toolbar" -- same H14-safe recipe as the app shell's own
+   skip link and NotebookTab.jsx's "Skip to note" (NotebookTab.module.css .skipLink): invisible
+   and pointer-transparent unless focused, so it can never paint over something a tap was meant
+   to hit, and portaled via SkipLinkSlotContext so it lands as an early Tab stop rather than
+   after the whole chrome it exists to bypass. */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none;
+}
+.skipLink:focus {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+@media (max-width: 1024px) {
+  .skipLink {
+    min-height: var(--tap-min);
+  }
+}
 .header {
   display: flex;
   align-items: center;

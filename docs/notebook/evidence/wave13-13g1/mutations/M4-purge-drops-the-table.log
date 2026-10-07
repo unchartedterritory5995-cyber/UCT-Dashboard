@@ -1,0 +1,70 @@
+{
+  "id": "M4-purge-drops-the-table",
+  "rail": "account purge takes j2_passed_setups",
+  "path": "api/services/journal_two/account_purge.py",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:46:15"
+}
+
+--- CONTROL (unmutated) ---
+.                                                                        [100%]
+1 passed in 13.52s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+--- MUTANT ---
+F                                                                        [100%]
+================================== FAILURES ===================================
+________________ test_the_account_purge_takes_the_members_rows ________________
+
+db_path = 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\tmpef9o8hgi.db'
+bars = <function bars.<locals>.put at 0x000001E4D9BF5380>
+
+    def test_the_account_purge_takes_the_members_rows(db_path, bars):
+        bars("SPY", _rising())
+        _manual(A, "NVDA", BASE_DAY, NOW)
+        _manual(B, "NVDA", BASE_DAY, NOW)
+        from api.services import auth_db
+        from api.services.journal_two import account_purge
+        c = auth_db.get_connection()
+        try:
+            assert account_purge.purge_user_data(A, c)["ok"] is True
+            users = {r[0] for r in c.execute("SELECT user_id FROM j2_passed_setups").fetchall()}
+        finally:
+            c.close()
+>       assert users == {B}
+E       AssertionError: assert {'user-ps-a', 'user-ps-b'} == {'user-ps-b'}
+E         
+E         Extra items in the left set:
+E         'user-ps-a'
+E         Use -v to get more diff
+
+tests\test_notebook_passed_setups.py:442: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpef9o8hgi.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_passed_setups.py::test_the_account_purge_takes_the_members_rows
+1 failed in 11.75s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

@@ -93,16 +93,35 @@ export function dowLabels() {
   return DOW_SHORT
 }
 
-/** Returns YYYY-MM-DD for "today" in America/New_York (consistent with backend). */
-export function todayET() {
-  // Use Intl to get the current ET date robustly across DST
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  return fmt.format(new Date()) // en-CA gives YYYY-MM-DD
+// Intl resolves the Eastern offset for the instant it is handed, so this stays right across
+// both daylight-saving changes. en-CA renders YYYY-MM-DD.
+const ET_DAY = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/**
+ * The Eastern TRADING day of a moment, as YYYY-MM-DD, or null.
+ * Reads a leading `YYYY-MM-DD` string as that day, and a number as epoch seconds or
+ * milliseconds. ⛔ Never `toISOString()` for this: UTC is already tomorrow from 8 pm Eastern
+ * in summer and 7 pm in winter, which is when a trader reviews.
+ * This is the ONE place that turns a moment into an Eastern day: `todayET` below, the chart
+ * block's cutoff (`tsToAnchorDay`) and the plan panel's as-of day all answer through it.
+ */
+export function etDayOf(v) {
+  if (typeof v === 'string') return /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null
+  if (typeof v !== 'number' || !Number.isFinite(v)) return null
+  const d = new Date(v > 10_000_000_000 ? v : v * 1000)
+  return Number.isNaN(d.getTime()) ? null : ET_DAY.format(d)
+}
+
+/** Returns YYYY-MM-DD for "today" in America/New_York (consistent with backend).
+ *  `now` is the instant to read (default: the clock), so a caller that already
+ *  holds an instant gets its Eastern day from this ONE place. */
+export function todayET(now = new Date()) {
+  return ET_DAY.format(now)
 }
 
 export function monthOffset(year, month, delta) {

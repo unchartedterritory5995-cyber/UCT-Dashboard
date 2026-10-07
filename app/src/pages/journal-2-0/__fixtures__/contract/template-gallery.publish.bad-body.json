@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery",
+    "status": 422
+  },
+  "body": {
+    "detail": "Send a JSON object"
+  }
+}

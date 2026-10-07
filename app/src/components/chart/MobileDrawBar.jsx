@@ -128,12 +128,29 @@ export default function MobileDrawBar({
           <span className={styles.glyph} aria-hidden="true">{TOOL_ICONS.delete}</span>
           <span className={styles.label}>Eraser</span>
         </button>
-        <button type="button" className={styles.ctl} onClick={onUndo} disabled={!canUndo} aria-label="Undo">
-          <span className={styles.glyph} aria-hidden="true">{TOOL_ICONS.undo}</span>
-        </button>
-        <button type="button" className={styles.ctl} onClick={onRedo} disabled={!canRedo} aria-label="Redo">
-          <span className={styles.glyph} aria-hidden="true">{TOOL_ICONS.redo}</span>
-        </button>
+        {/* 13H-4: Undo/Redo are rendered ONLY when a real handler was passed.
+            StockChart's annotationsEditable caller has no undo history
+            (useChartDrawings backs only the showDrawingTools overlay), so it
+            never passes onUndo/onRedo -- these were therefore two PERMANENTLY
+            DISABLED tiles on that caller already (disabled={!canUndo} with
+            canUndo's default false), just taking up ~84px of a bar that, in a
+            narrow host (the Notebook chart embed's canvas is ~268px, not the
+            full-width phone chart shell this bar was built for), leaves the
+            .tools rail ZERO width -- no drawing tool is reachable at all
+            (measured: docs/notebook/evidence/wave13-13h4/walk-3's
+            V390_drawbar_geometry, tools:[.,.,0,.]). Omitting two buttons that
+            already did nothing recovers that space without touching the
+            showDrawingTools branch, which always passes both. */}
+        {onUndo && (
+          <button type="button" className={styles.ctl} onClick={onUndo} disabled={!canUndo} aria-label="Undo">
+            <span className={styles.glyph} aria-hidden="true">{TOOL_ICONS.undo}</span>
+          </button>
+        )}
+        {onRedo && (
+          <button type="button" className={styles.ctl} onClick={onRedo} disabled={!canRedo} aria-label="Redo">
+            <span className={styles.glyph} aria-hidden="true">{TOOL_ICONS.redo}</span>
+          </button>
+        )}
         <button
           type="button"
           className={`${styles.ctl} ${magnet ? styles.ctlOn : ''}`}

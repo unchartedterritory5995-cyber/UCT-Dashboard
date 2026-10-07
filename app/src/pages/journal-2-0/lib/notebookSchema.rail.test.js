@@ -22,7 +22,8 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildExtensions, editorSchema } from './tiptap'
 import {
-  NOTEBOOK_SCHEMA_HEADER, NOTEBOOK_TYPE_SCHEMA, deriveDeclaredSchema, notebookSchemaHeaders,
+  NOTEBOOK_ATTR_SCHEMA, NOTEBOOK_SCHEMA_HEADER, NOTEBOOK_TYPE_SCHEMA, deriveDeclaredSchema,
+  notebookSchemaHeaders,
 } from './notebookSchema'
 import { runImport } from './importer/commit'
 import { revertChartEmbed } from './importer/enrichment'
@@ -337,6 +338,60 @@ describe('deriveDeclaredSchema', () => {
   })
   it('a bundle without the canvas node declares 2 -- so the server refuses its write to a canvas note', () => {
     expect(deriveDeclaredSchema(fake(['tradeCanvas']))).toBe(2)
+  })
+
+  // ── wave 13 lane 13H-1: the ATTRIBUTE table (`widgetEmbed.ta`, level 4) ──
+  const withTa = (schema) => ({ ...schema, nodes: { ...schema.nodes, widgetEmbed: { attrs: { ta: {} } } } })
+  it('declares 4 only when the widgetEmbed node registers the `ta` attribute (13H-1)', () => {
+    // A deliberate pin, like `top` above: 4 = wave 13 lane 13H-1, 2026-10-02.
+    expect(Math.max(...Object.values(NOTEBOOK_ATTR_SCHEMA))).toBe(4)
+    expect(deriveDeclaredSchema(withTa(fake()))).toBe(4)
+    // the type table alone is complete, but a widgetEmbed without `ta` would save
+    // a ta-bearing note without it: it must declare BELOW the attribute's level
+    expect(deriveDeclaredSchema(fake())).toBe(3)
+    // a ProseMirror NodeType carries `attrs`; a raw spec carries `spec.attrs` -- both read
+    expect(deriveDeclaredSchema({ ...fake(), nodes: { ...fake().nodes, widgetEmbed: { spec: { attrs: { ta: {} } } } } })).toBe(4)
+    // and a lower type missing still pulls the declaration down past the attribute
+    expect(deriveDeclaredSchema(withTa(fake(['tradeCanvas'])))).toBe(2)
+  })
+  // ⛔ THIS FILE STAYS AT THE TIP THROUGH A ROLLBACK (tools/notebook_rollback_chain.py,
+  // SCHEMA_RAILS), so nothing below may assert that the LIVE editor registers `ta`: on a
+  // correctly rolled-back tree it does not, and a red rail on a correct tree is the defect
+  // (docs/notebook/wave5-rollback.md, keep-list item 1). "This bundle registers `ta`, declares 4
+  // and round-trips a value" is asserted in notebookSchema.live.test.js, which reverts with
+  // the feature. ⚰️ Both assertions lived here until 2026-10-06; measured on the rolled-back
+  // tree they were the only two red tests in this file.
+  const TA = { v: 1, setupTag: 'Breakout', fingerprint: { v: 1 }, planBlock: { shares: 200, sizedBy: 'starter' } }
+  const TA_DOC = { type: 'doc', content: [
+    { type: 'widgetEmbed', attrs: { widgetId: 'chart', params: { symbol: 'NVDA' }, ta: TA } },
+  ] }
+  /** The editor a rollback of the attribute leaves: every extension, `widgetEmbed` without `ta`. */
+  const extensionsWithoutTa = () => buildExtensions().map((ext) => (ext.name !== 'widgetEmbed' ? ext : ext.extend({
+    addAttributes() {
+      const { ta: _dropped, ...rest } = this.parent?.() || {}
+      return rest
+    },
+  })))
+  it('an editor WITHOUT `widgetEmbed.ta` DROPS the value on load, and so must declare below 4', () => {
+    // The pinned answer to "what does an older client do with an attribute it does not know":
+    // it does not refuse and it does not keep. The note opens, the value is gone from the
+    // document, and the next autosave would write the note without it. Only the declaration
+    // below (and the server's attribute row) stands between that editor and the member's plan.
+    editor = new Editor({ extensions: extensionsWithoutTa(), content: TA_DOC })
+    expect(Object.keys(editor.schema.nodes.widgetEmbed.attrs)).not.toContain('ta')
+    const [embed] = editor.getJSON().content.filter((n) => n.type === 'widgetEmbed')
+    expect(embed.attrs.widgetId).toBe('chart')          // non-vacuity: the node itself survived
+    expect(embed.attrs.params).toEqual({ symbol: 'NVDA' })
+    expect('ta' in embed.attrs).toBe(false)
+    expect(deriveDeclaredSchema(editor.schema)).toBeLessThan(NOTEBOOK_ATTR_SCHEMA['widgetEmbed.ta'])
+  })
+  it('THIS bundle declares 4 exactly when its live editor registers `widgetEmbed.ta`', () => {
+    editor = new Editor({ extensions: buildExtensions() })
+    const registers = Object.keys(editor.schema.nodes.widgetEmbed.attrs).includes('ta')
+    // Both directions, so neither a tip bundle nor a rolled-back one can lie: registering it
+    // without declaring 4 locks members out of their own notes; declaring 4 without
+    // registering it is the silent strip.
+    expect(deriveDeclaredSchema(editor.schema) >= 4).toBe(registers)
   })
   it('drops below a level one of whose types is missing — the rollback case', () => {
     expect(deriveDeclaredSchema(fake(['inlineMath']))).toBe(0)

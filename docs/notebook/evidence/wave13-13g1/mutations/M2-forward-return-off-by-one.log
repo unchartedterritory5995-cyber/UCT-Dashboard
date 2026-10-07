@@ -1,0 +1,68 @@
+{
+  "id": "M2-forward-return-off-by-one",
+  "rail": "forward returns pinned on fixture bars",
+  "path": "api/services/journal_two/passed_setups.py",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:42:42"
+}
+
+--- CONTROL (unmutated) ---
+.                                                                        [100%]
+1 passed in 3.87s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+--- MUTANT ---
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______________ test_forward_returns_are_pinned_on_fixture_bars _______________
+
+db_path = 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\tmpwckkaywy.db'
+bars = <function bars.<locals>.put at 0x000001A6C56A5380>
+
+    def test_forward_returns_are_pinned_on_fixture_bars(db_path, bars):
+        bars("SPY", _rising())
+        bars("NVDA", _rising())
+        out = _manual(A, "NVDA", BASE_DAY, NOW)            # a past day is taken as after its close
+        item = out["item"]
+        assert item["baseDate"] == BASE_DAY and item["baseClose"] == 100.0 and item["status"] == "scored"
+        got = {o["key"]: o["pct"] for o in item["outcomes"]}
+>       assert got == {"r1": 1.0, "r5": 5.0, "r10": 10.0, "r20": 20.0, "best20": 20.5}
+E       AssertionError: assert {'best20': 20...0': 20.0, ...} == {'best20': 20...0': 20.0, ...}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {'r1': 2.0} != {'r1': 1.0}
+E         {'r5': 6.0} != {'r5': 5.0}
+E         {'r10': 11.0} != {'r10': 10.0}
+E         Use -v to get more diff
+
+tests\test_notebook_passed_setups.py:210: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpwckkaywy.db
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_passed_setups.py::test_forward_returns_are_pinned_on_fixture_bars
+1 failed in 6.75s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

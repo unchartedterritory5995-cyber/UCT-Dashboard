@@ -31,6 +31,10 @@ class TradeAttachmentError(ValueError):
 _ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 _ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+# The one sentence for an image over the cap. The router's while-read cap
+# (wave 14, `request_body_cap.capped_upload`) answers 413 with it; the check
+# below keeps it for a caller that hands this service an upload directly.
+IMAGE_TOO_BIG_SENTENCE = "Image must be < 5 MB"
 _MIME_TO_EXT = {
     "image/png": ".png", "image/jpeg": ".jpg",
     "image/gif": ".gif", "image/webp": ".webp",
@@ -61,7 +65,7 @@ async def save_trade_attachment(user_id: str, trade_ref: str, upload) -> dict[st
 
     raw = await upload.read()
     if len(raw) > _MAX_IMAGE_BYTES:
-        raise TradeAttachmentError("Image must be < 5 MB")
+        raise TradeAttachmentError(IMAGE_TOO_BIG_SENTENCE)
     if len(raw) == 0:
         raise TradeAttachmentError("Empty file")
 

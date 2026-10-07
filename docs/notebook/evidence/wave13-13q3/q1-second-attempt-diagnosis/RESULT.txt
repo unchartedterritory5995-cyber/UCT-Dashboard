@@ -1,0 +1,78 @@
+13Q-3 Q1 diagnosis: bring_to_front() is NECESSARY but NOT SUFFICIENT on its own.
+
+Four scripts in this directory, run in sequence against the real sandbox (never a
+reimplementation of the product or the instrument), to find out why the instrument's own
+full re-run (docs/notebook/evidence/wave13-13q3/run-remeasure/) still measured Q1 keys mode
+as OVER (99/38) even after `run_one` was patched with `pg.bring_to_front()` right after
+`pg = ctx.new_page()`.
+
+1. debug_new_context_vs_existing.py / debug_isolate_context_vs_input.py
+   Raw console (abbreviated to the verdict lines; full runs were reproduced twice):
+
+     (A) existing seedctx, new page, bring_to_front before nav: {'tag': 'BODY', 'name': ''}
+     (B) BRAND NEW context, new page, bring_to_front before nav: {'tag': 'BODY', 'name': ''}
+     (C) BRAND NEW context, bring_to_front x3: {'tag': 'BODY', 'name': ''}
+
+     [seedctx + CLICK] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': False, 'activeTag': 'BODY'}
+     [seedctx + KEYBOARD] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': False, 'activeTag': 'BODY'}
+     [NEW CONTEXT + CLICK] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': False, 'activeTag': 'BODY'}
+     [NEW CONTEXT + KEYBOARD] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': False, 'activeTag': 'BODY'}
+
+   Neither "brand-new BrowserContext vs an already-used one" nor "note created via a real
+   click vs via Ctrl+K keyboard" explains anything on its own -- every cell above still shows
+   the manual focus call failing even with bring_to_front() called immediately before it.
+   This DIRECTLY CONTRADICTS 13Q-2's own debug_q1_focus.py, which reported success for the
+   "seedctx + CLICK" shape. Re-running 13Q-2's script byte-for-byte (not shown as a separate
+   file here; it is 13Q-2's own, under q1-focus-foreground-diagnosis/) reproduced their
+   success. The difference was isolated next.
+
+2. debug_isolate_context_vs_input.py (second half, after adding back a FIRST manual focus
+   attempt before bring_to_front(), matching 13Q-2's script exactly):
+
+     [seedctx + CLICK] first attempt (before bring_to_front): {'activeIsPM': False}
+     [seedctx + CLICK] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': True, 'activeTag': 'DIV'}
+     [seedctx + KEYBOARD] first attempt (before bring_to_front): {'activeIsPM': False}
+     [seedctx + KEYBOARD] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': True, 'activeTag': 'DIV'}
+     [NEW CONTEXT + CLICK] first attempt (before bring_to_front): {'activeIsPM': False}
+     [NEW CONTEXT + CLICK] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': True, 'activeTag': 'DIV'}
+     [NEW CONTEXT + KEYBOARD] first attempt (before bring_to_front): {'activeIsPM': False}
+     [NEW CONTEXT + KEYBOARD] before bring_to_front: BODY | manual focus AFTER bring_to_front: {'activeIsPM': True, 'activeTag': 'DIV'}
+
+   ALL FOUR cells now succeed, regardless of context freshness or input method. The real
+   variable is "was a focus() call already attempted on this SAME editor instance before
+   bring_to_front() + a second attempt" -- not context freshness, not input method, and (per
+   debug_two_attempts_without_bring_to_front.py below) not "time elapsed" or "any generic
+   evaluate() round trip" either.
+
+3. debug_two_attempts_without_bring_to_front.py -- does TWO attempts succeed WITHOUT ever
+   calling bring_to_front()?
+
+     attempt 1 (no bring_to_front ever called): {'activeIsPM': False, 'activeTag': 'BODY'}
+     attempt 2 (still no bring_to_front ever called): {'activeIsPM': False, 'activeTag': 'BODY'}
+     document.hasFocus(): True
+
+   No. Two attempts alone, without bring_to_front(), still fail. bring_to_front() IS
+   necessary. (A separate control, not kept as its own file, showed a 5-second wait with zero
+   extra focus calls ALSO does not self-correct -- ruling out "just needs more time".)
+
+4. debug_playwright_focus_as_second_attempt.py -- is a second MANUAL page.evaluate() call
+   required, or does Playwright's OWN dedicated .focus() API work as the single extra attempt?
+
+     product's own natural attempt result (unaided): {'tag': 'BODY', 'name': ''}
+     after Playwright .focus() as the ONLY extra attempt: {'tag': 'DIV', 'role': '', 'name': 'Note body', ...}
+
+   Yes. bring_to_front() (already called) + ONE Playwright .focus() call (never a product
+   internals reach-in, never a second page.evaluate()) resolves it in a single extra step.
+
+CONCLUSION, applied in tools/notebook_w13q_clicks.py::focus_editor_body: bring_to_front() is
+necessary infrastructure (matches 13Q-2's mental model: a background page ignores
+script-triggered focus()) but was not, by itself, sufficient to make the PRODUCT's own single
+automatic focus attempt observable in this harness -- a structural quirk of CDP-driven
+headless automation that has NO member-facing equivalent (13Q-2 already proved a real
+member's single attempt succeeds, via jsdom + a direct real-browser check). The fix adds
+Playwright's own `.focus()` as a SECOND, uncounted, instrument-only attempt -- the same
+category of environment compensation as bring_to_front() itself -- used ONLY to tell the
+known harness artifact apart from a genuine reachability defect: if it resolves the focus,
+the member pays nothing; if it does not, the real Tab walk still runs and is measured
+honestly. See tests/test_notebook_w13q_clicks.py's focus_editor_body tests for the
+non-vacuity control (a genuine defect still falls through to the real walk).

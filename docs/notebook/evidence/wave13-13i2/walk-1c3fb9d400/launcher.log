@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "<string>", line 6, in <module>
+    runpy.run_path(sys.argv[0], run_name='__main__')
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 287, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13i2\scripts\hub_sandbox_boot.py", line 561, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13i2\scripts\hub_sandbox_boot.py", line 495, in main
+    baseline = drs.snapshot()
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13i2\scripts\data_root_snapshot.py", line 66, in snapshot
+    out[rel] = {"size": os.path.getsize(path), "sha256": _hash_file(path)}
+                                                         ~~~~~~~~~~^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13i2\scripts\data_root_snapshot.py", line 50, in _hash_file
+    block = fh.read(chunk)
+MemoryError

@@ -1,0 +1,684 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w13h2/app
+
+ ❯ src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx (15 tests | 1 failed) 7865ms
+     ✓ lists only flat price-pane levels, highest first 289ms
+     ✓ marking a line Stop writes the role ON the drawing through setPlanRole — no price copy 112ms
+     ✓ with no level drawn it says how to start, and offers nothing to click 32ms
+     ✓ starter: the panel shows exactly sizePlan(server answer), with the engine label  366ms
+     × Compass answered for a paid long: its shares, its label 4036ms
+     ✓ no account size: no shares, the reason, and where to set it  335ms
+     ✓ a refused reading is said out loud, never shown as an empty plan  371ms
+     ✓ "Use this size" writes ta.planBlock (shares + engine) — and only on the click  528ms
+     ✓ direction follows the role and the side 1ms
+     ✓ arms through 13H-1 adapter with the chart-namespaced drawing id and the line geometry  557ms
+     ✓ a chart the note has not saved yet says so (the adapter finds charts in the STORED note)  308ms
+     ✓ an armed level shows armed; moving its line PATCHes the bound alert; a cold mount never deletes 177ms
+     ✓ pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does 67ms
+     ✓ opens AT the note, steps forward bar by bar, and names the level hits in order  599ms
+     ✓ a chart that tracks now has nothing after it — said, not shown as an empty chart 83ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  21:30:18
+   Duration  10.23s (transform 446ms, setup 336ms, import 509ms, tests 7.87s, environment 1.12s)
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > levels and roles > lists only flat price-pane levels, highest first
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > levels and roles > marking a line Stop writes the role ON the drawing through setPlanRole — no price copy
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > touch routing: the panel claims BOTH event families > pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > R:R and size come from the server reading, sized by the starter formulas or Compass > Compass answered for a paid long: its shares, its label
+TestingLibraryElementError: Unable to find an element with the text: Sized by Compass (size_a_trade: regime-scaled, 2% account-risk cap). This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="Trade plan for NVDA"
+      class="_panel_d64a83"
+      contenteditable="false"
+      data-chart-plan-panel=""
+    >
+      <h4
+        class="_head_d64a83"
+      >
+        Trade plan
+      </h4>
+      <ul
+        aria-label="Drawn levels"
+        class="_levels_d64a83"
+      >
+        <li
+          class="_level_d64a83"
+          data-level-id="t"
+        >
+          <span
+            class="_price_d64a83"
+          >
+            112.00
+          </span>
+          <div
+            aria-label="Role of the line at 112.00"
+            class="_roles_d64a83"
+            role="radiogroup"
+          >
+            <button
+              aria-checked="true"
+              class="_roleBtn_d64a83 _roleOn_d64a83"
+              data-role="none"
+              role="radio"
+              type="button"
+            >
+              None
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="entry"
+              role="radio"
+              type="button"
+            >
+              Entry
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="stop"
+              role="radio"
+              type="button"
+            >
+              Stop
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="target"
+              role="radio"
+              type="button"
+            >
+              Target
+            </button>
+          </div>
+          <div
+            class="_alertCell_d64a83"
+          >
+            <select
+              aria-label="Alert direction at 112.00"
+              class="_dirSelect_d64a83"
+            >
+              <option
+                value="above"
+              >
+                Crosses above
+              </option>
+              <option
+                value="below"
+              >
+                Crosses below
+              </option>
+            </select>
+            <button
+              aria-label="Arm alert at this level, 112.00"
+              class="_armBtn_d64a83"
+              type="button"
+            >
+              Arm alert at this level
+            </button>
+          </div>
+        </li>
+        <li
+          class="_level_d64a83"
+          data-level-id="e"
+        >
+          <span
+            class="_price_d64a83"
+          >
+            101.50
+          </span>
+          <div
+            aria-label="Role of the line at 101.50"
+            class="_roles_d64a83"
+            role="radiogroup"
+          >
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="none"
+              role="radio"
+              type="button"
+            >
+              None
+            </button>
+            <button
+              aria-checked="true"
+              class="_roleBtn_d64a83 _roleOn_d64a83"
+              data-role="entry"
+              role="radio"
+              type="button"
+            >
+              Entry
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="stop"
+              role="radio"
+              type="button"
+            >
+              Stop
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="target"
+              role="radio"
+              type="button"
+            >
+              Target
+            </button>
+          </div>
+          <div
+            class="_alertCell_d64a83"
+          >
+            <button
+              aria-label="Arm alert at this level, 101.50"
+              class="_armBtn_d64a83"
+              type="button"
+            >
+              Arm alert at this level
+            </button>
+          </div>
+        </li>
+        <li
+          class="_level_d64a83"
+          data-level-id="s"
+        >
+          <span
+            class="_price_d64a83"
+          >
+            97.25
+          </span>
+          <div
+            aria-label="Role of the line at 97.25"
+            class="_roles_d64a83"
+            role="radiogroup"
+          >
+            <button
+              aria-checked="true"
+              class="_roleBtn_d64a83 _roleOn_d64a83"
+              data-role="none"
+              role="radio"
+              type="button"
+            >
+              None
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="entry"
+              role="radio"
+              type="button"
+            >
+              Entry
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="stop"
+              role="radio"
+              type="button"
+            >
+              Stop
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="target"
+              role="radio"
+              type="button"
+            >
+              Target
+            </button>
+          </div>
+          <div
+            class="_alertCell_d64a83"
+          >
+            <select
+              aria-label="Alert direction at 97.25"
+              class="_dirSelect_d64a83"
+            >
+              <option
+                value="above"
+              >
+                Crosses above
+              </option>
+              <option
+                value="below"
+              >
+                Crosses below
+              </option>
+            </select>
+            <button
+              aria-label="Arm alert at this level, 97.25"
+              class="_armBtn_d64a83"
+              type="button"
+            >
+              Arm alert at this level
+            </button>
+          </div>
+        </li>
+      </ul>
+      <div
+        aria-live="polite"
+        class="_numbers_d64a83"
+      >
+        <dl
+          class="_grid_d64a83"
+        >
+          <div>
+            <dt>
+              R:R
+            </dt>
+            <dd
+              data-plan-value="rr"
+            >
+              2.47R
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Risk / share
+            </dt>
+            <dd
+              data-plan-value="rps"
+            >
+              $4.25
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Account risk
+            </dt>
+            <dd
+              data-plan-value="acct"
+            >
+              $1,000.00
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Position size
+            </dt>
+            <dd
+              data-plan-value="shares"
+            >
+              235 sh
+            </dd>
+          </div>
+        </dl>
+        <p
+          class="_engine_d64a83"
+          data-sized-by="starter"
+        >
+          Sized by the Position size formula (account risk ÷ risk per share)
+        </p>
+        <button
+          class="_saveBtn_d64a83"
+          type="button"
+        >
+          Use this size in the plan
+        </button>
+      </div>
+    </section>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="Trade plan for NVDA"
+      class="_panel_d64a83"
+      contenteditable="false"
+      data-chart-plan-panel=""
+    >
+      <h4
+        class="_head_d64a83"
+      >
+        Trade plan
+      </h4>
+      <ul
+        aria-label="Drawn levels"
+        class="_levels_d64a83"
+      >
+        <li
+          class="_level_d64a83"
+          data-level-id="t"
+        >
+          <span
+            class="_price_d64a83"
+          >
+            112.00
+          </span>
+          <div
+            aria-label="Role of the line at 112.00"
+            class="_roles_d64a83"
+            role="radiogroup"
+          >
+            <button
+              aria-checked="true"
+              class="_roleBtn_d64a83 _roleOn_d64a83"
+              data-role="none"
+              role="radio"
+              type="button"
+            >
+              None
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="entry"
+              role="radio"
+              type="button"
+            >
+              Entry
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="stop"
+              role="radio"
+              type="button"
+            >
+              Stop
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="target"
+              role="radio"
+              type="button"
+            >
+              Target
+            </button>
+          </div>
+          <div
+            class="_alertCell_d64a83"
+          >
+            <select
+              aria-label="Alert direction at 112.00"
+              class="_dirSelect_d64a83"
+            >
+              <option
+                value="above"
+              >
+                Crosses above
+              </option>
+              <option
+                value="below"
+              >
+                Crosses below
+              </option>
+            </select>
+            <button
+              aria-label="Arm alert at this level, 112.00"
+              class="_armBtn_d64a83"
+              type="button"
+            >
+              Arm alert at this level
+            </button>
+          </div>
+        </li>
+        <li
+          class="_level_d64a83"
+          data-level-id="e"
+        >
+          <span
+            class="_price_d64a83"
+          >
+            101.50
+          </span>
+          <div
+            aria-label="Role of the line at 101.50"
+            class="_roles_d64a83"
+            role="radiogroup"
+          >
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="none"
+              role="radio"
+              type="button"
+            >
+              None
+            </button>
+            <button
+              aria-checked="true"
+              class="_roleBtn_d64a83 _roleOn_d64a83"
+              data-role="entry"
+              role="radio"
+              type="button"
+            >
+              Entry
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="stop"
+              role="radio"
+              type="button"
+            >
+              Stop
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="target"
+              role="radio"
+              type="button"
+            >
+              Target
+            </button>
+          </div>
+          <div
+            class="_alertCell_d64a83"
+          >
+            <button
+              aria-label="Arm alert at this level, 101.50"
+              class="_armBtn_d64a83"
+              type="button"
+            >
+              Arm alert at this level
+            </button>
+          </div>
+        </li>
+        <li
+          class="_level_d64a83"
+          data-level-id="s"
+        >
+          <span
+            class="_price_d64a83"
+          >
+            97.25
+          </span>
+          <div
+            aria-label="Role of the line at 97.25"
+            class="_roles_d64a83"
+            role="radiogroup"
+          >
+            <button
+              aria-checked="true"
+              class="_roleBtn_d64a83 _roleOn_d64a83"
+              data-role="none"
+              role="radio"
+              type="button"
+            >
+              None
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="entry"
+              role="radio"
+              type="button"
+            >
+              Entry
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="stop"
+              role="radio"
+              type="button"
+            >
+              Stop
+            </button>
+            <button
+              aria-checked="false"
+              class="_roleBtn_d64a83 "
+              data-role="target"
+              role="radio"
+              type="button"
+            >
+              Target
+            </button>
+          </div>
+          <div
+            class="_alertCell_d64a83"
+          >
+            <select
+              aria-label="Alert direction at 97.25"
+              class="_dirSelect_d64a83"
+            >
+              <option
+                value="above"
+              >
+                Crosses above
+              </option>
+              <option
+                value="below"
+              >
+                Crosses below
+              </option>
+            </select>
+            <button
+              aria-label="Arm alert at this level, 97.25"
+              class="_armBtn_d64a83"
+              type="button"
+            >
+              Arm alert at this level
+            </button>
+          </div>
+        </li>
+      </ul>
+      <div
+        aria-live="polite"
+        class="_numbers_d64a83"
+      >
+        <dl
+          class="_grid_d64a83"
+        >
+          <div>
+            <dt>
+              R:R
+            </dt>
+            <dd
+              data-plan-value="rr"
+            >
+              2.47R
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Risk / share
+            </dt>
+            <dd
+              data-plan-value="rps"
+            >
+              $4.25
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Account risk
+            </dt>
+            <dd
+              data-plan-value="acct"
+            >
+              $1,000.00
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Position size
+            </dt>
+            <dd
+              data-plan-value="shares"
+            >
+              235 sh
+            </dd>
+          </div>
+        </dl>
+        <p
+          class="_engine_d64a83"
+          data-sized-by="starter"
+        >
+          Sized by the Position size formula (account risk ÷ risk per share)
+        </p>
+        <button
+          class="_saveBtn_d64a83"
+          type="button"
+        >
+          Use this size in the plan
+        </button>
+      </div>
+    </section>
+  </div>
+</body>
+ ❯ waitForWrapper ../../notebook-w10-l13/app/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../notebook-w10-l13/app/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx:137:18
+    135|     sizeAnswer = { plan: PLAN, account: ACCOUNT, compass: { ok: true, …
+    136|     renderPanel({ attrs: attrsWith(ANNS) })
+    137|     await screen.findByText(SIZED_BY_LABEL.compass)
+       |                  ^
+    138|     expect(screen.getByText(/^Sized by Compass/)).toBeInTheDocument()
+    139|     expect(document.querySelector('[data-plan-value="shares"]').textCo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

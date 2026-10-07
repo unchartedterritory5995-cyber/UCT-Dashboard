@@ -1,0 +1,1245 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/similar-names/fb251b57c22e461b8291aac48f4db344/e-SBNV",
+    "note": "Tonight's stored matches for one tagged chart, written by the real nightly job.",
+    "path": "/api/j2/similar-names/fb251b57c22e461b8291aac48f4db344/e-SBNV",
+    "status": 200
+  },
+  "body": {
+    "asOf": "2026-10-02",
+    "computedAt": "2026-10-05T14:30:00+00:00",
+    "matches": [
+      {
+        "coverage": 1.0,
+        "distance": 0.0,
+        "rank": 1,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 5.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 92,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 12.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 100,
+        "symbol": "SM00"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.0193,
+        "rank": 2,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 5.2,
+              "d": 0.0667,
+              "delta": 0.2,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 91,
+              "d": 0.04,
+              "delta": -1.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 12.5,
+              "d": 0.05,
+              "delta": 0.5,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 98,
+        "symbol": "SM01"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.0386,
+        "rank": 3,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 5.4,
+              "d": 0.1333,
+              "delta": 0.4,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 90,
+              "d": 0.08,
+              "delta": -2.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 13.0,
+              "d": 0.1,
+              "delta": 1.0,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 96,
+        "symbol": "SM02"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.0578,
+        "rank": 4,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 5.6,
+              "d": 0.2,
+              "delta": 0.6,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 89,
+              "d": 0.12,
+              "delta": -3.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 13.5,
+              "d": 0.15,
+              "delta": 1.5,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 94,
+        "symbol": "SM03"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.0771,
+        "rank": 5,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 5.8,
+              "d": 0.2667,
+              "delta": 0.8,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 88,
+              "d": 0.16,
+              "delta": -4.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 14.0,
+              "d": 0.2,
+              "delta": 2.0,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 92,
+        "symbol": "SM04"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.0964,
+        "rank": 6,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 6.0,
+              "d": 0.3333,
+              "delta": 1.0,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 87,
+              "d": 0.2,
+              "delta": -5.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 14.5,
+              "d": 0.25,
+              "delta": 2.5,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 90,
+        "symbol": "SM05"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.1157,
+        "rank": 7,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 6.2,
+              "d": 0.4,
+              "delta": 1.2,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 86,
+              "d": 0.24,
+              "delta": -6.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 15.0,
+              "d": 0.3,
+              "delta": 3.0,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 88,
+        "symbol": "SM06"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.1349,
+        "rank": 8,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 6.4,
+              "d": 0.4667,
+              "delta": 1.4,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 85,
+              "d": 0.28,
+              "delta": -7.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 15.5,
+              "d": 0.35,
+              "delta": 3.5,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 87,
+        "symbol": "SM07"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.1542,
+        "rank": 9,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 6.6,
+              "d": 0.5333,
+              "delta": 1.6,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 84,
+              "d": 0.32,
+              "delta": -8.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 16.0,
+              "d": 0.4,
+              "delta": 4.0,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 85,
+        "symbol": "SM08"
+      },
+      {
+        "coverage": 1.0,
+        "distance": 0.1735,
+        "rank": 10,
+        "reasons": {
+          "fields": [
+            {
+              "candidate": 6.8,
+              "d": 0.6,
+              "delta": 1.8,
+              "field": "adr_pct",
+              "label": "ADR",
+              "same": null,
+              "template": 5.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 2.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma20",
+              "label": "vs 20-day",
+              "same": null,
+              "template": 2.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 10.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma50",
+              "label": "vs 50-day",
+              "same": null,
+              "template": 10.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 30.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pct_vs_sma200",
+              "label": "vs 200-day",
+              "same": null,
+              "template": 30.0,
+              "unit": "%"
+            },
+            {
+              "candidate": "full-bull",
+              "d": 0.0,
+              "delta": null,
+              "field": "ma_stack",
+              "label": "MA stack",
+              "same": true,
+              "template": "full-bull",
+              "unit": ""
+            },
+            {
+              "candidate": true,
+              "d": 0.0,
+              "delta": null,
+              "field": "ema_stack_intact",
+              "label": "EMA stack",
+              "same": true,
+              "template": true,
+              "unit": ""
+            },
+            {
+              "candidate": 83,
+              "d": 0.36,
+              "delta": -9.0,
+              "field": "rs_rank",
+              "label": "RS",
+              "same": null,
+              "template": 92,
+              "unit": ""
+            },
+            {
+              "candidate": "up",
+              "d": 0.0,
+              "delta": null,
+              "field": "rs_line_trend",
+              "label": "RS line",
+              "same": true,
+              "template": "up",
+              "unit": ""
+            },
+            {
+              "candidate": 16.5,
+              "d": 0.45,
+              "delta": 4.5,
+              "field": "pullback_depth_pct",
+              "label": "depth",
+              "same": null,
+              "template": 12.0,
+              "unit": "%"
+            },
+            {
+              "candidate": 1.5,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "close_cv_pct",
+              "label": "tightness",
+              "same": null,
+              "template": 1.5,
+              "unit": "%"
+            },
+            {
+              "candidate": 60.0,
+              "d": 0.0,
+              "delta": 0.0,
+              "field": "pole_pct",
+              "label": "prior run",
+              "same": null,
+              "template": 60.0,
+              "unit": "%"
+            }
+          ],
+          "patterns": null
+        },
+        "score": 83,
+        "symbol": "SM09"
+      }
+    ],
+    "status": "ready",
+    "template": {
+      "asOf": "2026-09-28",
+      "embedKey": "e-SBNV",
+      "frozen": true,
+      "noteId": "fb251b57c22e461b8291aac48f4db344",
+      "noteTitle": "SBNV breakout",
+      "setupTag": "Breakout",
+      "symbol": "SBNV"
+    }
+  }
+}

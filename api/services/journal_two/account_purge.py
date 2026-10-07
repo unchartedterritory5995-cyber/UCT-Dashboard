@@ -97,6 +97,12 @@ _DIRECT_USER_TABLES = (
     "j2_trade_attachments",
     "j2_trade_excursions",
     "j2_trade_adherence",
+    # Wave 13 (lane 13A) -- the member's frozen plan-vs-execution links, keyed on the
+    # same stable trade_ref. Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_trade_plan_links",
+    # fin-security I-2 -- plan grading's remembered "unplanned" answers (a memo keyed like the
+    # links above). Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_trade_plan_misses",
     # Broker (SnapTrade) — superset of broker/service.py's narrower purge
     "j2_broker_users",
     "j2_broker_accounts",
@@ -142,6 +148,42 @@ _DIRECT_USER_TABLES = (
     # so on a pod where the door never ran this is a "no such table" no-op.
     "j2_ai_change_sets",
     "j2_ai_change_items",
+    # Wave 12 (lane 12A, the community template gallery) -- the member's published
+    # gallery copies (an author's account deletion takes their listings with it; copies
+    # other members already made are theirs and stay), the reports they filed, and the
+    # record of which gallery templates they copied. Created by db.ensure_schema via
+    # template_gallery.ensure_gallery_schema. Firm rows carry no user_id and never match.
+    "j2_template_gallery",
+    "j2_template_gallery_reports",
+    "j2_template_gallery_uses",
+    # Wave 13 (lane 13I-1, the technical fingerprint) -- the member's chart-block index (a
+    # projection of their notes) and the freeze ledger of each block's fingerprint.
+    # Self-ensured by chart_blocks.py (never db.py), so on a pod where the routes never ran
+    # this is a "no such table" no-op.
+    "j2_chart_blocks",
+    "j2_chart_fingerprints",
+    # Wave 13 (lane 13E-1, the market context frozen at the fill) -- one row per (member,
+    # symbol, entry day), with the member's "why did you take it" note. Self-ensured by
+    # entry_context.py (never db.py), so on a pod where it never ran this is a no-op.
+    "j2_entry_context",
+    # Wave 13 (lane 13E-2, the one-a-day new-fill bell) -- the claim log that dedupes it.
+    # Self-ensured by entry_context.py; same no-op-on-a-fresh-pod note as the row above.
+    "j2_entry_context_bell_log",
+    # Wave 13 (lane 13G-1, passed setups) -- the names the member saved and did not trade,
+    # with their frozen scores. Self-ensured by passed_setups.py (never db.py), so on a pod
+    # where the door never ran this is a "no such table" no-op. (13G-1 transcript passages
+    # are ordinary j2_note_documents / pages / excerpts rows, already purged above.)
+    "j2_passed_setups",
+    # Wave 13 (lane 13D, resurfacing) -- the member's level index (a projection of their
+    # notes through plan_extract) and the ledger of which of their notes came back and when.
+    # Self-ensured by note_levels.py (never db.py), so on a pod where the scan's resurfacing
+    # pass never ran this is a "no such table" no-op.
+    "j2_note_levels",
+    "j2_note_resurface_fires",
+    # Wave 13 (lane 13J, find more like this) -- the nightly matches for the member's tagged
+    # chart blocks. Self-ensured by similar_matches.py (never db.py), so on a pod where the
+    # job never ran this is a "no such table" no-op.
+    "j2_similar_matches",
     # FT-072 (lane/o-options-remainders) -- the member's saved Spread Book. Self-ensured by
     # api/services/options_analytics/spread_book.py (never db.py), so on a pod where the book
     # was never opened this is a "no such table" no-op.
@@ -276,8 +318,30 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
         (user_id,),
     )
 
+    # Security review M-7 -- what OTHER members recorded about this member's gallery
+    # templates: their reports (a free-text note each) and their use records. These rows
+    # carry the other member's user_id, so the direct loop below never matches them, and
+    # once the templates are gone they point at nothing. Run BEFORE that loop, while the
+    # templates they key off still exist. The member's own reports and uses go in the loop.
+    about_their_templates = {
+        "j2_template_gallery_reports": _run(
+            "j2_template_gallery_reports",
+            "DELETE FROM j2_template_gallery_reports WHERE gallery_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+        "j2_template_gallery_uses": _run(
+            "j2_template_gallery_uses",
+            "DELETE FROM j2_template_gallery_uses WHERE gallery_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+    }
+
     for table in _DIRECT_USER_TABLES:
         deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+    for table, count in about_their_templates.items():
+        deleted[table] = deleted.get(table, 0) + count      # one count per table (the manifest's keys)
 
     # Wave 7 whole-branch fix, ruling D-H10 -- the durable daily counters
     # (`api/services/daily_counters.py`, ruling D-H5b): one row per (scope,

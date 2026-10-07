@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/thesis-chips",
+    "path": "/api/j2/thesis-chips",
+    "requestBody": {
+      "symbols": [
+        "TCNV"
+      ]
+    },
+    "status": 402
+  },
+  "body": {
+    "detail": "Thesis chips require a paid plan"
+  }
+}

@@ -6,16 +6,40 @@
  *   onFeedback(value: 'helpful'|'unhelpful'): void
  *   onRegenerate(): void
  *   onForget(): void
+ *   accountId: the J2 selected account (or null for unified) — wave 13 lane 13F's
+ *     "Draft in today's note" door reads the same period the recap itself covers
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
+import { reviewDraftsEnabled, draftDailyReview, todayDayIso } from '../lib/reviewDrafts'
+import { compassScope } from '../hooks/compassScope'
 
-export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) {
+export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, accountId }) {
   const body = useMemo(() => renderMarkdown(recap?.body), [recap?.body])
+  const navigate = useNavigate()
+  const [drafting, setDrafting] = useState(false)
+  const [draftError, setDraftError] = useState(null)
   if (!recap) return null
+
+  const day = recap.day || recap.metadata?.day
+  const handleDraft = async () => {
+    if (drafting || !day) return
+    setDrafting(true)
+    setDraftError(null)
+    try {
+      const { note } = await draftDailyReview({ accountId: compassScope(accountId), day })
+      navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setDraftError(e?.memberMessage || 'Could not draft this recap into your daily note — try again.')
+    } finally {
+      setDrafting(false)
+    }
+  }
 
   const feedback = recap.feedback
   const validationPassed = recap.validation?.passed !== false
@@ -57,8 +81,25 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) 
           ><UIcon name="thumbsDown" size={11} /></button>
           <button type="button" onClick={onRegenerate} style={ghost()}>Regen</button>
           <button type="button" onClick={onForget} style={ghost()}>Forget</button>
+          {reviewDraftsEnabled() && (
+            <button
+              type="button"
+              className="touchTarget"
+              onClick={handleDraft}
+              disabled={drafting}
+              style={ghost()}
+            >
+              {/* The draft lands in the daily note OF THE RECAP'S OWN DAY (fin-data M1). */}
+              {drafting ? 'Drafting…' : (day === todayDayIso() ? 'Draft in today’s note' : 'Draft in that day’s note')}
+            </button>
+          )}
         </div>
       </header>
+      {draftError && (
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 11, margin: '4px 0 8px' }}>
+          {draftError}
+        </p>
+      )}
       {!validationPassed && (
         <div
           role="alert"
@@ -68,7 +109,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) 
             background: 'rgba(239,68,68,0.08)',
             border: '1px solid rgba(239,68,68,0.4)',
             borderRadius: 6,
-            color: 'var(--loss, #ef4444)',
+            color: 'var(--danger-ink)',
             fontSize: 11,
           }}
         >

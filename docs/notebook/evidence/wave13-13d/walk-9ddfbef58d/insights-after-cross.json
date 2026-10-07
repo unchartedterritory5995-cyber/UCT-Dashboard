@@ -1,0 +1,14 @@
+[
+ {
+  "id": 1,
+  "kind": "note_level_touch",
+  "symbol": "NVDA",
+  "headline": "NVDA reached 100.00, the stop you named",
+  "body": "In “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-03. NVDA is at 98.00 now. Here's what you thought then.",
+  "importance": 7,
+  "delivered_at": null,
+  "dismissed_at": null,
+  "created_at": "2026-10-03 04:03:30",
+  "link": "/journal/notebook?note=fc5ccb2ab65549b69886d2352ee00091&resurfaceVersion=5a47f8225f4d408bac8663c22889915b"
+ }
+]

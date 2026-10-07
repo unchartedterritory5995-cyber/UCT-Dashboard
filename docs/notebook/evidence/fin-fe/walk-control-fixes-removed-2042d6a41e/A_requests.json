@@ -1,0 +1,536 @@
+[
+ {
+  "t": 1791346452.414,
+  "method": "GET",
+  "url": "/api/maintenance",
+  "status": 200
+ },
+ {
+  "t": 1791346452.415,
+  "method": "GET",
+  "url": "/api/auth/me",
+  "status": 200
+ },
+ {
+  "t": 1791346452.572,
+  "method": "GET",
+  "url": "/api/watchlists?include_prebuilt=0",
+  "status": 200
+ },
+ {
+  "t": 1791346452.572,
+  "method": "GET",
+  "url": "/api/voice/insights/pending",
+  "status": 200
+ },
+ {
+  "t": 1791346452.572,
+  "method": "GET",
+  "url": "/api/community/status",
+  "status": 200
+ },
+ {
+  "t": 1791346452.573,
+  "method": "GET",
+  "url": "/api/alerts?limit=20",
+  "status": 200
+ },
+ {
+  "t": 1791346452.573,
+  "method": "GET",
+  "url": "/api/indicator-alerts/delivery-health?limit=10",
+  "status": 200
+ },
+ {
+  "t": 1791346452.573,
+  "method": "GET",
+  "url": "/api/auth/preferences",
+  "status": 200
+ },
+ {
+  "t": 1791346452.573,
+  "method": "GET",
+  "url": "/api/watchlists/flagged",
+  "status": 200
+ },
+ {
+  "t": 1791346452.574,
+  "method": "POST",
+  "url": "/api/auth/track",
+  "status": 200
+ },
+ {
+  "t": 1791346452.574,
+  "method": "GET",
+  "url": "/api/barspack/manifest",
+  "status": 200
+ },
+ {
+  "t": 1791346452.574,
+  "method": "GET",
+  "url": "/api/auth/avatar/50826320-fdc4-42c9-bba3-f86391d749cd",
+  "status": 200
+ },
+ {
+  "t": 1791346452.606,
+  "method": "GET",
+  "url": "/api/barspack/manifest",
+  "status": 200
+ },
+ {
+  "t": 1791346452.606,
+  "method": "GET",
+  "url": "/api/intradaypack/manifest",
+  "status": 200
+ },
+ {
+  "t": 1791346452.853,
+  "method": "GET",
+  "url": "/api/j2/accounts",
+  "status": 200
+ },
+ {
+  "t": 1791346452.854,
+  "method": "GET",
+  "url": "/api/j2/settings",
+  "status": 200
+ },
+ {
+  "t": 1791346452.854,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346452.854,
+  "method": "GET",
+  "url": "/api/ticker-tags",
+  "status": 200
+ },
+ {
+  "t": 1791346452.855,
+  "method": "GET",
+  "url": "/api/ticker-tags/shared",
+  "status": 200
+ },
+ {
+  "t": 1791346452.855,
+  "method": "GET",
+  "url": "/api/ticker-tags/public",
+  "status": 200
+ },
+ {
+  "t": 1791346452.855,
+  "method": "GET",
+  "url": "/api/watchlists?include_items=0",
+  "status": 200
+ },
+ {
+  "t": 1791346452.855,
+  "method": "GET",
+  "url": "/api/j2/accounts/comparison",
+  "status": 200
+ },
+ {
+  "t": 1791346452.855,
+  "method": "GET",
+  "url": "/api/j2/positions",
+  "status": 200
+ },
+ {
+  "t": 1791346452.856,
+  "method": "POST",
+  "url": "/api/j2/broker/sync?background=1",
+  "status": 503
+ },
+ {
+  "t": 1791346452.856,
+  "method": "POST",
+  "url": "/api/j2/broker/fills/check",
+  "status": 200
+ },
+ {
+  "t": 1791346452.878,
+  "method": "POST",
+  "url": "/api/watchlists/flagged/sync",
+  "status": 200
+ },
+ {
+  "t": 1791346452.923,
+  "method": "GET",
+  "url": "/api/voice/settings",
+  "status": 200
+ },
+ {
+  "t": 1791346452.976,
+  "method": "GET",
+  "url": "/api/community/unread",
+  "status": 200
+ },
+ {
+  "t": 1791346453.26,
+  "method": "GET",
+  "url": "/api/j2/note-folders",
+  "status": 200
+ },
+ {
+  "t": 1791346453.26,
+  "method": "GET",
+  "url": "/api/j2/notes/folder-counts",
+  "status": 200
+ },
+ {
+  "t": 1791346453.26,
+  "method": "GET",
+  "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+  "status": 200
+ },
+ {
+  "t": 1791346453.261,
+  "method": "GET",
+  "url": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+  "status": 200
+ },
+ {
+  "t": 1791346453.261,
+  "method": "GET",
+  "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+  "status": 200
+ },
+ {
+  "t": 1791346453.261,
+  "method": "GET",
+  "url": "/api/j2/notes/favorites",
+  "status": 200
+ },
+ {
+  "t": 1791346453.261,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791346453.262,
+  "method": "GET",
+  "url": "/api/j2/notes/tags",
+  "status": 200
+ },
+ {
+  "t": 1791346453.262,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f",
+  "status": 200
+ },
+ {
+  "t": 1791346453.262,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/documents",
+  "status": 200
+ },
+ {
+  "t": 1791346453.262,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/excerpts",
+  "status": 200
+ },
+ {
+  "t": 1791346453.263,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/facts",
+  "status": 200
+ },
+ {
+  "t": 1791346453.263,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/evidence-candidates",
+  "status": 200
+ },
+ {
+  "t": 1791346453.263,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/thesis-summary",
+  "status": 200
+ },
+ {
+  "t": 1791346453.264,
+  "method": "GET",
+  "url": "/api/j2/saved-views",
+  "status": 200
+ },
+ {
+  "t": 1791346453.264,
+  "method": "GET",
+  "url": "/api/j2/property-defs",
+  "status": 200
+ },
+ {
+  "t": 1791346453.264,
+  "method": "GET",
+  "url": "/api/j2/notes?sort=updated",
+  "status": 200
+ },
+ {
+  "t": 1791346453.264,
+  "method": "GET",
+  "url": "/api/j2/notes?sort=title",
+  "status": 200
+ },
+ {
+  "t": 1791346453.265,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346453.265,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346453.267,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346453.328,
+  "method": "GET",
+  "url": "/api/j2/accounts/5fe2bebe-ec8e-457e-9a5b-e227cb878e6d/settings",
+  "status": 200
+ },
+ {
+  "t": 1791346453.329,
+  "method": "GET",
+  "url": "/api/j2/positions?account_id=5fe2bebe-ec8e-457e-9a5b-e227cb878e6d",
+  "status": 200
+ },
+ {
+  "t": 1791346453.659,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/trade-ref/resolve",
+  "status": 200
+ },
+ {
+  "t": 1791346453.659,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/properties",
+  "status": 200
+ },
+ {
+  "t": 1791346453.659,
+  "method": "GET",
+  "url": "/api/j2/inbox",
+  "status": 200
+ },
+ {
+  "t": 1791346453.662,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/backlinks",
+  "status": 200
+ },
+ {
+  "t": 1791346453.662,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/related-from",
+  "status": 200
+ },
+ {
+  "t": 1791346453.663,
+  "method": "GET",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/unlinked-mentions",
+  "status": 200
+ },
+ {
+  "t": 1791346453.664,
+  "method": "POST",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f/opened",
+  "status": 200
+ },
+ {
+  "t": 1791346453.668,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346454.081,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791346454.132,
+  "method": "GET",
+  "url": "/api/j2/notebook-fingerprint/meta",
+  "status": 200
+ },
+ {
+  "t": 1791346454.137,
+  "method": "POST",
+  "url": "/api/j2/notebook-fingerprint/blocks/fe19f19ed8974cbd964be23ea0e65a0f/emb-a/freeze",
+  "status": 200
+ },
+ {
+  "t": 1791346454.438,
+  "method": "GET",
+  "url": "/api/j2/trades?account_id=5fe2bebe-ec8e-457e-9a5b-e227cb878e6d",
+  "status": 200
+ },
+ {
+  "t": 1791346454.438,
+  "method": "GET",
+  "url": "/api/user-definitions?graph=1",
+  "status": 200
+ },
+ {
+  "t": 1791346454.438,
+  "method": "GET",
+  "url": "/api/ticker-meta/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791346454.439,
+  "method": "GET",
+  "url": "/api/ticker-ipo/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791346454.439,
+  "method": "GET",
+  "url": "/api/delisted/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791346454.459,
+  "method": "GET",
+  "url": "/api/market-indicators",
+  "status": 200
+ },
+ {
+  "t": 1791346454.459,
+  "method": "GET",
+  "url": "/api/bars-today-pack",
+  "status": 200
+ },
+ {
+  "t": 1791346454.459,
+  "method": "GET",
+  "url": "/api/breadth-symbols",
+  "status": 200
+ },
+ {
+  "t": 1791346454.46,
+  "method": "GET",
+  "url": "/api/etf/symbols",
+  "status": 200
+ },
+ {
+  "t": 1791346454.491,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=D&bars=12500&to=2026-06-15",
+  "status": 200
+ },
+ {
+  "t": 1791346455.29,
+  "method": "PUT",
+  "url": "/api/j2/notes/fe19f19ed8974cbd964be23ea0e65a0f",
+  "status": 200
+ },
+ {
+  "t": 1791346455.852,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346456.061,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=5&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346456.071,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=60&bars=1138&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346456.079,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=30&bars=1120&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346456.09,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=15&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346456.099,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=W&bars=600&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346456.108,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=M&bars=600&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346456.117,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=1&bars=960&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346459.132,
+  "method": "POST",
+  "url": "/api/j2/chart-plan/alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346459.191,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346459.232,
+  "method": "DELETE",
+  "url": "/api/watchlist-alerts/bound/charts-line-1",
+  "status": 200
+ },
+ {
+  "t": 1791346459.257,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346459.296,
+  "method": "DELETE",
+  "url": "/api/watchlist-alerts/bound/nb%3Aemb-a%3Anote-line-1",
+  "status": 200
+ },
+ {
+  "t": 1791346459.344,
+  "method": "POST",
+  "url": "/api/j2/chart-plan/size",
+  "status": 200
+ },
+ {
+  "t": 1791346459.405,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346460.925,
+  "method": "GET",
+  "url": "/api/voice/insights/unspoken",
+  "status": 200
+ }
+]

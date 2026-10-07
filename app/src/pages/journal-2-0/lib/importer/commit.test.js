@@ -386,6 +386,179 @@ describe('runImport', () => {
     expect(calls.filter((c) => c.url === '/api/j2/notes/n1' && c.method === 'PUT')).toHaveLength(1)
   })
 
+  it('names the reason the server gave when a file is refused for its size (413), not a bare status', async () => {
+    // The upload doors cap the body while it is read and answer 413 with a
+    // sentence a member can act on. "Upload failed (HTTP 413)" told them nothing.
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+      }
+      if (url.includes('/attachments')) {
+        return new Response(JSON.stringify({ detail: 'File must be < 25 MB' }), { status: 413 })
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [],
+               bodyJson: doc([img('import-ref://big.pdf')]), bodyPlain: 'x',
+               media: [{ ref: 'big.pdf', kind: 'file', name: 'big.pdf',
+                         vfile: { bytes: async () => new Uint8Array([1]), path: 'big.pdf' } }],
+               links: [] }],
+      onProgress: () => {},
+    })
+    expect(summary.failures).toEqual([{ name: 'big.pdf', reason: 'File must be < 25 MB' }])
+  })
+
+  // ── the confirm step is sent as several requests, bounded by bytes and by count ──
+
+  // A stand-in for the confirm door with the two properties the real one has:
+  // a request over `capBytes` is refused whole (413), and a note is matched by
+  // its importKey, so sending it again never creates a second one.
+  function fakeConfirmServer({ capBytes, failRequest = null, tooLongKeys = [] }) {
+    const stored = new Map()
+    const requests = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (!String(url).endsWith('/import/confirm')) return new Response(JSON.stringify({ ok: true }))
+      const bytes = new TextEncoder().encode(opts.body).length
+      const notes = JSON.parse(opts.body).notes
+      requests.push({ bytes, keys: notes.map((n) => n.importKey) })
+      if (bytes > capBytes) {
+        return new Response(JSON.stringify({
+          detail: 'That batch of notes is too large for one request. Send the notes in smaller batches.',
+        }), { status: 413 })
+      }
+      if (failRequest === requests.length) {
+        return new Response(JSON.stringify({ detail: 'the database is busy' }), { status: 503 })
+      }
+      const out = { created: [], updated: [], skipped: [], failed: [] }
+      for (const n of notes) {
+        if (tooLongKeys.includes(n.importKey)) {
+          out.failed.push({
+            importKey: n.importKey,
+            error: 'This note is too long to save as one page. Split it into two or more notes and try again.',
+          })
+        } else if (stored.has(n.importKey)) {
+          out.skipped.push({ importKey: n.importKey, id: stored.get(n.importKey) })
+        } else {
+          stored.set(n.importKey, `id-${stored.size + 1}`)
+          out.created.push({ importKey: n.importKey, id: stored.get(n.importKey) })
+        }
+      }
+      return new Response(JSON.stringify(out))
+    }))
+    return { stored, requests }
+  }
+
+  const bigDoc = (i, chars) => ({
+    importKey: `file:${i}.md`, title: `Note ${i}`, tags: [], folderPath: [],
+    bodyJson: doc([{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(chars) }] }]),
+    bodyPlain: 'x', media: [], links: [],
+  })
+
+  it('sends a large import as several requests, each under the byte limit, and totals them', async () => {
+    // 7 notes of ~1,000 bytes with a 2,600-byte limit per request: 2 notes fit, 3 do not.
+    const server = fakeConfirmServer({ capBytes: 8192 })
+    const progress = []
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: Array.from({ length: 7 }, (_, i) => bigDoc(i, 1000)),
+      limits: { maxBytes: 4096 + 2600, maxNotes: 200 },
+      onProgress: (p) => { if (p.phase === 'confirm') progress.push(p.done) },
+    })
+    expect(server.requests.map((r) => r.keys.length)).toEqual([2, 2, 2, 1])
+    expect(server.requests.every((r) => r.bytes <= 4096 + 2600)).toBe(true)
+    expect(summary.created).toBe(7)
+    expect(summary.failures).toEqual([])
+    expect(summary.failedBatches).toEqual([])
+    expect(server.stored.size).toBe(7)
+    // progress the member can see: one step per note, ending at the total
+    expect(progress).toEqual([1, 2, 3, 4, 5, 6, 7])
+  })
+
+  it('also splits by count when every note is small', async () => {
+    const server = fakeConfirmServer({ capBytes: 1e9 })
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: Array.from({ length: 5 }, (_, i) => bigDoc(i, 5)),
+      limits: { maxNotes: 2 },
+      onProgress: () => {},
+    })
+    expect(server.requests.map((r) => r.keys.length)).toEqual([2, 2, 1])
+    expect(summary.created).toBe(5)
+  })
+
+  it('never sends a request the server would refuse for its size with the real limits', async () => {
+    // The default byte limit is under the server\'s, so the 413 below is never met.
+    const server = fakeConfirmServer({ capBytes: 32 * 1024 * 1024 })
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      // 40 notes of ~1 MB: 40 MB in all, more than one request may carry
+      docs: Array.from({ length: 40 }, (_, i) => bigDoc(i, 1_000_000)),
+      onProgress: () => {},
+    })
+    expect(server.requests.length).toBeGreaterThan(1)
+    expect(Math.max(...server.requests.map((r) => r.bytes))).toBeLessThanOrEqual(24 * 1024 * 1024)
+    expect(summary.created).toBe(40)
+    expect(summary.failedBatches).toEqual([])
+  })
+
+  it('a note too large for any request is not sent, and is named with its own sentence', async () => {
+    const server = fakeConfirmServer({ capBytes: 8192 })
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [bigDoc(0, 500), { ...bigDoc(1, 9000), title: 'The huge one' }, bigDoc(2, 500)],
+      limits: { maxBytes: 4096 + 2600 },
+      onProgress: () => {},
+    })
+    expect(server.requests.flatMap((r) => r.keys)).toEqual(['file:0.md', 'file:2.md'])
+    expect(summary.created).toBe(2)
+    expect(summary.failures).toEqual([{
+      name: 'The huge one',
+      reason: 'This note is too large to import (0.0 MB). Split it into smaller notes and import again.',
+    }])
+    expect(summary.outcomes['file:1.md']).toBe('failed')
+  })
+
+  it('a note the server finds too long comes back named, with the sentence the server gave', async () => {
+    fakeConfirmServer({ capBytes: 1e9, tooLongKeys: ['file:1.md'] })
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [bigDoc(0, 10), bigDoc(1, 10), bigDoc(2, 10)],
+      onProgress: () => {},
+    })
+    expect(summary.created).toBe(2)
+    expect(summary.failures).toEqual([{
+      name: 'Note 1',
+      reason: 'This note is too long to save as one page. Split it into two or more notes and try again.',
+    }])
+  })
+
+  it('a request that fails mid-import reports what did land, and a second run finishes without duplicates', async () => {
+    const docs = Array.from({ length: 6 }, (_, i) => bigDoc(i, 1000))
+    const limits = { maxBytes: 4096 + 2600 }
+    const server = fakeConfirmServer({ capBytes: 8192, failRequest: 2 })
+    const first = await runImport({ source: 'file', destFolderId: null, docs, limits, onProgress: () => {} })
+    // requests 1 and 3 landed (4 notes); request 2 (notes 2 and 3) did not
+    expect(first.created).toBe(4)
+    expect(first.failedBatches).toHaveLength(1)
+    expect(first.failedBatches[0].notes).toBe(2)
+    expect(first.failedBatches[0].message).toBe(
+      'Batch 2 failed (HTTP 503: the database is busy). The import continued with the ' +
+      "remaining batches — this batch's notes were not imported. Running the import again " +
+      'will retry them; already-imported notes are safe and will not be duplicated.')
+    expect(first.outcomes['file:2.md']).toBe('batch_failed')
+    expect(first.outcomes['file:0.md']).toBe('created')
+
+    // the member runs the import again: the four are skipped, the two are created
+    const second = await runImport({ source: 'file', destFolderId: null, docs, limits, onProgress: () => {} })
+    expect(second.created).toBe(2)
+    expect(second.skipped).toBe(4)
+    expect(second.failedBatches).toEqual([])
+    expect(server.stored.size).toBe(6)
+  })
+
   it('uploads media with a MIME type derived from the file name (server enforces a MIME allowlist)', async () => {
     let capturedFile = null
     vi.stubGlobal('fetch', vi.fn(async (url, opts) => {

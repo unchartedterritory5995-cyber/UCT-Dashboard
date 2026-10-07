@@ -1,0 +1,92 @@
+{
+ "wave": 13,
+ "lane": "13B",
+ "checks": {
+  "F0_payload_flag_off": {
+   "verdict": "PASS",
+   "payload_flag": false
+  },
+  "F1_api_404": {
+   "verdict": "PASS",
+   "status": 404
+  },
+  "F2_page_goes_to_insights": {
+   "verdict": "PASS",
+   "url": "http://127.0.0.1:8636/journal/insights",
+   "my_playbook_nodes": 0,
+   "screenshot": "f2-flag-off-redirect.jpg"
+  },
+  "F3_no_door_in_insights": {
+   "verdict": "PASS",
+   "doors": 0,
+   "screenshot": "f3-insights-no-door.jpg"
+  },
+  "W9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [],
+ "tip": "baec92b22c",
+ "base": "http://127.0.0.1:8636",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13b-data-off",
+ "mode": "flag-off",
+ "instrument": "tools\\notebook_w13b_playbook_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0/F0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8636 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T23-41-12.md (identity d291ae14e2d0..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13b-data-off)"
+ },
+ "run": "r234317",
+ "accounts": {
+  "member": "w13b-member-r234317@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13b\\walk-baec92b22c-off\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13b\\walk-baec92b22c-off\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 23:41:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 23:43:16",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 23:45:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 23:45:37",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

@@ -1,0 +1,54 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/transcripts/save",
+    "note": "A passage saved into the member's note, cited to its source, date and turn.",
+    "path": "/api/j2/research-capture/transcripts/save",
+    "requestBody": {
+      "annotation": "Margins held.",
+      "noteId": "600891a61bd942e680e18da008bb38ec",
+      "passage": "gross margin was 72.4%",
+      "quarter": "2026Q2",
+      "symbol": "TRHD",
+      "turn": 2
+    },
+    "status": 200
+  },
+  "body": {
+    "callDate": "2026-08-27",
+    "deduped": false,
+    "document": {
+      "id": "534805d38c6a408989b3e604d40657a1",
+      "name": "TRHD earnings call FY2026 Q2 · 2026-08-27 · FMP transcript"
+    },
+    "excerpt": {
+      "annotation": "Margins held.",
+      "attachmentUrl": "transcript:fmp:TRHD:2026Q2",
+      "captureType": "web_passage",
+      "capturedText": "gross margin was 72.4%",
+      "charEnd": 135,
+      "charStart": 113,
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "documentId": "534805d38c6a408989b3e604d40657a1",
+      "documentName": "TRHD earnings call FY2026 Q2 · 2026-08-27 · FMP transcript",
+      "id": "a1a58d9aa0854efe9398094c7b7f2e04",
+      "modifiedAt": null,
+      "noteId": "600891a61bd942e680e18da008bb38ec",
+      "pageNumber": 2,
+      "quotePrefix": "Chief Financial Officer: Revenue was a record, up 56% year over year. Data center revenue grew\nsequentially, and ",
+      "quoteSuffix": ".",
+      "sourceKind": "web",
+      "sourceUrl": null,
+      "textOrigin": null
+    },
+    "note": {
+      "id": "600891a61bd942e680e18da008bb38ec",
+      "updatedAt": "2026-10-05T14:30:00+00:00"
+    },
+    "quarter": "2026Q2",
+    "source": "FMP transcript",
+    "speaker": "Chief Financial Officer",
+    "symbol": "TRHD",
+    "turn": 2
+  }
+}

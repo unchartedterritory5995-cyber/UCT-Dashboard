@@ -1,0 +1,758 @@
+{
+  "meta": {
+    "settle_s": 3.0,
+    "stop_how": "graceful to the shutdown checkpoint, then forced exit"
+  },
+  "rows": [
+    {
+      "width": "1200",
+      "rep": 1,
+      "note_id": "6f5bb2a2eb0d4db7b4decd6116acc91b",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 57.3
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 2093.2
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 2101.6
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 2623.5
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 2834.9
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 2834.9
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-1200-r1.png"
+    },
+    {
+      "width": "1200",
+      "rep": 2,
+      "note_id": "b3a712017e274f31802f740af951f17e",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 158.7
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 3215.4
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 3221.9
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 7811.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 8202.1
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 8202.1
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-1200-r2.png"
+    },
+    {
+      "width": "1200",
+      "rep": 3,
+      "note_id": "cb875d86d0814a309d69772b618dddb2",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 227.8
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 3328.5
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 3334.3
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 4937.8
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 5636
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 5636
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-1200-r3.png"
+    },
+    {
+      "width": "1200",
+      "rep": 4,
+      "note_id": "59f9d34375ef4c6eb447e1f974f34e6c",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 81.7
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 3068.9
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 3074.1
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 3682.8
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 4489.7
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 4489.7
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-1200-r4.png"
+    },
+    {
+      "width": "1200",
+      "rep": 5,
+      "note_id": "3778d5cb34f641e283d784faff457168",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 214.2
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 3057.2
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 3063.1
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 4968.5
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 5505.9
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 5506
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-1200-r5.png"
+    },
+    {
+      "width": "390",
+      "rep": 1,
+      "note_id": "62a4c8c412bd42bc9cca1b41336eb9f0",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 85.8
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 1432.7
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1437.7
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1822.1
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1961.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1961.3
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-390-r1.png"
+    },
+    {
+      "width": "390",
+      "rep": 2,
+      "note_id": "45d0339712b04c248a4bb183d30d8694",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 90.3
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 1330.5
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1336.4
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1801.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 2001.6
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 2001.6
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-390-r2.png"
+    },
+    {
+      "width": "390",
+      "rep": 3,
+      "note_id": "1e4c2e601862412baf32976e3c067ad7",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 53.1
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 1267.3
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1273.3
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1665.5
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1817.5
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1817.5
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-390-r3.png"
+    },
+    {
+      "width": "390",
+      "rep": 4,
+      "note_id": "49413e1767ee41328be59a4163728cfc",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 171.9
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 1284
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1288.8
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1675.7
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1820.3
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1820.3
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-390-r4.png"
+    },
+    {
+      "width": "390",
+      "rep": 5,
+      "note_id": "5e885f2a5d6c480495f40b363c6c37d5",
+      "dump": {
+        "events": [
+          {
+            "k": "observer-armed",
+            "t": 183
+          },
+          {
+            "k": "focusin",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "t": 1344.2
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "BUTTON",
+              "isPM": false,
+              "isConnected": true,
+              "contenteditable": null,
+              "cls": "btn btn-primary btn-sm",
+              "testid": null,
+              "pmId": null
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1349.7
+          },
+          {
+            "k": "focus-call",
+            "target": {
+              "tag": "DIV",
+              "isPM": true,
+              "isConnected": false,
+              "contenteditable": "true",
+              "cls": "tiptap ProseMirror _proseEditor_y7ahx_441",
+              "testid": null,
+              "pmId": 1
+            },
+            "hadFocusBefore": true,
+            "hasFocusAfter": true,
+            "becameActiveElementSync": false,
+            "t": 1850.6
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1985.9
+          },
+          {
+            "k": "pm-added",
+            "pmId": 1,
+            "isConnected": true,
+            "t": 1985.9
+          }
+        ],
+        "activeElementTag": "BODY",
+        "activeElementInPM": false,
+        "docHasFocus": true
+      },
+      "page_errors": [],
+      "screenshot": "focushook-390-r5.png"
+    }
+  ]
+}

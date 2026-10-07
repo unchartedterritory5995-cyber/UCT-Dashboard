@@ -1,0 +1,109 @@
+/* Wave 13 lane 13I-2 — the technical fingerprint panel under a chart block in a note. */
+.panel {
+  border-top: 1px solid var(--border);
+  padding: 8px 10px 10px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-surface);
+}
+
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ut-gold); }
+.meta { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.summary { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.chipLabel { color: var(--text-muted); }
+.value { color: var(--text); }
+.missing { color: var(--text-muted); font-style: italic; }
+.source { color: var(--text-muted); }
+.warn { margin: 0 0 6px; color: var(--warn); }
+.note { margin: 8px 0 0; color: var(--text); }
+.error { margin: 8px 0 0; color: var(--danger-ink); }
+
+.table { width: 100%; border-collapse: collapse; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.table th, .table td { text-align: left; padding: 3px 6px; border-top: 1px solid var(--border); vertical-align: top; }
+.table thead th { color: var(--text-muted); font-weight: 600; border-top: 0; }
+.fieldName { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+
+.tagRow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.tagLabel { color: var(--text-muted); font-weight: 600; }
+.select {
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 3px 6px;
+  max-width: 100%;
+}
+
+.suggestions { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px dashed var(--ut-gold);
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 8px;
+}
+.suggestionActions { display: inline-flex; gap: 6px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn,
+.btnQuiet {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--ut-gold); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+.btnQuiet { color: var(--text-muted); }
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ut-gold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+
+/* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
+@media (max-width: 1024px) {
+  .btn,
+  .btnQuiet,
+  .select,
+  .linkBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  /* min-height is inert on an inline element (the 13A walk measured a 16 px link). */
+  .linkBtn { display: inline-flex; align-items: center; }
+  .table th, .table td { padding: 4px; }
+}
+
+/* The plan-created status line: always in the tree, no room while empty. */
+.statusLine:empty { margin: 0; padding: 0; height: 0; }

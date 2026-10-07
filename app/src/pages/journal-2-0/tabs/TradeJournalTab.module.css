@@ -208,6 +208,12 @@
 
 /* Phone: scroll the period strip instead of clipping; 44px tap targets. */
 @media (max-width: 640px) {
+  /* Four buttons in a no-wrap row were 534 px wide in a 390 px page (FIN-A11Y round 3). */
+  .toolbarRight {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+  }
   .periodPills {
     display: flex;
     flex-wrap: nowrap;

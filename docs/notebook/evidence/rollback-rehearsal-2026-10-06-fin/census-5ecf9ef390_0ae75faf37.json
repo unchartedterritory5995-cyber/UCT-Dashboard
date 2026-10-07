@@ -1,0 +1,532 @@
+[
+ {
+  "sha": "b707976c0537139d2e8347809b4e125c430c7100",
+  "subject": "feat(terminal): per-member command history, server-side with a browser fallback",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "fc2d8f8848a86e84d8e5aaa6496f5f0911c63704",
+  "subject": "Market Cap PIT V1 production lifecycle (dark): M3.1, sealed authorities, 06:15 ET schedule, admin preview (#280)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 131
+ },
+ {
+  "sha": "51561656ebebcae16395ca3d451e70e4fc3463e5",
+  "subject": "feat(boot-probe): name the stage a boot-window EE open is stuck in",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "61c63035d873212ea7383070424da0e63f390dd0",
+  "subject": "Reapply \"P0/P1/P2 + semantics-aware consumers + Slice 1 (dark)\" \u2014 revert of the 2026-10-06 rollback 736e17221",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/ai_doors.py",
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "sel": [
+   "api/services/ai_doors.py",
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "owned": [],
+  "nfiles": 166
+ },
+ {
+  "sha": "097660bc28c225de2981e9c55e5ffbcbcccfc0e1",
+  "subject": "fix(indicators): release-retry closures \u2014 composer focus + key isolation, /converse admin-only server-side, production dependency rail",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/ai_doors.py"
+  ],
+  "sel": [
+   "api/services/ai_doors.py"
+  ],
+  "owned": [],
+  "nfiles": 10
+ },
+ {
+  "sha": "736e17221bebe3c2de71a73e5b5a84f60868f5fb",
+  "subject": "Revert \"Merge feat/indicator-p2-ux\" (a963911fb) \u2014 rollback",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/ai_doors.py",
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "sel": [
+   "api/services/ai_doors.py",
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "owned": [],
+  "nfiles": 166
+ },
+ {
+  "sha": "fa3e3101f973ea297b4f98c320783f8597a65b5d",
+  "subject": "fix(boot): a member never queues behind a boot warmer",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 7
+ },
+ {
+  "sha": "b5402d51297964443cd954e7ff14cd4c67ba7be0",
+  "subject": "feat(p2x/a): configurable conversation allowance, per-turn cost telemetry, member-safe refusals",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/ai_doors.py"
+  ],
+  "sel": [
+   "api/services/ai_doors.py"
+  ],
+  "owned": [],
+  "nfiles": 6
+ },
+ {
+  "sha": "7e47459ae62f47558b5e08ad25f6ac8303f7c924",
+  "subject": "fix(terminal): a cold pod after a deploy is not a failed read",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 18
+ },
+ {
+  "sha": "aab0c0b560a6cf0869a2df53270114997ec51c4e",
+  "subject": "style(terminal): list panels follow board density (data-panel-row / -list / -tile)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/UCT20.jsx"
+  ],
+  "sel": [
+   "app/src/pages/UCT20.jsx"
+  ],
+  "owned": [],
+  "nfiles": 13
+ },
+ {
+  "sha": "b6aa8ba673b5bd48b7a321b404e277538966be08",
+  "subject": "test(p2/ux): ledger the Create Indicator preview door, studio test dir and harness params",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "sel": [
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "owned": [],
+  "nfiles": 3
+ },
+ {
+  "sha": "28690bf388881059ab68ada09b12d257fb6ffa41",
+  "subject": "fix(terminal): label non-dollar reporting currency; withhold mixed-currency ratios",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/lib/presentation/presentationPrimitives.js"
+  ],
+  "sel": [
+   "app/src/lib/presentation/presentationPrimitives.js"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "e02bd7cf65857befdc7d7dadc1ca6c12c6b43dea",
+  "subject": "feat(ui): uiconSvgString \u2014 static UIcon markup from the one registry; Morning Wire uses it",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/ui/UIcon.jsx"
+  ],
+  "sel": [
+   "app/src/components/ui/UIcon.jsx"
+  ],
+  "owned": [],
+  "nfiles": 6
+ },
+ {
+  "sha": "17fb5760122ae712deac4f210438a3f23fd69bff",
+  "subject": "feat(breadth,uct20): views' hand-drawn chrome and type follow the app tokens; UCT20 markers themed",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/UCT20.jsx"
+  ],
+  "sel": [
+   "app/src/pages/UCT20.jsx"
+  ],
+  "owned": [],
+  "nfiles": 17
+ },
+ {
+  "sha": "b72eab3072ebee4e286f7a9350eec769ba7c6b63",
+  "subject": "feat(cot): COT panes and positioning rail follow the app theme",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/CotData.jsx",
+   "app/src/pages/cot/PositioningRail.jsx"
+  ],
+  "sel": [
+   "app/src/pages/CotData.jsx",
+   "app/src/pages/cot/PositioningRail.jsx"
+  ],
+  "owned": [],
+  "nfiles": 7
+ },
+ {
+  "sha": "ebb917673545f5126e47a3941e22ccceac0bb6f8",
+  "subject": "feat(terminal): one compact-number rule for every terminal panel; People shows the missing glyph",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/lib/presentation/presentationPrimitives.js"
+  ],
+  "sel": [
+   "app/src/lib/presentation/presentationPrimitives.js"
+  ],
+  "owned": [],
+  "nfiles": 33
+ },
+ {
+  "sha": "076a4a5a71247a4a9373cd50ed71c075fac3e348",
+  "subject": "feat(p2/server): conversational authoring door \u2014 POST /converse returns a structured patch, never applies it",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/ai_doors.py"
+  ],
+  "sel": [
+   "api/services/ai_doors.py"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "d61c7a46533e849356454d59b6119faee9d6241a",
+  "subject": "feat(terminal-surfaces): whole pages step aside inside a terminal panel",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/UCT20.jsx",
+   "app/src/pages/UCT20.module.css"
+  ],
+  "sel": [
+   "app/src/pages/UCT20.jsx",
+   "app/src/pages/UCT20.module.css"
+  ],
+  "owned": [],
+  "nfiles": 17
+ },
+ {
+  "sha": "8dd95b4c63855caf2d3ae1a3c94ec116add11daa",
+  "subject": "feat(terminal): one panel frame that follows the app theme",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/ui/UIcon.jsx",
+   "app/src/styles/tokens.css"
+  ],
+  "sel": [
+   "app/src/components/ui/UIcon.jsx",
+   "app/src/styles/tokens.css"
+  ],
+  "owned": [],
+  "nfiles": 21
+ },
+ {
+  "sha": "4d7e4c68846693386ca98e0fae07c625659f3ccb",
+  "subject": "style(terminal-surfaces): U20, FREC, CATH, SCR on tokens and the shared formatter",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/UCT20.jsx",
+   "app/src/pages/UCT20.module.css"
+  ],
+  "sel": [
+   "app/src/pages/UCT20.jsx",
+   "app/src/pages/UCT20.module.css"
+  ],
+  "owned": [],
+  "nfiles": 7
+ },
+ {
+  "sha": "f62d47f17e4c0c6fdd6f566e4123282cfcd30d78",
+  "subject": "fix(screener): a failed filter-registry read says so; scan errors in plain words",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/screener/shell/ScannerShell.jsx",
+   "app/src/pages/screener/shell/ScannerShell.test.jsx"
+  ],
+  "sel": [
+   "app/src/pages/screener/shell/ScannerShell.jsx",
+   "app/src/pages/screener/shell/ScannerShell.test.jsx"
+  ],
+  "owned": [],
+  "nfiles": 8
+ },
+ {
+  "sha": "dce3d78223da2d1039a3e1f481d40b6bfef7eb8a",
+  "subject": "fix(provenance/AbsenceReceipt): a failed check says what happened in words, not \"(HTTP 503)\"",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/AbsenceReceipt.jsx",
+   "app/src/components/provenance/AbsenceReceipt.test.jsx"
+  ],
+  "sel": [
+   "app/src/components/provenance/AbsenceReceipt.jsx",
+   "app/src/components/provenance/AbsenceReceipt.test.jsx"
+  ],
+  "owned": [],
+  "nfiles": 2
+ },
+ {
+  "sha": "b6887875bf0ede681ee8863b9d62506b20b4bf72",
+  "subject": "fix(terminal-next): signup enrolls through the gate; the kill-switch census is green",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 4
+ },
+ {
+  "sha": "e3f60bd39552767dfb19f3f5e9fa08af6584cf2b",
+  "subject": "feat(auth): new signups join the terminal-next cohort",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 2
+ },
+ {
+  "sha": "47bdc219a9d5ca74b8557f856fd8636976d117ed",
+  "subject": "fix(FREC, U20): an outage is not \"warming up\" or \"not yet available\"",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/UCT20.jsx"
+  ],
+  "sel": [
+   "app/src/pages/UCT20.jsx"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "8c31d030c58b84122d260897c74e585a82aa5387",
+  "subject": "perf(market-tide): L2 - rebuild the tide every 2 min in RTH, log a tape that runs behind",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 3
+ },
+ {
+  "sha": "3f822ace44655efa588424262e7ea4f4f8f5a197",
+  "subject": "feat(exchange-v1): member authority pointer, publisher/rollback, scheduled runner, member surfaces (dark by default)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 21
+ },
+ {
+  "sha": "bdce577f1c98c2bf3716feba8f29aef40396986f",
+  "subject": "feat(breadth): archive-before-prune \u2014 the V2 producer prunes a vintage ONLY after the exchange archive is re-proven",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/breadth_v2_producer.py"
+  ],
+  "sel": [
+   "api/services/breadth_v2_producer.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "21c1771e8ca708c7ea0f1ceb1f30a65f3028e4d7",
+  "subject": "fix(move): union seen-set, no visit on a partial read, recent analyst actions, ET dates, server-side change %, flag in the auth payload (R14-R18)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "ce2c9d26d149b4834450183380cabe935019913a",
+  "subject": "fix(terminal): IVH and STRS gate on their own switches via the auth payload (O12)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "9daa8b4d28175af0549e4714cb1849dc28250860",
+  "subject": "perf(screener): L9 - the screener panel's bands are computed before anyone opens it",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 2
+ },
+ {
+  "sha": "60b8ba0b49c6dea87ff9b568a58ba9d00efdd011",
+  "subject": "fix(terminal): RSCH header wraps in a narrow panel instead of squeezing the name and clipping \"Plan this trade\"",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/journal-2-0/components/notebook/TickerResearchWorkspace.module.css"
+  ],
+  "sel": [
+   "app/src/pages/journal-2-0/components/notebook/TickerResearchWorkspace.module.css"
+  ],
+  "owned": [
+   "app/src/pages/journal-2-0/components/notebook/TickerResearchWorkspace.module.css"
+  ],
+  "nfiles": 1
+ },
+ {
+  "sha": "8bd8eaffc33fd5715e60294bf3d85a9be674ff52",
+  "subject": "feat(charts): Unified Add to Chart \u2014 Earnings Strip + Company Info as Research features",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "sel": [
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "owned": [],
+  "nfiles": 23
+ },
+ {
+  "sha": "f47607ca1cba415032fd3c14351370e471f17205",
+  "subject": "feat(ltr): \"Not sure yet? Talk to the team first\" call request to #leads",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/services/auth_db.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/services/auth_db.py"
+  ],
+  "owned": [],
+  "nfiles": 6
+ },
+ {
+  "sha": "15437c6491bf98b2b4f5fa9cd81b3969573e8ec3",
+  "subject": "fix(terminal): phone and tablet layout and accessibility pass",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/styles/tokens.css"
+  ],
+  "sel": [
+   "app/src/styles/tokens.css"
+  ],
+  "owned": [],
+  "nfiles": 20
+ },
+ {
+  "sha": "bb45430c9011a5660c7d24250e21c3451440b126",
+  "subject": "wip(terminal): checkpoint at the session-limit stop - UNVERIFIED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/ModelBook.jsx",
+   "app/src/pages/Settings.jsx",
+   "app/src/pages/UCT20.jsx",
+   "app/src/pages/charts/widgets/NotebookWidget.jsx"
+  ],
+  "sel": [
+   "app/src/pages/ModelBook.jsx",
+   "app/src/pages/Settings.jsx",
+   "app/src/pages/UCT20.jsx",
+   "app/src/pages/charts/widgets/NotebookWidget.jsx"
+  ],
+  "owned": [],
+  "nfiles": 23
+ }
+]

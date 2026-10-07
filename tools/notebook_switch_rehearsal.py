@@ -184,17 +184,87 @@ DOOR_OFF = 404
 # A gate missing here is printed as "no rendered probe written" -- never silently dropped.
 NOT_REHEARSED = {
     "NOTEBOOK_ASK_INSERT_ON": "payload only: its surface needs an Ask answer (a model call)",
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "no read-only surface: it acts only on an upload",
-    "NOTEBOOK_TASK_REMINDERS_ENABLED": "kill switch read per scheduled run: its only evidence is "
+    # Wave 14 W14-C1: these two (and semantic search below) now ride the auth payload, so the
+    # window switches and verifies them by their payload key; no RENDERED probe is written.
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "payload key only (W14-C1, its tour's gate): the "
+                                             "capability itself acts only on an upload",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": "payload key only (W14-C1, its tour's gate): the kill switch "
+                                       "is read per scheduled run, so its only other evidence is "
                                        "a reminder members would not get",
     "COMPASS_NOTES_TOOL_ENABLED": "no read-only surface: it acts only inside a Compass chat turn",
     "NOTEBOOK_INBOUND_EMAIL_ENABLED": "dark (external blockers: DNS/MX, WAF, wrangler)",
-    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "dark (waits for OpenAI's written ZDR, R-20)",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "dark (waits for OpenAI's written ZDR, R-20); payload key "
+                                        "since W14-C1 (its tour's gate)",
     "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, inert while semantic search is dark",
     "NOTEBOOK_OFFLINE_READ_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_CONFLICT_UX_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_ATTACHMENTS_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_DOOR_GUARD": "a MODE, never switched off; its intended value is the owner's question",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "dark (wave 12 12A): waits for its real-browser walk and "
+                                         "the owner naming who reviews submissions",
+    "NOTEBOOK_PLAN_GRADING_ENABLED": "dark (wave 13 13A): plan vs execution grading; waits for the "
+                                     "wave-13 PR and the owner's arming order (P6)",
+    # Wave 11 (#263). Each reason names what the gate protects, from the PR body; a numbered
+    # "owner decision" is that body's "Decisions for you" list.
+    "NOTEBOOK_VOICE_NOTES_ENABLED": "dark (wave 11 11A): voice and meeting notes -- Whisper "
+                                    "transcription against the 60-minute monthly dictation "
+                                    "allowance and one summary call on the shared $25/day cap; "
+                                    "owner decisions 1-2 open (minute allowance, Desk transcripts)",
+    "NOTEBOOK_FORMULAS_ENABLED": "dark (wave 11 11B): formula and rollup properties, computed in "
+                                 "memory on read; waits on a quiet-machine 50k re-measure and the "
+                                 "owner's go",
+    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Ask Notebook to do something -- one model "
+                                   "call per plan on the shared $25/day cap, then reviewed changes "
+                                   "written through the member's own write path, undoable; owner "
+                                   "decisions 5-6 open (fail-open counter, unsent-words fork)",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED": "dark (wave 11 11D): the trade-plan canvas note (schema level 3, "
+                                     "NEVER-REVERT); no route of its own, only the doors that make "
+                                     "a canvas",
+    # Wave 13 lane 13I-1. No member surface yet: 13I-2 builds the panel that reads it.
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": "dark (wave 13 13I-1): the technical fingerprint and "
+                                       "chart-block index API; no member surface until 13I-2",
+    # Wave 13 lane 13C.
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": "dark (wave 13 13C): Reporting soon on Research Home and a "
+                                      "one-click earnings prep note; waits for its real-browser walk",
+    # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
+    "NOTEBOOK_CHART_PLAN_ENABLED": "dark (wave 13 13H-1): chart-plan sizing and alerts at drawn "
+                                   "levels (API only); no member surface until 13H-2",
+    # Wave 13 lane 13E-1. No member surface yet: 13E-2 builds the card and the prompt.
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "dark (wave 13 13E-1): the market context frozen at the "
+                                      "fill (API + capture hooks); no member surface until 13E-2",
+    # Wave 13 lane 13G-1.
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "dark (wave 13 13G-1): save a call-transcript passage "
+                                           "into a note as a cited excerpt; waits for its walk",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": "dark (wave 13 13G-1): the passed-setups journal on Research "
+                                      "Home; waits for its real-browser walk",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": "dark (wave 13 13G-2): thesis status + distance-to-stop chips "
+                                     "on Positions/Holdings rows; the WatchlistWidget mount waits "
+                                     "on the controller's announcement (P2)",
+    # Wave 13 lane 13I-2.
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "dark (wave 13 13I-2): the visual playbook grid, the setup-tag "
+                                        "suggestion at insert and the trade page's before/after; "
+                                        "waits for the wave-13 PR and the owner's arming order (P6)",
+    # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
+    "AWARENESS_NOTE_RESURFACE_ENABLED": "dark (wave 13 13D): the awareness scan's resurfacing pass; "
+                                        "its evidence is an insight row from a scan cycle",
+    # Wave 13 lane 13J. Two dark pages behind their own gates; walked by the lane, not rehearsed.
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": "dark (wave 13 13J): the active setups board page; waits for "
+                                     "the owner to arm it after its real-browser walk",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": "dark (wave 13 13J): find more like this (nightly precompute + "
+                                     "read-only routes); waits for the owner to arm it",
+    # Wave 13 lane 13B.
+    "NOTEBOOK_PLAYBOOK_ENABLED": "dark (wave 13 13B): My Playbook -- per-setup stats with R3 ranges "
+                                 "and the before-losses-vs-wins patterns; waits for the wave-13 PR "
+                                 "and the owner's arming order (P6)",
+    # Wave 13 lane 13F.
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "dark (wave 13 13F): reviews that write themselves -- one "
+                                      "click drafts a daily/weekly/monthly review's data, the leak "
+                                      "finder's findings; waits for the wave-13 PR and the owner's "
+                                      "arming order",
+    # Wave 14 lane W14-D.
+    "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
+                                        "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
+                                        "client-only, no route; waits for the owner to arm it",
 }
 
 

@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/chart-plan/alerts",
+    "note": "The existing alert route's own refusal.",
+    "path": "/api/j2/chart-plan/alerts",
+    "requestBody": {
+      "alert_type": "line",
+      "direction": "sideways",
+      "drawingId": "d-CPNV-stop",
+      "embedId": "cp-emb",
+      "noteId": "dd73ad19010442239a5716bc644c7f3e",
+      "target_price": 97.25
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "direction must be 'above' or 'below'"
+  }
+}

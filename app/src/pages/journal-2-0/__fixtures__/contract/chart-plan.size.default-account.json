@@ -1,0 +1,81 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "note": "A member who never set their sizing: the default account size and no max risk per trade.",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": [
+        {
+          "id": "d-CPNV-entry",
+          "points": [
+            {
+              "price": 101.5,
+              "time": 1758000000
+            }
+          ],
+          "role": "entry",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-stop",
+          "points": [
+            {
+              "price": 97.25,
+              "time": 1758000000
+            }
+          ],
+          "role": "stop",
+          "type": "horizontal"
+        }
+      ],
+      "symbol": "CPNV"
+    },
+    "status": 200
+  },
+  "body": {
+    "account": {
+      "accountId": "ccdcfe8a-fafc-4c32-bb5a-5d2623c5df04",
+      "accountSize": 100000.0,
+      "riskPct": null
+    },
+    "compass": {
+      "ok": false,
+      "reason": "No account size or max risk per trade is set"
+    },
+    "plan": {
+      "entry": 101.5,
+      "roles": {
+        "entry": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 101.5,
+          "values": []
+        },
+        "shares": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "stop": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 97.25,
+          "values": []
+        },
+        "target": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": null,
+      "side": "long",
+      "stop": 97.25,
+      "target": null
+    }
+  }
+}

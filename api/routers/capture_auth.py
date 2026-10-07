@@ -42,16 +42,31 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from api.limiter import limiter
 from api.middleware.auth_middleware import get_current_user
 from api.middleware.capture_scope import require_capture_scope
+from api.services import request_body_cap as body_cap
 from api.services.journal_two import capture_auth, capture_destinations
 
 router = APIRouter(prefix="/api/j2/capture", tags=["journal-2-0", "browser-capture"])
+
+# ⛔ FIN (2026-10-06): no route here declares a JSON body parameter. FastAPI reads a
+# declared body BEFORE it solves any dependency -- before the gate or the session,
+# and with no size limit. Each door takes its body through `_json(...)`: a
+# dependency that runs the session check first and caps the body WHILE it is read.
+# Rail: tests/test_notebook_body_census.py.
+# Both bodies are a redirect URI, a client id and a code.
+JSON_BODY_MAX_BYTES = 16 * 1024
+JSON_TOO_LARGE_SENTENCE = "Request too large"
+
+
+def _json(annotation, *, after=get_current_user):
+    return body_cap.capped_json(annotation, lambda: JSON_BODY_MAX_BYTES,
+                                lambda: JSON_TOO_LARGE_SENTENCE, after=after)
 
 
 @router.post("/authorize")
 @limiter.limit("10/minute")
 def authorize_extension(
     request: Request,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Step 1 — the deliberate, first-party, session-authenticated connect.
@@ -73,7 +88,7 @@ def authorize_extension(
 
 @router.post("/token")
 @limiter.limit("20/minute")
-def exchange_code(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+def exchange_code(request: Request, payload: dict[str, Any] = Depends(_json(dict[str, Any], after=None))) -> dict[str, Any]:
     """Step 2 — code → scoped token. No session: the code IS the credential,
     which is why it is single-use and lives 120 seconds."""
     try:

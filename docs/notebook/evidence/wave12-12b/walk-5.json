@@ -1,0 +1,5937 @@
+{
+  "tool": "notebook_w12b_templates_walk",
+  "base": "http://127.0.0.1:8586",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12b-walk5",
+  "started_utc": "2026-10-02T17:24:02+00:00",
+  "sandbox_env": {
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "rows": [
+    {
+      "row": "provision: a paid, verified member",
+      "result": "PASS"
+    },
+    {
+      "row": "the gallery renders the catalog (keys read from the page)",
+      "result": "PASS",
+      "saw": 32
+    },
+    {
+      "row": "no gallery card previews the walkthrough",
+      "result": "PASS",
+      "saw": null
+    },
+    {
+      "row": "every gallery card previews its own lines",
+      "result": "PASS",
+      "saw": null
+    },
+    {
+      "row": "every wave-12 new or deepened template is in the gallery",
+      "result": "PASS",
+      "saw": null
+    },
+    {
+      "row": "[1200] daily-prep: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] daily-prep: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] daily-prep: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] daily-prep: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] daily-prep: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] post-market-debrief: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] post-market-debrief: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] post-market-debrief: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] post-market-debrief: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] post-market-debrief: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] weekly-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] weekly-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] weekly-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] weekly-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] weekly-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] weekly-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] weekly-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] weekly-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] weekly-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] weekly-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] monthly-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 2,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 2,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] monthly-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] monthly-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] monthly-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] monthly-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] quarterly-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] quarterly-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] quarterly-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] quarterly-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] quarterly-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] thesis: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] thesis: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] thesis: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 10,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] thesis: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x10 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] thesis: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] sector-theme-research: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] sector-theme-research: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] sector-theme-research: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] sector-theme-research: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] sector-theme-research: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] sector-note: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] sector-note: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] sector-note: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] sector-note: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] sector-note: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] watchlist-thesis: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] watchlist-thesis: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] watchlist-thesis: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] watchlist-thesis: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] watchlist-thesis: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] catalyst-tracker: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] catalyst-tracker: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] catalyst-tracker: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] catalyst-tracker: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] catalyst-tracker: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] earnings-prep: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 2,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 2,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] earnings-prep: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] earnings-prep: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 9,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] earnings-prep: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x9 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] earnings-prep: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] ipo-notes: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] ipo-notes: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] ipo-notes: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] ipo-notes: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] ipo-notes: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] meeting-notes: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] meeting-notes: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] meeting-notes: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] meeting-notes: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] meeting-notes: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] trade-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] trade-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] trade-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] trade-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] swing-log: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] swing-log: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] swing-log: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] swing-log: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] swing-log: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] earnings-play: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] earnings-play: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] earnings-play: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] earnings-play: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] earnings-play: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] trade-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] trade-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] trade-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] trade-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] trade-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] breakout-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] breakout-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] breakout-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] breakout-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] breakout-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] pullback-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] pullback-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] pullback-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 9,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] pullback-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x9 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] pullback-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] episodic-pivot-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] episodic-pivot-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] episodic-pivot-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 9,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] episodic-pivot-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x9 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] episodic-pivot-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] undercut-rally-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] undercut-rally-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] undercut-rally-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 9,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] undercut-rally-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x9 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] undercut-rally-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] parabolic-short-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] parabolic-short-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] parabolic-short-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] parabolic-short-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] parabolic-short-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] position-sizing-worksheet: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] position-sizing-worksheet: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] position-sizing-worksheet: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] position-sizing-worksheet: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] position-sizing-worksheet: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] setup-playbook-entry: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] setup-playbook-entry: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] setup-playbook-entry: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] setup-playbook-entry: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] setup-playbook-entry: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] options-trade-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] options-trade-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] options-trade-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] options-trade-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] options-trade-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] risk-checklist: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] risk-checklist: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] risk-checklist: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] risk-checklist: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] risk-checklist: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] mistake-log: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] mistake-log: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] mistake-log: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] mistake-log: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] mistake-log: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] lessons-learned: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] lessons-learned: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] lessons-learned: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] lessons-learned: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] lessons-learned: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] goals: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] goals: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] goals: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] goals: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] goals: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] drawdown-recovery-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] drawdown-recovery-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] drawdown-recovery-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 6,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] drawdown-recovery-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x6 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] drawdown-recovery-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] tilt-log: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 0,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 0,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[1200] tilt-log: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] tilt-log: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[1200] tilt-log: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[1200] tilt-log: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[1200] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[1200] trade-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[1200] trade-review: FINDING PROBE -- Enter on the chevron opens the toggle and leaves the body alone",
+      "result": "FAIL",
+      "saw": {
+        "opened": false,
+        "top_types_before": [
+          "paragraph",
+          "heading",
+          "paragraph",
+          "toggle"
+        ],
+        "top_types_after": [
+          "heading",
+          "paragraph",
+          "toggle",
+          "paragraph"
+        ],
+        "body_changed": true
+      }
+    },
+    {
+      "row": "[390] breakout-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] breakout-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] breakout-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] breakout-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] breakout-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] pullback-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] pullback-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] pullback-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 9,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] pullback-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x9 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] pullback-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] episodic-pivot-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] episodic-pivot-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] episodic-pivot-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] episodic-pivot-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] episodic-pivot-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] undercut-rally-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] undercut-rally-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] undercut-rally-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] undercut-rally-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] undercut-rally-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] parabolic-short-plan: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] parabolic-short-plan: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] parabolic-short-plan: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] parabolic-short-plan: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] parabolic-short-plan: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] earnings-prep: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 2,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 2,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] earnings-prep: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] earnings-prep: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 11,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] earnings-prep: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x11 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] earnings-prep: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] sector-note: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[390] sector-note: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] sector-note: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] sector-note: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] sector-note: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] trade-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] trade-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 8,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] trade-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x8 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] trade-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] weekly-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] weekly-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] weekly-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] weekly-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] weekly-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] monthly-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 0,
+          "table": 2,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 2,
+          "toggle": 1,
+          "callout": 0
+        }
+      }
+    },
+    {
+      "row": "[390] monthly-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] monthly-review: Tab reaches the walkthrough's chevron",
+      "result": "PASS",
+      "saw": {
+        "tabs": 7,
+        "last_focus": {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      }
+    },
+    {
+      "row": "[390] monthly-review: the walkthrough opens by keyboard and shows its first step",
+      "result": "PASS",
+      "saw": {
+        "how": "keyboard: Tab x7 then Space",
+        "opened_by": "Space",
+        "first_step_visible": true
+      }
+    },
+    {
+      "row": "[390] monthly-review: opening it is saved like any other edit",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "[390] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built)",
+      "result": "PASS",
+      "saw": {
+        "refused": [],
+        "editable": "true",
+        "stored": {
+          "callout": 1,
+          "table": 1,
+          "toggle": 1
+        },
+        "dom": {
+          "table": 1,
+          "toggle": 1,
+          "callout": 1
+        }
+      }
+    },
+    {
+      "row": "[390] trade-review: the stored body ends in the collapsed walkthrough",
+      "result": "PASS",
+      "saw": {
+        "last_type": "toggle",
+        "open": false
+      }
+    },
+    {
+      "row": "[390] trade-review: FINDING PROBE -- Enter on the chevron opens the toggle and leaves the body alone",
+      "result": "FAIL",
+      "saw": {
+        "opened": false,
+        "top_types_before": [
+          "paragraph",
+          "heading",
+          "paragraph",
+          "toggle"
+        ],
+        "top_types_after": [
+          "heading",
+          "paragraph",
+          "toggle",
+          "paragraph"
+        ],
+        "body_changed": true
+      }
+    },
+    {
+      "row": "no uncaught page error during the walk",
+      "result": "PASS",
+      "saw": null
+    }
+  ],
+  "notes": [
+    {
+      "viewport": "1200",
+      "key": "daily-prep",
+      "probe_enter": false,
+      "note_id": "9fbfc197c412414b94a2c866e5b20b2c",
+      "open_ms": 1500,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag game-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it before the open, not after the first trade.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "post-market-debrief",
+      "probe_enter": false,
+      "note_id": "db9e1b9b306d456d8f9a2aa10d455cb0",
+      "open_ms": 1467,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag debrief",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it the same day, within an hour of the close.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "weekly-plan",
+      "probe_enter": false,
+      "note_id": "053ba3fb25e94e67ae199f08e8bff2ef",
+      "open_ms": 1729,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag weekly-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it over the weekend or before Monday's open.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "weekly-review",
+      "probe_enter": false,
+      "note_id": "925e9fd7dc224193812cd678c1f08dbd",
+      "open_ms": 1298,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag weekly-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Note",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill the numbers table first, straight from your journal, before any opinions.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "monthly-review",
+      "probe_enter": false,
+      "note_id": "d068709a9b784513927a052aac00f1c3",
+      "open_ms": 1503,
+      "stored_counts": {
+        "callout": 0,
+        "table": 2,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 2,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag monthly-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Do it after the month closes, with that month's weekly reviews open beside it.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "quarterly-review",
+      "probe_enter": false,
+      "note_id": "c9406171228e4bd3be118950f17631e0",
+      "open_ms": 1366,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag quarterly-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Use the three monthly reviews as your source.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "thesis",
+      "probe_enter": false,
+      "note_id": "235f5a2198ba4a69965bc3b841ccf85e",
+      "open_ms": 1419,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag thesis",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_fsr00_195",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_reviewBtn_y2lij_37",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_header_vlfj1_13 ",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x10 then Space",
+      "opened_by": "Space",
+      "first_step": "Set Long or Short in the Research Type property, not in the text.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "sector-theme-research",
+      "probe_enter": false,
+      "note_id": "0287efd9d4014d308c1b4f806df8c102",
+      "open_ms": 1608,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag theme-research",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Start with why money is moving into or out of the theme right now.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "sector-note",
+      "probe_enter": false,
+      "note_id": "16110f0666204956b454d0e48935501f",
+      "open_ms": 1293,
+      "stored_counts": {
+        "callout": 0,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag sector-note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the sector or its ETF at the top, and date the note.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "watchlist-thesis",
+      "probe_enter": false,
+      "note_id": "1d62e2486e8144c2bcc5beac98384ff4",
+      "open_ms": 1283,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag watchlist",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it the day the name goes on your list.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "catalyst-tracker",
+      "probe_enter": false,
+      "note_id": "07484a5d352d4f5f884dc80757bf3438",
+      "open_ms": 1194,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag catalyst",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Record the event, its date, and what the market expects.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "earnings-prep",
+      "probe_enter": false,
+      "note_id": "02d87e7c274d41d9853cf554617a182d",
+      "open_ms": 1257,
+      "stored_counts": {
+        "callout": 1,
+        "table": 2,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 2,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag earnings",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag earnings-prep",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Info",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x9 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill the report date and the expectations table from the consensus and last year's numbers.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "ipo-notes",
+      "probe_enter": false,
+      "note_id": "fd17dc71d4a24effbbe94fc131283b69",
+      "open_ms": 1063,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag ipo",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Write down the business and why it is coming public now.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "meeting-notes",
+      "probe_enter": false,
+      "note_id": "5dc3fd4a2999434cba6503ae82470ba2",
+      "open_ms": 1111,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag meeting-notes",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill in \"Who / what\" first.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "trade-review",
+      "probe_enter": false,
+      "note_id": "094199b612f548b599397304ab28d987",
+      "open_ms": 1210,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Info",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it right after the trade closes, while you still remember the decisions.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "swing-log",
+      "probe_enter": false,
+      "note_id": "5f45e4749f0c438eb3a86ecc5dd9a74c",
+      "open_ms": 1249,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag swing-log",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Start it the day you enter.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "earnings-play",
+      "probe_enter": false,
+      "note_id": "c942e3036b6044b1acd33ed6117ab008",
+      "open_ms": 1458,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag earnings",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill in the report date, the expected move, and the last four reactions.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "trade-plan",
+      "probe_enter": false,
+      "note_id": "1eaff54acb284e76897ae68790d40558",
+      "open_ms": 1193,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it before you place the order.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "breakout-plan",
+      "probe_enter": false,
+      "note_id": "1f5d34b7d9b742ab93ebb0667ee0d3d5",
+      "open_ms": 1219,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag breakout",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Check the Regime line first. Breakouts work best in a healthy market.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "pullback-plan",
+      "probe_enter": false,
+      "note_id": "dd56db6c3e5b49a892fbc5a759491eb9",
+      "open_ms": 1301,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag pullback",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x9 then Space",
+      "opened_by": "Space",
+      "first_step": "Confirm the uptrend before anything else: higher highs and rising averages.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "episodic-pivot-plan",
+      "probe_enter": false,
+      "note_id": "22dad4325df84c60983436aa756df310",
+      "open_ms": 1361,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag episodic-pivot",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x9 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the catalyst first. No real news, no episodic pivot.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "undercut-rally-plan",
+      "probe_enter": false,
+      "note_id": "430517d6abcd491f94bd66c5158ad3e4",
+      "open_ms": 1277,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag undercut-rally",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x9 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the level being undercut: a prior low, or a key moving average.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "parabolic-short-plan",
+      "probe_enter": false,
+      "note_id": "fb9619c5434447fba3d2a0aaf3e25e06",
+      "open_ms": 1397,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag parabolic-short",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Measure the run: how far, how fast, how far above the 10-day average.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "position-sizing-worksheet",
+      "probe_enter": false,
+      "note_id": "0c9bd4130da746d6806ed4a9e1324497",
+      "open_ms": 1020,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag sizing",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill in account size, risk percent, entry, and stop.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "setup-playbook-entry",
+      "probe_enter": false,
+      "note_id": "24aea31194224ac29adf4142b4ce63fe",
+      "open_ms": 1129,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag playbook",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the setup and describe it well enough to recognize it cold.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "options-trade-plan",
+      "probe_enter": false,
+      "note_id": "27a7a13816a04d04afb04d81ae76c7b2",
+      "open_ms": 1116,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag options",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Start with the view: direction or volatility, and the time it needs.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "risk-checklist",
+      "probe_enter": false,
+      "note_id": "e05fe6ffd42f4cd5bbe49f10ef055664",
+      "open_ms": 1306,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag risk",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Use it before you size up, and once a week.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "mistake-log",
+      "probe_enter": false,
+      "note_id": "1d28094088634a58b7c761710b132e77",
+      "open_ms": 1211,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag mistake-log",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it the day it happens.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "lessons-learned",
+      "probe_enter": false,
+      "note_id": "667aa0820159418ea7a93e3810450d44",
+      "open_ms": 1462,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag lessons",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Keep one running note for your lessons.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "goals",
+      "probe_enter": false,
+      "note_id": "0d4654734ed14dd1af1c69d888e3c563",
+      "open_ms": 1393,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag goals",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Write goals you control: actions, not P&L.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "drawdown-recovery-plan",
+      "probe_enter": false,
+      "note_id": "ea39e1a527e6442dbb639c23cc5ac450",
+      "open_ms": 1152,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag drawdown",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x6 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it before your next trade, not during one.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "tilt-log",
+      "probe_enter": false,
+      "note_id": "247a748398a44011921b66a5b90fcf3c",
+      "open_ms": 1184,
+      "stored_counts": {
+        "callout": 0,
+        "table": 0,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 0,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag tilt",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Use it the moment a trade goes sideways.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "1200",
+      "key": "trade-review",
+      "probe_enter": true,
+      "note_id": "7c57ee7303d0473f90381f231c3b84a8",
+      "open_ms": 1172,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Info",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "enter_probe": {
+        "opened": false,
+        "top_types_before": [
+          "paragraph",
+          "heading",
+          "paragraph",
+          "toggle"
+        ],
+        "top_types_after": [
+          "heading",
+          "paragraph",
+          "toggle",
+          "paragraph"
+        ],
+        "body_changed": true
+      }
+    },
+    {
+      "viewport": "390",
+      "key": "breakout-plan",
+      "probe_enter": false,
+      "note_id": "fe6f37d838474b60817e3b833ca10579",
+      "open_ms": 3507,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag breakout",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Check the Regime line first. Breakouts work best in a healthy market.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "pullback-plan",
+      "probe_enter": false,
+      "note_id": "833e4c65380049c588f26739ba81d997",
+      "open_ms": 1227,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag pullback",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x9 then Space",
+      "opened_by": "Space",
+      "first_step": "Confirm the uptrend before anything else: higher highs and rising averages.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "episodic-pivot-plan",
+      "probe_enter": false,
+      "note_id": "97a64b5f32d04a1cb80201e67fa3f94a",
+      "open_ms": 1323,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag episodic-pivot",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the catalyst first. No real news, no episodic pivot.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "undercut-rally-plan",
+      "probe_enter": false,
+      "note_id": "1890e70951434b12bfd73b84ee5c1c3b",
+      "open_ms": 1254,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag undercut-rally",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the level being undercut: a prior low, or a key moving average.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "parabolic-short-plan",
+      "probe_enter": false,
+      "note_id": "cb49925b049b4005a6a45750a281c26b",
+      "open_ms": 1296,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-plan",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag parabolic-short",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Warning",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Measure the run: how far, how fast, how far above the 10-day average.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "earnings-prep",
+      "probe_enter": false,
+      "note_id": "2495bd9898fc4349bf975402bfbcd053",
+      "open_ms": 1157,
+      "stored_counts": {
+        "callout": 1,
+        "table": 2,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 2,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag earnings",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag earnings-prep",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tableWrapper",
+          "label": "",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tableWrapper",
+          "label": "",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Info",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x11 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill the report date and the expectations table from the consensus and last year's numbers.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "sector-note",
+      "probe_enter": false,
+      "note_id": "5dc41346b47940c090fee1f038e7d8e1",
+      "open_ms": 1124,
+      "stored_counts": {
+        "callout": 0,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag sector-note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tableWrapper",
+          "label": "",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Name the sector or its ETF at the top, and date the note.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "trade-review",
+      "probe_enter": false,
+      "note_id": "b5e2d2d5a768445cbf92465a4677d028",
+      "open_ms": 1486,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Info",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x8 then Space",
+      "opened_by": "Space",
+      "first_step": "Write it right after the trade closes, while you still remember the decisions.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "weekly-review",
+      "probe_enter": false,
+      "note_id": "af68de6fac33472e8b698188b94981f7",
+      "open_ms": 1136,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag weekly-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Note",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Fill the numbers table first, straight from your journal, before any opinions.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "monthly-review",
+      "probe_enter": false,
+      "note_id": "78f0108bc15c4e2c981275e0562bf2ee",
+      "open_ms": 1233,
+      "stored_counts": {
+        "callout": 0,
+        "table": 2,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 2,
+        "toggle": 1,
+        "callout": 0
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag monthly-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tableWrapper",
+          "label": "",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "how": "keyboard: Tab x7 then Space",
+      "opened_by": "Space",
+      "first_step": "Do it after the month closes, with that month's weekly reviews open beside it.",
+      "body_unchanged_but_open": false,
+      "stored_open_after": true
+    },
+    {
+      "viewport": "390",
+      "key": "trade-review",
+      "probe_enter": true,
+      "note_id": "5e2c735ab5f54629a0f78855a01fce05",
+      "open_ms": 1121,
+      "stored_counts": {
+        "callout": 1,
+        "table": 1,
+        "toggle": 1
+      },
+      "dom_counts": {
+        "table": 1,
+        "toggle": 1,
+        "callout": 1
+      },
+      "aria_expanded_before": "false",
+      "tab_trail": [
+        {
+          "tag": "input",
+          "cls": "_subtitleInput_d4m6u_375",
+          "label": "Subtitle",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_remove_1jt64_61",
+          "label": "Remove tag trade-review",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "input",
+          "cls": "_input_mnqq8_15",
+          "label": "Add a tag to this note",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "_addLink_1ug0c_135",
+          "label": "",
+          "inEditor": false,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "div",
+          "cls": "tiptap ProseMirror _proseEditor_d4m6u_375 ProseMirror-focuse",
+          "label": "Note body",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctCalloutPick",
+          "label": "Callout style: Info",
+          "inEditor": true,
+          "isWalkthroughChevron": false
+        },
+        {
+          "tag": "button",
+          "cls": "uctToggleChevron",
+          "label": "Expand toggle",
+          "inEditor": true,
+          "isWalkthroughChevron": true
+        }
+      ],
+      "enter_probe": {
+        "opened": false,
+        "top_types_before": [
+          "paragraph",
+          "heading",
+          "paragraph",
+          "toggle"
+        ],
+        "top_types_after": [
+          "heading",
+          "paragraph",
+          "toggle",
+          "paragraph"
+        ],
+        "body_changed": true
+      }
+    }
+  ],
+  "screenshots": [
+    "01-notebook-landing-1200.png",
+    "02-gallery-1200.png",
+    "03-preview-dialog-breakout.png",
+    "04-1200-sector-note.png",
+    "05-1200-earnings-prep.png",
+    "06-1200-trade-review.png",
+    "07-1200-breakout-plan.png",
+    "08-390-breakout-plan.png",
+    "09-390-pullback-plan.png",
+    "10-390-episodic-pivot-plan.png",
+    "11-390-undercut-rally-plan.png",
+    "12-390-parabolic-short-plan.png",
+    "13-390-earnings-prep.png",
+    "14-390-sector-note.png",
+    "15-390-trade-review.png",
+    "16-390-weekly-review.png",
+    "17-390-monthly-review.png"
+  ],
+  "page_errors": [],
+  "landing": {
+    "url": "http://127.0.0.1:8586/journal/notebook?view=all",
+    "text": "Skip to main content\nSkip to notes list\nUCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nw12b\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n\u25be\nAdd thesis starter views\nAll notes\n0\nUnfiled\n0\nArchived\n0\nTrash\n0\n+ New folder\nAll notes\nRecently updated\nRecently created\nTitle\nSave view\nImport\nExport\nToday\nTemplates\n+ New note\n\nYour notebook is empty.\n\nStart from a template \u2014 or a blank page.\n\nBring your notes from Notion, Obsidian, Evernote, or anywhere else.\n\nImport notes\nAll\nDaily & weekly rituals\nThesis & research\nAround a trade\nMindset\nYour templates\nBlank note\nAn empty page \u2014 structure it your way.\nYOUR TEMPLATES\nSave any note as a template from its menu, and it appears here.\nDAILY & WEEKLY RITUALS\nBEFORE THE OPEN\nDaily Game Plan\nRegime, levels, scenarios, and your risk budget for the day.\nOvernight & premarket\nIndex futures, notable gaps, news, and earnings that matter for today.\nLevels that matter\n Preview\nAFTER THE CLOSE\nPost-Market Debrief\nGrade the day against the morning plan in five minutes.\nThe morning plan said\nToday's trades\nWhat did you take, and was each one on the plan?\n Preview\nSUNDAY OR MONDAY PREMARKET\nWeekly Plan\nContext, focus, A+ setups, and the risk plan for the week.\nMarket context\nRegime, breadth, leading themes, "
+  },
+  "gallery_door": "inline (empty notebook)",
+  "gallery_card_count": 32,
+  "gallery_keys": [
+    "daily-prep",
+    "post-market-debrief",
+    "weekly-plan",
+    "weekly-review",
+    "monthly-review",
+    "quarterly-review",
+    "thesis",
+    "sector-theme-research",
+    "sector-note",
+    "watchlist-thesis",
+    "catalyst-tracker",
+    "earnings-prep",
+    "ipo-notes",
+    "meeting-notes",
+    "trade-review",
+    "swing-log",
+    "earnings-play",
+    "trade-plan",
+    "breakout-plan",
+    "pullback-plan",
+    "episodic-pivot-plan",
+    "undercut-rally-plan",
+    "parabolic-short-plan",
+    "position-sizing-worksheet",
+    "setup-playbook-entry",
+    "options-trade-plan",
+    "risk-checklist",
+    "mistake-log",
+    "lessons-learned",
+    "goals",
+    "drawdown-recovery-plan",
+    "tilt-log"
+  ],
+  "preview_dialog_breakout": {
+    "has_walkthrough_title": false,
+    "chars": 1589
+  },
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T12-24-03.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-10-02 12:24:13",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-10-02 12:25:33",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-10-02 12:27:30",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-10-02 12:28:49",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T12-24-03.md",
+  "finished_utc": "2026-10-02T17:29:20+00:00"
+}

@@ -1,0 +1,90 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w13h2/app
+
+ ❯ src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx (15 tests | 1 failed) 3185ms
+     ✓ lists only flat price-pane levels, highest first 215ms
+     ✓ marking a line Stop writes the role ON the drawing through setPlanRole — no price copy 64ms
+     ✓ with no level drawn it says how to start, and offers nothing to click 5ms
+     ✓ starter: the panel shows exactly sizePlan(server answer), with the engine label  351ms
+     ✓ Compass answered for a paid long: its shares, its label  347ms
+     ✓ no account size: no shares, the reason, and where to set it  347ms
+     ✓ a refused reading is said out loud, never shown as an empty plan  373ms
+     ✓ "Use this size" writes ta.planBlock (shares + engine) — and only on the click  417ms
+     ✓ direction follows the role and the side 1ms
+     × arms through 13H-1 adapter with the chart-namespaced drawing id and the line geometry 431ms
+     ✓ a chart the note has not saved yet says so (the adapter finds charts in the STORED note) 74ms
+     ✓ an armed level shows armed; moving its line PATCHes the bound alert; a cold mount never deletes 91ms
+     ✓ pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does 15ms
+     ✓ opens AT the note, steps forward bar by bar, and names the level hits in order  420ms
+     ✓ a chart that tracks now has nothing after it — said, not shown as an empty chart 32ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  21:29:34
+   Duration  7.26s (transform 390ms, setup 327ms, import 412ms, tests 3.18s, environment 1.18s)
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > levels and roles > lists only flat price-pane levels, highest first
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > levels and roles > marking a line Stop writes the role ON the drawing through setPlanRole — no price copy
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > touch routing: the panel claims BOTH event families > pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > alerts at a drawn level > arms through 13H-1 adapter with the chart-namespaced drawing id and the line geometry
+AssertionError: expected { noteId: 'note-1', …(5) } to match object { noteId: 'note-1', …(5) }
+
+- Expected
++ Received
+
+  {
+    "alert_type": "line",
+    "direction": "below",
+-   "drawingId": "nb:emb-1:s",
++   "drawingId": "s",
+    "embedId": "emb-1",
+    "noteId": "note-1",
+    "target_price": 97.25,
+  }
+
+ ❯ src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx:184:23
+    182|     const post = calls.find((c) => c.url === '/api/j2/chart-plan/alert…
+    183|     expect(post.method).toBe('POST')
+    184|     expect(post.body).toMatchObject({
+       |                       ^
+    185|       noteId: 'note-1', embedId: 'emb-1', drawingId: boundAlertId('emb…
+    186|       direction: 'below', alert_type: 'line', target_price: 97.25,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

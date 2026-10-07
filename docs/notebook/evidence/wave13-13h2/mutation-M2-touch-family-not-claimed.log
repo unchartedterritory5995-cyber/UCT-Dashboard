@@ -1,0 +1,85 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w13h2/app
+
+ ❯ src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx (15 tests | 1 failed) 3612ms
+     ✓ lists only flat price-pane levels, highest first  356ms
+     ✓ marking a line Stop writes the role ON the drawing through setPlanRole — no price copy 87ms
+     ✓ with no level drawn it says how to start, and offers nothing to click 12ms
+     ✓ starter: the panel shows exactly sizePlan(server answer), with the engine label  364ms
+     ✓ Compass answered for a paid long: its shares, its label  370ms
+     ✓ no account size: no shares, the reason, and where to set it  349ms
+     ✓ a refused reading is said out loud, never shown as an empty plan  386ms
+     ✓ "Use this size" writes ta.planBlock (shares + engine) — and only on the click  429ms
+     ✓ direction follows the role and the side 1ms
+     ✓ arms through 13H-1 adapter with the chart-namespaced drawing id and the line geometry  462ms
+     ✓ a chart the note has not saved yet says so (the adapter finds charts in the STORED note) 112ms
+     ✓ an armed level shows armed; moving its line PATCHes the bound alert; a cold mount never deletes 118ms
+     × pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does 39ms
+     ✓ opens AT the note, steps forward bar by bar, and names the level hits in order  481ms
+     ✓ a chart that tracks now has nothing after it — said, not shown as an empty chart 41ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  21:29:47
+   Duration  5.72s (transform 428ms, setup 277ms, import 488ms, tests 3.61s, environment 1.09s)
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > levels and roles > lists only flat price-pane levels, highest first
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > levels and roles > marking a line Stop writes the role ON the drawing through setPlanRole — no price copy
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > touch routing: the panel claims BOTH event families > pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does
+An update to ChartPlanPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx > touch routing: the panel claims BOTH event families > pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does
+AssertionError: expected [ 'touchstart' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "touchstart",
++ ]
+
+ ❯ src/pages/journal-2-0/components/notebook/ChartPlanPanel.test.jsx:236:18
+    234|       panel.querySelector('button').dispatchEvent(new Event(t, { bubbl…
+    235|     }
+    236|     expect(seen).toEqual([])
+       |                  ^
+    237|     // CONTROL: the listeners are live — an event outside the panel re…
+    238|     screen.getByTestId('outside').dispatchEvent(new Event('touchstart'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

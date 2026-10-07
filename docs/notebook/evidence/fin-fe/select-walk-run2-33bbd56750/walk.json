@@ -1,0 +1,336 @@
+{
+ "tool": "tools/notebook_fin_fe_select_walk.py",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe\\select-walk-run2-33bbd56750\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 06:38:30",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 06:39:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 06:41:33",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 06:41:45",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe\\select-walk-run2-33bbd56750\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T06-38-20.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_paid_admin_and_wave_flags_OFF",
+   "verdict": "PASS",
+   "detail": "/api/auth/me {'paid_equiv': True, 'notebook_chart_plan_enabled': False, 'notebook_ta_fingerprint_enabled': False, 'notebook_getting_started_enabled': False, 'notebook_template_gallery_enabled': False}"
+  },
+  {
+   "id": "V1280_LIVE_1_click_on_body_selects_block",
+   "verdict": "PASS",
+   "detail": "selected before=False after=True; body={'marker': '', 'has_canvas': True, 'has_img': True, 'caption': False}"
+  },
+  {
+   "id": "V1280_LIVE_2_delete_removes_it_and_undo_restores_it",
+   "verdict": "PASS",
+   "detail": "blocks after Delete=0, after undo=1"
+  },
+  {
+   "id": "V1280_IMAGE_1_click_on_body_selects_block",
+   "verdict": "PASS",
+   "detail": "selected before=False after=True; body={'marker': '', 'has_canvas': False, 'has_img': True, 'caption': False}"
+  },
+  {
+   "id": "V1280_IMAGE_2_delete_removes_it_and_undo_restores_it",
+   "verdict": "PASS",
+   "detail": "blocks after Delete=0, after undo=1"
+  },
+  {
+   "id": "V1280_draw_mode_survives_clicks_on_the_chart",
+   "verdict": "FAIL",
+   "detail": "marker='draw'; Done still shown=True; block selected by the clicks=True"
+  },
+  {
+   "id": "V1280_click_on_a_button_in_the_block_does_not_select_it",
+   "verdict": "PASS",
+   "detail": "button={'x': 433.84375, 'y': 438.640625, 'name': 'Hide toolbar', 'inside_body': False}; block selected after its click=False"
+  },
+  {
+   "id": "V390_LIVE_1_tap_on_body_selects_block",
+   "verdict": "FAIL",
+   "detail": "selected before=False after=False; body={'marker': '', 'has_canvas': True, 'has_img': True, 'caption': False}"
+  },
+  {
+   "id": "V390_LIVE_2_delete_removes_it_and_undo_restores_it",
+   "verdict": "FAIL",
+   "detail": "blocks after Delete=1, after undo=1"
+  },
+  {
+   "id": "V390_IMAGE_1_tap_on_body_selects_block",
+   "verdict": "PASS",
+   "detail": "selected before=False after=True; body={'marker': '', 'has_canvas': False, 'has_img': True, 'caption': False}"
+  },
+  {
+   "id": "V390_IMAGE_2_delete_removes_it_and_undo_restores_it",
+   "verdict": "PASS",
+   "detail": "blocks after Delete=0, after undo=1"
+  },
+  {
+   "id": "W9_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "api modules: []"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "me": {
+   "paid_equiv": true,
+   "notebook_chart_plan_enabled": false,
+   "notebook_ta_fingerprint_enabled": false,
+   "notebook_getting_started_enabled": false,
+   "notebook_template_gallery_enabled": false
+  },
+  "V1280_notes": {
+   "LIVE": "9f2a7b3795904d3f861d3a58d82ae9ba",
+   "IMAGE": "fc32bf189c494962806a3eedbb908a29",
+   "image_url": "/api/j2/notes/attachments/72d769b7-9266-4bf0-b0a6-cbb1e902cade/bcf7afcc89d54f2283561f92d1bb99fd/inline/e8d78dd7111c38ab1c004c8de991d7c0.png"
+  },
+  "V1280_LIVE": {
+   "body_markup": {
+    "marker": "",
+    "has_canvas": true,
+    "has_img": true,
+    "caption": false
+   },
+   "selected_before": false,
+   "events_of_the_press": [
+    [
+     "pointerdown",
+     "CANVAS",
+     "ok"
+    ],
+    [
+     "mousedown",
+     "CANVAS",
+     "ok"
+    ],
+    [
+     "mouseup",
+     "CANVAS",
+     "prevented"
+    ],
+    [
+     "click",
+     "CANVAS",
+     "ok"
+    ]
+   ],
+   "selected_after_click": true,
+   "blocks_after_delete": 0,
+   "blocks_after_undo": 1,
+   "order_before_drag": [
+    "before the block",
+    "BLOCK",
+    "after the block"
+   ],
+   "drag_events_seen": [
+    "dragstart",
+    "dragover",
+    "drop",
+    "dragend"
+   ],
+   "order_after_drag": [
+    "BLOCK",
+    "before the block",
+    "after the block"
+   ],
+   "blocks_after_drag": 1
+  },
+  "V1280_IMAGE": {
+   "body_markup": {
+    "marker": "",
+    "has_canvas": false,
+    "has_img": true,
+    "caption": false
+   },
+   "selected_before": false,
+   "events_of_the_press": [
+    [
+     "pointerdown",
+     "IMG",
+     "ok"
+    ],
+    [
+     "mousedown",
+     "IMG",
+     "ok"
+    ],
+    [
+     "mouseup",
+     "IMG",
+     "prevented"
+    ],
+    [
+     "click",
+     "IMG",
+     "ok"
+    ]
+   ],
+   "selected_after_click": true,
+   "blocks_after_delete": 0,
+   "blocks_after_undo": 1,
+   "order_before_drag": [
+    "before the block",
+    "BLOCK",
+    "after the block"
+   ],
+   "drag_events_seen": [
+    "dragstart",
+    "dragstart",
+    "dragover",
+    "drop",
+    "drop",
+    "dragend",
+    "dragend"
+   ],
+   "order_after_drag": [
+    "BLOCK",
+    "before the block",
+    "after the block"
+   ],
+   "blocks_after_drag": 1
+  },
+  "V1280_draw_and_controls": {
+   "marker_in_draw_mode": "draw",
+   "done_button_after_two_clicks": 1,
+   "selected_while_drawing": true,
+   "marker_after_done": "",
+   "inner_button": {
+    "x": 433.84375,
+    "y": 438.640625,
+    "name": "Hide toolbar",
+    "inside_body": false
+   },
+   "selected_after_button_click": false
+  },
+  "V390_notes": {
+   "LIVE": "f7a1b5af4e4147e2970659cec8060505",
+   "IMAGE": "8cb00fa539394b06ae65bcf9cf2e1936",
+   "image_url": "/api/j2/notes/attachments/72d769b7-9266-4bf0-b0a6-cbb1e902cade/8855903ee6f34eeeacdd782f085a1356/inline/e8d78dd7111c38ab1c004c8de991d7c0.png"
+  },
+  "V390_LIVE": {
+   "body_markup": {
+    "marker": "",
+    "has_canvas": true,
+    "has_img": true,
+    "caption": false
+   },
+   "selected_before": false,
+   "events_of_the_press": [
+    [
+     "pointerdown",
+     "CANVAS",
+     "ok"
+    ],
+    [
+     "touchstart",
+     "CANVAS",
+     "ok"
+    ],
+    [
+     "touchend",
+     "CANVAS",
+     "prevented"
+    ]
+   ],
+   "selected_after_click": false,
+   "blocks_after_delete": 1,
+   "blocks_after_undo": 1,
+   "long_press_selected_while_held": false,
+   "long_press_selected_after_release": false,
+   "long_press_contextmenu_events": 0,
+   "long_press_dialogs_open": 0,
+   "blocks_after_long_press": 1
+  },
+  "V390_IMAGE": {
+   "body_markup": {
+    "marker": "",
+    "has_canvas": false,
+    "has_img": true,
+    "caption": false
+   },
+   "selected_before": false,
+   "events_of_the_press": [
+    [
+     "pointerdown",
+     "IMG",
+     "ok"
+    ],
+    [
+     "touchstart",
+     "IMG",
+     "ok"
+    ],
+    [
+     "touchend",
+     "IMG",
+     "ok"
+    ],
+    [
+     "mousedown",
+     "IMG",
+     "ok"
+    ],
+    [
+     "mouseup",
+     "IMG",
+     "prevented"
+    ],
+    [
+     "click",
+     "IMG",
+     "ok"
+    ]
+   ],
+   "selected_after_click": true,
+   "blocks_after_delete": 0,
+   "blocks_after_undo": 1,
+   "long_press_selected_while_held": false,
+   "long_press_selected_after_release": true,
+   "long_press_contextmenu_events": 0,
+   "long_press_dialogs_open": 0,
+   "blocks_after_long_press": 1
+  },
+  "page_errors": []
+ }
+}

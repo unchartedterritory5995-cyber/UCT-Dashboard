@@ -86,14 +86,21 @@ export default function DayAttachments({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.detail || `${res.status}`)
+        const err = new Error(body.detail || `${res.status}`)
+        // A file refused for its size (413) comes with the server's own sentence,
+        // "Image must be < 5 MB". That is the one failure "try again" cannot fix.
+        err.reason = res.status === 413 && typeof body.detail === 'string' ? body.detail : null
+        throw err
       }
       const uploaded = await res.json() // { kind, url, label, addedAt }
       const next = [...attachments, uploaded]
       await onSave({ ...narrativeBundle, attachments: next, rules })
     } catch (e) {
       console.error('Failed to upload attachment:', e)
-      setError("Couldn't upload this image. Nothing was added — try again.")
+      const reason = e?.reason
+      setError(reason
+        ? `${/[.!?]$/.test(reason) ? reason : `${reason}.`} Nothing was added.`
+        : "Couldn't upload this image. Nothing was added — try again.")
     }
     e.target.value = ''
   }

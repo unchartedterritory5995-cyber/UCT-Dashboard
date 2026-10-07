@@ -45,6 +45,23 @@ function walkCss(dir, out = []) {
  * the page's stylesheet belongs to that page (its four findings are reported
  * to the controller, not fixed or exempted here).
  */
+/**
+ * Lane FIN-A11Y (review R4, I-7): Notebook-wave stylesheets that live on the JOURNAL side
+ * (the trade page, Insights, the Why prompt), so neither derivation below reaches them. They
+ * carried loss-coloured text at 4.31:1 for exactly that reason: no rail read them. Listed by
+ * name because nothing derives "a wave 12-15 surface outside components/notebook"; the rail
+ * fails if one of these files is gone (notebookContrast.test.js), so the list cannot rot
+ * silently. Relative to journal-2-0/.
+ */
+export const JOURNAL_SIDE_NOTEBOOK_CSS = Object.freeze([
+  'components/EntryContextCard.module.css',
+  'components/WhyPrompt.module.css',
+  'components/insights/DisciplineRecord.module.css',
+  'components/insights/MyPlaybook.module.css',
+  'components/trade/PlanGradeCard.module.css',
+  'components/trade/TradeBeforeAfter.module.css',
+])
+
 export function deriveNotebookCss() {
   const sources = [...derivePopulation(), ...Object.keys(OTHER_LANES_OUTSIDE_POPULATION)]
   const found = new Set()
@@ -60,6 +77,7 @@ export function deriveNotebookCss() {
     }
   }
   for (const abs of walkCss(join(J2_DIR, 'components', 'notebook'))) found.add(posix(relative(J2_DIR, abs)))
+  for (const rel of JOURNAL_SIDE_NOTEBOOK_CSS) found.add(rel)
   return [...found].sort()
 }
 

@@ -1,0 +1,14 @@
+<<<<<<< OURS(prev)
+import SaveToNotebookButton from './journal-2-0/components/SaveToNotebookButton'
+import { buildModelBookCapture } from './modelbook/notebookCapture'
+import { ASC, DESC, nextSort } from '../lib/presentation/dataGrid'
+
+// TERM-065: the gallery's header decision comes from the DataGrid seed. A new
+// column starts at its own default (gain → top gainers first, rank → ascending);
+// the active column flips. The comparator stays here — it is about the data.
+// Parity with the hand-rolled toggle: lib/presentation/dataGrid/pageGrids.seedParity.test.js
+const modelBookDefaultDir = (key) => (key === 'gain' ? DESC : ASC)
+export const nextModelBookSort = (s, key) => nextSort(s, key, modelBookDefaultDir)
+=======
+>>>>>>> THEIRS(pre-landing)
+

@@ -1145,6 +1145,31 @@
 }
 :global([data-charts-theme='sunrise']) .scaleToggleBtn { color: #47525f; }
 
+/* ── Notebook chart embeds on the touch tier (wave 14 playbook fixes, item 3) ──
+   `ChartEmbed.jsx` (a note's chart block) marks its figure `data-notebook-chart-embed`.
+   At `density="mini"` the only finger targets StockChart draws there are the A/L/% scale
+   chips, the legend's "+N more" fold buttons and the back-to-latest arrow, and all sat
+   under `--tap-min` (9px type, 14-26px boxes) on phone AND tablet. Scoped to the embed attribute so every
+   other surface (workspace, grid cells, the phone chart shell, TradeBeforeAfter, which
+   hides these instead) renders byte-identically. Sizes only, tokens only.
+   Rail: `pages/journal-2-0/components/notebook/ChartEmbed.touchTargets.test.js`. */
+@media (max-width: 1024px) {
+  :global([data-notebook-chart-embed]) .scaleToggleBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  :global([data-notebook-chart-embed]) .studyMore {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  /* The "back to the latest bar" arrow (26px) shows in a LIVE or peek-to-now embed once the
+     member scrolls back; its left/top are set imperatively, so growing it moves nothing. */
+  :global([data-notebook-chart-embed]) .toPresentBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;

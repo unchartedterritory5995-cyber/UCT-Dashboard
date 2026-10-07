@@ -1,0 +1,252 @@
+{
+ "before_any_touch": {
+  "toolbar_visible": true,
+  "controls": [
+   {
+    "name": "Hide toolbar",
+    "w": 34,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Block actions",
+    "w": 44,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Embed timeframe",
+    "w": 54,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Go live (max 3 per note)",
+    "w": 39,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Half width (pair two side-by-side)",
+    "w": 39,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Draw on this snapshot (lines, text — saved with the embed)",
+    "w": 44,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "What happened next — show this window through today (view-on",
+    "w": 71,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Re-capture the archive image",
+    "w": 75,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Chart settings",
+    "w": 34,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Sync from my chart — pull your current Charts-page settings ",
+    "w": 43,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Freeze — make the chart static (no crosshair, not interactiv",
+    "w": 52,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Remove embed",
+    "w": 34,
+    "h": 44,
+    "visible": true
+   }
+  ],
+  "grip": {
+   "hidden_attr": true,
+   "visible": false,
+   "top": 0
+  },
+  "chart_top": 620,
+  "chart_bottom": 922
+ },
+ "after_tap_on_chart": {
+  "block_selected": false,
+  "toolbar_visible": true,
+  "controls": [
+   {
+    "name": "Hide toolbar",
+    "w": 34,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Block actions",
+    "w": 44,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Embed timeframe",
+    "w": 54,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Go live (max 3 per note)",
+    "w": 39,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Half width (pair two side-by-side)",
+    "w": 39,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Draw on this snapshot (lines, text — saved with the embed)",
+    "w": 44,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "What happened next — show this window through today (view-on",
+    "w": 71,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Re-capture the archive image",
+    "w": 75,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Chart settings",
+    "w": 34,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Sync from my chart — pull your current Charts-page settings ",
+    "w": 43,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Freeze — make the chart static (no crosshair, not interactiv",
+    "w": 52,
+    "h": 44,
+    "visible": true
+   },
+   {
+    "name": "Remove embed",
+    "w": 34,
+    "h": 44,
+    "visible": true
+   }
+  ],
+  "grip": {
+   "hidden_attr": true,
+   "visible": false,
+   "top": 0
+  },
+  "chart_top": 620,
+  "chart_bottom": 922
+ },
+ "visible_control_names": [
+  "Hide toolbar",
+  "Block actions",
+  "Embed timeframe",
+  "Go live (max 3 per note)",
+  "Half width (pair two side-by-side)",
+  "Draw on this snapshot (lines, text — saved with the embed)",
+  "What happened next — show this window through today (view-on",
+  "Re-capture the archive image",
+  "Chart settings",
+  "Sync from my chart — pull your current Charts-page settings ",
+  "Freeze — make the chart static (no crosshair, not interactiv",
+  "Remove embed"
+ ],
+ "has_settings_control": true,
+ "has_caption_control": false,
+ "has_move_control_in_toolbar_besides_block_actions": true,
+ "block_actions_box": {
+  "x": 401,
+  "y": 626.875,
+  "width": 44,
+  "height": 44
+ },
+ "order_start": [
+  "one",
+  "BLOCK",
+  "two",
+  "three"
+ ],
+ "sheet_rows": [
+  {
+   "name": "×",
+   "h": 44,
+   "w": 44,
+   "disabled": false
+  },
+  {
+   "name": "Move up",
+   "h": 44,
+   "w": 686,
+   "disabled": false
+  },
+  {
+   "name": "Move down",
+   "h": 44,
+   "w": 686,
+   "disabled": false
+  },
+  {
+   "name": "Remove block",
+   "h": 44,
+   "w": 686,
+   "disabled": false
+  }
+ ],
+ "order_after_move_down": [
+  "one",
+  "two",
+  "BLOCK",
+  "three"
+ ],
+ "order_after_two_move_ups": [
+  "BLOCK",
+  "one",
+  "two",
+  "three"
+ ],
+ "move_up_disabled_at_top": true,
+ "blocks_after_remove_block": 0,
+ "stored_types_after": [
+  "paragraph",
+  "paragraph",
+  "paragraph"
+ ],
+ "toolbar_remove_box": {
+  "x": 657.625,
+  "y": 885.875,
+  "width": 34,
+  "height": 44
+ },
+ "blocks_after_toolbar_remove": 0
+}

@@ -1,0 +1,154 @@
+=== CONTROL: all 9 target tests on the unmutated tree ===
+pytest rc: 0 -> GREEN (as it must be)
+--- last lines ---
+...........                                                              [100%]
+11 passed in 37.06s
+
+=== drop_W11_from_CHAIN ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:419: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+1 failed in 7.23s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== remove_the_dd7bf82c3_reviewed_ruling ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:419: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+1 failed in 16.19s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== apply_step_ignores_the_per_landing_keep ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:685: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list
+1 failed in 3.97s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== the_chain_step_never_passes_its_landing_keep ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:773: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other
+1 failed in 5.62s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== the_purge_list_leaves_the_landing_keep_list ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_never_revert.py::test_the_tool_keeps_both_schema_files_their_two_rails_and_the_purge_list
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_never_revert.py:96: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_never_revert.py::test_the_tool_keeps_both_schema_files_their_two_rails_and_the_purge_list
+1 failed in 1.22s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== a_schema_table_leaves_KEEP_AT_TIP ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_never_revert.py::test_the_tool_keeps_both_schema_files_their_two_rails_and_the_purge_list
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_never_revert.py:94: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_never_revert.py::test_the_tool_keeps_both_schema_files_their_two_rails_and_the_purge_list
+1 failed in 1.08s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== landing_mode_resolves_by_a_recorded_rule ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:716: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule
+1 failed in 2.43s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== the_pending_squash_sits_on_the_moved_base ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_landing_mode_says_when_the_landing_has_not_merged_the_base
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:703: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_says_when_the_landing_has_not_merged_the_base
+1 failed in 4.34s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== landing_mode_accepts_a_merge_commit ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_landing_mode_refuses_what_is_not_a_landing_there
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:748: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_refuses_what_is_not_a_landing_there
+1 failed in 2.01s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== landing_mode_stops_naming_later_commits ===
+file: tools/notebook_rollback_chain.py
+node: tests/test_notebook_rollback_chain.py::test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_rollback_chain.py:733: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files
+1 failed in 4.16s
+restore proved by `git diff --quiet HEAD -- tools/notebook_rollback_chain.py`: OK
+
+=== a_missing_node_goes_back_to_a_bare_skip ===
+file: tests/test_notebook_sample_size.py
+node: tests/test_notebook_sample_size.py::test_a_missing_node_FAILS_the_parity_rail_where_node_is_required
+pytest rc: 1 -> RED (killed)
+--- last lines ---
+tests\test_notebook_sample_size.py:255: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_sample_size.py::test_a_missing_node_FAILS_the_parity_rail_where_node_is_required[env0]
+FAILED tests/test_notebook_sample_size.py::test_a_missing_node_FAILS_the_parity_rail_where_node_is_required[env1]
+FAILED tests/test_notebook_sample_size.py::test_a_missing_node_FAILS_the_parity_rail_where_node_is_required[env2]
+3 failed in 0.85s
+restore proved by `git diff --quiet HEAD -- tests/test_notebook_sample_size.py`: OK
+
+HEAD: 7a0293cd15b887eaf944b2cc1eedfb9631dd5934
+SUMMARY: {'drop_W11_from_CHAIN': True, 'remove_the_dd7bf82c3_reviewed_ruling': True, 'apply_step_ignores_the_per_landing_keep': True, 'the_chain_step_never_passes_its_landing_keep': True, 'the_purge_list_leaves_the_landing_keep_list': True, 'a_schema_table_leaves_KEEP_AT_TIP': True, 'landing_mode_resolves_by_a_recorded_rule': True, 'the_pending_squash_sits_on_the_moved_base': True, 'landing_mode_accepts_a_merge_commit': True, 'landing_mode_stops_naming_later_commits': True, 'a_missing_node_goes_back_to_a_bare_skip': True}
+CONTROL GREEN: True
+ALL KILLED: True
+EXIT 0

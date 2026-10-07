@@ -1,0 +1,124 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/admin/queue",
+    "note": "One waiting, one reported (with its report), one hidden.",
+    "path": "/api/j2/template-gallery/admin/queue",
+    "status": 200
+  },
+  "body": {
+    "hidden": [
+      {
+        "author": "Alice Trader",
+        "category": "research",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hidden": true,
+        "id": "ab5940fa4a9949fe9159e9f1c0a178cb",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "openReports": 0,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reviewNote": "",
+        "status": "approved",
+        "title": "Sector notes",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      }
+    ],
+    "pending": [
+      {
+        "author": "Alice Trader",
+        "category": "research",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hidden": false,
+        "id": "4525cdb4ca5047a49587a3305069e54d",
+        "listedAt": null,
+        "mine": false,
+        "openReports": 0,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reviewNote": "",
+        "status": "pending",
+        "title": "Earnings notes",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      }
+    ],
+    "reported": [
+      {
+        "author": "Alice Trader",
+        "category": "trade_plan",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "What I check before a breakout.",
+        "featured": false,
+        "firm": false,
+        "hidden": false,
+        "id": "de29e1904cb84c159ce6535dab55786b",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "openReports": 1,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reports": [
+          {
+            "createdAt": "2026-10-05T14:30:00+00:00",
+            "id": "fd74a611fac848dbbb4980017816e510",
+            "note": "The second line is cut off.",
+            "reason": "broken"
+          }
+        ],
+        "reviewNote": "",
+        "status": "approved",
+        "title": "Breakout checklist",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 1
+      }
+    ]
+  }
+}

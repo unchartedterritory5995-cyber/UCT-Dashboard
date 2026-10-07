@@ -1,0 +1,101 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/entry-context/position/ec-gaps",
+    "note": "Captured, with three values missing and labelled, and two that are really zero and empty.",
+    "path": "/api/j2/entry-context/position/ec-gaps",
+    "status": 200
+  },
+  "body": {
+    "context": {
+      "captureDay": "2026-10-05",
+      "captureKind": "at_entry",
+      "capturedAt": "2026-10-05T14:30:00+00:00",
+      "capturedLate": false,
+      "entryDay": "2026-10-05",
+      "fields": {
+        "breadth_pct_above_50": {
+          "asOf": "2026-10-05T10:15:00-04:00",
+          "detail": {
+            "degraded": false,
+            "measured": 3000,
+            "universe": "live"
+          },
+          "missing": null,
+          "source": "breadth_live.compute_live(cached_only) pct_above_50sma",
+          "value": 55.1
+        },
+        "days_to_earnings": {
+          "asOf": "2026-10-05T14:30:00+00:00",
+          "detail": {
+            "countedFrom": "2026-10-05",
+            "reportDate": "2026-10-05"
+          },
+          "missing": null,
+          "source": "earnings_table._next_report_date",
+          "value": 0
+        },
+        "exposure": {
+          "asOf": "2026-10-05",
+          "detail": null,
+          "missing": null,
+          "source": "journal_two.regime.get_current_regime (wire UCT Exposure Rating)",
+          "value": 72.5
+        },
+        "fingerprint": {
+          "asOf": null,
+          "detail": null,
+          "missing": "source_error",
+          "source": "journal_two.tech_fingerprint.compute",
+          "value": null
+        },
+        "member_screens": {
+          "asOf": "20261002",
+          "detail": {
+            "swept": 1
+          },
+          "missing": null,
+          "source": "user_definitions.list_for_user + screener.scan_store.hits",
+          "value": []
+        },
+        "regime": {
+          "asOf": "2026-10-05",
+          "detail": null,
+          "missing": null,
+          "source": "journal_two.regime.get_current_regime",
+          "value": "amber"
+        },
+        "rs_rank": {
+          "asOf": null,
+          "detail": null,
+          "missing": "rs_not_ranked",
+          "source": "rs_ranking.get_rs_for_ticker",
+          "value": null
+        },
+        "uct_scans": {
+          "asOf": "2026-10-05",
+          "detail": {
+            "scans": [
+              "pullback_ma",
+              "gapper_news",
+              "remount"
+            ]
+          },
+          "missing": null,
+          "source": "engine.get_candidates / engine.candidate_tickers",
+          "value": []
+        }
+      },
+      "symbol": "ECZZ",
+      "trigger": "on_demand",
+      "version": 1,
+      "why": null
+    },
+    "key": {
+      "entryDay": "2026-10-05",
+      "symbol": "ECZZ"
+    },
+    "reason": null,
+    "status": "captured"
+  }
+}

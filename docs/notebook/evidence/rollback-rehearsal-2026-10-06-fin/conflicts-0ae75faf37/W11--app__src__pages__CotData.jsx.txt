@@ -1,0 +1,13 @@
+<<<<<<< OURS(prev)
+  const pal = useCotPalette()
+  const SERIES_COLORS = pal.series
+  const HOVER_COLORS = pal.hover
+  const PRICE_COLOR = pal.price
+  const AXIS_TEXT = pal.axis
+  const GRID_FAINT = pal.grid
+  const ZERO_LINE = pal.zero
+  const [symbol,       setSymbol]       = useState(initialCotSymbol)
+=======
+  const [symbol,       setSymbol]       = useState('ES')
+>>>>>>> THEIRS(pre-landing)
+

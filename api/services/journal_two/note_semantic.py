@@ -56,11 +56,11 @@ from typing import Any, Protocol
 
 from api.services import daily_counters
 from api.services.auth_db import get_connection
+from api.services.notebook_flags import flag_on
 
 log = logging.getLogger(__name__)
 
 SEMANTIC_GATE = "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
-_GATE_ON_VALUES = {"1", "true", "yes", "on"}
 
 # Which provider an ENABLED search uses. A MODE, declared as a table so the
 # flag index (`feature_flag_index.mode_flags`) can see its default and its
@@ -109,8 +109,8 @@ CREATE TABLE IF NOT EXISTS j2_note_embeddings (
 
 def semantic_enabled() -> bool:
     """The gate, read PER CALL. Unset, or anything but an on-value, is OFF."""
-    raw = os.environ.get(SEMANTIC_GATE)
-    return raw is not None and raw.strip().lower() in _GATE_ON_VALUES
+    # Wave 14 W14-C1: the ONE parse (`flag_on`), now that the auth payload carries this gate.
+    return flag_on(SEMANTIC_GATE, False)
 
 
 def ensure_semantic_schema(conn: sqlite3.Connection) -> None:

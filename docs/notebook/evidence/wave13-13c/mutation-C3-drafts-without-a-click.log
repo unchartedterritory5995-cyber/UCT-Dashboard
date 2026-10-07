@@ -1,0 +1,42 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w13c/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/components/notebook/ReportingSoon.test.jsx [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m | [22m[33m6 skipped[39m[2m)[22m[33m 388[2mms[22m[39m
+     [2m[90m↓[39m[22m gate OFF: renders nothing and fetches nothing
+[31m     [31m×[31m lists the names, and NO note is drafted or created until the click[39m[33m 385[2mms[22m[39m
+     [2m[90m↓[39m[22m a name already prepped opens that note instead of drafting another
+     [2m[90m↓[39m[22m a refused draft says the server sentence and creates nothing
+     [2m[90m↓[39m[22m a failed read is said, never shown as a quiet week
+     [2m[90m↓[39m[22m an empty week carries its one help line
+     [2m[90m↓[39m[22m shows Earnings prep only while the gate is on, and a click drafts then creates
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[33m6 skipped[39m[90m (7)[39m
+[2m   Start at [22m 17:44:17
+[2m   Duration [22m 5.25s[2m (transform 1.84s, setup 411ms, import 2.34s, tests 388ms, environment 1.34s)[22m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/components/notebook/ReportingSoon.test.jsx[2m > [22mReportingSoon[2m > [22mlists the names, and NO note is drafted or created until the click
+[31m[1mAssertionError[22m: expected [ …(4) ] to deeply equal [ 'GET /api/j2/earnings-prep/soon' ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[2m    "GET /api/j2/earnings-prep/soon",[22m
+[31m+   "POST /api/j2/earnings-prep/NVDA/draft",[39m
+[31m+   "POST /api/j2/notes",[39m
+[31m+   "GET /api/j2/earnings-prep/soon",[39m
+[2m  ][22m
+
+[36m [2m❯[22m src/pages/journal-2-0/components/notebook/ReportingSoon.test.jsx:[2m71:19[22m[39m
+    [90m 69| [39m    [34mexpect[39m(screen[33m.[39m[34mgetByText[39m([32m'Open position'[39m))[33m.[39m[34mtoBeTruthy[39m()
+    [90m 70| [39m    [90m// rendering read the list and nothing else[39m
+    [90m 71| [39m    [34mexpect[39m(calls)[33m.[39m[34mtoEqual[39m([[32m'GET /api/j2/earnings-prep/soon'[39m])
+    [90m   | [39m                  [31m^[39m
+    [90m 72| [39m
+    [90m 73| [39m    fireEvent[33m.[39m[34mclick[39m(create)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m

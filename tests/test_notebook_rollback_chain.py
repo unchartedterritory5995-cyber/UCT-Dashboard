@@ -116,6 +116,20 @@ reverts with 0 conflicts (not even against the hotfix's own test-rail file): all
 recorded at c75bf6ea0 came back byte-identical (`--record-pins --through wave5` from the new
 MEASURED_AT). New mutation record:
 docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1h/mutations-r1h.log.
+
+Lane ROLLBACK, 2026-10-06 (the wave 12-15 finish program): MEASURED_AT moved from b529c8a78 to
+f473d00b3 -- wave 11's own squash (#263, "Notebook: wave 10 close (L16) + wave 11", selected by
+SUBJECT and PATH). Its revert has 0 conflicts and all seventeen pins recorded at b529c8a78 came back
+byte-identical. Five path-only commits under it were read and ruled not landings.
+⚠️ Unlike every lane before it, this one did NOT measure at production's tip: master is 600+
+commits past wave 11 and the chain meets 30 conflicts there at 15 of its steps, 23 of them with
+no rule and 7 recorded ones whose lines moved (the
+census and the conflict map are in docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/).
+What was added instead is `--landing`: ONE landing reverted on top of any base, the keep-list
+kept, no rules, fail closed -- railed below on synthetic commits, and rehearsed on the unmerged
+wave 12-15 landing with `--pending`. It also added KEEP_WITH_LANDING, files kept at the tip for
+one named landing only (account_purge.py for W12-15). No sandbox boot was run by this lane.
+Mutation record: docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/mutations-fin.log.
 """
 from __future__ import annotations
 
@@ -129,9 +143,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT b529c8a786 (L15 #262) by lane R1h, 2026-10-01. The R1g record
-# (rollback-rehearsal-2026-10-01-r1g/chain/chain-through-wave5.jsonl) is the same chain one
-# landing shorter, from c75bf6ea0; it stays as the evidence of that rehearsal. The R1f record
+# Re-recorded at MEASURED_AT f473d00b3 (wave 11 #263) by lane ROLLBACK, 2026-10-06. Below W11 the
+# trees differ from the R1h record only in the never-reverted paths and in files other workstreams
+# changed between L15 and wave 11 (a rail below checks it step by step). The R1h record
+# (rollback-rehearsal-2026-10-01-r1h/chain/chain-through-wave5.jsonl) is the same chain one
+# landing shorter, from b529c8a78; the R1g record
+# (rollback-rehearsal-2026-10-01-r1g/chain/chain-through-wave5.jsonl) is one
+# landing shorter again, from c75bf6ea0; it stays as the evidence of that rehearsal. The R1f record
 # (rollback-rehearsal-2026-09-30-r1f/chain/chain-through-wave5.jsonl) is shorter still, from
 # a680b0d40; the R1e record (rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl)
 # shorter still, from 599cd44f1; the R1d record
@@ -141,12 +159,13 @@ TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
 # (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl) shorter still, from f4cec49be;
 # the R1 2026-09-28 record (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter
 # still, from 38bb9a421.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-10-01-r1h" / "chain" / "chain-through-wave5.jsonl"
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-10-06-fin" / "chain" / "chain-through-wave5.jsonl"
+RECORD_R1H = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-10-01-r1h" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1h moved MEASURED_AT. Every commit between it and
-# MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
-# is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "c75bf6ea0"
+# The tip the chain was measured at BEFORE lane ROLLBACK moved MEASURED_AT. Every commit between
+# it and MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything
+# else is in REVIEWED_NOT_LANDINGS.
+PREVIOUS_MEASURED_AT = "b529c8a78"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
@@ -593,3 +612,175 @@ def test_the_runbook_never_recommends_re_applying_82c56dd63_below_wave5(chain):
     assert not re.search(r"cherry-pick\s+82c56dd63", _HISTORY.split(text)[0]), "a command picks 82c56dd63"
     assert "NEVER hand-pick `82c56dd63` below wave 5" in text
     assert "82c56dd63" not in chain.GUARD_PICKS
+
+
+# ── lane ROLLBACK, 2026-10-06: the chain under wave 11, one landing alone, the landing keep-list ──
+
+def test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must(chain):
+    """This lane booted nothing, so this is what carries lane R1h's sandbox rehearsal over. At
+    every step below W11 the tree may differ from the one R1h booted in two places only:
+      * the paths a rollback never reverts (docs, tools, scripts, CLAUDE.md, the schema tables and
+        their rails), which are the newer tip's;
+      * the files OTHER workstreams changed between L15 and wave 11, which no Notebook step
+        reverts (read off git: `b529c8a78..f473d00b3^`).
+    Anything else would mean W11's revert left wave-11 code behind, or took something that was
+    not wave 11's."""
+    def rows(path):
+        return {d["squash"][:9]: d["tree"] for d in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+                if "squash" in d}
+    new, old = rows(RECORD), rows(RECORD_R1H)
+    assert len(old) >= 13 and set(new) - set(old) == {"f473d00b3"}
+    kept = lambda f: f in chain.KEEP_AT_TIP or any(f == k or f.startswith(k + "/") for k in chain.KEEP_PATHS)  # noqa: E731
+    others = {f for f in _git("diff", "--name-only", "b529c8a78", "f473d00b3^").splitlines() if f}
+    assert len(others) >= 10, "non-vacuity: other workstreams did land between L15 and wave 11"
+    wave11 = {f for f in _git("diff", "--name-only", "f473d00b3^", "f473d00b3").splitlines() if f and not kept(f)}
+    assert len(wave11) >= 50, "non-vacuity: wave 11's own files were not found"
+    seen_kept, seen_other = False, False
+    for squash, tree in old.items():
+        differs = [f for f in _git("diff", "--name-only", tree, new[squash]).splitlines() if f]
+        seen_kept = seen_kept or any(kept(f) for f in differs)
+        seen_other = seen_other or any(f in others for f in differs)
+        unexplained = [f for f in differs if not kept(f) and f not in others]
+        assert not unexplained, f"below W11, step {squash} differs from the rehearsed tree in {unexplained[:5]}"
+    assert seen_kept and seen_other, "non-vacuity: the two records were never actually compared"
+    # the step right under W11's revert holds none of wave 11's own changes outside the kept paths
+    w11 = new["f473d00b3"]
+    left = [f for f in wave11 - others
+            if subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "f473d00b3^", w11, "--", f]).returncode != 0]
+    assert not left, f"W11's revert left wave-11 changes in {left[:5]}"
+
+
+LANDING_FILE = "app/src/pages/journal-2-0/tabs/NotebookTab.module.css"
+PURGE = "api/services/journal_two/account_purge.py"
+SCHEMA_PY = "api/services/journal_two/notebook_schema.py"
+
+
+def _synthetic_landing(chain, base: str) -> str:
+    """A three-commit 'landing branch' on `base`: a product file, a schema table and the purge
+    list each gain a line. Objects only."""
+    a = synthetic_commit(base, "feat(notebook lane): a synthetic feature", LANDING_FILE,
+                         lambda b: b + b"/* synthetic landing */\n")
+    b_ = synthetic_commit(a, "feat(notebook lane): a synthetic schema row", SCHEMA_PY,
+                          lambda b: b + b"\n# synthetic schema row\n")
+    return synthetic_commit(b_, "feat(notebook lane): a synthetic purge row", PURGE,
+                            lambda b: b + b"\n# synthetic purge row\n")
+
+
+def _blob_at(rev: str, path: str) -> str:
+    return _git("rev-parse", f"{rev}:{path}").strip()
+
+
+def test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list(chain):
+    """`--landing --pending`: the branch is squashed on its merge-base from objects, reverted, and
+    the product file goes back while the schema table and the purge list stay as the landing has
+    them. The same answer for the real squash once it exists."""
+    base = full(chain.MEASURED_AT)
+    tip = _synthetic_landing(chain, base)
+    lines = []
+    out = chain.revert_landing(tip, base, pending=True, emit=lines.append)
+    assert out["pending"] and out["base"] == base and out["onto_commits_the_landing_has_not_merged"] == 0
+    assert out["files_the_landing_changed"] == 3 and out["product_conflicts"] == []
+    assert _blob_at(out["result"], LANDING_FILE) == _blob_at(base, LANDING_FILE) != _blob_at(tip, LANDING_FILE)
+    for kept in (SCHEMA_PY, PURGE):
+        assert _blob_at(out["result"], kept) == _blob_at(tip, kept) != _blob_at(base, kept), kept
+    assert {SCHEMA_PY, PURGE} <= set(out["kept_files_the_revert_would_have_changed"])
+    assert out["kept_identical_to_tip"] is True
+    # the squash it reverted is one commit on the base holding the branch's tree
+    assert _git("show", "--no-patch", "--format=%P", out["squash"]).split() == [base]
+    assert _git("rev-parse", f"{out['squash']}^{{tree}}").strip() == _git("rev-parse", f"{tip}^{{tree}}").strip()
+    # ... and the same question asked of that squash as a merged landing gives the same tree
+    again = chain.revert_landing(out["squash"], out["squash"], emit=lambda _l: None)
+    assert again["tree"] == out["tree"] and not again["pending"]
+
+
+def test_landing_mode_says_when_the_landing_has_not_merged_the_base(chain):
+    base = full(chain.MEASURED_AT)
+    tip = _synthetic_landing(chain, base)
+    newer = synthetic_commit(base, "docs(terminal): the base moved on", "docs/notebook/wave5-rollback.md",
+                             lambda b: b + b"\n")
+    lines = []
+    out = chain.revert_landing(tip, newer, pending=True, emit=lines.append)
+    assert out["base"] == base and out["onto_commits_the_landing_has_not_merged"] == 1
+    assert "Rehearse again" in json.loads(lines[0])["warning"]
+
+
+def test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule(chain, monkeypatch):
+    """Fail closed: a later commit on the landing's own lines stops it and names the file -- even
+    when RULES holds an entry for that squash (a chain rule was measured on a different base)."""
+    base = full(chain.MEASURED_AT)
+    squash = synthetic_commit(base, "Notebook: wave 99 -- a synthetic landing", LANDING_FILE,
+                              lambda b: b + b"/* synthetic landing */\n")
+    later = synthetic_commit(squash, "fix(terminal): the same lines, later", LANDING_FILE,
+                             lambda b: b + b"/* a later line right under it */\n")
+    monkeypatch.setitem(chain.RULES, squash, {LANDING_FILE: "ours"})
+    with pytest.raises(chain.ChainStopped, match=r"no recorded rule for the conflict in .*NotebookTab\.module\.css"):
+        chain.revert_landing(squash, later, emit=lambda _l: None)
+    assert chain.RULES[squash] == {LANDING_FILE: "ours"}            # put back, not consumed
+    # control: with nothing on top, the same squash reverts
+    assert chain.revert_landing(squash, squash, emit=lambda _l: None)["product_conflicts"] == []
+
+
+def test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files(chain):
+    """Merged clean is not the same as correct: a later commit elsewhere in a file the landing
+    changed is named in the output, with a warning, so a person reads it."""
+    base = full(chain.MEASURED_AT)
+    squash = synthetic_commit(base, "Notebook: wave 99 -- a synthetic landing", LANDING_FILE,
+                              lambda b: b + b"/* synthetic landing */\n")
+    later = synthetic_commit(squash, "fix(terminal): the top of the same file", LANDING_FILE,
+                             lambda b: b"/* a later first line */\n" + b)
+    lines = []
+    out = chain.revert_landing(squash, later, emit=lines.append)
+    assert [c["sha"] for c in out["later_commits_on_the_landings_files"]] == [later[:9]]
+    assert "not the same as correct" in json.loads(lines[0])["warning"]
+    # control: nothing on top, nothing named, no warning
+    lines = []
+    assert chain.revert_landing(squash, squash, emit=lines.append)["later_commits_on_the_landings_files"] == []
+    assert len(lines) == 1
+
+
+def test_landing_mode_refuses_what_is_not_a_landing_there(chain):
+    base = full(chain.MEASURED_AT)
+    squash = synthetic_commit(base, "Notebook: wave 99 -- a synthetic landing", LANDING_FILE,
+                              lambda b: b + b"/* synthetic landing */\n")
+    with pytest.raises(chain.ChainStopped, match="does not contain"):
+        chain.revert_landing(squash, base, emit=lambda _l: None)           # not merged there
+    merge = next(sha for sha in _git("rev-list", "--merges", "-n", "1", f"{WAVE5}^..{base}").split())
+    with pytest.raises(chain.ChainStopped, match="not a one-parent squash"):
+        chain.revert_landing(merge, base, emit=lambda _l: None)
+    docs_only = synthetic_commit(base, "docs(notebook): nothing that ships", "docs/notebook/wave5-rollback.md",
+                                 lambda b: b + b"\n")
+    with pytest.raises(chain.ChainStopped, match="changes nothing outside"):
+        chain.revert_landing(docs_only, docs_only, emit=lambda _l: None)
+    with pytest.raises(chain.ChainStopped, match="no landing keep-list by that name"):
+        chain.revert_landing(squash, squash, key="L15", emit=lambda _l: None)
+
+
+def test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other(chain, monkeypatch):
+    """KEEP_WITH_LANDING is per landing. Named for W11, the purge list stays at the tip through
+    W11's revert (which would otherwise take wave 11's rows out); the step below it then follows
+    the ordinary revert. Unnamed, W11's revert changes the file -- the control."""
+    tip = full(chain.MEASURED_AT)
+
+    def through_w11():
+        lines = []
+        chain.run(chain.MEASURED_AT, "W11", emit=lines.append)
+        return json.loads(lines[0])
+    plain = through_w11()
+    assert plain["key"] == "W11" and PURGE not in plain["kept_at_tip"]
+    assert _blob_at(plain["commit"], PURGE) != _blob_at(tip, PURGE)       # the revert took rows out
+    monkeypatch.setitem(chain.KEEP_WITH_LANDING, "W11", (PURGE,))
+    kept = through_w11()
+    assert PURGE in kept["kept_at_tip"] and PURGE in kept["schema_change_undone"]
+    assert _blob_at(kept["commit"], PURGE) == _blob_at(tip, PURGE)
+    assert kept["tree"] != plain["tree"]
+    lines = []
+    chain.run(chain.MEASURED_AT, "L15", emit=lines.append)
+    assert PURGE not in json.loads(lines[1])["kept_at_tip"]                 # L15's step: not kept
+
+
+def test_the_wave_12_15_landing_keeps_the_purge_list_and_the_rails_that_prove_it(chain):
+    kept = chain.KEEP_WITH_LANDING[chain.LANDING_12_15]
+    assert PURGE in kept and "tests/test_notebook_rollback_never_revert.py" in kept
+    assert not set(kept) & set(chain.KEEP_AT_TIP), "a file is on both lists: one authority each"
+    assert all(k in [key for key, _s, _w in chain.CHAIN] or k == chain.LANDING_12_15
+               for k in chain.KEEP_WITH_LANDING), "a keep-list for a landing nobody can name"

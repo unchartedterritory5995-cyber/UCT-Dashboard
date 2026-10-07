@@ -4,7 +4,14 @@ import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
 import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
 import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
+import { replayableTours, startPath, startState, tourLive } from './journal-2-0/components/notebook/onboarding/tourRegistry'
+import { checklistEnabled } from './journal-2-0/components/notebook/onboarding/gettingStartedPref'
+import usePreferences from '../hooks/usePreferences'
+import { TOURS_PREF } from './journal-2-0/components/notebook/onboarding/tourSeenState'
+import { whatsNewTours } from './journal-2-0/components/notebook/onboarding/tourEligibility'
+import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tourOfferCopy'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
+import { SkipLinkPortal } from '../components/skipLinks'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -314,6 +321,104 @@ function PublishSentence() {
   if (!publishingOn()) return null
   return (
     <> <strong>Publish to the web</strong> turns the note into a public page.</>
+  )
+}
+
+/** Help > Walkthroughs (wave 14, lane W14-0; plan section 4.3): every registered
+ *  tour whose own capability is armed, by name, with a Replay button -- regardless
+ *  of whether the member has seen it, dismissed it, or was never offered it. A
+ *  tour whose flag is off is not listed, the same rule every gated article on this
+ *  page already follows: a door that is not there gets no sentence about it.
+ *
+ *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
+ *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
+ *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
+export const WALKTHROUGHS_ID = 'walkthroughs'
+
+function WalkthroughsSection() {
+  // W14-C1 ruling: this section is wave 14's (W14-0); with the wave-14 switch off Help renders
+  // as before wave 14, base tour included (its own "Take the tour" link above is unchanged).
+  const on = checklistEnabled(notebookFlag)
+  const live = on ? replayableTours().filter((t) => tourLive(t, notebookFlag)) : []
+  // W14-keys: the Walkthroughs heading is a keyboard landing -- "Skip to Walkthroughs" moves
+  // focus here, and so does arriving at /support#walkthroughs (the command palette's
+  // "Help: Walkthroughs"). The next Tab stop is the first Replay. Focused by script only, so a
+  // mouse member sees nothing new (docs/notebook/wave14-keys.md).
+  const location = useLocation()
+  const headingRef = useRef(null)
+  const shown = live.length > 0
+  useEffect(() => {
+    if (shown && location.hash === `#${WALKTHROUGHS_ID}`) headingRef.current?.focus()
+  }, [shown, location.hash, location.key])
+  if (!shown) return null
+  const skipToWalkthroughs = (e) => {
+    e.preventDefault()
+    headingRef.current?.focus()
+  }
+  return (
+    <div className={styles.faqWrap}>
+      <SkipLinkPortal>
+        <a href={`#${WALKTHROUGHS_ID}`} className={styles.skipLink} onClick={skipToWalkthroughs}>
+          Skip to Walkthroughs
+        </a>
+      </SkipLinkPortal>
+      <div ref={headingRef} id={WALKTHROUGHS_ID} tabIndex={-1} role="heading" aria-level={2}
+        className={styles.faqTitle}>
+        <UIcon name="sparkle" size={13} />
+        Walkthroughs
+      </div>
+      <ul className={styles.walkthroughList}>
+        {live.map((t) => (
+          <li key={t.id} className={styles.walkthroughRow}>
+            <span>{t.title}</span>
+            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
+              aria-label={`Replay the ${t.title} tour`}>
+              Replay
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Help > What's new (wave 14, lane W14-C2; default D4). Every registered tour whose
+ *  capability is ON for this member and which the member has not TAKEN -- never seen, or
+ *  declined from the Notebook's one-time offer before walking a step -- each with Start.
+ *
+ *  "Became available" has no timestamp on the client: flags arrive as booleans on the
+ *  auth payload, and the arming time lives only in docs/feature_flags.json. So it is
+ *  DEFINED as "flag on and never taken" (tourEligibility.js, the same rules the offer
+ *  uses). A tour leaves this list the moment the member starts it; Walkthroughs above
+ *  keeps listing it forever.
+ *
+ *  D4: this is where a newly armed capability goes INSTEAD of reopening the "get
+ *  started" checklist -- nothing here reads or writes that list's key. Start goes
+ *  through the same `startPath`/`startState` door as Replay. */
+function WhatsNewSection() {
+  const { prefs, loading } = usePreferences()
+  if (loading) return null
+  const items = whatsNewTours({ tours: replayableTours(), flagOn: notebookOn, toursPrefRaw: prefs?.[TOURS_PREF] })
+  if (!items.length) return null
+  return (
+    <section className={styles.faqWrap} aria-labelledby="support-whats-new">
+      <h2 id="support-whats-new" className={`${styles.faqTitle} ${styles.whatsNewTitle}`}>
+        <UIcon name="sparkle" size={13} />
+        {WHATS_NEW_COPY.heading}
+      </h2>
+      <p className={styles.whatsNewLead}>{WHATS_NEW_COPY.lead}</p>
+      <ul className={styles.walkthroughList}>
+        {items.map((t) => (
+          <li key={t.id} className={styles.walkthroughRow}>
+            <span>{t.title}</span>
+            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
+              aria-label={`${WHATS_NEW_COPY.start} the ${t.title} tour`}>
+              {WHATS_NEW_COPY.start}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -1311,6 +1416,8 @@ export default function Support() {
           </>
         )}
 
+        {!loading && <WhatsNewSection />}
+        {!loading && <WalkthroughsSection />}
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
         {/* TERM-039: what is here today and what is on early for this account. */}
         {!loading && <FeatureStatusStrip />}

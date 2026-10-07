@@ -329,3 +329,57 @@ describe('ImportCsvModal — competitor presets + re-import dedupe', () => {
     })
   })
 })
+
+describe('ImportCsvModal: a file or an import the server refuses for its size (413)', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  const TRADE = {
+    symbol: 'NVDA', side: 'Long', shares: 100, entryPrice: 500, exitPrice: 520,
+    entryDate: '2026-04-01T00:00:00Z', exitDate: '2026-04-02T00:00:00Z',
+  }
+
+  async function upload() {
+    const user = userEvent.setup()
+    const file = new File(['symbol\nNVDA'], 'trades.csv', { type: 'text/csv' })
+    await user.upload(document.querySelector('input[type="file"]'), file)
+    return user
+  }
+
+  it('the preview step says the reason the server gave, not "try again"', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: false, status: 413, json: async () => ({ detail: 'File exceeds 10 MB limit' }),
+    }))
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    await upload()
+    await waitFor(() => {
+      expect(screen.getByText('File exceeds 10 MB limit. Nothing was imported.')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/try again/)).toBeNull()
+  })
+
+  it('the confirm step says the reason the server gave', async () => {
+    const sentence = 'That import is too large to send in one piece. Split it into smaller files and try again.'
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/import/confirm')) {
+        return { ok: false, status: 413, json: async () => ({ detail: sentence }) }
+      }
+      return { ok: true, json: async () => ({ format: 'pre_matched', trades: [TRADE], errors: [], warnings: [], headers: [], raw_rows: [] }) }
+    })
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    const user = await upload()
+    await waitFor(() => expect(screen.getByText(/ready to import/)).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /^Import/ }))
+    await waitFor(() => expect(screen.getByText(`${sentence} Nothing was added.`)).toBeInTheDocument())
+  })
+
+  it('any other failure keeps the plain sentence and never shows the raw text of the reply', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: false, status: 500, json: async () => { throw new Error('not json') },
+    }))
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    await upload()
+    await waitFor(() => {
+      expect(screen.getByText(/Couldn't read this file\. Nothing was imported/)).toBeInTheDocument()
+    })
+  })
+})
