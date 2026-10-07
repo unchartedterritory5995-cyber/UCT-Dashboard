@@ -1,94 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
+import { comingSoonMeta } from './comingSoonMeta.js'
 
-/** Pre-launch metadata swap.
- *
- * index.html's title/description/OG tags sell the product and promise a
- * 7-day free trial. While VITE_COMING_SOON=1 there is nothing to sign up for,
- * and this metadata is exactly what a social link preview shows — so it has to
- * change with the page. It must happen at BUILD time, not runtime: crawlers
- * (X, Discord, iMessage, Slack) read the served HTML and never execute JS.
- *
- * Unset the flag and the original marketing metadata comes back untouched.
- */
-function comingSoonMeta() {
-  const TITLE = 'UCT Intelligence — Coming soon'
-  const DESC =
-    'The Trading Brain you need as a companion. Join the launch list.'
-  // A DIFFERENT filename, not a replacement of og-image.png: social platforms
-  // cache preview images hard by URL, so a new path is what actually makes the
-  // new card show up — and it leaves the launch card untouched for launch day.
-  // Served by an explicit route in api/main.py (the SPA catch-all would
-  // otherwise hand crawlers index.html).
-  //
-  // ⚠️ BUMP ?v= EVERY TIME THE CARD IS REGENERATED. The route sets
-  // max-age=86400, so Cloudflare pins the old bytes at the edge for a day
-  // (observed: cf-cache-status HIT serving the previous card after deploy) and
-  // X/Discord/iMessage cache their copy far longer. Both key on the FULL url,
-  // so the query string is what actually busts them. FastAPI ignores the param.
-  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png?v=oct16-card'
-
-  // The JSON-LD block declares two purchasable Offers ($200/mo, $2000/yr) and a
-  // 7-day free trial. That is machine-readable "you can buy this now" that
-  // Google can surface as a rich result with prices — while /checkout is 403.
-  // Pre-launch it keeps the brand entity and drops every offer.
-  const JSONLD = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'UCT Intelligence',
-    applicationCategory: 'FinanceApplication',
-    url: 'https://uctintelligence.com/',
-    description:
-      'The Trading Brain you need as a companion. Launching soon.',
-    publisher: {
-      '@type': 'Organization',
-      name: 'Uncharted Territory',
-      url: 'https://uctintelligence.com/',
-    },
-  }, null, 2)
-
-  return {
-    name: 'uct-coming-soon-meta',
-    transformIndexHtml(html) {
-      if (process.env.VITE_COMING_SOON !== '1') return html
-      return html
-        .replace(/<title>[\s\S]*?<\/title>/, `<title>${TITLE}</title>`)
-        .replace(
-          /(<meta\s+name="description"\s+content=")[^"]*(")/,
-          `$1${DESC}$2`,
-        )
-        .replace(
-          /(<meta\s+property="og:title"\s+content=")[^"]*(")/,
-          `$1${TITLE}$2`,
-        )
-        .replace(
-          /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
-          `$1${DESC}$2`,
-        )
-        .replace(
-          /(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
-          `$1${TITLE}$2`,
-        )
-        .replace(
-          /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
-          `$1${DESC}$2`,
-        )
-        .replace(
-          /(<meta\s+property="og:image"\s+content=")[^"]*(")/,
-          `$1${IMAGE}$2`,
-        )
-        .replace(
-          /(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
-          `$1${IMAGE}$2`,
-        )
-        .replace(
-          /(<script type="application\/ld\+json">)[\s\S]*?(<\/script>)/,
-          `$1\n${JSONLD}\n    $2`,
-        )
-    },
-  }
-}
+// The pre-launch <head> swap and the no-JavaScript fallback live in their own
+// import-free module so tests/test_homepage_seo_shell.py can run them under
+// plain node against the real index.html.
 
 /** Strip the closed table's engineering prose from the BROWSER BUNDLE.
  *
