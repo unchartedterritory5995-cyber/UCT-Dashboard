@@ -159,6 +159,44 @@ const GuardedFontSize = FontSize.extend({
   },
 })
 
+// ── Links: no class, and a title only when it is plain text ─────────────────────
+//
+// ⛔ The stock Link mark declares `class` and `title` and renders whatever a stored mark
+// holds. A pasted or imported `<a class="...">`, or a body written through the API, could
+// put ANY class the app's stylesheet defines onto a link in a note (an overlay, a
+// backdrop, a hidden element). Security lane, round 3: the Notebook's Link never reads a
+// class and never renders one. A title is kept only as plain, bounded text: at most 200
+// characters, no control character and no format character (which is where the
+// bidirectional overrides live). Narrowed on the way in and on the way out, like the
+// font attributes above. Nothing in the app sets a class on a note's link.
+const NOT_PLAIN_TEXT = /[\p{Cc}\p{Cf}\u2028\u2029]/u
+const MAX_LINK_TITLE_CHARS = 200
+
+/** `value` when it may become a link's `title`, else null. */
+export function safeLinkTitle(value) {
+  if (typeof value !== 'string') return null
+  const length = [...value].length
+  if (length < 1 || length > MAX_LINK_TITLE_CHARS) return null
+  return NOT_PLAIN_TEXT.test(value) ? null : value
+}
+
+const GuardedLink = Link.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      class: { default: null, parseHTML: () => null, renderHTML: () => ({}) },
+      title: {
+        default: null,
+        parseHTML: (element) => safeLinkTitle(element.getAttribute('title')),
+        renderHTML: (attributes) => {
+          const title = safeLinkTitle(attributes.title)
+          return title ? { title } : {}
+        },
+      },
+    }
+  },
+})
+
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
   return [
     StarterKit.configure({
@@ -217,7 +255,8 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // A block leaf with no text (_LEAF_TYPES only); schema 2.
     TableOfContents,
     TradeCanvas,
-    Link.configure({
+    // The GUARDED Link defined above: no class, a plain title only.
+    GuardedLink.configure({
       openOnClick: false,
       autolink: true,
       protocols: ['https'],
