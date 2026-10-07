@@ -161,8 +161,40 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
         body.wait_for(state="visible", timeout=40000)
         pg.wait_for_timeout(2500)
         body.scroll_into_view_if_needed()
+        if touch:
+            def order_now():
+                return [c.get("type") for c in ((stored(n["id"]).get("bodyJson") or {}).get("content") or [])]
+            ba = pg.get_by_role("button", name="Block actions", exact=True).filter(visible=True)
+            small_tb = pg.evaluate("() => [...document.querySelectorAll('[data-widget-embed-view] button')].filter(b => { const r = b.getBoundingClientRect(); return r.width > 0 && (r.width < 43.5 || r.height < 43.5) }).map(b => [(b.getAttribute('aria-label') || b.innerText || '').trim().slice(0, 24), Math.round(b.getBoundingClientRect().width), Math.round(b.getBoundingClientRect().height)])")
+            before = order_now()
+            moved, removed, berr, menu = None, False, None, None
+            try:
+                press(ba.first)
+                pg.wait_for_timeout(500)
+                menu = [t.strip()[:30] for t in pg.locator("[role=dialog] button, [role=menu] button, [role=menuitem]").all_inner_texts()][:10]
+                press(pg.get_by_role("button", name="Move up", exact=True).filter(visible=True).first)
+                for _ in range(25):
+                    moved = order_now()
+                    if moved != before:
+                        break
+                    pg.wait_for_timeout(400)
+                if not pg.get_by_role("button", name="Remove block", exact=True).filter(visible=True).count():
+                    press(pg.get_by_role("button", name="Block actions", exact=True).filter(visible=True).first)
+                    pg.wait_for_timeout(500)
+                press(pg.get_by_role("button", name="Remove block", exact=True).filter(visible=True).first)
+                for _ in range(25):
+                    if "widgetEmbed" not in order_now():
+                        removed = True
+                        break
+                    pg.wait_for_timeout(400)
+            except Exception as e:  # noqa: BLE001
+                berr = str(e)[:300]
+            C.step(pg, inst, "live: chart block", "touch widths: Block actions moves the chart (Move up) and removes it (Remove block); every toolbar control is at least 44 by 44",
+                   "PASS" if ba.count() is not None and moved and moved != before and removed and not small_tb else "FAIL", order_before=before,
+                   order_after_move=moved, removed=removed, menu=menu, toolbar_controls_under_44=small_tb, reach_error=berr, scope=["[data-widget-embed-view]"])
+            return
         box = body.bounding_box()
-        (pg.touchscreen.tap if touch else pg.mouse.click)(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        pg.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
         pg.wait_for_timeout(500)
         sel = pg.evaluate("""() => { const n = document.querySelector('.ProseMirror-selectednode'); const v = document.querySelector('[data-widget-embed-view]');
             return { selectedNode: !!n, selectedIsEmbed: !!(n && (n.matches('[data-widget-embed-view]') || n.querySelector('[data-widget-embed-view]') || (v && n.contains(v)))),
@@ -175,6 +207,16 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
                    "PASS" if actions else "FAIL", block_actions=actions,
                    toolbar_buttons=pg.evaluate("() => [...document.querySelectorAll('[data-widget-embed-view] button')].filter(b => b.getBoundingClientRect().width > 0).map(b => (b.getAttribute('aria-label') || b.innerText || '').trim().slice(0, 24))"),
                    scope=["[data-widget-embed-view]"])
+        tabstops = pg.evaluate("""() => { const out = {};
+            for (const [name, sel] of [['chart toolbar', '[data-widget-embed-view] [role=toolbar]'], ['editor toolbar', '[role=toolbar][aria-label*="ormat"], [class*="_toolbar_"][role=toolbar]']]) {
+              const t = document.querySelector(sel); if (!t) { out[name] = { found: false, toolbars: [...document.querySelectorAll('[role=toolbar]')].map(e => e.getAttribute('aria-label')).slice(0, 8) }; continue }
+              const btns = [...t.querySelectorAll('button, select, input, a[href]')].filter(b => b.getBoundingClientRect().width > 0 && !b.disabled);
+              out[name] = { found: true, label: t.getAttribute('aria-label'), controls: btns.length, tabbable: btns.filter(b => b.tabIndex >= 0).length } }
+            return out }""")
+        C.step(pg, inst, "live: toolbars", "the chart toolbar and the editor toolbar are each ONE Tab stop (roving tabindex)",
+               "PASS" if all(v.get("found") and v.get("tabbable") == 1 for v in tabstops.values()) else "FAIL", **{k.replace(" ", "_"): v for k, v in tabstops.items()})
+        pg.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        pg.wait_for_timeout(300)
         pg.keyboard.press("Delete")
         gone = False
         for _ in range(30):
@@ -196,11 +238,16 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
         sb, tb = b2.bounding_box(), tgt.bounding_box()
         derr = None
         try:
-            pg.mouse.move(sb["x"] + sb["width"] / 2, sb["y"] + sb["height"] / 2)
+            # a real pointer sequence on the block's body: down, many moves well past any drag threshold, up
+            x0, y0 = sb["x"] + sb["width"] / 2, sb["y"] + sb["height"] / 2
+            y1 = tb["y"] + tb["height"] - 2
+            pg.mouse.move(x0, y0)
             pg.mouse.down()
-            for i in range(1, 13):
-                pg.mouse.move(sb["x"] + sb["width"] / 2, sb["y"] + sb["height"] / 2 + (tb["y"] + tb["height"] + 6 - sb["y"] - sb["height"] / 2) * i / 12)
-                pg.wait_for_timeout(40)
+            pg.wait_for_timeout(250)
+            for i in range(1, 31):
+                pg.mouse.move(x0 + (i % 3), y0 + (y1 - y0) * i / 30)
+                pg.wait_for_timeout(35)
+            pg.wait_for_timeout(300)
             pg.mouse.up()
         except Exception as e:  # noqa: BLE001
             derr = str(e)[:200]
@@ -315,6 +362,38 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
             err = str(e)[:300]
         got = [x.get("title") for x in C.notes_list(ctx, base) if (x.get("title") or "").startswith(f"Imported idea {vp}")]
         dlg = pg.locator("[role=dialog]").filter(visible=True)
+        first_text = dlg.first.inner_text()[:300] if dlg.count() else None
+        again, again_text, err2 = None, None, None
+        if len(got) == 2:
+            try:
+                pg.keyboard.press("Escape")
+                C.goto(pg, base, "/journal/notebook?view=all")
+                if not door.count():
+                    for nm in ("More", "More actions", "Notebook actions"):
+                        m = pg.get_by_role("button", name=nm, exact=True).filter(visible=True)
+                        if m.count():
+                            press(m.last)
+                            pg.wait_for_timeout(500)
+                            if door.count():
+                                break
+                press(door.first)
+                pg.wait_for_timeout(1000)
+                pg.locator("input[type=file]").first.set_input_files(files, timeout=15000)
+                for _ in range(8):
+                    pg.wait_for_timeout(1500)
+                    d2 = pg.locator("[role=dialog]").filter(visible=True)
+                    again_text = d2.first.inner_text()[:400] if d2.count() else None
+                    if again_text and re.search(r"Import complete|Unchanged: [1-9]|nothing to import|already", again_text, re.I):
+                        break
+                    nxt = [b for b in pg.locator("[role=dialog] button").filter(has_text=re.compile(r"^(Next|Continue|Import|Import \\d+ notes?|Confirm|Start import|Review)", re.I)).filter(visible=True).all() if b.is_enabled()]
+                    if nxt:
+                        nxt[-1].click()
+            except Exception as e:  # noqa: BLE001
+                err2 = str(e)[:240]
+            again = [x.get("title") for x in C.notes_list(ctx, base) if (x.get("title") or "").startswith(f"Imported idea {vp}")]
+            C.step(pg, inst, "live: import wizard", "importing the same two files again adds no duplicates",
+                   "PASS" if again is not None and len(again) == 2 else "FAIL", notes_after_second_import=again, wizard_text=again_text, reach_error=err2)
+            dlg = pg.locator("[role=dialog]").filter(visible=True)
         C.step(pg, inst, "live: import wizard", "import two small Markdown files through the wizard: both become notes",
                "PASS" if len(got) == 2 else "FAIL", imported=got, buttons_pressed=trail, reach_error=err,
                wizard_text=(dlg.first.inner_text()[:400] if dlg.count() else None), door_found=door.count(), scope=["[role=dialog]"])
@@ -361,6 +440,18 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
                 t = pg.evaluate("() => { const a = document.activeElement; return a ? [(a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 50), a.tagName, a.getAttribute('href')] : null }")
                 if t and t[0].lower().startswith("skip"):
                     seen.append(t)
+            each = []
+            for txt_, _tag, href_ in seen:
+                if not (href_ or "").startswith("#"):
+                    continue
+                pg.evaluate("(h) => { const a = document.querySelector(`a[href='${h}']`); if (a) a.focus() }", href_)
+                pg.keyboard.press("Enter")
+                pg.wait_for_timeout(400)
+                each.append(pg.evaluate("""(a) => { const [txt, href] = a; const el = document.activeElement; const t = document.querySelector(href);
+                    return { link: txt, target: href, target_exists: !!t, active: el ? [el.tagName, el.id] : null,
+                             focus_is_target_or_inside: !!(t && el && (el === t || t.contains(el))) } }""", [txt_, href_]))
+            out[label] = {"skip_links_reached_by_tab": seen, "each": each}
+            continue
             moved = None
             if seen:
                 # go back to the first skip link and use it
@@ -384,9 +475,50 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
                              next_tab_on: a ? [a.tagName, (a.getAttribute('aria-label') || a.innerText || '').trim().slice(0, 40)] : null } }""", href)
                 moved["focus_after_enter"] = at
             out[label] = {"skip_links_reached_by_tab": seen, "focus_after_using_the_first": moved}
-        ok = all(v["skip_links_reached_by_tab"] and v["focus_after_using_the_first"] and v["focus_after_using_the_first"]["next_tab_lands_inside_target"] for v in out.values())
+        ok = all(v["skip_links_reached_by_tab"] and v["each"] and all(e["focus_is_target_or_inside"] for e in v["each"]) for v in out.values())
         C.step(pg, inst, "live: skip links", "Tab from the top reaches a skip link, and using it moves focus into the page", "PASS" if ok else "FAIL", **{k.replace(" ", "_"): v for k, v in out.items()})
     run("skip links", skip_links)
+
+    def palette():
+        if touch:
+            return
+        C.goto(pg, base, "/journal/notebook")
+        pg.wait_for_timeout(2500)
+        C.settle_first_run(pg)
+        pg.keyboard.press("Control+k")
+        pg.wait_for_timeout(800)
+        pg.keyboard.type("Search Notebook", delay=30)
+        pg.wait_for_timeout(1000)
+        opts = [t.strip().replace("\\n", " ")[:50] for t in pg.locator("[role=option], [cmdk-item]").all_inner_texts()][:8]
+        pg.keyboard.press("Enter")
+        box = pg.get_by_label("Search your notes")
+        ok = C.vis_loc(box, 10000)
+        focused = pg.evaluate("() => (document.activeElement.getAttribute('aria-label') || document.activeElement.tagName)")
+        C.step(pg, inst, "live: command palette", "\"Search Notebook\" from the command palette opens the Notebook's search", "PASS" if ok else "FAIL",
+               options=opts, search_box_visible=ok, focus_on=focused, landed=pg.url.replace(base, ""))
+    run("command palette", palette)
+
+    # ── keyboard: after moving between Journal and Notebook pages, focus lands on the page content ──
+    def nav_focus():
+        if touch:
+            return
+        C.goto(pg, base, "/journal/trades")
+        pg.wait_for_timeout(2500)
+        rows = []
+        for name_ in ("Notebook", "Insights", "Trades"):
+            link = pg.get_by_role("link", name=name_, exact=True).or_(pg.get_by_role("tab", name=name_, exact=True)).filter(visible=True)
+            if not link.count():
+                rows.append({"to": name_, "door": "not found"})
+                continue
+            link.first.focus()
+            pg.keyboard.press("Enter")
+            pg.wait_for_timeout(2500)
+            rows.append(pg.evaluate("""(n) => { const a = document.activeElement; const main = document.querySelector('#main-content, main, [role=main]');
+                return { to: n, url: location.pathname, active: a ? [a.tagName, a.id, (a.getAttribute('aria-label') || '').slice(0, 30)] : null,
+                         in_page_content: !!(a && main && (a === main || main.contains(a)) && a !== document.body), on_body: a === document.body } }""", name_))
+        C.step(pg, inst, "live: keyboard navigation", "after going to another Journal or Notebook page by keyboard, focus lands on the page content",
+               "PASS" if rows and all(r.get("in_page_content") for r in rows) else "FAIL", moves=rows)
+    run("keyboard navigation", nav_focus)
 
     # ── Settings: the voice telemetry tile ──────────────────────────────────────────────
     def voice_tile():
