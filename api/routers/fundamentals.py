@@ -101,8 +101,12 @@ _FMP_TOTAL_TIMEOUT = 7         # seconds, hard cap for the whole fan-out
 _FMP_POOL_WORKERS = 3          # exactly len(_FMP_ENDPOINTS) -- bounded, fixed
 
 
-def _fh_metric_get(ticker: str) -> dict[str, Any]:
+def _fh_metric_get(ticker: str, legs: dict | None = None) -> dict[str, Any]:
     """Fetch Finnhub /stock/metric?metric=all for avg volume + extras.
+
+    `legs` (optional): when the call FAILED (no answer at all, as opposed to an answer with no
+    metrics) `legs["finnhub_failed"]` is set, so `_build_snapshot` can tell a vendor failure from
+    a genuine empty (completeness audit 2026-10-07, DES).
 
     Routed through the shared api.services.finnhub_client.fh_get (2026-08-05)
     — every Finnhub caller in the codebase shares ONE process-wide token
@@ -115,13 +119,15 @@ def _fh_metric_get(ticker: str) -> dict[str, Any]:
     from api.services.finnhub_client import fh_get
     data = fh_get("/stock/metric", {"symbol": ticker.upper(), "metric": "all"}, timeout=_TIMEOUT)
     if not isinstance(data, dict):
+        if legs is not None:
+            legs["finnhub_failed"] = True
         return {}
     result = data.get("metric") or {}
     cache.set(ck, result, _FH_METRIC_TTL)
     return result
 
 
-def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
+def _fmp_metrics_get(ticker: str, legs: dict | None = None) -> dict[str, Any]:
     """FMP replacement for Finnhub's `/stock/metric?metric=all` — fans out to
     `stable/quote` + `stable/key-metrics-ttm` + `stable/ratios-ttm` (three
     calls where Finnhub had one) with a BOUNDED pool (exactly
@@ -140,6 +146,10 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
     enumeration); all three are still fetched, merged, and tested per-field
     so the fan-out/bound behavior is exercised and future consumers can read
     the extra keys without another provider migration.
+
+    `legs` (optional): when NOTHING merged and at least one leg failed (an exception, a degraded
+    answer, or abandoned past the budget -- never a plain not-found), `legs["fmp_failed"]` is set
+    and that empty result is NOT cached, so a failure is never served later as "FMP had nothing".
     """
     ck = f"fmp_metrics::{ticker.upper()}"
     hit = cache.get(ck)
@@ -147,6 +157,7 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
         return hit
 
     sym = ticker.upper()
+    failures: list[str] = []
 
     def _one(path: str):
         """Never raises — mirrors the retired `_fmp_get`'s "None on any
@@ -161,12 +172,15 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
             return path, None
         except Exception as exc:
             _log.warning("FMP %s failed for %s: %s", path, sym, exc)
+            failures.append(path)
             return path, None
         if result.degraded is not None:
+            failures.append(path)
             return path, None
         return path, result.value
 
     merged: dict[str, Any] = {}
+    not_done: set = set()
     ex = ThreadPoolExecutor(max_workers=_FMP_POOL_WORKERS)
     try:
         futures = {ex.submit(_one, path): path for path in _FMP_ENDPOINTS}
@@ -176,6 +190,7 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
                 _path, data = fut.result()
             except Exception as exc:
                 _log.warning("FMP leg failed for %s: %s", sym, exc)
+                failures.append(str(futures.get(fut)))
                 continue
             row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
             if isinstance(row, dict):
@@ -200,6 +215,10 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
     # already used for the whole-response cache write below, applied here at
     # the provider-leg level too so a transient FMP blip doesn't pin a blank
     # for an hour.
+    if not merged and (failures or not_done):
+        if legs is not None:
+            legs["fmp_failed"] = True
+        return merged
     cache.set(ck, merged, _FH_METRIC_TTL if merged else _FUND_FAIL_TTL)
     return merged
 
@@ -271,14 +290,23 @@ def _schedule_snapshot_refresh(sym: str) -> None:
 
 def _build_snapshot(sym: str) -> dict[str, Any]:
     """Live build of the compact snapshot; populates memory + disk."""
+    # Which provider legs FAILED (no answer), as opposed to answering with nothing. An all-null
+    # build used to reach the member as the same 200 with nulls either way, so DES could not tell
+    # "the vendors are down" from "there is nothing on file" (completeness audit 2026-10-07).
+    legs: dict[str, bool] = {}
     try:
         base = get_fundamentals(sym)
     except Exception as e:
         _log.warning("get_fundamentals failed for %s: %s", sym, e)
+        legs["yfinance_failed"] = True
         base = {}
 
     if "error" in base:
         _log.debug("fundamentals error for %s: %s", sym, base.get("error"))
+        # "no fundamentals available" is yfinance ANSWERING with an empty profile (an unknown or
+        # delisted symbol); every other error ("yfinance failed: ...", "still loading") is a failure.
+        if base.get("error") != "no fundamentals available":
+            legs["yfinance_failed"] = True
         base = {}
 
     # FMP metrics trio (primary, Task 9) + Finnhub /stock/metric (fallback —
@@ -286,15 +314,17 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
     # because avg_vol has no FMP equivalent in the trio, see module docstring).
     fmp = {}
     try:
-        fmp = _fmp_metrics_get(sym)
+        fmp = _fmp_metrics_get(sym, legs=legs)
     except Exception as e:
         _log.debug("FMP metrics failed for %s: %s", sym, e)
+        legs["fmp_failed"] = True
 
     fh = {}
     try:
-        fh = _fh_metric_get(sym)
+        fh = _fh_metric_get(sym, legs=legs)
     except Exception as e:
         _log.debug("Finnhub metric failed for %s: %s", sym, e)
+        legs["finnhub_failed"] = True
 
     def _safe_float(v) -> float | None:
         try:
@@ -402,6 +432,11 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
     # Finnhub metric leg failed) used to pin a blank for the full hour
     # in-memory even though the disk copy correctly refused to be poisoned.
     complete = any(v is not None for k, v in result.items() if k != "ticker")
+    # `status` makes the all-null case readable: "ok" (something resolved), "unavailable" (nothing
+    # resolved AND a provider failed -- the caller says so with a Retry), or "empty" (every provider
+    # answered and none had anything -- a genuine empty, said as such). A pre-status disk snapshot
+    # carries none; a reader treats an absent status as "ok" when any field is set.
+    result["status"] = "ok" if complete else ("unavailable" if any(legs.values()) else "empty")
     # TERM-019: the instant this snapshot was BUILT from the providers. It rides the cached and
     # persisted payload, so a cache or disk hit keeps the build time and never reads as "now".
     # Only a build that produced something is dated: an all-null build has no data to age.
@@ -420,8 +455,9 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
 def get_fundamentals_endpoint(ticker: str = Depends(ticker_path)):
     """Compact fundamentals for a ticker.
 
-    Returns {market_cap, forward_pe, beta, week52_high, week52_low, avg_vol, div_yield}.
-    All fields are null-safe; returns empty dict (not error) on any failure.
+    Returns {market_cap, forward_pe, beta, week52_high, week52_low, avg_vol, div_yield, status}.
+    All fields are null-safe and a failure is still a 200, but `status` says which all-null this
+    is: "unavailable" (a provider failed) vs "empty" (every provider answered with nothing).
     Serve order: memory → disk (fresh) → disk (stale ≤7d, background refresh)
     → live build — the yfinance/Finnhub round-trips never block a repeat view.
     """

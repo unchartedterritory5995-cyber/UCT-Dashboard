@@ -230,9 +230,9 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
                           : <p className={styles.thesis}>The catalyst board tagged {r.sym} as {r.catalyst.label} with no written story yet.</p>}
                         <p className={styles.muted}>
                           {r.catalyst.at ? `Catalyst broke at ${formatTimeEt(r.catalyst.at, { zoneSuffix: 'ET', absent: '—' })}. ` : ''}
-                          <button type="button" className={styles.linkBtn} onClick={() => onRun?.(`${r.sym} MOVE`)}>
+                          <button type="button" className={styles.linkBtn} onClick={() => onRun?.(`${r.sym} MOVE`, { next: true })}>
                             Open {r.sym} MOVE
-                          </button> for the full story (it opens in this panel).
+                          </button> for the full story (it opens beside this list).
                         </p>
                       </td>
                     </tr>

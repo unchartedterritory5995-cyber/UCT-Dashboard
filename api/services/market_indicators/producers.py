@@ -285,6 +285,99 @@ def thrust_events(dates, values,
     return out
 
 
+# ── Derived breadth ratios (registry `_RATIO_KINDS`) ─────────────────────────
+#
+# ⛔⛔ A ZERO DENOMINATOR IS A HOLE (None), NEVER A ZERO — see the registry note. And the
+# session calendar is the UNION of the inputs' dates (`load_pair`), so one missing input
+# leaves a gap rather than compressing the calendar.
+
+#: The High-Low Index window (StockCharts: a 10-day SMA of Record High Percent).
+HLI_WINDOW = 10
+
+
+def _safe_div(num, den) -> Optional[float]:
+    if num is None or den is None:
+        return None
+    try:
+        n, d = float(num), float(den)
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(n) and math.isfinite(d)) or d == 0:
+        return None
+    return n / d
+
+
+def ad_ratio_values(adv, dec) -> list[Optional[float]]:
+    """Advancing ÷ declining per session; None where declining is 0 or either input is missing."""
+    return [_safe_div(a, d) for a, d in zip(adv, dec)]
+
+
+def ad_percent_values(adv, dec) -> list[Optional[float]]:
+    """(A − D) ÷ (A + D) × 100 per session; None where A + D is 0 or an input is missing."""
+    out = []
+    for a, d in zip(adv, dec):
+        if a is None or d is None:
+            out.append(None)
+            continue
+        v = _safe_div(float(a) - float(d), float(a) + float(d))
+        out.append(None if v is None else v * 100.0)
+    return out
+
+
+def record_high_percent_values(highs, lows) -> list[Optional[float]]:
+    """NH ÷ (NH + NL) × 100 per session; None where NH + NL is 0 or an input is missing."""
+    out = []
+    for h, l in zip(highs, lows):
+        if h is None or l is None:
+            out.append(None)
+            continue
+        v = _safe_div(float(h), float(h) + float(l))
+        out.append(None if v is None else v * 100.0)
+    return out
+
+
+def high_low_index_values(rhp, window: int = HLI_WINDOW) -> list[Optional[float]]:
+    """A `window`-session SMA of Record High Percent. ⛔ Defined only when ALL `window` sessions
+    in the window are defined: an average over fewer would silently change the indicator's
+    span, and a member could not tell from the curve."""
+    out: list[Optional[float]] = []
+    for i in range(len(rhp)):
+        if i + 1 < window:
+            out.append(None)
+            continue
+        win = rhp[i + 1 - window:i + 1]
+        if any(v is None or not math.isfinite(v) for v in win):
+            out.append(None)
+            continue
+        out.append(sum(win) / window)
+    return out
+
+
+def ratio_for_universe(universe: str, kind: str) -> Optional[DerivedSeries]:
+    """One derived ratio series for one universe, or None when its inputs have no history.
+    READ-ONLY: `load_pair` / `load_metric_closes` → `breadth_daily_ohlc.history()`."""
+    if kind in ("ADR", "ADP"):
+        dates, adv, dec = load_pair("advancing", "declining", universe)
+        if not dates:
+            return None
+        vals = ad_ratio_values(adv, dec) if kind == "ADR" else ad_percent_values(adv, dec)
+    elif kind in ("RHP", "HLI"):
+        dates, hi, lo = load_pair("new_52w_highs", "new_52w_lows", universe)
+        if not dates:
+            return None
+        vals = record_high_percent_values(hi, lo)
+        if kind == "HLI":
+            vals = high_low_index_values(vals)
+    elif kind == "UNCH":
+        dates, vals = load_metric_closes("unchanged", universe)
+        if not dates:
+            return None
+    else:
+        return None
+    return DerivedSeries(series_id=kind, dates=dates, values=vals, universe=universe,
+                         methodology_version=f"breadth-ratio-v1/{kind.lower()}")
+
+
 # ── The cached build ─────────────────────────────────────────────────────────
 #
 # ⚠️ A PROCESS-LOCAL CACHE WITH A TTL, and it is a cache rather than state: dropping it
@@ -339,6 +432,14 @@ def _build_uncached(sid: str) -> Optional[DerivedSeries]:
     if row is None or row.universe is None:
         return None
     uni = row.universe
+    # ⭐ The derived ratios are computed the same way for every universe: the exchange
+    # authority answers `history()` for nyse/nasdaq (fail-closed), so no branch is needed.
+    kind = sid.split(":", 1)[1] if ":" in sid else sid
+    if kind in reg.RATIO_KINDS:
+        ds = ratio_for_universe(uni, kind)
+        if ds:
+            ds.series_id = sid
+        return ds
     if uni in EXCHANGE_UNIVERSES:
         return _exchange_series(sid, row)
 

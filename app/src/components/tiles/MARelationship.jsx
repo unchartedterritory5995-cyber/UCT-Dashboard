@@ -17,14 +17,16 @@ const ROW2 = [
 function MAChip({ label, pct }) {
   const above  = pct != null && pct >= 0
   const color  = pct == null ? 'var(--text-muted)' : above ? 'var(--gain)' : 'var(--loss)'
+  // Text reads in the text inks (WCAG AA on every theme); the border keeps the up/down hue.
+  const ink    = pct == null ? 'var(--text-muted)' : above ? 'var(--success-ink)' : 'var(--danger-ink)'
   const arrow  = pct == null ? '' : above ? '▲' : '▼'
   const fmtPct = pct == null ? '—' : `${above ? '+' : ''}${pct.toFixed(2)}%`
 
   return (
     <div className={styles.chip} style={{ borderColor: color }}>
       <span className={styles.chipLabel}>{label}</span>
-      <span className={styles.chipArrow} style={{ color }}>{arrow}</span>
-      <span className={styles.chipPct} style={{ color }}>{fmtPct}</span>
+      <span className={styles.chipArrow} style={{ color: ink }}>{arrow}</span>
+      <span className={styles.chipPct} style={{ color: ink }}>{fmtPct}</span>
     </div>
   )
 }
@@ -42,7 +44,7 @@ function TickerCol({ ticker, data, livePrice, chg, chgCss, override }) {
     : livePrice
       ? `$${livePrice}`
       : data.price != null ? `$${data.price.toFixed(2)}` : '—'
-  const chgColor = chgCss === 'pos' ? 'var(--gain)' : chgCss === 'neg' ? 'var(--loss)' : 'var(--text-muted)'
+  const chgColor = chgCss === 'pos' ? 'var(--success-ink)' : chgCss === 'neg' ? 'var(--danger-ink)' : 'var(--text-muted)'
   const chgArrow = chgCss === 'pos' ? '▲' : chgCss === 'neg' ? '▼' : ''
 
   return (

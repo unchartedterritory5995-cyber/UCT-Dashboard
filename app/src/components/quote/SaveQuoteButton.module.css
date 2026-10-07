@@ -26,7 +26,7 @@
   outline: none;
 }
 .btn:disabled { cursor: default; opacity: 0.5; }
-.saved { color: var(--color-success, var(--gain)); border-color: color-mix(in srgb, var(--gain) 40%, transparent); }
+.saved { color: var(--success-ink); border-color: color-mix(in srgb, var(--gain) 40%, transparent); }
 .compact { padding: 2px 7px; font-size: 9px; letter-spacing: 1px; }
 
 @media (max-width: 1024px) {

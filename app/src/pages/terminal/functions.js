@@ -31,6 +31,8 @@
 export const FUNCTION_GROUPS = ['Calendar', 'Security', 'Research depth', 'Options', 'Market', 'Shell']
 
 const DEPTH = 'researchDepth'   // AuthContext's object of Research › Depth flags (researchDepthFlags.js)
+/** IMOV's theme-name REST argument (args.js `themeName`; the marker is args.js THEME_MARKER). */
+const IMOV_THEME_ARG = Object.freeze({ kind: 'themeName', prop: 'theme', rest: true, marker: 'THEME' })
 
 export const FUNCTIONS = [
   // ── the Calendar section (owner ruling 2026-10-02: a first-class section of the shell) ──
@@ -230,9 +232,12 @@ export const FUNCTIONS = [
   // UCT theme's move, equal-weighted because a UCT theme IS an equal-weight basket. An index or ETF
   // is refused in the panel (no index weights are held). The ticker variant opens the theme(s)
   // holding that name; a row CLICK loads that name into the linked group (panels/ImovPanel.jsx).
+  // A theme can be NAMED (`IMOV semiconductors`, `IMOV AI / GPU Chips`): every word the window does
+  // not take is the theme query (a REST spec, args.js `themeName`), resolved in the panel. `THEME`
+  // (args.js THEME_MARKER) is what the panel writes back for a hand-picked theme.
   { code: 'IMOV', label: 'Theme movers (which names drive a UCT theme)', group: 'Market',
-    ticker: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }] },
-    market: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }] } },
+    ticker: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] },
+    market: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code

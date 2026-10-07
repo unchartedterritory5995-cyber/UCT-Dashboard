@@ -99,3 +99,43 @@ describe('which theme, and which symbols are refused', () => {
     expect(themesOf(null)).toEqual([])
   })
 })
+
+describe('naming a theme: matchTheme and the command the panel writes back', () => {
+  const GPU = { name: 'AI / GPU Chips', ticker: 'GPUX', theme_id: 'ai_gpu_chips', holdings: [{ sym: 'NVDA', returns: { '1d': 1 } }] }
+  const all = [SEMIS, AI, GPU]
+
+  it('case, spacing and punctuation do not matter; an id or ticker works too', async () => {
+    const { matchTheme } = await import('./imovModel')
+    for (const q of ['semiconductors', 'SEMICONDUCTORS', ' Semi conductors ', 'SMH']) {
+      expect(matchTheme(all, q), q).toMatchObject({ status: 'ok', theme: SEMIS })
+    }
+    for (const q of ['AI / GPU Chips', 'ai gpu chips', 'AI_GPU_CHIPS', 'ai-gpu-chips']) {
+      expect(matchTheme(all, q), q).toMatchObject({ status: 'ok', theme: GPU })
+    }
+  })
+
+  it('a UNIQUE prefix opens the theme; a shared one asks which', async () => {
+    const { matchTheme } = await import('./imovModel')
+    expect(matchTheme(all, 'semi')).toMatchObject({ status: 'ok', theme: SEMIS })
+    expect(matchTheme(all, 'ai g')).toMatchObject({ status: 'ok', theme: GPU })
+    const amb = matchTheme(all, 'AI')
+    expect(amb.status).toBe('ambiguous')
+    expect(amb.options.map((t) => t.name)).toEqual(['AI / GPU Chips', 'AI Software'])
+  })
+
+  it('nothing fitting is "unknown", with the nearest names and never a guess', async () => {
+    const { matchTheme } = await import('./imovModel')
+    expect(matchTheme(all, 'chips')).toMatchObject({ status: 'unknown', suggestions: [GPU] })      // inside a name
+    expect(matchTheme(all, 'semicondutors')).toMatchObject({ status: 'unknown', suggestions: [SEMIS] }) // a typo
+    expect(matchTheme(all, 'xyzzy')).toMatchObject({ status: 'unknown', suggestions: [] })
+    expect(matchTheme(all, '  ')).toEqual({ status: 'empty' })
+  })
+
+  it('imovCommand writes the stable key behind THEME, the window only when not the default, and the security first', async () => {
+    const { imovCommand, matchTheme } = await import('./imovModel')
+    expect(imovCommand({ theme: SEMIS })).toBe('IMOV THEME SEMICONDUCTORS')
+    expect(imovCommand({ theme: AI, win: '1W', sym: 'NVDA' })).toBe('NVDA IMOV THEME AI_SOFTWARE 1W')
+    // ...and the key it writes reopens the same theme.
+    expect(matchTheme(all, 'AI_SOFTWARE')).toMatchObject({ status: 'ok', theme: AI })
+  })
+})

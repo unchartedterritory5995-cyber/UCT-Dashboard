@@ -25,8 +25,8 @@ a.source:hover { text-decoration: underline; }
 a.source:focus-visible { outline: var(--focus-ring); }
 .title { font-size: var(--text-sm); color: var(--text-bright); line-height: var(--lh-snug); overflow-wrap: anywhere; }
 .desc { margin: 0; font-size: var(--text-sm); color: var(--text); line-height: var(--lh-snug); }
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 .neutral { color: var(--text-muted); }
 
 .generating { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-sm); color: var(--text-muted); }

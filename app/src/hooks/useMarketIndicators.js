@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { symbolFamily as breadthSymbolFamily, breadthRegistryReady, breadthRecord } from './useBreadthSymbols'
+import { symbolFamily as breadthSymbolFamily, breadthRegistryReady, breadthRecord, breadthLibraryRecord } from './useBreadthSymbols'
 import { OHLC_FAMILY } from '../components/chart/engine/ohlcCapability'
 import { sourceCapabilityOf } from '../components/chart/engine/sourceCapability'
 
@@ -205,6 +205,23 @@ export function canonicalPresentation(sym) {
   if (br && typeof br.presentation === 'string' && br.presentation) {
     return br.presentation
   }
+  return null
+}
+
+/**
+ * THE SOURCE'S DECLARED DOMAIN — `pct_0_100` / `nonneg` / `signed` / `ratio` — from whichever
+ * catalogue owns the symbol, or `null` (a security, or not loaded yet).
+ *
+ * ⭐ `signed` is the one a chart must act on: a series that crosses zero (Net New Highs-Lows,
+ * McClellan, an A/D line) has no meaningful PERCENT change — −144 from −125 is not "−15%" of
+ * anything a trader reads. Same precedence as `canonicalPresentation`.
+ */
+export function canonicalDomain(sym) {
+  if (!sym) return null
+  const mi = marketIndicatorRecord(sym)
+  if (mi && typeof mi.domain === 'string' && mi.domain) return mi.domain
+  const lib = breadthLibraryRecord(sym)
+  if (lib && typeof lib.domain === 'string' && lib.domain) return lib.domain
   return null
 }
 

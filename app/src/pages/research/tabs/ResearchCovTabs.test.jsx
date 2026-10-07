@@ -73,6 +73,17 @@ describe('PeopleTab (COV-05)', () => {
     expect(screen.getByTestId('exec-Timothy D. Cook').textContent).toContain('$74.3M (2025)')
   })
 
+  it('officer pay is labelled through the shared primitives: a lower-case "usd" is dollars, a foreign code is named', async () => {
+    const execs = PEOPLE.executives
+    routes['/api/research/people/AAPL'] = { ...PEOPLE, executives: { ...execs, rows: [
+      { ...execs.rows[0], pay_currency: 'usd' },
+      { ...execs.rows[0], name: 'Wei Chen', pay: 2500000, pay_currency: 'twd', comp_total: null },
+    ] } }
+    wrap(<PeopleTab sym="aapl" />)
+    expect((await screen.findByTestId('exec-Timothy D. Cook')).textContent).toContain('$16.8M*')
+    expect(screen.getByTestId('exec-Wei Chen').textContent).toContain('TWD 2.5M*')
+  })
+
   it('every compensation row links to its SEC filing', async () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="AAPL" />)

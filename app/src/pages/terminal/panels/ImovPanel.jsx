@@ -4,6 +4,10 @@
 //   IMOV              the theme moving most today (or the one you last opened), with a picker
 //   IMOV 1W           the same over a week (1D · 1W · 1M · 3M)
 //   NVDA IMOV         the UCT theme NVDA belongs to, with NVDA's own share of the move
+//   IMOV semiconductors · IMOV "AI / GPU Chips"   a theme BY NAME (case/spacing-insensitive, a
+//                     unique prefix opens it; several or none get a visible "did you mean")
+//   IMOV THEME SEMIS  the form the panel writes back when you pick a theme, so the pick survives a
+//                     reload, the URL and history (one ticker-shaped word alone is a ticker)
 //   SPY IMOV          refused: an index moves on cap weights UCT does not hold
 //
 // ⭐ EQUAL WEIGHT, SAID OUT LOUD. A UCT theme is an equal-weight basket, so each name contributes
@@ -26,7 +30,8 @@ import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import {
   DEFAULT_WINDOW, IMOV_WINDOWS, INDEX_FUNDS, POLL_MS, THEMES_URL, TOP_N,
-  biggestMover, contributionRead, normSym, refusalFor, splitRead, themeKey, themesHolding, themesOf, trackerDiffers,
+  biggestMover, contributionRead, imovCommand, matchTheme, normSym, refusalFor, splitRead, themeKey, themesHolding,
+  themesOf, trackerDiffers,
 } from './imovModel'
 import styles from './imovPanel.module.css'
 
@@ -87,20 +92,25 @@ function ContribTable({ title, rows, start, n, sym, onLoad, testId }) {
   )
 }
 
-export default function ImovPanel({ sym: symProp = null, win: winProp = null, onRun, onRows }) {
+export default function ImovPanel({ sym: symProp = null, win: winProp = null, theme: themeQuery = null, onRun, onRows }) {
   const inPanel = useInTerminalPanel()
   const market = useMarketOpen()
   const sym = symProp ? normSym(symProp) : null
   const [win, setWin] = useState(IMOV_WINDOWS[winProp] ? winProp : DEFAULT_WINDOW)
   const [picked, setPicked] = useState(null)
 
-  // An index fund is refused before anything is read: there is nothing to wait for.
-  const indexRefusal = sym && INDEX_FUNDS.includes(sym) && !picked
+  // An index fund is refused before anything is read: there is nothing to wait for (unless a
+  // theme was named, which is a different, answerable question).
+  const indexRefusal = sym && INDEX_FUNDS.includes(sym) && !picked && !themeQuery
   const perf = useMobileSWR(indexRefusal ? null : THEMES_URL, jsonFetcher, SWR_OPTS)
   const themes = useMemo(() => themesOf(perf.data), [perf.data])
   const byKey = useMemo(() => new Map(themes.map((t) => [themeKey(t), t])), [themes])
   const holding = useMemo(() => (sym ? themesHolding(themes, sym) : []), [themes, sym])
-  const refusal = sym && !picked ? refusalFor(themes, sym) : null
+  // A theme NAMED on the command line (`IMOV semiconductors`), resolved against what was read.
+  const named = useMemo(() => (themeQuery && !picked && themes.length ? matchTheme(themes, themeQuery) : null),
+    [themeQuery, picked, themes])
+  const namedTheme = named?.status === 'ok' ? named.theme : null
+  const refusal = sym && !picked && !themeQuery ? refusalFor(themes, sym) : null
 
   // `defaulted`: nothing was asked and nothing was remembered, so the panel chose the biggest mover
   // and says so. Decided once per mount (the remembered theme is read at mount, not on every render).
@@ -111,12 +121,13 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, on
   const [autoKey, setAutoKey] = useState(null)
   const { theme, defaulted } = useMemo(() => {
     if (picked) return { theme: byKey.get(picked) || null, defaulted: false }
+    if (themeQuery) return { theme: namedTheme, defaulted: false }
     if (refusal) return { theme: null, defaulted: false }
     if (sym) return { theme: holding.find((t) => themeKey(t) === remembered) || holding[0] || null, defaulted: false }
     const kept = byKey.get(remembered)
     if (kept) return { theme: kept, defaulted: false }
     return { theme: byKey.get(autoKey) || biggestMover(themes, seedWin), defaulted: true }
-  }, [picked, refusal, sym, holding, byKey, themes, remembered, autoKey, seedWin])
+  }, [picked, themeQuery, namedTheme, refusal, sym, holding, byKey, themes, remembered, autoKey, seedWin])
   useEffect(() => { if (defaulted && theme && !autoKey) setAutoKey(themeKey(theme)) }, [defaulted, theme, autoKey])
 
   useEffect(() => { if (theme) lastThemeKey = themeKey(theme) }, [theme])
@@ -137,7 +148,21 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, on
     : null)
 
   const load = (s) => onRun?.(`$${s}`, { keepFunction: true })
-  const choose = (key) => setPicked(key || null)
+  // A hand-picked theme is written into this panel's own command (`IMOV THEME SEMICONDUCTORS`) so
+  // it survives a reload, the URL and Back; the local pick answers at once while that lands.
+  const choose = (key) => {
+    setPicked(key || null)
+    const t = key ? byKey.get(key) : null
+    if (t && onRun) onRun(imovCommand({ sym, theme: t, win }), { here: true })
+  }
+  const themeChips = (list, testPrefix) => (
+    <span className={styles.group}>
+      {list.map((t) => (
+        <button key={themeKey(t)} type="button" className={styles.chip} onClick={() => choose(themeKey(t))}
+          data-testid={`${testPrefix}-${themeKey(t)}`}>Open the {t.name} theme</button>
+      ))}
+    </span>
+  )
   const options = useMemo(() => [...themes]
     .sort((a, b) => String(a.name).localeCompare(String(b.name)))
     .map((t) => ({ value: themeKey(t), label: t.name || themeKey(t) })), [themes])
@@ -200,13 +225,39 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, on
     )
   }
 
+  if (!theme && named && named.status !== 'ok') {
+    const asked = String(themeQuery).trim()
+    const list = named.status === 'ambiguous' ? named.options : named.suggestions || []
+    return (
+      <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-imov">
+        <div className={styles.toolbar}>{picker}</div>
+        <PanelState kind="input" compact role="status"
+          testId={named.status === 'ambiguous' ? 'terminal-imov-theme-ambiguous' : 'terminal-imov-theme-unknown'}
+          title={named.status === 'ambiguous'
+            ? `"${asked}" fits ${list.length} UCT themes. Which one did you mean?`
+            : `No UCT theme is called "${asked}".`}
+          action={list.length ? themeChips(list, 'terminal-imov-didyoumean') : null}>
+          {named.status === 'ambiguous'
+            ? 'Type more of the name, or pick one.'
+            : list.length ? 'Did you mean one of these? Or pick a theme above.' : 'Pick a theme above, or check the name.'}
+        </PanelState>
+      </div>
+    )
+  }
+
   if (!theme) {
+    // One ticker-shaped word is read as a ticker (`IMOV SEMIS`); when no theme holds it but a theme
+    // is CALLED that, offer the theme instead of leaving the member on a dead end.
+    const byName = sym ? matchTheme(themes, sym) : null
     return (
       <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-imov">
         <div className={styles.toolbar}>{picker}</div>
         <PanelState kind="input" compact testId="terminal-imov-unheld"
-          title={sym ? `No UCT theme holds ${sym}.` : 'Pick a theme.'}>
-          {sym ? 'Pick a theme above to see what is driving it.' : null}
+          title={sym ? `No UCT theme holds ${sym}.` : 'Pick a theme.'}
+          action={byName?.status === 'ok' ? themeChips([byName.theme], 'terminal-imov-didyoumean') : null}>
+          {sym && byName?.status === 'ok'
+            ? `Did you mean the ${byName.theme.name} theme? (IMOV THEME ${sym} always reads ${sym} as a theme name.)`
+            : sym ? 'Pick a theme above to see what is driving it.' : null}
         </PanelState>
       </div>
     )

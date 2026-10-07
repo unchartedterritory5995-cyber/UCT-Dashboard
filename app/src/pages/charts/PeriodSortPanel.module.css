@@ -12,7 +12,7 @@
   /* Same flat near-black outline the workspace widgets render (they re-assert
      `--border: #1e1e1e` even on a white canvas) — a thin dark line, NOT the ambient
      light-grey border. 1px / 4px radius, no drop shadow. */
-  border: 1px solid #1e1e1e;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   z-index: 4000;
   overflow: hidden;
@@ -36,8 +36,8 @@
 }
 .header:active { cursor: grabbing; }
 /* Clickable colour-code dot — cycles the group (A/B/C/D/N) like the standard widget. */
-.colorDot { width: 11px; height: 11px; border-radius: 50%; background: #dcbb5e; flex-shrink: 0; border: none; padding: 0; cursor: pointer; }
-.colorDot:hover { box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.25); }
+.colorDot { width: 11px; height: 11px; border-radius: 50%; background: var(--ut-gold); flex-shrink: 0; border: none; padding: 0; cursor: pointer; }
+.colorDot:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ut-gold) 25%, transparent); }
 /* Six-dot drag grip (pure CSS, no icon dependency). */
 .grip {
   width: 8px;
@@ -95,8 +95,8 @@
   bottom: 3px;
   width: 6px;
   height: 6px;
-  border-right: 2px solid rgba(220, 187, 94, 0.55);
-  border-bottom: 2px solid rgba(220, 187, 94, 0.55);
+  border-right: 2px solid color-mix(in srgb, var(--ut-gold) 55%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--ut-gold) 55%, transparent);
 }
 .corner:hover::after { border-right-color: var(--accent); border-bottom-color: var(--accent); }
 .cornerSE { right: 0; bottom: 0; cursor: se-resize; }
@@ -267,7 +267,7 @@
 .cfgReplay input { accent-color: var(--accent, #dcbb5e); width: 15px; height: 15px; cursor: pointer; }
 .cfgReplayHint { color: var(--text-muted, #8c8674); font-weight: 400; font-size: 11px; }
 /* TERM-067: the one validation message, right-aligned under the field it describes. */
-.cfgError { color: var(--loss); font-size: 11px; text-align: right; margin-top: -4px; }
+.cfgError { color: var(--danger-ink); font-size: 11px; text-align: right; margin-top: -4px; }
 .cfgDate {
   background: var(--bg-surface, #1a1c17);
   border: 1px solid var(--border, #2e3127);

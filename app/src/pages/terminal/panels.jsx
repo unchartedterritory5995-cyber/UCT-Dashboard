@@ -110,3 +110,9 @@ export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])
  *  and `onRows` (type its number + Enter) beside their props. Embedded page/tab components get
  *  neither — they are never forked to accept them. */
 export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers', 'Imov'])
+
+/** List panels whose numbered rows OPEN another function (RRG's `SYM GP`) rather than load a
+ *  name: typing the row number opens it BESIDE the list, exactly as clicking the row does, so
+ *  the list is never replaced by its own row (boardModel.panelBeside). MOST and IMOV rows LOAD
+ *  (`$SYM`) and need no entry here. */
+export const ROWS_OPEN_BESIDE = new Set(['Rrg'])

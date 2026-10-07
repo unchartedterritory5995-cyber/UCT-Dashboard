@@ -80,7 +80,7 @@ export function historyRefreshMs(latest) {
 
 export default function HistoryTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, isLoading } = useMobileSWR(s ? `/api/research/history/${encodeURIComponent(s)}` : null, fetchHistory,
+  const { data, isLoading, mutate } = useMobileSWR(s ? `/api/research/history/${encodeURIComponent(s)}` : null, fetchHistory,
     { refreshInterval: historyRefreshMs })
   // TERM-019: the history is read from several UCT records and every row names its own source and
   // date, so the terminal panel header says exactly that (a no-op outside the terminal).
@@ -113,7 +113,8 @@ export default function HistoryTab({ sym }) {
   }
   if (data && !data.ok) {
     return <div className={styles.card} data-testid="history-unavailable">
-      History is unavailable right now. That does not mean nothing happened.
+      History is unavailable right now. That does not mean nothing happened.{' '}
+      <button type="button" className={styles.basisBtn} onClick={() => mutate?.()}>Retry</button>
     </div>
   }
   if (!body) return null

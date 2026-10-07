@@ -108,8 +108,8 @@
 }
 
 /* ── Utilities ── */
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+.gain { color: var(--success-ink); }
+.loss { color: var(--danger-ink); }
 
 /* ── Responsive ── */
 @media (max-width: 768px) {

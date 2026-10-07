@@ -174,7 +174,7 @@
 .gateNote {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--loss);
+  color: var(--danger-ink);
   margin: -4px 0 8px;
   text-align: center;
 }

@@ -46,8 +46,8 @@
   letter-spacing: 0.6px;
 }
 
-.up   { color: var(--gain); font-variant-numeric: tabular-nums; }
-.down { color: var(--loss); font-variant-numeric: tabular-nums; }
+.up   { color: var(--success-ink); font-variant-numeric: tabular-nums; }
+.down { color: var(--danger-ink); font-variant-numeric: tabular-nums; }
 
 .pending {
   color: var(--text-muted);
@@ -77,7 +77,7 @@
 .covOk {
   padding: 6px 14px;
   font-size: var(--text-base);
-  color: var(--gain);
+  color: var(--success-ink);
   opacity: 0.75;
   border-bottom: 1px solid var(--border);
 }

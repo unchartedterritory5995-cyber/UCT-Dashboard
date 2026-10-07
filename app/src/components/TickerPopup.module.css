@@ -157,7 +157,7 @@
   color: var(--ut-green-bright);
 }
 .modalChangeDown {
-  color: var(--ut-red, var(--loss));
+  color: var(--ut-red, var(--danger-ink));
 }
 /* ── Close button (icon-only, square; red-tinted hover = the close affordance) ── */
 .closeBtn {
@@ -175,7 +175,7 @@
 }
 .closeBtn:hover {
   opacity: 1;
-  color: var(--loss);
+  color: var(--danger-ink);
   border-color: color-mix(in srgb, var(--loss) 40%, transparent);
   background: color-mix(in srgb, var(--loss) 10%, transparent);
 }
@@ -528,7 +528,7 @@
   font-weight: 700;
 }
 .eiBeat { color: var(--ut-green-bright); }
-.eiMiss { color: var(--ut-red, var(--loss)); }
+.eiMiss { color: var(--ut-red, var(--danger-ink)); }
 .eiNA { color: var(--text-muted); opacity: 0.5; }
 .eiConsensus {
   display: flex;
@@ -537,7 +537,7 @@
 }
 .eiBuyCount { color: var(--ut-green-bright); font-weight: 600; }
 .eiHoldCount { color: var(--text-muted); font-weight: 600; }
-.eiSellCount { color: var(--ut-red, var(--loss)); font-weight: 600; }
+.eiSellCount { color: var(--ut-red, var(--danger-ink)); font-weight: 600; }
 .eiTarget {
   font-weight: 600;
   color: var(--ut-cream);

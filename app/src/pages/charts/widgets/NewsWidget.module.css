@@ -18,7 +18,7 @@
   gap: 8px;
   padding: 6px 8px;
   background: transparent;
-  border-bottom: 1px solid var(--news-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  border-bottom: 1px solid var(--news-divider, var(--divider, color-mix(in srgb, var(--text) 8%, transparent)));
   flex: 0 0 auto;
 }
 .symWrap {
@@ -57,7 +57,7 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.pill:hover { background: var(--news-row-hover, rgba(255, 255, 255, 0.05)); }
+.pill:hover { background: var(--news-row-hover, color-mix(in srgb, var(--text) 5%, transparent)); }
 .pillOn {
   background: var(--menu-accent-bg, rgba(220, 187, 94, 0.16));
   color: var(--news-accent, var(--ut-gold, #dcbb5e));
@@ -76,7 +76,7 @@
   border-radius: 5px;
   flex: 0 0 auto;
 }
-.gearBtn:hover, .gearBtnActive { color: var(--news-accent, var(--ut-gold, #dcbb5e)); background: var(--news-row-hover, rgba(255, 255, 255, 0.06)); }
+.gearBtn:hover, .gearBtnActive { color: var(--news-accent, var(--ut-gold, #dcbb5e)); background: var(--news-row-hover, color-mix(in srgb, var(--text) 6%, transparent)); }
 
 /* Feed list */
 .list {
@@ -88,7 +88,7 @@
   display: flex;
   gap: 9px;
   padding: 9px 10px;
-  border-bottom: 1px solid var(--news-row-divider, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--news-row-divider, color-mix(in srgb, var(--text) 5%, transparent));
 }
 .icon {
   flex: 0 0 auto;
@@ -124,7 +124,7 @@
   transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
 }
 .row:hover .pinBtn { opacity: 0.9; }
-.pinBtn:hover { color: var(--news-accent, var(--ut-gold, #dcbb5e)); background: var(--news-row-hover, rgba(255, 255, 255, 0.06)); }
+.pinBtn:hover { color: var(--news-accent, var(--ut-gold, #dcbb5e)); background: var(--news-row-hover, color-mix(in srgb, var(--text) 6%, transparent)); }
 .pinBtnOn, .pinBtnOn:hover { opacity: 1; color: var(--news-accent, var(--ut-gold, #dcbb5e)); }
 .title {
   display: block;
@@ -199,7 +199,7 @@ a.title:hover { text-decoration: underline; }
   gap: 8px;
   padding: 10px 12px;
   color: var(--news-accent, var(--ut-gold, #dcbb5e));
-  border-bottom: 1px solid var(--news-row-divider, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--news-row-divider, color-mix(in srgb, var(--text) 5%, transparent));
 }
 .spinner {
   width: 12px;
@@ -215,7 +215,7 @@ a.title:hover { text-decoration: underline; }
 /* Very-thin widget only: the row becomes click-to-reveal. The revealed content is
    the SAME inline .desc (plain text, no box) — just toggled into view. */
 .rowClickable { cursor: pointer; }
-.rowClickable:hover { background: var(--news-row-hover, rgba(255, 255, 255, 0.03)); }
+.rowClickable:hover { background: var(--news-row-hover, color-mix(in srgb, var(--text) 3%, transparent)); }
 a.source { text-decoration: none; }
 a.source:hover { text-decoration: underline; color: var(--news-accent, var(--ut-gold, #dcbb5e)); }
 

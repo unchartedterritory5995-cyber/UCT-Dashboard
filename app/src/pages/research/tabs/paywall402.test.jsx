@@ -18,6 +18,10 @@ import TechnicalTab from './TechnicalTab'
 import CallsTab from './CallsTab'
 import ModelBookTab from './ModelBookTab'
 import DecisionRecordTab from './DecisionRecordTab'
+import NewsTab from './NewsTab'
+import AnalystRatingsTab from './AnalystRatingsTab'
+import OwnershipTab from './OwnershipTab'
+import RatingsTab from './RatingsTab'
 
 const wrap = (el) => render(<MemoryRouter>{el}</MemoryRouter>)
 
@@ -46,4 +50,21 @@ describe('a 402 is the paid gate, never "couldn’t load"', () => {
     expect(screen.getByTestId('decision-record-paywalled').textContent).toBe('The decision record requires a paid plan.')
     expect(screen.queryByText(/unavailable/i)).toBeNull()
   })
+
+  // 2026-10-07 completeness audit: CN, ANR, OWN and RTG kept their own {ok, httpStatus} fetchers
+  // too, and the backend 402s all four (api/open_reads_gate.py) -- a free member read
+  // "Couldn't load ..." with a Retry that could never work.
+  for (const [code, El, id, text] of [
+    ['CN', NewsTab, 'news-paywalled', 'Company news requires a paid plan.'],
+    ['ANR', AnalystRatingsTab, 'analyst-ratings-paywalled', 'Analyst ratings require a paid plan.'],
+    ['OWN', OwnershipTab, 'ownership-paywalled', 'Ownership requires a paid plan.'],
+    ['RTG', RatingsTab, 'ratings-paywalled', 'The UCT rating requires a paid plan.'],
+  ]) {
+    it(code, () => {
+      wrap(<El sym="NVDA" />)
+      expect(screen.getByTestId(id).textContent).toBe(text)
+      expect(screen.queryByText(/Couldn't load/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    })
+  }
 })

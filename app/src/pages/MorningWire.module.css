@@ -242,8 +242,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.pill_gain { background: var(--gain-bg); border-color: var(--gain-border); color: var(--gain); }
-.pill_loss { background: var(--loss-bg); border-color: var(--loss-border); color: var(--loss); }
+.pill_gain { background: var(--gain-bg); border-color: var(--gain-border); color: var(--success-ink); }
+.pill_loss { background: var(--loss-bg); border-color: var(--loss-border); color: var(--danger-ink); }
 .pill_warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
 .pill_info { background: var(--info-bg); border-color: var(--info-border); color: var(--info); }
 
@@ -580,8 +580,8 @@
   font-size: var(--text-xl);
   letter-spacing: 0.2px;
 }
-.rundownWrap :global(.rd-order-call) :global(.rd-order-contract) { color: var(--gain); }
-.rundownWrap :global(.rd-order-put) :global(.rd-order-contract) { color: var(--loss); }
+.rundownWrap :global(.rd-order-call) :global(.rd-order-contract) { color: var(--success-ink); }
+.rundownWrap :global(.rd-order-put) :global(.rd-order-contract) { color: var(--danger-ink); }
 .rundownWrap :global(.rd-order-exp) { font-size: var(--text-md); color: var(--text-muted); }
 .rundownWrap :global(.rd-order-dte) { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; }
 .rundownWrap :global(.rd-urg-hot)  { color: var(--warn); }
@@ -657,9 +657,9 @@
 }
 .rundownWrap :global(.rd-gp-v) { padding: 10px 16px; font-size: var(--text-lg); line-height: 1.5; border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 4%, transparent); }
 .rundownWrap :global(.rd-gp-exp) { font-family: var(--font-mono); font-weight: 700; font-size: var(--text-md); padding: 1px 8px; border-radius: var(--radius-pill); }
-.rundownWrap :global(.rd-gp-green) { color: var(--gain); background: color-mix(in srgb, var(--gain) 15%, transparent); }
+.rundownWrap :global(.rd-gp-green) { color: var(--success-ink); background: color-mix(in srgb, var(--gain) 15%, transparent); }
 .rundownWrap :global(.rd-gp-amber) { color: var(--warn); background: color-mix(in srgb, var(--warn) 18%, transparent); }
-.rundownWrap :global(.rd-gp-red) { color: var(--loss); background: color-mix(in srgb, var(--loss) 16%, transparent); }
+.rundownWrap :global(.rd-gp-red) { color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 16%, transparent); }
 .rundownWrap :global(.rd-gp-tk) { font-family: var(--font-mono); font-weight: 700; color: var(--accent); }
 .rundownWrap :global(.rd-gp-play) {
   margin: 10px 16px 14px;
@@ -691,12 +691,12 @@
 }
 .rundownWrap :global(.rd-lv-sym) { font-weight: 800; color: var(--text-heading); }
 .rundownWrap :global(.rd-lv-px) { font-weight: 700; color: var(--text-heading); }
-.rundownWrap :global(.rd-lv-sup) { color: var(--gain); }
+.rundownWrap :global(.rd-lv-sup) { color: var(--success-ink); }
 .rundownWrap :global(.rd-lv-piv) { color: var(--accent); font-weight: 700; }
-.rundownWrap :global(.rd-lv-res) { color: var(--loss); }
+.rundownWrap :global(.rd-lv-res) { color: var(--danger-ink); }
 .rundownWrap :global(.rd-lv-read) { font-family: var(--font-sans); font-size: var(--text-base); }
-.rundownWrap :global(.rd-lv-bull) :global(.rd-lv-read) { color: var(--gain); }
-.rundownWrap :global(.rd-lv-bear) :global(.rd-lv-read) { color: var(--loss); }
+.rundownWrap :global(.rd-lv-bull) :global(.rd-lv-read) { color: var(--success-ink); }
+.rundownWrap :global(.rd-lv-bear) :global(.rd-lv-read) { color: var(--danger-ink); }
 .rundownWrap :global(.rd-lv-chop) :global(.rd-lv-read) { color: var(--text); }
 
 /* ── WHAT'S IN FAVOR (rotation) ──────────────────────────────── */
@@ -708,8 +708,8 @@
 .rundownWrap :global(.rd-rotation-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-rotation-chips) { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .rundownWrap :global(.rd-rot-chip) { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700; padding: 4px 11px; border-radius: 7px; }
-.rundownWrap :global(.rd-rot-in) { color: var(--gain); background: color-mix(in srgb, var(--gain) 12%, transparent); border: 1px solid color-mix(in srgb, var(--gain) 30%, transparent); }
-.rundownWrap :global(.rd-rot-out) { color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, transparent); border: 1px solid color-mix(in srgb, var(--loss) 28%, transparent); }
+.rundownWrap :global(.rd-rot-in) { color: var(--success-ink); background: color-mix(in srgb, var(--gain) 12%, transparent); border: 1px solid color-mix(in srgb, var(--gain) 30%, transparent); }
+.rundownWrap :global(.rd-rot-out) { color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 10%, transparent); border: 1px solid color-mix(in srgb, var(--loss) 28%, transparent); }
 .rundownWrap :global(.rd-rotation-note) { color: var(--text); font-size: var(--text-md); }
 
 /* ── DISCIPLINE / RISK CHECK ─────────────────────────────────── */
@@ -748,7 +748,7 @@
 .rundownWrap :global(.rd-ti-name) { padding: 0 16px 8px; font-size: var(--text-xl); }
 .rundownWrap :global(.rd-ti-sym) { font-family: var(--font-mono); font-weight: 800; font-size: var(--text-2xl); color: var(--text-heading); }
 .rundownWrap :global(.rd-ti-co) { color: var(--text); font-size: var(--text-lg); }
-.rundownWrap :global(.rd-ti-rs) { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700; color: var(--gain); background: color-mix(in srgb, var(--gain) 14%, transparent); padding: 1px 7px; border-radius: var(--radius-pill); margin-left: 4px; }
+.rundownWrap :global(.rd-ti-rs) { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700; color: var(--success-ink); background: color-mix(in srgb, var(--gain) 14%, transparent); padding: 1px 7px; border-radius: var(--radius-pill); margin-left: 4px; }
 .rundownWrap :global(.rd-ti-levels) { padding: 0 16px 10px; font-family: var(--font-mono); font-size: var(--text-lg); color: var(--text-bright); line-height: 1.9; }
 .rundownWrap :global(.rd-ti-lbl) { color: var(--text-muted); font-size: var(--text-sm); }
 .rundownWrap :global(.rd-ti-val) { color: var(--text-heading); font-weight: 700; }
@@ -767,8 +767,8 @@
 .rundownWrap :global(.rd-rs-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: var(--text-heading); }
 .rundownWrap :global(.rd-rs-setup) { font-size: var(--text-md); color: var(--text); flex: 1; }
 .rundownWrap :global(.rd-rs-chg) { font-family: var(--font-mono); font-weight: 700; font-size: var(--text-md); }
-.rundownWrap :global(.rd-rs-up) { color: var(--gain); }
-.rundownWrap :global(.rd-rs-dn) { color: var(--loss); }
+.rundownWrap :global(.rd-rs-up) { color: var(--success-ink); }
+.rundownWrap :global(.rd-rs-dn) { color: var(--danger-ink); }
 .rundownWrap :global(.rd-rs-empty) { padding: 12px 16px; font-size: var(--text-md); color: var(--text); font-style: italic; }
 
 /* ── TODAY'S RISK CALENDAR ───────────────────────────────────── */
@@ -804,7 +804,7 @@
 .rundownWrap :global(.rd-watch-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: var(--text-heading); }
 .rundownWrap :global(.rd-watch-trig) { font-family: var(--font-mono); font-weight: 700; color: var(--accent); min-width: 72px; }
 .rundownWrap :global(.rd-watch-dist) { flex: 1; color: var(--text); font-size: var(--text-md); }
-.rundownWrap :global(.rd-watch-live) :global(.rd-watch-dist) { color: var(--gain); font-weight: 600; }
+.rundownWrap :global(.rd-watch-live) :global(.rd-watch-dist) { color: var(--success-ink); font-weight: 600; }
 .rundownWrap :global(.rd-watch-setup) { font-size: var(--text-base); color: var(--text-muted); }
 
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
@@ -967,7 +967,7 @@
   padding: 1px 6px;
   border-radius: 3px;
   background: var(--gain-bg);
-  color: var(--gain);
+  color: var(--success-ink);
   border: 1px solid var(--gain-border);
 }
 
@@ -979,7 +979,7 @@
   padding: 1px 6px;
   border-radius: 3px;
   background: var(--loss-bg);
-  color: var(--loss);
+  color: var(--danger-ink);
   border: 1px solid var(--loss-border);
 }
 
@@ -989,8 +989,8 @@
   font-weight: 500;
 }
 
-.gainText { color: var(--gain); }
-.lossText { color: var(--loss); }
+.gainText { color: var(--success-ink); }
+.lossText { color: var(--danger-ink); }
 
 .noData {
   font-size: var(--text-base);
@@ -1045,8 +1045,8 @@
 }
 .chipGain:hover, .chipLoss:hover { opacity: 0.8; }
 
-.chipGain { background: var(--gain-bg); border-color: var(--gain-border); color: var(--gain); }
-.chipLoss { background: var(--loss-bg); border-color: var(--loss-border); color: var(--loss); }
+.chipGain { background: var(--gain-bg); border-color: var(--gain-border); color: var(--success-ink); }
+.chipLoss { background: var(--loss-bg); border-color: var(--loss-border); color: var(--danger-ink); }
 
 .chipPct {
   font-weight: 500;
@@ -1110,8 +1110,8 @@
   font-size: var(--text-xs);
   letter-spacing: 0.3px;
 }
-.aSumUp   { color: var(--gain); }
-.aSumDown { color: var(--loss); }
+.aSumUp   { color: var(--success-ink); }
+.aSumDown { color: var(--danger-ink); }
 .aSumPt   { color: var(--accent); }
 .aSumDot  { color: var(--text-muted); }
 
@@ -1241,11 +1241,11 @@
   white-space: nowrap;
   text-align: center;
 }
-.aeBadgeUp   { background: var(--gain-bg);              color: var(--gain);  border: 1px solid var(--gain-border); }
-.aeBadgeDown { background: var(--loss-bg);              color: var(--loss);  border: 1px solid var(--loss-border); }
+.aeBadgeUp   { background: var(--gain-bg);              color: var(--success-ink);  border: 1px solid var(--gain-border); }
+.aeBadgeDown { background: var(--loss-bg);              color: var(--danger-ink);  border: 1px solid var(--loss-border); }
 .aeBadgeInit { background: color-mix(in srgb, var(--info) 12%, transparent);       color: var(--info);      border: 1px solid color-mix(in srgb, var(--info) 30%, transparent); }
 .aeBadgePtUp { background: color-mix(in srgb, var(--ut-gold) 12%, transparent);       color: var(--accent);      border: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent); }
-.aeBadgePtDn { background: color-mix(in srgb, var(--loss) 12%, transparent);        color: var(--loss);  border: 1px solid var(--loss-border); }
+.aeBadgePtDn { background: color-mix(in srgb, var(--loss) 12%, transparent);        color: var(--danger-ink);  border: 1px solid var(--loss-border); }
 .aeBadgeMuted{ background: color-mix(in srgb, var(--text-heading) 5%, transparent);      color: var(--text-muted); border: 1px solid var(--border); }
 
 .aeMid {
@@ -1294,8 +1294,8 @@
   text-align: right;
   min-width: 60px;
 }
-.aeUpsidePos { color: var(--gain); }
-.aeUpsideNeg { color: var(--loss); }
+.aeUpsidePos { color: var(--success-ink); }
+.aeUpsideNeg { color: var(--danger-ink); }
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
@@ -1571,7 +1571,7 @@
 .rundownWrap :global(.rd-order-tag.rd-oi-likely) { color: var(--text); }
 .rundownWrap :global(.rd-order-tag.rd-oi-grew) { color: var(--text); }
 .rundownWrap :global(.rd-order-tag.rd-oi-unconfirmed) { color: var(--text-muted); }
-.rundownWrap :global(.rd-order-tag.rd-oi-closing) { color: var(--loss); }
+.rundownWrap :global(.rd-order-tag.rd-oi-closing) { color: var(--danger-ink); }
 
 /* Consecutive sessions leaning the same way. Rides the ticker rather than taking
    a column — it is rare, and when it appears it is the most decisive thing on
@@ -1586,8 +1586,8 @@
   vertical-align: middle;
   opacity: 0.85;
 }
-.rundownWrap :global(.rd-flowboard-row.rd-sent-bull .rd-order-streak) { color: var(--gain); }
-.rundownWrap :global(.rd-flowboard-row.rd-sent-bear .rd-order-streak) { color: var(--loss); }
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bull .rd-order-streak) { color: var(--success-ink); }
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bear .rd-order-streak) { color: var(--danger-ink); }
 
 /* Legal disclaimer under the rundown (was an inline style). */
 .disclaimer {

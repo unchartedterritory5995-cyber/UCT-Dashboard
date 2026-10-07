@@ -32,6 +32,7 @@ import {
   formatNumber,
   formatPercent,
   formatCurrency,
+  formatPercentAsSent,
   formatCompact,
   COMPACT_TIERS,
   TERMINAL_COMPACT_TIERS,
@@ -482,5 +483,46 @@ describe('TERM-066 golden — a pre-1900 date formats, it does not crash or blan
   it('formatTimeEt renders the same instant, never "Invalid Date" or the absent value', () => {
     const out = formatTimeEt(new Date(epoch1895 * 1000), { absent: 'ABSENT' })
     expect(out).toBe('7:00 AM')
+  })
+})
+
+describe('formatCurrency grouping (completeness audit 2026-10-07)', () => {
+  it('the default is unchanged: toFixed, ungrouped', () => {
+    expect(formatCurrency(1234.5)).toBe('$1234.50')
+    expect(formatCurrency(-2.9, { decimals: 0 })).toBe('-$3')
+  })
+  it('grouping: a grouped amount, the sign inside the minus, halves away from zero', () => {
+    expect(formatCurrency(12500, { decimals: 0, grouping: true })).toBe('$12,500')
+    expect(formatCurrency(-12500.4, { decimals: 0, grouping: true })).toBe('-$12,500')
+    expect(formatCurrency(-2.5, { decimals: 0, grouping: true })).toBe('-$3')
+    expect(formatCurrency(1234.567, { grouping: true })).toBe('$1,234.57')
+  })
+  it('a value that rounds to zero is zero, never "-$0"', () => {
+    expect(formatCurrency(-0.4, { decimals: 0, grouping: true })).toBe('$0')
+    expect(formatCurrency(-0, { decimals: 0, grouping: true })).toBe('$0')
+    expect(formatCurrency(-0.001, { grouping: true })).toBe('$0.00')
+    expect(formatCurrency(-0.6, { decimals: 0, grouping: true })).toBe('-$1')
+  })
+  it('absent as every primitive', () => {
+    expect(formatCurrency(NaN, { grouping: true })).toBe(ABSENT)
+    expect(formatCurrency(null, { grouping: true, absent: null })).toBe(null)
+  })
+})
+
+describe('formatPercentAsSent (completeness audit 2026-10-07)', () => {
+  it('prints what the server sent: no padded zeros, ungrouped, up to three decimals', () => {
+    expect(formatPercentAsSent(3.27)).toBe('3.27%')
+    expect(formatPercentAsSent(3)).toBe('3%')
+    expect(formatPercentAsSent(87.5)).toBe('87.5%')
+    expect(formatPercentAsSent(1234.5)).toBe('1234.5%')
+    expect(formatPercentAsSent(-12.25)).toBe('-12.25%')
+    expect(formatPercentAsSent('3.5')).toBe('3.5%')
+  })
+  it('zero has no sign; a missing or non-numeric value is absent, never "NaN%" / "null%"', () => {
+    expect(formatPercentAsSent(-0)).toBe('0%')
+    expect(formatPercentAsSent(null)).toBe(ABSENT)
+    expect(formatPercentAsSent('')).toBe(ABSENT)
+    expect(formatPercentAsSent('n/a')).toBe(ABSENT)
+    expect(formatPercentAsSent(Infinity, { absent: null })).toBe(null)
   })
 })

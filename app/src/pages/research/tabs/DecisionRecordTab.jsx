@@ -79,7 +79,7 @@ function SafetyNote() {
   )
 }
 
-function Unavailable() {
+function Unavailable({ onRetry }) {
   return (
     <div className={styles.finWrap}>
       <section className={styles.card} data-testid="decision-record-unavailable">
@@ -89,13 +89,14 @@ function Unavailable() {
           The decision record could not be read right now. That is not
           the same as this name never having been considered &mdash; nothing is being said about it.
         </p>
+        {onRetry && <button type="button" className={styles.basisBtn} onClick={() => onRetry()}>Retry</button>}
       </section>
     </div>
   )
 }
 
 export default function DecisionRecordTab({ sym }) {
-  const { result, isLoading } = useDecisionRecord(sym)
+  const { result, isLoading, mutate } = useDecisionRecord(sym)
 
   if (isLoading) {
     return (
@@ -107,9 +108,9 @@ export default function DecisionRecordTab({ sym }) {
   if (result && !result.ok && result.httpStatus === 402) {
     return <div className={styles.fnote} data-testid="decision-record-paywalled">The decision record requires a paid plan.</div>
   }
-  if (!result || !result.ok || !result.body) return <Unavailable />
+  if (!result || !result.ok || !result.body) return <Unavailable onRetry={mutate} />
   const body = result.body
-  if (body.status === 'unavailable') return <Unavailable />
+  if (body.status === 'unavailable') return <Unavailable onRetry={mutate} />
 
   const { rows = [], counts, coverage, source, paging, entity } = body
   const ticker = body.ticker || (sym || '').toUpperCase()

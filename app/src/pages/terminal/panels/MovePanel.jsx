@@ -31,6 +31,7 @@ const STATUS_TEXT = {
 
 export default function MovePanel({ sym, onRun, onRows }) {
   const [state, setState] = useState({ phase: 'loading', data: null, error: null, fetchedAt: null })
+  const [attempt, setAttempt] = useState(0)   // Retry re-reads (completeness audit 2026-10-07)
   useEffect(() => {
     if (!sym) return undefined
     let live = true
@@ -39,7 +40,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
       .then((data) => { if (live) setState({ phase: 'ready', data, error: null, fetchedAt: Date.now() }) })
       .catch((err) => { if (live) setState({ phase: 'error', data: null, error: err, fetchedAt: null }) })
     return () => { live = false }
-  }, [sym])
+  }, [sym, attempt])
 
   const rows = useMemo(() => moveRows(sym), [sym])
   useEffect(() => { onRows?.(rows) }, [onRows, rows])
@@ -63,12 +64,14 @@ export default function MovePanel({ sym, onRun, onRows }) {
   if (state.phase === 'error') {
     const status = state.error?.status
     return (
-      <div className={styles.panelEmpty} role="status" data-testid="terminal-move-error">
-        {/* A 404 here is either the grammar flag off or a cohort gap, and the
-            backend sends the same body for both, so the copy claims neither. */}
-        {status === 404 ? `MOVE isn't switched on yet.`
-          : `Could not load why ${sym} is moving just now. Run ${sym} MOVE again to retry.`}
-      </div>
+      // A 404 here is either the grammar flag off or a cohort gap, and the backend sends the
+      // same body for both, so the copy claims neither. Any other failure is an error with a Retry.
+      status === 404
+        ? <PanelState kind="locked" role="status" title="MOVE isn't switched on yet." testId="terminal-move-error" />
+        : <PanelState kind="error" title={`Could not load why ${sym} is moving just now.`} testId="terminal-move-error"
+            action={<button type="button" onClick={() => setAttempt((n) => n + 1)}>Retry</button>}>
+            Run {sym} MOVE again, or retry here.
+          </PanelState>
     )
   }
 

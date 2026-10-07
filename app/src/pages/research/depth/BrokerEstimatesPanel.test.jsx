@@ -1,6 +1,6 @@
 // FT-071 — the estimates-by-contributor panel, asserted on rendered text.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import DepthTab from './DepthTab'
 
@@ -51,5 +51,50 @@ describe('BrokerEstimatesPanel', () => {
     body = { ...OK, state: 'pending', reason: 'the consensus is being read; this panel fills in by itself', periods: undefined }
     renderTab()
     expect((await screen.findByTestId('broker-state')).textContent).toMatch(/being read/)
+  })
+})
+
+// 2026-10-07 completeness audit: a failed read is drawn as an error with a working Retry, never as
+// an empty or "nothing reported" state.
+describe('BrokerEstimatesPanel — a failed read', () => {
+  it('a 503 reads as unavailable with Retry, and Retry reads again', async () => {
+    const good = body
+    let calls = 0
+    global.fetch = vi.fn(() => {
+      calls += 1
+      return calls === 1
+        ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({ detail: 'down' }) })
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(good) })
+    })
+    renderTab()
+    const err = await screen.findByTestId('broker-unavailable')
+    expect(err.textContent).toMatch(/unavailable right now/)
+    expect(screen.queryByTestId('broker-state')).toBeNull()
+    expect(screen.queryByTestId('broker-no-periods')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findAllByTestId('broker-row')).not.toHaveLength(0)
+    expect(screen.queryByTestId('broker-unavailable')).toBeNull()
+  })
+
+  it('a successful read with no periods says so in words, never a header-only table', async () => {
+    body = { ...OK, periods: [] }
+    renderTab()
+    expect((await screen.findByTestId('broker-no-periods')).textContent).toMatch(/No upcoming quarter/)
+    expect(screen.queryByTestId('broker-row')).toBeNull()
+  })
+
+  it('a foreign reporting currency labels the low–high range too, not only the mean', async () => {
+    body = { ...OK, currency: 'TWD' }
+    renderTab()
+    const row = await screen.findByTestId('broker-row')
+    const cells = row.querySelectorAll('td')
+    expect(cells[2].textContent).toMatch(/TWD|NT\$/)
+    expect(screen.getByRole('columnheader', { name: /Low–high, TWD/ })).toBeInTheDocument()
+  })
+
+  it('a firms list that answered ok but empty says no rating actions, not a bare list', async () => {
+    body = { ...OK, firms: { state: 'ok', source: 'FMP grades', actions: [] } }
+    renderTab()
+    expect((await screen.findByTestId('broker-firms')).textContent).toContain('No rating actions on file.')
   })
 })

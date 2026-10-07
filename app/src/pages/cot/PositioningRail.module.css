@@ -106,8 +106,8 @@
   text-overflow: ellipsis;
 }
 
-.toneBull    { color: var(--gain); }
-.toneBear    { color: var(--loss); }
+.toneBull    { color: var(--success-ink); }
+.toneBear    { color: var(--danger-ink); }
 .toneNeutral { color: var(--text-bright); }
 
 /* ── Table ──────────────────────────────────────────────────────────────── */
@@ -167,8 +167,8 @@
   white-space: nowrap;
 }
 
-.up   { color: var(--gain); font-weight: 600; }
-.down { color: var(--loss); font-weight: 600; }
+.up   { color: var(--success-ink); font-weight: 600; }
+.down { color: var(--danger-ink); font-weight: 600; }
 .flat { color: var(--text-muted); }
 
 /* The 3Y-index meter: a track in the series hue with the fill in that hue and
@@ -456,8 +456,8 @@
   color: var(--text-bright);
   line-height: 1.1;
 }
-.precHitBull { color: var(--gain); }
-.precHitBear { color: var(--loss); }
+.precHitBull { color: var(--success-ink); }
+.precHitBear { color: var(--danger-ink); }
 .precSub {
   margin-top: 3px;
   font-size: 9.5px;
@@ -479,8 +479,8 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
-.precDateUp   { color: var(--gain); border-color: var(--gain-border); }
-.precDateDown { color: var(--loss); border-color: var(--loss-border); }
+.precDateUp   { color: var(--success-ink); border-color: var(--gain-border); }
+.precDateDown { color: var(--danger-ink); border-color: var(--loss-border); }
 
 .precEmpty {
   font-size: 10.5px;

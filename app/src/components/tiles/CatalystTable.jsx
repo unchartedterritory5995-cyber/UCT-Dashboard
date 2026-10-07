@@ -23,6 +23,8 @@ import Input from '../ui/Input'
 import Textarea from '../ui/Textarea'
 import { ASC, DESC, nextSort, sortCaretFor, ariaSortFor } from '../../lib/presentation/dataGrid'
 import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+import BoardFromList from '../terminal/BoardFromList'
+import { usePanelSymbolRows } from '../terminal/terminalPanel'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -585,6 +587,10 @@ export default function CatalystTable({
   // the active sort — so the hub's cursor walks the same list in the same order rather than a
   // second opinion about which rows exist. The ref bounds every node lookup to THIS instance's
   // own subtree, which is what makes three concurrent mounts safe.
+  // In a UCT Terminal panel (WIRE's catalyst rail) the rows the member SEES, in order, are the
+  // panel's numbered list: row <GO> loads that name (`$SYM`), and the names are the list a
+  // "Board of" opens. A no-op outside a terminal panel (the Dashboard's two copies).
+  const panelSyms = usePanelSymbolRows(filteredRows.map(r => r.ticker), title)
   const hubRootRef = useRef(null)
   const { toggle: toggleFlag, isFlagged } = useFlagged()
   const catalystsHub = useCatalystsHubSection({
@@ -656,6 +662,7 @@ export default function CatalystTable({
               <UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Listen
             </ReadAloudButton>
           )}
+          <BoardFromList syms={panelSyms} label={title} testId="catalysts-board" />
           {!datePicker && (
             <a href="/catalysts/history" className="btn btn-secondary btn-sm" title="Browse past trading days">
               history →

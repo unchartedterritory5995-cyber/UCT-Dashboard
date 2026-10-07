@@ -43,6 +43,10 @@ export function rrgUniverse(sym, props = {}) {
   return { syms: asked.slice(0, RRG_MAX), mode: 'custom', dropped: asked.slice(RRG_MAX) }
 }
 
+/** The cadences RRG draws: weekly (the default) and daily closes. Every one the `cadence` arg
+ *  accepts (args.js CADENCES) is drawn; anything else is SAID, never silently replaced. */
+export const RRG_CADENCES = Object.freeze(['W', 'D'])
+
 /** Pure: the cadence a `tf` prop resolves to (RRG reads only weekly or daily closes). */
 export function rrgCadence(tf) {
   return tf === 'D' ? 'D' : 'W'
@@ -113,6 +117,8 @@ function Graph({ rows }) {
 
 export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   const cadence = rrgCadence(tf)
+  // A typed window this panel cannot draw is SAID, never silently replaced (the CORR pattern).
+  const unapplied = tf && !RRG_CADENCES.includes(tf) ? tf : null
   const withKey = withArgsKey(props)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const universe = useMemo(() => rrgUniverse(sym, props), [sym, withKey])
@@ -129,6 +135,15 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
     return (
       <PanelState kind="error" title={`Could not read ${RRG_BENCHMARK}, the benchmark, just now.`} testId="terminal-rrg-error">
         Every point on the graph is measured against it, so nothing is drawn. Run RRG again to retry.
+      </PanelState>
+    )
+  }
+  // 2026-10-07 completeness audit: with the benchmark read but EVERY other name failing, this
+  // said "Not enough common history" — a failed read drawn as a genuine empty graph.
+  if (!rows.length && state.failed.length) {
+    return (
+      <PanelState kind="error" title={`Could not read ${state.failed.join(', ')} just now.`} testId="terminal-rrg-error">
+        Nothing could be placed on the graph. Run RRG again to retry.
       </PanelState>
     )
   }
@@ -153,6 +168,11 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         {lead.length ? `Leading: ${lead.join(', ')}. ` : 'Nothing is in Leading. '}
         {improving.length ? `Improving: ${improving.join(', ')}.` : ''}
       </p>
+      {unapplied && (
+        <p className={styles.note} role="status" data-testid="terminal-rrg-unapplied">
+          Window {unapplied} is not available here; showing {cadence}.
+        </p>
+      )}
       <Graph rows={rows} />
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-rrg-table" aria-label={`Rotation quadrants vs ${RRG_BENCHMARK}`}>
@@ -166,7 +186,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
             {rows.map((r, i) => (
               <tr key={r.sym} data-testid={`terminal-rrg-row-${r.sym}`}>
                 <td>
-                  <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`${r.sym} GP`)} title={`Open ${r.sym} GP`}>
+                  <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`${r.sym} GP`, { next: true })} title={`Open ${r.sym} GP beside this graph`}>
                     <span className={styles.rowNum}>{i + 1}</span>
                     <span className={styles.symCell}>{r.sym}</span>
                     {r.name ? <span className={styles.muted}> {r.name}</span> : null}
@@ -201,7 +221,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         Closes through {asOf}{cadence === 'W' ? ' (the newest week is still forming until Friday\'s close)' : ''}.
         UCT&apos;s approximation, not JdK&apos;s proprietary formula: RS = 100 × price ÷ {RRG_BENCHMARK};
         RS-Ratio = 100 × RS ÷ its {RRG_METHOD.ratioLen}-{unit} average; RS-Momentum = 100 × RS-Ratio ÷ its{' '}
-        {RRG_METHOD.momLen}-{unit} average. Tails show the last {RRG_METHOD.tail} {unit}s. Type a row number to open its chart.
+        {RRG_METHOD.momLen}-{unit} average. Tails show the last {RRG_METHOD.tail} {unit}s. Click a row, or type its number, to open its chart beside this graph.
       </p>
     </div>
   )
