@@ -1,6 +1,6 @@
 // FT-005 — the earnings reaction panel, asserted on rendered text.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import DepthTab from './DepthTab'
 
@@ -74,5 +74,41 @@ describe('EarningsReactionPanel', () => {
     body = { state: 'pending', reason: 'the earnings history is being read; this panel fills in by itself' }
     renderTab()
     expect((await screen.findByTestId('earnings-reaction-state')).textContent).toMatch(/being read/)
+  })
+})
+
+// 2026-10-07 completeness audit: a failed read is drawn as an error with a working Retry, never as
+// an empty or "nothing reported" state.
+describe('EarningsReactionPanel — a failed read', () => {
+  it('a 503 reads as unavailable with Retry, and Retry reads again', async () => {
+    const good = body
+    let calls = 0
+    global.fetch = vi.fn(() => {
+      calls += 1
+      return calls === 1
+        ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({ detail: 'down' }) })
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(good) })
+    })
+    renderTab()
+    const err = await screen.findByTestId('earnings-reaction-unavailable')
+    expect(err.textContent).toMatch(/unavailable right now/)
+    expect(screen.queryByTestId('earnings-reaction-state')).toBeNull()
+    expect(screen.queryByTestId('earnings-reaction-none')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findAllByTestId('earnings-reaction-summary')).not.toHaveLength(0)
+    expect(screen.queryByTestId('earnings-reaction-unavailable')).toBeNull()
+  })
+
+  it('a successful read with no quarters says so in words, never a header-only table', async () => {
+    body = { ...body, quarters: [] }
+    renderTab()
+    expect((await screen.findByTestId('earnings-reaction-none')).textContent).toMatch(/No reported quarter for NVDA/)
+    expect(screen.queryByTestId('earnings-reaction-row')).toBeNull()
+  })
+
+  it('a non-ok state with no reason still reads as a sentence, never a blank note', async () => {
+    body = { state: 'unavailable' }
+    renderTab()
+    expect((await screen.findByTestId('earnings-reaction-state')).textContent).toMatch(/not available right now/)
   })
 })

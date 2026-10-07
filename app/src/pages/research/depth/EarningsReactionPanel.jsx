@@ -60,7 +60,8 @@ export default function EarningsReactionPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the earnings reaction" />
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason)}</div>
+  else if (data.state === 'ok' && !data.quarters?.length) body = <div className={styles.note} data-testid="earnings-reaction-none">No reported quarter for {s} is on file to measure a reaction against.</div>
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason) || `The earnings reaction for ${s} is not available right now.`}</div>
   else {
     const sum = data.summary || {}
     body = (
