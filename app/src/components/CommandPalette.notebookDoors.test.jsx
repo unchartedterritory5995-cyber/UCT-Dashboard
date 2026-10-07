@@ -13,7 +13,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
-import { NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_TEMPLATES_TO, onNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
+import {
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, onNotebookDoor,
+} from '../pages/journal-2-0/lib/notebookDoors'
+import { EARNINGS_PREP_FLAG } from '../pages/journal-2-0/lib/earningsPrepShared'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import RouteFocusTarget from '../pages/journal-2-0/lib/routeFocus'
 
@@ -226,5 +229,30 @@ describe('palette: All notes (Q11)', () => {
     renderPalette('/journal/notebook')
     await openAndType('all n')
     expect(option('All notes')).toBeNull()
+  })
+})
+
+describe('palette: Earnings prep (Q15)', () => {
+  it('with the switch on, choosing it lands on Research Home with the prep door', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    renderPalette('/dashboard')
+    await openAndType('earnings prep')
+    fireEvent.click(await screen.findByRole('option', { name: 'Earnings prep: reporting soon' }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_PREP_TO))
+    expect(NOTEBOOK_PREP_TO).toBe('/journal/notebook#prep')
+  })
+
+  it('DARK: with the switch off, or never answered, it is not offered', async () => {
+    renderPalette('/journal/notebook')
+    const box = await openAndType('earnings prep')
+    expect(option('Earnings prep: reporting soon')).toBeNull()
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_earnings_prep_enabled: false })
+    fireEvent.change(box, { target: { value: 'earnings pre' } })
+    expect(option('Earnings prep: reporting soon')).toBeNull()
+  })
+
+  it('the palette\'s copy of the switch name is the feature\'s own (they cannot drift)', () => {
+    expect(NOTEBOOK_PREP_FLAG).toBe(EARNINGS_PREP_FLAG)
   })
 })

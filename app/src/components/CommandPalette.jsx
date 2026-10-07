@@ -22,7 +22,8 @@ import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
 import {
-  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_TEMPLATES_TO, noteOpenAt, openNotebookDoor,
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO,
+  noteOpenAt, openNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
 import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
 import styles from './CommandPalette.module.css'
@@ -106,6 +107,11 @@ const NOTEBOOK_COMMANDS = [
   { id: 'nb-all-notes', kind: 'command', label: 'All notes', icon: 'library',
     to: NOTEBOOK_LIST_TO, keywords: [],
     match: phraseStart('all notes', 'notes list') },
+  // Q15: "Reporting soon" on Research Home, focus on the first name's prep button.
+  { id: 'nb-earnings-prep', kind: 'command', label: 'Earnings prep: reporting soon', icon: 'document',
+    to: NOTEBOOK_PREP_TO, keywords: [],
+    match: phraseStart('earnings prep', 'reporting soon', 'prep note'),
+    when: () => notebookFlag(NOTEBOOK_PREP_FLAG) === true },
   // Q23: the active setups board, a plain route. Its link on Research Home is 9 Tab stops in.
   { id: 'nb-active-setups', kind: 'command', label: 'Active setups', icon: 'library',
     to: SETUPS_BOARD_PATH, keywords: [],

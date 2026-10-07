@@ -1711,12 +1711,17 @@ def q15_earnings_prep(cx: Ctx, pg, m: Meter, width: str) -> dict:
     import re
     # 13Q-3: bare-root Research Home's own content (ReportingSoon's "Create prep note"
     # button) renders right after the pane heading "Skip to notes list" lands on.
-    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     btn = pg.get_by_role("button", name=re.compile(r"^(Create prep note for|Open the) NVDA")).filter(visible=True)
     try:
         btn.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
         raise Inconclusive("no 'Create prep note for NVDA' on Research Home (Reporting soon did not render)")
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "Earnings prep" lands on the first name's prep
+        # button. Before: 2 Tabs to "Skip to notes list", Enter, then "Ask Notebook" and the
+        # name's research link before the button.
+        palette_command(m, "earnings prep", r"^Earnings prep", "Earnings prep")
+        pg.wait_for_timeout(400)           # the box takes focus a frame after the palette closes
     label = btn.first.get_attribute("aria-label")
     m.press(btn, label or "Create prep note for NVDA")
     nid = wait_note_open(pg, 60000)

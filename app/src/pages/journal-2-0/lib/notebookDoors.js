@@ -35,6 +35,16 @@ export const NOTEBOOK_TEMPLATES_TO = `/journal/notebook?view=all${NOTEBOOK_TEMPL
 export const NOTEBOOK_LIST_HASH = '#notes'
 export const NOTEBOOK_LIST_TO = `/journal/notebook?view=all${NOTEBOOK_LIST_HASH}`
 
+/**
+ * The door to "Reporting soon" on Research Home (earnings prep): focus lands on the first
+ * name's prep button. The switch's name is restated here so the palette does not import the
+ * feature's module (17 KB of document builders); CommandPalette.notebookDoors.test.jsx holds
+ * the two names equal.
+ */
+export const NOTEBOOK_PREP_HASH = '#prep'
+export const NOTEBOOK_PREP_TO = `/journal/notebook${NOTEBOOK_PREP_HASH}`
+export const NOTEBOOK_PREP_FLAG = 'notebook_earnings_prep_enabled'
+
 /** Ask for a door. Returns true when a mounted surface took it. */
 export function openNotebookDoor(door, extra = {}) {
   if (typeof window === 'undefined') return false
