@@ -235,6 +235,23 @@ TREE_PLAN_JS = """h => {
   return {from: rows.indexOf(stop), to: rows.indexOf(row), n: rows.length}; }"""
 
 
+# A control in a one-stop LIST OF ROWS (lib/useGridRoving.js: lane KEYS round 5). Reports the
+# list's current stop and how many rows and how many controls along the target is from it.
+GRID_PLAN_JS = """h => {
+  if (!h || !h.hasAttribute || !h.hasAttribute('data-grid-roving')) return null;
+  const rowOf = e => e.closest('[data-note-row]') || e.closest('tr');
+  let root = h.parentElement;
+  while (root && root !== document.body && !root.querySelector('[data-grid-roving][tabindex="0"]')) root = root.parentElement;
+  if (!root) return null;
+  const cells = Array.from(root.querySelectorAll('[data-grid-roving]'));
+  const stop = cells.find(e => e.getAttribute('tabindex') === '0');
+  if (!stop) return null;
+  const rows = []; for (const c of cells) { const r = rowOf(c); if (!rows.includes(r)) rows.push(r); }
+  const col = e => cells.filter(c => rowOf(c) === rowOf(e)).indexOf(e);
+  window.__w13qRovingStop = stop;
+  return {rows: rows.indexOf(rowOf(h)) - rows.indexOf(rowOf(stop)), from_col: col(stop), to_col: col(h)}; }"""
+
+
 class Meter:
     """Counts one flow in one mode. Every counted action goes through here, and is recorded
     in `steps` with what it acted on -- the raw path the reading cites."""
@@ -292,6 +309,24 @@ class Meter:
             if not self.pg.evaluate("() => document.activeElement === window.__w13qTreeRow"):
                 raise Inconclusive(f"the tree's arrow keys did not bring focus to the row of {label} "
                                    f"({n} rows, stop at {a}, row at {b})")
+            return
+        grid = self.pg.evaluate(GRID_PLAN_JS, handle)
+        if grid:
+            # A list of rows that is one stop: Tab to the stop, Down / Up by row (the control
+            # kept), then Right / Left along the row. Every key real and counted.
+            self.tab_to("el === window.__w13qRovingStop", f"the list holding {label}")
+            for _ in range(abs(grid["rows"])):
+                self.key("ArrowDown" if grid["rows"] > 0 else "ArrowUp", f"row towards {label}")
+            # after the row moves the column is the stop's own, clamped to the row
+            for _ in range(8):
+                if self.pg.evaluate("h => h === document.activeElement", handle):
+                    break
+                at = self.pg.evaluate("""h => { const rowOf = e => e.closest('[data-note-row]') || e.closest('tr');
+                    const a = document.activeElement; const cs = Array.from(rowOf(h).querySelectorAll('[data-grid-roving]'));
+                    return cs.indexOf(a) - cs.indexOf(h) }""", handle)
+                self.key("ArrowLeft" if at > 0 else "ArrowRight", f"along the row towards {label}")
+            if not self.pg.evaluate("h => h === document.activeElement", handle):
+                raise Inconclusive(f"the list's arrow keys did not bring focus to {label} ({grid})")
             return
         plan = self.pg.evaluate(ROVING_PLAN_JS, handle)
         if not plan:
@@ -1509,8 +1544,13 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
         if box.count() == 0:
             raise Inconclusive(f"no 'Select Bulk {tag} {i}' checkbox in the list at this width")
         if m.mode == "keys":
-            m.tab_to_locator(box.first, f"select note {i}")
-            m.key("Space", f"tick note {i}")
+            # Tick the first, then Shift+Down extends the selection one note at a time and
+            # carries focus (lane 13Q-5). One key per further note.
+            if i == len(ids) - 1:
+                m.keys_to(box.first, f"select note {i}")
+                m.key("Space", f"tick note {i}")
+            else:
+                m.key("Shift+ArrowDown", f"extend the selection to note {i}")
         elif m.mode == "mouse":
             # The list's own range select: tick the first, Shift+click the last. Two clicks
             # for five notes (NotebookTab.bulk.test.jsx, "Shift+click selects the range").

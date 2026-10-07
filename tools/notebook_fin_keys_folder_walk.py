@@ -150,6 +150,37 @@ def pointer_walk(br, state, cx, base: str, mode: str, out: Path) -> list[dict]:
         return {"server_has": name in folder_names(cx, base)}
     step("delete a folder", delete)
 
+    # ── the notes list (lane KEYS round 5: one Tab stop; the pointer must be unchanged) ──
+    def to_list():
+        if pg.get_by_role("tree", name="Folders").filter(visible=True).count() == 0:
+            act(pg.get_by_role("button", name="Show folders panel"))
+        act(pg.locator("[data-all-notes-row]"))
+        pg.locator("[data-note-row]").first.wait_for(state="visible", timeout=20000)
+        return {"rows": pg.locator("[data-note-row]").count()}
+    step("list: All notes shows the list", to_list)
+
+    def tick():
+        boxes = pg.locator("[data-note-row] input[type=checkbox]")
+        act(boxes.nth(0))
+        act(boxes.nth(1))
+        bar = pg.locator("[data-bulk-bar]")
+        bar.wait_for(state="visible", timeout=10000)
+        text = bar.inner_text()[:60]
+        if "2 selected" not in text:
+            raise AssertionError(f"two ticks did not read as 2 selected: {text!r}")
+        act(boxes.nth(1))
+        act(boxes.nth(0))
+        return {"bar": text}
+    step("list: tick two notes, the bulk bar counts them, untick", tick)
+
+    def open_note():
+        card = pg.locator("[data-note-row] [data-note-card-id]").first
+        nid = card.get_attribute("data-note-card-id")
+        act(card)
+        pg.wait_for_url(f"**note={nid}*", timeout=15000)
+        return {"opened": nid}
+    step("list: a note's card opens the note", open_note)
+
     pg.screenshot(path=str(out / f"folder-walk-{mode}.png"))
     ctx.close()
     return steps
@@ -266,6 +297,35 @@ def keyboard_walk(br, state, cx, base: str, out: Path) -> list[dict]:
         return {"menu_items": items, "server_has": f"{A} kb" in folder_names(cx, base),
                 "focus_after": pg.evaluate(name_js)}
     step("Shift+F10 opens the folder's menu; Rename from it works", menu_rename)
+
+    def list_keys():
+        pg.locator("[data-all-notes-row]").click()          # setup: show the list
+        pg.locator("[data-note-row]").nth(2).wait_for(state="visible", timeout=20000)
+        state = pg.evaluate("""() => { const cells = [...document.querySelectorAll('[data-note-row] [data-grid-roving], [data-note-row][data-grid-roving]')];
+          return {controls: cells.length, in_tab_order: cells.filter(e => e.tabIndex >= 0).length} }""")
+        if state["in_tab_order"] != 1 or state["controls"] < 4:
+            raise AssertionError(f"the list is not one stop: {state}")
+        boxes = pg.locator("[data-note-row] input[type=checkbox]")
+        boxes.nth(0).focus()
+        trail = []
+        pg.keyboard.press("ArrowDown")
+        trail.append(pg.evaluate("() => document.activeElement === document.querySelectorAll('[data-note-row] input[type=checkbox]')[1]"))
+        pg.keyboard.press("ArrowRight")
+        trail.append(pg.evaluate("() => document.activeElement.hasAttribute('data-note-card-id')"))
+        pg.keyboard.press("ArrowLeft")
+        pg.keyboard.press("Space")
+        pg.keyboard.press("Shift+ArrowDown")
+        bar = pg.locator("[data-bulk-bar]")
+        bar.wait_for(state="visible", timeout=10000)
+        text = bar.inner_text()[:60]
+        if not all(trail) or "2 selected" not in text:
+            raise AssertionError(f"Down then Right landed {trail}; Space then Shift+Down read {text!r}")
+        pg.keyboard.press("Tab")
+        left = pg.evaluate("() => !document.activeElement.closest('[data-note-row]')")
+        if not left:
+            raise AssertionError("one Tab from the list's stop stayed in the list")
+        return {**state, "down_right": trail, "bar": text, "one_tab_leaves": left}
+    step("list: one Tab stop; Down, Right, Space, Shift+Down; one Tab leaves", list_keys)
 
     pg.screenshot(path=str(out / "folder-walk-keys.png"))
     ctx.close()
