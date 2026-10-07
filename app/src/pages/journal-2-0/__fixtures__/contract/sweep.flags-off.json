@@ -7,6 +7,12 @@
     "status": 404
   },
   "body": {
+    "DELETE /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
     "DELETE /api/j2/research-capture/passed-setups/{item_id}": {
       "body": {
         "detail": "Not found"
@@ -100,6 +106,12 @@
     "GET /api/j2/notebook-visual-playbook/trades/{trade_id}/before-after": {
       "body": {
         "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not Found"
       },
       "status": 404
     },
@@ -235,6 +247,12 @@
       },
       "status": 404
     },
+    "POST /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
     "POST /api/j2/plan-grades/trades/{trade_id}/relink": {
       "body": {
         "detail": "Not Found"
@@ -280,6 +298,12 @@
     "PUT /api/j2/entry-context/why": {
       "body": {
         "detail": "Not found"
+      },
+      "status": 404
+    },
+    "PUT /api/j2/onboarding/tours/{tour_id}": {
+      "body": {
+        "detail": "Not Found"
       },
       "status": 404
     }

@@ -7,6 +7,12 @@
     "status": 401
   },
   "body": {
+    "DELETE /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "DELETE /api/j2/research-capture/passed-setups/{item_id}": {
       "body": {
         "detail": "Not authenticated"
@@ -98,6 +104,12 @@
       "status": 401
     },
     "GET /api/j2/notebook-visual-playbook/trades/{trade_id}/before-after": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "GET /api/j2/onboarding/sample-notebook": {
       "body": {
         "detail": "Not authenticated"
       },
@@ -235,6 +247,12 @@
       },
       "status": 401
     },
+    "POST /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
     "POST /api/j2/plan-grades/trades/{trade_id}/relink": {
       "body": {
         "detail": "Not authenticated"
@@ -278,6 +296,12 @@
       "status": 401
     },
     "PUT /api/j2/entry-context/why": {
+      "body": {
+        "detail": "Not authenticated"
+      },
+      "status": 401
+    },
+    "PUT /api/j2/onboarding/tours/{tour_id}": {
       "body": {
         "detail": "Not authenticated"
       },

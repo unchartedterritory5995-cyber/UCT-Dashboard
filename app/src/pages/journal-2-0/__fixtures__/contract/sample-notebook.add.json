@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/onboarding/sample-notebook",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 200
+  },
+  "body": {
+    "folderId": "62eb7c60be204fe3a084ce1765c9ef22",
+    "welcomeNoteId": "eed94ec8e6e242f4bbb5da9a3a9b7f85"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "DELETE /api/j2/onboarding/sample-notebook",
+    "note": "The member moved a note of their own into a sample folder. That folder is kept, nothing in it is moved, and the folder it sits in is kept too. Each kept folder carries a sentence.",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 200
+  },
+  "body": {
+    "examplesRemoved": {
+      "insightDismissed": false,
+      "passedSetupDismissed": true,
+      "planLinksForgotten": 0
+    },
+    "foldersKept": [
+      {
+        "id": "0ed2a9a2843d45438eee6239586731b2",
+        "memberNotes": 1,
+        "name": "Capability examples",
+        "sentence": "The folder \"Capability examples\" has 1 note of yours in it, so it was kept."
+      },
+      {
+        "id": "db5342906a924d89908ab79062286541",
+        "memberNotes": 0,
+        "name": "Sample notebook",
+        "sentence": "The folder \"Sample notebook\" still holds a folder that was kept, so it was kept too."
+      }
+    ],
+    "foldersOlder": [],
+    "foldersRemoved": [],
+    "trashed": [
+      "d1304e7bd28f4f6e8b0d0dfd759a7a67",
+      "6b07d020f09d4459877e04796757ca23",
+      "12b35c5ea61047e1a89e1e1a521b453b",
+      "ebe9c8d6e0dc48b0bc623ddca83f5271",
+      "f967e4c2cd5445d29b3bf63359f2dbee",
+      "a1eaef041e0247f19b8e71e5a412e33c",
+      "9cc657efc28843efbc831d7a7eb16de7",
+      "ff7e24b2ec7c4419a5948ec84d3861d5",
+      "59a1af70442b42aea300e0cb1d9c911e",
+      "c5d635ed76a7462bb841de99513399b3"
+    ]
+  }
+}

@@ -302,13 +302,18 @@ def _position(user_id: str, sym: str, *, closed: bool = False) -> None:
 
 
 def _trade(user_id: str, sym: str, tid: str) -> None:
+    """A closed trade row: in at 100.00, out at 112.30, so +12.3%.
+
+    ⛔ `pnl_percent` IS A FRACTION (0.123), the journal's own unit. This helper wrote 12.3 for
+    months, a percent, and no test noticed. A fixture in the wrong unit is how the note's
+    "+1230.0%" defect hid: the tests agreed with the fixture, not with the product."""
     from api.services.auth_db import get_connection
     conn = get_connection()
     conn.execute(
         "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price, entry_date, exit_price,"
         " exit_date, original_stop, pnl_dollar, pnl_percent, r_multiple, hold_days, result, context_at_entry, created_at)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (tid, user_id, f"pos-{tid}", sym, "Long", 10, 100.0, "2026-08-01", 112.3, "2026-08-20", 95.0, 123.0, 12.3,
+        (tid, user_id, f"pos-{tid}", sym, "Long", 10, 100.0, "2026-08-01", 112.3, "2026-08-20", 95.0, 123.0, 0.123,
          2.1, 19, "Win", "{}", "2026-08-20T20:00:00Z"))
     conn.commit()
     conn.close()
@@ -467,6 +472,7 @@ def test_a_full_draft_carries_source_and_as_of_on_every_cell(client, app, gate_o
     assert d["recap"]["value"]["headline"] == "Data center carried it" and d["recap"]["value"]["quarter"] == "Q2 2027"
     assert [n["id"] for n in d["myNotes"]["value"]] == [note_id]
     assert [t["id"] for t in d["myTrades"]["value"]] == ["t-nvda-1"]
+    assert d["myTrades"]["value"][0]["pnlPercent"] == 0.123      # the journal's fraction, passed through
     assert d["myPosition"]["value"][0]["shares"] == 100
     assert d["usage"] == {"used": 1, "cap": 20}
 
