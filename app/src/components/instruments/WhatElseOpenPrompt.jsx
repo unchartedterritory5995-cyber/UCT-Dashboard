@@ -97,10 +97,10 @@ export default function WhatElseOpenPrompt({ occasion, context }) {
 
 const S = {
   bar: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '6px 10px',
-    fontSize: 12, borderBottom: '1px solid var(--color-border, rgba(255,255,255,0.1))' },
+    fontSize: 12, borderBottom: '1px solid var(--border)' },
   q: { opacity: 0.8, marginRight: 4 },
   chip: { fontSize: 12, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
-    background: 'transparent', color: 'inherit', border: '1px solid var(--color-border, rgba(255,255,255,0.2))' },
-  chipOn: { borderColor: 'var(--color-accent, #c9a84c)', color: 'var(--color-accent, #c9a84c)' },
+    background: 'transparent', color: 'inherit', border: '1px solid var(--border-accent)' },
+  chipOn: { borderColor: 'var(--accent)', color: 'var(--accent)' },
   input: { fontSize: 12, padding: '2px 6px', width: 140 },
 }

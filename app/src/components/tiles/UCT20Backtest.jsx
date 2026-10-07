@@ -23,22 +23,25 @@ function monthLabel(ym) {
 }
 
 /* ── Monthly heatmap cell color ──────────────────────────────────────── */
+// Both inks derive from the theme's own up/down tokens (--gain / --loss), so the heatmap
+// reads on a light ground as well as a dark one: the cell is a tint of the hue over the
+// surface, the figure is the hue itself (mixed toward the muted text for a small month).
 function monthColor(pct) {
   if (pct >= 5) return 'var(--gain)'
-  if (pct >= 2) return 'rgba(74,222,128,0.7)'
-  if (pct >= 0) return 'rgba(74,222,128,0.35)'
-  if (pct >= -2) return 'rgba(248,113,113,0.35)'
-  if (pct >= -5) return 'rgba(248,113,113,0.7)'
+  if (pct >= 2) return 'color-mix(in srgb, var(--gain) 80%, var(--text-muted))'
+  if (pct >= 0) return 'color-mix(in srgb, var(--gain) 55%, var(--text-muted))'
+  if (pct >= -2) return 'color-mix(in srgb, var(--loss) 55%, var(--text-muted))'
+  if (pct >= -5) return 'color-mix(in srgb, var(--loss) 80%, var(--text-muted))'
   return 'var(--loss)'
 }
 
 function monthBg(pct) {
-  if (pct >= 5) return 'rgba(10,50,22,0.8)'
-  if (pct >= 2) return 'rgba(22,100,48,0.4)'
-  if (pct >= 0) return 'rgba(74,222,128,0.08)'
-  if (pct >= -2) return 'rgba(248,113,113,0.08)'
-  if (pct >= -5) return 'rgba(160,25,25,0.4)'
-  return 'rgba(55,6,6,0.8)'
+  if (pct >= 5) return 'color-mix(in srgb, var(--gain) 26%, transparent)'
+  if (pct >= 2) return 'color-mix(in srgb, var(--gain) 15%, transparent)'
+  if (pct >= 0) return 'color-mix(in srgb, var(--gain) 6%, transparent)'
+  if (pct >= -2) return 'color-mix(in srgb, var(--loss) 6%, transparent)'
+  if (pct >= -5) return 'color-mix(in srgb, var(--loss) 15%, transparent)'
+  return 'color-mix(in srgb, var(--loss) 26%, transparent)'
 }
 
 /* ── Drawdown tooltip ────────────────────────────────────────────────── */

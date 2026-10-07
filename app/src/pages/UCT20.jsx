@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
-import { useInTerminalPanel } from '../components/terminal'
+import { useInTerminalPanel, usePanelFreshness } from '../components/terminal'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
@@ -391,6 +391,12 @@ export default function UCT20() {
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
   const { data: breadthData } = useSWR('/api/breadth', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // The list is the morning wire's (dated by its own `last_updated` when the payload carries one).
+  const listUpdated = rows && !Array.isArray(rows) && rows.last_updated ? String(rows.last_updated).slice(0, 10) : null
+  usePanelFreshness(rows && !rowsError
+    ? { source: 'UCT Leadership 20 (the morning wire), live prices', ...(listUpdated ? { age: { asOfDate: listUpdated } } : {}) }
+    : null)
   const [expandedIdx, setExpandedIdx] = useState(null)
   const [showMethodology, setShowMethodology] = useState(false)
   const [sort, setSort] = useState(null)          // {key, dir: 1|-1} | null = rank order

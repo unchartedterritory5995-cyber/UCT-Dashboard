@@ -380,11 +380,11 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                     flow figures belong to the ticker the caller opened, not the next. */}
                 {flowMeta && !searchSym && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginLeft: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, color: '#0a0e12', background: flowMeta.bull ? '#34d399' : '#f2555a' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, color: 'var(--bg)', background: flowMeta.bull ? 'var(--gain)' : 'var(--loss)' }}>
                       {flowMeta.bull ? 'BULL' : 'BEAR'}
                     </span>
-                    {flowMeta.premium && <span style={{ fontSize: 12, fontWeight: 800, color: '#c9a84c', background: '#c9a84c18', padding: '2px 8px', borderRadius: 4 }}>{flowMeta.premium}</span>}
-                    {flowMeta.trades != null && <span style={{ fontSize: 11, color: '#8a8a90' }}>{flowMeta.trades} trades</span>}
+                    {flowMeta.premium && <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--ut-gold)', background: 'var(--ut-gold-dim)', padding: '2px 8px', borderRadius: 4 }}>{flowMeta.premium}</span>}
+                    {flowMeta.trades != null && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{flowMeta.trades} trades</span>}
                   </span>
                 )}
                 {liveData && (
@@ -583,17 +583,17 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                           aria-pressed={showDarkPool}
                           style={{
                             padding: '2px 8px', borderRadius: 3,
-                            border: '1px solid ' + (showDarkPool ? '#c9a84c' : '#ffffff30'),
-                            background: showDarkPool ? '#c9a84c22' : 'transparent',
-                            color: showDarkPool ? '#c9a84c' : '#8a8a90',
+                            border: '1px solid ' + (showDarkPool ? 'var(--ut-gold)' : 'var(--border-accent)'),
+                            background: showDarkPool ? 'var(--ut-gold-dim)' : 'transparent',
+                            color: showDarkPool ? 'var(--ut-gold)' : 'var(--text-muted)',
                             fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                             display: 'flex', alignItems: 'center', gap: 4,
                           }}
                         >
                           <span style={{
                             width: 6, height: 6, borderRadius: '50%',
-                            background: showDarkPool ? '#c9a84c' : 'transparent',
-                            border: '1px solid ' + (showDarkPool ? '#c9a84c' : '#8a8a90'),
+                            background: showDarkPool ? 'var(--ut-gold)' : 'transparent',
+                            border: '1px solid ' + (showDarkPool ? 'var(--ut-gold)' : 'var(--text-muted)'),
                             display: 'inline-block',
                           }} />
                           Dark Pools

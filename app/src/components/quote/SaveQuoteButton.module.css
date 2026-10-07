@@ -4,10 +4,10 @@
   align-items: center;
   gap: 5px;
   padding: 3px 9px;
-  border: 1px solid rgba(220, 187, 94, 0.35);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   font-family: var(--font-mono);
   font-size: 9.5px;
   font-weight: 600;
@@ -22,11 +22,11 @@
 .btn:hover, .btn:focus-visible {
   opacity: 1;
   border-color: var(--accent);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
   outline: none;
 }
 .btn:disabled { cursor: default; opacity: 0.5; }
-.saved { color: var(--color-success, #4ade80); border-color: rgba(74, 222, 128, 0.4); }
+.saved { color: var(--color-success, var(--gain)); border-color: color-mix(in srgb, var(--gain) 40%, transparent); }
 .compact { padding: 2px 7px; font-size: 9px; letter-spacing: 1px; }
 
 @media (max-width: 1024px) {

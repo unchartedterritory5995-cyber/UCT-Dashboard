@@ -5,6 +5,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import { SkeletonChart } from '../Skeleton'
 import styles from './UCT20Performance.module.css'
 import jsonFetcher from '../../utils/jsonFetcher'
+import { useThemeInk } from '../../lib/theme'
 
 // Throws on a failed read (jsonFetcher) - a 503 {detail} used to count as "has data".
 const fetcher = url => jsonFetcher(url)
@@ -17,11 +18,15 @@ const PERIODS = [
   { label: 'ALL', days: 0   },
 ]
 
-// Design tokens (must be raw values for LW Charts canvas)
-const CHART_BG    = '#1a1c17'  // --bg-surface
-const COLOR_GREEN = '#3cb868'  // --ut-green-bright
-const COLOR_MUTED = '#706b5e'  // --text-muted
-const COLOR_BORDER = '#2e3127' // --border
+// The chart's inks, resolved off the member's app theme (LW Charts paints a canvas, which
+// cannot read var(--…)) and re-resolved on every theme switch. Second entries are the jsdom
+// fallbacks (the dark default).
+const INK_SPEC = {
+  bg: ['--bg-surface', '#17181b'],
+  line: ['--ut-green-bright', '#34d17c'],
+  muted: ['--text-muted', '#cfcac0'],
+  rule: ['--border', '#2a2c31'],
+}
 
 function ytdStart() {
   return `${new Date().getFullYear()}-01-01`
@@ -86,11 +91,16 @@ function EquityChart({ chartData }) {
   const chartRef     = useRef(null)
   const uct20Ref     = useRef(null)
   const qqqRef       = useRef(null)
+  const zeroRef      = useRef(null)
   const [crosshair, setCrosshair] = useState(null)
+  const ink = useThemeInk(INK_SPEC)
+  const inkRef = useRef(ink)
+  inkRef.current = ink
 
   // Create chart once on mount
   useEffect(() => {
     if (!containerRef.current) return
+    const { bg: CHART_BG, line: COLOR_GREEN, muted: COLOR_MUTED, rule: COLOR_BORDER } = inkRef.current
     const chart = createChart(containerRef.current, {
       autoSize: true,
       height: 180,
@@ -152,7 +162,7 @@ function EquityChart({ chartData }) {
     uct20Ref.current = uct20Series
 
     // Zero reference line
-    uct20Series.createPriceLine({
+    zeroRef.current = uct20Series.createPriceLine({
       price: 0,
       color: COLOR_BORDER,
       lineWidth: 1,
@@ -177,8 +187,23 @@ function EquityChart({ chartData }) {
       chartRef.current = null
       uct20Ref.current = null
       qqqRef.current = null
+      zeroRef.current = null
     }
   }, [])
+
+  // Theme switch: repaint the live chart in the new inks (no rebuild, data kept).
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    chart.applyOptions({
+      layout: { background: { type: 'solid', color: ink.bg }, textColor: ink.muted },
+      grid: { horzLines: { color: ink.rule } },
+      crosshair: { vertLine: { color: ink.muted } },
+    })
+    qqqRef.current?.applyOptions({ color: ink.muted })
+    uct20Ref.current?.applyOptions({ color: ink.line })
+    zeroRef.current?.applyOptions({ color: ink.rule })
+  }, [ink])
 
   // Update data when chartData changes
   useEffect(() => {

@@ -372,12 +372,6 @@ const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
 // TIER_SCORES / TIER_LABELS / TIER_TIP_COLORS moved to breadth/heatmapMetrics.js
 // (imported + re-exported above).
 
-// Y-axis label colors per group
-const HM_GROUP_COLORS = {
-  Score: '#c9a84c', Primary: '#b8c94a', MA: '#4ac97d',
-  Regime: '#7b9fc7', 'Highs/Lows': '#c9944a', Sentiment: '#b44ac9',
-}
-
 // HM_METRICS / FFILL_KEYS / PCTILE_KEYS / TIER_CELL_COLORS / HM_METRICS_BY_KEY /
 // TREEMAP_DEF moved to breadth/heatmapMetrics.js (imported + re-exported above).
 

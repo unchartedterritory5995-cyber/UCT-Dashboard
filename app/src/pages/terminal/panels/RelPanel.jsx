@@ -11,9 +11,9 @@
 //
 // Computed in the panel from `/api/bars` daily closes; no new route (useCloses.js).
 import { useEffect, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses from './useCloses'
+import useCloses, { closesProvenance } from './useCloses'
 import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -87,6 +87,8 @@ export default function RelPanel({ sym, lookback, ...props }) {
   const [win, setWin] = useState(REL_WINDOWS.includes(lookback) ? lookback : '6M')
   useEffect(() => { if (REL_WINDOWS.includes(lookback)) setWin(lookback) }, [lookback])
   const state = useCloses(syms.length >= 2 ? syms : [], 'D')
+  // TERM-019: the panel header names the bar store and the newest close on screen.
+  usePanelFreshness(closesProvenance(state, 'D'))
   const read = useMemo(() => (state.phase === 'ready' ? relativePerformance(state.series, syms, win, RATIO_AVG) : null),
     [state, syms, win])
 

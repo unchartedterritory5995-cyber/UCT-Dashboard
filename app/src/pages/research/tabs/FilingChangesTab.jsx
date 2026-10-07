@@ -6,6 +6,7 @@ import styles from './FilingChangesTab.module.css'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
 import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // COV-04 (roadmap RM-L12) — what changed between a company's two most recent 10-Ks
 // (or, selectable, its two most recent 10-Qs), section by section, from SEC EDGAR.
@@ -137,6 +138,10 @@ function FilingChanges({ sym, form }) {
   // Re-asks while the comparison is being built, with a cap (it used to poll every 5 s with no
   // end, promising "the page will update" forever when the queue was full).
   const reask = usePendingReask(data?.state === 'pending', mutate, key)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !data.paywalled && !error && data.state !== 'pending'
+    ? { source: 'SEC EDGAR', age: { asOfDate: data.newer?.filing_date || null } }
+    : null)
 
   if (error) {
     return <div className={styles.note} data-testid="blackline-unavailable">
