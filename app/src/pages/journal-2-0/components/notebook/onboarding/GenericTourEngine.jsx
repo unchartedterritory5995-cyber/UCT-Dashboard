@@ -46,6 +46,7 @@ import { cardIsTopmost, dialogHost } from './tourLayers'
 import { carryRegistryTourOpen } from './tourRegistryControl'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
+import PoliteStatus from '../PoliteStatus'
 
 export { atStart }
 
@@ -358,6 +359,8 @@ export default function GenericTourEngine({
     const done = () => { setPhase('closed'); record(TOUR_STATES.done, steps[steps.length - 1].id); onCloseRef.current({ opened: true }) }
     return createPortal(
       <aside ref={cardRef} className={own.explainer} aria-labelledby={titleId} data-tour-explainer="">
+        {/* FIN-A11Y (M-3): the note never takes focus, so it is ANNOUNCED instead, politely. */}
+        <PoliteStatus text={[`${copy.title}.`, ...(shown.length ? shown : [step]).map((s) => copyOf(s).body)].join(' ')} />
         <h2 id={titleId} className={own.explainerTitle}>{copy.title}</h2>
         {(shown.length ? shown : [step]).map((s) => (
           <p key={s.id} className={own.explainerBody}>{copyOf(s).body}</p>
@@ -372,6 +375,12 @@ export default function GenericTourEngine({
 
   const isFirst = presentFrom(steps, index - 1, -1) < 0
   const isLast = index === steps.length - 1
+  // FIN-A11Y (I-8): the step count and the "do this" hint are part of what is SAID. The
+  // dialog is described by them, and so is the heading that takes focus on every step
+  // (a focused element's description is read on arrival, so each step change says both).
+  const progressId = `${bodyId}-step`
+  const waitId = `${bodyId}-wait`
+  const hintId = step.waitFor ? ` ${waitId}` : ''
   const card = (
     <div
       ref={cardRef}
@@ -379,13 +388,14 @@ export default function GenericTourEngine({
       role="dialog"
       aria-modal={modal ? 'true' : undefined}
       aria-labelledby={titleId}
-      aria-describedby={bodyId}
+      aria-describedby={`${progressId} ${bodyId}${hintId}`}
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
-      <p className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
-      <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
+      <p id={progressId} className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
+      <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
+        aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>
       <p id={bodyId} className={styles.body}>{copy.body}</p>
-      {step.waitFor && <p className={own.waiting} role="status">Do this to continue, or choose Next to skip it.</p>}
+      {step.waitFor && <p id={waitId} className={own.waiting} role="status">Do this to continue, or choose Next to skip it.</p>}
       {moving && <p className={own.waiting} role="status">Looking for the next step…</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.skip} onClick={() => close(TOUR_STATES.dismissed)}>

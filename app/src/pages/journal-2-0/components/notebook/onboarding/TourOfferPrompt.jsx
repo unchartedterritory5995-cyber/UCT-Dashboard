@@ -6,12 +6,34 @@
 // nothing traps Tab (plan 5.3, risk R4). It is a labelled region in the page flow, so a
 // keyboard member reaches it in reading order (it is the first thing in <main>) and a
 // screen reader can find it by its heading. Escape inside it is "Not now".
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 import useRovingTabIndex from '../../../../../hooks/useRovingTabIndex'
 import { OFFER_COPY } from './tourOfferCopy'
 import styles from './TourOfferPrompt.module.css'
 
-export default function TourOfferPrompt({ entry, onAccept, onLater }) {
+/**
+ * FIN-A11Y (review R4, M-2): answering the offer unmounts this card with focus on one of its
+ * buttons, so focus fell to <body>; and after "Take the tour" the tour recorded <body> as
+ * where to return focus. Before it answers, the card hands focus to the page heading (the
+ * first-run heading when the page has one), so there is always a named place to be and to
+ * come back to. Focus a member has put somewhere else is left alone.
+ */
+function handFocusToPage(card) {
+  if (!card || typeof document === 'undefined') return
+  const active = document.activeElement
+  if (active && active !== document.body && !card.contains(active)) return
+  const scope = card.closest('main') || document
+  const heading = scope.querySelector('[data-first-run-heading]')
+    || [...scope.querySelectorAll('h1, h2')].find((h) => !card.contains(h))
+  if (!heading) return
+  if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1')
+  heading.focus()
+}
+
+export default function TourOfferPrompt({ entry, onAccept: acceptOffer, onLater: declineOffer }) {
+  const cardRef = useRef(null)
+  const onAccept = () => { handFocusToPage(cardRef.current); acceptOffer() }
+  const onLater = () => { handFocusToPage(cardRef.current); declineOffer() }
   const titleId = useId()
   const bodyId = useId()
   // W14-keys: the two answers are ONE Tab stop (a toolbar named by the card; Arrow keys move
@@ -26,6 +48,7 @@ export default function TourOfferPrompt({ entry, onAccept, onLater }) {
   }
   return (
     <section
+      ref={cardRef}
       className={styles.card}
       aria-labelledby={titleId}
       aria-describedby={bodyId}
