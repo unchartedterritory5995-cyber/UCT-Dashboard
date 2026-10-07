@@ -916,6 +916,19 @@ owner is carrying it over.
 > this file's own first section says ("`OFFLINE_DEFAULT_ON = true` on `origin/master` | **TRUE**").
 > The keep-or-revert decision is `docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md`:
 > "KEEP offline editing ON". The paragraph is kept as history.
+>
+> **State on 2026-10-07, added by the same lane:**
+> - The live production sign-in payload reported `notebook_offline_default_on: true` (read by
+>   the finish program's controller on 2026-10-06; not re-read by this lane). That closes the
+>   one link that had not been measured: the source constant, the compiled constant and the
+>   served value now all say on.
+> - The owner signed the watch browser profile in again on 2026-10-06, at its new home
+>   `C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent`, outside every worktree.
+>   Read on disk 2026-10-07: the folder exists, and `nb_observe.cmd` (line 6) and
+>   `canary_sunday.cmd` (line 26) both set `UCT_Q1_RIG_PROFILE` to it.
+> - The two-hourly watcher records again after four days of "no rig profile":
+>   `C:\Users\Patrick\uct-q1-observe\soak-observation-log.md` has a row dated
+>   `2026-10-07 07:00 ET` that reads `OK`.
 
 ~~**Q1 is built, merged, and live in production DARK.**~~ The branch
 `notebook-primary-platform` is **fully merged into `origin/master`** (0 ahead) —
