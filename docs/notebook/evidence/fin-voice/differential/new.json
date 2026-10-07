@@ -16133,7 +16133,7 @@
   },
   "declared-oversize": {
    "json": {
-    "detail": "That import is too large to send in one piece. Split it into smaller files and try again."
+    "detail": "That batch of notes is too large for one request (32 MB at most). Send the notes in smaller batches."
    },
    "status": 413
   },
