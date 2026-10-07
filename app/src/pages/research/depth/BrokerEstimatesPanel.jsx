@@ -54,7 +54,7 @@ export default function BrokerEstimatesPanel({ sym }) {
           ? <p className={styles.note} data-testid="broker-state">{memberSentence(data.reason)}</p>
           : (
             <div className={styles.scroll}>
-              <table className={styles.grid}>
+              <table className={styles.grid} aria-label="Estimates by contributor">
                 <thead>
                   <tr><th scope="col">Quarter ending</th><th scope="col">{headIn('EPS mean', data.currency)}</th><th scope="col"># Ests</th><th scope="col">Low–high</th><th scope="col">Spread</th>
                     <th scope="col">{headIn('Revenue mean', data.currency)}</th><th scope="col"># Ests</th></tr>

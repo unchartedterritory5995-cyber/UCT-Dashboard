@@ -229,8 +229,8 @@ export default function OwnershipTab({ sym }) {
 
           {!!inst.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid}>
-                <thead><tr><th>Holder</th><th>Shares</th><th>% Out</th><th>Value</th><th>Reported</th></tr></thead>
+              <table className={styles.fgrid} aria-label="Institutional ownership">
+                <thead><tr><th scope="col">Holder</th><th scope="col">Shares</th><th scope="col">% Out</th><th scope="col">Value</th><th scope="col">Reported</th></tr></thead>
                 <tbody>
                   {inst.holders.map((h, i) => (
                     <tr key={`${h.holder}-${i}`}>
@@ -303,8 +303,8 @@ export default function OwnershipTab({ sym }) {
 
           {!!tf.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid}>
-                <thead><tr><th>Top holder</th><th>Shares</th><th>Δ Shares</th><th>% Own</th><th>Value</th></tr></thead>
+              <table className={styles.fgrid} aria-label={`Form 13F top holders, ${tf.quarter}`}>
+                <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value</th></tr></thead>
                 <tbody>
                   {tf.holders.map((h, i) => (
                     <tr key={`${h.name}-${i}`}>

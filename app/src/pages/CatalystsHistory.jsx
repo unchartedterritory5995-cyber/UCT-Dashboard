@@ -150,16 +150,16 @@ export default function CatalystsHistory() {
           </div>
         ) : (
           <div className={styles.tableWrap}>
-            <table className={styles.table}>
+            <table className={styles.table} aria-label={`Catalysts for ${date}`}>
               <thead>
                 <tr>
-                  <th className={styles.colSym}>Sym</th>
-                  <th className={styles.colPrice}>Price</th>
-                  <th className={styles.colGap}>% Change</th>
-                  <th className={styles.colVol}>Vol×</th>
-                  <th className={styles.colTag}>Tag</th>
-                  <th className={styles.colThesis}>Catalyst</th>
-                  <th className={styles.colWhen}>Catalyst Time</th>
+                  <th scope="col" className={styles.colSym}>Sym</th>
+                  <th scope="col" className={styles.colPrice}>Price</th>
+                  <th scope="col" className={styles.colGap}>% Change</th>
+                  <th scope="col" className={styles.colVol}>Vol×</th>
+                  <th scope="col" className={styles.colTag}>Tag</th>
+                  <th scope="col" className={styles.colThesis}>Catalyst</th>
+                  <th scope="col" className={styles.colWhen}>Catalyst Time</th>
                 </tr>
               </thead>
               <tbody>

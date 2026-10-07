@@ -80,7 +80,9 @@
 
 .axisText {
   fill: var(--text-muted);
-  font-size: 10px;
+  /* --text-sm (11px; 12px on phones): the 2026-10-06 a11y audit's F12 lifted the chart
+     axis and point labels off the 10px floor. */
+  font-size: var(--text-sm);
   font-family: var(--font-mono);
 }
 
@@ -95,7 +97,7 @@
 
 .pointLabel {
   fill: var(--text-bright);
-  font-size: 10px;
+  font-size: var(--text-sm);
   font-family: var(--font-mono);
 }
 

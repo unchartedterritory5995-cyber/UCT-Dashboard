@@ -68,12 +68,12 @@ function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and 
       {data && (
         <>
           <div className={styles.scroll}>
-            <table className={styles.table}>
-              <thead><tr><th>Expiry</th>{data.strikes.map((k) => <th key={k}>{num(k)}</th>)}</tr></thead>
+            <table className={styles.table} aria-label={title}>
+              <thead><tr><th scope="col">Expiry</th>{data.strikes.map((k) => <th scope="col" key={k}>{num(k)}</th>)}</tr></thead>
               <tbody>
                 {data.expirations.map((e, i) => (
                   <tr key={e}>
-                    <th>{e}</th>
+                    <th scope="row">{e}</th>
                     {data.cells[i].map((v, j) => (
                       <td key={data.strikes[j]} className={v == null ? undefined : (v >= 0 ? styles.cellPos : styles.cellNeg)}
                         style={v == null ? undefined : { '--heat': Math.min(1, Math.abs(v) / max) }}>

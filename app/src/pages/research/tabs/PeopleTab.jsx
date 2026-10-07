@@ -50,7 +50,7 @@ function Executives({ part, sym }) {
   if (!part?.rows) return <Gap part={part} testid="people-execs-unavailable" what="officer records" sym={sym} />
   return (
     <div className={styles.scroll}>
-      <table className={styles.grid} data-testid="people-execs">
+      <table className={styles.grid} data-testid="people-execs" aria-label="Officers and key executives">
         <thead><tr>
           <th scope="col">Name</th><th scope="col">Title</th><th scope="col">Since</th>
           <th scope="col">Pay (FMP)</th><th scope="col">Proxy total</th><th scope="col">Form 4 role</th>
@@ -88,7 +88,7 @@ function Compensation({ part, sym }) {
   if (!part?.rows) return <Gap part={part} testid="people-comp-unavailable" what="proxy compensation records" sym={sym} />
   return (
     <div className={styles.scroll}>
-      <table className={styles.grid} data-testid="people-comp">
+      <table className={styles.grid} data-testid="people-comp" aria-label="Compensation (proxy summary table)">
         <thead><tr>
           <th scope="col">Name and position</th><th scope="col" className={styles.num}>Salary</th>
           <th scope="col" className={styles.num}>Stock awards</th><th scope="col" className={styles.num}>Incentive</th>
@@ -127,7 +127,7 @@ function InsiderRoles({ part, sym }) {
   }
   return (
     <div className={styles.scroll}>
-      <table className={styles.grid} data-testid="people-roles">
+      <table className={styles.grid} data-testid="people-roles" aria-label="Insider roles (SEC Form 4)">
         <thead><tr><th scope="col">Reporting owner</th><th scope="col">Declared role</th><th scope="col">Latest Form 4</th></tr></thead>
         <tbody>
           {part.rows.map((r) => (

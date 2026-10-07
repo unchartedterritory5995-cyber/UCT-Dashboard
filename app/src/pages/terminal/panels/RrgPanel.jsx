@@ -158,8 +158,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         <table className={styles.table} data-testid="terminal-rrg-table" aria-label={`Rotation quadrants vs ${RRG_BENCHMARK}`}>
           <thead>
             <tr>
-              <th>Symbol</th><th>Quadrant</th><th>{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>
-              <th>RS-Ratio</th><th>RS-Momentum</th><th>vs {RRG_BENCHMARK}, last {RRG_METHOD.tail} {unit}s</th>
+              <th scope="col">Symbol</th><th scope="col">Quadrant</th><th scope="col">{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>
+              <th scope="col">RS-Ratio</th><th scope="col">RS-Momentum</th><th scope="col">vs {RRG_BENCHMARK}, last {RRG_METHOD.tail} {unit}s</th>
             </tr>
           </thead>
           <tbody>

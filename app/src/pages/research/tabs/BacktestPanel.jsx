@@ -223,12 +223,12 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           {notRunText(r) && <p className={styles.muted} data-testid="backtest-not-run">{notRunText(r)}</p>}
           {r.trades?.length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.grid} data-testid="backtest-trades">
+              <table className={styles.grid} data-testid="backtest-trades" aria-label={`Backtest trades for ${sym}`}>
                 <thead>
                   <tr>
-                    {r.anchor === 'earnings' && <th>Report</th>}
-                    <th>Entry</th><th>Expiry</th><th>Contracts</th><th>Debit</th>
-                    <th title={r.iv_source_text}>IV (computed)</th><th>Exit</th><th>P&amp;L</th>
+                    {r.anchor === 'earnings' && <th scope="col">Report</th>}
+                    <th scope="col">Entry</th><th scope="col">Expiry</th><th scope="col">Contracts</th><th scope="col">Debit</th>
+                    <th scope="col" title={r.iv_source_text}>IV (computed)</th><th scope="col">Exit</th><th scope="col">P&amp;L</th>
                   </tr>
                 </thead>
                 <tbody>

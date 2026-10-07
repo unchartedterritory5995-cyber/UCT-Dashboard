@@ -225,14 +225,14 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
           {earnings && earnings.length > 0 && (
             <div className={styles.earnWrap}>
               <div className={styles.sectionLabel}>Last {earnings.length} Earnings</div>
-              <table className={styles.earnTable}>
+              <table className={styles.earnTable} aria-label={`Last ${earnings.length} earnings`}>
                 <thead>
                   <tr>
-                    <th className={styles.thLeft}>Quarter</th>
-                    <th className={styles.thNum}>EPS</th>
-                    <th className={styles.thNum}>Surprise</th>
-                    <th className={styles.thNum}>Revenue</th>
-                    <th className={styles.thNum}>Surprise</th>
+                    <th scope="col" className={styles.thLeft}>Quarter</th>
+                    <th scope="col" className={styles.thNum}>EPS</th>
+                    <th scope="col" className={styles.thNum} aria-label="EPS Surprise">Surprise</th>
+                    <th scope="col" className={styles.thNum}>Revenue</th>
+                    <th scope="col" className={styles.thNum} aria-label="Revenue Surprise">Surprise</th>
                   </tr>
                 </thead>
                 <tbody>

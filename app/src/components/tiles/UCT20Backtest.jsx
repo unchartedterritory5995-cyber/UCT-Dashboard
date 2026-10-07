@@ -130,18 +130,18 @@ function HarnessAB({ h }) {
           {w.sessions ?? '—'} sessions · {ymd(w.start)} → {ymd(w.end)}
         </span>
       </div>
-      <table className={styles.abTable}>
+      <table className={styles.abTable} aria-label="Measured backtest: with stops versus no stops">
         <thead>
           <tr>
-            <th />
-            <th className={styles.abCol}>WITH STOPS</th>
-            <th className={styles.abCol}>NO STOPS</th>
+            <td />
+            <th scope="col" className={styles.abCol}>WITH STOPS</th>
+            <th scope="col" className={styles.abCol}>NO STOPS</th>
           </tr>
         </thead>
         <tbody>
           {AB_ROWS.map(r => (
             <tr key={r.key}>
-              <td className={styles.abLabel}>{r.label}</td>
+              <th scope="row" className={styles.abLabel}>{r.label}</th>
               <td className={styles.abVariant}>{cell(h.variant, r)}</td>
               <td className={styles.abControl}>{cell(h.control, r)}</td>
             </tr>

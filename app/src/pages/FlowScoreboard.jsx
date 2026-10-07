@@ -168,14 +168,14 @@ export default function FlowScoreboard({ embedded = false }) {
               <span className={styles.sectionMeta}>peak-gain outcomes by flag grade</span>
             </div>
             <div className={styles.tableWrap}>
-              <table className={styles.table}>
+              <table className={styles.table} aria-label="Grade calibration: peak-gain outcomes by flag grade">
                 <thead>
                   <tr>
-                    <th>Grade</th>
-                    <th className={styles.num}>Picks</th>
-                    <th className={styles.num}>Hit +25%</th>
-                    <th className={styles.num}>Avg peak gain</th>
-                    <th className={styles.num}>OI-confirmed</th>
+                    <th scope="col">Grade</th>
+                    <th scope="col" className={styles.num}>Picks</th>
+                    <th scope="col" className={styles.num}>Hit +25%</th>
+                    <th scope="col" className={styles.num}>Avg peak gain</th>
+                    <th scope="col" className={styles.num}>OI-confirmed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -239,16 +239,16 @@ export default function FlowScoreboard({ embedded = false }) {
               <span className={styles.sectionMeta}>every recent pick, winners and losers alike</span>
             </div>
             <div className={styles.tableWrap}>
-              <table className={styles.table}>
+              <table className={styles.table} aria-label="Recent picks">
                 <thead>
                   <tr>
-                    <th>Pick</th>
-                    <th>Grade</th>
-                    <th className={styles.dateCol}>Flagged</th>
-                    <th className={styles.num}>Entry</th>
-                    <th className={styles.num}>Peak</th>
-                    <th className={styles.num}>Now</th>
-                    <th className={styles.num}>OI</th>
+                    <th scope="col">Pick</th>
+                    <th scope="col">Grade</th>
+                    <th scope="col" className={styles.dateCol}>Flagged</th>
+                    <th scope="col" className={styles.num}>Entry</th>
+                    <th scope="col" className={styles.num}>Peak</th>
+                    <th scope="col" className={styles.num}>Now</th>
+                    <th scope="col" className={styles.num}>OI</th>
                   </tr>
                 </thead>
                 <tbody>

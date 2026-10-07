@@ -178,14 +178,14 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         </p>
       ) : (
       <div className={styles.scroll}>
-        <table className={styles.grid}>
+        <table className={styles.grid} aria-label={d.expiration ? `Option chain for ${s}, ${d.expiration} expiration` : `Option chain for ${s}`}>
           <thead>
-            <tr>{isPhone && <th />}{showCalls && <th colSpan={cols.length}>Calls</th>}{!isPhone && <th />}{showPuts && <th colSpan={cols.length}>Puts</th>}</tr>
+            <tr>{isPhone && <td />}{showCalls && <th scope="colgroup" colSpan={cols.length}>Calls</th>}{!isPhone && <td />}{showPuts && <th scope="colgroup" colSpan={cols.length}>Puts</th>}</tr>
             <tr>
-              {isPhone && <th className={styles.strikeHead}>Strike</th>}
-              {showCalls && cols.map(([k, l, , t]) => <th key={`c-${k}`} title={t}>{l}</th>)}
-              {!isPhone && <th className={styles.strikeHead}>Strike</th>}
-              {showPuts && cols.map(([k, l, , t]) => <th key={`p-${k}`} title={t}>{l}</th>)}
+              {isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
+              {showCalls && cols.map(([k, l, , t]) => <th scope="col" key={`c-${k}`} title={t}>{l}</th>)}
+              {!isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
+              {showPuts && cols.map(([k, l, , t]) => <th scope="col" key={`p-${k}`} title={t}>{l}</th>)}
             </tr>
           </thead>
           <tbody>

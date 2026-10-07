@@ -180,12 +180,12 @@ export function SectorTide({ scope }) {
         <>
           {data.sectors.length ? (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="sector-tide-table">
-                <thead><tr><th>Sector</th><th>Net call premium</th><th>Net put premium</th><th>Net</th><th>Prints</th></tr></thead>
+              <table className={styles.table} data-testid="sector-tide-table" aria-label="Market Tide by sector">
+                <thead><tr><th scope="col">Sector</th><th scope="col">Net call premium</th><th scope="col">Net put premium</th><th scope="col">Net</th><th scope="col">Prints</th></tr></thead>
                 <tbody>
                   {data.sectors.map((x) => (
                     <tr key={x.sector}>
-                      <th>{x.sector}</th>
+                      <th scope="row">{x.sector}</th>
                       <td>{money(x.totals.net_call_premium)}</td><td>{money(x.totals.net_put_premium)}</td>
                       <td className={x.totals.net_premium >= 0 ? styles.gain : styles.loss}>{money(x.totals.net_premium)}</td>
                       <td>{x.prints}{x.prints_unsigned ? <span className={styles.muted}> ({x.prints_unsigned} unsigned)</span> : null}</td>
@@ -231,12 +231,12 @@ export function TideMinute({ scope, minute, setMinute }) {
           </p>
           {d.prints.length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="tide-minute-prints">
-                <thead><tr><th>Ticker</th><th>Contract</th><th>Side</th><th>Premium</th><th>Contracts</th><th>Type</th></tr></thead>
+              <table className={styles.table} data-testid="tide-minute-prints" aria-label={`Prints at ${d.t} ET`}>
+                <thead><tr><th scope="col">Ticker</th><th scope="col">Contract</th><th scope="col">Side</th><th scope="col">Premium</th><th scope="col">Contracts</th><th scope="col">Type</th></tr></thead>
                 <tbody>
                   {d.prints.map((p, i) => (
                     <tr key={`${p.symbol}-${p.time}-${i}`}>
-                      <th>{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
+                      <th scope="row">{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
                       <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{tradeTypeWords(p.trade_type)}</td>
                     </tr>
                   ))}
