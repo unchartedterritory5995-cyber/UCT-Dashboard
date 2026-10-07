@@ -15,9 +15,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import ChartPlanPanel, { boundAlertId } from './ChartPlanPanel'
 import useBoundDrawingAlerts, { _resetBoundAlertSync } from '../../../../components/chart/useBoundDrawingAlerts'
 
@@ -136,6 +136,32 @@ describe('C1 — a note chart and a Charts chart on one symbol never delete each
     view.rerenderWith({ chartDrawings: [line('c2', 151)], annotations: [line('n2', 141)] })
     await waitFor(() => expect(deletes().length).toBe(2))
     expect(deletes()[1]).toBe('/api/watchlist-alerts/bound/c1')
+  })
+
+  it('CENSUS — the hook has exactly two callers, and only the Notebook one hands it its own drawing list', () => {
+    // Why C1 cannot happen with the chart-plan flag off: every chart hands the hook the symbol's
+    // ONE shared drawing list, so two charts never disagree; the plan panel is the only caller
+    // with a list of its own, and it mounts only behind the flag. A third caller with a third
+    // list must pass a namespace: this rail is where that decision gets made, by name.
+    const here = dirname(fileURLToPath(import.meta.url))
+    const srcRoot = resolve(here, '../../../..')
+    const callers = []
+    const walk = (dir) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name)
+        if (statSync(p).isDirectory()) { if (name !== 'node_modules') walk(p); continue }
+        if (!/\.(js|jsx)$/.test(name) || /\.test\.(js|jsx)$/.test(name)) continue
+        const code = readFileSync(p, 'utf8').split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+        if (/\buseBoundDrawingAlerts\(\{/.test(code) && !/export default function useBoundDrawingAlerts/.test(code)) {
+          callers.push(p.slice(srcRoot.length + 1).split(sep).join('/'))
+        }
+      }
+    }
+    walk(srcRoot)
+    expect(callers.sort()).toEqual([
+      'components/StockChart.jsx',
+      'pages/journal-2-0/components/notebook/ChartPlanPanel.jsx',
+    ])
   })
 
   it('the stand-in calls the hook with the same argument keys StockChart does', () => {

@@ -1,0 +1,206 @@
+[
+ {
+  "t": 1791346468.034,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4",
+  "status": 200
+ },
+ {
+  "t": 1791346468.035,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/documents",
+  "status": 200
+ },
+ {
+  "t": 1791346468.035,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/excerpts",
+  "status": 200
+ },
+ {
+  "t": 1791346468.035,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/facts",
+  "status": 200
+ },
+ {
+  "t": 1791346468.036,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/evidence-candidates",
+  "status": 200
+ },
+ {
+  "t": 1791346468.037,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/thesis-summary",
+  "status": 200
+ },
+ {
+  "t": 1791346468.042,
+  "method": "GET",
+  "url": "/api/j2/note-folders",
+  "status": 200
+ },
+ {
+  "t": 1791346468.043,
+  "method": "GET",
+  "url": "/api/j2/notes/tags",
+  "status": 200
+ },
+ {
+  "t": 1791346468.175,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/trade-ref/resolve",
+  "status": 200
+ },
+ {
+  "t": 1791346468.175,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/properties",
+  "status": 200
+ },
+ {
+  "t": 1791346468.175,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/backlinks",
+  "status": 200
+ },
+ {
+  "t": 1791346468.176,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/related-from",
+  "status": 200
+ },
+ {
+  "t": 1791346468.176,
+  "method": "GET",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/unlinked-mentions",
+  "status": 200
+ },
+ {
+  "t": 1791346468.176,
+  "method": "POST",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4/opened",
+  "status": 200
+ },
+ {
+  "t": 1791346468.182,
+  "method": "GET",
+  "url": "/api/j2/property-defs",
+  "status": 200
+ },
+ {
+  "t": 1791346468.182,
+  "method": "GET",
+  "url": "/api/j2/notebook-fingerprint/meta",
+  "status": 200
+ },
+ {
+  "t": 1791346468.187,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346468.271,
+  "method": "GET",
+  "url": "/api/j2/accounts",
+  "status": 200
+ },
+ {
+  "t": 1791346468.272,
+  "method": "GET",
+  "url": "/api/j2/positions?account_id=5fe2bebe-ec8e-457e-9a5b-e227cb878e6d",
+  "status": 200
+ },
+ {
+  "t": 1791346468.272,
+  "method": "GET",
+  "url": "/api/j2/trades?account_id=5fe2bebe-ec8e-457e-9a5b-e227cb878e6d",
+  "status": 200
+ },
+ {
+  "t": 1791346468.272,
+  "method": "GET",
+  "url": "/api/user-definitions?graph=1",
+  "status": 200
+ },
+ {
+  "t": 1791346468.41,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791346469.682,
+  "method": "POST",
+  "url": "/api/j2/notebook-fingerprint/blocks/69982b3ab4bc4abea60789fb313ad5a4/emb-b/freeze",
+  "status": 200
+ },
+ {
+  "t": 1791346469.82,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=5&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346469.833,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=60&bars=1138&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346469.847,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=30&bars=1120&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346469.862,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=15&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346469.877,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=1&bars=960&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346470.637,
+  "method": "PUT",
+  "url": "/api/j2/notes/69982b3ab4bc4abea60789fb313ad5a4",
+  "status": 200
+ },
+ {
+  "t": 1791346470.669,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346482.564,
+  "method": "GET",
+  "url": "/api/voice/insights/pending",
+  "status": 200
+ },
+ {
+  "t": 1791346482.859,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346482.984,
+  "method": "GET",
+  "url": "/api/community/unread",
+  "status": 200
+ },
+ {
+  "t": 1791346488.641,
+  "method": "GET",
+  "url": "/api/j2/notebook/home",
+  "status": 200
+ }
+]
