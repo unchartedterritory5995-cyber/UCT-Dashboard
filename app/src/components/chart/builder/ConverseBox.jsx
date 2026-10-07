@@ -40,6 +40,8 @@ import { storeConversation, attachConversation, armConversationAlerts } from './
 import PreviewPane from './editor/PreviewPane'
 import { CONVERSE_PREVIEW_DEF_ID } from './editor/previewDefinition'
 import { stampSemantics } from '../engine/definitionSemantics'
+import { memberError, memberSaveError, conversationEditability } from './authoring/memberWords'
+import { outputNamer } from './authoring/readback'
 
 const S = {
   box: { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)' },
@@ -86,11 +88,12 @@ const OP_WORDS = Object.freeze({
 })
 const opWords = (op) => `${OP_WORDS[op.op] || 'a change'}${op.output ? ` on ${op.output}` : ''}`
 
-/** One errors[] entry → a sentence that names the op. */
-function errorLine(e, ops) {
+/** One errors[] entry → a member sentence that names the op (P3 UX: the
+ *  engine's code and message are the entry's secondary detail, `memberError`). */
+function errorLine(e, ops, working = null) {
   const op = Number.isInteger(e.op) && ops && ops[e.op] ? ops[e.op] : null
-  const where = op ? `Change ${e.op + 1} (${opWords(op)})` : `The result as a whole${e.output ? ` (output ${e.output})` : ''}`
-  return `${where} was refused: ${e.message} [${e.code}]`
+  const { text } = memberError(e, { nameOf: working ? outputNamer(working) : null })
+  return op ? `Change ${e.op + 1} (${opWords(op)}): ${text}` : text
 }
 
 /**
@@ -145,6 +148,15 @@ export default function ConverseBox({
   }, [activeKey, state, transcript, savedVersion])
   const name = state.working && state.working.meta ? state.working.meta.name : null
 
+  // ⭐ P3 UX — the conversation lives in this tab's memory only: a reload or a
+  // closed tab would lose unsaved changes silently, so the browser asks first.
+  useEffect(() => {
+    if (!unsaved || typeof window === 'undefined') return undefined
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
+
   // A fresh ack per working definition: the member acknowledges what they see.
   useEffect(() => { setAcked(false) }, [state.working])
 
@@ -160,7 +172,7 @@ export default function ConverseBox({
         role: 'uct', kind: 'refusal',
         lines: [
           'Nothing was changed.',
-          ...result.errors.map((e) => errorLine(e, ops)),
+          ...result.errors.map((e) => errorLine(e, ops, cur.working)),
           // ⭐ the engine's own advisory: which ops fail even on their own
           ...(alone.length && alone.length < ops.length
             ? [`Cannot apply: ${ops.map((op, i) => (alone.includes(i) ? null : `change ${i + 1} (${opWords(op)})`)).filter(Boolean).join(', ')}.`]
@@ -265,7 +277,8 @@ export default function ConverseBox({
     try {
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
-        say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', stored.error] })
+        const m = memberSaveError(stored)
+        say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', m.text], errors: [{ code: m.code, message: m.detail }] })
         return
       }
       const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings })
@@ -309,7 +322,11 @@ export default function ConverseBox({
   const canUndo = state.history.length > 0 && !busy && !saving
   const needsAck = rb.needsAck || []
   const canSave = !!state.working && unsaved && !busy && !saving && !disabled && (!needsAck.length || acked)
-  const offerOpen = editing && editing.prior && state.defId !== editing.defId
+  // ⭐ P3 UX — the engine's own first-turn guards, run BEFORE the member types:
+  // a definition the conversation cannot edit is said so up front.
+  const editability = useMemo(() => (editing && editing.prior ? conversationEditability(editing.prior) : null), [editing])
+  const notEditable = !!(editability && !editability.editable && state.defId !== editing.defId)
+  const offerOpen = editing && editing.prior && state.defId !== editing.defId && !notEditable
   const saveLabel = state.defId ? 'Save changes' : 'Save and add to chart'
 
   // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
@@ -329,10 +346,15 @@ export default function ConverseBox({
         data-def-id={state.defId || ''} data-lineage={state.lineage} data-revision={state.revision}
         data-saved={unsaved ? 'unsaved' : (state.defId ? 'saved' : 'none')}>
         <strong>{name || 'No indicator yet'}</strong>
-        {state.working && <span style={S.muted}>revision {state.revision}</span>}
         {state.defId && savedVersion !== null && <span style={S.muted}>saved version {savedVersion}</span>}
         {state.working && <span style={S.muted}>{unsaved ? 'Unsaved changes' : 'Saved'}</span>}
       </div>
+
+      {notEditable && (
+        <div style={S.muted} role="note" data-testid="converse-not-editable" data-code={editability.code}>
+          {editability.text} Anything you describe here starts a new indicator.
+        </div>
+      )}
 
       {offerOpen && (
         <button type="button" style={S.button} data-testid="converse-open-editing" onClick={openEditing} disabled={busy || saving}>
@@ -351,6 +373,12 @@ export default function ConverseBox({
                   <p style={S.assistantReply} data-testid="converse-assistant-reply">Assistant: {t.reply}</p>
                 )}
               </>
+            )}
+            {t.role !== 'member' && Array.isArray(t.errors) && t.errors.length > 0 && (
+              <details style={S.muted} data-testid="converse-error-detail">
+                <summary>Details for support</summary>
+                {t.errors.map((e, i) => <div key={i}>{memberError(e).detail}</div>)}
+              </details>
             )}
           </li>
         ))}

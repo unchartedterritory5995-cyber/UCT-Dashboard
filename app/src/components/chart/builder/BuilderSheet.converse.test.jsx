@@ -65,7 +65,7 @@ describe('BuilderSheet hosts the conversation', () => {
     expect(sent.view.contract).toBe('uct.authoring.view/1')
     expect(sent.view.revision).toBe(0)
     const rb = screen.getByTestId('converse-readback').textContent
-    expect(rb).toContain('1 when (the 14-bar RSI of close) is greater than 70 and 0 otherwise')
+    expect(rb).toContain('RSI 14 > 70 — true when the 14-bar RSI of close is above 70')
     expect(screen.getByTestId('converse').textContent).not.toContain('MACD')
 
     // ⭐ SLICE 2 — ONE primary save: the sheet footer commits the conversation; the
@@ -81,5 +81,65 @@ describe('BuilderSheet hosts the conversation', () => {
     expect(JSON.parse(writes[0].body).definition.compute.source).toBe('rsi(close, 14) > 70')
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls[0][0].indicatorInstances.some((i) => i.defId === 'u_cccccccccccc')).toBe(true)
+  })
+})
+
+// ─── ⭐ P3 UX — AN UNSAVED CONVERSATION IS UNSAVED WORK ─────────────────────────
+// ASKED close the sheet with a conversation that has unsaved changes · CLAIMED
+// (before) nothing — `dirty` ignored the conversation and the sheet closed with no
+// prompt · DID (now) ask first, saying the draft stays in this tab until reload.
+describe('P3 UX — closing the sheet with an unsaved conversation asks first', () => {
+  function mountSheet(onClose) {
+    return render(
+      <AuthContext.Provider value={{ user: { id: 7, role: 'admin' }, isPaid: true, loading: false }}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
+          <BuilderSheet open onClose={onClose} onSaved={() => {}} settings={{ indicatorInstances: [], indicators: {} }} onChange={vi.fn()} />
+        </SWRConfig>
+      </AuthContext.Provider>,
+    )
+  }
+  const cancel = () => fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+
+  it('an untouched conversation closes at once (nothing to lose)', async () => {
+    const onClose = vi.fn()
+    mountSheet(onClose)
+    cancel()
+    await flush()
+    expect(screen.queryByTestId('discard-confirm')).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('an unsaved conversation turn makes Cancel ask, names the in-tab draft, and "Close without saving" closes', async () => {
+    const onClose = vi.fn()
+    mountSheet(onClose)
+    fireEvent.change(screen.getByLabelText('Describe the indicator'), { target: { value: 'RSI overbought' } })
+    fireEvent.click(screen.getByTestId('converse-send'))
+    await flush()
+    cancel()
+    await flush()
+    expect(onClose, 'closed with an unsaved conversation and no prompt').not.toHaveBeenCalled()
+    const bar = screen.getByTestId('discard-confirm')
+    expect(screen.getByTestId('discard-conversation-note').textContent)
+      .toBe('The conversation has unsaved changes. They are kept in this tab until you reload it — save to keep them for good.')
+    // the form itself is clean, so the bar does not claim a formula is discarded
+    expect(bar.textContent).not.toContain('Discard this formula?')
+    expect(screen.getByTestId('discard-yes').textContent).toBe('Close without saving')
+    fireEvent.click(screen.getByTestId('discard-yes'))
+    await flush()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('after the conversation is saved, Cancel closes at once again', async () => {
+    const onClose = vi.fn()
+    mountSheet(onClose)
+    fireEvent.change(screen.getByLabelText('Describe the indicator'), { target: { value: 'RSI overbought' } })
+    fireEvent.click(screen.getByTestId('converse-send'))
+    await flush()
+    fireEvent.click(screen.getByTestId('sheet-save'))
+    await flush()
+    cancel()
+    await flush()
+    expect(screen.queryByTestId('discard-confirm')).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

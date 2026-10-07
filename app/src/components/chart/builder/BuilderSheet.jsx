@@ -2213,10 +2213,15 @@ export default function BuilderSheet({
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
 
+  // ⭐ P3 UX — AN UNSAVED CONVERSATION IS UNSAVED WORK TOO. The conversation's
+  // own dirty authority (`isDirty`, reported by the box through `onCommitState`)
+  // joins the form's: closing asks first. Its draft is kept in this tab's memory,
+  // so the confirm says exactly that rather than claiming it is thrown away.
+  const conversationDirty = !!(conversationOn && converseCommit && converseCommit.dirty)
   const requestClose = useCallback(() => {
-    if (dirty) { setConfirmDiscard(true); return }
+    if (dirty || conversationDirty) { setConfirmDiscard(true); return }
     onClose?.()
-  }, [dirty, onClose])
+  }, [dirty, conversationDirty, onClose])
 
   if (!open) return null
 
@@ -3606,7 +3611,15 @@ export default function BuilderSheet({
               would verify this fix is exactly what a blocking modal freezes. */}
           {confirmDiscard && (
             <div className={styles.discardBar} role="alertdialog" data-testid="discard-confirm">
-              <span>Discard this formula?</span>
+              <span>
+                {dirty && 'Discard this formula?'}
+                {dirty && conversationDirty && ' '}
+                {conversationDirty && (
+                  <span data-testid="discard-conversation-note">
+                    The conversation has unsaved changes. They are kept in this tab until you reload it — save to keep them for good.
+                  </span>
+                )}
+              </span>
               <button
                 type="button"
                 className="btn btn-ghost"
@@ -3617,7 +3630,7 @@ export default function BuilderSheet({
                 className="btn btn-ghost"
                 data-testid="discard-yes"
                 onClick={() => { setConfirmDiscard(false); onClose?.() }}
-              >Discard</button>
+              >{dirty ? 'Discard' : 'Close without saving'}</button>
             </div>
           )}
 
