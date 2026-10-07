@@ -1,0 +1,4 @@
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+NIGHTLY {"ran": true, "asOf": "2026-10-07", "universe": 1, "universeTruncated": false, "members": 1, "templates": 5, "rows": 5, "thin": 0, "deferred": 0, "errors": 0, "patternReads": 1, "seconds": 0.066}
+
+--- stderr ---
