@@ -236,7 +236,8 @@ The three failures are not caused by the rollback. They are the three append-doo
 ("the window never opened"). The same three fail the same way on the landing tip itself and on
 the untouched pre-landing tree (`C1-cas-on-the-landing-tip.log` and
 `C2-cas-on-the-pre-landing-base.log`: `3 failed, 5 passed` on each). They are reported to the
-controller as a red that exists today on this box, not triaged by this lane.
+controller as a red that existed on this box when this page was written. It is settled; see the
+next paragraph.
 
 Triaged on 2026-10-07: a defect in the test, not in the product. The test looked for the append
 doors' read by a typed SQL string that wave 10 L14 (#260) changed, so its window never opened.
@@ -244,6 +245,10 @@ The lock was intact throughout. Fixed in `4c9520c606`; the file now reads `13 pa
 landing tip and on the pre-landing tree, and a 120-append concurrent probe lost nothing on
 either (logs `D0` to `D4` in the same folder). The `185 passed, 3 failed` above was not re-run
 on tree A after the fix.
+
+Production's doors hold the write lock. The file had been red on master for six days because no
+gating workflow ran it. It now runs as the `write-protection` job of the `notebook latency`
+workflow, which gates promotion (`.github/workflows/notebook-latency.yml`).
 
 **Tree B: the landing reverted whole** (the pre-landing tree, what a plain `git revert` gives).
 
