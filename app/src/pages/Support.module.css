@@ -954,7 +954,10 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .page { padding: 16px 12px 80px; }
+  /* The header's negative margin is derived from these two variables. They have to move with
+     the padding, or the header is 16 px wider than the page on each side and the page
+     scrolls sideways (measured: 406 px in a 390 px page; FIN-A11Y round 3). */
+  .page { --page-pad-top: 16px; --page-pad-x: 12px; padding: 16px 12px 80px; }
   .msgBubble { max-width: 92%; }
   /* 16px form fonts prevent iOS focus-zoom; comfortable touch padding. */
   .formSelect,
