@@ -1,0 +1,194 @@
+[
+ {
+  "t": 1791346119.571,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab",
+  "status": 200
+ },
+ {
+  "t": 1791346119.572,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/documents",
+  "status": 200
+ },
+ {
+  "t": 1791346119.572,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/excerpts",
+  "status": 200
+ },
+ {
+  "t": 1791346119.576,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/facts",
+  "status": 200
+ },
+ {
+  "t": 1791346119.577,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/evidence-candidates",
+  "status": 200
+ },
+ {
+  "t": 1791346119.577,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/thesis-summary",
+  "status": 200
+ },
+ {
+  "t": 1791346119.577,
+  "method": "GET",
+  "url": "/api/j2/note-folders",
+  "status": 200
+ },
+ {
+  "t": 1791346119.578,
+  "method": "GET",
+  "url": "/api/j2/notes/tags",
+  "status": 200
+ },
+ {
+  "t": 1791346120.025,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/trade-ref/resolve",
+  "status": 200
+ },
+ {
+  "t": 1791346120.026,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/properties",
+  "status": 200
+ },
+ {
+  "t": 1791346120.027,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/backlinks",
+  "status": 200
+ },
+ {
+  "t": 1791346120.028,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/related-from",
+  "status": 200
+ },
+ {
+  "t": 1791346120.028,
+  "method": "GET",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/unlinked-mentions",
+  "status": 200
+ },
+ {
+  "t": 1791346120.028,
+  "method": "POST",
+  "url": "/api/j2/notes/abf7c2f53459446fbb307e23d86021ab/opened",
+  "status": 200
+ },
+ {
+  "t": 1791346120.032,
+  "method": "GET",
+  "url": "/api/j2/property-defs",
+  "status": 200
+ },
+ {
+  "t": 1791346120.032,
+  "method": "GET",
+  "url": "/api/j2/inbox",
+  "status": 200
+ },
+ {
+  "t": 1791346120.033,
+  "method": "GET",
+  "url": "/api/j2/notebook-fingerprint/meta",
+  "status": 200
+ },
+ {
+  "t": 1791346120.035,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791346120.104,
+  "method": "GET",
+  "url": "/api/j2/accounts",
+  "status": 200
+ },
+ {
+  "t": 1791346120.105,
+  "method": "GET",
+  "url": "/api/j2/positions?account_id=1100b73b-0643-48cf-a23d-e4eea36c8c83",
+  "status": 200
+ },
+ {
+  "t": 1791346120.105,
+  "method": "GET",
+  "url": "/api/j2/trades?account_id=1100b73b-0643-48cf-a23d-e4eea36c8c83",
+  "status": 200
+ },
+ {
+  "t": 1791346120.105,
+  "method": "GET",
+  "url": "/api/user-definitions?graph=1",
+  "status": 200
+ },
+ {
+  "t": 1791346120.105,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791346120.142,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791346121.666,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=5&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346121.687,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=60&bars=1138&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346121.704,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=30&bars=1120&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346121.722,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=15&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346121.735,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=1&bars=960&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791346122.045,
+  "method": "GET",
+  "url": "/api/voice/insights/pending",
+  "status": 200
+ },
+ {
+  "t": 1791346122.45,
+  "method": "GET",
+  "url": "/api/community/unread",
+  "status": 200
+ },
+ {
+  "t": 1791346140.732,
+  "method": "GET",
+  "url": "/api/j2/notebook/home",
+  "status": 200
+ }
+]

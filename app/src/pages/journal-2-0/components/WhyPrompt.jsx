@@ -31,6 +31,8 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState('')
+  // One id per card: the position page shows a card per lot, and a fixed id made every
+  // label focus the FIRST card's box.
   const fieldId = useId()
   const fieldRef = useRef(null)
   const editRef = useRef(null)

@@ -546,14 +546,24 @@ function vsItems(rest) {
         try {
           const res = await fetch(`/api/j2/chart-plan/benchmarks?symbol=${encodeURIComponent(args.symbol)}`,
             { credentials: 'include' })
-          if (!res.ok) return
+          // A failed lookup inserts nothing (directive §48: the note is untouched) -- and SAYS so,
+          // through the note's own toast. The typed command is already gone, so silence here
+          // read as the command having done nothing at all.
+          const say = (text) => editor.storage?.uctJournalWidgets?.notify?.(text, 'error')
+          const down = `The ${bench} ETF for ${args.symbol} could not be looked up just now, so nothing was added. Try /vs again.`
+          if (!res.ok) { say(down); return }
           const body = await res.json()
           const hit = (body?.options || []).find((o) => o.key === bench)
-          if (!hit?.symbol) return
+          if (!hit?.symbol) {
+            say(`${args.symbol} has no ${bench} ETF on file, so nothing was added. Try /vs ${args.symbol} SPY.`)
+            return
+          }
           benchmark = hit.symbol
           label = hit.label || null
         } catch {
-          return // a failed lookup inserts nothing (directive §48): the note is untouched
+          editor.storage?.uctJournalWidgets?.notify?.(
+            `The ${bench} ETF for ${args.symbol} could not be looked up just now, so nothing was added. Try /vs again.`, 'error')
+          return
         }
       }
       editor.chain().focus()

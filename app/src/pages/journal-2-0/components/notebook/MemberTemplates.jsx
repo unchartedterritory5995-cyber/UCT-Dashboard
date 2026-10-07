@@ -28,7 +28,7 @@
  * rendered only while notebook_template_gallery_enabled is LATCHED on, so with the
  * gate off this component is byte-for-byte what it was.
  */
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import {
   deleteMemberTemplate, getMemberTemplate, renameMemberTemplate, useMemberTemplates,
 } from '../../lib/memberTemplates'
@@ -36,8 +36,12 @@ import { DAILY_TEMPLATE_PREF } from '../../lib/dailyNote'
 import usePreferences from '../../../../hooks/usePreferences'
 import UIcon from '../../../../components/ui/UIcon'
 import { templateGalleryEnabled } from '../../lib/templateGallery'
-import GalleryPublishForm from './GalleryPublishForm'
+import lazyChunk from '../../lib/lazyChunk'
 import styles from './TemplatePicker.module.css'
+
+// Dark behind notebook_template_gallery_enabled and shown only after "Share" is pressed, so it
+// loads then and not with the Notebook's first open.
+const GalleryPublishForm = lazyChunk(() => import('./GalleryPublishForm'))
 
 export default function MemberTemplates({ onPick, busy = false, query = '', onPreview = () => {} }) {
   const { templates, error, isLoading } = useMemberTemplates()
@@ -197,11 +201,13 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
                 </div>
               )}
               {galleryOn && sharing === t.id && (
-                <GalleryPublishForm
-                  template={t}
-                  onCancel={() => setSharing(null)}
-                  onDone={(text) => { setSharing(null); setMessage({ tone: 'ok', text }) }}
-                />
+                <Suspense fallback={<p role="status">Loading the share form…</p>}>
+                  <GalleryPublishForm
+                    template={t}
+                    onCancel={() => setSharing(null)}
+                    onDone={(text) => { setSharing(null); setMessage({ tone: 'ok', text }) }}
+                  />
+                </Suspense>
               )}
             </div>
           ))}

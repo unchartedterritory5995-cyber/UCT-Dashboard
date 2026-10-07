@@ -70,15 +70,20 @@
 //     async fetch (a child component's state, invisible to this effect's deps).
 //     The keyboard FUNCTION never lags -- Enter reads the live DOM at the
 //     moment it fires -- only the visual ring can be briefly stale.
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FAMILIES, templatesByFamily, templatePreview } from '../../lib/notebookTemplates'
 import MemberTemplates from './MemberTemplates'
 import TemplatePreview from './TemplatePreview'
-import TemplateGallery from './TemplateGallery'
 import { templateGalleryEnabled } from '../../lib/templateGallery'
+import lazyChunk from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplatePicker.module.css'
+
+// The community gallery (and the admin review panel it carries) is dark behind
+// notebook_template_gallery_enabled and reached by one button, so it loads when that button
+// is pressed, never with the picker: it was ~25 kB of source in every member's first open.
+const TemplateGallery = lazyChunk(() => import('./TemplateGallery'))
 
 const CARD = '[data-template-card]'
 const MOVES = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
@@ -237,11 +242,13 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
   if (galleryOn && community) {
     return (
       <div className={styles.wrap}>
-        <TemplateGallery
-          onBack={() => { setCommunity(false); setBackToDoor(true) }}
-          onUseNow={onPickMember}
-          busy={busy}
-        />
+        <Suspense fallback={<p role="status">Loading the community gallery…</p>}>
+          <TemplateGallery
+            onBack={() => { setCommunity(false); setBackToDoor(true) }}
+            onUseNow={onPickMember}
+            busy={busy}
+          />
+        </Suspense>
       </div>
     )
   }

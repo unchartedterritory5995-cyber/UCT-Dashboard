@@ -44,6 +44,7 @@ import { PRICE_ROLES } from '../../lib/planLevels'
 import useBoundDrawingAlerts from '../../../../components/chart/useBoundDrawingAlerts'
 import { anchorsForDrawing } from '../../../../components/chart/drawingAlertAnchors'
 import { money } from '../../../../lib/journal-2-0/format'
+import { etDayOf } from '../../lib/calendar'
 import BarReplay, { barTs } from './BarReplay'
 import styles from './ChartPlanPanel.module.css'
 
@@ -87,6 +88,35 @@ function asOfSeconds(attrs) {
   return to === null || !Number.isFinite(cap) ? null : Math.floor(cap / 1000)
 }
 
+/** The note's as-of EASTERN trading day (params.to, else the capture time), or null for a chart
+ *  that tracks now. The same day the chart block is frozen at (ChartEmbed `tsToAnchorDay`),
+ *  through the same function. ⛔ Never a UTC day: an evening plan would read as tomorrow's. */
+export function noteAsOfDay(attrs) {
+  const to = attrs?.params?.to
+  if (to === null) return null
+  return etDayOf(to) ?? etDayOf(Date.parse(attrs?.capturedAt || ''))
+}
+
+/** The bars a replay shows: context up to the note, then what printed after it.
+ *  Daily, weekly and monthly bars are compared BY DAY against the note's Eastern day;
+ *  intraday bars by the exact moment. Returns {bars, startIdx} or {error}. */
+export function windowAfterNote(all, { day, sec, daily }) {
+  if (day == null && sec == null) return { error: 'This chart tracks now, so nothing has printed after it yet.' }
+  const known = daily
+    ? (b) => (etDayOf(b.t) ?? '') <= day
+    : (b) => barTs(b.t) <= sec
+  let asIdx = -1
+  for (let i = 0; i < all.length; i++) {
+    if (known(all[i])) asIdx = i
+    else break
+  }
+  if (asIdx < 0) return { error: 'No bar history reaches this note’s date.' }
+  if (asIdx >= all.length - 1) return { error: 'Nothing has printed after this note’s date yet.' }
+  const start = Math.max(0, asIdx - REPLAY_BEFORE)
+  const bars = all.slice(start, Math.min(all.length, asIdx + 1 + REPLAY_AFTER))
+  return { bars, startIdx: asIdx - start + 1 }
+}
+
 export default function ChartPlanPanel({
   attrs, noteId, updateAttributes, open = false, replayOpen = false, onCloseReplay,
 }) {
@@ -114,7 +144,12 @@ export default function ChartPlanPanel({
     [annotations, embedId],
   )
   const noBars = useCallback(() => [], [])
-  const alerts = useBoundDrawingAlerts({ sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars })
+  // ⛔ `namespace` is this chart's own id prefix: the hook then touches ONLY this embed's
+  // alerts. Without it the panel deleted the member's /charts alerts on the same symbol.
+  const alerts = useBoundDrawingAlerts({
+    sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars,
+    namespace: boundAlertId(embedId || '?', ''),
+  })
   const armedIds = useMemo(
     () => new Set((alerts || []).filter((a) => a?.is_active && a.drawing_id).map((a) => a.drawing_id)),
     [alerts],
@@ -244,22 +279,12 @@ export default function ChartPlanPanel({
   // ── "what happened next": the one replay engine (BarReplay) ─────────────────────────────
   const replayTf = NATIVE_TFS.has(tf) ? tf : 'D'
   const asOf = asOfSeconds(attrs)
+  const asOfDay = noteAsOfDay(attrs)
   const daily = replayTf === 'D' || replayTf === 'W' || replayTf === 'M'
-  const cmp = useCallback((ts) => (daily ? ts - (ts % 86400) : ts), [daily])
-  const windowBars = useCallback((all) => {
-    if (asOf == null) return { error: 'This chart tracks now, so nothing has printed after it yet.' }
-    const limit = cmp(asOf) + (daily ? 86400 - 1 : 0)
-    let asIdx = -1
-    for (let i = 0; i < all.length; i++) {
-      if (barTs(all[i].t) <= limit) asIdx = i
-      else break
-    }
-    if (asIdx < 0) return { error: 'No bar history reaches this note’s date.' }
-    if (asIdx >= all.length - 1) return { error: 'Nothing has printed after this note’s date yet.' }
-    const start = Math.max(0, asIdx - REPLAY_BEFORE)
-    const bars = all.slice(start, Math.min(all.length, asIdx + 1 + REPLAY_AFTER))
-    return { bars, startIdx: asIdx - start + 1 }
-  }, [asOf, cmp, daily])
+  const windowBars = useCallback(
+    (all) => windowAfterNote(all, { day: asOfDay, sec: asOf, daily }),
+    [asOf, asOfDay, daily],
+  )
   const replayLines = useMemo(() => PRICE_ROLES
     .filter((r) => Number.isFinite(plan?.[r]))
     .map((r) => ({ price: plan[r], color: ROLE_COLOR[r], title: ROLE_LABEL[r].toLowerCase() })), [plan])

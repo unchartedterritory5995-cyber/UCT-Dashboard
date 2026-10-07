@@ -33,6 +33,17 @@ async function getJson(url) {
 
 const SWR_OPTS = { revalidateOnFocus: false, shouldRetryOnError: false }
 
+/** The status read for more ids than one request may carry: one request per MAX_STATUS_IDS,
+ *  merged. Any batch failing fails the read (a partial answer would read as "planned"). */
+async function getStatusBatches(ids) {
+  const batches = []
+  for (let i = 0; i < ids.length; i += MAX_STATUS_IDS) batches.push(ids.slice(i, i + MAX_STATUS_IDS))
+  const answers = await Promise.all(
+    batches.map((b) => getJson(`${BASE}/status?ids=${b.map(encodeURIComponent).join(',')}`)),
+  )
+  return { statuses: Object.assign({}, ...answers.map((a) => a?.statuses || {})) }
+}
+
 /** One trade's plan and four checks. `relink(choice)` is the member's Re-link:
  *  `{noteId}` | `{verdictId}` | `{none: true}`. */
 export default function usePlanGrade(tradeId) {
@@ -63,12 +74,15 @@ export default function usePlanGrade(tradeId) {
 /** {tradeId: {tradeRef, status}} for the equity trades on one Trade Journal page. */
 export function usePlanStatuses(tradeIds) {
   const on = planGradingEnabled()
+  // Sorted so the key is stable whatever order the page lists them in; NEVER cut: a page with
+  // more trades than the server takes at once is asked for in batches (cutting at the cap
+  // dropped the "Unplanned" chip from whichever trades sorted last as strings).
   const ids = useMemo(
-    () => Array.from(new Set((tradeIds || []).filter((x) => typeof x === 'string' && x))).sort().slice(0, MAX_STATUS_IDS),
+    () => Array.from(new Set((tradeIds || []).filter((x) => typeof x === 'string' && x))).sort(),
     [tradeIds],
   )
   const key = on && ids.length ? `${BASE}/status?ids=${ids.map(encodeURIComponent).join(',')}` : null
-  const { data, error } = useSWR(key, getJson, SWR_OPTS)
+  const { data, error } = useSWR(key, ids.length > MAX_STATUS_IDS ? () => getStatusBatches(ids) : getJson, SWR_OPTS)
   return { enabled: on, statuses: data?.statuses || null, error: error || null }
 }
 

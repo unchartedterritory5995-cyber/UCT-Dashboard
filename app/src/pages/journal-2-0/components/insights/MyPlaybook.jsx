@@ -84,7 +84,7 @@ export function StatCell({ label, stat, fmt, onDrill, expanded = false, controls
   )
 }
 
-function Drill({ id, setup, idx, item, trades, onClose }) {
+export function Drill({ id, setup, idx, item, trades, onClose }) {
   const rows = trades.filter(item.drill)
   // The table opens further down the card than the number that opened it: focus goes to its
   // heading, which is what tells a screen reader member that it opened and what it holds.
@@ -109,8 +109,8 @@ function Drill({ id, setup, idx, item, trades, onClose }) {
               <td><Link className={styles.link} to={tradeHref(t.id)}>{t.symbol}</Link>{t.source === 'broker' ? <span className={styles.muted}> broker</span> : null}</td>
               <td>{(t.exitDate || '').slice(0, 10)}</td>
               <td>{t.result}</td>
-              <td>{t.rMultiple == null ? '—' : t.rMultiple.toFixed(2)}</td>
-              <td>{t.pnlDollar.toFixed(2)}</td>
+              <td>{Number.isFinite(t.rMultiple) ? t.rMultiple.toFixed(2) : '—'}</td>
+              <td>{Number.isFinite(t.pnlDollar) ? t.pnlDollar.toFixed(2) : '—'}</td>
             </tr>
           ))}
         </tbody>

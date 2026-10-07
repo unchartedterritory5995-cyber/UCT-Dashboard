@@ -58,7 +58,7 @@ export default function EntryContextCard({ kind, id }) {
   const { meta } = useEntryContextMeta()
   const { enabled, status, context, reason, error, isLoading, paidOut, retry } =
     useEntryContextFor(kind, id)
-  const titleId = useId()
+  const titleId = useId()     // one per card: a position page shows a card per lot
 
   if (!enabled || paidOut) return null
 
