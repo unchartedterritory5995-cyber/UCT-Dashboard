@@ -2309,6 +2309,10 @@ export default function NoteEditorPage({
       // and a snapshot taken here would offer "Dictate" to nobody or to everybody.
       ed.storage.uctJournalWidgets = {
         ...(ed.storage.uctJournalWidgets || {}), noteId,
+        // When this note's editor opened. A node view compares a block's own capturedAt with
+        // it to tell "added during this visit" from "was already here" (FingerprintPanel:
+        // viewing a note must never write to it).
+        openedAt: Date.now(),
         canDictate: () => micRef.current?.available === true,
         // Wave 7 H2: read when the slash menu opens, like `canDictate`.
         canWritingHelp: () => writingHelpOnRef.current === true,

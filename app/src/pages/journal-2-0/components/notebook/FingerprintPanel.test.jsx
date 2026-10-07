@@ -23,7 +23,11 @@ const FP = {
 const META = { version: 1, fields: [], missingReasons: { no_flat_base: 'no flat base ends at this day' }, transientMissing: [] }
 
 const ATTRS = { widgetId: 'chart', embedId: 'e-1', capturedAt: '2026-09-30T18:00:00Z', params: { symbol: 'NVDA', tf: 'D', to: 1790791200 } }
-const editorWith = (noteId = 'n-1', isEditable = true) => ({ isEditable, storage: { uctJournalWidgets: { noteId } } })
+// `openedAt` before ATTRS.capturedAt: this chart was added while the note was open, so the
+// panel freezes it by itself (FingerprintPanel.viewing.test.jsx holds the opposite case).
+const editorWith = (noteId = 'n-1', isEditable = true) => ({
+  isEditable, storage: { uctJournalWidgets: { noteId, openedAt: Date.parse('2026-09-30T17:00:00Z') } },
+})
 
 const respond = (status, body) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
 
