@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import useSWR from 'swr'
-import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { sectionFetcher, SectionFetchError } from '../../../components/research/sections/sectionFetch'
+import { isTransientStatus } from '../../../utils/warmRetry'
 import { signedPct } from '../researchFormat'
 import rp from '../ResearchPage.module.css'
 import styles from './SeasonalityTab.module.css'
@@ -45,6 +46,9 @@ function Table({ caption, rows, nLabel, thinNote }) {
 // wait, not a failure: the panel says so and asks again on its own, at most PENDING_TRIES times.
 export const PENDING_TRIES = 8
 
+// Completeness audit 2026-10-07: every answer that was not a pending 503 was handed to
+// sectionFetcher, which fetched the SAME url a second time -- two reads per open. The response in
+// hand is read once now; only a transient failure goes on to sectionFetcher (its one warm retry).
 export async function seasonalityFetcher(url) {
   let res = null
   try { res = await fetch(url) } catch { return sectionFetcher(url) }
@@ -53,7 +57,14 @@ export async function seasonalityFetcher(url) {
     const secs = Number(retryAfter) || 15
     return { pending: true, retryAfterMs: Math.min(Math.max(secs, 2), 60) * 1000 }
   }
-  return sectionFetcher(url)
+  if (res.status === 402) return { paywalled: true }
+  if (res.ok) {
+    try { return await res.json() } catch (cause) {
+      throw new SectionFetchError(`Malformed response: ${cause?.message || cause}`, { status: res.status, url })
+    }
+  }
+  if (isTransientStatus(res.status)) return sectionFetcher(url)
+  throw new SectionFetchError(`Request failed (${res.status})`, { status: res.status, url })
 }
 
 export default function SeasonalityTab({ sym }) {
@@ -64,22 +75,26 @@ export default function SeasonalityTab({ sym }) {
   usePanelFreshness(data && !data.pending && !data.paywalled && !error
     ? { source: 'UCT daily bar store', age: { dataClass: 'end_of_day', asOfDate: data.covered_to || null } }
     : null)
-  const tries = useRef(0)
-  useEffect(() => { tries.current = 0 }, [s])
+  // The re-ask counter is STATE, not a ref: Retry resets it and that reset must re-render (a ref
+  // reset left the panel on "unavailable" with the re-asks spent -- completeness audit
+  // 2026-10-07), and a re-ask whose answer equals the last one must still schedule the next.
+  const [tries, setTries] = useState(0)
+  useEffect(() => { setTries(0) }, [s])
   useEffect(() => {
-    if (!data?.pending || tries.current >= PENDING_TRIES) return undefined
-    const t = setTimeout(() => { tries.current += 1; mutate() }, data.retryAfterMs)
+    if (!data?.pending || tries >= PENDING_TRIES) return undefined
+    const t = setTimeout(() => { setTries((n) => n + 1); mutate() }, data.retryAfterMs)
     return () => clearTimeout(t)
-  }, [data, mutate])
+  }, [data, mutate, tries])
+  const retry = () => { setTries(0); mutate() }
 
-  if (data?.pending && tries.current < PENDING_TRIES) {
+  if (data?.pending && tries < PENDING_TRIES) {
     return <div className={styles.note} data-testid="seasonality-pending">
       Reading the full daily history for {s}… this panel fills in by itself.
     </div>
   }
   if (error || data?.pending) {
     return <div className={styles.note} data-testid="seasonality-unavailable">
-      Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>
+      Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={retry}>Retry</button>
     </div>
   }
   if (!data) return <div className={styles.note}>Loading seasonality…</div>

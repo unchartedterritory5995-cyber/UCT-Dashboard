@@ -1,5 +1,6 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
+import FailedRead from './FailedRead'
 import { money } from './MarketTidePanel'
 import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
@@ -16,25 +17,31 @@ import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminal
 
 const enc = encodeURIComponent
 
-function Block({ title, testid, children, failed, what }) {
+function Block({ title, testid, children, failed, retry, what }) {
   return (
     <section className={styles.panel} data-testid={testid}>
       <div className={styles.head}>
         <span className={styles.title}>{title}</span>
         <span className={styles.badge}>computed</span>
       </div>
-      {failed ? <p className={styles.note}>{what} is unavailable right now. That is a failed read, not an empty one.</p> : children}
+      {failed ? <FailedRead retry={retry} title={`${what} is unavailable right now. That is a failed read, not an empty one.`} /> : children}
     </section>
   )
 }
 
 function Levels({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/levels`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/levels`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.levels))) return null
   return (
-    <Block title="Positioning levels" testid="posn-levels" failed={failed} what="The positioning levels">
+    <Block title="Positioning levels" testid="posn-levels" failed={failed} retry={retry} what="The positioning levels">
       {data && (
         <>
+          {/* completeness audit 2026-10-07: an answer with no level drew an empty list */}
+          {data.levels.length === 0 && (
+            <p className={styles.note} data-testid="posn-levels-none">
+              No positioning level could be computed for {sym} from the latest chain.
+            </p>
+          )}
           <ul className={styles.list}>
             {data.levels.map((l) => (
               <li key={l.id} data-testid={`posn-level-${l.id}`}>
@@ -60,11 +67,11 @@ function Levels({ sym }) {
 // and charm siblings: each its OWN route and switch (OPTIONS_DELTA_PRESSURE_ENABLED /
 // OPTIONS_CHARM_HEATMAP_ENABLED), same chain, same cell rule (blank = no computable contract, never 0).
 function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and expiry', testid = 'posn-heatmap', what = 'The gamma heatmap' }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/${path}?dte=month`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/${path}?dte=month`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.cells))) return null
   const max = data?.max_abs || 1
   return (
-    <Block title={title} testid={testid} failed={failed} what={what}>
+    <Block title={title} testid={testid} failed={failed} retry={retry} what={what}>
       {data && (
         <>
           <div className={styles.scroll}>
@@ -99,10 +106,10 @@ function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and 
 }
 
 function MaxPain({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/max-pain?dte=month`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/max-pain?dte=month`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.expirations))) return null
   return (
-    <Block title="Max pain" testid="posn-maxpain" failed={failed} what="Max pain">
+    <Block title="Max pain" testid="posn-maxpain" failed={failed} retry={retry} what="Max pain">
       {data && (
         <>
           <ul className={styles.list}>
@@ -121,10 +128,10 @@ function MaxPain({ sym }) {
 }
 
 function Nope({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/nope`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/nope`)
   if (hidden || (!data && !failed) || (data && !('nope' in data))) return null
   return (
-    <Block title="NOPE" testid="posn-nope" failed={failed} what="NOPE">
+    <Block title="NOPE" testid="posn-nope" failed={failed} retry={retry} what="NOPE">
       {data && (
         <>
           <p className={styles.facts}>
@@ -147,10 +154,10 @@ const BAND_WORDS = {
 }
 
 function Impact({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/impact`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/impact`)
   if (hidden || (!data && !failed) || (data && !('impact_ratio' in data))) return null
   return (
-    <Block title="Options Impact" testid="posn-impact" failed={failed} what="Options Impact">
+    <Block title="Options Impact" testid="posn-impact" failed={failed} retry={retry} what="Options Impact">
       {data && (
         <>
           <p className={styles.facts} data-testid="posn-impact-read">
@@ -166,10 +173,10 @@ function Impact({ sym }) {
 }
 
 function DealerShort({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/dealer-short`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/dealer-short`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.dealer_short))) return null
   return (
-    <Block title="Dealer short" testid="posn-dealer-short" failed={failed} what="The dealer-short read">
+    <Block title="Dealer short" testid="posn-dealer-short" failed={failed} retry={retry} what="The dealer-short read">
       {data && (
         <>
           <p className={styles.facts}>{data.summary}</p>

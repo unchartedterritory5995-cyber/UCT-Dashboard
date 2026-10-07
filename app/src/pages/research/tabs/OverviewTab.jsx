@@ -5,6 +5,7 @@ import LeadershipBadge from '../LeadershipBadge'
 import ConfidenceBadge from '../ConfidenceBadge'
 import { ABSENT, formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../ResearchPage.module.css'
+import PanelState from '../../../components/terminal/PanelState'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, settings gear and drawing tools. Lazy, so none of it lands in
@@ -73,7 +74,37 @@ function ReportNote({ state, reason, retry }) {
   return null
 }
 
-export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, reportReason, retryReport, analystMissing, error, mutate }) {
+// Key stats, said honestly per state (completeness audit 2026-10-07, DES): a read in flight is
+// "loading", a vendor failure is an error with a Retry, a genuine empty says there is nothing on
+// file -- never the same "—" for all three. `statsState` undefined keeps the old rendering.
+function KeyStats({ sym, stats, statsState, retryStats }) {
+  if (statsState === 'loading') {
+    return <div className={styles.fnote} data-testid="key-stats-loading" role="status">Loading key stats…</div>
+  }
+  if (statsState === 'error' || statsState === 'unavailable') {
+    return (
+      <PanelState kind="error" compact role="status" testId="key-stats-unavailable"
+        title="Key stats couldn't be read right now: the data vendors did not answer."
+        action={retryStats ? <button type="button" onClick={() => retryStats()}>Retry</button> : null}>
+        That is a failed read, not a company with no stats.
+      </PanelState>
+    )
+  }
+  if (statsState === 'empty') {
+    return <PanelState compact testId="key-stats-empty" title={`No key stats on file for ${sym}.`}>Every data vendor answered, and none holds market cap, P/E, beta or a 52-week range for it.</PanelState>
+  }
+  return (
+    <>
+      <div className={styles.kv}><span>Mkt cap</span><b>{stats?.market_cap ?? '—'}</b></div>
+      <div className={styles.kv}><span>Fwd P/E</span><b>{stats?.forward_pe ?? '—'}</b></div>
+      <div className={styles.kv}><span>Beta</span><b>{stats?.beta ?? '—'}</b></div>
+      <div className={styles.kv}><span>Div yield</span><b>{stats?.div_yield != null ? `${stats.div_yield}%` : '—'}</b></div>
+      <div className={styles.kv}><span>52-wk range</span><b>{stats?.week52_low ?? '—'} — {stats?.week52_high ?? '—'}</b></div>
+    </>
+  )
+}
+
+export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, reportReason, retryReport, analystMissing, error, mutate, statsState, retryStats, loading, aiLoading }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
   const mid = targetMid(pt)
@@ -84,6 +115,9 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
           fallbacks below, which stay guarded by their own `??`/`||` em-dash
           defaults -- this banner just tells the member those dashes mean
           "couldn't load", not "nothing here". */}
+      {loading && !error && (
+        <div className={styles.fnote} data-testid="overview-loading" role="status">Loading the {sym} overview…</div>
+      )}
       {error && (
         <div className={styles.fnote} data-testid="overview-error">
           Couldn't load some of this overview.
@@ -161,11 +195,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
 
       <section className={styles.card}>
         <div className={styles.ct}>Key stats</div>
-        <div className={styles.kv}><span>Mkt cap</span><b>{stats?.market_cap ?? '—'}</b></div>
-        <div className={styles.kv}><span>Fwd P/E</span><b>{stats?.forward_pe ?? '—'}</b></div>
-        <div className={styles.kv}><span>Beta</span><b>{stats?.beta ?? '—'}</b></div>
-        <div className={styles.kv}><span>Div yield</span><b>{stats?.div_yield != null ? `${stats.div_yield}%` : '—'}</b></div>
-        <div className={styles.kv}><span>52-wk range</span><b>{stats?.week52_low ?? '—'} — {stats?.week52_high ?? '—'}</b></div>
+        <KeyStats sym={sym} stats={stats} statsState={statsState} retryStats={retryStats} />
       </section>
 
       <section className={styles.card}>
@@ -190,7 +220,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
       <section className={styles.card}>
         <div className={styles.ct}>AI snapshot</div>
         <p className={styles.ai}>
-          {ai?.analysis_summary || ai?.preview_text || (error ? '—' : 'Earnings analysis will appear here once available.')}
+          {ai?.analysis_summary || ai?.preview_text || (error ? '—' : aiLoading ? 'Loading the earnings analysis…' : 'Earnings analysis will appear here once available.')}
         </p>
       </section>
       </div>

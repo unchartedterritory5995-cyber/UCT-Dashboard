@@ -7,12 +7,14 @@ import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 // `off` is the 404 half of `hidden` on its own: the route exists but its switch is not set. The
 // terminal's standalone panels read it (via OffNotice) to say so instead of opening blank.
 // No polling: these surfaces revalidate on mount and on a key change only.
+// `retry` re-asks the same read (SWR's mutate): every `failed` branch offers it as a Retry, so a
+// member is never left with "unavailable right now" and no way to ask again.
 export default function useDarkSection(url) {
-  const { data, error } = useSWR(url || null, sectionFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(url || null, sectionFetcher, { revalidateOnFocus: false })
   const off = Boolean(url) && error?.status === 404
   const hidden = !url || off || Boolean(data?.paywalled)
   const paywalled = Boolean(data?.paywalled)
-  return { data: hidden ? undefined : data, hidden, off, paywalled, failed: !hidden && Boolean(error), loading: !hidden && !error && !data }
+  return { data: hidden ? undefined : data, hidden, off, paywalled, failed: !hidden && Boolean(error), loading: !hidden && !error && !data, retry: () => mutate() }
 }
 
 /** Every one of `urls` answered 404 (each switch is off). Hook count is `urls.length`, so a call
