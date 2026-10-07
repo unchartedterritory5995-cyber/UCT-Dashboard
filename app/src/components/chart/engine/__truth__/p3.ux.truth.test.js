@@ -67,7 +67,7 @@ describe('P3 UX — the readback says the definition in a trader\'s words', () =
     expect(conditionWords(P('(close > open) > 0'), scope)).toBeNull()
     expect(conditionWords(P('(close > open)[1]'), scope)).toBeNull()
     const { rb } = run([create('close && volume')])
-    expect(rb.lines[1]).toBe(`${rb.outputs[0].label} — a yes/no on every bar: ${sentenceFor(P('close && volume'), scope)}`)
+    expect(rb.lines[1]).toBe(`${rb.outputs[0].name} — a yes/no on every bar: ${sentenceFor(P('close && volume'), scope)}`)
   })
 
   it('4 MIXED and/or — DID: grouping is said with parentheses, never flattened into an ambiguous sentence (EXACT)', () => {

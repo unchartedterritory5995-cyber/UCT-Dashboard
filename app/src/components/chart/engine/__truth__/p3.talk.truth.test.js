@@ -138,7 +138,8 @@ describe('client flow: ANSWER then CHANGE on one lineage (stubbed server)', () =
       const out = applyTurn(state, t.envelope, { gateCtx: { symbol: 'AAPL', tf: 'D' } })
       expect(out.result.status).toBe('applied')
       state = out.state
-      transcript.push({ role: 'uct', kind: 'patched', reply: t.reply, lines: ['Updated preview.'] })
+      // P3S: a CHANGE entry carries the deterministic lines only -- never the model's prose
+      transcript.push({ role: 'uct', kind: 'patched', lines: ['Updated preview.'] })
       return t
     }
     await turn('RSI above 70')
@@ -152,7 +153,7 @@ describe('client flow: ANSWER then CHANGE on one lineage (stubbed server)', () =
     expect(state.lineage).toBe(lineage)
     expect(bodies.map((b) => b.conversationId)).toEqual([lineage, lineage, lineage])
     const ctx = bodies[2].snippets.map((s) => s.text).join(' | ')
-    expect(ctx).toMatch(/Created it\./)                    // the CHANGE reply rides along
+    expect(ctx).not.toMatch(/Created it\./)                // ⛔ P3S: a CHANGE's prose never rides along
     expect(ctx).toMatch(/A 21-bar RSI is smoother and slower\./)  // and the ANSWER
   })
 })
@@ -168,24 +169,26 @@ describe('ConverseBox: the model reply is SECONDARY text beside the readback', (
     fireEvent.click(screen.getByTestId('converse-send'))
     await flush()
   }
-  it('change: the readback lines AND "Assistant: <reply>" (secondary); clarify: the reply beside the questions', async () => {
+  it('change: the readback lines ONLY (P3S: no model prose); clarify: the reply beside the questions', async () => {
     const converse = vi.fn(async ({ message, state }) => (/average/.test(message)
       ? { ok: true, disposition: 'clarify', reply: 'Two averages fit.', turn: 'question', notUnderstood: [], unavailable: [],
         envelope: { contract: C, baseRevision: state.revision, ops: [], questions: [{ id: 'q1', text: 'Which average?', choices: ['EMA', 'SMA'] }] } }
       : { ok: true, disposition: 'change', reply: 'I built an RSI above 70.', turn: 'patch', notUnderstood: [], unavailable: [], envelope: createRsi(state.revision) }))
     render(createElement(ConverseBox, { converse, sessionKey: newKey('p3a') }))
     await send('RSI above 70')
-    const replies = screen.getAllByTestId('converse-assistant-reply')
-    expect(replies.at(-1).textContent).toBe('Assistant: I built an RSI above 70.')
+    // ⛔ P3S: the change's prose is not shown -- the readback is the whole entry
+    expect(screen.queryAllByTestId('converse-assistant-reply')).toHaveLength(0)
     const t = screen.getByTestId('converse-transcript').textContent
-    expect(t).toMatch(/Updated preview\./)              // the readback is still the authority
+    expect(t).toMatch(/Updated preview\./)
+    expect(t).not.toMatch(/I built an RSI above 70/)
     await send('add an average')
     expect(screen.getAllByTestId('converse-assistant-reply').at(-1).textContent).toBe('Assistant: Two averages fit.')
     expect(screen.getByTestId('converse-transcript').textContent).toMatch(/Which average\?/)
-    // ⭐ the next request carries the change reply as context
+    // ⛔ P3S: and the next request does NOT carry the change's prose as context
     await send('EMA')
     const ctx = converse.mock.calls.at(-1)[0].snippets.map((s) => s.text).join(' | ')
-    expect(ctx).toMatch(/I built an RSI above 70\./)
+    expect(ctx).not.toMatch(/I built an RSI above 70\./)
+    expect(ctx).toMatch(/Two averages fit\./)
   })
   it('a planner refusal reads its sentence ONCE', async () => {
     const reason = '"McGinley Dynamic" is not one of this door\'s supported functions or concepts, so there is no formula to expand it into.'
@@ -198,9 +201,9 @@ describe('ConverseBox: the model reply is SECONDARY text beside the readback', (
   })
 })
 
-describe('studio hook: change replies reach the next turn as context', () => {
+describe('studio hook: a CHANGE reaches the next turn as its deterministic readback (P3S)', () => {
   afterEach(() => { cleanup(); clearUserDefinitions() })
-  it('the snippet for a CHANGE entry starts with the assistant reply; an answer leaves state untouched', async () => {
+  it('the snippet for a CHANGE entry is the readback, never the model prose; an answer leaves state untouched', async () => {
     const seen = []
     const converse = vi.fn(async ({ message, state, snippets }) => {
       seen.push(snippets)
@@ -214,7 +217,8 @@ describe('studio hook: change replies reach the next turn as context', () => {
     expect(result.current.state).toBe(after)
     await act(async () => { await result.current.send('make it 80') })
     const ctx = seen.at(-1).map((s) => s.text)
-    expect(ctx.some((t) => t.startsWith('Built RSI above 70.'))).toBe(true)
+    expect(ctx.some((t) => t.includes('Built RSI above 70.'))).toBe(false)   // ⛔ the prose
+    expect(ctx.some((t) => /RSI/.test(t) && /70/.test(t))).toBe(true)        // the readback of the result
     expect(ctx).toContain('Higher thresholds fire less often.')
   })
 })

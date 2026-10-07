@@ -24,6 +24,19 @@ export const CHIP_NAME_MAX = 12
  *  all. The cap itself is real (the chip strip is narrow); the ragged edge was not.
  */
 export function chipName(name) {
+  // ⭐ P3S — a cut never ENDS on a separator: "RSI 28 · RSI 28 > 70" cut at its
+  // word boundary was "RSI 28 ·", which read back as "RSI 28 · — a number on every
+  // bar". The separator a derived name joins its parts with is not a word.
+  const cut = legacyChipName(name)
+  return cut.replace(TRAILING_SEPARATORS, '').trim() || cut
+}
+
+/** A run of separators (and the spaces around them) at the end of a cut. */
+const TRAILING_SEPARATORS = /[\s·•|/,;:\-–—]+$/u
+
+/** The cut every document saved before P3S carries: the word-boundary cut with
+ *  no separator trim. Kept so `isChipCut` still recognises those stored labels. */
+function legacyChipName(name) {
   const trimmed = String(name || '').trim()
   if (trimmed.length <= CHIP_NAME_MAX) return trimmed
   const cut = trimmed.slice(0, CHIP_NAME_MAX)
@@ -34,11 +47,13 @@ export function chipName(name) {
   return out.trim()
 }
 
-/** True when `label` is exactly the builder's chip cut of a LONGER `name`. */
+/** True when `label` is exactly the builder's chip cut of a LONGER `name` --
+ *  today's cut, or the pre-P3S one a stored document may still carry. */
 export function isChipCut(name, label) {
   if (typeof name !== 'string' || typeof label !== 'string') return false
   const full = name.trim()
-  return full.length > CHIP_NAME_MAX && label !== full && chipName(full) === label
+  return full.length > CHIP_NAME_MAX && label !== full
+    && (chipName(full) === label || legacyChipName(full) === label)
 }
 
 /** The label to display for a user definition: the whole name where the stored
