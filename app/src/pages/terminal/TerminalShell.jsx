@@ -1000,6 +1000,13 @@ export default function TerminalShell() {
     closePopoutWindow(layout.panels[i].id)
     save(res.layout)
     setNotice({ kind: 'info', text: `Closed ${layout.panels[i].code}.`, actions: [{ label: 'Undo', id: 'undo-close' }] })
+    // a11y (audit 2026-10-06): the close button that had focus just unmounted, which drops a
+    // keyboard user to <body>. Land them on the notice's Undo — the next thing they may want,
+    // and it sits beside the sentence saying what happened. Only when focus was actually lost.
+    requestAnimationFrame(() => {
+      const a = document.activeElement
+      if (!a || a === document.body) document.querySelector('[data-testid="terminal-notice-undo-close"]')?.focus()
+    })
   }
   const onUndoClose = () => {
     const cur = layoutRef.current
@@ -1401,7 +1408,10 @@ export default function TerminalShell() {
             <button key={a.id} type="button" className={styles.chip} onClick={() => noticeAction(a)}
               data-testid={`terminal-notice-${a.id}`}>{a.label}</button>
           ))}
-          <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">
+          {/* a11y (audit 2026-10-06): Dismiss unmounts with the notice; hand focus to the command
+              line (desktop, no sheet open) rather than letting it fall to <body>. */}
+          <button type="button" className={styles.noticeClose} aria-label="Dismiss"
+            onClick={() => { setNotice(null); if (!isPhone && !sheet) inputRef.current?.focus() }}>
             <UIcon name="x" size={14} gold={false} />
           </button>
         </div>

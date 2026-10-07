@@ -170,6 +170,20 @@ describe('terminal stylesheets — every clickable class is a finger target on t
     expect(offenders, `clickable classes with no --tap-min floor on touch:\n${offenders.join('\n')}`).toEqual([])
   })
 
+  it('media queries use only the canonical 640 / 1024 boundaries (styles/breakpoints.css)', () => {
+    const odd = CSS.flatMap((f) => [...stripComments(readFileSync(f, 'utf8')).matchAll(/@media[^{]*?(?:min|max)-width:\s*(\d+)px/g)]
+      .filter((m) => !['640', '641', '1024', '1025'].includes(m[1]))
+      .map((m) => `${posix(f)}: ${m[0].trim()}`))
+    expect(odd).toEqual([])
+  })
+
+  it('nothing sets a fixed min-width wider than a 360px phone', () => {
+    const wide = CSS.flatMap((f) => [...stripComments(readFileSync(f, 'utf8')).matchAll(/(?:^|[;{\s])min-width:\s*(\d+)px/g)]
+      .filter((m) => Number(m[1]) > 360)
+      .map((m) => `${posix(f)}: min-width ${m[1]}px`))
+    expect(wide).toEqual([])
+  })
+
   it('CONTROL: a clickable class floored on the phone only is reported at tablet width', () => {
     const css = '.a { cursor: pointer; }\n@media (max-width: 640px) { .a { min-height: var(--tap-min); } }'
     expect(clickableWithoutFloor(css)).toEqual(['.a@820'])
