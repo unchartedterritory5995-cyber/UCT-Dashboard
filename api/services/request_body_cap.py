@@ -24,6 +24,9 @@ that chunk is handed to the parser, so nothing past the cap is ever spooled.
   * The cap on a multipart body is the file's own cap plus `FRAMING_SLACK`
     (boundaries, part headers, the few small fields). The file's exact cap is
     then checked on the parsed part's size -- same 413, same sentence.
+  * A JSON body goes through `capped_json`, a dependency that stands in for a
+    declared body parameter. FastAPI reads a declared body before ANY dependency
+    runs, so it could be neither capped nor ordered after a gate or a session.
 
 Limits are passed as CALLABLES read per request, so the route's constant stays
 the one authority (a test that moves it moves the cap) -- and nothing here does
@@ -31,10 +34,13 @@ work at import (the 10/02 boot lesson): module constants only.
 """
 from __future__ import annotations
 
+import email.message
+import json
 from typing import Any, AsyncIterator, Callable, NamedTuple, Optional
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import FormData, UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
@@ -116,6 +122,96 @@ async def read_capped_form(request: Request, limit: int, sentence: str, *,
         if cap.tripped:
             raise HTTPException(status_code=413, detail=sentence) from None
         raise
+
+
+def _is_json_content_type(value: Optional[str]) -> bool:
+    """FastAPI's own rule for when a body is parsed as JSON: no Content-Type at
+    all, or `application/json`, or `application/<anything>+json`. Kept exact: a
+    `text/plain` body is one a cross-site form can send without a preflight."""
+    if not value:
+        return True
+    message = email.message.Message()
+    message["content-type"] = value
+    if message.get_content_maintype() != "application":
+        return False
+    subtype = message.get_content_subtype()
+    return subtype == "json" or subtype.endswith("+json")
+
+
+def capped_json(annotation: Any, max_bytes: Callable[[], int], sentence: Callable[[], str], *,
+                after: Optional[Callable[..., Any]] = None) -> Callable[..., Any]:
+    """A dependency standing in for a declared JSON body parameter -- `body: Model`,
+    `payload: dict`, `payload: dict | None = None` -- that reads the body CAPPED, and
+    only AFTER `after` has run:
+
+        def route(payload: dict = Depends(capped_json(dict, ..., after=get_current_user)),
+                  user: dict = Depends(get_current_user)): ...
+
+    ⛔ WHY A DEPENDENCY AND NOT THE PARAMETER. FastAPI reads the body for a declared
+    body parameter BEFORE it solves any dependency: before a router's dark-flag gate,
+    before the session check, and with no size limit. So an anonymous caller could
+    make the process buffer a body of any size, and a route behind a dark flag
+    answered 422 to malformed JSON where every other request to it answered 404.
+
+    `after` is the route's own session dependency. This dependency depends on it, so
+    FastAPI solves it first whatever order the route's parameters are written in, and
+    solves it ONCE (the route's own `Depends(after)` reuses the cached answer). A
+    router-level gate runs before both. A door with no session (a token in the body)
+    passes no `after` and still gets the cap.
+
+    The value is validated against `annotation` and every refusal keeps the status
+    and the error shape FastAPI gave: 422 `json_invalid` for broken JSON, 422
+    `missing` at `("body",)` for an absent required body, pydantic's own errors under
+    `("body", ...)`, and the same Content-Type rule. Past the cap: 413, `sentence()`.
+
+    The `TypeAdapter` is built on first use, not here: nothing at import."""
+    box: list[TypeAdapter] = []
+
+    def _adapter() -> TypeAdapter:
+        if not box:
+            box.append(TypeAdapter(annotation))
+        return box[0]
+
+    async def _read(request: Request) -> Any:
+        raw = await read_capped_body(request, max_bytes(), sentence())
+        value: Any = None
+        if raw:
+            if _is_json_content_type(request.headers.get("content-type")):
+                try:
+                    value = json.loads(raw)
+                except json.JSONDecodeError as e:
+                    raise RequestValidationError(
+                        [{"type": "json_invalid", "loc": ("body", e.pos), "msg": "JSON decode error",
+                          "input": {}, "ctx": {"error": e.msg}}], body=e.doc) from None
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="There was an error parsing the body") from None
+            else:
+                value = raw
+        adapter = _adapter()
+        try:
+            return adapter.validate_python(value)
+        except ValidationError as e:
+            if value is None:
+                raise _missing_body() from None
+            raise RequestValidationError(
+                [{**err, "loc": ("body", *err["loc"])} for err in e.errors(include_url=False)],
+                body=value) from None
+
+    if after is None:
+        async def dependency(request: Request) -> Any:
+            return await _read(request)
+    else:
+        async def dependency(request: Request, _caller: Any = Depends(after)) -> Any:  # noqa: B008
+            return await _read(request)
+
+    dependency.max_bytes = max_bytes        # read by the body census, never by a route
+    return dependency
+
+
+def _missing_body() -> RequestValidationError:
+    # The shape FastAPI gives a required body parameter that was not sent.
+    return RequestValidationError([{"type": "missing", "loc": ("body",),
+                                    "msg": "Field required", "input": None}])
 
 
 def _missing(field: str) -> RequestValidationError:

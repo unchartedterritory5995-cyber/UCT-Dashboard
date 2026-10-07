@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan, is_paid_user
+from api.services import request_body_cap as body_cap
 from api.services.journal_two import sample_notebook, tour_seen_state
 from api.services.notebook_flags import flag_on
 
@@ -92,8 +93,22 @@ class TourRow(BaseModel):
     step: Optional[str] = None
 
 
+# ⛔ FIN (2026-10-06, security review I-5): the body is NOT a declared parameter.
+# FastAPI reads a declared body before it solves any dependency, so with the flag
+# off this door answered 422 to malformed JSON (every other request: 404) and
+# buffered an anonymous body of any size. `_json` reads it capped, after the
+# router's gate and after the session. Rail: tests/test_notebook_body_census.py.
+# The body is one state word and one step id.
+MAX_BODY_BYTES = 8 * 1024
+TOO_LARGE_SENTENCE = "Request too large"
+
+
+def _json(annotation, *, after=get_current_user):
+    return body_cap.capped_json(annotation, lambda: MAX_BODY_BYTES, lambda: TOO_LARGE_SENTENCE, after=after)
+
+
 @router.put("/tours/{tour_id}")
-async def record_tour_state(tour_id: str, body: TourRow, user: dict = Depends(get_current_user)):
+async def record_tour_state(tour_id: str, body: TourRow = Depends(_json(TourRow)), user: dict = Depends(get_current_user)):
     """Upsert ONE tour's `{v, state, step}` row inside `notebook_tours`, atomically, and
     answer the whole merged map as the stored TEXT value (`value`), so the client puts the
     server's answer -- other tabs' rows included -- straight into its preferences cache.

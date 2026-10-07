@@ -1,0 +1,361 @@
+"""A JSON body is read after the dark-flag gate and after the session check, and capped.
+
+SECURITY REVIEW I-5 (2026-10-06). Four Notebook routes declared a FastAPI body
+parameter: `POST /api/j2/thesis-chips`, `POST /api/j2/research-capture/transcripts/save`,
+`POST /api/j2/research-capture/passed-setups`, `PUT /api/j2/onboarding/tours/{tour_id}`.
+FastAPI reads the body for a declared parameter BEFORE it solves any dependency, so:
+
+  * with the flag off, malformed JSON answered 422 where every other request to
+    the route answered 404 -- an outsider could tell the dark feature is in the
+    build; and
+  * an anonymous caller could make the process buffer a body of any size.
+
+The fix is `request_body_cap.capped_json`: a dependency that stands in for the
+declared parameter, reads the body CAPPED, and only after the session dependency
+it is given. This file tests that helper against the parameter it replaces, and
+holds every gated route in the family to: gate, then session, then the body.
+
+The whole-family census (every router, gated or not) is
+`tests/test_notebook_body_census.py`.
+"""
+from __future__ import annotations
+
+from typing import Iterator
+
+import pytest
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+from pydantic import BaseModel
+
+from api.services import request_body_cap as body_cap
+from tests.support import body_census as bc
+from tests.test_notebook_upload_cap import Drive, db_path  # noqa: F401  (fixture by import)
+
+in_family = bc.in_family
+
+
+@pytest.fixture(scope="module")
+def real_app():
+    from api.main import app
+    return app
+
+
+# ── every GATED route: gate, then session, then a bounded body ───────────────
+
+def _gated_rows(real_app) -> list[bc.Row]:
+    return [r for r in bc.census(real_app, in_family) if r.gate_position is not None]
+
+
+def test_no_gated_route_declares_a_body_parameter_or_reads_one_unbounded(real_app):
+    rows = _gated_rows(real_app)
+    reading = sum(r.reads_body for r in rows)
+    assert len(rows) > 60 and reading > 25, (len(rows), reading)
+    wrong = [f"{r.method} {r.path}: " + "; ".join(f"{x.call} in {x.where}" for x in r.uncapped)
+             for r in rows if r.uncapped]
+    assert not wrong, "a route behind a flag gate reads a body with no bound:\n  " + "\n  ".join(wrong)
+
+
+def test_every_gated_route_reads_its_body_after_the_gate_and_the_session(real_app):
+    wrong = [f"{r.method} {r.path}: " + "; ".join(r.order_problems())
+             for r in _gated_rows(real_app) if r.order_problems()]
+    assert not wrong, "body read out of order on a gated route:\n  " + "\n  ".join(wrong)
+
+
+def test_the_order_check_can_fail():
+    """Control: a gated route that declares its body is reported, both ways."""
+    def _require_enabled() -> None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _require_enabled.__qualname__ = "_require_enabled"     # the name every router's gate carries
+
+    def get_current_user() -> dict:
+        return {"id": "u"}
+
+    app = FastAPI(dependencies=[Depends(_require_enabled)])
+
+    @app.post("/declared")
+    def declared(payload: dict, user: dict = Depends(get_current_user)):
+        return payload
+
+    @app.post("/capped")
+    def capped(payload: dict = Depends(body_cap.capped_json(dict, lambda: 64, lambda: "x", after=get_current_user)),
+               user: dict = Depends(get_current_user)):
+        return payload
+
+    rows = {r.path: r for r in bc.census(app, lambda route: True)}
+    assert rows["/declared"].order_problems() == ["the body is read before the dark-flag gate",
+                                                  "the body is read before the session check"]
+    assert [x.how for x in rows["/declared"].uncapped] == ["fastapi-param"]
+    assert rows["/capped"].order_problems() == [] and rows["/capped"].uncapped == []
+
+
+# ── the helper the family reads JSON through ─────────────────────────────────
+
+class _Thing(BaseModel):
+    name: str
+    count: int = 0
+
+
+@pytest.fixture
+def helper_app():
+    """Two doors on the new helper, and beside each the same door declared the
+    FastAPI way, so every answer can be compared with the one it replaces."""
+    seen = {"auth": 0}
+
+    def who(request: Request) -> dict:
+        seen["auth"] += 1
+        if request.headers.get("x-user") != "ok":
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        return {"id": "u"}
+
+    limit = 2048
+    app = FastAPI()
+
+    @app.post("/new/dict")
+    def new_dict(payload: dict = Depends(body_cap.capped_json(dict, lambda: limit, lambda: "Too big", after=who)),
+                 user: dict = Depends(who)):
+        return {"got": payload}
+
+    @app.post("/old/dict")
+    def old_dict(payload: dict, user: dict = Depends(who)):
+        return {"got": payload}
+
+    @app.post("/new/optional")
+    def new_optional(payload: dict | None = Depends(
+            body_cap.capped_json(dict | None, lambda: limit, lambda: "Too big", after=who)),
+                     user: dict = Depends(who)):
+        return {"got": payload}
+
+    @app.post("/old/optional")
+    def old_optional(payload: dict | None = None, user: dict = Depends(who)):
+        return {"got": payload}
+
+    @app.post("/new/model")
+    def new_model(body: _Thing = Depends(body_cap.capped_json(_Thing, lambda: limit, lambda: "Too big", after=who)),
+                  user: dict = Depends(who)):
+        return {"name": body.name, "count": body.count, "type": type(body).__name__}
+
+    @app.post("/old/model")
+    def old_model(body: _Thing, user: dict = Depends(who)):
+        return {"name": body.name, "count": body.count, "type": type(body).__name__}
+
+    return app, limit, seen
+
+
+OK = {"x-user": "ok"}
+_SAME_AS_FASTAPI = [
+    ("dict", b'{"a": 1}', "application/json"),
+    ("dict", b"", "application/json"),
+    ("dict", b"[1, 2]", "application/json"),
+    ("dict", b"null", "application/json"),
+    ("dict", b'"text"', "application/json"),
+    ("dict", b'{"a": 1}', "text/plain"),
+    ("dict", b'{"a": 1}', "application/vnd.api+json"),
+    ("dict", b'{"a": 1}', None),
+    ("optional", b"", "application/json"),
+    ("optional", b"null", "application/json"),
+    ("optional", b'{"a": 1}', "application/json"),
+    ("optional", b"[1]", "application/json"),
+    ("model", b'{"name": "n", "count": 3}', "application/json"),
+    ("model", b'{"name": "n"}', "application/json"),
+    ("model", b'{"count": 3}', "application/json"),
+    ("model", b'{"name": "n", "count": "many"}', "application/json"),
+    ("model", b"", "application/json"),
+    ("model", b'{"name": "n", "extra": 1}', "application/json"),
+]
+
+
+@pytest.mark.parametrize("door, body, ctype", _SAME_AS_FASTAPI,
+                         ids=[f"{d}-{b[:18]!r}-{c}" for d, b, c in _SAME_AS_FASTAPI])
+def test_capped_json_answers_what_a_declared_body_parameter_answered(helper_app, door, body, ctype):
+    """Status, and the accepted value, are the ones FastAPI gave for the same
+    request. For a refusal the error TYPE and LOCATION are the same too."""
+    app, _limit, _seen = helper_app
+    client = TestClient(app)
+    headers = dict(OK)
+    if ctype:
+        headers["content-type"] = ctype
+    new = client.post(f"/new/{door}", content=body, headers=headers)
+    old = client.post(f"/old/{door}", content=body, headers=headers)
+    assert new.status_code == old.status_code, (new.status_code, new.text, old.status_code, old.text)
+    if old.status_code == 200:
+        assert new.json() == old.json()
+    else:
+        shape = lambda r: [(e["type"], e["loc"]) for e in r.json()["detail"]]  # noqa: E731
+        assert shape(new) == shape(old), (new.text, old.text)
+
+
+def test_capped_json_refuses_broken_json_as_fastapi_did(helper_app):
+    app, _limit, _seen = helper_app
+    client = TestClient(app)
+    headers = {**OK, "content-type": "application/json"}
+    new = client.post("/new/dict", content=b'{"a": ', headers=headers)
+    old = client.post("/old/dict", content=b'{"a": ', headers=headers)
+    assert new.status_code == old.status_code == 422
+    assert new.json()["detail"][0]["type"] == old.json()["detail"][0]["type"] == "json_invalid"
+    assert new.json()["detail"][0]["loc"][0] == "body"
+
+
+def _chunks(total: int, chunk: int = 512) -> Iterator[bytes]:
+    yield b'{"a": "'
+    left = total - 9
+    while left > 0:
+        n = min(chunk, left)
+        yield b"x" * n
+        left -= n
+    yield b'"}'
+
+
+def _drive(app, path, body, *, declared=None, headers=None, method="POST") -> Drive:
+    h = {"content-type": "application/json", **(headers or {})}
+    if declared is not None:
+        h["content-length"] = str(declared)
+    else:
+        h["transfer-encoding"] = "chunked"
+    return Drive(app, path, body, headers=h, method=method).run()
+
+
+def test_capped_json_at_the_cap_is_accepted_and_one_byte_over_is_413(helper_app):
+    app, limit, _seen = helper_app
+    at = _drive(app, "/new/dict", _chunks(limit), headers=OK)
+    assert at.status == 200 and at.pulled == limit
+    over = _drive(app, "/new/dict", _chunks(limit + 1), headers=OK)
+    assert over.status == 413 and over.json() == {"detail": "Too big"}
+
+
+def test_capped_json_stops_reading_at_the_cap(helper_app):
+    app, limit, _seen = helper_app
+    far = _drive(app, "/new/dict", _chunks(limit * 200), headers=OK)
+    assert far.status == 413 and far.pulled <= limit + 512, far.pulled
+    lying = _drive(app, "/new/dict", _chunks(limit * 200), declared=10, headers=OK)
+    assert lying.status == 413 and lying.pulled <= limit + 512
+    declared = _drive(app, "/new/dict", _chunks(limit * 200), declared=limit * 200, headers=OK)
+    assert declared.status == 413 and declared.pulled == 0
+
+
+def test_capped_json_reads_nothing_until_the_session_check_has_passed(helper_app):
+    """THE ORDER, measured: an anonymous caller is refused with 0 body bytes
+    pulled, where the declared parameter beside it pulls the whole body first."""
+    app, limit, seen = helper_app
+    new = _drive(app, "/new/dict", _chunks(limit * 50))
+    assert new.status == 401 and new.pulled == 0
+    old = _drive(app, "/old/dict", _chunks(limit * 50))
+    assert old.status == 401 and old.pulled == limit * 50, "the control no longer shows the defect"
+    # and malformed JSON from an anonymous caller is the session's answer, not a 422
+    assert _drive(app, "/new/dict", iter([b"{"])).status == 401
+    assert _drive(app, "/old/dict", iter([b"{"])).status == 422
+
+
+def test_capped_json_runs_the_session_check_once_per_request(helper_app):
+    app, _limit, seen = helper_app
+    r = TestClient(app).post("/new/dict", json={"a": 1}, headers=OK)
+    assert r.status_code == 200 and seen["auth"] == 1
+
+
+def test_capped_json_without_a_session_dependency_still_caps(helper_app):
+    app = FastAPI()
+
+    @app.post("/open")
+    def open_door(payload: dict = Depends(body_cap.capped_json(dict, lambda: 64, lambda: "Too big"))):
+        return payload
+
+    assert TestClient(app).post("/open", json={"a": 1}).json() == {"a": 1}
+    assert _drive(app, "/open", _chunks(4096)).status == 413
+
+
+# ── a dark route answers one thing, whatever it is sent ──────────────────────
+
+def _dark_body_routes(real_app) -> list[tuple[str, str]]:
+    """Every family route that takes a body and whose flag gate refuses right now."""
+    out = []
+    for route in real_app.routes:
+        if not isinstance(route, APIRoute) or not in_family(route):
+            continue
+        gate = next((fn for fn in bc.solve_order(route) if bc._name(fn) == bc.GATE_QUALNAME), None)
+        if gate is None:
+            continue
+        try:
+            gate()
+        except HTTPException as e:
+            if e.status_code != 404:
+                continue
+        else:
+            continue        # the gate is open in this environment: not dark
+        for method in sorted(route.methods & bc.BODY_METHODS):
+            out.append((method, route.path))
+    return sorted(set(out))
+
+
+def _concrete(path: str) -> str:
+    """The path with every parameter filled in."""
+    import re
+    return re.sub(r"\{[^}]+\}", "x1", path)
+
+
+def _unknown_sibling(path: str) -> str:
+    """A path below this one that no route serves. Two segments deeper, because
+    one segment beside it can land on a neighbour's `/{id}` pattern for another
+    method (405), which is a known route answering, not an unknown one."""
+    return path + "/no-such-door-9f3a/zz"
+
+
+def test_the_four_routes_the_review_named_are_dark_here_and_take_a_body(real_app):
+    """Non-vacuity for the dark-route tests below: I-5's four are among them."""
+    dark = set(_dark_body_routes(real_app))
+    named = {("POST", "/api/j2/thesis-chips"),
+             ("POST", "/api/j2/research-capture/transcripts/save"),
+             ("POST", "/api/j2/research-capture/passed-setups")}
+    assert named <= dark, sorted(named - dark)
+    assert len(dark) >= 10, sorted(dark)
+
+
+def test_an_anonymous_request_to_a_dark_route_answers_one_thing_whatever_its_body(real_app):
+    """Empty, well formed, malformed and oversized: the same status, the same
+    bytes, and no body byte read. Before the fix a malformed body answered 422
+    on the routes that declared a body parameter."""
+    different = []
+    for method, path in _dark_body_routes(real_app):
+        url = _concrete(path)
+        ref = _drive(real_app, url, iter([b"{}"]), method=method)
+        bodies = {
+            "empty": iter([]),
+            "malformed": iter([b"{"]),
+            "not an object": iter([b"[1, 2, 3]"]),
+            "oversized": _chunks(8 * 1024 * 1024, chunk=256 * 1024),
+        }
+        for label, body in bodies.items():
+            got = _drive(real_app, url, body, method=method)
+            if (got.status, got.payload) != (ref.status, ref.payload) or got.pulled != 0:
+                different.append(f"{method} {path} [{label}]: {got.status} {got.payload[:80]!r} "
+                                 f"pulled={got.pulled} (well formed: {ref.status} {ref.payload[:80]!r})")
+        if ref.status != 404 or ref.pulled != 0:
+            different.append(f"{method} {path} [well formed]: {ref.status} pulled={ref.pulled}")
+    assert not different, "a dark route can be told apart by what it is sent:\n  " + "\n  ".join(different)
+
+
+def test_a_dark_route_answers_the_status_an_unknown_route_answers(real_app):
+    """An unknown path under the same prefix, sent the same malformed and
+    oversized bodies. The status is the same and neither reads the body."""
+    different = []
+    for method, path in _dark_body_routes(real_app):
+        url, unknown = _concrete(path), _unknown_sibling(_concrete(path))
+        for label, make in (("malformed", lambda: iter([b"{"])),
+                            ("oversized", lambda: _chunks(8 * 1024 * 1024, chunk=256 * 1024))):
+            dark = _drive(real_app, url, make(), method=method)
+            miss = _drive(real_app, unknown, make(), method=method)
+            if dark.status != miss.status or dark.pulled != 0 or miss.pulled != 0:
+                different.append(f"{method} {path} [{label}]: dark {dark.status} pulled={dark.pulled}; "
+                                 f"unknown {miss.status} pulled={miss.pulled}")
+    assert not different, "\n  ".join(different)
+
+
+def test_with_its_flag_on_the_onboarding_tour_door_still_refuses_before_reading(real_app, monkeypatch):
+    """The tours door sits behind a gate that may be on. Whatever the flag says,
+    an anonymous caller is answered before one body byte is read."""
+    from api.routers import notebook_onboarding
+    for on in (False, True):
+        monkeypatch.setattr(notebook_onboarding, "onboarding_enabled", lambda on=on: on)
+        for label, body in (("malformed", iter([b"{"])), ("oversized", _chunks(4 * 1024 * 1024, chunk=256 * 1024))):
+            got = _drive(real_app, "/api/j2/onboarding/tours/first-note", body, method="PUT")
+            assert got.status == (401 if on else 404), (on, label, got.status, got.payload[:120])
+            assert got.pulled == 0, (on, label, got.pulled)
