@@ -20,13 +20,29 @@ export function barDateKey(bar) {
   return null
 }
 
+/** The Friday of `d`'s ISO week (Mon..Sun), as 'YYYY-MM-DD' — the key the equity weekly store
+ *  stamps (`bars_fetch._resample_weekly_iso`). */
+export function isoWeekFriday(d) {
+  const t = new Date(`${d}T12:00:00Z`)
+  if (Number.isNaN(t.getTime())) return null
+  const isoDow = ((t.getUTCDay() + 6) % 7) + 1   // Mon=1 … Sun=7
+  t.setUTCDate(t.getUTCDate() + (5 - isoDow))
+  return t.toISOString().slice(0, 10)
+}
+
 /** `/api/bars` payload (an object with `bars`, or a bare array) → `[{d, c}]`, oldest first,
- *  one row per date (the LAST bar of a date wins: the developing bar replaces nothing older). */
-export function closesFromBars(payload) {
+ *  one row per date (the LAST bar of a date wins: the developing bar replaces nothing older).
+ *
+ *  `weekly: true` keys every bar by the FRIDAY of its ISO week. ⛔ The two weekly sources do
+ *  not agree on the anchor: equity/ETF weekly bars are Friday-keyed, the index path (SPX, NDX,
+ *  VIX via yfinance `1wk`) is Monday-keyed. Without one key per week a weekly RRG of SPX
+ *  against SPY shared ZERO dates and read "not enough history" (accuracy audit 2026-10-06). */
+export function closesFromBars(payload, { weekly = false } = {}) {
   const bars = Array.isArray(payload?.bars) ? payload.bars : (Array.isArray(payload) ? payload : [])
   const byDate = new Map()
   for (const b of bars) {
-    const d = barDateKey(b)
+    const raw = barDateKey(b)
+    const d = weekly && raw ? isoWeekFriday(raw) : raw
     const c = Number(b?.c ?? b?.close)
     if (d && Number.isFinite(c) && c > 0) byDate.set(d, c)
   }
@@ -230,17 +246,23 @@ export function returnsByDate(series) {
  * The correlation matrix for `syms` over the last `sessions` daily returns. Each pair is
  * computed on the sessions BOTH names traded (so a recent IPO does not shrink every pair).
  * A pair under MIN_CORR_SESSIONS reads `r: null` with its `n`.
+ *
+ * ⛔ A pair's returns are taken on the PAIR'S common closes, never on each name's own series.
+ * Per-name returns broke the one alignment rule above: the session after a day one name did
+ * not trade paired that name's TWO-session return with the other's one-session return
+ * (accuracy audit 2026-10-06: NVDA/AMD with one AMD session missing read r = 0.390 against
+ * the pandas reference 0.382, on 62 returns instead of 63).
  */
 export function correlationMatrix(seriesBySym, syms, sessions = 63) {
-  const rets = Object.fromEntries(syms.map((s) => {
-    const all = returnsByDate(seriesBySym[s])
-    const keep = [...all.keys()].sort().slice(-sessions)
-    return [s, new Map(keep.map((d) => [d, all.get(d)]))]
-  }))
+  const own = Object.fromEntries(syms.map((s) => [s, Math.min(sessions, Math.max(0, (seriesBySym[s]?.length || 0) - 1))]))
   const cell = (a, b) => {
-    if (a === b) return { r: 1, n: rets[a].size }
-    const dates = [...rets[a].keys()].filter((d) => rets[b].has(d))
-    const res = pearson(dates.map((d) => rets[a].get(d)), dates.map((d) => rets[b].get(d)))
+    if (a === b) return { r: 1, n: own[a] }
+    const { dates, closes } = alignCloses({ a: seriesBySym[a] || [], b: seriesBySym[b] || [] })
+    const pair = (k) => returnsByDate(dates.map((d, i) => ({ d, c: closes[k][i] })))
+    const ra = pair('a')
+    const rb = pair('b')
+    const keep = [...ra.keys()].filter((d) => rb.has(d)).sort().slice(-sessions)
+    const res = pearson(keep.map((d) => ra.get(d)), keep.map((d) => rb.get(d)))
     return res.n < MIN_CORR_SESSIONS ? { r: null, n: res.n } : res
   }
   const matrix = syms.map((a) => syms.map((b) => cell(a, b)))
