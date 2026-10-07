@@ -23,21 +23,21 @@
 .earnChip {
   font-size: var(--text-sm); font-weight: 600; white-space: nowrap;
   padding: 2px 8px; border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.06); color: var(--text, #e6e8eb);
+  background: color-mix(in srgb, var(--text-heading) 6%, transparent); color: var(--text, #e6e8eb);
 }
 .basisPill {
   font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
   padding: 2px 7px; border-radius: var(--radius-md); white-space: nowrap;
 }
-.basisPct { background: rgba(52, 209, 124, 0.16); color: var(--gain); border: 1px solid rgba(52, 209, 124, 0.3); }
-.basisAbs { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1); }
+.basisPct { background: color-mix(in srgb, var(--gain) 16%, transparent); color: var(--gain); border: 1px solid color-mix(in srgb, var(--gain) 30%, transparent); }
+.basisAbs { background: color-mix(in srgb, var(--text-heading) 5%, transparent); color: var(--text-muted); border: 1px solid color-mix(in srgb, var(--text-heading) 10%, transparent); }
 
 /* Sector RS line */
 .sectorRs {
   display: flex; align-items: baseline; gap: 8px;
   padding: 8px 12px; margin-bottom: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07); border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--text-heading) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent); border-radius: var(--radius-lg);
 }
 .sectorRsLbl { font-size: var(--text-sm); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent); }
 .sectorRsVal { font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -47,8 +47,8 @@
 .ratings {
   display: flex; gap: 16px; align-items: center;
   padding: 12px; margin-bottom: 14px;
-  background: rgba(220, 187, 94, 0.05);
-  border: 1px solid rgba(220, 187, 94, 0.18);
+  background: color-mix(in srgb, var(--ut-gold) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 18%, transparent);
   border-radius: 10px;
 }
 .composite { display: flex; flex-direction: column; align-items: center; min-width: 78px; }
@@ -65,7 +65,7 @@
 .box { text-align: center; }
 .boxLbl { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); }
 .boxVal { font-size: 19px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.meter { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.08); margin-top: 4px; overflow: hidden; }
+.meter { height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--text-heading) 8%, transparent); margin-top: 4px; overflow: hidden; }
 .meterFill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 
 /* Data box grid */
@@ -76,7 +76,7 @@
 .groupLbl {
   font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
   color: var(--accent); margin-bottom: 6px; padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent);
 }
 .kv {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -98,7 +98,7 @@
 /* Footer */
 .foot {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent);
 }
 .method { font-size: var(--text-sm); color: var(--text-muted); font-style: italic; line-height: 1.3; }
 .link { font-size: var(--text-base); font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; }
@@ -108,7 +108,7 @@
 .skel { display: flex; flex-direction: column; gap: 10px; padding: 6px 0; }
 .skelRow {
   height: 22px; border-radius: var(--radius-md);
-  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--text-heading) 4%, transparent) 25%, color-mix(in srgb, var(--text-heading) 9%, transparent) 37%, color-mix(in srgb, var(--text-heading) 4%, transparent) 63%);
   background-size: 400% 100%; animation: shimmer 1.4s ease infinite;
 }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }

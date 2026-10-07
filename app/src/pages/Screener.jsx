@@ -34,8 +34,8 @@ function ScannerShellErrorFallback({ onRetry }) {
       <button
         onClick={onRetry}
         style={{
-          background: 'var(--ut-gold, #c9a84c)',
-          color: '#0e0f0d',
+          background: 'var(--ut-gold)',
+          color: 'var(--bg)',
           border: 'none',
           padding: '8px 16px',
           borderRadius: '4px',

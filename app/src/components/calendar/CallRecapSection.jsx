@@ -109,18 +109,19 @@ function RatingChanges({ changes }) {
       {/* Stacked, because the question is whether the BALANCE is shifting —
           buys converting to holds is the signal, and five separate lines make
           that hard to see. Each bucket names its own colour; the sell buckets
-          must never inherit a green from their position in a palette. */}
+          must never inherit a green from their position in a palette. They are the
+          theme's own up / down / score tokens, which the chart host resolves per theme. */}
       <SeriesChart
         periods={asc.map(r => periodLabel(r.period))}
         mode="stacked"
         valueFormatter={(v) => (v == null ? '—' : `${v} analysts`)}
         ariaLabel="Analyst rating buckets over time"
         series={[
-          { name: 'Strong buy', color: '#2e7d32', values: asc.map(r => r.strong_buy) },
-          { name: 'Buy', color: '#7ed957', values: asc.map(r => r.buy) },
-          { name: 'Hold', color: '#8a8f98', values: asc.map(r => r.hold) },
-          { name: 'Sell', color: '#e57373', values: asc.map(r => r.sell) },
-          { name: 'Strong sell', color: '#c62828', values: asc.map(r => r.strong_sell) },
+          { name: 'Strong buy', color: 'var(--gain)', values: asc.map(r => r.strong_buy) },
+          { name: 'Buy', color: 'var(--score-strong)', values: asc.map(r => r.buy) },
+          { name: 'Hold', color: 'var(--text-muted)', values: asc.map(r => r.hold) },
+          { name: 'Sell', color: 'var(--score-weak)', values: asc.map(r => r.sell) },
+          { name: 'Strong sell', color: 'var(--loss)', values: asc.map(r => r.strong_sell) },
         ]}
       />
       <div className={styles.ratingsList}>
