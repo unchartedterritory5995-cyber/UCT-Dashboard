@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**89 tables** (86 direct by `user_id`, 1 direct by another member key, 2 indirect).
+**90 tables** (87 direct by `user_id`, 1 direct by another member key, 2 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
