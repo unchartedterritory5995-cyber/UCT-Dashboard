@@ -92,6 +92,9 @@ export const SOURCE_TEXT = Object.freeze({
   scanner: 'Scanner',
   watchlist: 'Watchlist',
   manual: 'Added by you',
+  // The one row the sample notebook adds (server: passed_setups.SOURCE_SAMPLE). Labelled, so
+  // an example never reads as a pass the member made.
+  sample: 'Example',
 })
 
 export const HORIZON_TEXT = Object.freeze({

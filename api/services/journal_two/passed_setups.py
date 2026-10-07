@@ -64,7 +64,11 @@ SCAN_WIDGETS = ("scanner", "screener")
 #: The session calendar: SPY's stored daily bars.
 CALENDAR_SYMBOL = "SPY"
 
-SOURCES = ("scanner", "watchlist", "manual")
+#: The source of the ONE row the sample notebook adds (`add_example`). It is this table's own
+#: durable marker for "the sample made this row": removal finds the row by it, and no
+#: member-facing door can write it.
+SOURCE_SAMPLE = "sample"
+SOURCES = ("scanner", "watchlist", "manual", SOURCE_SAMPLE)
 STATUS_PENDING, STATUS_SCORED, STATUS_NO_BARS, STATUS_TRADED = "pending", "scored", "no_bars", "traded"
 
 LABELS = {
@@ -332,9 +336,10 @@ def collect(conn, user_id: str, now: _dt.datetime | None = None) -> int:
         k = (sym, day)
         if k not in best or c["saved_at"] < best[k]["saved_at"]:
             best[k] = {**c, "symbol": sym}
-    have = conn.execute("SELECT symbol, saved_day FROM j2_passed_setups WHERE user_id = ?",
+    have = conn.execute("SELECT symbol, saved_day, source FROM j2_passed_setups WHERE user_id = ?",
                         (user_id,)).fetchall()
-    taken = {(r["symbol"], r["saved_day"]) for r in have}
+    # The sample's own row never stands in for a save the member made (fin-data I4).
+    taken = {(r["symbol"], r["saved_day"]) for r in have if r["source"] != SOURCE_SAMPLE}
     room = MAX_ROWS_PER_MEMBER - len(have)
     added = 0
     for k in sorted(best, key=lambda k: best[k]["saved_at"], reverse=True):
@@ -510,15 +515,15 @@ def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
             raise PassedSetupError(
                 f"Your passed-setups list is full ({MAX_ROWS_PER_MEMBER}). Remove one first.", status=409)
         day_iso, _ = base_rule(saved_at)
-        dup = conn.execute(
-            "SELECT id FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
-            (user_id, sym, day_iso)).fetchone()
+        # ⛔ The member's OWN rows only (fin-data I4): the sample's row for this name and day is
+        # neither a duplicate of theirs nor a row this door may hand back or un-dismiss.
+        own = "user_id = ? AND symbol = ? AND saved_day = ? AND source != ?"
+        key = (user_id, sym, day_iso, SOURCE_SAMPLE)
+        dup = conn.execute(f"SELECT id FROM j2_passed_setups WHERE {own}", key).fetchone()
         if dup is None:
             _insert(conn, user_id, sym, saved_at, "manual", None)
             conn.commit()
-        row = conn.execute(
-            "SELECT * FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
-            (user_id, sym, day_iso)).fetchone()
+        row = conn.execute(f"SELECT * FROM j2_passed_setups WHERE {own}", key).fetchone()
         if row["status"] in (STATUS_PENDING, STATUS_NO_BARS) and row["dismissed_at"] is None:
             score_row(conn, row)
             conn.commit()
@@ -527,6 +532,59 @@ def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
             conn.commit()
         fresh = conn.execute("SELECT * FROM j2_passed_setups WHERE id = ?", (row["id"],)).fetchone()
         return {"item": serialize(fresh), "deduped": dup is not None}
+    finally:
+        if owned:
+            conn.close()
+
+
+def add_example(user_id: str, symbol: Any, saved_on: str, *,
+                conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """The sample notebook's one passed setup: a row marked `SOURCE_SAMPLE`, or None.
+
+    ⛔ IT NEVER TOUCHES A ROW IT DID NOT MAKE (fin-data I4). `add_manual` answers the member's
+    EXISTING row for the same name and day, and un-dismisses it; the sample then recorded that
+    id and "Remove sample" dismissed the member's own pass. Here an existing row for the name
+    and day -- any source, dismissed or not -- means the sample adds nothing and returns None:
+    the member already has their own."""
+    sym = clean_symbol(symbol)
+    day = _dt.date.fromisoformat(str(saved_on)[:10])
+    saved_at = _dt.datetime(day.year, day.month, day.day, CLOSE_HOUR_ET, 0,
+                            tzinfo=_et()).astimezone(_dt.timezone.utc)
+    owned = conn is None
+    conn = conn or _conn()
+    try:
+        ensure_schema(conn)
+        day_iso, _ = base_rule(saved_at)
+        if conn.execute("SELECT 1 FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
+                        (user_id, sym, day_iso)).fetchone() is not None:
+            return None
+        if not _insert(conn, user_id, sym, saved_at, SOURCE_SAMPLE, None):
+            return None
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ? AND source = ?",
+            (user_id, sym, day_iso, SOURCE_SAMPLE)).fetchone()
+        score_row(conn, row)
+        conn.commit()
+        return serialize(conn.execute("SELECT * FROM j2_passed_setups WHERE id = ?", (row["id"],)).fetchone())
+    finally:
+        if owned:
+            conn.close()
+
+
+def dismiss_examples(user_id: str, *, conn: sqlite3.Connection | None = None) -> int:
+    """Dismiss every row the sample made for this member, found by the row's OWN marker
+    (`source = SOURCE_SAMPLE`) and nothing else -- never by an id a preference names, which a
+    client can write. Returns how many were dismissed."""
+    owned = conn is None
+    conn = conn or _conn()
+    try:
+        ensure_schema(conn)
+        cur = conn.execute(
+            "UPDATE j2_passed_setups SET dismissed_at = ? WHERE user_id = ? AND source = ?"
+            " AND dismissed_at IS NULL", (_now_utc().isoformat(), user_id, SOURCE_SAMPLE))
+        conn.commit()
+        return cur.rowcount or 0
     finally:
         if owned:
             conn.close()

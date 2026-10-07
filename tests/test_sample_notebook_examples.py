@@ -437,3 +437,116 @@ def test_a_second_seed_while_the_sample_is_live_is_refused_and_writes_nothing_ne
     pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
     assert pref["examples"]["passedSetupId"] == examples["passedSetupId"]
     assert pref["examples"]["insightId"] is None
+
+
+# ── fin-data I4: "Remove sample" only ever removes rows the sample created ──────────────────
+#
+# `passed_setups.add_manual` answers an EXISTING row when the member already has that name on
+# that day (and un-dismisses it). The sample recorded whatever id came back, so for a member
+# who had already passed on GOOGL that day, "Remove it" dismissed the member's own row.
+
+def _saved_on():
+    return (sample_examples._et_today() - __import__("datetime").timedelta(days=20)).isoformat()
+
+
+def _passed_rows(user):
+    c = _conn()
+    try:
+        passed_setups.ensure_schema(c)
+        return [dict(r) for r in c.execute(
+            "SELECT id, symbol, source, dismissed_at FROM j2_passed_setups WHERE user_id = ?"
+            " ORDER BY created_at, id", (user,)).fetchall()]
+    finally:
+        c.close()
+
+
+def test_the_samples_passed_setup_is_marked_as_the_samples_own(db, seeded):
+    rows = _passed_rows(U1)
+    assert [(r["symbol"], r["source"]) for r in rows] == [(sample_examples.SYM_PASSED, passed_setups.SOURCE_SAMPLE)]
+    item = passed_setups.list_items(U1)["items"][0]
+    assert item["source"] == passed_setups.SOURCE_SAMPLE
+
+
+def test_remove_never_dismisses_a_pass_the_member_already_had(db):
+    """The member passed on GOOGL that same day BEFORE adding the sample."""
+    mine = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())["item"]
+    assert mine["source"] == "manual"
+
+    sample_notebook.seed(U1)
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    assert pref["examples"]["passedSetupId"] is None, "the sample recorded a row it did not create"
+    assert [r["id"] for r in _passed_rows(U1)] == [mine["id"]], "the sample added a second row"
+
+    sample_notebook.remove(U1)
+
+    rows = _passed_rows(U1)
+    assert [(r["id"], r["source"], r["dismissed_at"]) for r in rows] == [(mine["id"], "manual", None)]
+    assert [it["id"] for it in passed_setups.list_items(U1)["items"]] == [mine["id"]]
+
+
+def test_the_sample_never_brings_back_a_pass_the_member_had_dismissed(db):
+    mine = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())["item"]
+    assert passed_setups.dismiss(U1, mine["id"]) is True
+    sample_notebook.seed(U1)
+    rows = _passed_rows(U1)
+    assert len(rows) == 1 and rows[0]["dismissed_at"] is not None, "seeding un-dismissed the member's row"
+    assert passed_setups.list_items(U1)["items"] == []
+
+
+def test_remove_ignores_an_id_in_the_preference_that_is_not_a_sample_row(db, seeded):
+    """The preference is client-writable. Naming the member's own row there must do nothing."""
+    mine = passed_setups.add_manual(U1, "AMD")["item"]
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    pref["examples"]["passedSetupId"] = mine["id"]
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps(pref))
+
+    sample_notebook.remove(U1)
+
+    by_symbol = {r["symbol"]: r for r in _passed_rows(U1)}
+    assert by_symbol["AMD"]["dismissed_at"] is None, "Remove dismissed a row the sample did not create"
+    assert by_symbol[sample_examples.SYM_PASSED]["dismissed_at"] is not None, "the sample's own row was left"
+
+
+def test_remove_finds_the_samples_row_even_when_the_preference_never_recorded_it(db, seeded):
+    """The row is found by its own marker, so a seed that died before recording it leaves nothing behind."""
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    pref["examples"]["passedSetupId"] = None
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps(pref))
+    sample_notebook.remove(U1)
+    assert all(r["dismissed_at"] is not None for r in _passed_rows(U1))
+    assert passed_setups.list_items(U1)["items"] == []
+
+
+def test_a_member_cannot_add_a_pass_marked_as_the_samples(db):
+    assert passed_setups.add_manual(U1, "AMD")["item"]["source"] == "manual"
+    import inspect
+    assert "source" not in inspect.signature(passed_setups.add_manual).parameters
+
+
+def test_the_samples_row_never_stands_in_for_the_members_own_pass(db, seeded):
+    """After seeding, the member passes on the same name on the same day: they get THEIR row,
+    not the sample's handed back, and theirs survives the removal."""
+    mine = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())
+    assert mine["deduped"] is False and mine["item"]["source"] == "manual"
+    assert {r["source"] for r in _passed_rows(U1)} == {"manual", passed_setups.SOURCE_SAMPLE}
+    sample_notebook.remove(U1)
+    assert [(it["id"], it["source"]) for it in passed_setups.list_items(U1)["items"]] == [(mine["item"]["id"], "manual")]
+    # And asking again answers the member's own row, never the dismissed sample one.
+    again = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())
+    assert again["deduped"] is True and again["item"]["id"] == mine["item"]["id"]
+    assert sum(1 for r in _passed_rows(U1) if r["dismissed_at"] is None) == 1
+
+
+def test_the_samples_row_never_blocks_a_save_the_member_made_from_a_watchlist(db, seeded, monkeypatch):
+    import datetime as dt
+    day = dt.date.fromisoformat(_saved_on())
+    saved_at = dt.datetime(day.year, day.month, day.day, 15, 0, tzinfo=dt.timezone.utc)
+    monkeypatch.setattr(passed_setups, "_watchlist_candidates", lambda conn, user, since: [
+        {"symbol": sample_examples.SYM_PASSED, "saved_at": saved_at, "source": "watchlist", "source_ref": "Mine"}])
+    monkeypatch.setattr(passed_setups, "_scanner_candidates", lambda conn, user, since: [])
+    c = _conn()
+    try:
+        assert passed_setups.collect(c, U1) == 1
+    finally:
+        c.close()
+    assert {r["source"] for r in _passed_rows(U1)} == {"watchlist", passed_setups.SOURCE_SAMPLE}

@@ -30,14 +30,16 @@ ONE REAL DOOR PER PIECE, NEVER RAW SQL THAT SKIPS AN INVARIANT:
   * the chart-block index  `chart_blocks.catch_up`       -- pure projection of the note body
   * the level index        `note_levels.project_note`     -- pure projection of the note body
                                                              (shown on the note's own page)
-  * the passed setup       `passed_setups.add_manual`     -- the member's own "I passed on
-                                                             this" door; scores from bars.db,
-                                                             zero vendor or model calls
+  * the passed setup       `passed_setups.add_example`    -- a row marked as the sample's own,
+                                                             scored like any pass from bars.db;
+                                                             zero vendor or model calls. Never
+                                                             `add_manual`, which answers a row
+                                                             the member already has
 
 R6 (no live paid model or vendor call on sample data): every number below is written once,
 by hand, here. Nothing in this module calls an LLM, fetches a quote, or reads an earnings
 calendar. `tech_fingerprint.compute` and `entry_context.build_context` are never imported.
-Reading real bars.db rows through `passed_setups.add_manual` is the one exception, and it is
+Reading real bars.db rows through `passed_setups.add_example` is the one exception, and it is
 not a vendor call either -- that module's own docstring states "Zero model calls, zero
 vendor calls" (it reads only what the app's own background prewarm already cached); a cold
 cache answers with the labelled `no_bars`/`pending` states the capability already renders
@@ -396,8 +398,11 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
     # -- passed setups --------------------------------------------------------------------------
     try:
         saved_on = _iso(today - timedelta(days=20))
-        out = passed_setups.add_manual(user_id, SYM_PASSED, saved_on, conn=conn)
-        result["passedSetupId"] = out["item"]["id"]
+        # ⛔ `add_example`, never `add_manual` (fin-data I4): the member's door answers an
+        # existing row, and the sample must only ever record -- and later remove -- a row it
+        # made. None means the member already has their own pass on this name and day.
+        made = passed_setups.add_example(user_id, SYM_PASSED, saved_on, conn=conn)
+        result["passedSetupId"] = made["id"] if made else None
     except Exception as e:  # noqa: BLE001
         log.warning("[sample_examples] passed-setups example failed", exc_info=True)
         errors["passedSetups"] = str(e)
@@ -494,12 +499,13 @@ def remove(user_id: str, recorded: dict[str, Any], conn: sqlite3.Connection) -> 
                 user_id, ectx["symbol"], ectx["entryDay"], conn=conn)
         except Exception:  # noqa: BLE001
             log.warning("[sample_examples] could not forget the example entry context", exc_info=True)
-    passed_id = recorded.get("passedSetupId")
-    if passed_id:
-        try:
-            out["passedSetupDismissed"] = passed_setups.dismiss(user_id, passed_id, conn=conn)
-        except Exception:  # noqa: BLE001
-            log.warning("[sample_examples] could not dismiss the example passed setup", exc_info=True)
+    # ⛔ By the row's own marker, never by `recorded["passedSetupId"]` (fin-data I4): that id
+    # comes from a preference a client can write, and before this rule it could be the id of a
+    # pass the MEMBER made. Only rows the sample itself inserted carry the marker.
+    try:
+        out["passedSetupDismissed"] = passed_setups.dismiss_examples(user_id, conn=conn) > 0
+    except Exception:  # noqa: BLE001
+        log.warning("[sample_examples] could not dismiss the example passed setup", exc_info=True)
     insight_id = recorded.get("insightId")
     if insight_id:
         try:
