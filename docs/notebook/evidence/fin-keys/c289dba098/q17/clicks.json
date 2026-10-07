@@ -1,0 +1,502 @@
+{
+ "tool": "tools/notebook_w13q_clicks.py",
+ "tree": "adeec310c41ab9ca22a887a95958a38b25e90fb5",
+ "started": "2026-10-07T13:57:35+00:00",
+ "partial": {
+  "flows": [
+   "Q17"
+  ],
+  "modes": null
+ },
+ "sandbox_flags": {
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",
+  "NOTEBOOK_PLAN_GRADING_ENABLED": "1",
+  "NOTEBOOK_PLAYBOOK_ENABLED": "1",
+  "AWARENESS_NOTE_RESURFACE_ENABLED": "1",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "1",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "1",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "1",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED": "1",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED": "1",
+  "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED": "1",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "1",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED": "1",
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_AI_ACTIONS_ENABLED": "1",
+  "NOTEBOOK_FORMULAS_ENABLED": "1",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_GETTING_STARTED_ENABLED": "1"
+ },
+ "tab_cap": 600,
+ "budgets": {
+  "Q1": {
+   "flow": "new blank note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "owner": "Notebook core"
+  },
+  "Q2": {
+   "flow": "new note from a template with a ticker",
+   "mouse": 4,
+   "keys": 6,
+   "taps": 4,
+   "owner": "Notebook templates (12B)"
+  },
+  "Q3": {
+   "flow": "open a note by title",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core"
+  },
+  "Q4": {
+   "flow": "search, open a hit",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook core"
+  },
+  "Q5": {
+   "flow": "today's daily note",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "owner": "Notebook core"
+  },
+  "Q6": {
+   "flow": "link a note to a trade",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "Notebook core / Journal"
+  },
+  "Q7": {
+   "flow": "save Screener results to a note (337 Tabs today)",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Screener (ScannerShell.jsx)"
+  },
+  "Q8": {
+   "flow": "save a price or consensus fact",
+   "mouse": 3,
+   "keys": 8,
+   "taps": 3,
+   "owner": "Notebook capture"
+  },
+  "Q9": {
+   "flow": "ask the Notebook, insert the answer",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook Ask"
+  },
+  "Q10": {
+   "flow": "task with a due date",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core"
+  },
+  "Q11": {
+   "flow": "tag and move 5 notes",
+   "mouse": 8,
+   "keys": 15,
+   "taps": 10,
+   "owner": "Notebook core"
+  },
+  "Q12": {
+   "flow": "export one note as Word",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "Notebook export"
+  },
+  "Q13": {
+   "flow": "plan grade of my last trade (13A)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13A"
+  },
+  "Q14": {
+   "flow": "My Playbook, drill a number (13B)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13B"
+  },
+  "Q15": {
+   "flow": "create earnings prep (13C)",
+   "mouse": 2,
+   "keys": 5,
+   "taps": 2,
+   "owner": "13C"
+  },
+  "Q16": {
+   "flow": "open a resurfaced note (13D)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13D"
+  },
+  "Q17": {
+   "flow": "answer \"why did you take it\" (13E)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13E"
+  },
+  "Q18": {
+   "flow": "draft this week's review, open a leak (13F)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13F"
+  },
+  "Q19": {
+   "flow": "save a transcript passage to a thesis (13G)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 4,
+   "owner": "13G"
+  },
+  "Q20": {
+   "flow": "insert a chart, draw entry, stop and target, read size (13H)",
+   "mouse": 6,
+   "keys": 10,
+   "taps": 8,
+   "owner": "13H"
+  },
+  "Q21": {
+   "flow": "arm an alert at a drawn stop (13H)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13H"
+  },
+  "Q22": {
+   "flow": "filter the visual playbook to one setup (13I)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "13I"
+  },
+  "Q23": {
+   "flow": "morning board, open the closest setup, find similar (13J)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13J"
+  }
+ },
+ "rows": [
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "no 'Why did you take it?' field on the COST position page",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": null,
+   "steps": [],
+   "outcome": null,
+   "notes": "starts on the position's page; a position entered today",
+   "measured_before_stop": 0,
+   "screenshot": "Q17-mouse-1280.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "no 'Why did you take it?' field on the ADBE position page",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": null,
+   "steps": [],
+   "outcome": null,
+   "notes": "starts on the position's page; a position entered today",
+   "measured_before_stop": 0,
+   "screenshot": "Q17-keys-1280.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "no 'Why did you take it?' field on the INTC position page",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": null,
+   "steps": [],
+   "outcome": null,
+   "notes": "starts on the position's page; a position entered today",
+   "measured_before_stop": 0,
+   "screenshot": "Q17-keys-390.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "no 'Why did you take it?' field on the CSCO position page",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": null,
+   "steps": [],
+   "outcome": null,
+   "notes": "starts on the position's page; a position entered today",
+   "measured_before_stop": 0,
+   "screenshot": "Q17-taps-390.png"
+  }
+ ],
+ "wide_px": 1280,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys\\c289dba098\\q17\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 08:57:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 08:58:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 09:00:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 09:04:00",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys\\c289dba098\\q17\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T08-57-37.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "seed_child": "SEEDED C:\\data-fin-clicks\\keys-q17\\screener.db 30 30",
+ "seed_research_child": "SEEDED C:\\data-fin-clicks\\keys-q17\\transcript_index.db",
+ "page_errors": [],
+ "auth_me_flags": {
+  "j2_share_links_enabled": false,
+  "notebook_ai_actions_enabled": true,
+  "notebook_ask_insert_on": true,
+  "notebook_attachments_on": false,
+  "notebook_chart_plan_enabled": true,
+  "notebook_conflict_ux_on": false,
+  "notebook_door_guard": "full",
+  "notebook_earnings_prep_enabled": true,
+  "notebook_entry_context_enabled": true,
+  "notebook_find_similar_enabled": true,
+  "notebook_formulas_enabled": true,
+  "notebook_getting_started_enabled": true,
+  "notebook_image_docx_documents_enabled": false,
+  "notebook_offline_default_on": true,
+  "notebook_offline_read_on": false,
+  "notebook_onboarding_enabled": true,
+  "notebook_passed_setups_enabled": true,
+  "notebook_plan_grading_enabled": true,
+  "notebook_playbook_enabled": true,
+  "notebook_publish_enabled": false,
+  "notebook_review_drafts_enabled": true,
+  "notebook_semantic_search_enabled": false,
+  "notebook_setups_board_enabled": true,
+  "notebook_ta_fingerprint_enabled": true,
+  "notebook_task_reminders_enabled": true,
+  "notebook_template_gallery_enabled": true,
+  "notebook_thesis_chips_enabled": true,
+  "notebook_trade_canvas_enabled": true,
+  "notebook_transcript_capture_enabled": true,
+  "notebook_visual_playbook_enabled": true,
+  "notebook_voice_notes_enabled": true,
+  "notebook_writing_help_enabled": false
+ },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "40a7d74270e04ddc9b8be18abb3ff6b2",
+   "Semis rotation notes": "573f846fa2b14cf69052bf47c33dcc7f",
+   "AMD earnings recap": "e1c64a94fbf84e83bf741e55685b6315",
+   "Weekly review draft": "ef69512aba0e47b7abe63f0dd78ffed5",
+   "CRWD base watch": "07b18294fe3c46b4928eab2a71adbe57",
+   "Market regime journal": "90b8b5f3bb0c4ebea1ba0c8fda258441",
+   "PLTR pullback plan": "769126f1a07d4653b7f4a3166d914a1c",
+   "Risk rules": "a4a006bc1ffa4a6b82fc3c9ef23231f7"
+  },
+  "position_http": 200,
+  "position_id": "1254ab9d-2f4c-450a-9b25-b35255e9fdf8",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1280": {
+    "id": "52b6eead714445b6bab592f249279725",
+    "name": "Semis mouse-1280"
+   },
+   "keys-1280": {
+    "id": "3292158c3f064752b61243c1af1abb7a",
+    "name": "Semis keys-1280"
+   },
+   "keys-390": {
+    "id": "22398d8c62344561b47c4ecff7bcbfc0",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "c81b54cadf4843a093cf18cda709a637",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "cd35e759-cbee-4d99-998a-eab42a940c42",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "5bf6dbc8-b54a-4a63-a398-a6cb25cc3e9d",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200,
+  "account_risk": {
+   "account": "868c4609-73d3-437c-8035-93a35e93f86d",
+   "http": 200
+  },
+  "playbook": {
+   "setup": "Pullback",
+   "trades": 25,
+   "http": [
+    200
+   ]
+  },
+  "review_week": {
+   "week_start": "2026-10-05",
+   "http": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  "why_positions": {
+   "mouse-1280": {
+    "symbol": "COST",
+    "http": 200
+   },
+   "keys-1280": {
+    "symbol": "ADBE",
+    "http": 200
+   },
+   "keys-390": {
+    "symbol": "INTC",
+    "http": 200
+   },
+   "taps-390": {
+    "symbol": "CSCO",
+    "http": 200
+   }
+  },
+  "visual_playbook": {
+   "AMD": {
+    "id": "b68dc573826248f59e8329492a1e4348",
+    "tag": "VCP",
+    "http": 200
+   },
+   "TSLA": {
+    "id": "7866efdc7b9b44bd8037ea45e18e34c9",
+    "tag": "VCP",
+    "http": 200
+   },
+   "MSFT": {
+    "id": "93b833717b9e48d5ac21e027de25d7e4",
+    "tag": "Flat Base Breakout",
+    "http": 200
+   },
+   "META": {
+    "id": "3f90f16088604ab88acf607c65db00d4",
+    "tag": "Bull Flag",
+    "http": 200
+   }
+  },
+  "board_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "board_nightly": {
+   "ran": true,
+   "asOf": "2026-10-07",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 5,
+   "rows": 5,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.075
+  },
+  "resurface": {
+   "note": "72cc2b387c3645acbb354eee660a53e5",
+   "link": "/journal/notebook?note=72cc2b387c3645acbb354eee660a53e5&resurfaceVersion=edc26ea812b34cacaea629c6c21d116c",
+   "fired": 1
+  }
+ },
+ "first_visit_text": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\n1\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$102,260.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n17\nUnfiled\n17\nArchived\n0\nTrash\n0\nSemis keys-1280\n+\nSemis keys-390\n+\nSemis mouse-1280\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nAsk Notebook to do something\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nFri, Oct 9, after the close\nOpen position\nCreate prep note\nPASSED SETUPS\nNames you saved from a scan or a watchlist and did not trade — what happened next\nTicker\nPassed on\nAdd\n\nNothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on what they did next — or add one above.\n\nREVIEWS THAT WRITE THEMSELVES\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 18 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nTake the Task reminders tour\nTake the Template gallery tour\nTake the Formulas and rollups tour\nTake the Plan versus execution grading tour\nTake the Entry context card tour\nTake the Reviews that write themselves tour\nTake the My Playbook tour\nTake",
+ "onboarding_cleared_in_setup": [
+  "base tour not on screen",
+  "get-started checklist hidden",
+  "tour offer declined: New in your Notebook: Task reminders",
+  "voice dictation tip dismissed"
+ ],
+ "raw": {},
+ "driver_imported_api": [],
+ "finished": "2026-10-07T14:04:30+00:00",
+ "status": "COMPLETE"
+}
