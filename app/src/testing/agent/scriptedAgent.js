@@ -12,6 +12,22 @@ export function scriptedTurn(body) {
   const names = new Set((body.capabilities || []).map(c => c.name))
   const first = charts[0]?.ref
 
+  // Screener requests — the production model's shape (measured 2026-10-07): field keys
+  // taken from the screener catalog in context, "above"=gt, "at least"=gte.
+  const scr = body.context?.screener?.[0]
+  if (scr && /^(show me|find|screen for) stocks/i.test(String(body.message || '').trim())) {
+    const keys = String(scr.fields || '').split(';').map(x => x.split(':')[0])
+    const filters = []
+    const adr = /adr (?:above|over) (\d+(?:\.\d+)?)/i.exec(m)
+    if (adr && keys.includes('adr_pct')) filters.push({ field: 'adr_pct', op: 'gt', value: Number(adr[1]), max: null })
+    const px = /price (?:above|over) \$?(\d+(?:\.\d+)?)/i.exec(m)
+    if (px && keys.includes('price')) filters.push({ field: 'price', op: 'gt', value: Number(px[1]), max: null })
+    const up = /up at least (\d+)% over the last month/i.exec(m)
+    if (up && keys.includes('chg_pct_1m')) filters.push({ field: 'chg_pct_1m', op: 'gte', value: Number(up[1]), max: null })
+    if (/reddit/i.test(m)) return env('unsupported', [], "The Screener doesn't have a Reddit-mentions field.", null, 'screener')
+    return env('apply', [{ action: 'screener.run', target: scr.ref, args: { filters, sort_field: null, sort_dir: null, mode: 'new', show: null } }])
+  }
+
   // "Create a watchlist called X with A, B and C" — the production model's shape
   // (measured 2026-10-07): create with `as`, then add to that alias.
   const wlib = body.context?.watchlistLibrary?.[0]
