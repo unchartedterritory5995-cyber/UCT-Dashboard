@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "POST /api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/report",
-    "path": "/api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/report",
+    "endpoint": "POST /api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef/report",
+    "path": "/api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef/report",
     "requestBody": {
       "reason": "boring"
     },

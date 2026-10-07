@@ -2,6 +2,7 @@
   "_contract": {
     "case": "success",
     "endpoint": "GET /api/j2/setups-board",
+    "note": "One card in each state: waiting (long and short), watching, triggered, invalidated, no price.",
     "path": "/api/j2/setups-board",
     "status": 200
   },
@@ -26,6 +27,26 @@
         "state": "waiting",
         "stop": 140.0,
         "symbol": "SBAM",
+        "target": null
+      },
+      {
+        "daysInSetup": 4,
+        "distancePct": -0.94,
+        "distanceR": -0.2,
+        "entry": 105.0,
+        "levelShape": "chart",
+        "noteId": "ff953a830ee74a68b6b0cc0e795b2488",
+        "noteTitle": "SBTR triggered",
+        "price": 106.0,
+        "priceAsOf": "2026-10-02",
+        "priceSource": "close",
+        "setupTag": null,
+        "side": "long",
+        "similarEmbedKey": null,
+        "since": "2026-10-01",
+        "state": "triggered",
+        "stop": 100.0,
+        "symbol": "SBTR",
         "target": null
       },
       {
@@ -129,9 +150,9 @@
         "target": null
       }
     ],
-    "count": 6,
+    "count": 7,
     "pageSize": 16,
-    "scanned": 6,
+    "scanned": 7,
     "today": "2026-10-05"
   }
 }

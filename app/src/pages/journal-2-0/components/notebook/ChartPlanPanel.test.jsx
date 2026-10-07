@@ -5,12 +5,20 @@
 // ⛔ The numbers the panel shows are asserted against `sizePlan` run on the SAME server answer —
 // not against literals retyped here — so the rail holds "the panel shows what the starter
 // formulas / Compass say", which is the claim, rather than "the panel shows 400".
+//
+// CONTRACT: the plan reading, the account inputs, Compass's answer and the alert route's answers
+// are the REAL server's (`__fixtures__/contract`, written by tools/notebook_contract_fixtures.py
+// from POST /api/j2/chart-plan/size and /alerts). The drawings the panel is given are the same
+// client-shaped drawings those answers were recorded for. The two routes this wave did not add
+// (`/api/watchlist-alerts`, `/api/bars`) keep small stand-ins, the alert rows in the server's
+// own row shape.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import ChartPlanPanel, { boundAlertId, roleDirection } from './ChartPlanPanel'
 import { sizePlan, SIZED_BY_LABEL } from '../../lib/chartPlan'
 import { _resetBoundAlertSync } from '../../../../components/chart/useBoundDrawingAlerts'
+import { contract, contractBody, contractResponse } from '../../__fixtures__/contract'
 
 // The replay engine draws with its own lightweight-charts instance; jsdom has no canvas.
 const chartCalls = vi.hoisted(() => ({ setMarkers: [], lines: [] }))
@@ -38,7 +46,7 @@ const ANNS = [
   { id: 'tx', type: 'text', points: [{ time: 1, price: 99 }], text: 'note' },
 ]
 const attrsWith = (annotations, ta = null) => ({
-  widgetId: 'chart', embedId: 'emb-1', params: { symbol: 'NVDA', tf: 'D', to: '2026-03-13' },
+  widgetId: 'chart', embedId: 'emb-1', params: { symbol: 'CPNV', tf: 'D', to: '2026-03-13' },
   annotations, ta, capturedAt: '2026-03-13T20:00:00Z',
 })
 
@@ -52,8 +60,12 @@ const BARS = [
   { t: '2026-03-18', o: 112.5, h: 113, l: 96, c: 97 },     // then the stop
 ]
 
-const PLAN = { entry: 101.5, stop: 97.25, target: 112, shares: null, side: 'long', roles: {}, setup: null }
-const ACCOUNT = { accountId: 'a1', accountSize: 100000, riskPct: 1 }
+// The server's answer for a member Compass does not size (a free plan): the starter formulas run.
+const STARTER = () => contractBody('chart-plan.size.free-plan')
+const PLAN = STARTER().plan
+const ACCOUNT = STARTER().account
+// The drawings above carry the same three levels the answers were recorded for.
+const RECORDED = contract('chart-plan.size')._contract.requestBody.annotations
 
 let calls
 let alertsList
@@ -66,7 +78,7 @@ function installFetch() {
     calls.push({ url, method, body })
     const ok = (data) => ({ ok: true, status: 200, json: async () => data })
     if (url === '/api/j2/chart-plan/size') return ok(sizeAnswer)
-    if (url === '/api/j2/chart-plan/alerts') return ok({ alert: { id: 'al1' } })
+    if (url === '/api/j2/chart-plan/alerts') return contractResponse('chart-plan.alerts.armed')
     if (url.startsWith('/api/watchlist-alerts/bound/')) return ok({ ok: true, updated: 1 })
     if (url === '/api/watchlist-alerts') return ok(alertsList)
     if (url.startsWith('/api/bars/')) return ok({ bars: BARS })
@@ -84,10 +96,25 @@ const realFetch = global.fetch
 beforeEach(() => {
   _resetBoundAlertSync()
   alertsList = []
-  sizeAnswer = { plan: PLAN, account: ACCOUNT, compass: { ok: false, reason: 'Compass sizing needs a paid plan' } }
+  sizeAnswer = STARTER()
   installFetch()
 })
 afterEach(() => { global.fetch = realFetch })
+
+describe('the drawings under test are the ones the server answers were recorded for', () => {
+  it('same shape (the level is the line own anchor) and the same three prices', () => {
+    const byRole = Object.fromEntries(RECORDED.map((d) => [d.role, d]))
+    for (const d of RECORDED) {
+      expect(Object.keys(d).sort()).toEqual(['id', 'points', 'role', 'type'])
+      expect('price' in d).toBe(false)
+    }
+    expect(byRole.entry.points[0].price).toBe(ANNS.find((d) => d.id === 'e').points[0].price)
+    expect(byRole.stop.points[0].price).toBe(ANNS.find((d) => d.id === 's').points[0].price)
+    expect(byRole.target.points[0].price).toBe(ANNS.find((d) => d.id === 't').points[0].price)
+    expect([PLAN.entry, PLAN.stop, PLAN.target]).toEqual([101.5, 97.25, 112])
+    expect(PLAN.side).toBe('long')
+  })
+})
 
 describe('levels and roles', () => {
   it('lists only flat price-pane levels, highest first', () => {
@@ -128,27 +155,51 @@ describe('R:R and size come from the server reading, sized by the starter formul
     // the body the server read was the drawings themselves (plan_extract reads them there)
     const sent = calls.find((c) => c.url === '/api/j2/chart-plan/size').body
     expect(sent.annotations.map((d) => d.id)).toEqual(ANNS.map((d) => d.id))
-    expect(sent.symbol).toBe('NVDA')
+    expect(sent.symbol).toBe('CPNV')
+    // every key the recorded request carried is one the panel sends
+    expect(Object.keys(sent)).toEqual(expect.arrayContaining(Object.keys(contract('chart-plan.size')._contract.requestBody)))
   })
 
   it('Compass answered for a paid long: its shares, its label', async () => {
-    sizeAnswer = { plan: PLAN, account: ACCOUNT, compass: { ok: true, shares: 380, sizedBy: 'compass' } }
+    sizeAnswer = contractBody('chart-plan.size')
+    expect(sizeAnswer.compass).toMatchObject({ ok: true, sizedBy: 'compass', shares: 235 })
     renderPanel({ attrs: attrsWith(ANNS) })
     await screen.findByText(SIZED_BY_LABEL.compass)
     expect(screen.getByText(/^Sized by Compass/)).toBeInTheDocument()
-    expect(document.querySelector('[data-plan-value="shares"]').textContent).toBe('380 sh')
+    expect(document.querySelector('[data-plan-value="shares"]').textContent).toBe('235 sh')
   })
 
   it('no account size: no shares, the reason, and where to set it', async () => {
-    sizeAnswer = { plan: PLAN, account: { accountSize: null, riskPct: 1 }, compass: { ok: false } }
+    // One scalar overridden on the real answer: a member who cleared their account size.
+    sizeAnswer = { ...STARTER(), account: { ...ACCOUNT, accountSize: null } }
     renderPanel({ attrs: attrsWith(ANNS) })
     await screen.findByText(/No account size is set/)
     expect(document.querySelector('[data-plan-value="shares"]').textContent).toBe('—')
   })
 
+  it('a member who never set their sizing: the server sends no max risk, and the panel says which is missing', async () => {
+    sizeAnswer = contractBody('chart-plan.size.default-account')
+    expect(sizeAnswer.account).toMatchObject({ accountSize: 100000, riskPct: null })
+    expect(sizeAnswer.compass.ok).toBe(false)
+    const expected = sizePlan({ ...sizeAnswer.plan, accountSize: sizeAnswer.account.accountSize, riskPct: sizeAnswer.account.riskPct, compass: sizeAnswer.compass })
+    expect(expected.shares).toBeNull()
+    expect(expected.reason).toMatch(/max risk/i)
+    renderPanel({ attrs: attrsWith(ANNS.filter((d) => d.id !== 't')) })
+    expect(await screen.findByText(`${expected.reason} — set it in Journal Settings, Accounts.`)).toBeInTheDocument()
+    expect(document.querySelector('[data-plan-value="shares"]').textContent).toBe('—')
+  })
+
+  it('a chart with no plan line yet: the server reads no plan, and the panel says what to draw', async () => {
+    sizeAnswer = contractBody('chart-plan.size.no-levels')
+    expect(sizeAnswer.plan).toMatchObject({ entry: null, stop: null, target: null, side: null })
+    renderPanel({ attrs: attrsWith([line('x', 50)]) })
+    expect(await screen.findByText('Draw an entry and a stop to size this trade')).toBeInTheDocument()
+    expect(document.querySelector('[data-plan-value="shares"]').textContent).toBe('—')
+  })
+
   it('a refused reading is said out loud, never shown as an empty plan', async () => {
     global.fetch = vi.fn(async (url) => (url === '/api/j2/chart-plan/size'
-      ? { ok: false, status: 500, json: async () => ({}) }
+      ? contractResponse('chart-plan.size.bad-body')
       : { ok: true, json: async () => [] }))
     renderPanel({ attrs: attrsWith(ANNS) })
     expect(await screen.findByRole('alert')).toHaveTextContent('The plan could not be sized.')
@@ -178,18 +229,23 @@ describe('alerts at a drawn level', () => {
     renderPanel({ attrs: attrsWith(ANNS.map((d) => (d.id === 's' ? { ...d, role: 'stop' } : d))) })
     await waitFor(() => expect(document.querySelector('[data-plan-value="shares"]')).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Arm alert at this level, 97.25' }))
-    await screen.findByText(/Alert armed: NVDA below 97.25/)
+    await screen.findByText(/Alert armed: CPNV below 97.25/)
     const post = calls.find((c) => c.url === '/api/j2/chart-plan/alerts')
     expect(post.method).toBe('POST')
     expect(post.body).toMatchObject({
       noteId: 'note-1', embedId: 'emb-1', drawingId: boundAlertId('emb-1', 's'),
       direction: 'below', alert_type: 'line', target_price: 97.25,
     })
+    // Every field the recorded request carried is one the panel sends, and the geometry the
+    // server stored (direction, type, price) is the geometry the panel asked for.
+    const recorded = contract('chart-plan.alerts.armed')
+    expect(Object.keys(post.body)).toEqual(expect.arrayContaining(Object.keys(recorded._contract.requestBody)))
+    expect(recorded.body.alert).toMatchObject({ direction: post.body.direction, alert_type: post.body.alert_type, target_price: post.body.target_price })
   })
 
   it('a chart the note has not saved yet says so (the adapter finds charts in the STORED note)', async () => {
     global.fetch = vi.fn(async (url) => {
-      if (url === '/api/j2/chart-plan/alerts') return { ok: false, status: 404, json: async () => ({ detail: 'That chart was not found in this note.' }) }
+      if (url === '/api/j2/chart-plan/alerts') return contractResponse('chart-plan.alerts.no-chart')
       if (url === '/api/j2/chart-plan/size') return { ok: true, json: async () => sizeAnswer }
       return { ok: true, json: async () => [] }
     })
@@ -199,11 +255,12 @@ describe('alerts at a drawn level', () => {
   })
 
   it('an armed level shows armed; moving its line PATCHes the bound alert; a cold mount never deletes', async () => {
+    const row = contractBody('chart-plan.alerts.armed').alert       // the server's own alert row
     alertsList = [
       // armed at the OLD price of 's' -> the line has since moved to 97.25: re-point it
-      { id: 'a1', sym: 'NVDA', drawing_id: boundAlertId('emb-1', 's'), is_active: 1, alert_type: 'line', target_price: 96.0 },
+      { ...row, id: 'a1', drawing_id: boundAlertId('emb-1', 's'), target_price: 96.0 },
       // bound to a drawing this chart never had (another browser, not synced): leave it alone
-      { id: 'a2', sym: 'NVDA', drawing_id: boundAlertId('emb-1', 'gone'), is_active: 1, alert_type: 'line', target_price: 90 },
+      { ...row, id: 'a2', drawing_id: boundAlertId('emb-1', 'gone'), target_price: 90 },
     ]
     renderPanel({ attrs: attrsWith(ANNS) })
     await screen.findByText('Alert armed')
@@ -246,9 +303,9 @@ describe('"what happened next" — the one replay engine, from the note’s as-o
 
   it('opens AT the note, steps forward bar by bar, and names the level hits in order', async () => {
     renderPanel({ attrs: attrsWith(ANNS), open: false, replayOpen: true, onCloseReplay: vi.fn() })
-    expect(await screen.findByRole('dialog', { name: 'What happened next · NVDA' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'What happened next · CPNV' })).toBeInTheDocument()
     expect(await screen.findByText('At the note — step forward')).toBeInTheDocument()
-    expect(calls.find((c) => c.url.startsWith('/api/bars/')).url).toBe('/api/bars/NVDA?tf=D&bars=5000')
+    expect(calls.find((c) => c.url.startsWith('/api/bars/')).url).toBe('/api/bars/CPNV?tf=D&bars=5000')
     // the plan levels plan_extract read become the replay's price lines (they arrive after the bars)
     await waitFor(() => expect(chartCalls.lines.map((l) => l.title)).toEqual(['entry', 'stop', 'target']))
     expect(screen.getByText('At the note — step forward')).toBeInTheDocument()   // position kept
@@ -264,7 +321,7 @@ describe('"what happened next" — the one replay engine, from the note’s as-o
   })
 
   it('a chart that tracks now has nothing after it — said, not shown as an empty chart', async () => {
-    const attrs = { ...attrsWith(ANNS), params: { symbol: 'NVDA', tf: 'D', to: null } }
+    const attrs = { ...attrsWith(ANNS), params: { symbol: 'CPNV', tf: 'D', to: null } }
     renderPanel({ attrs, open: false, replayOpen: true })
     expect(await screen.findByRole('alert')).toHaveTextContent('This chart tracks now')
   })

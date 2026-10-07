@@ -1,0 +1,68 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "note": "Saved three sessions ago: the later horizons have not happened yet.",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2026-09-30",
+      "symbol": "PSPD"
+    },
+    "status": 200
+  },
+  "body": {
+    "deduped": false,
+    "item": {
+      "baseClose": 72.0,
+      "baseDate": "2026-09-30",
+      "id": "be3b59ca8d5645408dc775937de2dee3",
+      "noBarsLabel": null,
+      "outcomes": [
+        {
+          "key": "r1",
+          "label": null,
+          "missing": null,
+          "pct": 1.3889,
+          "sessions": 1
+        },
+        {
+          "key": "r5",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 5
+        },
+        {
+          "key": "r10",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 10
+        },
+        {
+          "key": "r20",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 20
+        },
+        {
+          "best": true,
+          "key": "best20",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 20
+        }
+      ],
+      "savedAt": "2026-09-30T20:00:00+00:00",
+      "savedDay": "2026-09-30",
+      "sessionsStored": 2,
+      "source": "manual",
+      "sourceRef": null,
+      "status": "pending",
+      "symbol": "PSPD",
+      "tradedOn": null
+    }
+  }
+}

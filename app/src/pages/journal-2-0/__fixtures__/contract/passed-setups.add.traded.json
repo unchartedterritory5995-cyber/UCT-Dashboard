@@ -1,0 +1,68 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "note": "A name the member went on to trade: it is counted, not listed.",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2026-08-31",
+      "symbol": "PSTR"
+    },
+    "status": 200
+  },
+  "body": {
+    "deduped": false,
+    "item": {
+      "baseClose": 80.0,
+      "baseDate": "2026-08-31",
+      "id": "525912dda2844eed8a868053eca386f0",
+      "noBarsLabel": null,
+      "outcomes": [
+        {
+          "key": "r1",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 1
+        },
+        {
+          "key": "r5",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 5
+        },
+        {
+          "key": "r10",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 10
+        },
+        {
+          "key": "r20",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 20
+        },
+        {
+          "best": true,
+          "key": "best20",
+          "label": "Not yet",
+          "missing": "pending",
+          "pct": null,
+          "sessions": 20
+        }
+      ],
+      "savedAt": "2026-08-31T20:00:00+00:00",
+      "savedDay": "2026-08-31",
+      "sessionsStored": null,
+      "source": "manual",
+      "sourceRef": null,
+      "status": "traded",
+      "symbol": "PSTR",
+      "tradedOn": "2026-09-03"
+    }
+  }
+}

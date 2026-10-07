@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "GET /api/j2/notebook-fingerprint/blocks/047c53d6818548c7b0f5e7765fe7db46/vp-f",
-    "path": "/api/j2/notebook-fingerprint/blocks/047c53d6818548c7b0f5e7765fe7db46/vp-f",
+    "endpoint": "GET /api/j2/notebook-fingerprint/blocks/0302e58263324ad6a9a7867c7777f499/vp-f",
+    "path": "/api/j2/notebook-fingerprint/blocks/0302e58263324ad6a9a7867c7777f499/vp-f",
     "status": 200
   },
   "body": {
@@ -102,7 +102,7 @@
       "fingerprintSource": "note",
       "frozenAt": null,
       "mode": "snapshot",
-      "noteId": "047c53d6818548c7b0f5e7765fe7db46",
+      "noteId": "0302e58263324ad6a9a7867c7777f499",
       "noteTitle": "VPTS plan",
       "position": 0,
       "setupTag": "Bull Flag",

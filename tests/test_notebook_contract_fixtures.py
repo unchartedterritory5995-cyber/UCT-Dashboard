@@ -77,7 +77,7 @@ def test_every_fixture_is_in_the_generators_own_form():
 
 def test_CONTROL_a_server_shape_change_is_caught_and_named(fresh, monkeypatch):
     """Rename one key the setups board returns. The comparison must go red on exactly the board's
-    two successful answers, and say which key moved."""
+    successful answers (and on nothing else), and say which key moved."""
     from api.services.journal_two import setups_board
     real = setups_board.build_cards
 
@@ -89,7 +89,10 @@ def test_CONTROL_a_server_shape_change_is_caught_and_named(fresh, monkeypatch):
     monkeypatch.setattr(setups_board, "build_cards", renamed)
     problems = gen.diff(gen.generate(), fresh)
     named = sorted(p.split(" ")[1] for p in problems)
-    assert named == ["setups-board", "setups-board.empty"], problems
+    board_answers = sorted(n for n, text in fresh.items()
+                           if n.startswith("setups-board") and json.loads(text)["_contract"]["status"] == 200)
+    assert len(board_answers) >= 2, board_answers                                            # non-vacuity
+    assert named == board_answers, problems
     assert all(p.startswith("differs: ") and "`" in p for p in problems), problems
 
 
@@ -241,3 +244,22 @@ def test_D1_thesis_chips_answer_before_the_level_table_exists(monkeypatch):
                 os.unlink(tmp.name + suffix)
             except OSError:
                 pass
+
+
+# ── D5: a second defect this work found, kept visible ───────────────────────────────────────────
+
+@pytest.mark.xfail(strict=True, reason=(
+    "DEFECT D5 (docs/notebook/fin-tests.md): a stored-bar hole in the MIDDLE of a passed setup's "
+    "window shifts every later horizon by a session, unlabelled. passed_setups.score() "
+    "(api/services/journal_two/passed_setups.py:221-246) reads forward[h-1] off the name's own "
+    "bars and only labels a gap when the name has FEWER than h bars. Remove this marker when the "
+    "+5 day cell reads the fifth session (2.5%) or is labelled missing."))
+def test_D5_a_missing_session_in_the_middle_never_shifts_a_horizon():
+    """The fixture name PSGP closes at 200 on the reference day and one point higher each
+    session; the store is missing the fifth session after it. The market's fifth session is
+    therefore a hole. The honest answers are 2.5% (the fifth session) or a labelled gap. The
+    server answers 3.0%: the SIXTH session, shown under "+5 days"."""
+    item = json.loads(gen.committed()["passed-setups.add.gap"])["body"]["item"]
+    r5 = next(o for o in item["outcomes"] if o["key"] == "r5")
+    assert item["baseClose"] == 200.0
+    assert r5["missing"] is not None or r5["pct"] == 2.5, r5

@@ -47,8 +47,51 @@
           "target": 120.0
         },
         "planAsOf": "2026-09-05T12:00:00+00:00",
-        "tier": "window",
+        "tier": "explicit",
         "title": "PGNV plan"
+      },
+      {
+        "editedAfterEntry": false,
+        "id": "pg-note-alt",
+        "kind": "note",
+        "plan": {
+          "entry": 100.0,
+          "primaryShape": "text",
+          "roles": {
+            "entry": {
+              "shape": "text",
+              "state": "ok",
+              "value": 100.0,
+              "values": []
+            },
+            "shares": {
+              "shape": "text",
+              "state": "ok",
+              "value": 150.0,
+              "values": []
+            },
+            "stop": {
+              "shape": "text",
+              "state": "ok",
+              "value": 98.0,
+              "values": []
+            },
+            "target": {
+              "shape": "text",
+              "state": "ok",
+              "value": 110.0,
+              "values": []
+            }
+          },
+          "setup": null,
+          "shares": 150.0,
+          "side": null,
+          "stop": 98.0,
+          "target": 110.0
+        },
+        "planAsOf": "2026-09-08T12:00:00+00:00",
+        "tier": "window",
+        "title": "Alternative plan"
       }
     ],
     "checks": {
@@ -91,7 +134,7 @@
     "labels": [],
     "plan": {
       "entry": 100.0,
-      "matchTier": "window",
+      "matchTier": "explicit",
       "matchedAt": "2026-10-05T14:30:00+00:00",
       "noteId": "pg-note-plan",
       "noteTitle": "PGNV plan",

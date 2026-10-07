@@ -7,12 +7,12 @@
   },
   "body": {
     "backfill": {
-      "already": 1,
+      "already": 2,
       "capturedLate": 1,
       "deferred": 0,
       "failed": 0,
       "frozen": 1,
-      "noEntryDay": 0
+      "noEntryDay": 1
     }
   }
 }

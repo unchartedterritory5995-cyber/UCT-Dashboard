@@ -16,8 +16,8 @@
   "body": {
     "TCAM": {
       "entry": null,
-      "link": "/journal/notebook?note=7643ce94e8484591b13411f184ed4449",
-      "noteId": "7643ce94e8484591b13411f184ed4449",
+      "link": "/journal/notebook?note=5fe862bb77924cd098fac269c442359a",
+      "noteId": "5fe862bb77924cd098fac269c442359a",
       "noteUpdatedAt": "2026-10-05T14:30:00+00:00",
       "stop": null,
       "target": null,
@@ -26,8 +26,8 @@
     },
     "TCIN": {
       "entry": 50.0,
-      "link": "/journal/notebook?note=40f0c266d3f14af792833fa772ce1731",
-      "noteId": "40f0c266d3f14af792833fa772ce1731",
+      "link": "/journal/notebook?note=7a211005989c487886d204da4979e368",
+      "noteId": "7a211005989c487886d204da4979e368",
       "noteUpdatedAt": "2026-10-05T14:30:00+00:00",
       "stop": 47.0,
       "target": null,
@@ -36,8 +36,8 @@
     },
     "TCNV": {
       "entry": 100.0,
-      "link": "/journal/notebook?note=ff953a830ee74a68b6b0cc0e795b2488",
-      "noteId": "ff953a830ee74a68b6b0cc0e795b2488",
+      "link": "/journal/notebook?note=fc7e91535da44924b12a2eb807659a71",
+      "noteId": "fc7e91535da44924b12a2eb807659a71",
       "noteUpdatedAt": "2026-10-05T14:30:00+00:00",
       "stop": 90.0,
       "target": 120.0,

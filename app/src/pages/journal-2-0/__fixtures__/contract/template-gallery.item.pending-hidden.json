@@ -1,9 +1,9 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "GET /api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff",
+    "endpoint": "GET /api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef",
     "note": "A submission waiting for review is the one 404 to everyone but its author and an admin.",
-    "path": "/api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff",
+    "path": "/api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef",
     "status": 404
   },
   "body": {

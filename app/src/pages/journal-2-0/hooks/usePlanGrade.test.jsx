@@ -140,14 +140,14 @@ describe('usePlanGrade: one trade\'s plan and four checks', () => {
   describe('Re-link', () => {
     const picking = () => {
       on()
-      server = (c) => (c.method === 'GET' ? contractResponse('plan-grades.trade.needs-pick') : contractResponse('plan-grades.relink.note'))
+      server = (c) => (c.method === 'GET' ? contractResponse('plan-grades.trade.needs-pick') : contractResponse('plan-grades.relink.pick'))
       return renderHook(() => usePlanGrade('pg-pick'), { wrapper })
     }
 
     it('posts the choice and shows the new grade without reading again', async () => {
       const { result } = picking()
       await waitFor(() => expect(result.current.grade?.status).toBe('needs_pick'))
-      const choice = contract('plan-grades.relink.note')._contract.requestBody
+      const choice = contract('plan-grades.relink.pick')._contract.requestBody
       let returned
       await act(async () => { returned = await result.current.relink(choice) })
       const post = calls.find((c) => c.method === 'POST')
@@ -155,9 +155,9 @@ describe('usePlanGrade: one trade\'s plan and four checks', () => {
       expect(post.body).toEqual(choice)
       expect(post.init.credentials).toBe('include')
       expect(post.init.headers['Content-Type']).toBe('application/json')
-      expect(returned).toEqual(contractBody('plan-grades.relink.note'))
+      expect(returned).toEqual(contractBody('plan-grades.relink.pick'))
       await waitFor(() => expect(result.current.grade.status).toBe('planned'))
-      expect(result.current.grade).toEqual(contractBody('plan-grades.relink.note'))
+      expect(result.current.grade).toEqual(contractBody('plan-grades.relink.pick'))
       expect(result.current.grade.plan.noteId).toBe('pg-note-other')
       expect(gets()).toHaveLength(1)                             // the POST's answer IS the new grade
     })

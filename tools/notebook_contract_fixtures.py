@@ -497,10 +497,15 @@ def plan_grades(w: World) -> None:
     w.as_user(uid)
     c = w.conn()
     try:
-        # A planned trade: one note written before entry. Entry kept, stop not honoured, oversized.
+        # A planned trade: the note LINKED to it wins over a second note in the window, so it is
+        # graded at once and still offers the other as a Re-link choice. Entry kept, stop not
+        # honoured, oversized.
         add_trade(c, "pg-planned", user=uid, symbol="PGNV", entry=100.5, exit_=94.5, shares=150, stop=96.0, setup="Breakout")
         add_note_row(c, "pg-note-plan", user=uid, title="PGNV plan", ticker="PGNV",
                      body=doc(para("Plan"), plan_list(100, 96, 120, 100)))
+        link_note(c, "pg-note-plan", "pg-planned", user=uid, symbol="PGNV")
+        add_note_row(c, "pg-note-alt", user=uid, title="Alternative plan", ticker="PGNV",
+                     created="2026-09-08T12:00:00+00:00", body=doc(para("Tighter"), plan_list(100, 98, 110, 150)))
         # Two plans inside the window: the member has to pick one.
         add_trade(c, "pg-pick", user=uid, symbol="PGPK", entry=101.0, exit_=110.0, shares=80, stop=97.0)
         add_note_row(c, "pg-note-a", user=uid, title="First plan", ticker="PGPK", body=doc(para("A"), plan_list(100, 96, 120, 100)))
@@ -514,6 +519,34 @@ def plan_grades(w: World) -> None:
         add_note_row(c, "pg-note-tsla", user=uid, title="PGPH plan", ticker="PGPH", created="2026-09-18T12:00:00+00:00",
                      body=doc(para("PGPH"), plan_list(200, 192, 224, 50)))
         add_trade(c, "pg-theirs", user=OTHER, symbol="MSFT")
+        # A trade the broker dated without a time, planned on a DRAWN chart that names a setup the
+        # trade does not carry yet, whose best price went past a target the exit never took.
+        add_trade(c, "pg-drawn", user=uid, symbol="PGDR", entry=100.5, exit_=104.0, shares=100, stop=96.0,
+                  entry_date="2026-09-12", exit_date="2026-09-16T15:00:00+00:00", source="broker",
+                  external_id="X-PGDR-1")
+        add_note_row(c, "pg-note-drawn", user=uid, title="PGDR plan", ticker="PGDR",
+                     body=doc(para("Plan"), chart_block("PGDR", [("entry", 100), ("stop", 96), ("target", 120)],
+                                                        tag="Breakout")))
+        c.execute("INSERT INTO j2_trade_excursions (user_id, trade_ref, symbol, mfe_price, computed_at)"
+                  " VALUES (?,?,?,?,?)", (uid, "ext:X-PGDR-1", "PGDR", 121.0, "2026-09-17T00:00:00+00:00"))
+        c.commit()
+        # Thirty closed trades for the discipline record: twelve planned, eighteen not, so the
+        # three sample bands (too few, thin, normal) all appear in one answer.
+        sampled = w.member("discipline")
+        for i in range(30):
+            sym, day = f"DS{i:02d}", f"2026-08-{3 + i % 26:02d}"
+            planned = i < 12
+            add_trade(c, f"ds-{i:02d}", user=sampled, symbol=sym, shares=100 if i % 4 else 150,
+                      entry=100.5 if i % 3 else 103.0, exit_=112.0 if i % 2 else 94.0, stop=96.0,
+                      entry_date=f"{day}T14:30:00+00:00", exit_date=f"{day}T19:30:00+00:00")
+            if planned:
+                add_note_row(c, f"ds-note-{i:02d}", user=sampled, title=f"{sym} plan", ticker=sym,
+                             created="2026-08-01T12:00:00+00:00", body=doc(para("Plan"), plan_list(100, 96, 120, 100)))
+            if planned and i < 6:           # the overnight job has run for six of them
+                c.execute("INSERT INTO j2_trade_excursions (user_id, trade_ref, symbol, mfe_price, computed_at)"
+                          " VALUES (?,?,?,?,?)", (sampled, f"id:ds-{i:02d}", sym, 121.0 if i % 2 else 105.0,
+                                                  "2026-09-01T00:00:00+00:00"))
+        c.commit()
     finally:
         c.close()
     w.record("plan-grades.trade.planned", "GET", f"{base}/trades/pg-planned", case="success", expect=200)
@@ -521,6 +554,8 @@ def plan_grades(w: World) -> None:
              note="A trade with no plan: the empty state of the card.")
     w.record("plan-grades.trade.placeholder-stop", "GET", f"{base}/trades/pg-placeholder", case="success",
              expect=200, note="A broker trade whose stored stop equals its entry (a placeholder).")
+    w.record("plan-grades.trade.drawn-plan", "GET", f"{base}/trades/pg-drawn", case="success", expect=200,
+             note="Dated by day only, planned on a drawn chart with a setup tag, target reached and not taken.")
     w.record("plan-grades.trade.not-found", "GET", f"{base}/trades/pg-theirs", case="error", expect=404,
              note="Another member's trade answers the one 404.")
     w.record("plan-grades.trade.needs-pick", "GET", f"{base}/trades/pg-pick", case="success", expect=200,
@@ -534,12 +569,18 @@ def plan_grades(w: World) -> None:
              expect=400, json_body={})
     w.record("plan-grades.relink.bad-body", "POST", f"{base}/trades/pg-planned/relink", case="error",
              expect=422, content=b"[1]")
-    w.record("plan-grades.relink.note", "POST", f"{base}/trades/pg-pick/relink", case="success",
-             expect=200, json_body={"noteId": "pg-note-other"})
+    w.record("plan-grades.relink.note", "POST", f"{base}/trades/pg-planned/relink", case="success",
+             expect=200, json_body={"noteId": "pg-note-alt"},
+             note="A graded trade re-linked to another of the member's plans.")
+    w.record("plan-grades.relink.pick", "POST", f"{base}/trades/pg-pick/relink", case="success",
+             expect=200, json_body={"noteId": "pg-note-other"}, note="The tie resolved by the member's pick.")
     w.record("plan-grades.relink.unknown-note", "POST", f"{base}/trades/pg-pick/relink", case="error",
              expect=400, json_body={"noteId": "nope"})
     w.record("plan-grades.relink.none", "POST", f"{base}/trades/pg-pick/relink", case="success",
              expect=200, json_body={"none": True})
+    w.as_user(w.member("discipline"))
+    w.record("plan-grades.discipline.sampled", "GET", f"{base}/discipline", case="success", expect=200,
+             note="Thirty closed trades, twelve planned: every sample band in one record.")
     w.as_user(EMPTY)
     w.record("plan-grades.status.empty", "GET", f"{base}/status?ids=pg-planned", case="empty", expect=200,
              note="A member with no trades: every id asked for is simply absent.")
@@ -582,7 +623,7 @@ def my_playbook(w: World) -> None:
             tid = trade(r, "Breakout", source)
             entry = c.execute("SELECT entry_date FROM j2_trades WHERE id = ?", (tid,)).fetchone()[0]
             before = (_REAL_DATETIME.fromisoformat(entry) - _dt.timedelta(days=1)).isoformat()
-            nid = add_note_row(c, f"pb-note-{k:02d}", user=uid, ticker="PBNV", title="Pre-trade", body=doc(para(text)), plain=text,
+            nid = add_note_row(c, f"pb-note-{k:02d}", user=uid, ticker="PBNV", title=f"Pre-trade {k:02d}", body=doc(para(text)), plain=text,
                                created=before)
             link_note(c, nid, tid, user=uid, symbol="PBNV")
 
@@ -605,9 +646,10 @@ def chart_block(symbol: str, levels: list[tuple[str, float]], *, embed_id: str |
                 tag: str | None = None, tf: str = "D", fingerprint: dict[str, Any] | None = None,
                 image: bool = False, mode: str = "live", to: int | None = None,
                 captured: str = "2026-09-28T15:00:00Z") -> dict[str, Any]:
-    from api.services.journal_two import plan_extract
-    anns = [plan_extract.plan_annotation(role, price, {"id": f"d-{symbol}-{role}", "type": "horizontal"})
-            for role, price in levels]
+    # The drawing as the CLIENT writes it (`lib/chartPlan.js` setPlanRole): the role sits on the
+    # line and the level is the line's own anchor. There is no separate `price` copy.
+    anns = [{"id": f"d-{symbol}-{role}", "type": "horizontal", "role": role,
+             "points": [{"time": 1758000000, "price": float(price)}]} for role, price in levels]
     attrs: dict[str, Any] = {"v": 1, "widgetId": "chart", "params": {"symbol": symbol, "tf": tf, "to": to},
                              "capturedAt": captured, "embedId": embed_id or f"e-{symbol}", "mode": mode,
                              "annotations": anns}
@@ -627,7 +669,10 @@ def chart_block(symbol: str, levels: list[tuple[str, float]], *, embed_id: str |
 def setups_board(w: World) -> None:
     from api.services.journal_two import setups_board as sb
 
-    table = {"SBNV": 102.0, "SBAM": 149.0, "SBTS": 205.0, "SBME": 650.0, "SBIN": 100.0}
+    table = {"SBNV": 102.0, "SBAM": 149.0, "SBTS": 205.0, "SBME": 650.0, "SBIN": 100.0, "SBTR": 106.0}
+    # Forty setups for the paging and the chart queue: each a little further from its entry.
+    for i in range(40):
+        table[f"SQ{i:02d}"] = round((100 + i) - 0.1 * (i + 1), 2)
 
     def read_prices(symbols: Any) -> dict[str, Any]:
         return {s: {"price": table[s], "source": "close", "asOf": "2026-10-02"} for s in symbols if s in table}
@@ -651,9 +696,20 @@ def setups_board(w: World) -> None:
                     created="2026-09-25T15:00:00Z")
         create_note(c, MEMBER, "SBNP no price", doc(para("plan"), chart_block("SBNP", [("entry", 20), ("stop", 18)])),
                     created="2026-09-26T15:00:00Z")
+        create_note(c, MEMBER, "SBTR triggered", doc(para("plan"), chart_block("SBTR", [("entry", 105), ("stop", 100)])),
+                    created="2026-10-01T15:00:00Z")
+        forty = w.member("board-forty")
+        for i in range(40):
+            create_note(c, forty, f"Plan {i}", doc(para("plan"), chart_block(
+                f"SQ{i:02d}", [("entry", 100 + i), ("stop", 95 + i), ("target", 120 + i)],
+                tag="VCP" if i == 0 else None)), created=f"{TODAY}T13:00:00Z" if i % 5 == 0 else "2026-10-01T15:00:00Z")
     finally:
         c.close()
-    w.record("setups-board", "GET", "/api/j2/setups-board", case="success", expect=200)
+    w.record("setups-board", "GET", "/api/j2/setups-board", case="success", expect=200,
+             note="One card in each state: waiting (long and short), watching, triggered, invalidated, no price.")
+    w.as_user(forty)
+    w.record("setups-board.forty", "GET", "/api/j2/setups-board", case="success", expect=200,
+             note="Forty setups, closest first: three pages of the grid.")
     w.as_user(None)
     w.record("setups-board.signed-out", "GET", "/api/j2/setups-board", case="error", expect=401)
     w.as_user(MEMBER)
@@ -808,6 +864,12 @@ def visual_playbook(w: World) -> None:
     w.record("visual-playbook.cards", "GET", f"{base}/cards", case="success", expect=200)
     w.record("visual-playbook.cards.filtered", "GET", f"{base}/cards?setup=VCP&range=rs_rank:90:", case="success",
              expect=200, note="One setup, RS rank 90 and up: the slice and what the filter left out.")
+    w.record("visual-playbook.cards.range-only", "GET", f"{base}/cards?range=rs_rank:90:", case="success",
+             expect=200, note="A range alone: charts with no value for it are left out, and counted.")
+    w.p.setenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", "0")
+    w.record("visual-playbook.cards.regime-unavailable", "GET", f"{base}/cards", case="success", expect=200,
+             note="With the entry-context switch off there is no frozen regime to filter by.")
+    w.p.setenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", "1")
     w.record("visual-playbook.cards.bad-range", "GET", f"{base}/cards?range=bogus:1:", case="error", expect=422)
     w.record("visual-playbook.cards.bad-outcome", "GET", f"{base}/cards?outcome=maybe", case="error", expect=422)
     w.record("visual-playbook.before-after", "GET", f"{base}/trades/vp-win/before-after", case="success", expect=200)
@@ -817,6 +879,29 @@ def visual_playbook(w: World) -> None:
              expect=404)
     w.as_user(uid, FREE)
     w.record("visual-playbook.cards.free-plan", "GET", f"{base}/cards", case="error", expect=402)
+    # Twelve tagged charts, each with its trade: seven wins and five losses, a THIN sample.
+    thin = w.member("visual-thin")
+    c = w.conn()
+    try:
+        for i in range(12):
+            sym = f"VT{i:02d}"
+            n = create_note(c, thin, f"{sym} plan", doc(para("plan"), chart_block(
+                sym, [], embed_id=f"vt-{i:02d}", tag="VCP", fingerprint=_fingerprint(rs_rank=80 + i), image=True,
+                mode="snapshot", to=to, captured="2026-09-30T18:00:00Z")))
+            add_trade(c, f"vt-{i:02d}", user=thin, symbol=sym, entry=100.0, exit_=108.0 if i < 7 else 96.0,
+                      stop=96.0, entry_date="2026-09-30T14:00:00Z", exit_date="2026-10-01T15:00:00Z")
+            c.execute(
+                "INSERT INTO j2_trade_plan_links (user_id, trade_ref, symbol, source_kind, match_tier, note_id,"
+                " plan_json, flags_json, matched_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (thin, f"id:vt-{i:02d}", sym, "note", "window", n["id"],
+                 json.dumps({"entry": 100.0, "stop": 96.0, "target": 112.0, "shares": 100}), "[]",
+                 "2026-09-30T00:00:00Z"))
+        c.commit()
+    finally:
+        c.close()
+    w.as_user(thin)
+    w.record("visual-playbook.cards.thin", "GET", f"{base}/cards", case="success", expect=200,
+             note="Twelve trades behind the slice: a thin sample, shown with its ranges.")
     w.as_user(MEMBER)
 
 
@@ -911,6 +996,13 @@ def earnings_prep(w: World) -> None:
     w.p.setattr(call_recap_store, "get", lambda sym, quarter=None: None)
     w.record("earnings-prep.draft.sources-missing", "POST", f"{base}/EPZZ/draft", case="empty", expect=200,
              note="A name the outside sources know nothing about: every cell is a labelled gap.")
+    # The daily limit is real and durable: spend today's drafts, then record the refusal.
+    from api.services.journal_two import earnings_prep as prep_service
+    used = w.client.post(f"{base}/EPZZ/draft").json()["usage"]["used"]
+    for _ in range(prep_service.daily_cap() - used):
+        w.client.post(f"{base}/EPZZ/draft")
+    w.record("earnings-prep.draft.daily-cap", "POST", f"{base}/EPNV/draft", case="error", expect=429,
+             note="The member has used today's drafts.")
     w.as_user(uid, FREE)
     w.record("earnings-prep.soon.free-plan", "GET", f"{base}/soon", case="error", expect=402)
     w.as_user(MEMBER)
@@ -934,7 +1026,7 @@ def entry_context(w: World) -> None:
         "measured": 3000, "degraded": False})
     w.p.setattr(rs_ranking, "get_rs_for_ticker", lambda s: rs.get(s))
     w.p.setattr(rs_ranking, "cached_rank_map", lambda: dict(rs))
-    w.p.setattr(earnings_table, "_next_report_date", lambda s, now=None: "2026-10-20")
+    w.p.setattr(earnings_table, "_next_report_date", lambda s, now=None: TODAY if s == "ECZZ" else "2026-10-20")
     w.p.setattr(engine, "get_candidates", lambda: {
         "generated_at": f"{TODAY}T12:00:00Z", "market_date": TODAY,
         "candidates": {"pullback_ma": [{"ticker": "ECNV"}], "gapper_news": [], "remount": [{"ticker": "ECAM"}]}})
@@ -943,21 +1035,31 @@ def entry_context(w: World) -> None:
         {"ast_hash": "h2", "def_id": "d2", "definition": {"meta": {"name": "Never swept"}}}])
     w.p.setattr(scan_store, "latest_covered_as_of", lambda h, tf: {"h1": 20261002}.get(h))
     w.p.setattr(scan_store, "hits", lambda h, tf, as_of: {"h1": ["MSFT", "ECNV"]}.get(h, []))
-    w.p.setattr(tfp, "compute", lambda symbol, as_of=None: {
-        "v": 1, "symbol": symbol, "requested_as_of": as_of, "as_of": as_of, "mode": "bars",
-        "fields": {"adr_pct": {"value": 4.2, "source": "bars", "missing": None}}})
+    def compute(symbol: str, as_of: Any = None) -> dict[str, Any]:
+        if symbol == "ECZZ":
+            raise RuntimeError("the fingerprint source is down")
+        return {"v": 1, "symbol": symbol, "requested_as_of": as_of, "as_of": as_of, "mode": "bars",
+                "fields": {"adr_pct": {"value": 4.2, "source": "bars", "missing": None}}}
+    w.p.setattr(tfp, "compute", compute)
     c = w.conn()
     try:
         ectx.ensure_schema(c)
 
-        def position(pid: str, symbol: str, entry: str, user: str = uid) -> None:
+        def position(pid: str, symbol: str, entry: str, user: str = uid, *, broker: bool = False,
+                     estimated: int = 0) -> None:
             c.execute(
                 "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares,"
                 " entry_price, stop_price, raise_to_breakeven, context_at_entry, created_at, updated_at,"
                 " closed_at, source, external_id, entry_estimated) VALUES (?,?,?,?,?,?,?,?,?,0,'{}',?,?,?,?,?,?)",
-                (pid, user, symbol, "Long", entry, 10, 10, 100.0, 96.0, entry, entry, None, None, None, 0))
+                (pid, user, symbol, "Long", entry, 10, 10, 100.0, 96.0, entry, entry, None,
+                 "broker" if broker else None, f"bkpos:a1:{symbol}:Long" if broker else None, estimated))
             c.commit()
         position("ec-today", "ECNV", f"{TODAY}T14:00:00+00:00")
+        # A name outside the RS universe and outside every scan, reporting today, whose
+        # fingerprint source fails: the labelled gaps, beside values that are really zero or empty.
+        position("ec-gaps", "ECZZ", f"{TODAY}T14:05:00+00:00")
+        # A holding the broker carried in without its entry date.
+        position("ec-carried", "ECCR", f"{TODAY}T14:00:00+00:00", broker=True, estimated=1)
         position("ec-old", "ECAM", "2026-10-01T14:30:00+00:00")
         position("ec-theirs", "ECNV", f"{TODAY}T14:00:00+00:00", user=OTHER)
         add_trade(c, "ec-trade", user=uid, symbol="ECNV", entry_date=f"{TODAY}T14:00:00+00:00",
@@ -971,6 +1073,10 @@ def entry_context(w: World) -> None:
     w.record("entry-context.position.captured", "GET", f"{base}/position/ec-today", case="success", expect=200)
     w.record("entry-context.position.not-captured", "GET", f"{base}/position/ec-old", case="empty", expect=200,
              note="An entry from an earlier day: nothing was captured and nothing is reconstructed.")
+    w.record("entry-context.position.with-gaps", "GET", f"{base}/position/ec-gaps", case="success", expect=200,
+             note="Captured, with three values missing and labelled, and two that are really zero and empty.")
+    w.record("entry-context.position.entry-day-unknown", "GET", f"{base}/position/ec-carried", case="empty",
+             expect=200, note="A broker holding with no entry date: there is no entry day to freeze.")
     w.record("entry-context.trade.captured", "GET", f"{base}/trade/ec-trade", case="success", expect=200)
     w.record("entry-context.position.not-found", "GET", f"{base}/position/ec-theirs", case="error", expect=404)
     w.record("entry-context.by-key", "GET", f"{base}?symbol=ECNV&entryDay={TODAY}", case="success", expect=200)
@@ -998,13 +1104,19 @@ def chart_plan(w: World) -> None:
     from api.services.journal_two import chart_plan as cp
     uid = w.member("chart-plan")
     base = "/api/j2/chart-plan"
-    w.p.setattr(cp, "account_inputs", lambda u, aid=None: {"accountId": "acct-chart", "accountSize": 100000.0,
-                                                           "riskPct": 1.0})
     w.p.setattr(brain_service, "size_a_trade", lambda e, s, a, risk_pct=1.0: {
         "ok": True, "shares": 235, "regime": "GREEN", "risk_pct": risk_pct})
+    # Before any account stand-in: the member has no journal account yet, read by the real reader.
+    w.as_user(uid)
+    w.record("chart-plan.size.default-account", "POST", f"{base}/size", case="empty", expect=200,
+             json_body={"annotations": chart_block("CPNV", [("entry", 101.5), ("stop", 97.25)])["attrs"]["annotations"],
+                        "symbol": "CPNV"},
+             note="A member who never set their sizing: the default account size and no max risk per trade.")
+    w.p.setattr(cp, "account_inputs", lambda u, aid=None: {"accountId": "acct-chart", "accountSize": 100000.0,
+                                                           "riskPct": 1.0})
     w.p.setattr(cp, "_stock_sector", lambda s: "Energy")
     w.p.setattr(cp, "_stock_theme_etf", lambda s: None)
-    block = chart_block("CPNV", [("entry", 101.5), ("stop", 97.25), ("target", 115.0)], embed_id="cp-emb")
+    block = chart_block("CPNV", [("entry", 101.5), ("stop", 97.25), ("target", 112.0)], embed_id="cp-emb")
     anns = block["attrs"]["annotations"]
     c = w.conn()
     try:
@@ -1062,8 +1174,13 @@ def passed_setups(w: World) -> None:
     bars_sqlite.init_db()
     days = _weekdays("2026-08-24", 30)                     # the reference session is days[5], 2026-08-31
     bc = bars_sqlite._conn()
-    for sym, start in (("SPY", 500.0), ("PSNV", 100.0)):
+    for sym, start in (("SPY", 500.0), ("PSNV", 100.0), ("PSPD", 50.0), ("PSGP", 200.0), ("PSTR", 80.0),
+                       ("PSSH", 40.0)):
         for i, day in enumerate(days):
+            if sym == "PSGP" and i == 10:
+                continue                                   # one session the store never received
+            if sym == "PSSH" and i > 7:
+                continue                                   # the store stops two sessions after the save
             close = start + (i - 5)
             bc.execute("INSERT OR REPLACE INTO ohlcv (ticker, tf, ts, o, h, l, c, v) VALUES (?,?,?,?,?,?,?,?)",
                        (sym, "D", int(day.replace("-", "")), close, close + 0.5, close - 1, close, 1000))
@@ -1071,6 +1188,13 @@ def passed_setups(w: World) -> None:
     c = w.conn()
     try:
         ps.ensure_schema(c)
+        # The member bought PSTR three sessions after passing on it: it leaves the list, counted.
+        c.execute(
+            "INSERT INTO j2_positions (id, user_id, symbol, side, entry_date, shares, original_shares, entry_price,"
+            " stop_price, context_at_entry, created_at, updated_at, closed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("ps-pos", uid, "PSTR", "Long", days[8], 10, 10, 83.0, 80.0, "{}", f"{days[8]}T14:00:00Z",
+             f"{days[8]}T14:00:00Z", None))
+        c.commit()
     finally:
         c.close()
     w.as_user(uid)
@@ -1080,7 +1204,22 @@ def passed_setups(w: World) -> None:
     w.record("passed-setups.add.no-bars", "POST", url, case="success", expect=200,
              json_body={"symbol": "PSZZ", "savedOn": days[5]},
              note="A name UCT holds no daily bars for: every horizon is a labelled gap.")
+    w.record("passed-setups.add.pending", "POST", url, case="success", expect=200,
+             json_body={"symbol": "PSPD", "savedOn": days[-3]},
+             note="Saved three sessions ago: the later horizons have not happened yet.")
+    w.record("passed-setups.add.short-store", "POST", url, case="success", expect=200,
+             json_body={"symbol": "PSSH", "savedOn": days[5]},
+             note="The store holds two sessions after the save and the market has had more: a labelled gap.")
+    w.record("passed-setups.add.gap", "POST", url, case="success", expect=200,
+             json_body={"symbol": "PSGP", "savedOn": days[5]},
+             note="ONE session is missing in the middle of the stored bars. See docs/notebook/fin-tests.md, "
+                  "defect D5: the horizons after the hole are read one session late, with no label.")
+    w.record("passed-setups.add.traded", "POST", url, case="success", expect=200,
+             json_body={"symbol": "PSTR", "savedOn": days[5]},
+             note="A name the member went on to trade: it is counted, not listed.")
     w.record("passed-setups.add.bad-symbol", "POST", url, case="error", expect=400, json_body={"symbol": "<script>"})
+    w.record("passed-setups.add.too-old", "POST", url, case="error", expect=400,
+             json_body={"symbol": "PSNV", "savedOn": "2026-07-01"})
     w.record("passed-setups.add.future-day", "POST", url, case="error", expect=400,
              json_body={"symbol": "PSNV", "savedOn": "2027-01-04"})
     w.record("passed-setups.add.body-not-an-object", "POST", url, case="error", expect=422, content=b"[1]",
@@ -1221,6 +1360,31 @@ def remaining_routes(w: World) -> None:
              expect=200)
     w.record("fingerprint.block.not-found", "GET", f"{fp}/blocks/nope/nope", case="error", expect=404)
     w.record("fingerprint.freeze.not-found", "POST", f"{fp}/blocks/nope/nope/freeze", case="error", expect=404)
+    # A tagged chart whose trade was entered today, with its market context frozen at the fill:
+    # the regime filter has something to count, and something to leave out.
+    c = w.conn()
+    try:
+        n = create_note(c, visual, "VPRG plan", doc(para("plan"), chart_block(
+            "VPRG", [], embed_id="vp-r", tag="VCP", fingerprint=_fingerprint(rs_rank=90), image=True,
+            mode="snapshot", to=None, captured=f"{TODAY}T14:00:00Z")))
+        add_trade(c, "vp-today", user=visual, symbol="VPRG", entry=100.0, exit_=104.0, stop=96.0,
+                  entry_date=f"{TODAY}T14:00:00+00:00", exit_date=f"{TODAY}T14:20:00+00:00")
+        c.execute(
+            "INSERT INTO j2_trade_plan_links (user_id, trade_ref, symbol, source_kind, match_tier, note_id,"
+            " plan_json, flags_json, matched_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (visual, "id:vp-today", "VPRG", "note", "window", n["id"],
+             json.dumps({"entry": 100.0, "stop": 96.0, "target": 112.0, "shares": 100}), "[]", f"{TODAY}T00:00:00Z"))
+        c.commit()
+    finally:
+        c.close()
+    captured = w.client.get("/api/j2/entry-context/trade/vp-today").json()
+    if captured.get("status") != "captured":
+        raise AssertionError(f"the regime fixture needs a frozen context, got {captured.get('status')!r}")
+    vpb = "/api/j2/notebook-visual-playbook"
+    w.record("visual-playbook.cards.with-regime", "GET", f"{vpb}/cards", case="success", expect=200,
+             note="One chart's trade has a regime frozen at entry; the others have none.")
+    w.record("visual-playbook.cards.regime-filtered", "GET", f"{vpb}/cards?regime=green", case="success",
+             expect=200, note="Filtered to a regime: charts with no frozen regime are left out, and counted.")
     w.as_user(EMPTY)
     w.record("fingerprint.blocks.empty", "GET", f"{fp}/blocks", case="empty", expect=200)
     w.as_user(visual, FREE)
@@ -1228,6 +1392,8 @@ def remaining_routes(w: World) -> None:
 
     w.as_user(context)
     w.record("entry-context.backfill", "POST", "/api/j2/entry-context/backfill", case="success", expect=200)
+    w.record("entry-context.position.captured-late", "GET", "/api/j2/entry-context/position/ec-old",
+             case="success", expect=200, note="An older entry the backfill captured afterwards, labelled late.")
     w.as_user(MEMBER)
 
 

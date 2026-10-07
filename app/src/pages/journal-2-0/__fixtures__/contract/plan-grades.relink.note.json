@@ -1,10 +1,11 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/plan-grades/trades/pg-pick/relink",
-    "path": "/api/j2/plan-grades/trades/pg-pick/relink",
+    "endpoint": "POST /api/j2/plan-grades/trades/pg-planned/relink",
+    "note": "A graded trade re-linked to another of the member's plans.",
+    "path": "/api/j2/plan-grades/trades/pg-planned/relink",
     "requestBody": {
-      "noteId": "pg-note-other"
+      "noteId": "pg-note-alt"
     },
     "status": 200
   },
@@ -12,7 +13,7 @@
     "candidates": [
       {
         "editedAfterEntry": false,
-        "id": "pg-note-a",
+        "id": "pg-note-plan",
         "kind": "note",
         "plan": {
           "entry": 100.0,
@@ -50,143 +51,143 @@
           "target": 120.0
         },
         "planAsOf": "2026-09-05T12:00:00+00:00",
-        "tier": "window",
-        "title": "First plan"
+        "tier": "explicit",
+        "title": "PGNV plan"
       },
       {
         "editedAfterEntry": false,
-        "id": "pg-note-other",
+        "id": "pg-note-alt",
         "kind": "note",
         "plan": {
-          "entry": 101.0,
+          "entry": 100.0,
           "primaryShape": "text",
           "roles": {
             "entry": {
               "shape": "text",
               "state": "ok",
-              "value": 101.0,
+              "value": 100.0,
               "values": []
             },
             "shares": {
               "shape": "text",
               "state": "ok",
-              "value": 80.0,
+              "value": 150.0,
               "values": []
             },
             "stop": {
               "shape": "text",
               "state": "ok",
-              "value": 97.0,
+              "value": 98.0,
               "values": []
             },
             "target": {
               "shape": "text",
               "state": "ok",
-              "value": 118.0,
+              "value": 110.0,
               "values": []
             }
           },
           "setup": null,
-          "shares": 80.0,
+          "shares": 150.0,
           "side": null,
-          "stop": 97.0,
-          "target": 118.0
+          "stop": 98.0,
+          "target": 110.0
         },
-        "planAsOf": "2026-09-07T12:00:00+00:00",
+        "planAsOf": "2026-09-08T12:00:00+00:00",
         "tier": "window",
-        "title": "Other plan"
+        "title": "Alternative plan"
       }
     ],
     "checks": {
       "entry": {
-        "actual": 101.0,
-        "chaseR": 0.0,
-        "deltaPct": 0.0,
-        "planned": 101.0,
+        "actual": 100.5,
+        "chaseR": 0.25,
+        "deltaPct": 0.005,
+        "planned": 100.0,
         "state": "kept",
-        "tolerance": 1.0
+        "tolerance": 0.5
       },
-      "followedPlan": true,
-      "r": 4.0,
+      "followedPlan": false,
+      "r": 2.0,
       "sideMismatch": false,
       "size": {
-        "actual": 80.0,
+        "actual": 150.0,
         "deltaPct": 0.0,
-        "planned": 80.0,
+        "planned": 150.0,
         "state": "kept"
       },
       "stop": {
-        "exit": 110.0,
-        "exitVsStopR": 3.25,
-        "limit": 96.0,
-        "planned": 97.0,
-        "state": "kept"
+        "exit": 94.5,
+        "exitVsStopR": -1.75,
+        "limit": 97.5,
+        "planned": 98.0,
+        "state": "missed"
       },
       "target": {
-        "exit": 110.0,
-        "hitLine": 117.0,
+        "exit": 94.5,
+        "hitLine": 109.5,
         "mfePrice": null,
-        "planned": 118.0,
+        "planned": 110.0,
         "state": "unknown"
       }
     },
     "closes": 1,
     "dateOnly": false,
-    "enteredShares": 80.0,
+    "enteredShares": 150.0,
     "entryDay": "2026-09-10",
     "labels": [],
     "plan": {
-      "entry": 101.0,
+      "entry": 100.0,
       "matchTier": "member",
       "matchedAt": "2026-10-05T14:30:00+00:00",
-      "noteId": "pg-note-other",
-      "noteTitle": "Other plan",
-      "planAsOf": "2026-09-07T12:00:00+00:00",
+      "noteId": "pg-note-alt",
+      "noteTitle": "Alternative plan",
+      "planAsOf": "2026-09-08T12:00:00+00:00",
       "primaryShape": "text",
-      "relinkCount": 0,
+      "relinkCount": 1,
       "relinkedAt": "2026-10-05T14:30:00+00:00",
       "roles": {
         "entry": {
           "shape": "text",
           "state": "ok",
-          "value": 101.0,
+          "value": 100.0,
           "values": []
         },
         "shares": {
           "shape": "text",
           "state": "ok",
-          "value": 80.0,
+          "value": 150.0,
           "values": []
         },
         "stop": {
           "shape": "text",
           "state": "ok",
-          "value": 97.0,
+          "value": 98.0,
           "values": []
         },
         "target": {
           "shape": "text",
           "state": "ok",
-          "value": 118.0,
+          "value": 110.0,
           "values": []
         }
       },
       "setup": null,
-      "shares": 80.0,
+      "shares": 150.0,
       "side": null,
       "source": "text",
       "sourceKind": "note",
       "sourceLabel": "Plan note",
-      "stop": 97.0,
-      "target": 118.0,
+      "stop": 98.0,
+      "target": 110.0,
       "verdictId": null,
-      "versionId": "current@2026-09-07T12:00:00+00:00"
+      "versionId": "current@2026-09-08T12:00:00+00:00"
     },
     "setupChip": null,
     "side": "Long",
     "status": "planned",
-    "symbol": "PGPK",
-    "tradeId": "pg-pick",
-    "tradeRef": "id:pg-pick"
+    "symbol": "PGNV",
+    "tradeId": "pg-planned",
+    "tradeRef": "id:pg-planned"
   }
 }

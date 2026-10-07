@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "PATCH /api/j2/template-gallery/admin/items/1689e0ab6e0e4fa28a284e57bdab0439",
-    "path": "/api/j2/template-gallery/admin/items/1689e0ab6e0e4fa28a284e57bdab0439",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/689e73cc2eb343b0a29275e9ad75c2dd",
+    "path": "/api/j2/template-gallery/admin/items/689e73cc2eb343b0a29275e9ad75c2dd",
     "requestBody": {
       "action": "reject",
       "note": "Too thin to be useful yet."
@@ -18,7 +18,7 @@
       "featured": false,
       "firm": false,
       "hidden": false,
-      "id": "1689e0ab6e0e4fa28a284e57bdab0439",
+      "id": "689e73cc2eb343b0a29275e9ad75c2dd",
       "listedAt": null,
       "mine": false,
       "openReports": 0,

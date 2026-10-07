@@ -21,38 +21,38 @@
       "STOP_SLIP_R": 0.25,
       "TARGET_SHORTFALL_R": 0.25
     },
-    "totalClosed": 4,
+    "totalClosed": 5,
     "windows": [
       {
         "editedAfterEntry": 0,
         "entry": {
           "band": "too_few",
-          "k": 2,
-          "n": 2,
+          "k": 3,
+          "n": 3,
           "range": null,
           "rate": 1.0,
           "wording": "too few to judge"
         },
-        "equity": 4,
+        "equity": 5,
         "followedPlan": {
           "band": "too_few",
-          "k": 0,
-          "n": 2,
+          "k": 1,
+          "n": 3,
           "range": null,
-          "rate": 0.0,
+          "rate": 0.3333,
           "wording": "too few to judge"
         },
         "needsPick": 1,
         "options": 0,
         "planRate": {
           "band": "too_few",
-          "k": 2,
-          "n": 3,
+          "k": 3,
+          "n": 4,
           "range": null,
-          "rate": 0.6667,
+          "rate": 0.75,
           "wording": "too few to judge"
         },
-        "planned": 2,
+        "planned": 3,
         "size": 20,
         "size_": {
           "band": "too_few",
@@ -64,10 +64,10 @@
         },
         "stop": {
           "band": "too_few",
-          "k": 1,
-          "n": 2,
+          "k": 2,
+          "n": 3,
           "range": null,
-          "rate": 0.5,
+          "rate": 0.6667,
           "wording": "too few to judge"
         },
         "target": {
@@ -75,48 +75,48 @@
           "hitRate": {
             "band": "too_few",
             "k": 0,
-            "n": 0,
+            "n": 1,
             "range": null,
-            "rate": null,
+            "rate": 0.0,
             "wording": "too few to judge"
           },
           "notReached": 0,
-          "reachedNotTaken": 0,
+          "reachedNotTaken": 1,
           "unknown": 2
         },
-        "trades": 4,
+        "trades": 5,
         "unplanned": 1
       },
       {
         "editedAfterEntry": 0,
         "entry": {
           "band": "too_few",
-          "k": 2,
-          "n": 2,
+          "k": 3,
+          "n": 3,
           "range": null,
           "rate": 1.0,
           "wording": "too few to judge"
         },
-        "equity": 4,
+        "equity": 5,
         "followedPlan": {
           "band": "too_few",
-          "k": 0,
-          "n": 2,
+          "k": 1,
+          "n": 3,
           "range": null,
-          "rate": 0.0,
+          "rate": 0.3333,
           "wording": "too few to judge"
         },
         "needsPick": 1,
         "options": 0,
         "planRate": {
           "band": "too_few",
-          "k": 2,
-          "n": 3,
+          "k": 3,
+          "n": 4,
           "range": null,
-          "rate": 0.6667,
+          "rate": 0.75,
           "wording": "too few to judge"
         },
-        "planned": 2,
+        "planned": 3,
         "size": 60,
         "size_": {
           "band": "too_few",
@@ -128,10 +128,10 @@
         },
         "stop": {
           "band": "too_few",
-          "k": 1,
-          "n": 2,
+          "k": 2,
+          "n": 3,
           "range": null,
-          "rate": 0.5,
+          "rate": 0.6667,
           "wording": "too few to judge"
         },
         "target": {
@@ -139,16 +139,16 @@
           "hitRate": {
             "band": "too_few",
             "k": 0,
-            "n": 0,
+            "n": 1,
             "range": null,
-            "rate": null,
+            "rate": 0.0,
             "wording": "too few to judge"
           },
           "notReached": 0,
-          "reachedNotTaken": 0,
+          "reachedNotTaken": 1,
           "unknown": 2
         },
-        "trades": 4,
+        "trades": 5,
         "unplanned": 1
       }
     ]

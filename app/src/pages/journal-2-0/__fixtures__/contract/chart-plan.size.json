@@ -7,19 +7,34 @@
       "annotations": [
         {
           "id": "d-CPNV-entry",
-          "price": 101.5,
+          "points": [
+            {
+              "price": 101.5,
+              "time": 1758000000
+            }
+          ],
           "role": "entry",
           "type": "horizontal"
         },
         {
           "id": "d-CPNV-stop",
-          "price": 97.25,
+          "points": [
+            {
+              "price": 97.25,
+              "time": 1758000000
+            }
+          ],
           "role": "stop",
           "type": "horizontal"
         },
         {
           "id": "d-CPNV-target",
-          "price": 115.0,
+          "points": [
+            {
+              "price": 112.0,
+              "time": 1758000000
+            }
+          ],
           "role": "target",
           "type": "horizontal"
         }
@@ -65,7 +80,7 @@
         "target": {
           "shape": "chart",
           "state": "ok",
-          "value": 115.0,
+          "value": 112.0,
           "values": []
         }
       },
@@ -73,7 +88,7 @@
       "shares": null,
       "side": "long",
       "stop": 97.25,
-      "target": 115.0
+      "target": 112.0
     }
   }
 }

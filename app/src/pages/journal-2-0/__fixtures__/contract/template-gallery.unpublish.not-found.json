@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "DELETE /api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff",
-    "path": "/api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff",
+    "endpoint": "DELETE /api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef",
+    "path": "/api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef",
     "status": 404
   },
   "body": {

@@ -15,9 +15,113 @@
     ],
     "items": [
       {
+        "baseClose": 72.0,
+        "baseDate": "2026-09-30",
+        "id": "be3b59ca8d5645408dc775937de2dee3",
+        "noBarsLabel": null,
+        "outcomes": [
+          {
+            "key": "r1",
+            "label": null,
+            "missing": null,
+            "pct": 1.3889,
+            "sessions": 1
+          },
+          {
+            "key": "r5",
+            "label": "Not yet",
+            "missing": "pending",
+            "pct": null,
+            "sessions": 5
+          },
+          {
+            "key": "r10",
+            "label": "Not yet",
+            "missing": "pending",
+            "pct": null,
+            "sessions": 10
+          },
+          {
+            "key": "r20",
+            "label": "Not yet",
+            "missing": "pending",
+            "pct": null,
+            "sessions": 20
+          },
+          {
+            "best": true,
+            "key": "best20",
+            "label": "Not yet",
+            "missing": "pending",
+            "pct": null,
+            "sessions": 20
+          }
+        ],
+        "savedAt": "2026-09-30T20:00:00+00:00",
+        "savedDay": "2026-09-30",
+        "sessionsStored": 2,
+        "source": "manual",
+        "sourceRef": null,
+        "status": "pending",
+        "symbol": "PSPD",
+        "tradedOn": null
+      },
+      {
+        "baseClose": 200.0,
+        "baseDate": "2026-08-31",
+        "id": "cb014b25ff7a407a9f645f3132cec165",
+        "noBarsLabel": null,
+        "outcomes": [
+          {
+            "key": "r1",
+            "label": null,
+            "missing": null,
+            "pct": 0.5,
+            "sessions": 1
+          },
+          {
+            "key": "r5",
+            "label": null,
+            "missing": null,
+            "pct": 3.0,
+            "sessions": 5
+          },
+          {
+            "key": "r10",
+            "label": null,
+            "missing": null,
+            "pct": 5.5,
+            "sessions": 10
+          },
+          {
+            "key": "r20",
+            "label": null,
+            "missing": null,
+            "pct": 10.5,
+            "sessions": 20
+          },
+          {
+            "best": true,
+            "key": "best20",
+            "label": null,
+            "missing": null,
+            "pct": 10.75,
+            "sessions": 20
+          }
+        ],
+        "savedAt": "2026-08-31T20:00:00+00:00",
+        "savedDay": "2026-08-31",
+        "sessionsStored": 20,
+        "source": "manual",
+        "sourceRef": null,
+        "status": "scored",
+        "symbol": "PSGP",
+        "tradedOn": null
+      },
+      {
         "baseClose": 100.0,
         "baseDate": "2026-08-31",
-        "id": "b485a87f2bab416bb438fe1f2ad3a700",
+        "id": "11bd0e1c41c24a80aaafdb4382232378",
         "noBarsLabel": null,
         "outcomes": [
           {
@@ -67,9 +171,61 @@
         "tradedOn": null
       },
       {
+        "baseClose": 40.0,
+        "baseDate": "2026-08-31",
+        "id": "e415ec88dee74c1aba61cb38cbc16c80",
+        "noBarsLabel": null,
+        "outcomes": [
+          {
+            "key": "r1",
+            "label": null,
+            "missing": null,
+            "pct": 2.5,
+            "sessions": 1
+          },
+          {
+            "key": "r5",
+            "label": "Bars missing from the store",
+            "missing": "missing",
+            "pct": null,
+            "sessions": 5
+          },
+          {
+            "key": "r10",
+            "label": "Bars missing from the store",
+            "missing": "missing",
+            "pct": null,
+            "sessions": 10
+          },
+          {
+            "key": "r20",
+            "label": "Bars missing from the store",
+            "missing": "missing",
+            "pct": null,
+            "sessions": 20
+          },
+          {
+            "best": true,
+            "key": "best20",
+            "label": "Bars missing from the store",
+            "missing": "missing",
+            "pct": null,
+            "sessions": 20
+          }
+        ],
+        "savedAt": "2026-08-31T20:00:00+00:00",
+        "savedDay": "2026-08-31",
+        "sessionsStored": 2,
+        "source": "manual",
+        "sourceRef": null,
+        "status": "pending",
+        "symbol": "PSSH",
+        "tradedOn": null
+      },
+      {
         "baseClose": null,
         "baseDate": null,
-        "id": "38876a94117248abbaac0124a9c99817",
+        "id": "3d5f4dd9f5034f9ca032b5ddea55f4cd",
         "noBarsLabel": "No stored daily bars for this name on or before the save",
         "outcomes": [
           {
@@ -120,7 +276,7 @@
       }
     ],
     "lookbackDays": 60,
-    "tradedCount": 0,
+    "tradedCount": 1,
     "tradedWithin": 10
   }
 }
