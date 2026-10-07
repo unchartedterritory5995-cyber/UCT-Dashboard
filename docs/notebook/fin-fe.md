@@ -104,18 +104,58 @@ free). Two blocks with no caption, a live chart and an archived image:
 Mouse drag, not measured in round 1: pressing on the body and dragging onto the first paragraph
 moves the block there, for both kinds (`dragstart`, `dragover`, `drop`, `dragend` all seen).
 
-**Open, and older than this branch: a live chart on a phone.** A tap on a live chart is cancelled by
-the chart library itself (`touchend` is `defaultPrevented`), so no `mousedown` is ever produced and
-the editor's click-to-select is never asked. `stopEvent` is not consulted at all, so this fix cannot
-change it and 13H-2 did not cause it. I did not run a pre-wave build to measure it there; the
-statement rests on the recorded event list. On a phone the block is still reachable by the keyboard
-path, the block handle and the toolbar's Remove button. It needs a ruling of its own.
+**A live chart on a phone:** a tap on the middle of a live chart selected nothing, because the chart
+library cancels the touch. Settled in round 3, below.
 
 Not exercised in the browser: a button INSIDE the body (the walk's control button was the toolbar's
 "Hide toolbar", outside it). The unit control covers a button, a select and an input inside the body.
 
 Runs 1 and 2 of the selection walk are kept. Their failed rows were the instrument: run 1 dropped
 the block where it already was; run 2 read a selection the drag test had left behind.
+
+## A live chart on a phone or tablet (round 3)
+
+**Is it a regression? No, from the code.** On `origin/master` (`8c416782d8`)
+`lib/widgetEmbedNode.jsx:100` is `ReactNodeViewRenderer(WidgetEmbedView)` with no `stopEvent`, so
+selection there also depends on the browser turning a tap into a mousedown. The chart library is
+the same on both sides (`lightweight-charts` 5.2.0 in both `package.json` files) and its
+`_touchEndHandler` calls `preventDefault` on the touch end, which is what stops the mousedown. This
+branch's diff to `StockChart.jsx` adds no touch handling. So a live chart was not reliably
+selectable by touch on master either. No pre-wave build was run.
+
+**What existed for touch** (measured, every wave flag off, 390 and 820 px,
+`docs/notebook/evidence/fin-fe/touch-actions-walk-run1-2fe3f39bdb/`):
+- The block's toolbar is on screen without hover. Every control is 44 px tall; most are narrower
+  than 44 px (Remove embed and Chart settings are 34 wide).
+- Remove embed works by touch at both widths.
+- Chart settings has a control. There is no caption control at any width: a caption cannot be
+  edited from the block today.
+- There was no move control. The block grip only stands beside the block the caret is in.
+- Selection by tap is unreliable, not impossible. In round 2 a tap on the middle of the chart
+  selected nothing (twice, at 390). In this run a tap lower on the chart at 390 did select it and
+  the grip appeared; the same tap at 820 did not.
+
+**What was built** (`2fe3f39bdb`): a "Block actions" button in the block's toolbar at 1024 px and
+below. It is 44 by 44, opens the shared `ContextPopover` (a bottom sheet on touch) with Move up,
+Move down and Remove block, and uses `moveBlock`, the same transaction as the grip and
+Alt+Shift+Arrow. `StockChart.jsx` and the chart's touch handling are not touched. At 1024 px and
+below the block's toolbar is now always shown, including on a narrow desktop window.
+
+Browser, 13 rows PASS, integrity CLEAN, port free:
+
+| | 390 px touch | 820 px touch | 1280 px mouse |
+|---|---|---|---|
+| Block actions button | 44 x 44, visible | 44 x 44, visible | not in the page, its file never requested |
+| Sheet rows | three, 44 px tall | three, 44 px tall | |
+| Move down, then Move up twice | one,two,CHART,three then CHART,one,two,three | same | |
+| Move up at the top | disabled | disabled | |
+| Remove block | block removed | block removed | |
+| Toolbar's own Remove embed | works (34 x 44) | works (34 x 44) | shown on hover |
+
+Bytes: the button is its own file, loaded only at 1024 px and below. Built first-open is 2,234,901
+(budget 2,260,793). The round 1 build read 2,234,435; the 466 bytes between them cover everything
+since, not this button alone. `components/notebook/EmbedBlockActions.test.jsx`: 9 tests, three
+mutations each went red.
 
 ## The basics tour (wave 8): no history trap
 
