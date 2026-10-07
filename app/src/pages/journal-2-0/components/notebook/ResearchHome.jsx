@@ -98,7 +98,9 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
     try {
       // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
       const { note } = await fn(await loadReviewDrafts())
-      onOpenNote(note)
+      // Lane KEYS3 (Q18): a drafted review's findings are its collapsed blocks. The note opens
+      // with focus on the first of them, not at its top (18 to 24 Tab stops above it).
+      onOpenNote(note, null, { to: 'collapsed' })
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
       setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
@@ -196,7 +198,9 @@ export default function ResearchHome({
   const [previewDoc, setPreviewDoc] = useState(null)
   const [capturedSource, setCapturedSource] = useState(null)
 
-  const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
+  // Whatever a box passes after the note (a drafted review's `{ to: 'collapsed' }`) goes on to
+  // the tab unchanged; a box that passes only the note still calls with only the note.
+  const openNote = (note, ...rest) => (onOpenNote ? onOpenNote(note, ...rest) : navigate(notePath(note.id)))
 
   // ── Wave 8 lane 8C (C3): the sample notebook and the tour's door ──────────────────
   // Both appear only while `notebook_onboarding_enabled` is on; the sample button only

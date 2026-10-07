@@ -84,7 +84,15 @@ vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
 // the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
 // lives in ResearchHome.test.jsx).
 vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home">Research Home</div>,
+  // Lane KEYS3: two buttons stand in for Home's doors, so the tab's own `openNote` can be
+  // exercised the way Home's boxes call it (a plain open; a drafted review's open).
+  default: ({ onOpenNote }) => (
+    <div data-testid="research-home">
+      Research Home
+      <button type="button" onClick={() => onOpenNote?.({ id: 'n-plain' })}>test: open a note</button>
+      <button type="button" onClick={() => onOpenNote?.({ id: 'rev1' }, null, { to: 'collapsed' })}>test: open a drafted review</button>
+    </div>
+  ),
 }))
 
 import NotebookTab from './NotebookTab'
@@ -849,5 +857,24 @@ describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in T
     fireEvent.click(card('weekly-review'))
     const editor = await screen.findByTestId('note-editor')
     expect(editor).toHaveAttribute('data-open-focus', 'title')
+  })
+})
+
+// Lane KEYS3 (Q18): Research Home's review box opens the note it drafted asking for the first
+// collapsed block. The tab passes that on to the editor; a plain open is still the landmark.
+describe('lane KEYS3 (Q18): a drafted review opens on its first collapsed block', () => {
+  it('an open that asks for "collapsed" reaches the editor as openFocus="collapsed"', async () => {
+    renderTab('/journal/notebook')
+    fireEvent.click(await screen.findByRole('button', { name: 'test: open a drafted review' }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-note-id', 'rev1')
+    expect(editor).toHaveAttribute('data-open-focus', 'collapsed')
+  })
+
+  it('CONTROL: a plain open from Research Home is still the landmark', async () => {
+    renderTab('/journal/notebook')
+    fireEvent.click(await screen.findByRole('button', { name: 'test: open a note' }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'landmark')
   })
 })

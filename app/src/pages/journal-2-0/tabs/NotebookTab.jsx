@@ -770,6 +770,8 @@ export default function NotebookTab() {
   // `blank`. See `createNote`'s own `blank` computation.
   // Lane KEYS3 (Q2): `to` names another first field for a fresh note ('ticker': a template
   // that asks for a ticker, made with none known). Blank still wins; absent means the title.
+  // Lane KEYS3 (Q18): for a note that already exists, `to: 'collapsed'` asks for its first
+  // collapsed block (a review the Notebook just drafted). Anything else is the landmark.
   const openNote = (note, target = null, { task = null, fresh = false, blank = false, to = null } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
@@ -795,7 +797,10 @@ export default function NotebookTab() {
     // THAT open, not this one.
     paneFocusPlanRef.current = null
     const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
-    setOpenFocus(inside ? null : { id: note.id, to: fresh ? (blank ? 'body' : (to || 'title')) : 'landmark' })
+    setOpenFocus(inside ? null : {
+      id: note.id,
+      to: fresh ? (blank ? 'body' : (to || 'title')) : (to === 'collapsed' ? 'collapsed' : 'landmark'),
+    })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
