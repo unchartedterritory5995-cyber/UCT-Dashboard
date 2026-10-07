@@ -113,13 +113,14 @@ def test_the_model_contract_REQUIRES_disposition_and_the_engine_file_does_not(co
 # ═══ the deterministic pre-flight ══════════════════════════════════════════
 
 def test_PREFLIGHT_other_symbol_ZERO_calls_ZERO_cost_through_the_endpoint(conv, model, http):
-    """ASKED: "Can it compare AAPL with SPY?" on an XRPN chart. CLAIMED: refused before
+    """ASKED: "compare AAPL with SPY" on an XRPN chart (P3: the imperative -- the question
+    form now reaches the model; see test_p3_truth_talk). CLAIMED: refused before
     the model. DID: 200 ok:false, member-safe reason, attempts 0, cost 0, the model
     never called, the member's spend ledger unchanged (REFUSAL, EXACT)."""
     from api.services import definition_concierge as dc
     client = model([])                                   # an unarmed call would FAIL
     before = dc.spend_for("u1", dc._market_date())
-    r = http.post(ENDPOINT, json={"message": "Can it compare AAPL with SPY?", "view": ema_view(1),
+    r = http.post(ENDPOINT, json={"message": "compare AAPL with SPY", "view": ema_view(1),
                                   "chart": {"sym": "XRPN", "tf": "D"}})
     body = r.json()
     assert r.status_code == 200 and body["ok"] is False, body

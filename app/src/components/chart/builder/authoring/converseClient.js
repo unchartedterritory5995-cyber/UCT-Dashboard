@@ -27,7 +27,7 @@ import { compactView } from './compactView'
 export const CONVERSE_ENDPOINT = '/api/user-definitions/converse'
 /** The server's bounds (`definition_conversation.py`), mirrored so the client
  *  never sends a body the server must refuse for size. */
-export const CONVERSE_LIMITS = Object.freeze({ maxMessage: 2000, maxSnippets: 6, maxSnippetChars: 400 })
+export const CONVERSE_LIMITS = Object.freeze({ maxMessage: 2000, maxSnippets: 6, maxSnippetChars: 1200 })
 export const DISPOSITIONS = Object.freeze(['change', 'answer', 'clarify', 'unsupported'])
 
 const NETWORK = 'Could not reach the server — check your connection and try again.'
@@ -38,6 +38,36 @@ export function boundedSnippets(snippets) {
     .filter((s) => s && (s.role === 'member' || s.role === 'assistant') && typeof s.text === 'string' && s.text.trim())
     .slice(-CONVERSE_LIMITS.maxSnippets)
     .map((s) => ({ role: s.role, text: s.text.slice(0, CONVERSE_LIMITS.maxSnippetChars) }))
+}
+
+/**
+ * ⭐ P3 — one transcript entry as a recent-turn snippet (LANGUAGE ONLY). An
+ * assistant entry carries the assistant's own REPLY first (answer AND change
+ * replies — a follow-up like "why might that be better?" refers to it), then the
+ * deterministic lines; a line equal to the reply is not repeated.
+ */
+export function snippetOf(entry) {
+  if (!entry || typeof entry !== 'object') return null
+  if (entry.role === 'member') return { role: 'member', text: String(entry.text || '') }
+  const reply = typeof entry.reply === 'string' ? entry.reply.trim() : ''
+  const lines = (Array.isArray(entry.lines) ? entry.lines : []).filter((l) => typeof l === 'string' && l && l !== reply)
+  return { role: 'assistant', text: [reply, ...lines].filter(Boolean).join(' · ') }
+}
+
+/** The last turns of a transcript as snippets (bounded again by `boundedSnippets`). */
+export function transcriptSnippets(transcript) {
+  return (Array.isArray(transcript) ? transcript : []).slice(-CONVERSE_LIMITS.maxSnippets).map(snippetOf).filter(Boolean)
+}
+
+/**
+ * ⭐ P3 — the gaps worth a line of their own. A refusal whose `reason` IS one
+ * not-understood item's reason (the planner's refusal) already says it: listing
+ * that item again made the member read the same sentence twice.
+ */
+export function distinctNotUnderstood(res) {
+  const items = (res && Array.isArray(res.notUnderstood)) ? res.notUnderstood : []
+  if (!res || res.ok !== false || typeof res.reason !== 'string') return items
+  return items.filter((n) => !(n && n.reason && n.reason === res.reason))
 }
 
 /** The request body for one turn — exported so tests can pin the wire shape. */

@@ -13,7 +13,7 @@ async function post(url, body) {
   }
   let data = null
   try { data = await r.json() } catch { /* empty */ }
-  if (!r.ok) return { ok: false, status: r.status, error: (data && data.detail) || `UCT Agent error (${r.status}).` }
+  if (!r.ok) return { ok: false, status: r.status, error: (data && typeof data.detail === 'string' && data.detail) || "UCT Agent couldn't complete that request. No changes were made." }
   return { ok: true, data }
 }
 

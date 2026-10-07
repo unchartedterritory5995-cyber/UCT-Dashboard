@@ -15,6 +15,7 @@ FastAPI runs it in the threadpool, bounded by the client timeout, zero retries.
 """
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime
 from typing import Any, Optional
@@ -27,6 +28,12 @@ from api.middleware import auth_middleware
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
 router = APIRouter()
+log = logging.getLogger(__name__)
+
+#: What a member sees when something unexpected breaks. TRUE by construction:
+#: the server never mutates a workspace, and the browser only executes after a
+#: valid envelope arrives — a failed request has changed nothing.
+FAILED = "UCT Agent couldn't complete that request. No changes were made."
 
 SCOPE = "uct_agent_turn"
 _ET = ZoneInfo("America/New_York")
@@ -95,9 +102,14 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     if refusal:
         _give_back(uid)
         raise HTTPException(status_code=429, detail=refusal)
-    cid = store.ensure_conversation(uid, body.conversationId, body.message)
-    history = store.get_turns(uid, cid) or []
-    store.add_turn(uid, cid, "member", body.message, {"voice": bool(body.voice)})
+    try:
+        cid = store.ensure_conversation(uid, body.conversationId, body.message)
+        history = store.get_turns(uid, cid) or []
+        store.add_turn(uid, cid, "member", body.message, {"voice": bool(body.voice)})
+    except Exception:  # noqa: BLE001 -- logged with its traceback; the member gets a sentence
+        log.exception("[uct-agent] conversation store failed before the model call")
+        _give_back(uid)
+        raise HTTPException(status_code=500, detail=FAILED)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,
                              capabilities=body.capabilities,
@@ -109,10 +121,15 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     except Exception as e:  # noqa: BLE001 -- a provider failure is a sentence, not a 500
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", "UCT Agent was unavailable for this message.", {"kind": "error"})
-        raise HTTPException(status_code=503, detail=f"UCT Agent is unavailable right now ({type(e).__name__}).")
+        log.exception("[uct-agent] turn failed")
+        raise HTTPException(status_code=503, detail=f"UCT Agent is unavailable right now ({type(e).__name__}). No changes were made.")
     env, usage = out["envelope"], out["usage"]
-    turn_id = store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
+    try:
+        turn_id = store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
                              {"envelope": env, "citations": usage.get("citations")})
+    except Exception:  # noqa: BLE001 -- the answer stands; only its transcript row is lost
+        log.exception("[uct-agent] could not store the agent turn")
+        turn_id = None
     store.record_telemetry(uid, cid, {
         "path": "model", "disposition": env["disposition"],
         "actions": [o.get("action") for o in env.get("ops") or []],
@@ -132,11 +149,15 @@ def agent_record(body: RecordIn, user: dict = Depends(require_admin_dark)):
     uid = user["id"]
     if not (body.member or body.outcome):
         raise HTTPException(status_code=400, detail="Nothing to record.")
-    cid = store.ensure_conversation(uid, body.conversationId, body.member or body.outcome or "")
-    if body.member:
-        store.add_turn(uid, cid, "member", body.member, {"local": True})
-    if body.outcome:
-        store.add_turn(uid, cid, "outcome", body.outcome, body.outcomeData or None)
+    try:
+        cid = store.ensure_conversation(uid, body.conversationId, body.member or body.outcome or "")
+        if body.member:
+            store.add_turn(uid, cid, "member", body.member, {"local": True})
+        if body.outcome:
+            store.add_turn(uid, cid, "outcome", body.outcome, body.outcomeData or None)
+    except Exception:  # noqa: BLE001
+        log.exception("[uct-agent] could not record a turn")
+        raise HTTPException(status_code=500, detail="Could not save this to the conversation.")
     if body.telemetry:
         t: dict[str, Any] = dict(body.telemetry)
         t.setdefault("path", "local")

@@ -39,7 +39,7 @@ TITLE_LEN = 60
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS agent_conversations (
   id          TEXT PRIMARY KEY,
-  user_id     INTEGER NOT NULL,
+  user_id     TEXT NOT NULL,
   title       TEXT NOT NULL,
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL
@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_conv_user ON agent_conversations(user_id, u
 CREATE TABLE IF NOT EXISTS agent_turns (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   conversation_id TEXT NOT NULL,
-  user_id         INTEGER NOT NULL,
+  user_id         TEXT NOT NULL,
   role            TEXT NOT NULL,          -- member | agent | outcome
   text            TEXT NOT NULL,
   data_json       TEXT,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS agent_turns (
 CREATE INDEX IF NOT EXISTS idx_agent_turns_conv ON agent_turns(conversation_id, id);
 CREATE TABLE IF NOT EXISTS agent_telemetry (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id         INTEGER NOT NULL,
+  user_id         TEXT NOT NULL,
   conversation_id TEXT,
   path            TEXT,                   -- fast | model | local
   disposition     TEXT,
@@ -90,6 +90,14 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _uid(user_id: Any) -> str:
+    """Member ids are opaque strings (production ids are UUIDs) -- never cast
+    them to int. ⚰️ 2026-10-07: `int(user_id)` 500'd every production turn.
+    Tables created with the old INTEGER declaration still store and match the
+    text id exactly (SQLite type affinity), so no migration is needed."""
+    return str(user_id)
+
+
 def _now() -> int:
     return int(time.time())
 
@@ -104,7 +112,7 @@ def create_conversation(user_id: int, first_text: str) -> str:
     now = _now()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute("INSERT INTO agent_conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                  (cid, int(user_id), title, now, now))
+                  (cid, _uid(user_id), title, now, now))
         c.commit()
     return cid
 
@@ -112,7 +120,7 @@ def create_conversation(user_id: int, first_text: str) -> str:
 def owns(user_id: int, conversation_id: str) -> bool:
     with contextlib.closing(_connect()) as c:
         row = c.execute("SELECT 1 FROM agent_conversations WHERE id = ? AND user_id = ?",
-                        (str(conversation_id), int(user_id))).fetchone()
+                        (str(conversation_id), _uid(user_id))).fetchone()
     return row is not None
 
 
@@ -131,10 +139,10 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
             "INSERT INTO agent_turns (conversation_id, user_id, role, text, data_json, created_at) VALUES (?,?,?,?,?,?)",
-            (conversation_id, int(user_id), role, _clip(text),
+            (conversation_id, _uid(user_id), role, _clip(text),
              json.dumps(data, separators=(",", ":"))[:20000] if data is not None else None, now))
         c.execute("UPDATE agent_conversations SET updated_at = ? WHERE id = ? AND user_id = ?",
-                  (now, conversation_id, int(user_id)))
+                  (now, conversation_id, _uid(user_id)))
         c.commit()
         return int(cur.lastrowid)
 
@@ -142,7 +150,7 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
 def list_conversations(user_id: int, limit: int = 30) -> list[dict]:
     with contextlib.closing(_connect()) as c:
         rows = c.execute("SELECT id, title, created_at, updated_at FROM agent_conversations WHERE user_id = ? "
-                         "ORDER BY updated_at DESC LIMIT ?", (int(user_id), int(limit))).fetchall()
+                         "ORDER BY updated_at DESC LIMIT ?", (_uid(user_id), int(limit))).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -152,7 +160,7 @@ def get_turns(user_id: int, conversation_id: str, limit: int = 200) -> list[dict
     with contextlib.closing(_connect()) as c:
         rows = c.execute("SELECT id, role, text, data_json, created_at FROM agent_turns WHERE conversation_id = ? "
                          "AND user_id = ? ORDER BY id DESC LIMIT ?",
-                         (conversation_id, int(user_id), int(limit))).fetchall()
+                         (conversation_id, _uid(user_id), int(limit))).fetchall()
     out = []
     for r in reversed(rows):
         d = dict(r)
@@ -189,7 +197,7 @@ def record_telemetry(user_id: int, conversation_id: str | None, row: dict) -> No
                 "INSERT INTO agent_telemetry (user_id, conversation_id, path, disposition, actions, refused, "
                 "clarified, undo, latency_ms, model, cost_usd, research_calls, unsupported, voice, created_at) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (int(user_id), conversation_id, _clip(vals["path"], 16), _clip(vals["disposition"], 16),
+                (_uid(user_id), conversation_id, _clip(vals["path"], 16), _clip(vals["disposition"], 16),
                  json.dumps([_clip(a, 40) for a in actions][:16]),
                  int(bool(vals["refused"])), int(bool(vals["clarified"])), int(bool(vals["undo"])),
                  int(vals["latency_ms"]) if isinstance(vals["latency_ms"], (int, float)) else None,
@@ -208,7 +216,7 @@ def telemetry_rows(user_id: int | None = None, limit: int = 500) -> list[dict]:
             rows = c.execute("SELECT * FROM agent_telemetry ORDER BY id DESC LIMIT ?", (int(limit),)).fetchall()
         else:
             rows = c.execute("SELECT * FROM agent_telemetry WHERE user_id = ? ORDER BY id DESC LIMIT ?",
-                             (int(user_id), int(limit))).fetchall()
+                             (_uid(user_id), int(limit))).fetchall()
     return [dict(r) for r in rows]
 
 

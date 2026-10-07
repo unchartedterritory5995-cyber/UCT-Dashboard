@@ -133,12 +133,12 @@ describe('FLOW A — questions do not mutate; a change does, and says so', () =>
 })
 
 describe('FLOW D — the pre-flight: zero model calls for an explicit other symbol / timeframe', () => {
-  it('"Can it compare AAPL with SPY?" on an XRPN chart: answered in the browser, the client is never called', async () => {
+  it('"Compare AAPL with SPY" on an XRPN chart: answered in the browser, the client is never called (P3: the question form now reaches the model)', async () => {
     const { spy } = mount({ sym: 'XRPN' })
     await say('Add a 20 EMA')
     const calls = spy.mock.calls.length
     const tree = previewTree(); const rev = panel().dataset.revision
-    await say('Can it compare AAPL with SPY?')
+    await say('Compare AAPL with SPY')
     expect(spy.mock.calls.length).toBe(calls)                // ⛔ ZERO calls
     expect(lastUct().dataset.kind).toBe('unsupported')
     expect(lastUct().textContent).toMatch(/AAPL, another symbol/)
