@@ -355,6 +355,7 @@ class Flow:
     unbuilt: str | None = None        # the reason it is INCONCLUSIVE on this tree, if it is
     notes: str = ""
     bars: bool = False                # route /api/bars/<SYM> to the 13H-2 walk's synthetic bars
+    tall: bool = False                # a 1200 px tall window at the wide width (see Q20)
 
 
 @dataclass
@@ -1100,6 +1101,25 @@ def q3_open_by_title(cx: Ctx, pg, m: Meter, width: str) -> dict:
 def q4_search_open(cx: Ctx, pg, m: Meter, width: str) -> dict:
     nid = cx.seed["notes"]["CRWD base watch"]
     open_start(pg, cx.base, "/journal/notebook")
+    if m.mode == "keys":
+        # Lane KEYS: the palette's "Search Notebook" now opens the search panel with the cursor
+        # in the box (it used to open the Notebook and stop). Ctrl+K, the name, Enter.
+        m.key("Control+k", "open the command palette")
+        m.type("search notebook", "palette query")
+        pick_option(m, r"Search Notebook", "Search Notebook")
+        box = pg.get_by_label("Search your notes").filter(visible=True)
+        try:
+            box.first.wait_for(state="visible", timeout=15000)
+        except Exception:  # noqa: BLE001
+            raise Inconclusive("the palette's Search Notebook did not open the search box")
+        focus_field(m, box, "Search your notes")
+        m.fill(box, "CRWD", "search query")
+        pg.wait_for_timeout(1200)
+        m.key("Enter", "open the first hit")
+        got = wait_note_open(pg)
+        if got != nid:
+            raise Inconclusive(f"outcome not reached: opened {got}, wanted {nid}")
+        return {"note": nid, "path": "palette: Search Notebook"}
     tab = pg.get_by_role("tab", name="Search notes").filter(visible=True)
     if tab.count() == 0:
         toggle = pg.get_by_role("button", name="Show folders panel")
@@ -1561,10 +1581,42 @@ def q20_chart(cx: Ctx, pg, m: Meter, width: str) -> dict:
         raise Inconclusive("the slash menu's Chart row did not put a chart in the note")
     wait_body(cx, nid, lambda n: "widgetEmbed" in json.dumps(n.get("bodyJson") or {}), 20)
     if m.mode == "keys":
-        raise Inconclusive(
-            f"keyboard: the chart went in for {m.count()} keys, and then there is no keyboard way to place a "
-            "level on it. Draw arms a pointer tool and a level is placed by a click or tap on the chart; the "
-            "plan panel (ChartPlanPanel.jsx) names a drawn level and has no field to add one")
+        # The keyboard's door to a level is the plan panel's own form (lane FIN-A11Y): a price, a
+        # role, Add level. The chart toolbar is a forward Tab stop since lane KEYS.
+        settle(pg, 3000)
+        m.tab_to("el.tagName === 'BUTTON' && el.textContent.trim() === 'Plan' && el.closest('[data-widget-embed-view]')",
+                 "Plan (chart toolbar)")
+        m.key("Enter", "activate Plan (chart toolbar)")
+        panel = pg.locator("[data-chart-plan-panel]").first
+        panel.wait_for(state="visible", timeout=30000)
+        form = panel.locator("[data-add-level]")
+        try:
+            form.wait_for(state="visible", timeout=15000)
+        except Exception:  # noqa: BLE001
+            raise Inconclusive("the plan panel has no form to add a level by typing")
+        for price, role in (("150", "entry"), ("140", "stop"), ("180", "target")):
+            field = form.locator("input").first
+            m.keys_to(field, f"price of the new level ({role})")
+            m.fill(field, price, "price")
+            sel = form.get_by_label("Role of the new level")
+            m.keys_to(sel, "Role of the new level")
+            sel.select_option(role)
+            m.keys += 1
+            m.steps.append({"do": "key", "key": f"{role[0].upper()} (choose {role} in the select; counted 1)", "on": "Role"})
+            m.press(form.get_by_role("button", name="Add level"), "Add level")
+            pg.wait_for_timeout(500)
+        try:
+            pg.wait_for_function("() => { const e = document.querySelector('[data-plan-value=\"shares\"]'); "
+                                 "return e && e.textContent.trim() !== '—' }", timeout=30000)
+        except Exception:  # noqa: BLE001
+            raise Inconclusive(f"three levels were typed and no size appeared; panel says: {panel.inner_text()[:300]!r}")
+        n = wait_body(cx, nid, lambda n: sorted(re.findall(r'"role": "(entry|stop|target)"', json.dumps(n.get("bodyJson") or {})))
+                      == ["entry", "stop", "target"], 20)
+        stored = sorted(re.findall(r'"role": "(entry|stop|target)"', json.dumps((n or {}).get("bodyJson") or {})))
+        if stored != ["entry", "stop", "target"]:
+            raise Inconclusive(f"outcome not reached: the stored note carries roles {stored}")
+        return {"note": nid, "path": "typed levels (plan panel form)", "roles_stored": stored,
+                "shares": panel.locator('[data-plan-value="shares"]').first.inner_text()}
     settle(pg, 5000)                       # a fresh chart saves its own picture a few seconds in
     sink = _HelperRaw(cx, tag)
     placed = w13h2.draw_three_lines(pg, frame, m.mode == "taps", sink, "q20", req=cx.req, base=cx.base, nid=nid)
@@ -1954,7 +2006,9 @@ FLOWS = [
     Flow("Q17", q17_why, notes="starts on the position's page; a position entered today"),
     Flow("Q18", q18_review_leak, notes="starts on Research Home; this week's trades seeded with one revenge re-entry"),
     Flow("Q19", q19_transcript, notes="pointer/touch start on the research page, keys in the thesis note; stored call seeded"),
-    Flow("Q20", q20_chart, bars=True, notes="bars are a fixture; levels placed by the 13H-2 walk's drawing helper"),
+    Flow("Q20", q20_chart, bars=True, tall=True,
+         notes="bars are a fixture; pointer levels placed by the 13H-2 walk's drawing helper, keyboard levels typed "
+               "in the plan panel; the wide window is 1200 px tall so the chart's toolbar clears the note's sticky header"),
     Flow("Q21", q21_arm_alert, bars=True, notes="starts on a note whose chart already carries the three levels; bars are a fixture"),
     Flow("Q22", q22_visual_playbook, bars=True, notes="starts on a note whose chart is tagged VCP; bars are a fixture"),
     Flow("Q23", q23_board_similar, bars=True, notes="starts on Research Home; nightly matches from the 13J walk's injected universe"),
@@ -1974,7 +2028,7 @@ def run_one(br, state, base: str, flow: Flow, mode: str, width: str, cx: Ctx, ou
         row["reason"] = flow.unbuilt
         print(f"  {flow.fid:>4} {mode:>5} @{width:>4}: INCONCLUSIVE -- {flow.unbuilt[:120]}", flush=True)
         return row
-    vp = PHONE if width == "390" else {"width": int(width), "height": WIDE["height"]}
+    vp = PHONE if width == "390" else {"width": int(width), "height": 1200 if flow.tall else WIDE["height"]}
     ctx = br.new_context(viewport=vp, has_touch=(width == "390"), is_mobile=(width == "390"),
                          reduced_motion="reduce", storage_state=state, accept_downloads=True)
     if flow.bars:
