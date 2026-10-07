@@ -442,6 +442,256 @@ def scrub_gallery_text(text: Any) -> str:
     return scrub_emails(_scrub_in_app_addresses(text, strict=True))
 
 
+# ── ⛔ THE GALLERY ATTRIBUTE TABLE (security review I-4, and M-8) ─────────────────────────
+#
+# A gallery template is copied into OTHER MEMBERS' notebooks and opened in their editor, so
+# what it carries is decided attribute by attribute, not type by type. Before this table the
+# gallery copy kept every attribute of a kept node and every attribute of a kept mark, and
+# TipTap's FontFamily and FontSize write theirs straight into an inline `style`
+# (`font-family: ${attributes.fontFamily}`), so a published template could put CSS into
+# another member's editor. The admin preview does not render that style, so a reviewer could
+# not see it.
+#
+# The rule, in gallery mode only:
+#   * a node keeps `type`, `attrs`, `content`, `marks` and (a text node) `text`: no other key;
+#   * a mark keeps `type` and `attrs`: no other key;
+#   * an attribute travels only when its type has a row here AND the row names it AND its
+#     value passes the row's check. Anything else is left out, and the editor fills in the
+#     attribute's own default. A type with no row carries no attributes at all (fail closed);
+#   * text inside an attribute gets the same scrub a text node gets (emails and in-app
+#     addresses), which is finding M-8.
+#
+# ⛔ THE VALUE LISTS ARE THE CLIENT'S, held equal by tests/test_notebook_fin_sec_gallery_attrs.py,
+# which PARSES the client files: the toolbar's font table (app/src/utils/fontFamilies.js), the
+# colour palette (lib/textColor.js NOTE_COLORS), the callout styles (lib/calloutNode.js) and
+# the embed providers (lib/webEmbeds.js).
+#
+# Share links and published pages are NOT changed here: they predate the reviewed diff, they
+# are rendered read-only on a public page rather than copied into another member's editor,
+# and narrowing them is a separate decision (docs/notebook/fin-sec.md).
+
+GALLERY_FONT_FAMILIES: tuple[str, ...] = (
+    "Instrument Sans, Arial, sans-serif",
+    'Georgia, "Times New Roman", serif',
+    'Consolas, "Courier New", monospace',
+    "Arial, Helvetica, sans-serif",
+    "Helvetica, Arial, sans-serif",
+    "Verdana, Geneva, sans-serif",
+    "Tahoma, Geneva, sans-serif",
+    '"Trebuchet MS", Helvetica, sans-serif',
+    "Calibri, Candara, sans-serif",
+    '"Century Gothic", sans-serif',
+    "Georgia, serif",
+    '"Times New Roman", Times, serif',
+    "Garamond, serif",
+    '"Palatino Linotype", "Book Antiqua", Palatino, serif',
+    "Cambria, Georgia, serif",
+    'Baskerville, "Baskerville Old Face", serif',
+    '"Courier New", Courier, monospace',
+    "Consolas, monospace",
+    '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
+    '"Comic Sans MS", "Comic Sans", cursive',
+    "Impact, Haettenschweiler, sans-serif",
+    '"Brush Script MT", cursive',
+)
+#: A font size is a whole number of CSS pixels in this range, written `<n>px`.
+GALLERY_FONT_SIZE_RANGE = (8, 96)
+GALLERY_COLOR_NAMES: tuple[str, ...] = ("gray", "red", "orange", "yellow", "green", "blue")
+GALLERY_CALLOUT_VARIANTS: tuple[str, ...] = ("note", "info", "success", "warning", "danger")
+#: provider -> the pattern its id must match (lib/webEmbeds.js YOUTUBE_ID, TRADINGVIEW_REF).
+GALLERY_EMBED_REFS: dict[str, "re.Pattern[str]"] = {
+    "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
+    "tradingview": re.compile(r"^(?:[A-Z0-9_]{1,20}:)?[A-Z0-9._!]{1,30}$"),
+}
+GALLERY_MAX_URL_CHARS = 2048
+
+_OMIT = object()          # leave this attribute out
+_DROP_NODE = object()     # drop the whole node
+
+_FONT_SIZE = re.compile(r"^([0-9]{1,3})px$")
+_SAFE_URL = re.compile(r"^https?://[^\s<>\"'`\\]+$", re.IGNORECASE)
+_ISO_DAY = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_CODE_LANGUAGE = re.compile(r"^[A-Za-z0-9+#_.-]{1,32}$")
+_EMBED_REF_SHAPE = re.compile(r"^[A-Za-z0-9._!:_-]{1,64}$")
+_DOMAIN = re.compile(r"^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$")
+_EMOJI_BAD = re.compile(r"[\x00-\x1f\x7f<>\"'`&;:(){}\\/=\s]")
+# KaTeX commands that make a link, load a file or set HTML attributes. A template has no use
+# for them, so a formula that names one does not travel at all.
+_LATEX_ACTIVE = re.compile(r"\\(?:href|url|includegraphics|html(?:Class|Id|Style|Data))(?![A-Za-z])")
+
+
+def _one_of(*allowed: Any):
+    def check(v: Any) -> Any:
+        return v if any(v is a or (type(v) is type(a) and v == a) for a in allowed) else _OMIT
+    return check
+
+
+def _int_in(lo: int, hi: int):
+    def check(v: Any) -> Any:
+        return v if type(v) is int and lo <= v <= hi else _OMIT
+    return check
+
+
+def _v_bool(v: Any) -> Any:
+    return v if isinstance(v, bool) else _OMIT
+
+
+def _v_font_size(v: Any) -> Any:
+    if v is None:
+        return None
+    m = _FONT_SIZE.match(v) if isinstance(v, str) else None
+    if m and GALLERY_FONT_SIZE_RANGE[0] <= int(m.group(1)) <= GALLERY_FONT_SIZE_RANGE[1]:
+        return v
+    return _OMIT
+
+
+def _v_url(v: Any) -> Any:
+    if v is None:
+        return None
+    if isinstance(v, str) and len(v) <= GALLERY_MAX_URL_CHARS and _SAFE_URL.match(v):
+        return v
+    return _OMIT
+
+
+def _v_text(limit: int):
+    def check(v: Any) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            return _OMIT
+        return scrub_gallery_text(v)[:limit]
+    return check
+
+
+def _v_domain(v: Any) -> Any:
+    if v is None:
+        return None
+    return v if isinstance(v, str) and _DOMAIN.match(v) else _OMIT
+
+
+def _v_latex(v: Any) -> Any:
+    if not isinstance(v, str) or len(v) > 4000 or _LATEX_ACTIVE.search(v):
+        return _DROP_NODE
+    return scrub_gallery_text(v)
+
+
+def _v_seconds(v: Any) -> Any:
+    return v if type(v) in (int, float) and 0 <= v <= 864_000 else _OMIT
+
+
+def _v_colwidth(v: Any) -> Any:
+    if v is None:
+        return None
+    if isinstance(v, list) and 1 <= len(v) <= 50 and all(type(w) is int and 20 <= w <= 2000 for w in v):
+        return v
+    return _OMIT
+
+
+def _v_emoji(v: Any) -> Any:
+    return v if isinstance(v, str) and 1 <= len(v) <= 16 and not _EMOJI_BAD.search(v) else _OMIT
+
+
+def _v_str(pattern: "re.Pattern[str]", *, none_ok: bool = True):
+    def check(v: Any) -> Any:
+        if v is None:
+            return None if none_ok else _OMIT
+        return v if isinstance(v, str) and pattern.match(v) else _OMIT
+    return check
+
+
+_CELL_ATTRS = {
+    "colspan": _int_in(1, 50), "rowspan": _int_in(1, 50), "colwidth": _v_colwidth,
+    "align": _one_of(None, "left", "center", "right"),
+}
+
+#: type (node or mark) -> {attribute: check}. A check returns the value to keep (cleaned),
+#: `_OMIT` to leave the attribute out, or `_DROP_NODE`.
+GALLERY_ATTR_POLICY: dict[str, dict[str, Any]] = {
+    # ── nodes ──
+    "heading": {"level": _int_in(1, 6)},
+    "orderedList": {"start": _int_in(0, 1_000_000), "type": _one_of(None, "1", "a", "A", "i", "I")},
+    "codeBlock": {"language": _v_str(_CODE_LANGUAGE)},
+    "taskItem": {"checked": _one_of(False)},
+    "tableHeader": _CELL_ATTRS,
+    "tableCell": _CELL_ATTRS,
+    "callout": {"emoji": _v_emoji, "variant": _one_of(None, *GALLERY_CALLOUT_VARIANTS)},
+    "toggle": {"open": _v_bool},
+    "linkPreview": {"url": _v_url, "title": _v_text(300), "description": _v_text(600),
+                    "domain": _v_domain, "image": _one_of(None)},
+    "webEmbed": {"provider": _one_of(*GALLERY_EMBED_REFS), "ref": _v_str(_EMBED_REF_SHAPE, none_ok=False),
+                 "url": _v_url},
+    "dateMention": {"date": _v_str(_ISO_DAY)},
+    "videoTimestamp": {"seconds": _v_seconds},
+    "inlineMath": {"latex": _v_latex},
+    "blockMath": {"latex": _v_latex},
+    # ── marks ──
+    "link": {"href": _v_url},                       # target and rel are SET, never copied
+    "textStyle": {"fontFamily": _one_of(None, *GALLERY_FONT_FAMILIES), "fontSize": _v_font_size},
+    "textColor": {"color": _one_of(*GALLERY_COLOR_NAMES)},
+    "highlight": {"color": _one_of(None, *GALLERY_COLOR_NAMES)},
+}
+
+#: What a gallery link always carries, whatever the stored mark said.
+GALLERY_LINK_FIXED = {"target": "_blank", "rel": "noreferrer"}
+
+
+def _gallery_attrs(type_name: Any, attrs: Any) -> Any:
+    """The attributes of one node or mark that a gallery copy keeps: a dict (possibly empty),
+    or `_DROP_NODE`."""
+    rows = GALLERY_ATTR_POLICY.get(type_name) if isinstance(type_name, str) else None
+    if not rows or not isinstance(attrs, dict):
+        return {}
+    kept: dict[str, Any] = {}
+    for name, check in rows.items():
+        if name not in attrs:
+            continue
+        value = check(attrs[name])
+        if value is _DROP_NODE:
+            return _DROP_NODE
+        if value is not _OMIT:
+            kept[name] = value
+    return kept
+
+
+def _gallery_mark(mark: dict) -> dict | None:
+    """One kept mark, reduced to its named attributes; None when nothing of it is left."""
+    t = mark.get("type")
+    attrs = _gallery_attrs(t, mark.get("attrs"))
+    if t == "link":
+        if not isinstance(attrs.get("href"), str):
+            return None                              # not an http(s) address: the words stay
+        return {"type": "link", "attrs": {"href": attrs["href"], **GALLERY_LINK_FIXED}}
+    if t == "textStyle" and not any(v is not None for v in attrs.values()):
+        return None                                  # a style mark that styles nothing
+    if t == "textColor" and "color" not in attrs:
+        return None
+    out: dict[str, Any] = {"type": t}
+    if t in GALLERY_ATTR_POLICY and isinstance(mark.get("attrs"), dict):
+        out["attrs"] = attrs
+    return out
+
+
+def _gallery_node(out: dict) -> dict | None:
+    """One kept node, reduced to the keys and attributes a gallery copy carries. None drops it."""
+    t = out.get("type")
+    attrs = _gallery_attrs(t, out.get("attrs"))
+    if attrs is _DROP_NODE:
+        return None
+    if t == "webEmbed":
+        pattern = GALLERY_EMBED_REFS.get(attrs.get("provider"))
+        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.match(attrs["ref"]):
+            attrs.pop("provider", None)              # not a player this app can build:
+            attrs.pop("ref", None)                   # it reads as a plain link, or nothing
+    if t == "linkPreview" and not isinstance(attrs.get("url"), str):
+        return None                                  # a card with no address is nothing
+    node: dict[str, Any] = {"type": t}
+    if t in GALLERY_ATTR_POLICY and isinstance(out.get("attrs"), dict):
+        node["attrs"] = attrs
+    if t == "text" and isinstance(out.get("text"), str):
+        node["text"] = out["text"]
+    return node
+
+
 def _public_image_src(src: Any, attachment_base: str) -> str | None:
     """`src` when a stranger's page may load it, else None (wave-8 final review M-6).
 
@@ -527,6 +777,10 @@ def _reduce_marks(marks: Any, mode: str = "share") -> list | None:
             if mode == "gallery" and (str(href).strip().lower().startswith("mailto:") or _in_app_shape(href)):
                 continue                             # gallery: an address is personal; the words stay
         if action in ("mark", "link-mark"):
+            if mode == "gallery":
+                m = _gallery_mark(m)                 # the attribute table (I-4)
+                if m is None:
+                    continue
             out.append(m)
     return out
 
@@ -654,6 +908,11 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         out["text"] = _scrub_in_app_addresses(out["text"], strict=ctx.mode == "gallery")  # walk W3
         if ctx.mode == "gallery":
             out["text"] = scrub_emails(out["text"])
+    if ctx.mode == "gallery":
+        cleaned = _gallery_node(out)                 # the attribute table (I-4)
+        if cleaned is None:
+            return []
+        out = cleaned
     if "marks" in node:
         marks = _reduce_marks(node.get("marks"), ctx.mode)
         if marks is not None and (marks or not node.get("marks")):
@@ -784,7 +1043,8 @@ def walk_types(doc: Any) -> Iterable[str]:
 __all__ = [
     "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
-    "ATTR_POLICY",
+    "ATTR_POLICY", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
+    "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
     "SHOWN", "NEUTRAL", "MODES", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
     "read_public_note", "walk_types",

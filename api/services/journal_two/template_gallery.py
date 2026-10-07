@@ -88,6 +88,10 @@ LIST_LIMIT = 200
 PREVIEW_LINES = 3
 _PREVIEW_LINE_CHARS = 72
 
+#: What an admin reads when the template they are approving is not the one they looked at.
+APPROVE_STALE_SENTENCE = ("This template changed after you opened it. Nothing was listed. "
+                          "Look at it again, then approve.")
+
 FIRM_AUTHOR = "UCT"
 ANONYMOUS_AUTHOR = "A UCT member"
 
@@ -137,7 +141,8 @@ _DDL = (
         featured            INTEGER NOT NULL DEFAULT 0,
         listed_at           TEXT,
         created_at          TEXT NOT NULL,
-        updated_at          TEXT NOT NULL
+        updated_at          TEXT NOT NULL,
+        preview_json        TEXT
     )""",
     # One live gallery copy per (author, source template): publishing again UPDATES it.
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_template_gallery_source"
@@ -181,11 +186,38 @@ def ensure_gallery_schema(conn: sqlite3.Connection) -> None:
     firm template must not take a boot down."""
     for stmt in _DDL:
         conn.execute(stmt)
+    # `preview_json` (security review M-6): the three preview lines, stored when a template is
+    # published or seeded so the list never parses a body. Added here for a database whose
+    # table predates it (SQLite has no ADD COLUMN IF NOT EXISTS, so the columns are read).
+    columns = {r[1] for r in conn.execute("PRAGMA table_info(j2_template_gallery)")}
+    if "preview_json" not in columns:
+        conn.execute("ALTER TABLE j2_template_gallery ADD COLUMN preview_json TEXT")
     conn.commit()
     try:
         seed_firm_templates(conn)
     except Exception as e:  # noqa: BLE001 -- never crash startup over a seed
         print(f"[template-gallery] firm seed skipped: {type(e).__name__}: {e}")
+    try:
+        fill_missing_previews(conn)
+    except Exception as e:  # noqa: BLE001 -- a preview is a courtesy, never a failed boot
+        print(f"[template-gallery] preview fill skipped: {type(e).__name__}: {e}")
+
+
+def fill_missing_previews(conn: sqlite3.Connection) -> int:
+    """Give every row with no stored preview one, from its own body. A steady-state database
+    has none, and then this is one read and no write. Returns how many rows were filled."""
+    rows = conn.execute(
+        "SELECT id, body_json FROM j2_template_gallery WHERE preview_json IS NULL").fetchall()
+    for r in rows:
+        try:
+            body = json.loads(r[1] or "{}")
+        except (TypeError, ValueError, RecursionError):
+            body = {}
+        conn.execute("UPDATE j2_template_gallery SET preview_json = ? WHERE id = ? AND preview_json IS NULL",
+                     (json.dumps(preview_lines(body)), r[0]))
+    if rows:
+        conn.commit()
+    return len(rows)
 
 
 def load_seed() -> list[dict[str, Any]]:
@@ -203,10 +235,10 @@ def seed_firm_templates(conn: sqlite3.Connection) -> int:
         cur = conn.execute(
             "INSERT OR IGNORE INTO j2_template_gallery (id, user_id, source_template_id, seed_key,"
             " kind, title, description, category, body_json, property_defs_json, status,"
-            " featured, listed_at, created_at, updated_at)"
-            " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?)",
+            " featured, listed_at, created_at, updated_at, preview_json)"
+            " VALUES (?, NULL, NULL, ?, 'firm', ?, ?, ?, ?, NULL, 'approved', 1, ?, ?, ?, ?)",
             (uuid.uuid4().hex, t["seedKey"], t["title"], t.get("description") or "",
-             t["category"], json.dumps(body), now, now, now),
+             t["category"], json.dumps(body), now, now, now, json.dumps(preview_lines(body))),
         )
         added += cur.rowcount or 0
     conn.commit()
@@ -223,6 +255,19 @@ def sanitize_body(body: Any, owner_id: str) -> dict:
     every image whatever its address."""
     return public.reduce(body, mode="gallery", owner_id=owner_id or "", note_id="",
                          attachment_base="", facts={}, note_links={})
+
+
+def _stored_body(row: sqlite3.Row) -> dict:
+    """A stored gallery body, put through the gallery reducer AGAIN on its way out (security
+    review I-4, defence in depth). The body was reduced when it was published; a row written
+    before a rule existed, or by anything other than `publish`, is still cleaned before a
+    member previews it or copies it into their own templates. The reducer is stable on its
+    own output, so a clean row is unchanged. A body that does not parse reads as empty."""
+    try:
+        body = json.loads(row["body_json"] or "{}")
+    except (TypeError, ValueError):
+        body = {}
+    return sanitize_body(body, "")
 
 
 def property_definitions(user_id: str, raw: str | None, conn: sqlite3.Connection) -> list[dict]:
@@ -321,11 +366,25 @@ def preview_lines(body: Any, limit: int = PREVIEW_LINES) -> list[dict]:
 
 def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict[str, Any]:
     mine = bool(viewer_id) and row["user_id"] == viewer_id
-    try:
-        body = json.loads(row["body_json"] or "{}")
-    except (TypeError, ValueError):
-        body = {}
+    keys = row.keys()
     defs = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
+    # ⛔ THE STORED PREVIEW, NEVER A PARSE OF THE BODY (security review M-6). The list used to
+    # parse every row's full body (200 rows of up to 200 KB) on every request to build three
+    # lines. A row from before the column has none until the next schema pass fills it; a
+    # single-template read (which has the body anyway) builds it on the spot.
+    preview: list[dict] = []
+    stored = row["preview_json"] if "preview_json" in keys else None
+    if stored:
+        try:
+            loaded = json.loads(stored)
+            preview = loaded if isinstance(loaded, list) else []
+        except (TypeError, ValueError):
+            preview = []
+    elif "body_json" in keys:
+        try:
+            preview = preview_lines(json.loads(row["body_json"] or "{}"))
+        except (TypeError, ValueError, RecursionError):
+            preview = []
     out: dict[str, Any] = {
         "id": row["id"],
         "title": row["title"],
@@ -338,7 +397,7 @@ def _summary(row: sqlite3.Row, *, viewer_id: str | None, is_admin: bool) -> dict
         "listedAt": row["listed_at"],
         "updatedAt": row["updated_at"],
         "mine": mine,
-        "preview": preview_lines(body),
+        "preview": preview,
         "propertyCount": len(defs),
     }
     if mine or is_admin:
@@ -359,6 +418,13 @@ _SELECT = (
     "    WHERE r.gallery_id = g.id AND r.status = 'open') AS open_reports"
     " FROM j2_template_gallery g LEFT JOIN users u ON u.id = g.user_id"
 )
+#: The list's own query: every column `_summary` reads, and NOT `body_json` (M-6).
+_SELECT_LIST = _SELECT.replace(
+    "SELECT g.*,",
+    "SELECT g.id, g.user_id, g.kind, g.title, g.description, g.category, g.property_defs_json,"
+    " g.status, g.review_note, g.hidden, g.featured, g.listed_at, g.created_at, g.updated_at,"
+    " g.preview_json,")
+assert "g.*" not in _SELECT_LIST and "body_json" not in _SELECT_LIST
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
 
 
@@ -400,7 +466,7 @@ def list_gallery(
         args.extend([_like(query), _like(query)])
     order = ("used_by DESC, COALESCE(g.listed_at, g.created_at) DESC" if sort == "most_used"
              else "COALESCE(g.listed_at, g.created_at) DESC")
-    sql = f"{_SELECT} WHERE {' AND '.join(where)} ORDER BY {order}, g.rowid DESC LIMIT {LIST_LIMIT}"
+    sql = f"{_SELECT_LIST} WHERE {' AND '.join(where)} ORDER BY {order}, g.rowid DESC LIMIT {LIST_LIMIT}"
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -433,7 +499,7 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
         if not _can_see(row, viewer_id, is_admin):
             return None
         out = _summary(row, viewer_id=viewer_id, is_admin=is_admin)
-        out["bodyJson"] = json.loads(row["body_json"] or '{"type":"doc","content":[]}')
+        out["bodyJson"] = _stored_body(row)
         out["propertyDefs"] = json.loads(row["property_defs_json"]) if row["property_defs_json"] else []
         return out
     finally:
@@ -472,6 +538,7 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
         body_json = json.dumps(body)
         if len(body_json.encode("utf-8")) > MAX_BODY_BYTES:
             raise GalleryError("That template is too long for the gallery. Trim it and try again.")
+        preview_json = json.dumps(preview_lines(body))      # stored once, read by the list (M-6)
         defs = property_definitions(user_id, src["properties_json"], conn)
         defs_json = json.dumps(defs) if defs else None
         now = _now()
@@ -485,17 +552,17 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
                 "UPDATE j2_template_gallery SET title = ?, description = ?, category = ?,"
                 " body_json = ?, property_defs_json = ?, status = 'pending', review_note = NULL,"
                 " reviewed_by = NULL, reviewed_at = NULL, featured = 0, listed_at = NULL,"
-                " updated_at = ? WHERE id = ?",
-                (clean_title, clean_desc, clean_cat, body_json, defs_json, now, gid),
+                " updated_at = ?, preview_json = ? WHERE id = ?",
+                (clean_title, clean_desc, clean_cat, body_json, defs_json, now, preview_json, gid),
             )
         else:
             gid = uuid.uuid4().hex
             conn.execute(
                 "INSERT INTO j2_template_gallery (id, user_id, source_template_id, kind, title,"
                 " description, category, body_json, property_defs_json, status, created_at,"
-                " updated_at) VALUES (?, ?, ?, 'member', ?, ?, ?, ?, ?, 'pending', ?, ?)",
+                " updated_at, preview_json) VALUES (?, ?, ?, 'member', ?, ?, ?, ?, ?, 'pending', ?, ?, ?)",
                 (gid, user_id, src["id"], clean_title, clean_desc, clean_cat, body_json,
-                 defs_json, now, now),
+                 defs_json, now, now, preview_json),
             )
         conn.commit()
         return _summary(_row(conn, gid), viewer_id=user_id, is_admin=False)
@@ -578,7 +645,7 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
         conn.execute(
             "INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json,"
             " created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)",
-            (new_id, user_id, name, row["title"] or "", row["body_json"], now, now),
+            (new_id, user_id, name, row["title"] or "", json.dumps(_stored_body(row)), now, now),
         )
         if row["user_id"] != user_id:
             conn.execute(
@@ -636,7 +703,7 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     try:
         def rows(where: str, order: str) -> list[dict]:
             return [_summary(r, viewer_id=None, is_admin=True)
-                    for r in conn.execute(f"{_SELECT} WHERE {where} ORDER BY {order} LIMIT {LIST_LIMIT}")]
+                    for r in conn.execute(f"{_SELECT_LIST} WHERE {where} ORDER BY {order} LIMIT {LIST_LIMIT}")]
 
         pending = rows("g.status = 'pending'", "g.updated_at ASC")
         hidden = rows("g.hidden = 1", "g.hidden_at DESC")
@@ -663,11 +730,20 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
 
 
 def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
+              reviewed_updated_at: Any = None,
               conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """approve | reject | hide | unhide | feature | unfeature. None when no such template.
 
     ⛔ hide and unhide flip a VISIBILITY column; nothing is deleted (the kill-switch rule).
-    Hiding also closes the template's open reports as `hidden`, the Floor's shape."""
+    Hiding also closes the template's open reports as `hidden`, the Floor's shape.
+
+    ⛔ AN APPROVAL NAMES THE VERSION THAT WAS REVIEWED (security review I-6).
+    `reviewed_updated_at` is the `updatedAt` of the template as the reviewer saw it (the
+    review queue row and the preview both carry it). The UPDATE is conditional on it, in
+    its own WHERE clause, so there is no gap between the check and the write: publishing
+    again replaces the body and moves `updated_at`, and an approval of the earlier version
+    then changes nothing and raises `GalleryConflict` (409). An approval that names no
+    version is refused the same way -- nothing may be listed unseen."""
     if action not in ADMIN_ACTIONS:
         raise GalleryError("Unknown review action.")
     clean_note = _clean_text(note, field="note", limit=MAX_NOTE_CHARS, required=False)
@@ -679,10 +755,16 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
             return None
         now = _now()
         if action == "approve":
-            conn.execute(
+            if not isinstance(reviewed_updated_at, str) or not reviewed_updated_at:
+                raise GalleryConflict(APPROVE_STALE_SENTENCE)
+            cur = conn.execute(
                 "UPDATE j2_template_gallery SET status = 'approved', review_note = NULL, reviewed_by = ?,"
-                " reviewed_at = ?, listed_at = COALESCE(listed_at, ?), updated_at = ? WHERE id = ?",
-                (admin_id, now, now, now, gallery_id))
+                " reviewed_at = ?, listed_at = COALESCE(listed_at, ?), updated_at = ?"
+                " WHERE id = ? AND updated_at = ?",
+                (admin_id, now, now, now, gallery_id, reviewed_updated_at))
+            if cur.rowcount != 1:
+                conn.rollback()
+                raise GalleryConflict(APPROVE_STALE_SENTENCE)
         elif action == "reject":
             if not clean_note:
                 raise GalleryError("Say why, so the author can fix it.")

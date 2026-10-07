@@ -3,12 +3,12 @@
 The service is `api/services/journal_two/template_gallery.py`; the client is
 `app/src/pages/journal-2-0/lib/templateGallery.js` + `components/notebook/TemplateGallery.jsx`.
 
-  member  GET    /api/j2/template-gallery                     session  browse (?q ?category ?sort ?section)
-  member  GET    /api/j2/template-gallery/{gallery_id}        session  one template in full (preview)
+  member  GET    /api/j2/template-gallery                     paid     browse (?q ?category ?sort ?section)
+  member  GET    /api/j2/template-gallery/{gallery_id}        paid     one template in full (preview)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
-  member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
-  member  POST   /api/j2/template-gallery/{gallery_id}/use    session  copy into Your templates
-  member  POST   /api/j2/template-gallery/{gallery_id}/report session  report a listed template
+  member  DELETE /api/j2/template-gallery/{gallery_id}        paid     unpublish
+  member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
+  member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
   admin   GET    /api/j2/template-gallery/admin/queue                  pending, reported, hidden
   admin   PATCH  /api/j2/template-gallery/admin/items/{gallery_id}     approve|reject|hide|unhide|feature|unfeature
   admin   PATCH  /api/j2/template-gallery/admin/reports/{report_id}    hide|dismiss
@@ -19,9 +19,12 @@ The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publi
   * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN -- the gate, then the member, then the body
     (`member_body` / `paid_body`), never a FastAPI body parameter, so a malformed body can
     never answer 422 ahead of the gate.
-  * PLAN: publishing takes this router's own `require_paid`; unpublish does NOT -- a member
-    whose plan lapsed can always take their template down. Browsing, using and reporting
-    need a session only (member templates are free, wave 6 owner ruling).
+  * PLAN: every member route takes this router's own `require_paid` (owner ruling
+    2026-10-02, "no free tier, everything is paywall"; security review I-7). That replaced
+    the wave 6 rule that browsing, using and reporting needed a session only.
+    ⚠️ It includes UNPUBLISH: a member whose plan lapsed can no longer take their own
+    template down themselves (an admin can hide it, and deleting the account removes it).
+    That consequence is recorded as an open decision in docs/notebook/fin-sec.md.
   * RATE LIMITS, per member: publish 10/hour and report 30/hour in the in-process limiter
     (`public.enforce_rate`; ⚠️ PER-PROCESS STATE, scopes `notebook-gallery-publish` and
     `notebook-gallery-report` -- a second web process doubles both), plus a DURABLE daily cap
@@ -39,7 +42,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import (
-    get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
+    get_current_user_with_plan, is_paid_user, require_admin,
 )
 from api.services import daily_counters
 from api.services.journal_two import public_note_payload as public
@@ -76,7 +79,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
     reads the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="Publishing to the community gallery requires a paid plan")
+        raise HTTPException(status_code=402, detail="The community template gallery requires a paid plan")
     return user
 
 
@@ -93,10 +96,6 @@ async def _read_json(request: Request) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise HTTPException(status_code=422, detail="Send a JSON object")
     return data
-
-
-async def member_body(request: Request, _user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    return await _read_json(request)
 
 
 async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
@@ -141,7 +140,7 @@ def _bad(e: gallery.GalleryError) -> HTTPException:
 
 @router.get("")
 def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest", section: str = "all",
-                          user: dict = Depends(get_current_user)) -> dict[str, Any]:
+                          user: dict = Depends(require_paid)) -> dict[str, Any]:
     """The gallery as this member sees it; `viewer.admin` lets the client show the review
     queue's door (the queue itself is admin-gated on the server)."""
     try:
@@ -158,7 +157,7 @@ def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any
 
 
 @router.get("/{gallery_id}")
-def get_item_endpoint(gallery_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     item = gallery.get_item(user["id"], gallery_id, is_admin=_is_admin(user))
     if item is None:
         raise public.not_found()
@@ -184,14 +183,14 @@ def publish_endpoint(body: dict[str, Any] = Depends(paid_body), user: dict = Dep
 
 
 @router.delete("/{gallery_id}")
-def unpublish_endpoint(gallery_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def unpublish_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     if not gallery.unpublish(user["id"], gallery_id):
         raise public.not_found()
     return {"ok": True}
 
 
 @router.post("/{gallery_id}/use")
-def use_endpoint(gallery_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def use_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     try:
         out = gallery.use_template(user["id"], gallery_id)
     except gallery.GalleryError as e:
@@ -202,8 +201,8 @@ def use_endpoint(gallery_id: str, user: dict = Depends(get_current_user)) -> dic
 
 
 @router.post("/{gallery_id}/report")
-def report_endpoint(gallery_id: str, body: dict[str, Any] = Depends(member_body),
-                    user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def report_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_body),
+                    user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{reason, note?}`. One report per member per template; a repeat answers `already`."""
     public.enforce_rate(REPORT_RATE, SCOPE_REPORT, f"member:{user['id']}", REPORT_RATE_SENTENCE, public=False)
     day = _daily_take(DAILY_REPORT_SCOPE, user, "NOTEBOOK_GALLERY_REPORT_DAILY_CAP", 20, REPORT_RATE_SENTENCE)
@@ -225,10 +224,13 @@ def report_endpoint(gallery_id: str, body: dict[str, Any] = Depends(member_body)
 @router.patch("/admin/items/{gallery_id}")
 def admin_item_endpoint(gallery_id: str, body: dict[str, Any] = Depends(admin_body),
                         admin: dict = Depends(require_admin)) -> dict[str, Any]:
-    """`{action: approve|reject|hide|unhide|feature|unfeature, note?}`. Hide is a visibility
-    state; nothing here deletes a member's template."""
+    """`{action: approve|reject|hide|unhide|feature|unfeature, note?, reviewedUpdatedAt?}`.
+    Hide is a visibility state; nothing here deletes a member's template. An approval must
+    carry `reviewedUpdatedAt`, the `updatedAt` of the version the reviewer saw; if the
+    template changed since, the answer is 409 and nothing is listed."""
     try:
-        item = gallery.admin_act(admin["id"], gallery_id, body.get("action"), note=body.get("note"))
+        item = gallery.admin_act(admin["id"], gallery_id, body.get("action"), note=body.get("note"),
+                                 reviewed_updated_at=body.get("reviewedUpdatedAt"))
     except gallery.GalleryError as e:
         raise _bad(e)
     if item is None:

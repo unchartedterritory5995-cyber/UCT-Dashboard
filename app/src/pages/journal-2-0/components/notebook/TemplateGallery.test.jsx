@@ -34,7 +34,7 @@ function freshServer({ admin = false } = {}) {
     ],
     memberTemplates: [{ id: 't1', name: 'Swing plan', title: 'Swing plan', createdAt: '1' }],
     queue: {
-      pending: [{ id: 'g-p', title: 'Pending one', author: 'Bob', category: 'journal', description: '' }],
+      pending: [{ id: 'g-p', title: 'Pending one', author: 'Bob', category: 'journal', description: '', updatedAt: '2026-10-02T10:00:00+00:00' }],
       reported: [{ id: 'g-r', title: 'Reported one', author: 'Carl', category: 'review', openReports: 1,
         reports: [{ id: 'r1', reason: 'spam', note: 'ads', createdAt: '1' }] }],
       hidden: [{ id: 'g-h', title: 'Hidden one', author: 'Dee', category: 'review' }],
@@ -236,7 +236,11 @@ describe('the review queue', () => {
     await user.click(await screen.findByRole('button', { name: 'Review queue' }))
     await user.click(await screen.findByRole('button', { name: 'Approve Pending one' }))
     expect(await screen.findByText('Approved “Pending one”. It is listed now.')).toBeInTheDocument()
-    expect(sentTo('/api/j2/template-gallery/admin/items/g-p', 'PATCH')[0].body).toEqual({ action: 'approve', note: '' })
+    // Security review I-6: an approval names the version the reviewer saw (the queue row's
+    // `updatedAt` here), so the server can refuse one for a template that changed since.
+    expect(sentTo('/api/j2/template-gallery/admin/items/g-p', 'PATCH')[0].body).toEqual({
+      action: 'approve', note: '', reviewedUpdatedAt: '2026-10-02T10:00:00+00:00',
+    })
     await user.click(screen.getByRole('button', { name: 'Reject Pending one' }))
     const reject = screen.getByRole('form', { name: 'Reject Pending one' })
     expect(within(reject).getByRole('button', { name: 'Reject' })).toBeDisabled()         // a reason first

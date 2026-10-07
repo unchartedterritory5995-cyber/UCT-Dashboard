@@ -61,7 +61,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
     reads the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="Find more like this requires a paid plan")
+        raise HTTPException(status_code=402, detail="The setups board and Find more like this require a paid plan")
     return user
 
 
@@ -72,7 +72,7 @@ def _conn() -> sqlite3.Connection:
 
 
 @router.get("")
-def get_board(user: dict = Depends(get_current_user)):
+def get_board(user: dict = Depends(require_paid)):
     conn = _conn()
     try:
         return setups_board.build_cards(conn, str(user["id"]))

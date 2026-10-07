@@ -99,7 +99,12 @@ def test_the_route_is_404_while_the_flag_is_off_then_asks_for_a_session(client, 
 
 def test_the_route_answers_the_resolver_and_refuses_a_non_symbol(client, monkeypatch):
     monkeypatch.setenv(chart_plan.FLAG, "1")
-    user = {"id": "m1", "role": "member", "plan": "free"}
+    # Owner ruling 2026-10-02 (security review I-7): a member with no paid plan is refused.
+    free = {"id": "m1", "role": "member", "plan": "free"}
+    client.app_.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(free)
+    refused = client.get("/api/j2/chart-plan/benchmarks?symbol=xom")
+    assert refused.status_code == 402 and "paid plan" in refused.json()["detail"]
+    user = {"id": "m1", "role": "member", "plan": "pro"}
     client.app_.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
     monkeypatch.setattr(chart_plan, "_stock_sector", lambda s: "Energy")
     monkeypatch.setattr(chart_plan, "_stock_theme_etf", lambda s: None)

@@ -93,7 +93,7 @@ class TourRow(BaseModel):
 
 
 @router.put("/tours/{tour_id}")
-async def record_tour_state(tour_id: str, body: TourRow, user: dict = Depends(get_current_user)):
+async def record_tour_state(tour_id: str, body: TourRow, user: dict = Depends(require_paid)):
     """Upsert ONE tour's `{v, state, step}` row inside `notebook_tours`, atomically, and
     answer the whole merged map as the stored TEXT value (`value`), so the client puts the
     server's answer -- other tabs' rows included -- straight into its preferences cache.

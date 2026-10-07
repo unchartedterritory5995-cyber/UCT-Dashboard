@@ -24,7 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.auth_db import get_connection
 from api.services.journal_two import playbook_patterns, playbook_stats, sample_size
 from api.services.notebook_flags import flag_on
@@ -50,6 +50,16 @@ router = APIRouter(
 )
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
+    reads the sentence as a literal in the HTTPException call).
+    Owner ruling 2026-10-02: there is no free tier, so every Notebook member route takes
+    a paid plan (security review I-7; railed by tests/test_paywall_gate_free_tier.py)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="My Playbook requires a paid plan")
+    return user
+
+
 def build_payload(conn, user_id: str, account_id: str | None) -> dict[str, Any]:
     """Everything My Playbook shows. Every number in it is the authority's own value."""
     setups = playbook_stats.get_playbook_stats(user_id, account_id, conn=conn, with_trades=True)
@@ -66,7 +76,7 @@ def build_payload(conn, user_id: str, account_id: str | None) -> dict[str, Any]:
 
 @router.get("")
 def get_my_playbook(accountId: str | None = Query(None, max_length=128),  # noqa: N803 -- the client's name
-                    user: dict = Depends(get_current_user)) -> dict[str, Any]:
+                    user: dict = Depends(require_paid)) -> dict[str, Any]:
     conn = get_connection()
     try:
         return build_payload(conn, user["id"], accountId or None)

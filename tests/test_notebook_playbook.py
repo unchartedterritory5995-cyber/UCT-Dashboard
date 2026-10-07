@@ -77,7 +77,8 @@ def client(db_path, monkeypatch):
     from api.routers import notebook_playbook
     fa = FastAPI()
     fa.include_router(notebook_playbook.router)
-    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": U, "role": "member"}
+    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": U, "role": "member", "plan": "pro"}
+    fa.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": U, "role": "member", "plan": "pro"}
     yield TestClient(fa)
     fa.dependency_overrides.clear()
 

@@ -186,20 +186,7 @@ def _in_range(value: Any, lo: float | None, hi: float | None) -> bool | None:
 def _chart_nodes(body_json: Any) -> list[dict]:
     """The chart `widgetEmbed` nodes' attrs in document order -- the SAME traversal
     `chart_blocks.extract_blocks` makes, so a block's `position` indexes this list."""
-    found: list[dict] = []
-
-    def walk(node: Any) -> None:
-        if not isinstance(node, dict):
-            return
-        if node.get("type") == "widgetEmbed":
-            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
-            if attrs.get("widgetId") == chart_blocks.CHART_WIDGET:
-                found.append(attrs)
-        for child in node.get("content", []) or []:
-            walk(child)
-
-    walk(body_json)
-    return found
+    return chart_blocks.iter_chart_attrs(body_json)     # the one walk, a loop (review M-4)
 
 
 def _archived_images(conn: sqlite3.Connection, user_id: str, note_ids: Iterable[str]) -> dict:
@@ -211,10 +198,7 @@ def _archived_images(conn: sqlite3.Connection, user_id: str, note_ids: Iterable[
         marks = ",".join("?" for _ in chunk)
         for r in conn.execute(f"SELECT id, body_json FROM j2_notes WHERE user_id = ? AND id IN ({marks})",
                               (user_id, *chunk)):
-            try:
-                body = json.loads(r["body_json"]) if isinstance(r["body_json"], str) else r["body_json"]
-            except ValueError:
-                body = None
+            body = chart_blocks.parse_body(r["body_json"])
             for pos, attrs in enumerate(_chart_nodes(body)):
                 fb = attrs.get("fallback") if isinstance(attrs.get("fallback"), dict) else None
                 url = fb.get("url") if fb else None
@@ -467,10 +451,7 @@ def before_after(user_id: str, trade_id: str, conn: sqlite3.Connection) -> dict 
                              " AND deleted_at IS NULL", (link["noteId"], user_id)).fetchone()
             if r is not None:
                 plan["noteTitle"] = r["title"] or ""
-                try:
-                    body = json.loads(r["body_json"]) if isinstance(r["body_json"], str) else r["body_json"]
-                except ValueError:
-                    body = None
+                body = chart_blocks.parse_body(r["body_json"])
                 sym = (t["symbol"] or "").upper()
                 for b, attrs in zip(chart_blocks.extract_blocks(body), _chart_nodes(body)):
                     if (b["symbol"] or "") == sym:

@@ -243,14 +243,17 @@ def project_note(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
                  defs_cache: dict | None = None) -> int:
     """Rebuild one note's rows inside the caller's transaction. A level that survives the
     rebuild keeps its last observed side (so a re-save never re-arms a cross). Returns the
-    number of rows written (the ``none`` watermark row included)."""
+    number of rows written (the ``none`` watermark row included).
+
+    ⛔ EVERY READ AND EVERY PARSE COMES FIRST; THE DELETE AND THE INSERT COME LAST (security
+    review I-3). The first write statement takes the auth.db write lock and holds it until
+    the caller commits. The version scan below can parse up to `VERSION_SCAN_LIMIT` stored
+    bodies, so a DELETE ahead of it held the lock across all of that."""
     defs_cache = {} if defs_cache is None else defs_cache
     note_id = note["id"]
     prev_side = {r["level_id"]: r["last_side"] for r in conn.execute(
         "SELECT level_id, last_side FROM j2_note_levels WHERE user_id = ? AND note_id = ?",
         (user_id, note_id))}
-    conn.execute("DELETE FROM j2_note_levels WHERE user_id = ? AND note_id = ?", (user_id, note_id))
-    now = _now()
     symbol = _note_symbol(conn, user_id, note_id, note["ticker"])
     rows: dict[str, dict] = {}
     if symbol:
@@ -265,6 +268,8 @@ def project_note(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
     else:
         rows[ROLE_NONE] = {"role": ROLE_NONE, "price": None, "on_date": None, "shape": None,
                            "version_id": None, "named_at": None}
+    now = _now()
+    conn.execute("DELETE FROM j2_note_levels WHERE user_id = ? AND note_id = ?", (user_id, note_id))
     conn.executemany(
         "INSERT INTO j2_note_levels (user_id, note_id, level_id, symbol, role, shape, price,"
         " on_date, version_id, named_at, last_side, note_updated_at, projected_at)"
@@ -278,7 +283,13 @@ def project_note(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
 def catch_up_all(conn: sqlite3.Connection, budget: int = PROJECT_BUDGET) -> dict:
     """Bring the index up to every member's live notes: drop the rows of notes that are
     trashed or gone, then re-project up to `budget` notes whose ``updated_at`` moved past
-    their watermark (oldest edit first, so a backlog drains in order)."""
+    their watermark (oldest edit first, so a backlog drains in order).
+
+    ⛔ ONE SHORT TRANSACTION PER NOTE (security review I-3). auth.db is the session
+    database and its connections wait three seconds for a lock. This used to commit once, at
+    the end, so the write lock was held across up to `PROJECT_BUDGET` notes and every
+    version scan inside them. Now the removals commit together (deletes only, no parsing),
+    and each note commits on its own after `project_note` has done all its reading."""
     ensure_schema(conn)
     current = {(r["user_id"], r["id"]): r["updated_at"] for r in conn.execute(
         "SELECT user_id, id, updated_at FROM j2_notes WHERE deleted_at IS NULL")}
@@ -288,6 +299,8 @@ def catch_up_all(conn: sqlite3.Connection, budget: int = PROJECT_BUDGET) -> dict
     gone = [k for k in projected if k not in current]
     for uid, nid in gone:
         conn.execute("DELETE FROM j2_note_levels WHERE user_id = ? AND note_id = ?", (uid, nid))
+    if gone:
+        conn.commit()
     stale = sorted((u, k) for k, u in current.items() if projected.get(k) != u)[:max(0, int(budget))]
     defs_cache: dict = {}
     written = 0
@@ -297,7 +310,7 @@ def catch_up_all(conn: sqlite3.Connection, budget: int = PROJECT_BUDGET) -> dict
             " WHERE id = ? AND user_id = ? AND deleted_at IS NULL", (nid, uid)).fetchone()
         if note is not None:
             written += project_note(conn, uid, note, defs_cache)
-    conn.commit()
+            conn.commit()
     behind = sum(1 for k, u in current.items() if projected.get(k) != u) - len(stale)
     return {"notes_projected": len(stale), "notes_removed": len(gone), "rows_written": written,
             "notes_behind": max(0, behind)}

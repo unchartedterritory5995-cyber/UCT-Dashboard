@@ -105,13 +105,23 @@ def batch_chips(conn: sqlite3.Connection, user_id: str, symbols: Any) -> dict[st
     if not cleaned:
         return {}
     marks = ",".join("?" * len(cleaned))
-    rows = conn.execute(
-        "SELECT l.symbol AS symbol, l.note_id AS note_id, l.role AS role, l.price AS price,"
-        " n.title AS title, n.properties_json AS properties_json, n.updated_at AS updated_at"
-        f" FROM j2_note_levels l JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
-        f" WHERE l.user_id = ? AND l.symbol IN ({marks}) AND n.deleted_at IS NULL",
-        [user_id, *cleaned],
-    ).fetchall()
+    # ⛔ THE TABLE IS ANOTHER FEATURE'S (`note_levels.ensure_schema`), and on a running pod
+    # only the resurfacing pass creates it. A database that pass has never touched has no
+    # levels at all, so the true answer is "no chips" -- never a 500 (flags review R5 I4).
+    # Answered as empty rather than by creating the table here: this is a read path, and
+    # the batch stays exactly one `execute`.
+    try:
+        rows = conn.execute(
+            "SELECT l.symbol AS symbol, l.note_id AS note_id, l.role AS role, l.price AS price,"
+            " n.title AS title, n.properties_json AS properties_json, n.updated_at AS updated_at"
+            f" FROM j2_note_levels l JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
+            f" WHERE l.user_id = ? AND l.symbol IN ({marks}) AND n.deleted_at IS NULL",
+            [user_id, *cleaned],
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        if "no such table: j2_note_levels" not in str(e):
+            raise
+        return {}
 
     by_note: dict[tuple[str, str], dict] = {}
     for r in rows:

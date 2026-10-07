@@ -315,8 +315,30 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
         (user_id,),
     )
 
+    # Security review M-7 -- what OTHER members recorded about this member's gallery
+    # templates: their reports (a free-text note each) and their use records. These rows
+    # carry the other member's user_id, so the direct loop below never matches them, and
+    # once the templates are gone they point at nothing. Run BEFORE that loop, while the
+    # templates they key off still exist. The member's own reports and uses go in the loop.
+    about_their_templates = {
+        "j2_template_gallery_reports": _run(
+            "j2_template_gallery_reports",
+            "DELETE FROM j2_template_gallery_reports WHERE gallery_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+        "j2_template_gallery_uses": _run(
+            "j2_template_gallery_uses",
+            "DELETE FROM j2_template_gallery_uses WHERE gallery_id IN "
+            "(SELECT id FROM j2_template_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+    }
+
     for table in _DIRECT_USER_TABLES:
         deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+    for table, count in about_their_templates.items():
+        deleted[table] = deleted.get(table, 0) + count      # one count per table (the manifest's keys)
 
     # Wave 7 whole-branch fix, ruling D-H10 -- the durable daily counters
     # (`api/services/daily_counters.py`, ruling D-H5b): one row per (scope,

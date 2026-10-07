@@ -252,8 +252,18 @@ def client(monkeypatch):
             pass
 
 
-def as_user(client, uid):
-    client.app_.dependency_overrides[authmw.get_current_user] = lambda: {"id": uid, "role": "member"}
+def as_user(client, uid, plan="pro"):
+    # A paid member by default: the board takes a paid plan (owner ruling 2026-10-02, I-7).
+    user = {"id": uid, "role": "member", "plan": plan}
+    client.app_.dependency_overrides[authmw.get_current_user] = lambda: dict(user)
+    client.app_.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
+
+
+def test_the_board_route_needs_a_paid_plan(client, monkeypatch):
+    monkeypatch.setenv(setups_board.FLAG, "1")
+    as_user(client, "m1", plan="free")
+    r = client.get("/api/j2/setups-board")
+    assert r.status_code == 402 and "paid plan" in r.json()["detail"]
 
 
 def test_the_board_route_is_404_while_off_even_signed_out(client, monkeypatch):

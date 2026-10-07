@@ -66,6 +66,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+import math
 from typing import Any, Callable
 
 from api.services.journal_two.timeutil import ET
@@ -454,4 +455,49 @@ def summary_values(fp: dict | None) -> dict[str, Any]:
     if not isinstance(fp, dict):
         return {}
     fields = fp.get("fields") if isinstance(fp.get("fields"), dict) else {}
-    return {f: (fields.get(f) or {}).get("value") for f in FIELDS}
+    return {f: _value_of(f, fields.get(f)) for f in FIELDS}
+
+
+def _is_scalar(v: Any) -> bool:
+    if isinstance(v, float):
+        return math.isfinite(v)
+    return v is None or isinstance(v, (str, bool, int))
+
+
+def _value_of(name: str, field: Any) -> Any:
+    """One field's value, or None when the field is not the shape `compute` writes. A
+    fingerprint can come out of a member's own note (`chart_blocks.extract_blocks`), so this
+    reads it as data: a field that is a string or a list is "no value", never an exception
+    (security review M-3)."""
+    if not isinstance(field, dict):
+        return None
+    v = field.get("value")
+    if name == "patterns":
+        return v if v is None or (isinstance(v, list) and all(isinstance(p, dict) for p in v)) else None
+    return v if _is_scalar(v) else None
+
+
+#: The most pattern verdicts one fingerprint carries (a bound on a note-carried one).
+MAX_PATTERN_ITEMS = 50
+
+
+def well_formed(fp: Any) -> bool:
+    """Is `fp` the shape `compute` writes: a dict whose `fields` is a dict of
+    `{value, source, missing}` dicts with plain values? `chart_blocks` asks before it trusts a
+    fingerprint found in a note; anything else is treated as no fingerprint at all."""
+    if not isinstance(fp, dict) or not isinstance(fp.get("fields"), dict):
+        return False
+    for name, field in fp["fields"].items():
+        if not isinstance(name, str) or not isinstance(field, dict):
+            return False
+        missing = field.get("missing")
+        if missing is not None and not isinstance(missing, str):
+            return False
+        v = field.get("value")
+        if name == "patterns":
+            if v is not None and not (isinstance(v, list) and len(v) <= MAX_PATTERN_ITEMS
+                                      and all(isinstance(p, dict) for p in v)):
+                return False
+        elif not _is_scalar(v):
+            return False
+    return True
