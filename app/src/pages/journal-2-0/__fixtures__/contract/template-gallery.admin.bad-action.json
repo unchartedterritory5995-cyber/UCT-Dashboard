@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "PATCH /api/j2/template-gallery/admin/items/16e819f2c9674beaa9fad2d6975e95ef",
-    "path": "/api/j2/template-gallery/admin/items/16e819f2c9674beaa9fad2d6975e95ef",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/de29e1904cb84c159ce6535dab55786b",
+    "path": "/api/j2/template-gallery/admin/items/de29e1904cb84c159ce6535dab55786b",
     "requestBody": {
       "action": "explode"
     },

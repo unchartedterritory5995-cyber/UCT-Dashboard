@@ -1,8 +1,8 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef/use",
-    "path": "/api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef/use",
+    "endpoint": "POST /api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/use",
+    "path": "/api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/use",
     "status": 200
   },
   "body": {
@@ -17,7 +17,7 @@
     },
     "template": {
       "createdAt": "2026-10-05T14:30:00+00:00",
-      "id": "de29e1904cb84c159ce6535dab55786b",
+      "id": "55dd49b7b46246a8a6c2aade1c0d657a",
       "name": "Breakout checklist",
       "title": "Breakout checklist",
       "updatedAt": "2026-10-05T14:30:00+00:00"

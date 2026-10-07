@@ -2,12 +2,76 @@
   "_contract": {
     "case": "success",
     "endpoint": "GET /api/j2/template-gallery",
-    "note": "The author's own submissions while they wait for review.",
+    "note": "The author's own submissions while they all wait for review.",
     "path": "/api/j2/template-gallery?section=mine",
     "status": 200
   },
   "body": {
     "templates": [
+      {
+        "author": "Alice Trader",
+        "category": "research",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hidden": false,
+        "id": "ab5940fa4a9949fe9159e9f1c0a178cb",
+        "listedAt": null,
+        "mine": true,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reviewNote": "",
+        "status": "pending",
+        "title": "Sector notes",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "Alice Trader",
+        "category": "research",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hidden": false,
+        "id": "4525cdb4ca5047a49587a3305069e54d",
+        "listedAt": null,
+        "mine": true,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reviewNote": "",
+        "status": "pending",
+        "title": "Earnings notes",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
       {
         "author": "Alice Trader",
         "category": "review",
@@ -16,7 +80,7 @@
         "featured": false,
         "firm": false,
         "hidden": false,
-        "id": "689e73cc2eb343b0a29275e9ad75c2dd",
+        "id": "5a0bbe1fc29544bdb71b275fb117a0d1",
         "listedAt": null,
         "mine": true,
         "preview": [
@@ -48,7 +112,7 @@
         "featured": false,
         "firm": false,
         "hidden": false,
-        "id": "16e819f2c9674beaa9fad2d6975e95ef",
+        "id": "de29e1904cb84c159ce6535dab55786b",
         "listedAt": null,
         "mine": true,
         "preview": [

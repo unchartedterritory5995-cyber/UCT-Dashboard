@@ -2,6 +2,7 @@
   "_contract": {
     "case": "empty",
     "endpoint": "GET /api/j2/template-gallery",
+    "note": "Before any member has shared one: only UCT's own templates.",
     "path": "/api/j2/template-gallery",
     "status": 200
   },

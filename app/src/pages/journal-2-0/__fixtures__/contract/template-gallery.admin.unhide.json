@@ -1,28 +1,26 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "POST /api/j2/template-gallery",
-    "path": "/api/j2/template-gallery",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/ab5940fa4a9949fe9159e9f1c0a178cb",
+    "path": "/api/j2/template-gallery/admin/items/ab5940fa4a9949fe9159e9f1c0a178cb",
     "requestBody": {
-      "category": "review",
-      "description": "",
-      "templateId": "tg-second",
-      "title": "Weekly review"
+      "action": "unhide"
     },
     "status": 200
   },
   "body": {
     "template": {
       "author": "Alice Trader",
-      "category": "review",
+      "category": "research",
       "createdAt": "2026-10-05T14:30:00+00:00",
       "description": "",
       "featured": false,
       "firm": false,
       "hidden": false,
-      "id": "689e73cc2eb343b0a29275e9ad75c2dd",
-      "listedAt": null,
-      "mine": true,
+      "id": "ab5940fa4a9949fe9159e9f1c0a178cb",
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "openReports": 0,
       "preview": [
         {
           "kind": "heading",
@@ -39,8 +37,8 @@
       ],
       "propertyCount": 2,
       "reviewNote": "",
-      "status": "pending",
-      "title": "Weekly review",
+      "status": "approved",
+      "title": "Sector notes",
       "updatedAt": "2026-10-05T14:30:00+00:00",
       "usedBy": 0
     }

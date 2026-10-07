@@ -1,15 +1,15 @@
 {
   "_contract": {
     "case": "success",
-    "endpoint": "GET /api/j2/notebook-fingerprint/blocks/0302e58263324ad6a9a7867c7777f499/vp-f",
-    "path": "/api/j2/notebook-fingerprint/blocks/0302e58263324ad6a9a7867c7777f499/vp-f",
+    "endpoint": "GET /api/j2/notebook-fingerprint/blocks/0302e58263324ad6a9a7867c7777f499/vp-b",
+    "path": "/api/j2/notebook-fingerprint/blocks/0302e58263324ad6a9a7867c7777f499/vp-b",
     "status": 200
   },
   "body": {
     "block": {
       "asOf": "2026-09-30",
-      "embedId": "vp-f",
-      "embedKey": "vp-f",
+      "embedId": "vp-b",
+      "embedKey": "vp-b",
       "fingerprint": {
         "as_of": "2026-09-30",
         "fields": {
@@ -21,7 +21,7 @@
           "base_depth_pct": {
             "missing": null,
             "source": "screener_row",
-            "value": 9.0
+            "value": 22.0
           },
           "base_length_bars": {
             "missing": "not_in_screener_row",
@@ -84,9 +84,9 @@
             "value": null
           },
           "rs_rank": {
-            "missing": "not_in_screener_row",
+            "missing": null,
             "source": "screener_row",
-            "value": null
+            "value": 80
           },
           "vol_nweek_low": {
             "missing": "not_in_screener_row",
@@ -103,14 +103,14 @@
       "frozenAt": null,
       "mode": "snapshot",
       "noteId": "0302e58263324ad6a9a7867c7777f499",
-      "noteTitle": "VPTS plan",
+      "noteTitle": "VPAM plan",
       "position": 0,
-      "setupTag": "Bull Flag",
-      "symbol": "VPTS",
-      "timeframe": "W",
+      "setupTag": "VCP",
+      "symbol": "VPAM",
+      "timeframe": "D",
       "values": {
         "adr_pct": null,
-        "base_depth_pct": 9.0,
+        "base_depth_pct": 22.0,
         "base_length_bars": null,
         "close_cv_pct": null,
         "ema_stack_intact": null,
@@ -123,7 +123,7 @@
         "pole_pct": null,
         "pullback_depth_pct": null,
         "rs_line_trend": null,
-        "rs_rank": null,
+        "rs_rank": 80,
         "vol_nweek_low": null
       }
     }

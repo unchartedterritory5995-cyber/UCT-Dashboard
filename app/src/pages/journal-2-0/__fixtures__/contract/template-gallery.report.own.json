@@ -1,9 +1,9 @@
 {
   "_contract": {
     "case": "error",
-    "endpoint": "POST /api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef/report",
+    "endpoint": "POST /api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/report",
     "note": "A member cannot report their own template.",
-    "path": "/api/j2/template-gallery/16e819f2c9674beaa9fad2d6975e95ef/report",
+    "path": "/api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/report",
     "requestBody": {
       "reason": "spam"
     },

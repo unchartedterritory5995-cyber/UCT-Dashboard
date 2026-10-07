@@ -785,6 +785,20 @@ def review_drafts(w: World) -> None:
         trade("rd-reentry", "RDLS", "2026-09-30", "13:45", "14:15", 95.0, 93.0, 92.0, "Pullback", 9)
         trade("rd-mon", "RDMN", "2026-09-28", "14:00", "18:00", 50.0, 52.0, 49.0, "Breakout")
         trade("rd-early", "RDEA", "2026-09-10", "14:00", "18:00", 20.0, 19.0, 19.0, "EP")
+        # Twelve more losing trades earlier in the month, none with a plan: enough of them that
+        # the month's "unplanned trades" finding is shown plainly instead of behind the reveal.
+        for i in range(12):
+            trade(f"rd-m{i:02d}", f"RM{i:02d}", f"2026-09-{1 + i:02d}", "14:00", "15:00", 50.0, 49.5, 49.0, None)
+        c.commit()
+        # The winner was planned: a plan note written before entry (so the draft links it), and
+        # last week's review note (so the draft can be read beside it).
+        add_note_row(c, "rd-note-plan", user=uid, title="RDWN plan", ticker="RDWN",
+                     created="2026-09-25T12:00:00+00:00", body=doc(para("Plan"), plan_list(100, 97, 112, 100)))
+        from api.services.journal_two import notes as notes_service
+        prior = notes_service.create_note(uid, {"title": "Review of the week of Sep 14", "tags": ["weekly-review"]},
+                                          conn=c)
+        c.execute("UPDATE j2_notes SET created_at = ?, updated_at = ? WHERE id = ?",
+                  ("2026-09-19T20:00:00+00:00", "2026-09-19T20:00:00+00:00", prior["id"]))
         c.commit()
         add_trade(c, "rd-theirs", user=OTHER, symbol="RDXX", account_id=acct,
                   entry_date="2026-09-30T14:00:00+00:00", exit_date="2026-09-30T15:00:00+00:00")
@@ -1247,7 +1261,8 @@ def template_gallery(w: World) -> None:
         body = doc({"type": "heading", "attrs": {"level": 2},
                     "content": [{"type": "text", "text": "Before the breakout"}]},
                    para("Is the base at least five weeks long?"), para("Is volume drying up into the pivot?"))
-        for tid, name in (("tg-template", "My checklist"), ("tg-second", "Weekly review")):
+        for tid, name in (("tg-template", "My checklist"), ("tg-second", "Weekly review"),
+                          ("tg-third", "Earnings notes"), ("tg-fourth", "Sector notes")):
             c.execute("INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json,"
                       " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
                       (tid, author, name, name, json.dumps(body),
@@ -1257,15 +1272,23 @@ def template_gallery(w: World) -> None:
     finally:
         c.close()
     w.as_user(viewer)
-    w.record("template-gallery.list.empty", "GET", base, case="empty", expect=200)
+    w.record("template-gallery.list.empty", "GET", base, case="empty", expect=200,
+             note="Before any member has shared one: only UCT's own templates.")
     w.as_user(author)
     publish = {"templateId": "tg-template", "title": "Breakout checklist",
                "description": "What I check before a breakout.", "category": "trade_plan"}
     pending = w.record("template-gallery.publish", "POST", base, case="success", expect=200, json_body=publish)
     gid = pending["template"]["id"]
-    second = w.record("template-gallery.publish.second", "POST", base, case="success", expect=200,
-                      json_body={**publish, "templateId": "tg-second", "title": "Weekly review",
-                                 "description": "", "category": "review"})["template"]["id"]
+
+    def submit(template_id: str, title: str, category: str) -> str:
+        res = w.client.post(base, json={"templateId": template_id, "title": title, "description": "",
+                                        "category": category})
+        if res.status_code != 200:
+            raise AssertionError(f"could not submit {title}: {res.status_code} {res.text[:200]}")
+        return res.json()["template"]["id"]
+    second = submit("tg-second", "Weekly review", "review")
+    third = submit("tg-third", "Earnings notes", "research")
+    fourth = submit("tg-fourth", "Sector notes", "research")
     w.record("template-gallery.publish.bad-category", "POST", base, case="error", expect=400,
              json_body={**publish, "category": "memes"})
     w.record("template-gallery.publish.no-title", "POST", base, case="error", expect=400,
@@ -1274,23 +1297,28 @@ def template_gallery(w: World) -> None:
              json_body={**publish, "templateId": "nope"})
     w.record("template-gallery.publish.bad-body", "POST", base, case="error", expect=422, content=b"[1]")
     w.record("template-gallery.list.mine.pending", "GET", f"{base}?section=mine", case="success", expect=200,
-             note="The author's own submissions while they wait for review.")
+             note="The author's own submissions while they all wait for review.")
     w.as_user(author, FREE)
     w.record("template-gallery.publish.free-plan", "POST", base, case="error", expect=402, json_body=publish)
     w.as_user(viewer)
     w.record("template-gallery.item.pending-hidden", "GET", f"{base}/{gid}", case="error", expect=404,
              note="A submission waiting for review is the one 404 to everyone but its author and an admin.")
     w.as_user(ADMIN)
-    w.record("template-gallery.admin.queue", "GET", f"{base}/admin/queue", case="success", expect=200)
+    w.record("template-gallery.admin.queue", "GET", f"{base}/admin/queue", case="success", expect=200,
+             note="Four submissions waiting, nothing reported or hidden yet.")
     w.record("template-gallery.admin.approve", "PATCH", f"{base}/admin/items/{gid}", case="success", expect=200,
              json_body={"action": "approve"})
     w.record("template-gallery.admin.reject", "PATCH", f"{base}/admin/items/{second}", case="success", expect=200,
              json_body={"action": "reject", "note": "Too thin to be useful yet."})
     w.record("template-gallery.admin.bad-action", "PATCH", f"{base}/admin/items/{gid}", case="error", expect=400,
              json_body={"action": "explode"})
+    w.as_user(author)
+    w.record("template-gallery.list.mine", "GET", f"{base}?section=mine", case="success", expect=200,
+             note="One listed, one not approved (with the reviewer's note), two still waiting.")
     w.as_user(viewer)
     w.record("template-gallery.admin.queue.forbidden", "GET", f"{base}/admin/queue", case="error", expect=403)
-    w.record("template-gallery.list", "GET", base, case="success", expect=200)
+    w.record("template-gallery.list", "GET", base, case="success", expect=200,
+             note="UCT's picks and one member's approved template.")
     w.record("template-gallery.list.bad-sort", "GET", f"{base}?sort=loudest", case="error", expect=400)
     w.record("template-gallery.item", "GET", f"{base}/{gid}", case="success", expect=200)
     w.record("template-gallery.item.not-found", "GET", f"{base}/nope", case="error", expect=404)
@@ -1305,19 +1333,23 @@ def template_gallery(w: World) -> None:
     w.as_user(author)
     w.record("template-gallery.report.own", "POST", f"{base}/{gid}/report", case="error", expect=400,
              json_body={"reason": "spam"}, note="A member cannot report their own template.")
-    w.record("template-gallery.list.mine", "GET", f"{base}?section=mine", case="success", expect=200,
-             note="One listed, one not approved (with the reviewer's note).")
     w.as_user(ADMIN)
-    queue = w.record("template-gallery.admin.queue.reported", "GET", f"{base}/admin/queue", case="success",
-                     expect=200)
+    # A fourth submission approved and then hidden, so the queue holds one of each kind at once.
+    w.client.patch(f"{base}/admin/items/{fourth}", json={"action": "approve"})
+    w.record("template-gallery.admin.hide", "PATCH", f"{base}/admin/items/{fourth}", case="success", expect=200,
+             json_body={"action": "hide"})
+    queue = w.record("template-gallery.admin.queue.full", "GET", f"{base}/admin/queue", case="success", expect=200,
+                     note="One waiting, one reported (with its report), one hidden.")
+    w.record("template-gallery.admin.unhide", "PATCH", f"{base}/admin/items/{fourth}", case="success", expect=200,
+             json_body={"action": "unhide"})
     report_id = queue["reported"][0]["reports"][0]["id"]
-    w.record("template-gallery.admin.report.dismiss", "PATCH", f"{base}/admin/reports/{report_id}", case="success",
-             expect=200, json_body={"action": "dismiss"})
+    w.record("template-gallery.admin.report.hide", "PATCH", f"{base}/admin/reports/{report_id}", case="success",
+             expect=200, json_body={"action": "hide"})
     w.record("template-gallery.admin.report.not-found", "PATCH", f"{base}/admin/reports/nope", case="error",
              expect=404, json_body={"action": "dismiss"})
     w.as_user(author)
-    w.record("template-gallery.unpublish", "DELETE", f"{base}/{gid}", case="success", expect=200)
-    w.record("template-gallery.unpublish.not-found", "DELETE", f"{base}/{gid}", case="error", expect=404)
+    w.record("template-gallery.unpublish", "DELETE", f"{base}/{third}", case="success", expect=200)
+    w.record("template-gallery.unpublish.not-found", "DELETE", f"{base}/{third}", case="error", expect=404)
     w.as_user(None)
     w.record("template-gallery.list.signed-out", "GET", base, case="error", expect=401)
     w.as_user(MEMBER)

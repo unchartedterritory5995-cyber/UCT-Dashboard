@@ -8,7 +8,7 @@
       "direction": "below",
       "drawingId": "d-CPNV-stop",
       "embedId": "cp-emb",
-      "noteId": "0e03037ad7cc42f49b7b4393c8f6e44a",
+      "noteId": "dd73ad19010442239a5716bc644c7f3e",
       "target_price": 97.25
     },
     "status": 200
@@ -23,14 +23,14 @@
       "created_at": "2026-10-05T14:30:00+00:00",
       "direction": "below",
       "drawing_id": "d-CPNV-stop",
-      "id": "cf92402e-559",
+      "id": "3d5f4dd9-f50",
       "is_active": 1,
       "sym": "CPNV",
       "target_price": 97.25,
       "user_id": "contract-chart-plan"
     },
     "embedId": "cp-emb",
-    "noteId": "0e03037ad7cc42f49b7b4393c8f6e44a",
+    "noteId": "dd73ad19010442239a5716bc644c7f3e",
     "symbol": "CPNV"
   }
 }

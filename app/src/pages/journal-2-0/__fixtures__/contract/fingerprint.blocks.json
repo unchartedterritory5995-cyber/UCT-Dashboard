@@ -9,6 +9,127 @@
     "blocks": [
       {
         "asOf": "2026-09-30",
+        "embedId": "vp-b",
+        "embedKey": "vp-b",
+        "fingerprint": {
+          "as_of": "2026-09-30",
+          "fields": {
+            "adr_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "base_depth_pct": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 22.0
+            },
+            "base_length_bars": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "close_cv_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ema_stack_intact": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ma_stack": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "patterns": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma10": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma20": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma200": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma50": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pole_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pullback_depth_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_line_trend": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_rank": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 80
+            },
+            "vol_nweek_low": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            }
+          },
+          "mode": "nightly",
+          "requested_as_of": "2026-09-30",
+          "symbol": "X",
+          "v": 1
+        },
+        "fingerprintSource": "note",
+        "frozenAt": null,
+        "mode": "snapshot",
+        "noteId": "0302e58263324ad6a9a7867c7777f499",
+        "noteTitle": "VPAM plan",
+        "position": 0,
+        "setupTag": "VCP",
+        "symbol": "VPAM",
+        "timeframe": "D",
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 22.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 80,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
         "embedId": "vp-f",
         "embedKey": "vp-f",
         "fingerprint": {
@@ -103,7 +224,7 @@
         "fingerprintSource": "note",
         "frozenAt": null,
         "mode": "snapshot",
-        "noteId": "0302e58263324ad6a9a7867c7777f499",
+        "noteId": "7572b453420c4180abb0dd30d51cdb06",
         "noteTitle": "VPTS plan",
         "position": 0,
         "setupTag": "Bull Flag",
@@ -224,7 +345,7 @@
         "fingerprintSource": "note",
         "frozenAt": null,
         "mode": "snapshot",
-        "noteId": "7572b453420c4180abb0dd30d51cdb06",
+        "noteId": "b00e832d38c8470d95792774eb8fae49",
         "noteTitle": "untagged",
         "position": 0,
         "setupTag": null,
@@ -345,7 +466,7 @@
         "fingerprintSource": "note",
         "frozenAt": null,
         "mode": "snapshot",
-        "noteId": "ecd9fe3d8ecb4c1fb94b584543c21cab",
+        "noteId": "fb08dd6d9e324713ae68baf0a3ae56f1",
         "noteTitle": "VPNV plan",
         "position": 0,
         "setupTag": "VCP",
@@ -367,127 +488,6 @@
           "pullback_depth_pct": null,
           "rs_line_trend": null,
           "rs_rank": 95,
-          "vol_nweek_low": null
-        }
-      },
-      {
-        "asOf": "2026-09-30",
-        "embedId": "vp-b",
-        "embedKey": "vp-b",
-        "fingerprint": {
-          "as_of": "2026-09-30",
-          "fields": {
-            "adr_pct": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "base_depth_pct": {
-              "missing": null,
-              "source": "screener_row",
-              "value": 22.0
-            },
-            "base_length_bars": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "close_cv_pct": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "ema_stack_intact": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "ma_stack": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "patterns": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "pct_vs_sma10": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "pct_vs_sma20": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "pct_vs_sma200": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "pct_vs_sma50": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "pole_pct": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "pullback_depth_pct": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "rs_line_trend": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            },
-            "rs_rank": {
-              "missing": null,
-              "source": "screener_row",
-              "value": 80
-            },
-            "vol_nweek_low": {
-              "missing": "not_in_screener_row",
-              "source": "screener_row",
-              "value": null
-            }
-          },
-          "mode": "nightly",
-          "requested_as_of": "2026-09-30",
-          "symbol": "X",
-          "v": 1
-        },
-        "fingerprintSource": "note",
-        "frozenAt": null,
-        "mode": "snapshot",
-        "noteId": "fb08dd6d9e324713ae68baf0a3ae56f1",
-        "noteTitle": "VPAM plan",
-        "position": 0,
-        "setupTag": "VCP",
-        "symbol": "VPAM",
-        "timeframe": "D",
-        "values": {
-          "adr_pct": null,
-          "base_depth_pct": 22.0,
-          "base_length_bars": null,
-          "close_cv_pct": null,
-          "ema_stack_intact": null,
-          "ma_stack": null,
-          "patterns": null,
-          "pct_vs_sma10": null,
-          "pct_vs_sma20": null,
-          "pct_vs_sma200": null,
-          "pct_vs_sma50": null,
-          "pole_pct": null,
-          "pullback_depth_pct": null,
-          "rs_line_trend": null,
-          "rs_rank": 80,
           "vol_nweek_low": null
         }
       }

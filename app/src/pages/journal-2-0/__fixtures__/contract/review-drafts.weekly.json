@@ -39,36 +39,36 @@
     "discipline": {
       "entry": {
         "band": "too_few",
-        "k": 0,
-        "n": 0,
+        "k": 1,
+        "n": 1,
         "range": null,
-        "rate": null,
+        "rate": 1.0,
         "wording": "too few to judge"
       },
       "needsPickCount": 0,
       "planRate": {
         "band": "too_few",
-        "k": 0,
+        "k": 1,
         "n": 4,
         "range": null,
-        "rate": 0.0,
+        "rate": 0.25,
         "wording": "too few to judge"
       },
-      "plannedCount": 0,
+      "plannedCount": 1,
       "size": {
         "band": "too_few",
-        "k": 0,
-        "n": 0,
+        "k": 1,
+        "n": 1,
         "range": null,
-        "rate": null,
+        "rate": 1.0,
         "wording": "too few to judge"
       },
       "stop": {
         "band": "too_few",
-        "k": 0,
-        "n": 0,
+        "k": 1,
+        "n": 1,
         "range": null,
-        "rate": null,
+        "rate": 1.0,
         "wording": "too few to judge"
       },
       "targetHitRate": {
@@ -79,7 +79,7 @@
         "rate": null,
         "wording": "too few to judge"
       },
-      "unplannedCount": 4
+      "unplannedCount": 3
     },
     "leaks": [
       {
@@ -166,17 +166,17 @@
       {
         "detail": {},
         "dollarImpact": {
-          "avgR": 0.625,
+          "avgR": 0.1667,
           "baselineAvgNetPnlPerTrade": 24.0,
           "baselineAvgR": 0.625,
-          "netPnl": 96.0
+          "netPnl": -503.0
         },
         "kind": "unplanned_trades",
         "label": "Unplanned trades",
         "sample": {
           "band": "too_few",
-          "mean": 0.625,
-          "n": 4,
+          "mean": 0.1667,
+          "n": 3,
           "range": null,
           "wording": "too few to judge"
         },
@@ -204,22 +204,28 @@
             "rMultiple": -0.67,
             "symbol": "RDLS",
             "tradeRef": "id:rd-reentry"
-          },
-          {
-            "exitDate": "2026-09-30T15:00:00+00:00",
-            "id": "rd-win",
-            "pnlDollar": 599.0,
-            "rMultiple": 2.0,
-            "symbol": "RDWN",
-            "tradeRef": "id:rd-win"
           }
         ]
       }
     ],
     "links": {
-      "plans": [],
+      "plans": [
+        {
+          "noteId": "rd-note-plan",
+          "noteTitle": "RDWN plan",
+          "symbol": "RDWN",
+          "tradeRef": "id:rd-win"
+        }
+      ],
       "resurfaced": [],
-      "reviews": []
+      "reviews": [
+        {
+          "noteId": "ecd9fe3d8ecb4c1fb94b584543c21cab",
+          "tag": "weekly-review",
+          "title": "Review of the week of Sep 14",
+          "updatedAt": "2026-09-19T20:00:00+00:00"
+        }
+      ]
     },
     "period": "weekly",
     "range": {
