@@ -1917,6 +1917,12 @@ def q17_why(cx: Ctx, pg, m: Meter, width: str) -> dict:
 def q18_review_leak(cx: Ctx, pg, m: Meter, width: str) -> dict:
     """Start: Research Home. "This week's review" drafts the note; the leak it found is a
     collapsed block in it, opened by its own arrow."""
+    # SETUP (uncounted): this week's review is drafted once per week now, and a second press
+    # opens the same note. So each run starts with no review for this week: the one an earlier
+    # run of this flow drafted goes to the Trash, through the product's own delete.
+    for n in list_notes(cx.req, cx.base):
+        if "weekly-review" in (n.get("tags") or []):
+            cx.req.delete(f"{cx.base}/api/j2/notes/{n['id']}")
     open_start(pg, cx.base, "/journal/notebook")
     before = {n["id"] for n in list_notes(cx.req, cx.base)}
     btn = pg.locator("[data-tour='review-drafts-weekly']").filter(visible=True)
