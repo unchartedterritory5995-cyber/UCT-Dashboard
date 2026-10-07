@@ -169,3 +169,74 @@ After both merges, at `b17f4a3e13`:
   With every flag off the box is not rendered, so the pre-wave product is unchanged. The tool
   compares against the wave-13 landing with wave 13 armed, which is why it sees it.
 
+## 8. Phase 3 (2026-10-07): the remaining fix branches, at `b03d77302c`
+
+Sections 1 to 7 above are as written earlier; where this section disagrees, this section is newer.
+
+| Merge commit | Branch and tip | Conflicts and resolution |
+|---|---|---|
+| `5ad9822988`, `2bb5fb608b`, `c0dc985d7f` | `fin-fe` at `380193f413`, `d80d72cd92`, `619688c9b8` (final) | Round 1 only: `EntryContextCard.jsx`, `WhyPrompt.jsx`, `insights/MyPlaybook.jsx`, each against the a11y merge, each a case where both lanes made the same or adjacent fix (a per-card id; the `Drill` signature). Both kept. Five more both-sides files merged without a marker, including `ChartPlanPanel.jsx` and `GenericTourEngine.jsx`: each merged file is the tip plus exactly fe's lines and fe's tip plus exactly a11y's lines |
+| `a1eb07a1bf`, `1cedce054b` | `fin-a11y` at `21db9ae95f`, `c69f7cef21` (final) | Round 3 only: `TickerResearchWorkspace.module.css`, `.headerActions`. Master's Terminal fix (`60b8ba0b49`) and the lane fixed the same overflow two ways. Every line either side added is kept, and the lane's removal of `flex-shrink: 0`. Not checked in a browser by this lane |
+| `d1fd171e20`, `9d57564e7c` | `fin-rollback` at `071db80e01`, `a029cc6c4f` | None |
+| `28b057eb10` | `fin-sec` at `2ee28380fc` (round 1; a round 2 will follow) | None textual. `public_note_payload.py` merged in separate hunks: the fastapi imports stay inside the four helpers and the lane's attribute allow-list is in |
+| `b03d77302c` | `fin-nav` at `452e8caec3` (final) | None |
+
+Reds that appeared only once the branches met, fixed in `a206ceb199`:
+
+- `tests/test_notebook_rollback_never_revert.py` (2 tests): its minimal tables had no `gallery_id`,
+  which the security lane's purge fix (M-7) now reads. Test fixture fixed; product unchanged.
+- `tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse`: the nav
+  walk tool set its sandbox flag with a subscript. It now uses `os.environ.update`.
+- The whitelist and skill doc were regenerated for the security lane's paid routes (`e6cb6b42c7`),
+  with master's three marketcap paths kept.
+
+Rollback surface added by the security lane: `j2_template_gallery.preview_json`, added by ALTER.
+The rollback keep-list tests pass with it (43 passed before the security merge; the keep-list
+file again after it, inside the 258-passed run). Whether `landing-12-15-rollback.md` needs a line
+for the column: yes in principle, a reverted pod meets a table with one more column than its code
+names. Reads that select named columns are unaffected. Not added by this lane; for the rollback
+lane or the controller.
+
+More that is LIVE on merge (no flag), from these branches:
+
+- Five screens no longer scroll sideways on a phone: the research workspace header, the closed
+  trades toolbar, the trade page header, the Help header, and the Why prompt's Edit control now
+  meets the 44 px floor. The research workspace one is visible in production today because the
+  trade canvas switch is armed there.
+- On a chart block at 1024 px and under, the block toolbar is always shown and there is a
+  "Block actions" button (Move up, Move down, Remove), loaded on first use.
+- A click on a chart block's body selects the block again, except in Draw mode.
+- A tour never traps the Back button or replays on reload; a tour that cannot start closes and says so.
+- Nineteen new Notebook member routes now require a paid plan (they were session-only). All sit
+  behind dark flags.
+- Accessibility changes on always-on surfaces listed in `docs/notebook/fin-a11y.md`.
+
+Flags-off parity at `b03d77302c`: **36 identical, 0 explained, 4 differ. VERDICT: DIFFERS.**
+
+- The tool now carries a named expected-difference list with exactly one entry (the
+  passed-setups status line, `cb5c30b38d`, accessibility item M-5), allowed only on Notebook Home
+  with the passed-setups capability on. A case passes only when it equals the base with that one
+  element removed. Self-check: 12 of 12, including any other difference and the same element in
+  a capabilities-off case.
+- It still reads DIFFERS because the same four cases carry a SECOND difference that is not
+  named: `<a href="/journal/notebook/setups">Active setups</a>`, the nav lane's door
+  (`6b7e037c9f`), rendered only while `NOTEBOOK_SETUPS_BOARD_ENABLED` is on. It is intended and
+  flag-gated, but naming it is a controller ruling, so the tool refuses until then.
+  The phase 2 run at `b17f4a3e13` reported one difference only, although that tree already had
+  the door. Why it did not show then was not determined. It has shown in all three runs since.
+- The always-on phone and tablet changes above produce no parity difference: the capture runs in
+  jsdom, which applies no stylesheet and has no width, and no case has a chart block in a note.
+- **No parity case has a tour card on screen (0 of 40).** The tool cannot see a change to tour
+  markup. The real-browser tours walk covers those.
+
+Gates at `b03d77302c`: build exit 0; first-open bytes `2,200,842 B across 58 JS chunks`, PASS;
+hygiene clean. `tests/test_notes_cas_is_atomic.py` (13 passed) now runs in CI as the
+`write-protection` job of the gating `notebook latency` workflow.
+
+Inherited reds, each also on master by content: the two in section 6's table that still apply,
+plus `tests/test_user_definitions_auth.py` (three Screener routers share one refusal sentence on
+master; the test is identical to master's) and
+`tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag` (master's
+`tools/runtime_pane_smoke.py` defines and calls its own `flag_on`; the test function and the tool
+are both master's).
+
