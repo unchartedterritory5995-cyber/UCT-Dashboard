@@ -4,6 +4,8 @@ import {
   draftWeeklyReview, draftMonthlyReview, draftDailyReview, mondayOfIso, todayDayIso, thisMonthIso,
 } from './reviewDrafts'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
+import { STILL_SYNCING_MESSAGE } from './offline/noteHasUnsentWork'
+import { openNotebookDb } from './offline/notebookDb'
 
 // `widgetSlotNode` (widgetEmbedCore.js) falls back to the symbol's LIVE workspace
 // drawings whenever a caller does not pass its own `annotations` array. Mock the
@@ -12,6 +14,17 @@ import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlag
 // return `[]` on its own and the guard's removal would go unnoticed otherwise.
 vi.mock('../../../components/chart/drawingsStore', () => ({
   peekDrawings: () => [{ id: 'd1', type: 'trendline', points: [[0, 0], [1, 1]] }],
+}))
+
+// The unsent-work guard is the sibling door's ONE helper (lib/offline/noteHasUnsentWork.js).
+// Only its answer is controlled here; the sentence and everything else are the real module's.
+const guard = vi.hoisted(() => ({ answer: { unsent: false, why: 'clean' }, calls: [] }))
+vi.mock('./offline/noteHasUnsentWork', async (importOriginal) => ({
+  ...(await importOriginal()),
+  noteHasUnsentWork: vi.fn(async (noteId, opts) => {
+    guard.calls.push({ noteId, connect: opts?.connect })
+    return guard.answer
+  }),
 }))
 
 // ── fixtures: known n and dollars, mirroring the backend's own enriched-trade /
@@ -405,5 +418,77 @@ describe('buildDraftBlocks with plan grading off (discipline: null)', () => {
   it('control: with a discipline payload the section is there', () => {
     const texts = flattenText({ content: buildDraftBlocks(fixturePayload()) })
     expect(texts.some((t) => t.includes('Discipline record'))).toBe(true)
+  })
+})
+
+// ── fin-frontend I3: the daily draft never lands over words that have not reached the server ─
+//
+// The draft reads the daily note FROM THE SERVER, appends the recap and PUTs the whole body.
+// When this browser still holds words for that note that the server has not seen (typed
+// offline, or a save still queued), the server copy is missing them: the PUT lands a body
+// without them and is then recorded as this tab's own write, so the queued words either
+// overwrite the recap or are dropped. The sibling append door (lib/sendToJournal.js) asks
+// `noteHasUnsentWork` first and refuses. This door now asks the same helper.
+describe('draftDailyReview — refuses while the daily note has unsent work', () => {
+  let puts = []
+  let dailyOpens = 0
+  beforeEach(() => {
+    puts = []
+    dailyOpens = 0
+    guard.calls = []
+    guard.answer = { unsent: false, why: 'clean' }
+    global.fetch = vi.fn((url, opts) => {
+      if (url === '/api/j2/notes/daily') {
+        dailyOpens += 1
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'daily1', updatedAt: 'u1', bodyJson: { type: 'doc', content: [] } } }) })
+      }
+      if (opts?.method === 'PUT') {
+        puts.push(JSON.parse(opts.body))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'daily1', updatedAt: 'u2' } }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(fixturePayload({ period: 'daily' })) })
+    })
+  })
+  afterEach(() => { guard.answer = { unsent: false, why: 'clean' } })
+
+  it('with unsent work: no PUT, and the error carries the sibling door’s own sentence', async () => {
+    guard.answer = { unsent: true, why: 'queued' }
+    let thrown = null
+    try { await draftDailyReview({ day: '2026-10-02' }) } catch (e) { thrown = e }
+    expect(thrown).toBeTruthy()
+    expect(thrown.message).toBe(STILL_SYNCING_MESSAGE)
+    expect(thrown.memberMessage).toBe(STILL_SYNCING_MESSAGE)
+    expect(puts).toEqual([])
+  })
+
+  it('a store that cannot be read defers too (the helper answers unsent for "unknown")', async () => {
+    guard.answer = { unsent: true, why: 'unreadable' }
+    await expect(draftDailyReview({ day: '2026-10-02' })).rejects.toThrow(STILL_SYNCING_MESSAGE)
+    expect(puts).toEqual([])
+  })
+
+  it('asks about THE DAILY NOTE by its id string, through the plain store opener', async () => {
+    await draftDailyReview({ day: '2026-10-02' })
+    expect(guard.calls).toEqual([{ noteId: 'daily1', connect: openNotebookDb }])
+    expect(typeof guard.calls[0].noteId).toBe('string')
+  })
+
+  it('control: with nothing unsent the recap lands, on the base the note was read at', async () => {
+    await draftDailyReview({ day: '2026-10-02' })
+    expect(puts).toHaveLength(1)
+    expect(puts[0].baseUpdatedAt).toBe('u1')
+  })
+
+  it('the guard runs before the PUT, never after it', async () => {
+    const order = []
+    const realFetch = global.fetch
+    global.fetch = vi.fn((url, opts) => {
+      if (opts?.method === 'PUT') order.push('put')
+      return realFetch(url, opts)
+    })
+    const { noteHasUnsentWork } = await import('./offline/noteHasUnsentWork')
+    noteHasUnsentWork.mockImplementationOnce(async () => { order.push('guard'); return { unsent: false, why: 'clean' } })
+    await draftDailyReview({ day: '2026-10-02' })
+    expect(order).toEqual(['guard', 'put'])
   })
 })

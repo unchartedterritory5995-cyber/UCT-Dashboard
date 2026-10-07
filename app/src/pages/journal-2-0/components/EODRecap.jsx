@@ -33,8 +33,9 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
     try {
       const { note } = await draftDailyReview({ accountId: compassScope(accountId), day })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
-    } catch {
-      setDraftError('Could not draft today’s recap into your daily note — try again.')
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setDraftError(e?.memberMessage || 'Could not draft today’s recap into your daily note — try again.')
     } finally {
       setDrafting(false)
     }

@@ -30,6 +30,8 @@ import { todayET } from './calendar'
 import { buildAskInsertNode } from './askInsert'
 import { widgetSlotNode } from './widgetEmbedCore'
 import { settleNoteWrite } from './offline/settleNoteWrite'
+import { noteHasUnsentWork, STILL_SYNCING_MESSAGE } from './offline/noteHasUnsentWork'
+import { openNotebookDb } from './offline/notebookDb'
 import { notebookSchemaHeaders } from './notebookSchema'
 
 // The flag's one authority is `reviewDraftsFlag.js` (wave 14 perf lane): Research Home reads it
@@ -376,13 +378,30 @@ export async function draftMonthlyReview({ accountId, month } = {}) {
  * A direct PUT with the CAS `baseUpdatedAt` the note was just read at (the same
  * compare-and-set every note save uses), so a concurrent edit is refused with a
  * conflict rather than silently clobbered.
+ *
+ * ⛔ REFUSED WHILE THE DAILY NOTE HAS UNSENT WORK (fin-frontend I3). The body this door
+ * writes is the SERVER's copy plus the recap. Words this browser still holds for the note
+ * and has not sent (typed offline, or a save still queued) are not in that copy, and the
+ * compare-and-set cannot see them either: the server's `updatedAt` has not moved. The PUT
+ * would land a body without them and then be recorded as this tab's own write
+ * (`settleNoteWrite`), so the queued save would rebase over the recap or be dropped. The
+ * sibling append door (`sendToJournal.js`) asks `noteHasUnsentWork` and refuses; this door
+ * asks the SAME helper, with the same plain store opener, and throws its sentence. Nothing
+ * is fetched for the draft and nothing is written until the note has synced.
+ * With the note open and CLEAN in the editor, the write lands and `settleNoteWrite` records
+ * it, so the editor's next save rebases onto it -- the same path as Send to Journal.
  */
 export async function draftDailyReview({ accountId, day } = {}) {
   const d = day || todayDayIso()
-  const [payload, { note: daily }] = await Promise.all([
-    fetchDailyDraft({ day: d, accountId }),
-    openDailyNote(),
-  ])
+  const { note: daily } = await openDailyNote()
+  const verdict = await noteHasUnsentWork(daily.id, { connect: openNotebookDb })
+  if (verdict.unsent) {
+    const err = new Error(STILL_SYNCING_MESSAGE)
+    err.code = 'still-syncing'
+    err.memberMessage = STILL_SYNCING_MESSAGE   // callers show THIS sentence, not their generic one
+    throw err
+  }
+  const payload = await fetchDailyDraft({ day: d, accountId })
   const existing = (daily.bodyJson && Array.isArray(daily.bodyJson.content)) ? daily.bodyJson.content : []
   const appended = [...existing, hr(), h(2, `Today's recap — ${fmtShort(d)}`), ...buildDraftBlocks(payload)]
   const res = await fetch(`/api/j2/notes/${encodeURIComponent(daily.id)}`, {
