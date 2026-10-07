@@ -1,5 +1,5 @@
 == flags-off render parity
-base b06ec4fd85 vs HEAD 647bc284eb
+base b06ec4fd85 vs HEAD 9a83a9df12
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 capture fingerprints (same tree, same fingerprints): A 7c3a6f9b386b41e9 | B e52c2ed7d44450c0
