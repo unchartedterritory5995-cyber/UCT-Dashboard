@@ -658,3 +658,113 @@ def test_the_thesis_example_is_read_by_the_plan_reader_as_a_stop_and_nothing_els
         c.close()
     reading = plan_extract.read_note_plan(row["body_json"], row["properties_json"], [], sample_examples.SYM_THESIS)
     assert reading.value("stop") == 110.0 and reading.value("entry") is None and reading.value("target") is None
+
+
+# ── round 2: a sample added before the shape fix is read in the drawn shape ──────────────────
+#
+# Sandboxes and testers already hold a sample whose chart levels are `{role, type, price}`.
+# Nobody should have to remove and re-add it. When such a note is READ it is served with its
+# levels in the drawn shape, built in memory; the stored body is not touched by a read.
+
+from api.services.journal_two import sample_marker  # noqa: E402
+
+
+def _old_shape_body(symbol, embed_id, to, **levels):
+    body = sample_examples._plan_note_body(symbol, "2026-10-01", "2026-10-01T16:00:00Z", 180.0, 170.0, 205.0,
+                                           100.0, "Classic Flag/Pullback",
+                                           sample_examples._static_fingerprint(symbol, "2026-10-01"))
+    for node in body["content"]:
+        if node.get("type") == "widgetEmbed":
+            node["attrs"]["embedId"] = embed_id
+            node["attrs"]["annotations"] = [{"role": r, "type": "horizontal", "price": p} for r, p in levels.items()]
+            node["attrs"]["params"]["to"] = to
+    return body
+
+
+def _import(user, source, key, body):
+    out = notes.import_confirm(user, {"source": source, "notes": [{
+        "importKey": key, "title": f"old {key}", "tags": [], "folderPath": [], "bodyJson": body}]})
+    assert not out["failed"]
+    return out["created"][0]["id"]
+
+
+def _stored(note_id):
+    c = _conn()
+    try:
+        r = c.execute("SELECT body_json, updated_at FROM j2_notes WHERE id = ?", (note_id,)).fetchone()
+        return r["body_json"], r["updated_at"]
+    finally:
+        c.close()
+
+
+def _levels(note):
+    return next(n["attrs"] for n in note["bodyJson"]["content"] if n.get("type") == "widgetEmbed")
+
+
+def test_an_old_shape_sample_is_served_in_the_drawn_shape_and_the_stored_body_is_untouched(db):
+    nid = _import(U1, sample_examples.IMPORT_SOURCE, "sample-example:old-plan",
+                  _old_shape_body("AAPL", "ex-plan", 1790000000, entry=180.0, stop=170.0, target=205.0))
+    before = _stored(nid)
+    assert '"price": 180.0' in before[0] and '"points"' not in before[0]      # the fixture IS the old shape
+
+    served = notes.get_note(U1, nid)
+    attrs = _levels(served)
+    _assert_drawn_shape(attrs["annotations"], ["entry", "stop", "target"], 1790000000)
+    assert [a["id"] for a in attrs["annotations"]] == ["ex-plan-entry", "ex-plan-stop", "ex-plan-target"]
+    plan = chart_plan.read_block_plan(attrs, "AAPL")
+    assert (plan["entry"], plan["stop"], plan["target"]) == (180.0, 170.0, 205.0)
+
+    notes.get_note(U1, nid)                                                   # read again
+    assert _stored(nid) == before, "a read wrote the upgraded body (or moved updated_at)"
+
+
+def test_the_upgrade_gives_the_same_ids_the_new_seed_writes(db, seeded):
+    fresh = _example_chart(db, "Trade plan: example", "ex-plan")["annotations"]
+    old = sample_marker.upgrade_sample_levels(
+        _old_shape_body("AAPL", "ex-plan", fresh[0]["points"][0]["time"], entry=180.0, stop=170.0, target=205.0))
+    assert _levels({"bodyJson": old})["annotations"] == fresh
+
+
+def test_a_members_own_note_in_that_shape_is_not_touched(db):
+    """`{role, price}` with no drawing is also a shape the PRODUCT writes for a member (a level
+    with no line on the chart). Only a sample is upgraded."""
+    nid = _import(U1, "file", "own:plan", _old_shape_body("AAPL", "mine", 1790000000, entry=180.0, stop=170.0))
+    anns = _levels(notes.get_note(U1, nid))["annotations"]
+    assert anns == [{"role": "entry", "type": "horizontal", "price": 180.0},
+                    {"role": "stop", "type": "horizontal", "price": 170.0}]
+
+
+def test_the_upgrade_leaves_a_drawn_level_and_everything_else_exactly_as_it_is():
+    drawn = {"id": "keep", "type": "horizontal", "role": "stop", "points": [{"time": 5, "price": 9.0}], "color": "#fff"}
+    plain = {"id": "line", "type": "trendline", "points": [{"time": 1, "price": 1.0}, {"time": 2, "price": 2.0}]}
+    body = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Entry: 180"}]},
+        {"type": "widgetEmbed", "attrs": {"widgetId": "chart", "embedId": "e", "params": {"symbol": "AAPL", "to": 5},
+                                          "annotations": [drawn, plain]}}]}
+    assert sample_marker.upgrade_sample_levels(body) is body                  # nothing to do: the same object
+    # Mixed: only the level that needs it changes, and the input is never mutated.
+    body["content"][1]["attrs"]["annotations"].append({"role": "entry", "type": "horizontal", "price": 11.0})
+    snapshot = json.dumps(body, sort_keys=True)
+    out = sample_marker.upgrade_sample_levels(body)
+    assert json.dumps(body, sort_keys=True) == snapshot
+    anns = out["content"][1]["attrs"]["annotations"]
+    assert anns[:2] == [drawn, plain]
+    assert anns[2] == {"id": "e-entry", "type": "horizontal", "role": "entry", "points": [{"time": 5, "price": 11.0}]}
+    assert sample_marker.upgrade_sample_levels(out) is out                    # idempotent
+
+
+def test_two_old_levels_with_the_same_role_get_different_ids():
+    body = {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {
+        "widgetId": "chart", "embedId": "e", "params": {"to": 7},
+        "annotations": [{"role": "target", "type": "horizontal", "price": 10.0},
+                        {"role": "target", "type": "horizontal", "price": 12.0}]}}]}
+    ids = [a["id"] for a in sample_marker.upgrade_sample_levels(body)["content"][0]["attrs"]["annotations"]]
+    assert len(set(ids)) == 2 and ids[0] == "e-target"
+
+
+def test_the_upgrade_never_raises_on_a_body_it_does_not_understand():
+    for odd in (None, [], "text", {"type": "doc"}, {"type": "doc", "content": "x"},
+                {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {"annotations": "x"}}]},
+                {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": {"widgetId": "chart", "annotations": [
+                    {"role": "entry", "price": "NaN"}, {"role": "entry", "price": True}, 7]}}]}):
+        assert sample_marker.upgrade_sample_levels(odd) is odd

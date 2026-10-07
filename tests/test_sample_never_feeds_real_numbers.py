@@ -361,6 +361,9 @@ GUARDED = {
     "api/services/journal_two/thesis_chips.py": "the chip on a position, holdings or watchlist row",
     "api/services/journal_two/passed_setups.py": "names saved from a scan and not traded",
     "api/services/journal_two/similar_matches.py": "the templates the nightly market match runs on",
+    "api/services/journal_two/setups_board.py": "the board's count: an example card is shown, marked, and not counted",
+    "api/services/journal_two/visual_playbook.py": "the playbook's count, facets and slice numbers: an example card "
+                                                    "is shown, marked, and in none of them",
 }
 
 #: Readers that do NOT turn a note into a fact about the member, each with the reason.
@@ -372,10 +375,6 @@ EXEMPT = {
                                                 "(checked below); the index itself is a projection of every note",
     "api/services/journal_two/chart_blocks.py": "the chart-block index is a projection of every note; its "
                                                  "statistic-shaped readers are guarded (similar_matches) or listed here",
-    "api/services/journal_two/setups_board.py": "shows the example plan as its own card, titled as an example "
-                                                 "(tests/test_sample_notebook_examples.py); no trade statistic reads it",
-    "api/services/journal_two/visual_playbook.py": "shows the example chart as its own card; every trade number on it "
-                                                    "comes from frozen plan links, which plan_grading never makes for a sample",
     "api/services/journal_two/review_drafts.py": "reads note TITLES for links a guarded reader already chose "
                                                   "(plan links, the resurfacing ledger, which never fires for a sample)",
     "api/services/journal_two/ticker_research.py": "lists the member's notes on a ticker by title",
@@ -502,3 +501,86 @@ def test_control_the_rail_catches_a_new_reader_that_skips_the_predicate():
     assert uses_predicate("from api.services.journal_two import sample_marker\nx = 1\n") is False
     # A table named only in a docstring is not a read.
     assert reads_note_tables('"""SELECT * FROM j2_notes"""\nx = 1\n') == set()
+
+
+# ── round 2 (owner ruling): an example card is shown, marked, and never counted ──────────────
+#
+# A sample may appear on the setups board and in the visual playbook: showing the feature is
+# what it is for. It must be unmistakably an example, and it must be in no count, total,
+# filter tally or empty-state decision. The SERVER marks each sample row (`example: true`)
+# with the one predicate and leaves it out of every number; the client only renders the mark.
+
+def _own_setup(conn, symbol="CRWD"):
+    body = sample_examples._active_setup_note_body(symbol, "2026-10-01", "2026-10-01T16:00:00Z",
+                                                   300.0, 290.0, "Flat Base Breakout")
+    return own_note(conn, U1, f"My {symbol} setup", body)
+
+
+def _no_prices(symbols):
+    return {}
+
+
+def test_the_boards_count_is_the_members_own_setups_and_each_sample_card_is_marked(conn, seeded):
+    from api.services.journal_two import setups_board
+    board = setups_board.build_cards(conn, U1, prices=_no_prices)
+    assert board["count"] == 0, "a sample was counted as one of the member's setups"
+    assert board["exampleCount"] == 2 and len(board["cards"]) == 2
+    assert all(c["example"] is True for c in board["cards"])
+
+    mine = _own_setup(conn)
+    board = setups_board.build_cards(conn, U1, prices=_no_prices)
+    assert board["count"] == 1 and board["exampleCount"] == 2
+    assert [(c["noteId"] == mine, c["example"]) for c in board["cards"]] == [(True, False), (False, True), (False, True)], \
+        "the member's own setup must come first and be unmarked"
+
+
+def test_control_a_member_with_no_sample_has_no_example_cards(conn, db):
+    from api.services.journal_two import setups_board
+    _own_setup(conn)
+    board = setups_board.build_cards(conn, U1, prices=_no_prices)
+    assert board["count"] == 1 and board["exampleCount"] == 0
+    assert [c["example"] for c in board["cards"]] == [False]
+
+
+def _own_tagged_chart(conn, symbol="CRWD", tag="VCP"):
+    fp = sample_examples._static_fingerprint(symbol, "2026-10-01")
+    body = sample_examples._plan_note_body(symbol, "2026-10-01", "2026-10-01T16:00:00Z",
+                                           300.0, 290.0, 330.0, 10.0, tag, fp)
+    return own_note(conn, U1, f"My {symbol} plan", body)
+
+
+def test_the_playbooks_numbers_are_the_members_own_and_each_sample_card_is_marked(conn, seeded):
+    from api.services.journal_two import visual_playbook
+    grid = visual_playbook.cards(U1, conn=conn)
+    assert grid["count"] == 0 and grid["exampleCount"] == 2
+    assert [c["example"] for c in grid["cards"]] == [True, True]
+    assert grid["facets"] == {"setups": {}, "timeframes": {}}, "a filter tally counted a sample"
+    assert grid["stats"]["charts"] == 0 and grid["stats"]["unlinkedCharts"] == 0 and grid["stats"]["trades"] == 0
+
+    mine = _own_tagged_chart(conn)
+    grid = visual_playbook.cards(U1, conn=conn)
+    assert grid["count"] == 1 and grid["exampleCount"] == 2
+    assert grid["facets"]["setups"] == {"VCP": 1} and sum(grid["facets"]["timeframes"].values()) == 1
+    assert grid["stats"]["charts"] == 1 and grid["stats"]["unlinkedCharts"] == 1
+    assert [(c["noteId"] == mine, c["example"]) for c in grid["cards"]][0] == (True, False)
+
+
+def test_a_filter_that_matches_only_a_sample_counts_nothing(conn, seeded):
+    from api.services.journal_two import visual_playbook
+    grid = visual_playbook.cards(U1, conn=conn, setups=["Classic Flag/Pullback"])
+    assert [c["example"] for c in grid["cards"]] == [True]
+    assert grid["count"] == 0 and grid["stats"]["charts"] == 0
+
+
+def test_a_range_filter_never_reports_a_sample_as_left_out(conn, seeded):
+    """`excludedMissing` is a count shown to the member ("N charts were left out")."""
+    from api.services.journal_two import visual_playbook
+    c = auth_db.get_connection()
+    try:
+        c.execute("UPDATE j2_chart_fingerprints SET fingerprint = json_remove(fingerprint, '$.fields.rs_rank')"
+                  " WHERE user_id = ?", (U1,))
+        c.commit()
+    finally:
+        c.close()
+    grid = visual_playbook.cards(U1, conn=conn, ranges=["rs_rank:80:"])
+    assert grid["excludedMissing"] == {}

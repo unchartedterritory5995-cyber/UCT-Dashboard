@@ -66,6 +66,9 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
     <li className={styles.card} data-board-card={card.symbol} data-state={card.state} data-tour="setups-card">
       <div className={styles.cardHead}>
         <span className={styles.symbol}>{card.symbol}</span>
+        {/* The SERVER says which card is the sample's (`example`); never inferred here. Text,
+            so it does not rest on colour, and it is the chip's accessible name. */}
+        {card.example && <span className={styles.stateChip} data-example="">Example</span>}
         <span className={styles.stateChip} data-state={card.state}>{STATE_LABEL[card.state] || card.state}</span>
         {days != null && <span className={styles.days}>{daysText(days)}</span>}
       </div>

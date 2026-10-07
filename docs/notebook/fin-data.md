@@ -59,9 +59,8 @@ before. The scorecard called by the same draft already used `trading_day_et`.
 `filters._DAY` (imported, not restated) and builds both the trade list and the numbers table
 from that one fetch. Weekly and monthly are unchanged.
 
-**Open point.** Weekly and monthly still use UTC-midnight windows, matching the Compass weekly
-review on purpose. A trade closed after 8 PM Eastern on a Friday (7 PM in winter) falls outside
-the week. Not changed: it would make the draft disagree with the Compass review it sits beside.
+**Weekly and monthly.** Changed in round 2 (below): they now use Eastern trading weeks and
+months too.
 
 **Test.** `tests/test_review_drafts.py`: a date-only trade lands in its own day and not the day
 before; the numbers, the list and the scorecard count the same trades; a trade after 8 PM
@@ -110,10 +109,8 @@ neither list fails by name. So does a stale entry, and so does a reader that typ
 itself. A control feeds the scan a synthetic unguarded reader and checks it is caught. Every
 behaviour test has a control where the member's own note with the same words is read.
 
-**Decision for the owner.** The setups board and the visual playbook still show the example as
-its own card, titled as an example. Their card counts therefore include it. No trade statistic
-does. I left them because showing the example is what the sample is for. If the rule should be
-"no count anywhere includes a sample", those two need a label and a filter on the counts.
+**Setups board and visual playbook.** Ruled in round 2 (below): the example is shown, labelled
+"Example" and in no count.
 
 **Wording.** The example thesis note no longer says a chip appears for it.
 
@@ -251,5 +248,68 @@ through their features' real doors and were already in shape.
 - New table: `j2_trade_plan_misses`. New missing-reason code: `source_busy`. New export
   columns: `entryWhy`, `entryWhyUpdatedAt`. New response fields: `leakCoverage`, `gradingCap`,
   `refreshQueued`, and `vsBaseline` on each leak finding.
-- Members who already added the sample keep the old level shape and any sample-frozen plan link
-  until the next read or removal.
+- A sample added before the shape fix is read in the drawn shape (round 2). A plan link frozen
+  from a sample is dropped on the next read of that trade or on removal.
+
+## Round 2
+
+| Item | Commit |
+|---|---|
+| Sample cards: labelled "Example", in no count | `4d8c06ea7d` |
+| Weekly and monthly drafts on Eastern trading weeks and months | `5e80f9b597` |
+| Rate limit on the plan-grade routes | `f030b8078c` |
+| An old-shape sample is read in the drawn shape | `b8d91d4034` |
+| Passed setups: a horizon is the market's Nth session (tests lane D5) | `b6e7952586` |
+
+**Sample cards.** The server marks each card the sample made with `example: true`, decided by
+`sample_marker`. Sample cards come after the member's own. The setups board's `count` is the
+member's own cards. The visual playbook's count, its setup, timeframe and regime tallies, its
+slice statistics and its "left out" counts all exclude sample cards. The client renders the
+word "Example" from that flag and never infers it. The "none yet" guidance on both screens is
+decided on the member's own cards, so a member whose only card is the sample sees it beside the
+card. Both modules moved from EXEMPT to GUARDED in the ledger. Tests:
+`tests/test_sample_never_feeds_real_numbers.py` (payload), `SetupsBoard.test.jsx` and
+`VisualPlaybook.test.jsx` (rendered text).
+
+**Weekly and monthly drafts.** All three periods select on `filters._DAY`. A week is Monday
+through Friday and a month its first through last day, as trading days. Each draft fetches
+once and builds the list and the numbers from that fetch. A trade closed Friday evening Eastern
+is in that week; one closed on the last evening of a month is in that month.
+
+**What Compass uses (not changed).**
+- Weekly review: `exit_date` in [Monday 00:00 UTC, Saturday 00:00 UTC).
+  `api/services/journal_two/coach_data_assembler.py:54-55`, predicate at `:162`.
+- Daily recap: `exit_date` between Eastern midnights. Same file, `:509-511`, used at `:522`.
+
+So the weekly draft and the Compass weekly review now disagree for a trade closed in the
+evening Eastern (after 8 PM in summer, 7 PM in winter). The daily draft and the Compass daily
+recap already disagreed for a date-only trade. A draft therefore quotes Compass only when
+Compass counted exactly the trades the draft lists. When they differ, the quote is left out and
+the note carries one sentence naming each window and how many trades are in one and not the
+other. Bringing Compass onto the trading-day spine is a separate, small change for whoever
+owns it.
+
+**Rate limit.** `notebook_plan_grades.py`: 60 a minute per member for the three reads (one
+shared bucket) and 30 a minute for the Re-link, through `public_note_payload.enforce_rate`, the
+limiter the sibling routes use. The charge comes after the gate and the session.
+
+**Old-shape sample.** `sample_marker.upgrade_sample_levels` builds the drawn shape in memory
+when a sample note is read (`notes._row_to_note`). A read never writes it back. A member's own
+note is served exactly as stored.
+
+**Passed setups horizons.** Verified with holes at the start, the middle and the end. Each
+horizon is now the name's close on the market's Nth session after the reference. A horizon
+whose bar is not stored is "missing"; the best move needs all twenty sessions; with no calendar
+in the store every horizon is "unknown". The strict xfail `test_D5_...` on
+`feat/notebook-fin-tests` will pass once the branches meet, so its marker has to come off then.
+
+## Two lines for the landing lane to copy
+
+**Rollback note** (add to the list of tables in `docs/notebook/wave5-rollback.md` and wherever
+the twelve wave-13 tables are listed):
+
+> `j2_trade_plan_misses` (plan grading's remembered "unplanned" answers). A memo, not a record: safe to leave in place on a rollback and safe to drop at any time, because it is rebuilt on the next grade read. An older build does not read it and does not purge it; the account purge of this build does.
+
+**Single-process state** (add to the "SINGLE-PROCESS assumptions" list in `CLAUDE.md`):
+
+> `entry_context._capture_executor` + `_capture_pending` (the manual-add capture queue: 2 threads, 40 queued in total, 3 per member), `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and `entry_context._vendor_cache` (one answer per symbol per capture day), and `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes). A second web process doubles each bound and keeps its own cache. The plan-grade rate limits (`notebook-plan-grades-read`, `notebook-plan-grades-relink`) are in the `api/limiter.py` storage already on that list.

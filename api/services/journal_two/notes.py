@@ -1334,6 +1334,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
 
 # ── Row mapping ──────────────────────────────────────────────────────────────
 
+def _served_body(row: sqlite3.Row) -> Any:
+    """The note's body as it is served. A SAMPLE note added before its chart levels took the
+    drawn shape is served with them upgraded, in memory (`sample_marker.upgrade_sample_levels`);
+    a read never writes it back. Every other note is served exactly as stored."""
+    body = json.loads(row["body_json"] or '{"type":"doc","content":[]}')
+    if "import_source" in row.keys() and sample_marker.is_sample(row["import_source"]):
+        return sample_marker.upgrade_sample_levels(body)
+    return body
+
+
 def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -1342,7 +1352,7 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "folderId": row["folder_id"],
         "title": row["title"] or "",
         "subtitle": row["subtitle"],
-        "bodyJson": json.loads(row["body_json"] or '{"type":"doc","content":[]}'),
+        "bodyJson": _served_body(row),
         "bodyPlain": row["body_plain"] or "",
         "heroImageUrl": row["hero_image_url"],
         "firstImageUrl": row["first_image_url"],

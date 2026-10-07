@@ -186,3 +186,30 @@ describe('VisualPlaybookBody', () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 })
+
+// ── round 2 (owner ruling): an example card says "Example" and is in no count ───────────────
+describe('VisualPlaybookBody — sample cards', () => {
+  beforeEach(() => { __resetNotebookFlags(); latchNotebookFlags({ notebook_visual_playbook_enabled: true }) })
+  afterEach(() => { __resetNotebookFlags() })
+  const example = () => card({ noteId: 'ex', noteTitle: 'Trade plan: example', symbol: 'AAPL', example: true, trades: [], outcome: 'none' })
+
+  it('a member whose only card is the sample sees it labelled, zero counts, and the "tag a chart" guidance', async () => {
+    global.fetch = vi.fn(() => respond(200, payload({
+      cards: [example()], count: 0, exampleCount: 1, facets: { setups: {}, timeframes: {} },
+      stats: stats({ charts: 0, trades: 0, unlinkedCharts: 0, n: 0 }) })))
+    renderBody()
+    const cards = await screen.findAllByTestId('playbook-card')
+    expect(cards).toHaveLength(1)
+    expect(cards[0].querySelector('[data-example]').textContent).toBe('Example')   // text, not colour alone
+    expect(screen.getByText(/Tag a chart in a note/)).toBeTruthy()
+    expect(screen.getByTestId('slice-stats').textContent).toMatch(/0\s*trades from\s*0\s*charts/)
+  })
+
+  it('with a chart of the member\'s own beside it, only the sample is labelled and the guidance is gone', async () => {
+    global.fetch = vi.fn(() => respond(200, payload({ cards: [card(), example()], count: 1, exampleCount: 1 })))
+    renderBody()
+    const cards = await screen.findAllByTestId('playbook-card')
+    expect(cards.map((c) => Boolean(c.querySelector('[data-example]')))).toEqual([false, true])
+    expect(screen.queryByText(/Tag a chart in a note/)).toBeNull()
+  })
+})

@@ -313,7 +313,10 @@ function leaksSection(leaks, coverage) {
   return out
 }
 
-function compassSection(compassText) {
+function compassSection(compassText, omitted) {
+  // Compass counted a different set of trades for this period (its own clock windows), so the
+  // server left its quote out and says so. The sentence is the server's; this only renders it.
+  if (omitted && omitted.sentence) return [h(2, 'What Compass said'), p(omitted.sentence)]
   if (!compassText || !compassText.text) return []
   const node = buildAskInsertNode({
     answer: compassText.text,
@@ -349,7 +352,7 @@ export function buildDraftBlocks(payload) {
   blocks.push(...chartsSection(payload.bestTrade, payload.worstTrade))
   blocks.push(hr())
   blocks.push(...leaksSection(payload.leaks, payload.leakCoverage))
-  const compass = compassSection(payload.compassText)
+  const compass = compassSection(payload.compassText, payload.compassOmitted)
   if (compass.length) {
     blocks.push(hr())
     blocks.push(...compass)

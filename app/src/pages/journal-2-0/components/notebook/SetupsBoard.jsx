@@ -53,6 +53,9 @@ function Board({ onFindSimilar }) {
     { revalidateOnFocus: false, shouldRetryOnError: false })
   const [page, setPage] = useState(0)
   const cards = useMemo(() => (Array.isArray(data?.cards) ? data.cards : []), [data])
+  // A sample's card is shown and labelled, and is never one of the member's setups: the
+  // "none yet" guidance is decided on their OWN cards (the server marks `example`).
+  const hasOwn = useMemo(() => cards.some((c) => !c.example), [cards])
   const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE))
   const current = Math.min(page, pages - 1)
   const pageCards = useMemo(() => cards.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE), [cards, current])
@@ -78,7 +81,7 @@ function Board({ onFindSimilar }) {
       </div>
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
-      {!error && data && cards.length === 0 && (
+      {!error && data && !hasOwn && (
         <p className={styles.quiet}>
           No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the
           distance in R) and it shows here.
