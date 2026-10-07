@@ -3147,6 +3147,12 @@ def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(ge
 
 @router.post("/notes/import/confirm")
 def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    # fin-data I3: `source` is stored as `j2_notes.import_source`, and one value of it is the
+    # sample notebook's durable marker. A note carrying it is left out of every statistic and
+    # is trashed by "Remove sample", so only the server's own seed may write it.
+    from api.services.journal_two import sample_marker
+    if isinstance(payload, dict) and sample_marker.reserved_for_the_sample(payload.get("source")):
+        raise HTTPException(status_code=400, detail="That import source name is reserved.")
     try:
         return notes_service.import_confirm(user["id"], payload)
     except NoteValidationError as e:

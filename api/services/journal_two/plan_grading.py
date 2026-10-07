@@ -46,7 +46,7 @@ from types import MappingProxyType
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from api.services.journal_two import plan_extract, sample_size
+from api.services.journal_two import plan_extract, sample_marker, sample_size
 # R3 lives in ONE place (lane 13B took it over from this file, 13A's decision 6). The names stay
 # importable from here for this file's own callers and tests.
 from api.services.journal_two.sample_size import band as sample_band, rate_stat, wilson  # noqa: F401
@@ -207,7 +207,18 @@ def _note_candidate(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row, s
             "edited_after_entry": bool(state["post_entry"])}
 
 
-_NOTE_COLS = "id, title, ticker, tags, body_json, properties_json, created_at, updated_at, deleted_at"
+_NOTE_COLS = ("id, title, ticker, tags, body_json, properties_json, created_at, updated_at, deleted_at,"
+              " import_source")
+
+#: ⛔ A SAMPLE NOTE IS NEVER A PLAN (fin-data I3). The sample notebook's examples name real
+#: tickers and real-looking stops; read as plans they froze themselves onto the member's real
+#: trades (a real NVDA trade graded against the example NVDA thesis, the plan rate going up).
+#: Every tier below leaves them out through the one predicate (`sample_marker`), the Re-link
+#: refuses one, and a link frozen from one before this rule is dropped on the next read.
+_LIVE_OWN_NOTE = "deleted_at IS NULL AND " + sample_marker.not_sample_sql()
+
+SAMPLE_RELINK_SENTENCE = ("That note is an example from the sample notebook. "
+                          "Link a note of your own to grade this trade against.")
 
 #: A note carrying this tag is a REVIEW of a graded trade (lib/planReview.js). Its grade table
 #: names an Entry and a Stop, so without this it would read as the plan for the NEXT trade on
@@ -231,7 +242,7 @@ def _explicit_notes(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row) 
         ids = []
     rows = []
     for nid in sorted(set(ids)):
-        r = conn.execute(f"SELECT {_NOTE_COLS} FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+        r = conn.execute(f"SELECT {_NOTE_COLS} FROM j2_notes WHERE id = ? AND user_id = ? AND {_LIVE_OWN_NOTE}",
                          (nid, user_id)).fetchone()
         if r is not None:
             rows.append(r)
@@ -241,7 +252,7 @@ def _explicit_notes(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row) 
 def _window_notes(conn: sqlite3.Connection, user_id: str, symbol: str,
                   moment: dict[str, Any]) -> list[sqlite3.Row]:
     rows = conn.execute(
-        f"SELECT {_NOTE_COLS} FROM j2_notes WHERE user_id = ? AND ticker IN (?, ?) AND deleted_at IS NULL",
+        f"SELECT {_NOTE_COLS} FROM j2_notes WHERE user_id = ? AND ticker IN (?, ?) AND {_LIVE_OWN_NOTE}",
         (user_id, symbol, symbol.lower()),
     ).fetchall()
     out = []
@@ -377,12 +388,38 @@ def freeze(conn: sqlite3.Connection, user_id: str, trade_ref: str, symbol: str,
     return cur.rowcount == 1
 
 
+def forget_sample_links(conn: sqlite3.Connection, user_id: str, trade_ref: str | None = None) -> int:
+    """Drop every frozen plan link whose plan came from one of this member's SAMPLE notes (all
+    of them, or the one for `trade_ref`). Returns how many were dropped.
+
+    A link like that was never a plan: the member did not write it. It is deleted, not kept in
+    `previous_json`, because that history is "plans this trade was graded against" and a sample
+    must not appear there either. Trashed samples count (`sample_note_ids` includes Trash), so
+    this works after "Remove sample" as well as before. The member's own links are untouched."""
+    sample = sample_marker.sample_note_ids(conn, user_id)
+    if not sample:
+        return 0
+    marks = ",".join("?" for _ in sample)
+    sql = f"DELETE FROM j2_trade_plan_links WHERE user_id = ? AND note_id IN ({marks})"
+    params: list[Any] = [user_id, *sorted(sample)]
+    if trade_ref is not None:
+        sql += " AND trade_ref = ?"
+        params.append(trade_ref)
+    cur = conn.execute(sql, params)
+    conn.commit()
+    return cur.rowcount or 0
+
+
 def match_trade(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
                 defs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """The plan for one trade: the frozen link if there is one; else match now (freezing a
     unique winner); else the tie or the absence. Never writes j2_trades."""
     ref = trade_ref_for_row(trade)
     link = get_link(conn, user_id, ref)
+    if link is not None and sample_marker.is_sample_note(conn, user_id, link["noteId"]):
+        # Frozen from a sample before sample notes were kept out of matching: not a plan.
+        forget_sample_links(conn, user_id, ref)
+        link = None
     if link is not None:
         return {"status": STATUS_MEMBER_NONE if link["sourceKind"] == "none" else STATUS_PLANNED,
                 "link": link, "candidates": None}
@@ -417,6 +454,8 @@ def relink(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row, *,
                              (note_id, user_id)).fetchone()
             if n is None:
                 raise RelinkError("Note not found")
+            if sample_marker.is_sample(n["import_source"]):
+                raise RelinkError(SAMPLE_RELINK_SENTENCE)
             cand = _note_candidate(conn, user_id, n, symbol, moment, defs, "member")
             if cand is None:
                 raise RelinkError("That note names no entry, stop, target or shares")

@@ -58,12 +58,12 @@ from typing import Any
 
 from api.services import auth_service
 from api.services.auth_db import get_connection
-from api.services.journal_two import notes, sample_examples
+from api.services.journal_two import notes, plan_grading, sample_examples, sample_marker
 from api.services.notebook_wave14_switch import wave14_switch_on
 
 SAMPLE_PATH = Path(__file__).with_name("sample_notebook.json")
 PREF_KEY = "notebook_sample"
-SOURCE = "sample"
+SOURCE = sample_marker.SAMPLE_SOURCE   # the ONE durable marker: j2_notes.import_source
 KEY_PREFIX = "sample:"
 
 REFUSED_SENTENCE = "You already have notes, so we didn't add the sample. You can import notes instead."
@@ -298,6 +298,10 @@ def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str,
     try:
         trashed = [i for i in recorded_ids(user_id) if notes.delete_note(user_id, i, conn=conn)]
         examples_removed = sample_examples.remove(user_id, recorded_examples(user_id), conn=conn)
+        # fin-data I3: no real trade may stay graded against a sample plan once the sample is
+        # gone. Matching no longer picks a sample, so this only finds links frozen before that
+        # rule; it is done here as well as on read so removal alone is enough.
+        examples_removed["planLinksForgotten"] = plan_grading.forget_sample_links(conn, user_id)
     finally:
         if owned:
             conn.close()

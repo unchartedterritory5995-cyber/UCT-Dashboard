@@ -39,6 +39,7 @@ import sqlite3
 import uuid
 from typing import Any, Iterable
 
+from api.services.journal_two import sample_marker
 from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
@@ -283,7 +284,9 @@ def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
     try:
         notes = conn.execute(
             "SELECT n.id AS id, n.body_json AS body_json, n.created_at AS created_at"
-            " FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.id IN ("
+            " FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            # A scan captured inside a sample note is not a name the member saved (fin-data I3).
+            f" AND {sample_marker.not_sample_sql('n')} AND n.id IN ("
             "   SELECT DISTINCT e.note_id FROM j2_note_embeds e"
             f"  WHERE e.user_id = ? AND e.widget_id IN ({','.join('?' * len(SCAN_WIDGETS))}))",
             (user_id, user_id, *SCAN_WIDGETS)).fetchall()

@@ -138,15 +138,22 @@ def test_the_setups_board_shows_the_untraded_example(db, seeded):
 
 # ── thesis chips (13G-2) + resurfacing (13D) ────────────────────────────────────────────
 
-def test_thesis_chip_shows_status_and_stop(db, seeded):
+def test_the_example_thesis_is_indexed_but_puts_no_chip_on_a_real_row(db, seeded):
+    """fin-data I3: the example's status and stop are in the note and its level index, and
+    the chip surface (a member's REAL position or watchlist row) never reads them. The
+    control -- the member's own note with the same words does chip -- is in
+    tests/test_sample_never_feeds_real_numbers.py."""
     c = _conn()
     try:
-        chips = thesis_chips.batch_chips(c, U1, [sample_examples.SYM_THESIS])
+        assert thesis_chips.batch_chips(c, U1, [sample_examples.SYM_THESIS]) == {}
+        stop = c.execute("SELECT price FROM j2_note_levels WHERE user_id = ? AND symbol = ? AND role = 'stop'",
+                         (U1, sample_examples.SYM_THESIS)).fetchone()
+        props = c.execute("SELECT properties_json FROM j2_notes WHERE user_id = ? AND ticker = ?",
+                          (U1, sample_examples.SYM_THESIS)).fetchone()[0]
     finally:
         c.close()
-    chip = chips[sample_examples.SYM_THESIS]
-    assert chip["thesisStatus"] == "active"
-    assert chip["stop"] == 110.0
+    assert stop is not None and stop[0] == 110.0
+    assert json.loads(props)["builtin:thesis_status"] == "active"
 
 
 # ⛔⛔ THE EXAMPLE NOTICE NEVER COMPETES WITH A REAL ALERT (wave 14 docs lane). The first
@@ -217,7 +224,7 @@ def test_the_sample_leaves_the_real_resurfacing_budget_untouched(db, seeded):
 
 
 def test_a_sample_note_is_never_read_by_the_resurfacing_scan(db, seeded):
-    """The thesis chip still reads the sample's stop from the level index, but the scan
+    """The sample's stop is in the level index (its own note page shows it), but the scan
     (`load_index`) skips a sample note -- so an NVDA move can never resurface the example. A
     member's OWN note naming the same stop is still scanned (the control)."""
     own = notes.import_confirm(U1, {"source": "file", "notes": [{
@@ -229,7 +236,7 @@ def test_a_sample_note_is_never_read_by_the_resurfacing_scan(db, seeded):
     try:
         thesis_id = _thesis_note(c, U1)["id"]
         assert c.execute("SELECT COUNT(*) FROM j2_note_levels WHERE user_id = ? AND note_id = ?",
-                         (U1, thesis_id)).fetchone()[0] >= 1      # indexed (the chip needs it)
+                         (U1, thesis_id)).fetchone()[0] >= 1      # indexed
         own_row = c.execute("SELECT id, ticker, body_json, properties_json, updated_at FROM j2_notes"
                             " WHERE id = ?", (own,)).fetchone()
         note_levels.project_note(c, U1, own_row)

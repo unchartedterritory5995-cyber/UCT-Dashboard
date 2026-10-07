@@ -33,6 +33,7 @@ import json
 import sqlite3
 from typing import Any
 
+from api.services.journal_two import sample_marker
 from api.services.journal_two.note_levels import note_link
 from api.services.notebook_flags import flag_on
 
@@ -109,7 +110,10 @@ def batch_chips(conn: sqlite3.Connection, user_id: str, symbols: Any) -> dict[st
         "SELECT l.symbol AS symbol, l.note_id AS note_id, l.role AS role, l.price AS price,"
         " n.title AS title, n.properties_json AS properties_json, n.updated_at AS updated_at"
         f" FROM j2_note_levels l JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
-        f" WHERE l.user_id = ? AND l.symbol IN ({marks}) AND n.deleted_at IS NULL",
+        f" WHERE l.user_id = ? AND l.symbol IN ({marks}) AND n.deleted_at IS NULL"
+        # ⛔ Never a sample note (fin-data I3): the example thesis's stop is not the member's
+        # stop, and a chip sits on their REAL position or watchlist row.
+        f" AND {sample_marker.not_sample_sql('n')}",
         [user_id, *cleaned],
     ).fetchall()
 

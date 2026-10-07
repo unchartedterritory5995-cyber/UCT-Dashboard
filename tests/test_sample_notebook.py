@@ -249,19 +249,19 @@ def test_after_seeding_nothing_reads_as_a_stock_or_a_reminder(db):
         c.close()
 
 
-def test_the_capability_examples_name_real_tickers_but_create_no_open_position(db):
-    """W14-E, by design, is the opposite guarantee from the base five: a capability example
-    MUST look like it names a real stock, or plan grading / the setups board / thesis chips
-    have nothing to show. What stays true: no example ever opens a POSITION (the one trade
-    is already closed), so `rule_thesis_stop_review` -- which fires only for a symbol that
-    is BOTH mentioned AND the symbol of a real OPEN position hitting its OWN real stop
-    (`awareness/rules.py`) -- can never fire from sample data alone; and removing the
-    sample removes the mention too, because the vocabulary query excludes trashed notes."""
+def test_the_capability_examples_name_real_tickers_and_are_still_not_the_members_research(db):
+    """W14-E's examples DO name real stocks (their own cards have to show something). They
+    are held to the same rule as the base five all the same (fin-data I3): the six tickers
+    are never "symbols this member has research on", so `rule_thesis_stop_review` cannot fire
+    for a REAL position in one of them on the strength of an example. ⚰️ This test used to
+    assert the opposite -- that AAPL and MSFT were mentioned -- and leaned on "no example
+    opens a position" for safety, which says nothing about a position the member opens."""
     sample_notebook.seed(U1)
     c = _conn()
     try:
-        mentioned = notes.bulk_member_mentioned_symbols(c).get(U1, set())
-        assert {sample_examples.SYM_PLAN, sample_examples.SYM_SETUP} <= mentioned
+        embedded = {r[0] for r in c.execute("SELECT symbol FROM j2_note_embeds WHERE user_id = ?", (U1,))}
+        assert {sample_examples.SYM_PLAN, sample_examples.SYM_SETUP} <= embedded   # the examples ARE indexed
+        assert notes.bulk_member_mentioned_symbols(c).get(U1, set()) == set()       # and are not research
         assert c.execute("SELECT COUNT(*) FROM j2_positions WHERE user_id = ?", (U1,)).fetchone()[0] == 0
     finally:
         c.close()
@@ -370,7 +370,8 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     assert result["trashed"] == [i for i in out["ids"] if i != already]
     # No trade or entry context was seeded, so there is none to delete.
     assert result["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
-                                         "passedSetupDismissed": True, "insightDismissed": False}
+                                         "passedSetupDismissed": True, "insightDismissed": False,
+                                         "planLinksForgotten": 0}
     assert notes.get_note(U1, mine) is not None     # the member's own note is untouched
     for nid in out["ids"]:
         assert notes.get_note(U1, nid) is None
@@ -380,7 +381,8 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     # passedSetupDismissed is False the second time -- passed_setups.dismiss() filters
     # `dismissed_at IS NULL`. No insight is seeded, so none is dismissed either time.
     assert again["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
-                                        "passedSetupDismissed": False, "insightDismissed": False}
+                                        "passedSetupDismissed": False, "insightDismissed": False,
+                                        "planLinksForgotten": 0}
 
 
 def test_active_ids_reads_the_pref_and_the_trash(db):
