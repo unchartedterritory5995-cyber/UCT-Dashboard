@@ -23,7 +23,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -88,7 +88,8 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
     () => sortRows(filterRows(all, { lens, minPrice, minVolume }), sort).slice(0, MAX_ROWS),
     [all, lens, minPrice, minVolume, sort],
   )
-  const cmds = useMemo(() => rows.map((r) => `$${r.sym}`), [rows])
+  const cmds = useMemo(() => rows.map((r) => `${r.sym}`), [rows])
+  const rowSyms = useMemo(() => rows.map((r) => r.sym), [rows])
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
 
   // When did the list last land? Reported up to the panel header with the session it belongs to.
@@ -152,6 +153,9 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
           <Select value={minVolume} onChange={(e) => setMinVolume(Number(e.target.value))} data-testid="terminal-movers-min-volume"
             options={VOLUME_FLOORS.map((v) => ({ value: v, label: v ? formatCompactTerminal(v) : 'Any' }))} />
         </label>
+        {/* Scan-to-board: these rows, as filtered and sorted, as a board of panels (the shell pages
+            a list longer than a board). Renders nothing outside the terminal. */}
+        <BoardFromList syms={rowSyms} label={`MOST ${LENSES[lens].toLowerCase()}`} testId="terminal-movers-board" />
       </div>
 
       {notes.map((n) => <p key={n} className={styles.note} role="status">{n}</p>)}

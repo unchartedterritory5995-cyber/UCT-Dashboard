@@ -32,7 +32,7 @@ import ErrorBoundary from '../../components/ErrorBoundary'
 import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
-import { PanelFreshnessContext, PanelSkeleton, PanelState, TerminalPanelContext } from '../../components/terminal'
+import { PanelFreshnessContext, PanelListContext, PanelSkeleton, PanelState, TerminalPanelContext } from '../../components/terminal'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
@@ -57,6 +57,10 @@ import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
+import {
+  BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
+  symbolsFromRows,
+} from './scanBoard'
 import { brandedTitle } from '../../surfaces/brand'
 import styles from './TerminalShell.module.css'
 
@@ -163,7 +167,7 @@ export function telemetryKey(cmd) {
   if (!cmd?.ok) return null
   if (cmd.alias) return cmd.alias
   if (cmd.type === 'function') return cmd.code
-  return { ask: 'ASK', address: 'ADDR', row: 'ROW' }[cmd.type] || null
+  return { ask: 'ASK', address: 'ADDR', row: 'ROW', board: 'BOARD' }[cmd.type] || null
 }
 
 /** Pure: is this input a bare ticker (the one form a per-ticker preset may answer)? */
@@ -190,7 +194,7 @@ function channelOf(layout, id) {
 }
 
 export function Panel({
-  index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
+  index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, onList, onBoard, boardCodes, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
   reorder = null,
@@ -218,6 +222,15 @@ export function Panel({
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
   const frame = useMemo(() => ({ code: panel.code, density, inset: !flush }), [panel.code, density, flush])
   const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
+  // Scan-to-board: a list panel reports the names it shows, and its "Board of" control opens
+  // them as a board (components/terminal/BoardFromList). Keyed by the same owner as the rows,
+  // so a list from a panel since closed or replaced is never the one `BOARD` reads.
+  const listApi = useMemo(() => (onList && owner ? {
+    publish: (list) => onList(owner, list),
+    openBoard: (req) => onBoard?.(req),
+    codes: boardCodes || [],
+    pageSize: BOARD_PAGE,
+  } : null), [onList, onBoard, owner, boardCodes])
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''} ${reorder?.dropTarget ? styles.panelDropTarget : ''} ${reorder?.dragging ? styles.panelDragging : ''}`}
@@ -328,6 +341,7 @@ export function Panel({
                 switching security/args clears a stale badge rather than carrying the previous
                 security's freshness into the next one's loading state. */}
             <PanelFreshnessContext.Provider value={setFreshness} key={identity}>
+              <PanelListContext.Provider value={listApi}>
               <TerminalPanelContext.Provider value={frame}>
                 {/* ONE loading treatment: the same skeleton a panel shows while its own data
                     loads (components/terminal/PanelSkeleton), never a "Loading CODE..." line
@@ -341,6 +355,7 @@ export function Panel({
                       : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
                 </Suspense>
               </TerminalPanelContext.Provider>
+              </PanelListContext.Provider>
             </PanelFreshnessContext.Provider>
           </ErrorBoundary>
         )}
@@ -423,6 +438,17 @@ export default function TerminalShell() {
   const onRows = useCallback((rows, owner) => {
     rowsRef.current = { owner: owner ?? null, rows: Array.isArray(rows) ? rows : [] }
   }, [])
+  // Scan-to-board: the securities each list panel shows (`usePanelList`), keyed by the same
+  // owner as the rows. `BOARD FUNC` reads the FOCUSED panel's entry; a panel that unmounts
+  // clears its own.
+  const listsRef = useRef(new Map())
+  const onList = useCallback((owner, list) => {
+    if (owner && list && Array.isArray(list.syms)) listsRef.current.set(owner, list)
+    else if (owner) listsRef.current.delete(owner)
+  }, [])
+  // The last scan board opened (its whole list and page), for Next / Previous.
+  const scanRef = useRef(null)
+  const boardCodes = useMemo(() => boardableCodes(auth), [auth])
 
   // V6b / V17: the member's aliases and command counts (server-owned, owner-scoped). A failed
   // read leaves the grammar working without them — never an error on the command line.
@@ -479,7 +505,7 @@ export default function TerminalShell() {
   }, [setGroupSym])
 
   /** Open a board snapshot (named, shared or preset), remembering the board it replaces. */
-  const openSnapshot = useCallback((snapshot, { sym, name, boardId, actions = [] } = {}) => {
+  const openSnapshot = useCallback((snapshot, { sym, name, boardId, actions = [], text = null } = {}) => {
     if (!previousRef.current) {
       previousRef.current = { layout: layoutRef.current, syms: symsRef.current }
       writeRevert(previousRef.current)
@@ -492,7 +518,7 @@ export default function TerminalShell() {
     if (boardId) saveLibrary(markOpened(libraryRef.current, boardId))
     setNotice({
       kind: 'info',
-      text: `Opened ${name || 'board'}${sym ? ` for ${sym}` : ''}.`,
+      text: text || `Opened ${name || 'board'}${sym ? ` for ${sym}` : ''}.`,
       actions: [...actions, { label: 'Back to my layout', id: 'revert' }],
     })
   }, [save, saveLibrary, setGroupSym])
@@ -522,6 +548,35 @@ export default function TerminalShell() {
     return true
   }, [openSnapshot])
 
+  /** Scan-to-board (feature-gaps #9): open one page of a list as a board of `code` panels, one
+   *  name per panel, through the SAME path a saved board opens — so "Back to my layout" returns
+   *  the member's own board, and nothing reaches the library unless they press Save. Every name
+   *  not on screen is named in the notice; Next / Previous page through a long list. */
+  const openScanBoard = useCallback(({ code, syms, label, page = 0, total = null }) => {
+    const refusal = boardCodeRefusal(code, auth)
+    if (refusal) { setNotice({ kind: 'error', text: refusal }); return null }
+    const { syms: names, repeats, invalid } = cleanSymbols(syms)
+    const skipped = invalid.length ? ` Not tickers, so left out: ${invalid.join(', ')}.` : ''
+    if (!names.length) {
+      setNotice({ kind: 'error', text: `${label ? `${label[0].toUpperCase()}${label.slice(1)} has` : 'There are'} no securities to open as a board; your board was not changed.${skipped}` })
+      return null
+    }
+    const said = scanBoardNotice({ code, label, syms: names, page, repeats, total })
+    const start = said.page * BOARD_PAGE
+    const shown = names.slice(start, start + BOARD_PAGE)
+    const name = scanBoardName(code, label)
+    scanRef.current = { code, syms: names, label, page: said.page, total }
+    const actions = []
+    if (said.page > 0) actions.push({ label: `Previous ${BOARD_PAGE}`, id: 'board-prev' })
+    if (said.page < said.pages - 1) {
+      actions.push({ label: `Next ${Math.min(BOARD_PAGE, names.length - start - BOARD_PAGE)}`, id: 'board-next' })
+    }
+    actions.push({ label: 'Save to my boards', id: 'save-scan', name })
+    openSnapshot(buildScanBoard(layoutRef.current, code, shown), { name, actions, text: `${said.text}${skipped}` })
+    return null
+  }, [auth, openSnapshot])
+  const onBoardFromList = useCallback((req) => openScanBoard({ ...req, page: 0 }), [openScanBoard])
+
   /** Run one command line. Returns the panel text it put in a panel, or null. A board
    *  address (`B:<slug>`) opens that board; everything else goes through the ONE parser. */
   const run = useCallback((text, { fromUrl = false, slot = null } = {}) => {
@@ -535,7 +590,60 @@ export default function TerminalShell() {
     if (BOARD_ADDRESS_RE.test(raw)) { openNamed(raw); return null }
     const cmd = parseCommand(raw, { aliases: aliasesRef.current })
     if (!cmd.ok) {
-      if (cmd.error !== 'empty') setNotice({ kind: 'error', text: cmd.error, sym: cmd.sym, suggestions: cmd.suggestions || [] })
+      if (cmd.error !== 'empty') {
+        setNotice({ kind: 'error', text: cmd.error, sym: cmd.sym, suggestions: cmd.suggestions || [],
+          // A pasted ticker list is one click from a board of its charts (scan-to-board).
+          ...(cmd.type === 'list' && !fromUrl ? { actions: [{ label: 'Open them as a board of charts', id: 'board-list', syms: cmd.syms }] } : {}) })
+      }
+      return null
+    }
+    if (cmd.type === 'board') {
+      // ⛔ Never from a URL: a link must not replace the member's board (as for aliases).
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: 'BOARD runs from the command line or a list\'s Board button, not from a link.' })
+        return null
+      }
+      countCommand(cmd)
+      const src = cmd.source || { kind: 'panel' }
+      if (src.kind === 'list') return openScanBoard({ code: cmd.code, syms: src.syms, label: 'your list' })
+      if (src.kind === 'panel') {
+        const lay = layoutRef.current
+        const p = lay.panels[Math.min(lay.focus, lay.count - 1)]
+        const owner = rowsOwner(p)
+        const listed = owner ? listsRef.current.get(owner) : null
+        if (listed?.syms?.length) {
+          return openScanBoard({ code: cmd.code, syms: listed.syms, label: listed.label, total: listed.total ?? null })
+        }
+        const rows = owner && rowsRef.current.owner === owner ? rowsRef.current.rows : []
+        const fromRows = symbolsFromRows(rows)
+        const here = panelCommandText(p, symsRef.current) || p?.code || 'The focused panel'
+        if (!fromRows.length) {
+          setNotice({ kind: 'error', text: `${here} shows no list of securities to open. Focus MOST, the screener (SCR) or RRG first, or name the list: BOARD ${cmd.code} NVDA AMD MSFT TSLA.` })
+          return null
+        }
+        return openScanBoard({ code: cmd.code, syms: fromRows, label: here })
+      }
+      // A watchlist (W:id) or the flagged list: read it, then build. A late answer goes nowhere.
+      const what = src.kind === 'flagged' ? 'your flagged list' : `watchlist ${src.address}`
+      const url = src.kind === 'flagged' ? '/api/watchlists/flagged'
+        : `/api/watchlists/${encodeURIComponent(src.id)}?slim=1`
+      setNotice({ kind: 'info', text: `Reading ${what}…` })
+      jsonFetcher(url)
+        .then((wl) => {
+          if (!current()) return
+          const items = Array.isArray(wl?.items) ? wl.items : []
+          const list = items.map((i) => (typeof i === 'string' ? i : i?.sym)).filter(Boolean)
+          const label = src.kind === 'flagged' ? 'your flagged list'
+            : `watchlist ${wl?.name ? `${wl.name} (${src.address})` : src.address}`
+          if (!list.length) { setNotice({ kind: 'info', text: `${label[0].toUpperCase()}${label.slice(1)} has no names in it yet; your board was not changed.` }); return }
+          openScanBoard({ code: cmd.code, syms: list, label })
+        })
+        .catch((err) => {
+          if (!current()) return
+          setNotice({ kind: 'error', text: err?.status === 404 && src.kind === 'watchlist'
+            ? `You have no watchlist at ${src.address}. Type W: to look yours up.`
+            : `Could not read ${what} just now; your board was not changed. Try again.` })
+        })
       return null
     }
     if (cmd.type.startsWith('alias-')) {
@@ -747,7 +855,7 @@ export default function TerminalShell() {
       return null
     }
     return [scope === 'ticker' ? sym : null, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
-  }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, save, countCommand, loadAliases])
+  }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, openScanBoard, save, countCommand, loadAliases])
 
   // Round 3: the ref holds the panel text the typed command PUT on screen (null when it opened
   // nothing). It used to be a bare `true` that a refused command left set, so the member's next
@@ -1102,6 +1210,15 @@ export default function TerminalShell() {
     else if (a.id === 'undo-calendar') onUndoCalendar(a)
     else if (a.id === 'revert') revertLayout()
     else if (a.id === 'save-shared') onSaveBoard(a.name)
+    else if (a.id === 'save-scan') {
+      // Saved: keep the page buttons and the way back on the notice that says so.
+      const said = onSaveBoard(a.name)
+      const rest = (notice?.actions || []).filter((x) => x.id !== 'save-scan')
+      if (said?.kind === 'info' && rest.length) setNotice({ ...said, actions: rest })
+    }
+    else if ((a.id === 'board-next' || a.id === 'board-prev') && scanRef.current) {
+      openScanBoard({ ...scanRef.current, page: scanRef.current.page + (a.id === 'board-next' ? 1 : -1) })
+    } else if (a.id === 'board-list' && a.syms) openScanBoard({ code: 'GP', syms: a.syms, label: 'your list' })
     else if (a.id === 'go' && a.to) { navigate(a.to); return }
     // A notice action is a detour: focus goes back to the command line (audit #24).
     if (!isPhone) inputRef.current?.focus()
@@ -1576,6 +1693,9 @@ export default function TerminalShell() {
                 }}
                 onRun={runTyped}
                 onRows={onRows}
+                onList={onList}
+                onBoard={onBoardFromList}
+                boardCodes={boardCodes}
                 helpProps={helpProps}
                 onClose={() => onClose(i)}
                 onDuplicate={() => onDuplicate(i)}

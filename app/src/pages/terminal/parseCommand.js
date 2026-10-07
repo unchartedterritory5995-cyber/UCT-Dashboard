@@ -130,6 +130,10 @@ export default function parseCommand(input, opts = {}) {
     if (tokens.length !== 2) return { ok: false, error: 'UNALIAS needs exactly one alias name', suggestions: [] }
     return { ok: true, type: 'alias-delete', name: tokens[1].toUpperCase() }
   }
+  // Scan-to-board: `BOARD FUNC [TICKER… | W:id | FLAGGED]` (feature-gaps #9). A reserved word,
+  // so no alias can take it; `$BOARD` would still mean a ticker.
+  if (!forced && FIRST === 'BOARD') return parseBoard(tokens.slice(1))
+
   const aliases = opts.aliases || {}
   if (!forced && Object.prototype.hasOwnProperty.call(aliases, FIRST)) {
     const expanded = [aliases[FIRST], ...tokens.slice(1)].join(' ')
@@ -191,7 +195,7 @@ export default function parseCommand(input, opts = {}) {
     const syms = tokens.map((t) => t.replace(/^\$/, ''))
     return { ok: false, type: 'list', syms,
       error: `That looks like a list of tickers (${syms.slice(0, 4).join(', ')}${syms.length > 4 ? ', …' : ''}). `
-        + `Type one ticker (${syms[0]}), or open a board with B:<name>.`,
+        + `Type one ticker (${syms[0]}), or open them as a board: BOARD GP ${syms.slice(0, 4).join(' ')}${syms.length > 4 ? ' …' : ''}.`,
       sym: syms[0], suggestions: [] }
   }
   // V16: a line that is not a command but reads like a question goes to AI Search.
@@ -199,6 +203,64 @@ export default function parseCommand(input, opts = {}) {
     return { ok: true, type: 'ask', question: raw, fallback: true }
   }
   return r
+}
+
+/** The usage line every BOARD refusal ends with. */
+export const BOARD_USAGE = 'BOARD GP (the focused panel\'s list), BOARD GP NVDA AMD MSFT TSLA, BOARD GP W:3 (a watchlist) or BOARD GP FLAGGED'
+
+/**
+ * `BOARD FUNC [source]` — turn a list into a board of FUNC panels, one name per panel.
+ *   (nothing)       the focused panel's list (MOST's rows, the screener's results, RRG's table)
+ *   TICKER …        these names            W:id   that watchlist        FLAGGED   your flagged list
+ * The function must have a per-security PANEL (a door or a market-wide view cannot be one per
+ * name); the shell adds its own checks (a URL-owning panel, the member's flags).
+ */
+function parseBoard(rest) {
+  if (!rest.length) return { ok: false, error: `BOARD needs a function: ${BOARD_USAGE}.`, suggestions: [] }
+  const code = rest[0].replace(/^\$/, '').toUpperCase()
+  if (!isCode(code)) {
+    const asTicker = normalizeSym(rest[0])
+    return { ok: false, suggestions: asTicker ? ['GP', 'DES'] : suggest(code),
+      error: asTicker
+        ? `BOARD needs the function first, then the names: BOARD GP ${rest.join(' ').toUpperCase()}.`
+        : `Unknown function "${code}" for BOARD. Try ${BOARD_USAGE}.` }
+  }
+  const v = BY_CODE[code].ticker
+  if (!v || !v.panel) {
+    return { ok: false, suggestions: ['GP', 'DES'],
+      error: `${code} cannot fill a board: it ${!v ? 'shows no single security' : 'opens a page outside the terminal'}. A board needs one security per panel, e.g. BOARD GP or BOARD DES.` }
+  }
+  const src = rest.slice(1)
+  if (!src.length) return { ok: true, type: 'board', code, source: { kind: 'panel' } }
+  if (src.length === 1) {
+    const addr = src[0].match(ADDRESS_RE)
+    if (addr) {
+      if (addr[1].toUpperCase() !== 'W') {
+        return { ok: false, suggestions: [], error: `BOARD reads a watchlist (W:id), not ${addr[1].toUpperCase()}:${addr[2]}. ${BOARD_USAGE}.` }
+      }
+      return { ok: true, type: 'board', code, source: { kind: 'watchlist', id: addr[2], address: `W:${addr[2]}` } }
+    }
+    if (/^FLAG(GED|S)?$/i.test(src[0])) return { ok: true, type: 'board', code, source: { kind: 'flagged' } }
+  }
+  const syms = []
+  const bad = []
+  const codes = []
+  for (const tok of src) {
+    const forcedTok = tok.startsWith('$')
+    const s = normalizeSym(tok)
+    if (!s || !/^[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z]{1,2})?$/.test(s)) bad.push(tok)
+    else if (!forcedTok && isCode(s)) codes.push(s)
+    else syms.push(s)
+  }
+  if (codes.length) {
+    return { ok: false, suggestions: [],
+      error: `${codes.join(', ')} ${codes.length === 1 ? 'is a function code' : 'are function codes'}; put $ in front for the ticker (${codes.map((c) => `$${c}`).join(' ')}).` }
+  }
+  if (bad.length) {
+    return { ok: false, suggestions: [],
+      error: `Not a ticker: ${bad.map((t) => `"${t}"`).join(', ')}. BOARD ${code} takes tickers, W:id or FLAGGED.` }
+  }
+  return { ok: true, type: 'board', code, source: { kind: 'list', syms } }
 }
 
 function parseCore(raw) {

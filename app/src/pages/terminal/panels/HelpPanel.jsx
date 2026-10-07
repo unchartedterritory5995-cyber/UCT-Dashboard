@@ -7,7 +7,7 @@
 import { useEffect, useMemo } from 'react'
 import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, flagOn } from '../functions'
 import {
-  ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
+  ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, BOARD_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
   ROW_RULE, TICKER_COLLISIONS,
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
@@ -99,7 +99,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
       {!focus && (
         <section data-testid="terminal-help-rules">
           <h3 className={styles.helpGroup}>Rules</h3>
-          {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE].map((r) => (
+          {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
             <p key={r} className={styles.helpRule}>{r}</p>
           ))}
           <p className={styles.helpRule}>Codes that are also tickers: {TICKER_COLLISIONS.join(', ')}.</p>
