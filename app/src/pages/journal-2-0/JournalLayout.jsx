@@ -27,6 +27,7 @@ import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } 
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
+import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
@@ -389,6 +390,9 @@ export default function JournalLayout() {
           via the same pool; surfaces MAY read prices via useJ2Prices(). */}
       <J2PriceProvider>
         <div className={styles.content}>
+          {/* Finish program, lane KEYS: where focus lands after an in-app navigation between
+              Journal pages (lib/routeFocus.jsx). Directly before the page, after the header. */}
+          <RouteFocusTarget />
           <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
             <Outlet context={{ settings }} />
           </Suspense>

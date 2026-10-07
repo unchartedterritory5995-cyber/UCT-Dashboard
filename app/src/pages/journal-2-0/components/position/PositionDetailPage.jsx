@@ -341,7 +341,7 @@ export default function PositionDetailPage() {
                   <LinkedNotesPanel tradeRef={String(id)} tradeRefType="position" />
                   {/* Wave 13 lane 13E-2: the market context frozen at the fill (dark behind
                       notebook_entry_context_enabled; renders nothing while off or on a free plan). */}
-                  <EntryContextCard kind="position" id={id} />
+                  <EntryContextCard kind="position" id={id} skipLink />
                 </div>
               ))}
             </div>

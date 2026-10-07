@@ -20,6 +20,7 @@ import { terminalCommandRow } from '../pages/terminal/paletteGrammar'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
 import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
+import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -44,8 +45,10 @@ const NOTEBOOK_COMMANDS = [
   // rather than a second, redundant command pointing at the identical route.
   { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
     to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open', 'home'] },
+  // Lane KEYS: this used to open the Notebook and stop, search panel closed. The hash is the
+  // Notebook's own door to its search panel (lib/notebookSearchDoor.js).
   { id: 'nb-search', kind: 'command', label: 'Search Notebook', icon: 'search',
-    to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
+    to: `/journal/notebook${NOTEBOOK_SEARCH_HASH}`, keywords: ['notebook', 'search', 'find', 'note'] },
   { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',
     to: '/journal/notebook?folder=__trash__', keywords: ['trash', 'deleted', 'notebook', 'note'] },
   // ⛔ ONE capture command (Wave L §12), not a forest by subtype -- no

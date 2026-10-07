@@ -95,3 +95,30 @@
   .linkBtn { display: inline-flex; align-items: center; min-height: var(--tap-min, 44px); }
   .asOf { margin-left: 0; }
 }
+
+/* Lane KEYS: "Skip to why you took it". Rendered in the shell's skip-link slot. Hidden until a
+   keyboard focuses it, and it lets the pointer through while hidden (the same shape as the
+   Notebook's own skip link, tabs/NotebookTab.module.css). */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 7;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none;
+}
+.skipLink:focus {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}

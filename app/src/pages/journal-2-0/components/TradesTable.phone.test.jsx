@@ -27,6 +27,15 @@ describe('TradesTable phone cards', () => {
     expect(screen.getByText('VCP')).toBeInTheDocument()
   })
 
+  it('the card list is where focus lands after a move to this page (lane KEYS)', () => {
+    render(<TradesTable trades={trades} visibleColumns={buildTradesColumns()} onRowAction={vi.fn()} />)
+    const list = document.querySelector('[data-route-landing]')
+    expect(list).toBeTruthy()
+    expect(list.getAttribute('tabindex')).toBe('-1')
+    expect(list.getAttribute('aria-label')).toBe('Trades')
+    expect(list.contains(screen.getByTestId('trade-card'))).toBe(true)
+  })
+
   it('tapping a card opens the trade drawer', () => {
     const onRowAction = vi.fn()
     render(<TradesTable trades={trades} visibleColumns={buildTradesColumns()}

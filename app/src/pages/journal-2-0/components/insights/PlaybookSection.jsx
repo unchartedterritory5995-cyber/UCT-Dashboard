@@ -34,6 +34,7 @@ import useJ2Playbook from '../../hooks/useJ2Playbook'
 import { useFeatureFlag } from '../../featureFlags'
 import { SCOPE_VERSION } from '../../../../lib/journal-2-0/scope'
 import { playbookEnabled, PLAYBOOK_PATH } from '../../lib/myPlaybookLink'
+import { RouteLanding } from '../../lib/routeFocus'
 import styles from './PlaybookSection.module.css'
 
 const CONF_MIN = 10
@@ -117,10 +118,15 @@ export default function PlaybookSection() {
   // Wave 13 lane 13B: the door to My Playbook (ranges, the trades behind every number, what you
   // wrote before losses vs wins), in every state of this section. Only while the gate is on; My
   // Playbook also reads every account at once, so the door stays when this section cannot.
+  // The landing in front of it is where keyboard focus arrives after a move to Insights
+  // (lib/routeFocus.jsx), so the door is the next Tab.
   const door = playbookEnabled() ? (
-    <Link className={styles.playbookLink} to={PLAYBOOK_PATH} data-testid="open-my-playbook">
-      Open My Playbook: ranges, the trades behind every number, and what you wrote before losses vs wins
-    </Link>
+    <>
+      <RouteLanding title="Insights, Playbook" />
+      <Link className={styles.playbookLink} to={PLAYBOOK_PATH} data-testid="open-my-playbook">
+        Open My Playbook: ranges, the trades behind every number, and what you wrote before losses vs wins
+      </Link>
+    </>
   ) : null
 
   // ── Non-card states — never a bare blank ──────────────────────────────────

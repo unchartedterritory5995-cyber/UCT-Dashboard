@@ -40,6 +40,9 @@ function Outcome({ o }) {
  *
  * Renders nothing, and fetches nothing, while `notebook_passed_setups_enabled` is off.
  */
+/** How many passed setups show before "Show all". Each row is two Tab stops. */
+export const PASSED_SETUPS_SHOWN = 5
+
 export default function PassedSetups() {
   const enabled = passedSetupsEnabled()
   const { data, error, isLoading, mutate } = useSWR(
@@ -63,6 +66,9 @@ export default function PassedSetups() {
   // button away. `notice` fills a status line that is always mounted; after a remove, focus
   // goes to the row that took the removed one's place (else the row before, else the field).
   const [notice, setNotice] = useState('')
+  // Finish program, lane KEYS: every row is two Tab stops and the box sits ahead of later doors
+  // on Research Home, so the list shows the newest few and one button for the rest.
+  const [showAll, setShowAll] = useState(false)
   const listRef = useRef(null)
   const tickerRef = useRef(null)
   const focusRowRef = useRef(null) // index of the removed row, until the list re-renders
@@ -109,7 +115,9 @@ export default function PassedSetups() {
     }
   }
 
-  const items = Array.isArray(data?.items) ? data.items : []
+  const allItems = Array.isArray(data?.items) ? data.items : []
+  const capped = allItems.length > PASSED_SETUPS_SHOWN
+  const items = capped && !showAll ? allItems.slice(0, PASSED_SETUPS_SHOWN) : allItems
   const traded = data?.tradedCount || 0
 
   return (
@@ -176,6 +184,12 @@ export default function PassedSetups() {
             </li>
           ))}
         </ul>
+      )}
+      {capped && (
+        <button type="button" className={styles.showAll} aria-expanded={showAll}
+          onClick={() => setShowAll((v) => !v)} data-passed-show-all="">
+          {showAll ? 'Show fewer passed setups' : `Show all ${allItems.length} passed setups`}
+        </button>
       )}
 
       {traded > 0 && (

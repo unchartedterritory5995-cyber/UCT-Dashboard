@@ -1,0 +1,1046 @@
+{
+ "tool": "tools/notebook_w13q_clicks.py",
+ "tree": "ed6ec69cfdabdffc90003e6f7a4d55ed184df07b",
+ "started": "2026-10-07T17:24:28+00:00",
+ "partial": {
+  "flows": [
+   "Q13",
+   "Q6"
+  ],
+  "modes": null
+ },
+ "sandbox_flags": {
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",
+  "NOTEBOOK_PLAN_GRADING_ENABLED": "1",
+  "NOTEBOOK_PLAYBOOK_ENABLED": "1",
+  "AWARENESS_NOTE_RESURFACE_ENABLED": "1",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "1",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "1",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "1",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED": "1",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED": "1",
+  "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED": "1",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "1",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED": "1",
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_AI_ACTIONS_ENABLED": "1",
+  "NOTEBOOK_FORMULAS_ENABLED": "1",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_GETTING_STARTED_ENABLED": "1"
+ },
+ "tab_cap": 600,
+ "budgets": {
+  "Q1": {
+   "flow": "new blank note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "owner": "Notebook core",
+   "keys_plan": 3,
+   "keys_floor": null
+  },
+  "Q2": {
+   "flow": "new note from a template with a ticker",
+   "mouse": 4,
+   "keys": 6,
+   "taps": 4,
+   "owner": "Notebook templates (12B)",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q3": {
+   "flow": "open a note by title",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q4": {
+   "flow": "search, open a hit",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q5": {
+   "flow": "today's daily note",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "owner": "Notebook core",
+   "keys_plan": 2,
+   "keys_floor": null
+  },
+  "Q6": {
+   "flow": "link a note to a trade",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Notebook core / Journal",
+   "keys_plan": 6,
+   "keys_floor": 8
+  },
+  "Q7": {
+   "flow": "save Screener results to a note (337 Tabs today)",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Screener (ScannerShell.jsx)",
+   "keys_plan": 10,
+   "keys_floor": null
+  },
+  "Q8": {
+   "flow": "save a price or consensus fact",
+   "mouse": 3,
+   "keys": 8,
+   "taps": 3,
+   "owner": "Notebook capture",
+   "keys_plan": 8,
+   "keys_floor": null
+  },
+  "Q9": {
+   "flow": "ask the Notebook, insert the answer",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "Notebook Ask",
+   "keys_plan": 5,
+   "keys_floor": 7
+  },
+  "Q10": {
+   "flow": "task with a due date",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q11": {
+   "flow": "tag and move 5 notes",
+   "mouse": 8,
+   "keys": 27,
+   "taps": 10,
+   "owner": "Notebook core",
+   "keys_plan": 15,
+   "keys_floor": 25
+  },
+  "Q12": {
+   "flow": "export one note as Word",
+   "mouse": 3,
+   "keys": 12,
+   "taps": 3,
+   "owner": "Notebook export",
+   "keys_plan": 6,
+   "keys_floor": 10
+  },
+  "Q13": {
+   "flow": "plan grade of my last trade (13A)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13A",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q14": {
+   "flow": "My Playbook, drill a number (13B)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13B",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q15": {
+   "flow": "create earnings prep (13C)",
+   "mouse": 2,
+   "keys": 5,
+   "taps": 2,
+   "owner": "13C",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q16": {
+   "flow": "open a resurfaced note (13D)",
+   "mouse": 2,
+   "keys": 8,
+   "taps": 2,
+   "owner": "13D",
+   "keys_plan": 4,
+   "keys_floor": 6
+  },
+  "Q17": {
+   "flow": "answer \"why did you take it\" (13E)",
+   "mouse": 2,
+   "keys": 7,
+   "taps": 2,
+   "owner": "13E",
+   "keys_plan": 4,
+   "keys_floor": 5
+  },
+  "Q18": {
+   "flow": "draft this week's review, open a leak (13F)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13F",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q19": {
+   "flow": "save a transcript passage to a thesis (13G)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 4,
+   "owner": "13G",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q20": {
+   "flow": "insert a chart, draw entry, stop and target, read size (13H)",
+   "mouse": 6,
+   "keys": 22,
+   "taps": 8,
+   "owner": "13H",
+   "keys_plan": 10,
+   "keys_floor": 20
+  },
+  "Q21": {
+   "flow": "arm an alert at a drawn stop (13H)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13H",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q22": {
+   "flow": "filter the visual playbook to one setup (13I)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "13I",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q23": {
+   "flow": "morning board, open the closest setup, find similar (13J)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13J",
+   "keys_plan": 6,
+   "keys_floor": null
+  }
+ },
+ "rows": [
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 5,
+   "taps": 0,
+   "time_s": 4.06,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "click",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "click",
+     "on": "CRWD trade row"
+    },
+    {
+     "do": "click",
+     "on": "Save to Notebook"
+    },
+    {
+     "do": "click",
+     "on": "Current note"
+    }
+   ],
+   "outcome": {
+    "note": "f817de2f970f42838f89441bdef1a30c",
+    "trade": "ec608f63-fcfd-4284-838c-4b0e720453e6",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-mouse-1280.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 10,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "the seeded CRWD trade row is not visible on the Trades surface",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.06,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    }
+   ],
+   "outcome": null,
+   "notes": "",
+   "measured_before_stop": 2,
+   "screenshot": "Q6-keys-1280.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "keys",
+   "width": "390",
+   "budget": 10,
+   "measured": 27,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 22,
+   "keystrokes": 5,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.61,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "CRWD trade row",
+     "presses": 14,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Open Positions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Closed Trades",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "All",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Edit scope",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "▦ Columns",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete all trades",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import CSV",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ Add Trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA Win +$960.00 +1.8R 100 @ $100.40 → $110.00 10/07/26 – 1",
+       "testid": "trade-card",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "TSLA UNPLANNED No plan was written for this trade before ent",
+       "testid": "trade-card",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AAPL UNPLANNED No plan was written for this trade before ent",
+       "testid": "trade-card",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AMD UNPLANNED No plan was written for this trade before entr",
+       "testid": "trade-card",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AMD UNPLANNED No plan was written for this trade before entr",
+       "testid": "trade-card",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "CRWD UNPLANNED No plan was written for this trade before ent",
+       "testid": "trade-card",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate CRWD trade row"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save to Notebook",
+     "presses": 5,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "← Trade Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Previous trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Next trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "▶ Replay",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save to Notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save to Notebook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Current note",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Close",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "TEXTAREA",
+       "role": "",
+       "name": "Capture comment",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Append to the note you have open (or the inbox)",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Current note"
+    }
+   ],
+   "outcome": {
+    "note": "c8923b9b67a1437d949f3389ab35ddd3",
+    "trade": "ec608f63-fcfd-4284-838c-4b0e720453e6",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-keys-390.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 5,
+   "time_s": 5.54,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "tap",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "tap",
+     "on": "CRWD trade row"
+    },
+    {
+     "do": "tap",
+     "on": "Save to Notebook"
+    },
+    {
+     "do": "tap",
+     "on": "Current note"
+    }
+   ],
+   "outcome": {
+    "note": "2fa8afc8ce0f440c92d0cbf1a9851977",
+    "trade": "ec608f63-fcfd-4284-838c-4b0e720453e6",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-taps-390.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 3,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 3,
+   "taps": 0,
+   "time_s": 3.7,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "click",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "click",
+     "on": "NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "ff6872dc-eba7-40a6-8a86-1a01d27707fe",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-mouse-1280.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.38,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "NVDA trade row",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "TD",
+       "role": "",
+       "name": "NVDA",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "ff6872dc-eba7-40a6-8a86-1a01d27707fe",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-keys-1280.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 12,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 9,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.46,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "NVDA trade row",
+     "presses": 9,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Open Positions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Closed Trades",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "All",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Edit scope",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "▦ Columns",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete all trades",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import CSV",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ Add Trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA Win +$960.00 +1.8R 100 @ $100.40 → $110.00 10/07/26 – 1",
+       "testid": "trade-card",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "ff6872dc-eba7-40a6-8a86-1a01d27707fe",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-keys-390.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 3,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 3.84,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "tap",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "tap",
+     "on": "NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "ff6872dc-eba7-40a6-8a86-1a01d27707fe",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-taps-390.png"
+  }
+ ],
+ "wide_px": 1280,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys\\4b46b05a4c\\q6-q13\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 12:24:36",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 12:25:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 12:27:03",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 12:28:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys\\4b46b05a4c\\q6-q13\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T12-24-30.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "seed_child": "SEEDED C:\\data-fin-clicks\\keys2-q6\\screener.db 30 30",
+ "seed_research_child": "SEEDED C:\\data-fin-clicks\\keys2-q6\\transcript_index.db",
+ "page_errors": [],
+ "auth_me_flags": {
+  "j2_share_links_enabled": false,
+  "notebook_ai_actions_enabled": true,
+  "notebook_ask_insert_on": true,
+  "notebook_attachments_on": false,
+  "notebook_chart_plan_enabled": true,
+  "notebook_conflict_ux_on": false,
+  "notebook_door_guard": "full",
+  "notebook_earnings_prep_enabled": true,
+  "notebook_entry_context_enabled": true,
+  "notebook_find_similar_enabled": true,
+  "notebook_formulas_enabled": true,
+  "notebook_getting_started_enabled": true,
+  "notebook_image_docx_documents_enabled": false,
+  "notebook_offline_default_on": true,
+  "notebook_offline_read_on": false,
+  "notebook_onboarding_enabled": true,
+  "notebook_passed_setups_enabled": true,
+  "notebook_plan_grading_enabled": true,
+  "notebook_playbook_enabled": true,
+  "notebook_publish_enabled": false,
+  "notebook_review_drafts_enabled": true,
+  "notebook_semantic_search_enabled": false,
+  "notebook_setups_board_enabled": true,
+  "notebook_ta_fingerprint_enabled": true,
+  "notebook_task_reminders_enabled": true,
+  "notebook_template_gallery_enabled": true,
+  "notebook_thesis_chips_enabled": true,
+  "notebook_trade_canvas_enabled": true,
+  "notebook_transcript_capture_enabled": true,
+  "notebook_visual_playbook_enabled": true,
+  "notebook_voice_notes_enabled": true,
+  "notebook_writing_help_enabled": false
+ },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "d2fcd26c3c3b49da9589b11299530166",
+   "Semis rotation notes": "00e5cba17fa54d60b3120565f10efd16",
+   "AMD earnings recap": "15bbb99dd0054859bfb23c63043fc9ea",
+   "Weekly review draft": "6a1a23afdbee4906bab23c3a75a531af",
+   "CRWD base watch": "3e1ec3c0f36348889c8877b59f220335",
+   "Market regime journal": "ecf2006cdc4a42709fa06f62ba8e67f9",
+   "PLTR pullback plan": "e982b56dea664d24898a8ff179a1afdc",
+   "Risk rules": "32d6c00c8ffb48fc8c4290a7af28221c"
+  },
+  "position_http": 200,
+  "position_id": "0eba2dca-156c-450b-b631-58b4d322542d",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1280": {
+    "id": "ab832d8e5c2647a283876ecbb6adaf74",
+    "name": "Semis mouse-1280"
+   },
+   "keys-1280": {
+    "id": "22a93ee1b1b1493d8497eec99e3cc1a2",
+    "name": "Semis keys-1280"
+   },
+   "keys-390": {
+    "id": "5434880eb6b14311892572b71589bd9d",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "156b11355bde4afda279abcb93b894df",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "ec608f63-fcfd-4284-838c-4b0e720453e6",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "ff6872dc-eba7-40a6-8a86-1a01d27707fe",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200,
+  "account_risk": {
+   "account": "df7944c8-337b-47c7-89bf-54b3b528412b",
+   "http": 200
+  },
+  "playbook": {
+   "setup": "Pullback",
+   "trades": 25,
+   "http": [
+    200
+   ]
+  },
+  "review_week": {
+   "week_start": "2026-10-05",
+   "http": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  "why_positions": {
+   "mouse-1280": {
+    "symbol": "COST",
+    "http": 200
+   },
+   "keys-1280": {
+    "symbol": "ADBE",
+    "http": 200
+   },
+   "keys-390": {
+    "symbol": "INTC",
+    "http": 200
+   },
+   "taps-390": {
+    "symbol": "CSCO",
+    "http": 200
+   }
+  },
+  "visual_playbook": {
+   "AMD": {
+    "id": "99085734aff841f1a0826dcc2d2ac210",
+    "tag": "VCP",
+    "http": 200
+   },
+   "TSLA": {
+    "id": "8c2d984bfae0484280ef0fb121e414de",
+    "tag": "VCP",
+    "http": 200
+   },
+   "MSFT": {
+    "id": "07f3519a323c459c93cfe16a1bcb1116",
+    "tag": "Flat Base Breakout",
+    "http": 200
+   },
+   "META": {
+    "id": "76120cc2ed4d4336808c4243522c71a7",
+    "tag": "Bull Flag",
+    "http": 200
+   }
+  },
+  "board_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "board_nightly": {
+   "ran": true,
+   "asOf": "2026-10-07",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 5,
+   "rows": 5,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.051
+  },
+  "resurface": {
+   "note": "4bb4baff316a4995a46b1f80f002305f",
+   "link": "/journal/notebook?note=4bb4baff316a4995a46b1f80f002305f&resurfaceVersion=3aa8a883fe244040a47cb276e52de492",
+   "fired": 1
+  }
+ },
+ "first_visit_text": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\n1\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$102,260.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n17\nUnfiled\n17\nArchived\n0\nTrash\n0\nSemis keys-1280\n+\nSemis keys-390\n+\nSemis mouse-1280\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nAsk Notebook to do something\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nFri, Oct 9, after the close\nOpen position\nCreate prep note\nPASSED SETUPS\nNames you saved from a scan or a watchlist and did not trade — what happened next\nTicker\nPassed on\nAdd\n\nNothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on what they did next — or add one above.\n\nREVIEWS THAT WRITE THEMSELVES\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 18 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nTake the Task reminders tour\nTake the Template gallery tour\nTake the Formulas and rollups tour\nTake the Plan versus execution grading tour\nTake the Entry context card tour\nTake the Reviews that write themselves tour\nTak",
+ "onboarding_cleared_in_setup": [
+  "base tour not on screen",
+  "get-started checklist hidden",
+  "tour offer declined: New in your Notebook: Task reminders",
+  "voice dictation tip dismissed"
+ ],
+ "raw": {},
+ "driver_imported_api": [],
+ "finished": "2026-10-07T17:28:34+00:00",
+ "status": "COMPLETE"
+}

@@ -1,4 +1,36 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { registerShortcuts } from '../../command/shortcutRegistry'
+
+// Enter on a collapsible block's arrow button. ONE listener for every editor on the page,
+// bound through the shared shortcut registry (declared there as `notebook.toggleChevron`)
+// while at least one editor with this node exists. It acts only on a press that happened ON
+// an arrow button, and lets every other Enter through untouched.
+//
+// Why not the button's native activation: the button sits inside the editor's
+// contenteditable, and whether a browser activates it on Enter from there is not ours to
+// rely on. preventDefault stops that native click so it cannot toggle a second time. Space
+// stays native (its click fires on keyup).
+let chevronEditors = 0
+let releaseChevronKey = null
+function claimChevronKey() {
+  chevronEditors += 1
+  if (releaseChevronKey) return
+  releaseChevronKey = registerShortcuts({
+    'notebook.toggleChevron': (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest('button.uctToggleChevron') : null
+      if (!btn) return
+      e.preventDefault()
+      btn.click()
+    },
+  })
+}
+function dropChevronKey() {
+  chevronEditors = Math.max(0, chevronEditors - 1)
+  if (chevronEditors === 0 && releaseChevronKey) {
+    releaseChevronKey()
+    releaseChevronKey = null
+  }
+}
 
 /**
  * Toggle — Notion's other most-common structural block (see `calloutNode.js`
@@ -98,6 +130,11 @@ export const Toggle = Node.create({
     return ['details', mergeAttributes(HTMLAttributes, extra), 0]
   },
 
+  // Before create, not on create: TipTap emits create on a later tick, and a key pressed
+  // before then must still be answered.
+  onBeforeCreate() { claimChevronKey() },
+  onDestroy() { dropChevronKey() },
+
   addNodeView() {
     return ({ node, getPos, editor }) => {
       const dom = document.createElement('div')
@@ -120,17 +157,9 @@ export const Toggle = Node.create({
         const isOpen = current ? !!current.attrs.open : !!node.attrs.open
         editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'open', !isOpen))
       }
+      // Enter is answered by the one registered listener at the top of this file, which
+      // clicks this button.
       chevron.addEventListener('click', flip)
-      // Enter toggles here rather than through the button's native
-      // activation: the button sits inside the editor's contenteditable, and
-      // whether a browser activates it on Enter from there is not ours to
-      // rely on. preventDefault stops that native click so it cannot toggle
-      // a second time. Space stays native (its click fires on keyup).
-      chevron.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey) return
-        e.preventDefault()
-        flip()
-      })
 
       const details = document.createElement('details')
       details.className = 'uctToggleDetails'

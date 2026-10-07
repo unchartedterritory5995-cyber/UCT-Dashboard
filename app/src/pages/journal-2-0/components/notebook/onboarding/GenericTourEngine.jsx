@@ -46,6 +46,7 @@ import { cardIsTopmost, dialogHost } from './tourLayers'
 import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
 import { importWithOneRetry } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
+import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 import PoliteStatus from '../PoliteStatus'
@@ -351,21 +352,23 @@ export default function GenericTourEngine({
   // the tour decides first whether it is the layer a key belongs to.
   useEffect(() => {
     if (!(phase === 'open' || phase === 'unreachable')) return undefined
-    const onKey = (e) => {
-      const card = cardRef.current
-      if (e.key === 'Escape') {
+    // Bound through the shared shortcut registry (declared there with its scope), so the
+    // key-listener census can see it. Same node, same phase, same order as before.
+    return registerShortcuts({
+      'notebook.tourEscape': (e) => {
+        const card = cardRef.current
         if (passive && !(card && card.contains(document.activeElement))) return
         if (!cardIsTopmost(card)) return            // a sheet above the tour answers it
         e.preventDefault()
         e.stopPropagation()                          // the sheet beneath stays open
         if (phase === 'unreachable') { finish(); return }
         close(TOUR_STATES.dismissed)
-      } else if (e.key === 'Tab' && (modal || phase === 'unreachable')) {
-        if (trapTabKey(e, card)) e.stopPropagation()
-      }
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+      },
+      'notebook.tourTrapTab': (e) => {
+        if (!(modal || phase === 'unreachable')) return
+        if (trapTabKey(e, cardRef.current)) e.stopPropagation()
+      },
+    })
   }, [phase, modal, passive, close, finish])
 
   // ── render ───────────────────────────────────────────────────────────────────────────────

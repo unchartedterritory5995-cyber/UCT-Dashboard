@@ -820,6 +820,8 @@ export default function FolderSidebar({
   onSelectFolder,
   activeTag,
   onSelectTag,
+  // Lane KEYS: a counter the parent bumps to ask for the search view with the cursor in the box.
+  searchRequest = 0,
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
@@ -918,6 +920,15 @@ export default function FolderSidebar({
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
   }, [mode])
+
+  // Lane KEYS: the palette's "Search Notebook" (NotebookTab bumps `searchRequest`). Switch to
+  // search; the effect above focuses the box when the mode changes, and when the panel was
+  // already in search the box is focused here.
+  useEffect(() => {
+    if (!searchRequest) return
+    setMode('search')
+    searchInputRef.current?.focus()
+  }, [searchRequest])
 
   const trimmedQuery = query.trim()
 
