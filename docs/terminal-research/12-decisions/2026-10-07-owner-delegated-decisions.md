@@ -138,12 +138,11 @@ action** (§8 number, or "—").
 - **A2** `railway variables --service web --set "RSS_SERIES_ENABLED=1"` and
   `railway variables --service terminal-next-monitor --set "RSS_SERIES_ENABLED=1"`
 - **A3** `railway variables --service web --set "BARS_RAIL_PAGE_ENABLED=1"`
-- **A4** `railway variables --service web --set "RATE_LIMIT_POLICY=shadow"`. After 5 trading days,
-  if the shadow log shows no would-limit on a signed-in member's ordinary use:
-  `railway variables --service web --set "RATE_LIMIT_POLICY=enforce"`
-- **A5** `railway variables --service web --set "AI_POPULATION_CAP_MODE=shadow"`. After 5 trading
-  days with no `[ai-population-cap] would-cap` line for a legitimate member:
-  `railway variables --service web --set "AI_POPULATION_CAP_MODE=enforce"`
+- **A4** ✅ **NO ACTION — already enforcing.** Read live on web 2026-10-07 16:2x ET:
+  `RATE_LIMIT_POLICY=enforce`. The shadow-first step this row first proposed would have
+  DOWNGRADED a policy already past its shadow stage; do not set it.
+- **A5** ✅ **NO ACTION — already enforcing.** Read live on web the same minute:
+  `AI_POPULATION_CAP_MODE=enforce`. Same correction as A4.
 - **A6** Copy web's `WORKER_INTERNAL_URL` value, then
   `railway variables --service terminal-next-monitor --set "OPTIONS_SCREENER_TAPE_URL=<that value>"`
 - **A7** When `GET /api/admin/breadth-eod-source` → `parity.switch.ready` is `true`:
