@@ -253,7 +253,7 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
             continue
         try:
             body = json.loads(note["body_json"] or "{}")
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, RecursionError):      # too deep to parse: no card (M-4)
             continue
         blocks = chart_blocks.extract_blocks(body)
         for sym in _symbols(note, blocks):

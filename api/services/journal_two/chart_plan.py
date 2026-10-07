@@ -25,6 +25,7 @@ flag parse. The `ta` schema attribute itself is NOT gated (it is schema, always 
 from __future__ import annotations
 
 import json
+import logging
 import math
 from typing import Any
 
@@ -176,6 +177,10 @@ def account_inputs(user_id: str, account_id: str | None = None) -> dict[str, Any
     }
 
 
+#: What a member reads when the sizing call itself failed. Fixed text (security review M-5).
+COMPASS_FAILED_REASON = "Compass could not size this right now."
+
+
 def compass_size(entry: Any, stop: Any, account_size: Any, risk_pct: Any, *,
                  paid: bool, size_fn=None) -> dict[str, Any]:
     """Compass's sizing answer for a LONG, labelled; or why it was not asked.
@@ -196,8 +201,12 @@ def compass_size(entry: Any, stop: Any, account_size: Any, risk_pct: Any, *,
         size_fn = brain_service.size_a_trade
     try:
         res = size_fn(e, s, acct, risk_pct=pct)
-    except Exception as exc:  # noqa: BLE001 -- the facade never raises; a fake might
-        return {"ok": False, "reason": f"Compass could not size this: {exc}"}
+    except Exception:  # noqa: BLE001 -- the facade never raises; a fake might
+        # ⛔ A FIXED SENTENCE, NEVER THE EXCEPTION'S TEXT (security review M-5): this
+        # `reason` is shown to the member, and an exception message can carry a file path,
+        # a query or a key. The detail goes to the log.
+        logging.getLogger(__name__).warning("[chart_plan] Compass sizing failed", exc_info=True)
+        return {"ok": False, "reason": COMPASS_FAILED_REASON}
     res = dict(res or {})
     if not res.get("ok"):
         return {"ok": False, "reason": str(res.get("reason") or res.get("error") or "Compass did not answer")}
