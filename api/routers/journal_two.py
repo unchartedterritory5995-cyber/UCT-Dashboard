@@ -94,6 +94,57 @@ _CSV_MAPPED_UPLOAD = body_cap.capped_multipart(
     lambda: csv_import_service.too_big_sentence(), fields=("mapping",))
 
 
+# ⛔ FIN (2026-10-06): no route in this router declares a JSON body parameter
+# (`payload: dict`, `body: Model`). FastAPI reads a declared body BEFORE it solves
+# any dependency -- before the session check, and with no size limit -- so 67 doors
+# here buffered an anonymous body of any size. Each takes its body through
+# `_json(...)` instead: a dependency that runs the session check first and caps the
+# body WHILE it is read. The parameter keeps its name, its place and its type.
+# Rail: tests/test_notebook_body_census.py.
+#
+# The sizes are derived from the services' own constants, read per request:
+#   * every door: room for the largest thing an editor sends, a note save. The
+#     service holds a note body to MAX_BODY_JSON_BYTES; a save can carry that
+#     body twice over (the document and its text), plus the small fields.
+#   * the trade import's confirm step sends back the rows the preview parsed out
+#     of a CSV the preview door already held to its own cap; as JSON a row is a
+#     few times its CSV line.
+#   * the note import's confirm step sends a batch of whole notes (the client
+#     batches 200; the service refuses more than 500).
+JSON_TOO_LARGE_SENTENCE = "That is too large to send. Shorten it and try again."
+IMPORT_TOO_LARGE_SENTENCE = (
+    "That import is too large to send in one piece. Split it into smaller files and try again.")
+NOTE_IMPORT_JSON_MAX_BYTES = 32 * 1024 * 1024
+
+
+def _json_body_max() -> int:
+    return 2 * notes_service.MAX_BODY_JSON_BYTES + 256 * 1024
+
+
+def _trade_import_json_max() -> int:
+    return 4 * csv_import_service.MAX_BYTES
+
+
+def _note_import_json_max() -> int:
+    return NOTE_IMPORT_JSON_MAX_BYTES
+
+
+def _json_too_large() -> str:
+    return JSON_TOO_LARGE_SENTENCE
+
+
+def _import_too_large() -> str:
+    return IMPORT_TOO_LARGE_SENTENCE
+
+
+def _json(annotation: Any, *, after: Any = get_current_user, max_bytes=_json_body_max,
+          sentence=_json_too_large):
+    """The dependency a route takes its JSON body through. `after` is the check
+    that must pass before one byte is read: the session, unless the route says
+    otherwise (`require_paid`, a capture token, or None for a door with neither)."""
+    return body_cap.capped_json(annotation, max_bytes, sentence, after=after)
+
+
 # Allow-list of FE telemetry events (landing_analytics.py:32-45 pattern). Only
 # these are accepted by POST /telemetry; anything else → 400. P1b fires these.
 _J2_TELEMETRY_EVENTS = {
@@ -288,7 +339,7 @@ def _sanitize_notebook_props(event: str, props: Any) -> dict[str, Any]:
 
 
 @router.post("/telemetry")
-def j2_telemetry(payload: dict, user: dict = Depends(get_current_user)):
+def j2_telemetry(payload: dict = Depends(_json(dict)), user: dict = Depends(get_current_user)):
     """Record an allow-listed FE telemetry event to the shared auth activity_log.
 
     Body: {"event": str, "props": dict|None}. Unknown event → 400. Writes via
@@ -439,7 +490,7 @@ def get_settings(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 
 @router.put("/settings")
 def put_settings(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Replace the current user's Journal 2.0 settings. Server validates
@@ -556,8 +607,8 @@ from api.services.journal_two import entry_context as entry_context_service  # n
 
 @router.post("/positions")
 def create_position(
-    payload: dict[str, Any],
     background_tasks: BackgroundTasks,
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a new open Position (spec §8). If payload.accountId is
@@ -590,7 +641,7 @@ def create_position(
 @router.put("/positions/{position_id}")
 def update_position(
     position_id: str,
-    patch: dict[str, Any],
+    patch: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Partial update (spec §9). Server-owned fields in the patch are
@@ -621,7 +672,7 @@ def delete_position(
 @router.post("/positions/{position_id}/close")
 def close_position(
     position_id: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Close a Position (full or partial). Writes a Trade row using the
@@ -940,7 +991,7 @@ def get_trade_adherence_route(
 @router.put("/trades/{trade_id}/adherence")
 def put_trade_adherence_route(
     trade_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Upsert the rule-adherence record for a trade.
@@ -982,7 +1033,7 @@ def put_trade_adherence_route(
 @router.post("/accounts/{account_id}/rules")
 def create_journal_rule_route(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a personal journal rule (a persisted reminder).
@@ -1136,7 +1187,7 @@ def list_orphaned_annotations(
 
 @router.post("/trust/orphans/reattach")
 def reattach_orphaned_annotation(
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Re-point one orphaned annotation set onto a live target trade's ref.
@@ -1204,7 +1255,7 @@ def community_positions(user: dict = Depends(get_current_user)) -> dict[str, Any
 
 @router.post("/trades")
 def create_trade_manual(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Manual Add Trade (spec §11.4). Server computes derived fields.
@@ -1223,7 +1274,7 @@ def create_trade_manual(
 @router.patch("/trades/{trade_id}")
 def update_trade(
     trade_id: str,
-    patch: dict[str, Any],
+    patch: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Enrich a trade after the fact — set originalStop / setup / notes /
@@ -1253,7 +1304,7 @@ def delete_trade(
 
 @router.delete("/trades")
 def delete_all_trades(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Hard-delete every trade for the user (spec §11.4). Requires a
@@ -1340,7 +1391,7 @@ async def import_preview_mapped(
 
 @router.post("/trades/import/confirm")
 def import_confirm(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any], max_bytes=_trade_import_json_max, sentence=_import_too_large)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Insert a list of parsed trades (as produced by /import/preview)
@@ -1519,7 +1570,7 @@ def list_accounts(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 
 @router.post("/accounts")
 def create_account_route(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a new account. `copySettingsFrom` (optional) clones an
@@ -1558,7 +1609,7 @@ def get_account_route(
 @router.put("/accounts/{account_id}")
 def update_account_route(
     account_id: str,
-    patch: dict[str, Any],
+    patch: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
@@ -1605,7 +1656,7 @@ def move_all_to_route(
 @router.put("/accounts/{account_id}/goals")
 def put_account_goals(
     account_id: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Update Daily/Weekly/Monthly/Yearly $ targets for this account."""
@@ -1648,7 +1699,7 @@ def get_account_settings_route(
 @router.put("/accounts/{account_id}/settings")
 def put_account_settings_route(
     account_id: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
@@ -2150,7 +2201,7 @@ def _parse_batch_ids(raw: Any, cap: int = NOTE_BATCH_MAX) -> list[str]:
 
 @router.post("/notes/batch")
 def notes_batch_endpoint(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Apply ONE operation to many notes: `{ids, op, args}`.
@@ -2438,7 +2489,7 @@ def _folder_named(conn: Any, uid: str, folder_id: str | None) -> dict[str, Any]:
 
 @router.post("/notes/daily")
 def daily_note_endpoint(
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Wave 6 (lane E): `{date: "YYYY-MM-DD", templateId?}` — open the member's
@@ -2464,7 +2515,7 @@ NOTE_BATCH_EXPORT_MAX = 500
 
 @router.post("/notes/batch/export")
 def notes_batch_export_endpoint(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     format: str | None = Query(default=None),  # noqa: A002 -- the public query name
     user: dict = Depends(get_current_user),
 ) -> StreamingResponse:
@@ -2549,7 +2600,7 @@ def sector_theme_facets_endpoint(
 
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
-    note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
+    note_id: str, payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """'Send to Journal': append one widgetEmbed node (client-built attrs)
     to a note's body, atomically, server-side.
@@ -2675,7 +2726,7 @@ def get_note_version_endpoint(
 
 @router.post("/notes/{note_id}/versions/{version_id}/restore")
 def restore_note_version_endpoint(
-    note_id: str, version_id: str, payload: dict[str, Any] | None = None,
+    note_id: str, version_id: str, payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Same optimistic-lock contract as the plain note PUT (§9 of the Wave C
@@ -2769,7 +2820,7 @@ def list_property_defs_endpoint(user: dict = Depends(get_current_user)) -> dict[
 
 
 @router.post("/property-defs")
-def create_property_def_endpoint(body: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def create_property_def_endpoint(body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)) -> dict[str, Any]:
     try:
         d = note_properties.create_property_def(
             user["id"], body.get("name"), body.get("type"), options=body.get("options"),
@@ -2782,7 +2833,7 @@ def create_property_def_endpoint(body: dict[str, Any], user: dict = Depends(get_
 
 @router.put("/property-defs/{property_id}")
 def update_property_def_endpoint(
-    property_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    property_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         d = note_properties.update_property_def(
@@ -2813,7 +2864,7 @@ def list_saved_views_endpoint(user: dict = Depends(get_current_user)) -> dict[st
 
 
 @router.post("/saved-views")
-def create_saved_view_endpoint(body: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def create_saved_view_endpoint(body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)) -> dict[str, Any]:
     try:
         v = note_properties.create_saved_view(
             user["id"], body.get("name"), body.get("viewType", "list"), body.get("spec") or {},
@@ -2825,7 +2876,7 @@ def create_saved_view_endpoint(body: dict[str, Any], user: dict = Depends(get_cu
 
 @router.put("/saved-views/{view_id}")
 def update_saved_view_endpoint(
-    view_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    view_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         v = note_properties.update_saved_view(user["id"], view_id, name=body.get("name"), spec=body.get("spec"))
@@ -2850,7 +2901,7 @@ from api.services.journal_two import note_facts, fact_current_value
 
 @router.post("/notes/{note_id}/facts")
 def create_note_fact_endpoint(
-    note_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    note_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         fact = note_facts.create_fact_observation(
@@ -2902,7 +2953,7 @@ def insert_note_fact_endpoint(
 
 @router.put("/facts/{fact_id}")
 def update_note_fact_endpoint(
-    fact_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    fact_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     fact = note_facts.update_fact_caption(user["id"], fact_id, body.get("caption"))
     if fact is None:
@@ -2924,7 +2975,7 @@ from api.services.journal_two import thesis_evidence, thesis_changelog
 
 @router.post("/notes/{note_id}/evidence")
 def add_thesis_evidence_endpoint(
-    note_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    note_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         evidence = thesis_evidence.add_evidence(
@@ -2981,7 +3032,7 @@ from api.services.journal_two import (review_search, thesis_review_changes,
 
 @router.post("/notes/{note_id}/reviews")
 def open_thesis_review_endpoint(
-    note_id: str, body: dict[str, Any] | None = None,
+    note_id: str, body: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Start or RESUME the one open review draft for this thesis.
@@ -3032,7 +3083,7 @@ def search_reviews_endpoint(
 
 @router.patch("/reviews/{review_id}")
 def save_thesis_review_draft_endpoint(
-    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    review_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Autosave the member's work. ⛔ Never completes it (§34)."""
     try:
@@ -3047,7 +3098,7 @@ def save_thesis_review_draft_endpoint(
 
 @router.post("/reviews/{review_id}/complete")
 def complete_thesis_review_endpoint(
-    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+    review_id: str, body: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Record what the member decided.
 
@@ -3123,7 +3174,7 @@ def list_captures_endpoint(user: dict = Depends(get_current_user)) -> dict[str, 
 
 
 @router.post("/inbox")
-def create_capture_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def create_capture_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)) -> dict[str, Any]:
     try:
         return notes_service.create_capture(user["id"], payload)
     except notes_service.NoteValidationError as e:
@@ -3138,7 +3189,7 @@ def delete_capture_endpoint(capture_id: str, user: dict = Depends(get_current_us
 
 
 @router.post("/notes/import/check")
-def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+def notes_import_check_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
     import_keys = payload.get("importKeys")
     if import_keys is not None and not isinstance(import_keys, list):
         raise HTTPException(status_code=400, detail="importKeys must be a list")
@@ -3146,7 +3197,7 @@ def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(ge
 
 
 @router.post("/notes/import/confirm")
-def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any], max_bytes=_note_import_json_max, sentence=_import_too_large)), user: dict = Depends(get_current_user)):
     try:
         return notes_service.import_confirm(user["id"], payload)
     except NoteValidationError as e:
@@ -3154,7 +3205,7 @@ def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(
 
 
 @router.post("/notes/enrichment/scan")
-def notes_enrichment_scan_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+def notes_enrichment_scan_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
     """The arrival-screen enrichment offer (spec §8.1): scan a set of a
     member's own notes for ticker mentions using the SAME matcher `/buzz`
     runs in production (`api.services.buzz_extract` — see
@@ -3438,7 +3489,7 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
 
 @router.post("/ask/stream")
 async def ask_stream(
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None, after=require_paid)),
     user: dict = Depends(require_paid),
 ):
     """The unified Ask endpoint. `scope` is one of note | document | security
@@ -3459,7 +3510,7 @@ async def ask_stream(
 @router.post("/notes/{note_id}/ask/stream")
 async def ask_current_note_stream(
     note_id: str,
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None, after=require_paid)),
     user: dict = Depends(require_paid),
 ):
     """Ask Current Note — kept at its Wave 2 URL so a browser still holding the
@@ -3473,7 +3524,7 @@ async def ask_current_note_stream(
 
 @router.post("/notes")
 def create_note_endpoint(
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
@@ -3486,8 +3537,8 @@ def create_note_endpoint(
 @router.put("/notes/{note_id}")
 def update_note_endpoint(
     note_id: str,
-    patch: dict[str, Any],
     request: Request,
+    patch: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     # Optional compare-and-set baseline (A15): when the editor sends the
@@ -3558,7 +3609,7 @@ def list_note_templates_endpoint(user: dict = Depends(get_current_user)) -> dict
 
 @router.post("/note-templates")
 def create_note_template_endpoint(
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """"Save as template": `{noteId, name?}`. The SERVER reads the note and
@@ -3590,7 +3641,7 @@ def get_note_template_endpoint(template_id: str, user: dict = Depends(get_curren
 @router.patch("/note-templates/{template_id}")
 def rename_note_template_endpoint(
     template_id: str,
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     from api.services.journal_two import note_templates
@@ -3614,7 +3665,7 @@ def delete_note_template_endpoint(template_id: str, user: dict = Depends(get_cur
 @router.patch("/notes/{note_id}/lock")
 def lock_note_endpoint(
     note_id: str,
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Wave 6 (lane E): `{locked: true|false}` — the contract lane D's editor
@@ -3643,7 +3694,7 @@ def lock_note_endpoint(
 @router.patch("/notes/{note_id}/tags")
 def patch_note_tags_endpoint(
     note_id: str,
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Wave 6 (controller-added, lane D's M14) — `{add: [...], remove:
@@ -3674,7 +3725,7 @@ def patch_note_tags_endpoint(
 @router.patch("/notes/{note_id}/archive")
 def archive_note_endpoint(
     note_id: str,
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = Depends(_json(dict[str, Any] | None)),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Wave 6 (lane E): `{archived: true|false}` archives or unarchives the
@@ -4039,10 +4090,16 @@ from api.services.journal_two import web_capture, web_capture_store, excerpt_sea
 # is computed from what was actually stored, and tenant isolation runs before any
 # lookup or reuse. A door that wanted looser rules would have to change this
 # function, which is exactly the property Slice 2 exists to create.
+# ONE object for both uses below: the body dependency names it as the check that
+# must run first, and FastAPI runs a dependency once per request only when both
+# places hold the SAME callable. Built twice, the token would be checked twice.
+_CAPTURE_WRITE_PRINCIPAL = require_capture_scope(capture_auth.SCOPE_CAPTURE_WRITE)
+
+
 @router.post("/capture")
 def capture_endpoint(
-    payload: dict[str, Any],
-    principal: dict = Depends(require_capture_scope(capture_auth.SCOPE_CAPTURE_WRITE)),
+    payload: dict[str, Any] = Depends(_json(dict[str, Any], after=_CAPTURE_WRITE_PRINCIPAL)),
+    principal: dict = Depends(_CAPTURE_WRITE_PRINCIPAL),
 ) -> dict[str, Any]:
     """Capture one web source into a note. ONE canonical path for every door.
 
@@ -4086,7 +4143,7 @@ def capture_endpoint(
 @router.post("/notes/{note_id}/excerpts")
 def create_excerpt_endpoint(
     note_id: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create one saved excerpt AND place its node in the destination note's
@@ -4180,7 +4237,7 @@ def get_excerpt_endpoint(excerpt_id: str, user: dict = Depends(get_current_user)
 @router.patch("/excerpts/{excerpt_id}")
 def update_excerpt_endpoint(
     excerpt_id: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """The one editable field -- the annotation ("why this matters"), never
@@ -4222,7 +4279,7 @@ def list_folders_endpoint(
 
 @router.post("/note-folders")
 def create_folder_endpoint(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
@@ -4240,7 +4297,7 @@ def create_folder_endpoint(
 @router.put("/note-folders/{folder_id}")
 def update_folder_endpoint(
     folder_id: str,
-    patch: dict[str, Any],
+    patch: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
@@ -4302,7 +4359,7 @@ def list_option_strategies(
 
 @router.post("/options")
 def create_option_strategy(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a new multi-leg option strategy. Defaults to the user's
@@ -4333,7 +4390,7 @@ def get_option_strategy(
 @router.put("/options/{strategy_id}")
 def update_option_strategy(
     strategy_id: str,
-    patch: dict[str, Any],
+    patch: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Metadata-only update (notes/setup/direction/linked_playbook_id).
@@ -4366,7 +4423,7 @@ def delete_option_strategy(
 @router.post("/options/{strategy_id}/close")
 def close_option_strategy(
     strategy_id: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Close a strategy with per-leg exit prices. Body must include
@@ -4397,7 +4454,7 @@ def expire_option_strategy(
 
 @router.post("/options/mark-expired-batch")
 def mark_expired_batch_route(
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Batch-expire a list of strategy ids. Used by the expired banner."""
@@ -4605,7 +4662,7 @@ def get_calendar_day(
 @router.put("/calendar/day/{date}/notes")
 def put_calendar_day_notes(
     date: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] = Depends(_json(dict[str, Any])),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Upsert reflection notes / attachments / rules-checklist for a day."""
@@ -4686,7 +4743,7 @@ def get_coach_weekly_review(
 @router.post("/accounts/{account_id}/coach/weekly-reviews/generate")
 def generate_coach_weekly_review(
     account_id: str,
-    payload: dict | None = None,
+    payload: dict | None = Depends(_json(dict | None)),
     user: dict = Depends(get_current_user),
 ):
     _require_compass_enabled(user["id"], account_id)
@@ -4729,7 +4786,7 @@ def regenerate_coach_weekly_review(
 def feedback_coach_weekly_review(
     account_id: str,
     review_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     feedback = (payload or {}).get("feedback")
@@ -4783,7 +4840,7 @@ def get_coach_eod_recap(
 @router.post("/accounts/{account_id}/coach/eod-recaps/generate")
 def generate_coach_eod_recap(
     account_id: str,
-    payload: dict | None = None,
+    payload: dict | None = Depends(_json(dict | None)),
     user: dict = Depends(get_current_user),
 ):
     _require_compass_enabled(user["id"], account_id)
@@ -4825,7 +4882,7 @@ def regenerate_coach_eod_recap(
 def feedback_coach_eod_recap(
     account_id: str,
     recap_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     feedback = (payload or {}).get("feedback")
@@ -4873,7 +4930,7 @@ def _sse_format(event: dict) -> str:
 @router.post("/accounts/{account_id}/coach/chat/stream")
 def chat_stream(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     msg = (payload or {}).get("message", "").strip()
@@ -4892,7 +4949,7 @@ def chat_stream(
 @router.post("/accounts/{account_id}/coach/chat/confirm")
 def chat_confirm(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     message_id = (payload or {}).get("message_id")
@@ -4912,7 +4969,7 @@ def chat_confirm(
 @router.post("/accounts/{account_id}/coach/chat/cancel")
 def chat_cancel(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     message_id = (payload or {}).get("message_id")
@@ -4946,7 +5003,7 @@ def chat_list_messages(
 @router.post("/accounts/{account_id}/coach/chat/forget")
 def chat_forget(
     account_id: str,
-    payload: dict | None = None,
+    payload: dict | None = Depends(_json(dict | None)),
     user: dict = Depends(get_current_user),
 ):
     body = payload or {}
@@ -4979,7 +5036,7 @@ def get_coach_profile(
 @router.put("/accounts/{account_id}/coach/profile")
 def put_coach_profile(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     profile = (payload or {}).get("profile")
@@ -5010,7 +5067,7 @@ def get_unified_coach_state_route(
 
 @router.put("/unified-coach")
 def put_unified_coach_state_route(
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     from api.services.journal_two import unified_coach
@@ -5071,7 +5128,7 @@ def chat_redo_onboarding(
 @router.post("/accounts/{account_id}/coach/pre-trade-verdict")
 def pre_trade_verdict(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     from api.services.journal_two import pre_trade_verdict as ptv_service
@@ -5113,7 +5170,7 @@ def get_trade_review(
 @router.post("/accounts/{account_id}/coach/trade-reviews/generate")
 def generate_trade_review(
     account_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     from api.services.journal_two import trade_review as tr
@@ -5148,7 +5205,7 @@ def regenerate_trade_review(
 def feedback_trade_review(
     account_id: str,
     review_id: str,
-    payload: dict,
+    payload: dict = Depends(_json(dict)),
     user: dict = Depends(get_current_user),
 ):
     from api.services.journal_two import trade_review as tr
