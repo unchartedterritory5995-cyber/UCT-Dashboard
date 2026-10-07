@@ -26,6 +26,7 @@ Regenerate the table in `docs/notebook/fin-voice.md` with:
 """
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
@@ -35,6 +36,8 @@ from fastapi.testclient import TestClient
 
 from api.services import request_body_cap as body_cap
 from tests.support import body_census as bc
+
+REPO = __import__('pathlib').Path(__file__).resolve().parents[1]
 
 in_family = bc.in_family
 
@@ -325,42 +328,80 @@ def outside_markdown() -> str:
     return "\n".join(lines) + "\n"
 
 
-# ── the note import's cap comes from the importer's own limits ───────────────
+# ── the note import: a small server cap, and a client that sends in pieces ───
 
-def test_the_note_import_cap_is_the_services_batch_limit_times_its_note_limit():
-    """Owner ruling: the cap must not refuse an import the product accepted
-    before. It is derived, per request, from the two limits the service already
-    enforces. Neither number is restated in the router."""
+NOTE_IMPORT_CAP = 32 * 1024 * 1024
+BATCHES_JS = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "importer" / "confirmBatches.js"
+
+_PLAN_DRIVER = r"""
+// argv: <confirmBatches.js> <input.json>  -> the request bodies the client would send
+import { pathToFileURL } from 'node:url'
+import fs from 'node:fs'
+const [modPath, inputPath] = process.argv.slice(2)
+const mod = await import(pathToFileURL(modPath).href)
+const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'))
+const plan = mod.planConfirmBatches(input.notes, (n) => n, input.limits || {})
+process.stdout.write(JSON.stringify({
+  maxNotes: mod.CONFIRM_BATCH_MAX_NOTES, maxBytes: mod.CONFIRM_BATCH_MAX_BYTES,
+  bodies: plan.batches.map((b) => mod.confirmBody({ source: 'file', destFolderId: null }, b.parts)),
+  tooLarge: plan.tooLarge.map((t) => ({ key: t.item.importKey, bytes: t.bytes, sentence: mod.noteTooLargeSentence(t.bytes) })),
+}))
+"""
+
+
+def _client_plan(tmp_path, notes: list, limits: dict | None = None) -> dict:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    assert node, "node is not on PATH -- this test runs the client's own batch planner"
+    driver = tmp_path / "plan.mjs"
+    driver.write_text(_PLAN_DRIVER, encoding="utf-8")
+    payload = tmp_path / "input.json"
+    payload.write_text(json.dumps({"notes": notes, "limits": limits or {}}), encoding="utf-8")
+    r = subprocess.run([node, str(driver), str(BATCHES_JS), str(payload)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    assert r.returncode == 0, f"node could not run the batch planner: {r.stderr[:2000]}"
+    return json.loads(r.stdout)
+
+
+def test_the_note_import_door_is_capped_at_32_MiB_by_name():
+    """Owner ruling, round 3: one process serves every member, so a request this
+    door will buffer is held to 32 MiB. The client sends a large import in pieces."""
+    from api.routers import journal_two
+    assert journal_two.NOTE_IMPORT_JSON_MAX_BYTES == NOTE_IMPORT_CAP
+    assert journal_two._note_import_json_max() == NOTE_IMPORT_CAP
+    sentence = journal_two._note_import_too_large()
+    assert "32 MB" in sentence and "smaller batches" in sentence and sentence.endswith(".")
+
+
+def test_the_clients_batch_limits_sit_under_the_servers(tmp_path):
+    """One fact in two files, read from both: the client's numbers come from
+    running its own module, the server's from the router and the service."""
     from api.routers import journal_two
     from api.services.journal_two import notes
-    assert notes.IMPORT_CONFIRM_MAX_NOTES == 500
-    cap = journal_two._note_import_json_max()
-    assert cap >= notes.IMPORT_CONFIRM_MAX_NOTES * notes.MAX_BODY_JSON_BYTES
-    assert cap == notes.IMPORT_CONFIRM_MAX_NOTES * (notes.MAX_BODY_JSON_BYTES + journal_two.IMPORT_NOTE_FIELDS_ALLOWANCE) \
-        + journal_two.IMPORT_NOTE_FIELDS_ALLOWANCE
+    plan = _client_plan(tmp_path, [])
+    assert plan["maxBytes"] <= journal_two.NOTE_IMPORT_JSON_MAX_BYTES - 4 * 1024 * 1024, plan
+    assert plan["maxNotes"] <= notes.IMPORT_CONFIRM_MAX_NOTES, plan
+    # and every legal note fits a request on its own, so none is ever "too large to send"
+    assert plan["maxBytes"] >= 4 * notes.MAX_BODY_JSON_BYTES
 
 
 def _note_at_the_body_limit(key: str) -> dict:
     """A note whose body the service measures at exactly MAX_BODY_JSON_BYTES."""
-    import json as _json
     from api.services.journal_two import notes
 
     def doc(n):
         return {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * n}]}]}
 
-    n = notes.MAX_BODY_JSON_BYTES - len(_json.dumps(doc(0)))
+    n = notes.MAX_BODY_JSON_BYTES - len(json.dumps(doc(0)))
     body = doc(n)
-    assert len(_json.dumps(body).encode("utf-8")) == notes.MAX_BODY_JSON_BYTES
+    assert len(json.dumps(body).encode("utf-8")) == notes.MAX_BODY_JSON_BYTES
     return {"importKey": key, "title": "T" * notes.MAX_TITLE_CHARS, "bodyJson": body,
             "tags": ["t" * notes.MAX_TAG_LENGTH] * notes.MAX_TAGS, "folderPath": []}
 
 
-def test_the_largest_legal_import_batch_is_accepted_and_one_more_note_is_the_services_refusal(monkeypatch):
-    """The largest batch the service takes: its maximum number of notes, each
-    with a body at the service's per-note limit and a full title and tag list.
-    Run with the batch limit moved to 3 (the router reads it per request), so
-    the test sends 3 MB, not 500 MB. Every note must be created, and nothing
-    about the request may be a 413."""
+@pytest.fixture
+def import_door(monkeypatch):
     import importlib
     import tempfile
     from fastapi import FastAPI
@@ -374,7 +415,6 @@ def test_the_largest_legal_import_batch_is_accepted_and_one_more_note_is_the_ser
     importlib.reload(auth_db)
     auth_db.init_db()
     from api.routers import journal_two
-    from api.services.journal_two import notes
     conn = auth_db.get_connection()
     try:
         conn.execute("INSERT INTO users (id, email, password_hash, display_name, role)"
@@ -382,20 +422,105 @@ def test_the_largest_legal_import_batch_is_accepted_and_one_more_note_is_the_ser
         conn.commit()
     finally:
         conn.close()
-    monkeypatch.setattr(notes, "IMPORT_CONFIRM_MAX_NOTES", 3)
     app = FastAPI()
     app.include_router(journal_two.router)
     app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "imp-cap", "role": "member"}
-    client = TestClient(app)
 
-    batch = [_note_at_the_body_limit(f"file:{i}.md") for i in range(3)]
-    r = client.post("/api/j2/notes/import/confirm", json={"source": "file", "destFolderId": None, "notes": batch})
-    assert r.status_code == 200, r.text[:300]
-    assert len(r.json()["created"]) == 3 and r.json()["failed"] == [], r.json()
+    def count() -> int:
+        c = auth_db.get_connection()
+        try:
+            return c.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = 'imp-cap'").fetchone()[0]
+        finally:
+            c.close()
 
-    small = {"importKey": "file:3.md", "title": "one more", "tags": [], "folderPath": [],
-             "bodyJson": {"type": "doc", "content": []}}
-    over = [_note_at_the_body_limit(f"file:{i}.md") for i in range(2)] + [small, dict(small, importKey="file:4.md")]
-    r = client.post("/api/j2/notes/import/confirm", json={"source": "file", "destFolderId": None, "notes": over})
-    # one note too many: the SERVICE's own answer, in the service's own words
-    assert r.status_code == 400 and "too many notes in one batch (max 3)" in r.json()["detail"], r.text[:300]
+    return TestClient(app), count
+
+
+def _post(client, body: str):
+    return client.post("/api/j2/notes/import/confirm", content=body.encode("utf-8"),
+                       headers={"Content-Type": "application/json"})
+
+
+def test_the_largest_legal_import_completes_through_the_clients_own_batches(import_door, tmp_path, monkeypatch):
+    """END TO END, the client's planner against the real door. The largest import
+    the service allows is its maximum number of notes, each at the per-note
+    limit. Simulated small: the batch limit moved to 5 notes and the door's cap
+    to 2.5 MB, the client's byte limit scaled the same way (its real default is
+    24 of the door's 32). Five 1 MB notes must arrive one to a request, every
+    one accepted, five notes created; sent again, five skipped and none added."""
+    from api.routers import journal_two
+    from api.services.journal_two import notes
+    client, count = import_door
+    monkeypatch.setattr(notes, "IMPORT_CONFIRM_MAX_NOTES", 5)
+    monkeypatch.setattr(journal_two, "NOTE_IMPORT_JSON_MAX_BYTES", 2_500_000)
+    batch = [_note_at_the_body_limit(f"file:{i}.md") for i in range(5)]
+
+    whole = json.dumps({"source": "file", "destFolderId": None, "notes": batch})
+    refused = _post(client, whole)
+    assert refused.status_code == 413 and "smaller batches" in refused.json()["detail"], refused.text[:200]
+    assert count() == 0, "a refused request must not have stored anything"
+
+    plan = _client_plan(tmp_path, batch, {"maxBytes": 2_500_000 * 24 // 32})
+    assert plan["tooLarge"] == [] and len(plan["bodies"]) == 5, [len(b) for b in plan["bodies"]]
+    created = skipped = 0
+    for body in plan["bodies"]:
+        assert len(body.encode("utf-8")) <= 2_500_000
+        r = _post(client, body)
+        assert r.status_code == 200, r.text[:300]
+        assert r.json()["failed"] == []
+        created += len(r.json()["created"])
+    assert created == 5 and count() == 5
+
+    # the same import again, as a retry would send it: nothing is created twice
+    for body in plan["bodies"]:
+        r = _post(client, body)
+        assert r.status_code == 200
+        created += len(r.json()["created"])
+        skipped += len(r.json()["skipped"])
+    assert (created, skipped, count()) == (5, 5, 5)
+
+
+def test_notes_regrouped_into_different_batches_on_a_second_run_still_do_not_duplicate(import_door, tmp_path):
+    """A retry need not send the same batches. Small notes, planned two ways."""
+    client, count = import_door
+    small = [{"importKey": f"file:s{i}.md", "title": f"s{i}", "tags": [], "folderPath": [],
+              "bodyJson": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "hello"}]}]}}
+             for i in range(7)]
+    first = _client_plan(tmp_path, small, {"maxNotes": 3})
+    second = _client_plan(tmp_path, small, {"maxNotes": 2})
+    assert [len(json.loads(b)["notes"]) for b in first["bodies"]] == [3, 3, 1]
+    assert [len(json.loads(b)["notes"]) for b in second["bodies"]] == [2, 2, 2, 1]
+    for body in first["bodies"]:
+        assert _post(client, body).status_code == 200
+    assert count() == 7
+    skipped = sum(len(_post(client, body).json()["skipped"]) for body in second["bodies"])
+    assert skipped == 7 and count() == 7
+
+
+def test_a_single_oversized_note_is_refused_with_its_own_sentence(import_door, tmp_path):
+    """Two different notes, two different sentences. One the service finds too
+    long (it comes back named, its neighbours are stored). One too large for any
+    request (the client never sends it, and says so)."""
+    from api.services.journal_two import notes
+    client, count = import_door
+    ok = {"importKey": "file:ok.md", "title": "fine", "tags": [], "folderPath": [],
+          "bodyJson": {"type": "doc", "content": []}}
+    too_long = _note_at_the_body_limit("file:long.md")
+    too_long["bodyJson"]["content"][0]["content"][0]["text"] += "x"          # one byte over
+    plan = _client_plan(tmp_path, [ok, too_long])
+    assert plan["tooLarge"] == [] and len(plan["bodies"]) == 1
+    r = _post(client, plan["bodies"][0])
+    assert r.status_code == 200
+    assert [c["importKey"] for c in r.json()["created"]] == ["file:ok.md"]
+    assert r.json()["failed"] == [{"importKey": "file:long.md", "error": (
+        "This note is too long to save as one page. Split it into two or more notes and try again.")}]
+    assert count() == 1
+
+    huge = dict(ok, importKey="file:huge.md", bodyJson={"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "x" * 200_000}]}]})
+    plan = _client_plan(tmp_path, [ok, huge], {"maxBytes": 100_000})
+    assert [json.loads(b)["notes"][0]["importKey"] for b in plan["bodies"]] == ["file:ok.md"]
+    assert plan["tooLarge"][0]["key"] == "file:huge.md"
+    assert plan["tooLarge"][0]["sentence"] == (
+        "This note is too large to import (0.2 MB). Split it into smaller notes and import again.")
+    assert notes.MAX_BODY_JSON_BYTES < 24 * 1024 * 1024       # so no LEGAL note is ever in that list

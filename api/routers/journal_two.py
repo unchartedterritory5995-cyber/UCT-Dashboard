@@ -109,16 +109,18 @@ _CSV_MAPPED_UPLOAD = body_cap.capped_multipart(
 #   * the trade import's confirm step sends back the rows the preview parsed out
 #     of a CSV the preview door already held to its own cap; as JSON a row is a
 #     few times its CSV line.
-#   * the note import's confirm step sends a batch of whole notes. Its cap is
-#     the importer's own two limits multiplied (owner ruling, 2026-10-07: the cap
-#     must not refuse an import the product accepted before): the most notes the
-#     service takes in a batch, times the largest body it takes per note plus
-#     room for that note's title, tags and path. About 533 MB with today's
-#     constants; the client sends 200 notes a batch.
+#   * the note import's confirm step sends a batch of whole notes, and is held
+#     to NOTE_IMPORT_JSON_MAX_BYTES (owner ruling, round 3: one process serves
+#     every member, so a batch this door will buffer has to be small). The
+#     importer sends a large import as several requests, each bounded by bytes
+#     and by count (`lib/importer/confirmBatches.js`, 24 MiB and 200 notes),
+#     which is safe because confirm matches a note by its importKey and never
+#     creates it twice. tests/test_notebook_body_census.py runs that planner
+#     against this door and holds its two numbers under this one.
 JSON_TOO_LARGE_SENTENCE = "That is too large to send. Shorten it and try again."
 IMPORT_TOO_LARGE_SENTENCE = (
     "That import is too large to send in one piece. Split it into smaller files and try again.")
-IMPORT_NOTE_FIELDS_ALLOWANCE = 64 * 1024     # one note's fields other than its body
+NOTE_IMPORT_JSON_MAX_BYTES = 32 * 1024 * 1024
 
 
 def _json_body_max() -> int:
@@ -130,9 +132,13 @@ def _trade_import_json_max() -> int:
 
 
 def _note_import_json_max() -> int:
-    return (notes_service.IMPORT_CONFIRM_MAX_NOTES
-            * (notes_service.MAX_BODY_JSON_BYTES + IMPORT_NOTE_FIELDS_ALLOWANCE)
-            + IMPORT_NOTE_FIELDS_ALLOWANCE)
+    return NOTE_IMPORT_JSON_MAX_BYTES
+
+
+def _note_import_too_large() -> str:
+    # For a caller of the API: the app's own importer never sends a batch this large.
+    return (f"That batch of notes is too large for one request ({NOTE_IMPORT_JSON_MAX_BYTES // (1024 * 1024)} MB "
+            "at most). Send the notes in smaller batches.")
 
 
 def _json_too_large() -> str:
@@ -3203,7 +3209,7 @@ def notes_import_check_endpoint(payload: dict[str, Any] = Depends(_json(dict[str
 
 
 @router.post("/notes/import/confirm")
-def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any], max_bytes=_note_import_json_max, sentence=_import_too_large)), user: dict = Depends(get_current_user)):
+def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any], max_bytes=_note_import_json_max, sentence=_note_import_too_large)), user: dict = Depends(get_current_user)):
     try:
         return notes_service.import_confirm(user["id"], payload)
     except NoteValidationError as e:
