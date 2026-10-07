@@ -112,7 +112,12 @@ export default function ChartPlanPanel({
     [annotations, embedId],
   )
   const noBars = useCallback(() => [], [])
-  const alerts = useBoundDrawingAlerts({ sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars })
+  // ⛔ `namespace` is this chart's own id prefix: the hook then touches ONLY this embed's
+  // alerts. Without it the panel deleted the member's /charts alerts on the same symbol.
+  const alerts = useBoundDrawingAlerts({
+    sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars,
+    namespace: boundAlertId(embedId || '?', ''),
+  })
   const armedIds = useMemo(
     () => new Set((alerts || []).filter((a) => a?.is_active && a.drawing_id).map((a) => a.drawing_id)),
     [alerts],
