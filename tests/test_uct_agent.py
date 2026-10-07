@@ -234,9 +234,9 @@ def make_client(monkeypatch):
     daily_counters.clear()
 
 
-ADMIN = {"id": 9001, "plan": "pro", "role": "admin"}
-MEMBER = {"id": 9002, "plan": "pro", "role": "user"}
-FREE = {"id": 9003, "plan": "free", "role": "user"}
+ADMIN = {"id": "38c023cf-0e81-4187-aa43-ac51a751a001", "plan": "pro", "role": "admin"}
+MEMBER = {"id": "38c023cf-0e81-4187-aa43-ac51a751a002", "plan": "pro", "role": "user"}
+FREE = {"id": "38c023cf-0e81-4187-aa43-ac51a751a003", "plan": "free", "role": "user"}
 
 
 def test_dark_free_is_402_paid_member_is_403_admin_passes(make_client, monkeypatch):
@@ -258,7 +258,7 @@ def test_metered_and_a_failure_gives_the_charge_back(make_client, monkeypatch):
     c = make_client(ADMIN)
     r = c.post("/api/agent/turn", json={"message": "hi", "context": CTX})
     assert r.status_code == 503 and "unavailable" in r.json()["detail"]
-    assert daily_counters.value("2026-10-07", rx.SCOPE, "9001") == 0
+    assert daily_counters.value("2026-10-07", rx.SCOPE, ADMIN["id"]) == 0
     monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(env("answer", reply="ok"))))
     assert c.post("/api/agent/turn", json={"message": "hi", "context": CTX}).status_code == 200
     assert c.post("/api/agent/turn", json={"message": "again", "context": CTX}).status_code == 429
@@ -278,10 +278,31 @@ def test_conversation_persists_with_outcomes_and_is_private(make_client, monkeyp
     assert conv["title"] == "make it bars"
     assert cid in [c["id"] for c in a.get("/api/agent/conversations").json()["conversations"]]
     # another admin can neither read it nor write into it
-    other = make_client({"id": 9004, "plan": "pro", "role": "admin"})
+    other = make_client({"id": "38c023cf-0e81-4187-aa43-ac51a751a004", "plan": "pro", "role": "admin"})
     assert other.get(f"/api/agent/conversations/{cid}").status_code == 404
     cid2 = other.post("/api/agent/record", json={"conversationId": cid, "member": "x", "outcome": "y"}).json()["conversationId"]
     assert cid2 != cid
-    rows = store.telemetry_rows(9001)
+    rows = store.telemetry_rows(ADMIN["id"])
     assert {r["path"] for r in rows} >= {"model", "fast"}
     assert all("bars" not in json.dumps(r).lower() or r["actions"] for r in rows)  # telemetry carries names, not text
+
+
+def test_production_ids_are_opaque_strings_never_cast(make_client, monkeypatch):
+    """⚰️ 2026-10-07: store.py did int(user_id); production ids are UUIDs, so
+    EVERY real turn 500'd before the model was called. Ids stay text end to end."""
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(env("answer", reply="ok"))))
+    r = make_client(ADMIN).post("/api/agent/turn", json={"message": "hi", "context": CTX})
+    assert r.status_code == 200
+    assert r.json()["conversationId"] in [c["id"] for c in store.list_conversations(ADMIN["id"])]
+
+
+def test_a_store_failure_is_a_sentence_and_gives_the_charge_back(make_client, monkeypatch):
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+
+    def boom(*a, **k):
+        raise RuntimeError("disk")
+    monkeypatch.setattr(store, "ensure_conversation", boom)
+    r = make_client(ADMIN).post("/api/agent/turn", json={"message": "hi", "context": CTX})
+    assert r.status_code == 500 and r.json()["detail"] == rx.FAILED
+    assert daily_counters.value("2026-10-07", rx.SCOPE, ADMIN["id"]) == 0
