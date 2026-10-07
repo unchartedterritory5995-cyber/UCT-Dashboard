@@ -32,6 +32,7 @@ import ErrorBoundary from '../../components/ErrorBoundary'
 import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
+import Provenance from '../../components/provenance/Provenance'
 import { PanelFreshnessContext, PanelSkeleton, PanelState, TerminalPanelContext } from '../../components/terminal'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
@@ -189,6 +190,42 @@ function channelOf(layout, id) {
   return layout.channels.find((c) => c.id === id) || null
 }
 
+/** The FreshnessBadge props a panel report may carry — everything but `source`. */
+const BADGE_KEYS = ['freshnessClass', 'asOf', 'age', 'sessionState', 'sessionStale', 'fields']
+
+/**
+ * TERM-019 / TERM-050 — the ONE place a terminal panel says where its numbers came from and how
+ * old they are. A panel reports `{ source, ...FreshnessBadge props }` through
+ * `usePanelFreshness` (components/terminal/terminalPanel.js); this renders that report with S8's
+ * own two primitives and nothing of its own: the source through `<Provenance>` (its disclosure
+ * carries the source and, when the panel gave one, the observed instant — `observedAt`, or the
+ * badge's own `asOf`), the age through
+ * `<FreshnessBadge>`.
+ *
+ * ⛔ A SOURCE WITH NO AGE SAYS SO. A panel that can name its source but was handed no as-of gets
+ * the badge's own "undated" clause — never a blank, which would read as "fresh".
+ */
+export function PanelProvenance({ report, index }) {
+  const source = typeof report?.source === 'string' && report.source.trim() ? report.source.trim() : null
+  const badge = {}
+  for (const k of BADGE_KEYS) if (report?.[k] != null && report[k] !== false) badge[k] = report[k]
+  const hasAge = Object.keys(badge).length > 0
+  if (!source && !hasAge) return null
+  return (
+    <span className={styles.panelMeta} data-testid={`terminal-panel-freshness-${index}`}>
+      {source && (
+        <span className={styles.panelSource} data-testid={`terminal-panel-source-${index}`}>
+          <Provenance
+            value={`Source: ${source}`}
+            provenance={{ sourceActivity: source, timestamp: report.observedAt || badge.asOf || null }}
+          />
+        </span>
+      )}
+      <FreshnessBadge {...(hasAge ? badge : { age: { asOfDate: null } })} />
+    </span>
+  )
+}
+
 export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
@@ -277,11 +314,7 @@ export function Panel({
         <span className={styles.panelTitle}>
           <span className={styles.code}>{title}</span>
           <span className={styles.panelLabel}>{r.fn?.label || ''}</span>
-          {freshness && (
-            <span className={styles.panelFreshness} data-testid={`terminal-panel-freshness-${index}`}>
-              <FreshnessBadge {...freshness} />
-            </span>
-          )}
+          {freshness && <PanelProvenance report={freshness} index={index} />}
         </span>
         {full && <Link className={styles.panelLink} to={full}>Full page</Link>}
         {!standalone && (

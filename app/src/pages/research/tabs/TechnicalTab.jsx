@@ -6,6 +6,7 @@ import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
 import UIcon from '../../../components/ui/UIcon'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { ABSENT } from '../../../lib/presentation/presentationPrimitives'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { themeInk, useThemeVersion } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
@@ -88,6 +89,9 @@ export default function TechnicalTab({ sym }) {
   // and rejected alike. Only ever a COUNT — the judge's reasons for rejecting a
   // setup stay on the admin surface.
   const evaluated = Number(data?.evaluated) || 0
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // The verdicts are dated row by row ("Confirmed as of …"); the header names the source only.
+  usePanelFreshness(data && !error && !paywalled ? { source: 'UCT pattern scanner (daily bars)' } : null)
   const [selectedKey, setSelectedKey] = useState(null)
 
   // ⛔ Clear the manual selection when the TICKER changes. `selectedKey` is a

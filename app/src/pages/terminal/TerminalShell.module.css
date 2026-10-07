@@ -688,11 +688,28 @@
   font-size: var(--text-sm);
 }
 
-/* V8 — a panel-reported freshness badge (`panelFreshness.js`), beside the function label. Never
+/* V8 + TERM-019 — the panel-reported source and age (S8 primitives), beside the function label. Never
    shrinks below its content; the label beside it is what ellipsizes under width pressure. */
-.panelFreshness {
+.panelMeta {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
 }
+
+/* TERM-019 — the panel's source, beside its age. Muted and small so it never competes with the
+   function label; it is the part that gives way first when the header runs out of width. */
+.panelSource {
+  min-width: 0;
+  max-width: 22ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
 
 .panelLink {
   flex: 0 0 auto;
@@ -1014,6 +1031,11 @@
 
 /* ── PHONE: one panel, the command line pinned at the top, the rail lives in a Sheet ── */
 @media (max-width: 640px) {
+  /* TERM-019: the panel's source line gives way first on a phone. */
+  .panelSource {
+    max-width: 12ch;
+  }
+
   .bar {
     padding: var(--space-xs) var(--space-sm);
   }

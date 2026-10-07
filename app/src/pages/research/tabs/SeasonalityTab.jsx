@@ -4,6 +4,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import { signedPct } from '../researchFormat'
 import rp from '../ResearchPage.module.css'
 import styles from './SeasonalityTab.module.css'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // COV-01 (roadmap RM-L11) — how this stock has done by calendar month and by weekday,
 // from our own daily bars. DARK behind SEASONALITY_ENABLED.
@@ -59,6 +60,10 @@ export default function SeasonalityTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/seasonality/${encodeURIComponent(s)}` : null,
     seasonalityFetcher, { revalidateOnFocus: false })
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !data.pending && !data.paywalled && !error
+    ? { source: 'UCT daily bar store', age: { dataClass: 'end_of_day', asOfDate: data.covered_to || null } }
+    : null)
   const tries = useRef(0)
   useEffect(() => { tries.current = 0 }, [s])
   useEffect(() => {

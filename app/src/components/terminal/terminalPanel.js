@@ -18,7 +18,7 @@
 //   density  the board density: 'comfortable' | 'compact' | 'dense'
 //   inset    true when the shell already pads the panel body (`--panel-inset`); false for the
 //            few panels the shell leaves flush (the chart, the calendar) — see FLUSH_PANELS.
-import { createContext, useContext, useEffect } from 'react'
+import { createContext, createElement, useContext, useEffect } from 'react'
 
 /** `null` outside a terminal panel. Provided by `Panel` in pages/terminal/TerminalShell.jsx. */
 export const TerminalPanelContext = createContext(null)
@@ -44,6 +44,16 @@ export const PanelFreshnessContext = createContext(null)
  * `{ freshnessClass, asOf, age, sessionState, sessionStale }` the panel has a real,
  * already-computed answer for (never invent one). `null` (the default) reports nothing,
  * which is also what happens before a panel's first successful fetch.
+ *
+ * TERM-019 adds ONE key beside those: `source`, the plain-words name of where the panel's
+ * numbers came from ("SEC EDGAR", "FMP", "UCT daily bar store") — the server's own `source`
+ * field where the response carries one, never a guessed vendor — and optionally `observedAt`, an
+ * instant the server stamped, shown in the source's disclosure without claiming a D1 freshness
+ * class (use it where `asOf` would make the badge print UNKNOWN). The header renders it through
+ * S8's `<Provenance>` and the age through `<FreshnessBadge>`; a source reported with no age
+ * shows the badge's "undated" clause rather than nothing (`PanelProvenance` in TerminalShell).
+ * `pages/terminal/panelProvenance.rail.test.js` fails by name on a terminal panel that reports
+ * neither this nor renders one of the four primitives itself.
  */
 export function usePanelFreshness(freshness = null) {
   const setFreshness = useContext(PanelFreshnessContext)
@@ -52,4 +62,15 @@ export function usePanelFreshness(freshness = null) {
     return () => setFreshness?.(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setFreshness, JSON.stringify(freshness)])
+}
+
+/**
+ * TERM-019 — ONE reporter per panel. A panel that EMBEDS other panels (the options chain renders
+ * the IV history, positioning and options-history panels inside itself) wraps them in this so
+ * their own `usePanelFreshness` calls report nowhere: two reporters in one header would overwrite
+ * each other, and whichever effect ran last would name the header's source. Outside a terminal
+ * panel it changes nothing (there is no setter to hide).
+ */
+export function QuietPanelFreshness({ children }) {
+  return createElement(PanelFreshnessContext.Provider, { value: null }, children)
 }

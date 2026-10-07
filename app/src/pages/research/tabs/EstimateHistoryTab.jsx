@@ -7,6 +7,7 @@ import {
   normalizeCurrencyCode, relabelDollarText, reportingCurrencyNote,
 } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
 // upcoming quarter has moved, from UCT's own daily snapshots of FMP's consensus
@@ -75,6 +76,10 @@ export default function EstimateHistoryTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/estimate-history/${encodeURIComponent(s)}` : null,
     sectionFetcher, { revalidateOnFocus: false })
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !data.paywalled && !error
+    ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.last_snapshot || null } }
+    : null)
 
   if (error) {
     return <div className={styles.note} data-testid="esthist-unavailable">

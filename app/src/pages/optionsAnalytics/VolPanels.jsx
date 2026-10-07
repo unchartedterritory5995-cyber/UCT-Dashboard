@@ -4,6 +4,7 @@ import { OffLine } from './OffNotice'
 import styles from './optionsAnalytics.module.css'
 import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import { volPts } from './optionsFormat'
+import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // FT-006 IV rank in the chain header, FT-019 option monitor strip, FT-020 volatility stats.
 // (api/services/options_analytics/vol.py)
@@ -120,6 +121,8 @@ export function VolStatsPanel({ sym, offNotice = false }) {
   const rv = useVol(sym, 'realized')
   const cm = useVol(sym, 'interpolated-iv?days=30')
   const vp = useVol(sym, 'vrp')
+  // TERM-019: realized vol is UCT's; the IV it compares against is Massive's (the panel says which).
+  usePanelFreshness(sym && (rv.data || cm.data || vp.data) ? { source: 'UCT, computed from Massive options data' } : null)
   if (offNotice && rv.off && cm.off && vp.off) {
     return <OffLine feature="Volatility stats" />
   }

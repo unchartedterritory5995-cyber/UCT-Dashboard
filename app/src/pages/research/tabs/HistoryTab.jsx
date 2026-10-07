@@ -3,6 +3,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { isFailedSynthesis, FAILED_SYNTHESIS_NOTE } from '../../../utils/highlightThesis'
 import { withDeadline } from '../../../utils/withDeadline'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -64,6 +65,9 @@ export async function fetchHistory(url) {
 export default function HistoryTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, isLoading } = useMobileSWR(s ? `/api/research/history/${encodeURIComponent(s)}` : null, fetchHistory)
+  // TERM-019: the history is read from several UCT records and every row names its own source and
+  // date, so the terminal panel header says exactly that (a no-op outside the terminal).
+  usePanelFreshness(data && data.ok ? { source: 'several UCT records; each row names its own' } : null)
   const body = data && data.ok ? data.body : null
   const unavailableLanes = useMemo(() => {
     const lanes = (body && body.lanes) || {}

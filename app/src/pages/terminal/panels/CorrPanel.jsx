@@ -11,9 +11,9 @@
 // Pearson on daily simple returns, each pair over the sessions BOTH traded. A pair with fewer
 // than MIN_CORR_SESSIONS common returns shows "n/a", never a number.
 import { useEffect, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
-import useCloses from './useCloses'
+import useCloses, { closesProvenance } from './useCloses'
 import { LOOKBACK_SESSIONS, MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -51,6 +51,8 @@ export default function CorrPanel({ sym, lookback, ...props }) {
   const [win, setWin] = useState(CORR_WINDOWS.includes(lookback) ? lookback : '3M')
   useEffect(() => { if (CORR_WINDOWS.includes(lookback)) setWin(lookback) }, [lookback])
   const state = useCloses(syms.length >= 2 ? syms : [], 'D')
+  // TERM-019: the panel header names the bar store and the newest close on screen.
+  usePanelFreshness(closesProvenance(state, 'D'))
   const read = useMemo(() => {
     if (state.phase !== 'ready') return null
     const live = syms.filter((s) => state.series[s])

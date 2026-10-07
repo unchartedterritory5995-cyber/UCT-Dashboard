@@ -13,7 +13,7 @@ import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
-import { useInTerminalPanel } from '../components/terminal'
+import { useInTerminalPanel, usePanelFreshness } from '../components/terminal'
 import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
@@ -80,6 +80,8 @@ export default function CatalystsHistory() {
     { revalidateOnFocus: false }
   )
   const rows = data?.rows || []
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error ? { source: 'UCT catalyst engine', age: { asOfDate: date } } : null)
 
   // Quick-jump links
   const quickJumps = [

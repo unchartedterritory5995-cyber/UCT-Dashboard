@@ -5,7 +5,7 @@
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
-import { useInTerminalPanel, PanelSkeleton, PanelState } from '../components/terminal'
+import { useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness } from '../components/terminal'
 import { formatPercent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
@@ -40,6 +40,8 @@ function CapBar({ label, valuePct, capPct }) {
 
 export default function PortfolioHeat() {
   const { data, error, mutate } = useMobileSWR('/api/portfolio/heat', fetcher, { refreshInterval: 60000 })
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error && !data.paywalled ? { source: 'your Journal 2.0 positions, priced live' } : null)
   // Inside a UCT Terminal panel the panel header names the function and the shell insets the
   // body, so the page's own title and padding step aside and the shared panel states are used.
   const inPanel = useInTerminalPanel()
