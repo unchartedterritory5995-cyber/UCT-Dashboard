@@ -30,9 +30,12 @@ import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './
 import { ScopeControl, AddTickerBar, makeListHelpers } from './VolumeScanLists'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './VolumeScanWidget.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
+// widget drew as "Warming up…", a scanner that never finished warming. Now SWR keeps the last good answer through a failed poll, and a
+// failure with nothing to stand on says so, with a Retry. A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
@@ -223,7 +226,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   // custom list fetches nothing (null URL) — the empty-state + add-bar show instead.
   const url = customEmpty ? null
     : `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_burst=${minBurst}&min_move=${minMove}${dollarQ}${symsQ}`
-  const { data } = useMobileSWR(url, fetcher, {
+  const { data, error, mutate } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2.5s
     dedupingInterval: 1200,
     marketHoursOnly: true,
@@ -304,6 +307,11 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
             </div>
             {customEmpty ? (
               <div className={styles.none}>This list is empty — add tickers below to start scanning it.</div>
+            ) : error && !data ? (
+              <div className={styles.none} role="alert">
+                The Volume Surge read failed; this is not an empty scan.{' '}
+                <button type="button" className={chrome.retry} onClick={() => mutate()}>Retry</button>
+              </div>
             ) : displayRows.length === 0 ? (
               <div className={styles.none}>
                 {activeList ? 'Warming up your list…' : 'Warming up… (baselines build over the first minute)'}

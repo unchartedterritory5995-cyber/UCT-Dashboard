@@ -28,8 +28,15 @@ import {
   HOLDER_STATE, fmtShares, fmtMoney, fmtPct, fmtDate, fmtDateShort,
 } from './ownershipModel'
 import styles from './dockPanels.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which the
+// panel rendered as "Ownership data is not available for {sym}. Funds and non-US listings do
+// not file...": a claim about the company made out of a failed request. The ownership read
+// now has its own error state with a Retry. The fundamentals-full read only adds snapshot
+// facts (float, short interest) and stays soft at the render: on a failure those facts are
+// absent, nothing claims they do not exist. A 402 stays an absent answer.
+const jsonFetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 const TONE = { up: styles.pos, down: styles.neg, none: styles.muted }
 const HOLDERS_DEFAULT = 6
 
@@ -153,7 +160,7 @@ export default function DockOwnership({ sym }) {
   const [allHolders, setAllHolders] = useState(false)
   const [methodOpen, setMethodOpen] = useState(false)
 
-  const { data: own, isLoading } = useMobileSWR(
+  const { data: own, isLoading, error: ownError, mutate: retryOwn } = useMobileSWR(
     sym ? `/api/research/ownership/${encodeURIComponent(sym)}` : null, jsonFetcher,
     { refreshInterval: 0, dedupingInterval: 600000, revalidateOnFocus: false })
   const { data: full } = useMobileSWR(
@@ -175,7 +182,9 @@ export default function DockOwnership({ sym }) {
 
   if (!sym) return <div className={styles.emptyState}>No symbol.</div>
 
-  const nothing = !isLoading && !snapshot.length && !flow && !holders && !insider && !positioning.length
+  // A failed ownership read with no earlier answer (SWR keeps a good one through a failed refresh).
+  const failed = Boolean(ownError) && !own
+  const nothing = !isLoading && !failed && !snapshot.length && !flow && !holders && !insider && !positioning.length
   const visibleHolders = holders
     ? (allHolders ? holders.rows : holders.rows.slice(0, HOLDERS_DEFAULT))
     : []
@@ -187,6 +196,12 @@ export default function DockOwnership({ sym }) {
         {isLoading && !own ? (
           <div className={styles.finSkeleton} aria-label="Loading ownership">
             {Array.from({ length: 10 }).map((_, i) => <div key={i} className={styles.finSkelRow} />)}
+          </div>
+        ) : failed ? (
+          <div className={styles.emptyState} role="alert">
+            Ownership could not be loaded for {sym}.
+            <button type="button" className={styles.nwRetry}
+                    onClick={() => retryOwn()}>Retry</button>
           </div>
         ) : nothing ? (
           <div className={styles.emptyState}>

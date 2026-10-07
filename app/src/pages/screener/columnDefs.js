@@ -25,6 +25,8 @@
 // ⛔ `columnDescCoverage.test.js` is the RATCHET: it names the columns that
 // must carry text and holds the count, so this number can only go up.
 
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+
 // `descFor` and the trigger's width live in this component-free module so both
 // the affordance and the layout that reserves room for it read ONE value.
 export const descFor = key => {
@@ -36,10 +38,16 @@ const pct = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
 const pctPlain = (d = 0) => v => v == null ? '—' : `${v.toFixed(d)}%`
 const usd = v => v == null ? '—'
   : `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const cap = v => v == null ? '—'
-  : v >= 1e12 ? `$${(v / 1e12).toFixed(1)}T`
-  : v >= 1e9 ? `$${(v / 1e9).toFixed(0)}B`
-  : `$${(v / 1e6).toFixed(0)}M`
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact); each column passes
+// the ladder it already had, so what a member reads does not move. The only differences are
+// values no row carries: a cap under $1M now prints whole dollars instead of "$0M"/"$1M", and
+// a non-number is an em dash instead of "$NaNM". Pinned in columnDefs.compact.test.js.
+const CAP_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 1 },
+  { at: 1e9, suffix: 'B', decimals: 0 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+]
+const cap = v => v == null ? '—' : formatCompact(v, { tiers: CAP_TIERS, prefix: '$' })
 const num = (d = 1) => v => v == null ? '—' : v.toFixed(d)
 const heatPos = v => v == null ? '' : v > 2 ? 'g' : v < -2 ? 'r' : ''
 const heatRs = v => v == null ? '' : v >= 80 ? 'g' : v >= 60 ? 'g1' : ''
@@ -51,23 +59,28 @@ const bool = v => v == null ? '—' : v ? '✓' : '—'
 // Reach for `tri` on any nullable flag; reach for `bool` only when a 0 carries no
 // information the reader needs.
 const tri = v => v == null ? '—' : v ? '✓' : '✗'
-const dollarVol = v => v == null ? '—'
-  : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B`
-  : v >= 1e6 ? `$${(v / 1e6).toFixed(0)}M`
-  : `$${(v / 1e3).toFixed(0)}K`
+const DOLLAR_VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const dollarVol = v => v == null ? '—' : formatCompact(v, { tiers: DOLLAR_VOL_TIERS, prefix: '$' })
 // shares, not dollars — avg_volume_30d is a descriptive filter, not a $ column
-const shares = v => v == null ? '—'
-  : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M`
-  : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K`
-  : `${v}`
+const SHARES_TIERS = [
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const shares = v => v == null ? '—' : formatCompact(v, { tiers: SHARES_TIERS })
 // signed dollars — opt_net_premium_* goes negative (bear premium exceeded
-// bull); dollarVol above would print "$-2000K". Null stays an em dash.
+// bull); dollarVol above carries no "+" for the bull side. Null stays an em dash.
+const NET_USD_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
 const netUsd = v => {
   if (v == null) return '—'
-  const a = Math.abs(v)
-  const s = a >= 1e9 ? `$${(a / 1e9).toFixed(1)}B`
-    : a >= 1e6 ? `$${(a / 1e6).toFixed(1)}M`
-    : `$${(a / 1e3).toFixed(0)}K`
+  const s = formatCompact(Math.abs(v), { tiers: NET_USD_TIERS, prefix: '$' })
   return `${v < 0 ? '-' : '+'}${s}`
 }
 

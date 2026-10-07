@@ -107,6 +107,18 @@
 }
 .quarterSelect:focus { outline: none; border-color: var(--ut-gold, #dcbb5e); }
 
+/* TERM-033: Retry beside "Earlier quarters could not be listed." */
+.quarterRetry {
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--text, #e8e6df);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
 .jumpChip {
   min-height: var(--tap-min, 44px);
   padding: 0 10px;

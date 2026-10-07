@@ -11,8 +11,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import styles from './KeywordAlerts.module.css'
 
-const j = (url, opts) => fetch(url, opts)
-  .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: THROWS on a network failure, a non-2xx or a malformed body. It used to resolve
+// every failure to `null`, so a list that never loaded rendered as NOTHING (the feature simply
+// vanished) and a failed remove did nothing at all, silently. A refusal the server states in a
+// 200 (`{ok:false, reason}`) is an ANSWER, not a failure, and still comes back as data.
+async function j(url, opts) {
+  const r = await fetch(url, opts)
+  if (!r.ok) throw new Error(`Request failed (${r.status})`)
+  return r.json()
+}
 
 /** The server's refusal reason → something a person can act on. */
 export function reasonText(res, min, max) {
@@ -32,9 +39,15 @@ export default function KeywordAlerts({ suggestion = '' }) {
   const [state, setState] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const load = useCallback(async () => {
-    setState(await j('/api/earnings/keyword-alerts'))
+    setLoadFailed(false)
+    try {
+      setState(await j('/api/earnings/keyword-alerts'))
+    } catch {
+      setLoadFailed(true)
+    }
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -43,11 +56,16 @@ export default function KeywordAlerts({ suggestion = '' }) {
     const term = (word || '').trim()
     if (!term) return
     setBusy(true); setErr('')
-    const res = await j('/api/earnings/keyword-alerts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword: term }),
-    })
+    let res = null
+    try {
+      res = await j('/api/earnings/keyword-alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: term }),
+      })
+    } catch {
+      res = null // reasonText(null) says the save failed; never a silent no-op
+    }
     // The endpoint answers {ok:false, reason} rather than throwing — a silent
     // no-op would look like a saved subscription that never fires.
     if (!res?.ok) setErr(reasonText(res, state?.min_length, state?.max))
@@ -57,14 +75,29 @@ export default function KeywordAlerts({ suggestion = '' }) {
 
   const remove = useCallback(async (word) => {
     setBusy(true); setErr('')
-    const res = await j(
-      `/api/earnings/keyword-alerts?keyword=${encodeURIComponent(word)}`,
-      { method: 'DELETE' })
-    if (res?.keywords) setState((s) => ({ ...s, keywords: res.keywords }))
+    try {
+      const res = await j(
+        `/api/earnings/keyword-alerts?keyword=${encodeURIComponent(word)}`,
+        { method: 'DELETE' })
+      if (res?.keywords) setState((s) => ({ ...s, keywords: res.keywords }))
+    } catch {
+      setErr('Could not remove that. Try again.')
+    }
     setBusy(false)
   }, [])
 
-  if (!state) return null
+  if (!state) {
+    // A failed read says so. Before it loads (or if it never asked) there is nothing to say.
+    if (!loadFailed) return null
+    return (
+      <div className={styles.wrap} data-testid="keyword-alerts">
+        <p className={styles.err} role="alert">
+          Keyword alerts could not be loaded.{' '}
+          <button type="button" className={styles.add} onClick={load}>Retry</button>
+        </p>
+      </div>
+    )
+  }
 
   const words = state.keywords || []
   const full = state.max ? words.length >= state.max : false

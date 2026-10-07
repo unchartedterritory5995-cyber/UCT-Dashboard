@@ -160,3 +160,16 @@ describe('VolumeScanWidget', () => {
     expect(screen.queryByText('SYMBOL')).not.toBeInTheDocument()
   })
 })
+
+// TERM-033: a failed read used to sit on "Warming up..." forever.
+describe('VolumeScanWidget -- failed read (TERM-033)', () => {
+  it('says the read failed, with a Retry, instead of "Warming up"', () => {
+    const mutate = vi.fn()
+    swr.mockReturnValue({ data: undefined, error: new Error('Request failed (502)'), mutate })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByRole('alert').textContent).toMatch(/read failed/i)
+    expect(screen.queryByText(/Warming up/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalled()
+  })
+})
