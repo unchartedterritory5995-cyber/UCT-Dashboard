@@ -797,3 +797,95 @@ def test_the_sandbox_calendar_is_read_only_off_railway_with_the_conftest(monkeyp
     monkeypatch.delenv("RAILWAY_ENVIRONMENT")
     monkeypatch.delitem(sys.modules, "conftest", raising=False)
     assert earnings_prep.sandbox_calendar_active() is False
+
+
+# ── the member's own closed trade, made through the journal's own doors (fin walk P4) ────
+
+def _journal_app(db_path):
+    """The prep router beside the journal's own router, so a trade is opened and closed the
+    way a member does it, never by a row written straight into the table."""
+    from api.routers import journal_two, notebook_earnings_prep
+    fa = FastAPI()
+    fa.include_router(journal_two.router)
+    fa.include_router(notebook_earnings_prep.router)
+    return fa
+
+
+def _open_and_close(c, sym, *, shares, close_shares, entry, exit_, day="2026-10-07"):
+    r = c.post("/api/j2/positions", json={"symbol": sym, "side": "Long", "shares": shares, "entryPrice": entry,
+                                          "stopPrice": round(entry * 0.95, 2), "entryDate": day})
+    assert r.status_code == 200, r.text
+    r2 = c.post(f"/api/j2/positions/{r.json()['id']}/close",
+                json={"shares": close_shares, "exitPrice": exit_, "exitDate": day})
+    assert r2.status_code == 200, r2.text
+    return r2.json()["trade"]["id"]
+
+
+def test_a_trade_closed_through_the_journal_is_in_a_prep_note_built_after_it(db_path, gate_on, monkeypatch, stores):
+    """The walk's P4 case as the product sees it: AMD long, in at 341.28, out at 514.93 the same
+    day, which is +50.9%. A prep note built AFTER the close lists it, and the result is the
+    journal's FRACTION (0.509), the shape the note's own formatter prints as "+50.9%"."""
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    tid = _open_and_close(c, "AMD", shares=40, close_shares=40, entry=341.28, exit_=514.93)
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    cell = d["myTrades"]
+    assert cell["missing"] is None and cell["source"] == "Your trade journal", cell
+    assert [t["id"] for t in cell["value"]] == [tid]
+    t = cell["value"][0]
+    assert round(t["pnlPercent"], 3) == 0.509, t          # a fraction, never 50.9
+    assert t["side"] == "Long" and t["result"] == "Win" and t["exitDate"].startswith("2026-10-07")
+    assert d["myPosition"]["value"] is None                # fully closed: no open position line
+
+
+def test_a_prep_note_built_before_the_close_has_no_trade_and_says_so(db_path, gate_on, monkeypatch, stores):
+    """The order the walk actually ran in: the note was built while AMD was still open, and the
+    trade closed 38 seconds later. The honest answer then is the open position and the plain
+    "no closed trades" sentence. The note is frozen, so it never gains the trade afterwards."""
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    r = c.post("/api/j2/positions", json={"symbol": "AMD", "side": "Long", "shares": 40, "entryPrice": 341.28,
+                                          "stopPrice": 320.0, "entryDate": "2026-10-07"})
+    assert r.status_code == 200, r.text
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    assert d["myTrades"]["value"] is None
+    assert d["myTrades"]["missing"] == "You have no closed trades in AMD in your journal."
+    assert d["myPosition"]["value"][0]["shares"] == 40
+
+
+def test_a_part_close_lists_the_trade_and_the_shares_still_held(db_path, gate_on, monkeypatch, stores):
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    tid = _open_and_close(c, "AMD", shares=100, close_shares=40, entry=341.28, exit_=514.93)
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    assert [t["id"] for t in d["myTrades"]["value"]] == [tid]
+    assert d["myPosition"]["value"][0]["shares"] == 60
+
+
+def test_a_trade_in_a_second_account_is_still_the_members_trade(db_path, gate_on, monkeypatch, stores):
+    """The prep note reads the member's journal, not one account of it."""
+    _today(monkeypatch)
+    _intel(monkeypatch, INTEL)
+    fa = _journal_app(db_path)
+    as_user(fa, A)
+    c = TestClient(fa)
+    from api.services.journal_two import accounts
+    accounts.get_or_migrate_default_account(A)
+    second = accounts.create_account(A, {"name": "Second", "color": "blue", "startingBalance": 25000})
+    r = c.post("/api/j2/positions", json={"symbol": "AMD", "side": "Long", "shares": 10, "entryPrice": 100.0,
+                                          "stopPrice": 95.0, "entryDate": "2026-10-07", "accountId": second["id"]})
+    assert r.status_code == 200, r.text
+    r2 = c.post(f"/api/j2/positions/{r.json()['id']}/close", json={"shares": 10, "exitPrice": 110.0, "exitDate": "2026-10-07"})
+    assert r2.status_code == 200, r2.text
+    d = c.post("/api/j2/earnings-prep/AMD/draft").json()
+    assert [t["id"] for t in d["myTrades"]["value"]] == [r2.json()["trade"]["id"]]
+    assert round(d["myTrades"]["value"][0]["pnlPercent"], 3) == 0.1
