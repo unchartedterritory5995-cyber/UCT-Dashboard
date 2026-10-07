@@ -55,10 +55,15 @@ export const workspaceKind = {
       return true
     }
     const created = {}
+    // Several of ONE type: plan them as a group (equal cells in one empty region,
+    // via the product's planGroupPlacement) once, from the board as it is now. No
+    // group region → null → each add uses the product's normal placement.
+    const same = patch.add.length > 1 && patch.add.every(c => c.type === patch.add[0].type)
+    const cells = same ? host.widgets.snapshot().groupPlan?.(patch.add[0].type, patch.add.length) : null
     for (let i = 0; i < patch.add.length; i++) {
       const c = patch.add[i]
       const known = new Set(host.widgets.snapshot().widgets.map(w => w.id))
-      host.widgets.add(c.type)
+      host.widgets.add(c.type, cells?.[i] || null)
       let fresh = null
       const t0 = Date.now()
       while (!fresh && Date.now() - t0 < 5000) {

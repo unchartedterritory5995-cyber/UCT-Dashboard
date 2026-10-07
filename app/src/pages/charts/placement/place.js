@@ -200,6 +200,82 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
   return { place: { x: 0, y: Math.max(0, rows - d.h), w: Math.min(cols, d.w), h: d.h }, mutations: [] }
 }
 
+// ── Group placement: N new widgets of ONE type, tiled evenly into empty space ──
+// planPlacement places one widget at its default size, so adding several in a row
+// leaves them unequal (24×20 board, chart default 12×12: each column gets a 12-row
+// chart above an 8-row one). This plans the GROUP at once instead: the largest
+// empty rectangle that holds an equal r×c grid of cells, every cell at least the
+// type's min size. EMPTY SPACE ONLY — never moves or resizes an existing widget —
+// so it returns null when no such region exists and the caller keeps its normal
+// one-at-a-time placement (or refusal). Cells come back row-major, top-left first.
+// Exactly equal cells; any remainder of the region (W % c, H % r) stays empty.
+export function planGroupPlacement(widgets, type, n, cols = 24, rows = 20) {
+  const count = n | 0
+  if (count < 2) return null
+  const d = defOf(type)
+  const minW = d.minW || 2
+  const minH = d.minH || 3
+  // Occupancy + 2-D prefix sums → O(1) "is this rectangle empty?".
+  const occ = Array.from({ length: rows }, () => new Array(cols).fill(0))
+  for (const w of widgets || []) {
+    if (!w || ![w.x, w.y, w.w, w.h].every(Number.isFinite)) continue
+    for (let y = Math.max(0, w.y | 0); y < Math.min(rows, (w.y | 0) + (w.h | 0)); y++) {
+      for (let x = Math.max(0, w.x | 0); x < Math.min(cols, (w.x | 0) + (w.w | 0)); x++) occ[y][x] = 1
+    }
+  }
+  const P = Array.from({ length: rows + 1 }, () => new Array(cols + 1).fill(0))
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) P[y + 1][x + 1] = occ[y][x] + P[y][x + 1] + P[y + 1][x] - P[y][x]
+  }
+  const empty = (x, y, w, h) => P[y + h][x + w] - P[y][x + w] - P[y + h][x] + P[y][x] === 0
+
+  // Grid shapes that hold `count` with less than one row wasted.
+  const shapes = []
+  for (let c = 1; c <= count; c++) shapes.push({ r: Math.ceil(count / c), c })
+
+  // Free run length to the right of each cell, so each (corner, height) needs only its
+  // WIDEST empty rectangle: a narrower one from the same corner yields the same cells.
+  const run = Array.from({ length: rows }, () => new Array(cols + 1).fill(0))
+  for (let y = 0; y < rows; y++) {
+    for (let x = cols - 1; x >= 0; x--) run[y][x] = occ[y][x] ? 0 : run[y][x + 1] + 1
+  }
+  let best = null
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (occ[y][x]) continue
+      let maxW = Infinity
+      for (let h = 1; y + h <= rows; h++) {
+        maxW = Math.min(maxW, run[y + h - 1][x])
+        if (maxW < minW) break
+        if (h < minH) continue
+        const w = maxW
+        if (!empty(x, y, w, h)) continue
+        {
+          for (const { r, c } of shapes) {
+            const cw = Math.floor(w / c), ch = Math.floor(h / r)
+            if (cw < minW || ch < minH) continue
+            // Biggest equal cell wins; then the squarer grid (2×2 over 1×4); then the
+            // region the grid fills most exactly; then top-left (scan order).
+            const score = [cw * ch, -Math.abs(r - c), -((w - cw * c) + (h - ch * r))]
+            if (!best || score[0] > best.score[0]
+              || (score[0] === best.score[0] && (score[1] > best.score[1]
+                || (score[1] === best.score[1] && score[2] > best.score[2])))) {
+              best = { score, x, y, r, c, cw, ch }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (!best) return null
+  const out = []
+  for (let i = 0; i < count; i++) {
+    const row = Math.floor(i / best.c), col = i % best.c
+    out.push({ x: best.x + col * best.cw, y: best.y + row * best.ch, w: best.cw, h: best.ch })
+  }
+  return out
+}
+
 // ── Ghost-mode directional nudge (column-model state machine) ─────────────────
 // While the placement ghost is open, arrows move the proposed widget around the
 // board before committing. The board is modeled as ordered left→right COLUMNS

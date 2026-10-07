@@ -14,11 +14,15 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
   const keyOf = (w) => (w.color === 'N' ? `N:${w.id}` : w.color)
   const widgetOps = {
     layout: () => state,
-    add: (type) => {
+    add: (type, slot = null) => {
       adds += 1
       if (failAddAt && adds === failAddAt) return                  // a write that never lands
-      const plan = planPlacement(state.widgets, type)
-      state.widgets = [...state.widgets, { id: `w-${type}-${++n}`, type, color: 'A', opts: {}, ...plan.place }]
+      // handleAddWidget's rule: an exact slot is honoured only when it is in-bounds
+      // and overlaps nothing; otherwise the normal placement decides.
+      const free = slot && slot.x >= 0 && slot.y >= 0 && slot.x + slot.w <= 24 && slot.y + slot.h <= 20
+        && !state.widgets.some(w => w.x < slot.x + slot.w && slot.x < w.x + w.w && w.y < slot.y + slot.h && slot.y < w.y + w.h)
+      const place = free ? { x: slot.x, y: slot.y, w: slot.w, h: slot.h } : planPlacement(state.widgets, type).place
+      state.widgets = [...state.widgets, { id: `w-${type}-${++n}`, type, color: 'A', opts: {}, ...place }]
     },
     remove: (id) => { state.widgets = state.widgets.filter(w => w.id !== id) },
     color: (id, color) => { state.widgets = state.widgets.map(w => (w.id === id ? { ...w, color } : w)) },
