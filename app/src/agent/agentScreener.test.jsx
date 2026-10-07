@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
+import screenerSource from './capabilities/screener.js?raw'
 import { manifestFor, buildContext, getCapability } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
@@ -118,7 +117,7 @@ describe('Screener: the real engine, the real catalog', () => {
     expect(m.length).toBe(25)
   })
   it('no Screener field is hard-coded in the Agent', () => {
-    const src = readFileSync(fileURLToPath(new URL('./capabilities/screener.js', import.meta.url)), 'utf8')
+    const src = screenerSource
     for (const k of ['adr_pct', 'chg_pct_1m', 'dollar_vol', 'market_cap']) expect(src).not.toContain(k)
   })
   it('the panel shows the rows and the Open-in-Screener link (results never written by the model)', async () => {
