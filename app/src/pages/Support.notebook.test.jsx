@@ -272,8 +272,14 @@ describe('Walkthroughs (the tour registry\'s Help list)', () => {
     const heading = screen.getByText('Walkthroughs')
     const list = heading.parentElement
     expect(within(list).getByText('Notebook basics')).toBeInTheDocument()
-    const replay = within(list).getByRole('link', { name: 'Replay' })
+    // Lane FIN-A11Y (review R4, M-14): every row said just "Replay", twenty links with one
+    // name. The visible word stays; the link's NAME now says which tour it replays.
+    const replay = within(list).getByRole('link', { name: 'Replay the Notebook basics tour' })
     expect(replay).toHaveAttribute('href', '/journal/notebook')
+    expect(replay).toHaveTextContent(/^Replay$/)
+    expect(within(list).queryByRole('link', { name: 'Replay' })).toBeNull()
+    const names = within(list).getAllByRole('link').map((a) => a.getAttribute('aria-label'))
+    expect(new Set(names).size).toBe(names.length)
   })
 })
 

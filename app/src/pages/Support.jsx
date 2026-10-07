@@ -371,7 +371,8 @@ function WalkthroughsSection() {
         {live.map((t) => (
           <li key={t.id} className={styles.walkthroughRow}>
             <span>{t.title}</span>
-            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}>
+            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
+              aria-label={`Replay the ${t.title} tour`}>
               Replay
             </Link>
           </li>
