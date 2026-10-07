@@ -75,6 +75,27 @@ describe('ResearchComparePage', () => {
     expect(screen.queryByText('Estimates')).not.toBeInTheDocument()
   })
 
+  // TERM-033: a failed REQUEST (the hook's `error`) is said as one, with a retry; it is never
+  // drawn as two columns of dashes.
+  it('a failed comparison request says so, offers a retry, and draws no empty sections', () => {
+    const retry = vi.fn()
+    mockComparisonReturn = { data: null, isLoading: false, error: new Error('Request failed (502)'), retry }
+    renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+    const box = screen.getByTestId('compare-load-failed')
+    expect(box.textContent).toContain("The comparison of AAPL and MSFT couldn't be loaded")
+    expect(box.textContent).toContain('this is not a statement about either company')
+    expect(screen.queryByTestId('research-compare-page')).not.toBeInTheDocument()
+    fireEvent.click(within(box).getByRole('button', { name: 'Retry' }))
+    expect(retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('control: a loaded comparison shows no failure notice', () => {
+    mockComparisonReturn = { data: fullData(), isLoading: false, error: null, retry: vi.fn() }
+    renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+    expect(screen.queryByTestId('compare-load-failed')).not.toBeInTheDocument()
+    expect(screen.getByTestId('research-compare-page')).toBeInTheDocument()
+  })
+
   it('surfaces a request-level error honestly instead of rendering empty sections', () => {
     mockComparisonReturn = { data: { error: 'choose two different securities to compare' }, isLoading: false }
     renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/AAPL' })

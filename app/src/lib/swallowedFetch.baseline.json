@@ -4,7 +4,7 @@
     "SHRINK-ONLY. Lower a count or delete a line when you migrate a site onto a fetcher that throws;",
     "never add one. Regenerate nothing by tool: edit this file by hand."
   ],
-  "total": 63,
+  "total": 57,
   "files": {
     "components/AlertBell.jsx": 1,
     "components/RsBadge.jsx": 1,
@@ -16,17 +16,12 @@
     "components/calendar/KeywordAlerts.jsx": 1,
     "components/chart/builder/FormulaField.jsx": 1,
     "components/chart/builder/PineBox.jsx": 1,
-    "components/research/QuoteStrip.jsx": 1,
     "hooks/livePriceStore.js": 1,
     "hooks/useAnalystIntel.js": 1,
     "hooks/useCallRecap.js": 1,
     "hooks/useEarningsAudio.js": 1,
     "hooks/useEarningsBrief.js": 1,
-    "hooks/useEarningsTable.js": 1,
-    "hooks/useExpectedMove.js": 1,
     "hooks/useFlagged.js": 1,
-    "hooks/useFundamentalSnapshot.js": 1,
-    "hooks/useFundamentals.js": 1,
     "hooks/useLiveBreadth.js": 1,
     "hooks/useOwnership.js": 1,
     "hooks/useSentiment.js": 1,
@@ -58,7 +53,6 @@
     "pages/journal-2-0/lib/noteBatch.js": 2,
     "pages/journal-2-0/lib/writingHelpStream.js": 1,
     "pages/modelbook/SetupsView.jsx": 1,
-    "pages/research/hooks/useComparison.js": 1,
     "testing/device/slopSteps.js": 1
   }
 }

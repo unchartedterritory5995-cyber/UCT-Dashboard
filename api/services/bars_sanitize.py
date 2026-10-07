@@ -494,6 +494,48 @@ def unadjusted_splits(bars: list[dict],
     return out
 
 
+def session_closes(bars: list[dict]) -> list[dict]:
+    """Collapse an INTRADAY series (`t` = unix seconds) to one bar per ET session:
+    `{"t": "YYYY-MM-DD", "c": <the session's last close>}`, oldest-first.
+
+    Pure. A bar whose `t` cannot be read is skipped, never guessed. The session is
+    the America/New_York calendar date, the same convention as
+    `bars_fetch._payload_last_session_yyyymmdd`."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    last: dict[str, float] = {}
+    for b in bars:
+        try:
+            d = datetime.fromtimestamp(int(b["t"]), tz=et).date().isoformat()
+        except (KeyError, TypeError, ValueError, OverflowError, OSError):
+            continue
+        c = b.get("c")
+        if c is None:
+            continue
+        last[d] = c          # oldest-first input ⇒ the session's LAST close wins
+    return [{"t": d, "c": last[d]} for d in sorted(last)]
+
+
+def intraday_unadjusted_splits(bars: list[dict],
+                               splits: list[tuple[str, float]],
+                               ) -> list[tuple[date, float]]:
+    """TERM-055 — the intraday split detector. `[(boundary_session, ratio)]` for each
+    declared split an INTRADAY series shows as an unapplied, split-sized cliff.
+
+    ⭐ NOT A SECOND DETECTOR. The judgement is `unadjusted_splits` (the one detector),
+    asked of the series' per-session closes: a split happens between two sessions,
+    so the last close before it and the last close after it carry the factor exactly
+    as two daily closes do. Same `_SPLIT_TOL`, same `adjudicable` guard (a 3% stock
+    dividend is never reported), same ± window around the DECLARED date.
+
+    Pure: no store, no network, no metadata fetch. A split outside the series' range
+    is not reported (the series does not contain it, so it cannot show a cliff)."""
+    if not splits or len(bars) < 2:
+        return []
+    return unadjusted_splits(session_closes(bars), splits)
+
+
 def split_factor(bar_date: date, unadjusted: list[tuple[date, float]]) -> float:
     """The factor a bar dated `bar_date` must be divided by to reach the
     post-split basis. `1.0` means the bar is already on it."""

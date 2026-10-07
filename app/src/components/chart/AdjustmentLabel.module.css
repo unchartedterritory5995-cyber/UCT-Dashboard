@@ -1,0 +1,70 @@
+/* TERM-055 raw view (dark, RAW_PRICE_VIEW_ENABLED). Only rendered while the gate is on. */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.toggle {
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 6px;
+  line-height: 18px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.toggle[aria-pressed='true'] {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+  background: var(--bg-hover);
+}
+.panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 50;
+  min-width: 300px;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+  color: var(--text);
+}
+.caption {
+  color: var(--text-muted);
+  margin: 0 0 6px;
+  white-space: normal;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.table th,
+.table td {
+  padding: 2px 6px;
+  text-align: right;
+  white-space: nowrap;
+}
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+.table th {
+  color: var(--text-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+.split td {
+  border-top: 1px dashed var(--border-accent);
+}
+@media (max-width: 640px) {
+  .wrap { display: none; }
+}

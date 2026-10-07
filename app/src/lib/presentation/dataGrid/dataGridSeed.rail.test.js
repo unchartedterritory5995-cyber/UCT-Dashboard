@@ -183,19 +183,14 @@ export function handRolledGrids(tree = treeSources()) {
 // admit a new grid is exactly what this rail exists to refuse.
 const PARTNER = 'partner-owned (OptionsFlow and what it owns) — never migrated without the partner'
 export const BASELINE = new Map([
-  ['app/src/components/tiles/CatalystTable.jsx', 'catalyst tile — col/dir sort chip; not yet migrated'],
   ['app/src/pages/calendar/CalendarDayTable.jsx', 'tri-state sort (third click restores importance order) inside session groups — needs a tri-state mode on the seed first'],
-  ['app/src/pages/charts/widgets/CalendarWidget.jsx', 'chart-panel earnings widget; its own ▾/▴ caret glyphs'],
   ['app/src/pages/DarkPool.jsx', 'three grids in one 3.6k-line page'],
   ['app/src/pages/desk/Shelf.jsx', 'the Desk shelf expanded-grid sort (direction only, no column)'],
   ['app/src/pages/journal-2-0/components/HoldingsList.jsx', 'sort-by select + direction button, persisted under uct.j2.holdings.sort — not a header grid'],
-  ['app/src/pages/LiveFlow.jsx', 'live flow table'],
   ['app/src/pages/LiveFlowMassive.jsx', 'live flow (Massive) tables'],
-  ['app/src/pages/ModelBook.jsx', 'model book table'],
   ['app/src/pages/OptionsFlow.jsx', PARTNER],
   ['app/src/pages/OptionsFlow_admin.jsx', 'admin copy of OptionsFlow — follows the partner file, not migrated independently'],
   ['app/src/pages/ThemeTrackerPage.jsx', 'theme tracker tab sort'],
-  ['app/src/pages/UCT20.jsx', 'UCT20 list (numeric ±1 direction, rank order default)'],
   ['app/src/pages/Watchlists.jsx', 'the watchlist grid — itself shared by five widgets (Scanner/EtfHoldings/PeriodSort/BreadthDrill/Watchlist); persisted under uct.watchlist.cols'],
 ])
 
@@ -206,6 +201,13 @@ export const MIGRATED = [
   // 2026-09-30, FB-S10-01's named first consumer; parity in screenerGrid.seedParity.test.jsx
   'app/src/pages/screener/shell/VirtualResults.jsx',
   'app/src/pages/screener/shell/liveSort.js',
+  // 2026-10-03, header decisions (nextSort / ariaSortFor / sortCaretFor) onto the
+  // seed, comparators kept; parity in pageGrids.seedParity.test.js
+  'app/src/components/tiles/CatalystTable.jsx',
+  'app/src/pages/charts/widgets/CalendarWidget.jsx',
+  'app/src/pages/LiveFlow.jsx',
+  'app/src/pages/ModelBook.jsx',
+  'app/src/pages/UCT20.jsx',
 ]
 
 const fmt = (sigs) => sigs.map((s) => `${s.signal}@${s.line}`).join(', ')

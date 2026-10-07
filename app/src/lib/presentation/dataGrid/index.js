@@ -12,7 +12,9 @@
 //
 // Consumers today: `journal-2-0/components/TradesTable.jsx`,
 // `PositionsTable.jsx`, and the screener's `shell/VirtualResults.jsx` (header
-// decisions) + `shell/liveSort.js` (the live re-sort comparator). `dataGridSeed.rail.test.js` keeps the list of grids
+// decisions) + `shell/liveSort.js` (the live re-sort comparator); and, for
+// their header decisions only, `CatalystTable`, `CalendarWidget`, `LiveFlow`,
+// `ModelBook` and `UCT20` (`pageGrids.seedParity.test.js`). `dataGridSeed.rail.test.js` keeps the list of grids
 // that still hand-roll a sort, and it may only shrink.
 
 export { default as useGridSort } from './useGridSort'

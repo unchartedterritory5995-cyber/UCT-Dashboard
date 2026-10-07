@@ -18,11 +18,16 @@
 // 10.5px caption) directly above SetupSection's own labelled 52-week
 // RangeSlider. Removed in favour of the labelled one — see that section.
 import useMobileSWR from '../../hooks/useMobileSWR'
+import { sectionFetcher } from './sections/sectionFetch'
 import { toNum } from '../research-kit'
 import { formatCompactTerminal, formatCurrency } from '../../lib/presentation/presentationPrimitives'
 import styles from './QuoteStrip.module.css'
 
-const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: the fetcher THROWS on a failed read (sectionFetcher: non-2xx, network, deadline,
+// one warm retry). It used to resolve `null`, so one failed 60 s refresh REPLACED the last good
+// quote and the strip vanished mid-session. SWR records a throw as `error` and keeps the last
+// good quote on screen; a first-load failure still renders nothing (there is no quote to show).
+export const quoteFetcher = sectionFetcher
 
 // The shared coercion — see toNum's comment for why the obvious
 // one-liner turns every missing value into a real zero.
@@ -44,7 +49,7 @@ export default function QuoteStrip({ sym }) {
   // market is fully closed, and doubles it on mobile. A quote that re-fetches
   // every 60s all weekend is pure battery and API spend for a number that
   // cannot change.
-  const { data } = useMobileSWR(sym ? `/api/research/quote/${sym}` : null, fetcher, {
+  const { data } = useMobileSWR(sym ? `/api/research/quote/${sym}` : null, quoteFetcher, {
     refreshInterval: 60_000,
     marketHoursOnly: true,
     revalidateOnFocus: false,

@@ -26,6 +26,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/adjustment-basis/{ticker}/raw",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/ai-search/briefings",
       "rate_limit_family": "ai",
       "tier": "paid"

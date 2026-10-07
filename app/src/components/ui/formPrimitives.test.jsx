@@ -7,6 +7,7 @@ import Input from './Input'
 import Select from './Select'
 import Checkbox from './Checkbox'
 import Textarea from './Textarea'
+import Radio from './Radio'
 import FieldError, { errorIdFor, fieldAria } from './FieldError'
 
 afterEach(cleanup)
@@ -43,6 +44,13 @@ describe('with no error, each primitive is the element a caller would have writt
       .toBe(html(<input type="checkbox" checked onChange={() => {}} />))
   })
 
+  it('Radio', () => {
+    expect(html(<Radio name="g" value="a" checked aria-label="A" className="c" onChange={() => {}} />))
+      .toBe(html(<input type="radio" name="g" value="a" checked aria-label="A" className="c" onChange={() => {}} />))
+    expect(html(<Radio name="g" value="b" checked={false} disabled onChange={() => {}} />))
+      .toBe(html(<input type="radio" name="g" value="b" checked={false} disabled onChange={() => {}} />))
+  })
+
   it('Textarea', () => {
     expect(html(<Textarea className="c" rows={3} value="x" onChange={() => {}} />))
       .toBe(html(<textarea className="c" rows={3} value="x" onChange={() => {}} />))
@@ -74,6 +82,7 @@ describe('the error link — one derivation, both ends', () => {
     ['Input', (p) => <Input {...p} />],
     ['Select', (p) => <Select {...p} options={['a']} />],
     ['Checkbox', (p) => <Checkbox {...p} />],
+    ['Radio', (p) => <Radio {...p} />],
   ])('%s carries aria-invalid and describes itself by the message that FieldError renders', (_n, make) => {
     const { container } = render(
       <div>
@@ -96,6 +105,8 @@ describe('the error link — one derivation, both ends', () => {
     expect(one(<Select aria-invalid="true" />).hasAttribute('aria-invalid')).toBe(false)
     cleanup()
     expect(one(<Checkbox aria-invalid="true" />).hasAttribute('aria-invalid')).toBe(false)
+    cleanup()
+    expect(one(<Radio aria-invalid="true" />).hasAttribute('aria-invalid')).toBe(false)
   })
 
   it('FieldError renders nothing without a message, and owns its id and role', () => {
@@ -171,5 +182,29 @@ describe('Checkbox', () => {
     const onChange = vi.fn()
     fireEvent.click(one(<Checkbox checked={false} onChange={onChange} />))
     expect(onChange).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Radio', () => {
+  it('is always a radio — a caller cannot change the type', () => {
+    expect(one(<Radio type="checkbox" />).getAttribute('type')).toBe('radio')
+    cleanup()
+    expect(one(<Radio type="text" />).getAttribute('type')).toBe('radio')
+  })
+
+  it('forwards a ref, and one group selects exactly one member on click', () => {
+    const ref = createRef()
+    const onB = vi.fn()
+    const { container } = render(
+      <div>
+        <Radio ref={ref} name="mode" value="a" aria-label="A" defaultChecked />
+        <Radio name="mode" value="b" aria-label="B" onChange={onB} />
+      </div>,
+    )
+    const [a, b] = container.querySelectorAll('input')
+    expect(ref.current).toBe(a)
+    fireEvent.click(b)
+    expect(onB).toHaveBeenCalledTimes(1)
+    expect([a.checked, b.checked]).toEqual([false, true])
   })
 })

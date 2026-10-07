@@ -3,8 +3,12 @@
 // One request serves the banner's Setup Grade chip AND the Setup hero — see the
 // architecture note in api/routers/expected_move.py.
 import useSWR from 'swr'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher), so SWR retries it. The old `null` was
+// final for the modal's life (refreshInterval 0), so one cold-pod failure hid the grade chip
+// and the Setup hero until the member closed and reopened the modal. 402 stays absent.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 export default function useExpectedMove(sym, reportDate) {
   const s = (sym || '').toUpperCase().trim()
