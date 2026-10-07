@@ -155,6 +155,8 @@ export const SURFACES = Object.freeze({
   // notebook_chart_plan_enabled (so no editor recipe renders them); rail
   // a11y/chartPlan.a11y.test.jsx (states: sized, empty, refused; the replay stepped once).
   'components/notebook/ChartPlanPanel.jsx': { recipe: 'chart-plan-panel' },
+  // Lane FIN-A11Y (I-6): the typed door to a level (role radios, price fields, add by price).
+  'components/notebook/ChartPlanLevelControls.jsx': { coveredBy: 'chart-plan-panel' },
   'components/notebook/BarReplay.jsx': { recipe: 'bar-replay' },
   'components/notebook/FundamentalsEmbed.jsx': { recipe: 'embed-fundamentals' },
   'components/notebook/IndexesEmbed.jsx': { recipe: 'embed-indexes' },

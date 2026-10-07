@@ -37,7 +37,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { mutate as globalMutate } from 'swr'
 import {
   canCarryPlanRole, drawingLevelPrice, setPlanRole, sizePlan, withPlanShares, SIZED_BY_LABEL,
+  addLevel, moveLevel,
 } from '../../lib/chartPlan'
+import { AddLevelForm, LevelPriceField, RoleRadios } from './ChartPlanLevelControls'
 import { PRICE_ROLES } from '../../lib/planLevels'
 import useBoundDrawingAlerts from '../../../../components/chart/useBoundDrawingAlerts'
 import { anchorsForDrawing } from '../../../../components/chart/drawingAlertAnchors'
@@ -158,6 +160,43 @@ export default function ChartPlanPanel({
   const setRole = (drawingId, role) => {
     const next = setPlanRole(annotations, drawingId, role || null)
     if (next !== annotations) updateAttributes?.({ annotations: next })
+  }
+  // ── the typed door to a level (lane FIN-A11Y, I-6): make one, move one ─────────────────
+  // Focus follows the level being worked on: the rows are sorted by price, so a step can
+  // reorder them, and the field of a new level does not exist until the note re-renders.
+  const focusLevelRef = useRef(null)
+  useEffect(() => {
+    const id = focusLevelRef.current
+    if (!id) return
+    const row = [...(rootRef.current?.querySelectorAll('[data-level-id]') || [])]
+      .find((el) => el.getAttribute('data-level-id') === id)
+    const field = row?.querySelector('[data-level-price]')
+    if (!field) return
+    focusLevelRef.current = null
+    if (document.activeElement !== field) field.focus()
+  }, [annotations])
+  const badPrice = () => setMsg({ tone: 'err', text: 'Enter a price above zero.' })
+  const moveLevelTo = (drawingId, price, viaStep) => {
+    const next = moveLevel(annotations, drawingId, price)
+    if (next === annotations) return
+    focusLevelRef.current = drawingId
+    updateAttributes?.({ annotations: next })
+    // A step is announced by the field itself (its value); a typed move gets a sentence.
+    setMsg(viaStep ? null : { tone: 'ok', text: `Moved the line to ${fmtPrice(price)}.` })
+  }
+  const addLevelAt = (price, role) => {
+    const id = `lv-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    const anchored = annotations.find((d) => d?.points?.[0]?.time != null)
+    const cap = Date.parse(attrs?.capturedAt || '')
+    const time = anchored ? anchored.points[0].time : Math.floor((Number.isFinite(cap) ? cap : Date.now()) / 1000)
+    focusLevelRef.current = id
+    updateAttributes?.({ annotations: addLevel(annotations, price, { id, time, role }) })
+    setMsg({
+      tone: 'ok',
+      text: role
+        ? `Added a level at ${fmtPrice(price)}, marked ${ROLE_LABEL[role]}.`
+        : `Added a level at ${fmtPrice(price)}. Mark it Entry, Stop or Target.`,
+    })
   }
   const savedShares = planBlock?.shares ?? null
   const canSaveSize = sized?.shares != null && (savedShares !== sized.shares || planBlock?.sizedBy !== sized.sizedBy)
@@ -300,7 +339,7 @@ export default function ChartPlanPanel({
         {levels.length === 0 ? (
           <p className={styles.hint}>
             Draw a horizontal line on this chart (Draw, then the horizontal-line tool), then mark it
-            Entry, Stop or Target here.
+            Entry, Stop or Target here. Or type a price below.
           </p>
         ) : (
           <ul className={styles.levels} aria-label="Drawn levels">
@@ -311,22 +350,17 @@ export default function ChartPlanPanel({
               const derived = roleDirection(role, plan?.side)
               return (
                 <li key={d.id} className={styles.level} data-level-id={d.id}>
-                  <span className={styles.price}>{fmtPrice(price)}</span>
-                  <div className={styles.roles} role="radiogroup" aria-label={`Role of the line at ${fmtPrice(price)}`}>
-                    {['', ...PRICE_ROLES].map((r) => (
-                      <button
-                        key={r || 'none'}
-                        type="button"
-                        role="radio"
-                        aria-checked={role === r}
-                        className={`${styles.roleBtn} ${role === r ? styles.roleOn : ''}`}
-                        data-role={r || 'none'}
-                        onClick={() => setRole(d.id, r)}
-                      >
-                        {r ? ROLE_LABEL[r] : 'None'}
-                      </button>
-                    ))}
-                  </div>
+                  <LevelPriceField
+                    price={price}
+                    label={role ? `Price of the ${ROLE_LABEL[role]} line, ${fmtPrice(price)}` : `Price of the line at ${fmtPrice(price)}`}
+                    onCommit={(next, viaStep) => moveLevelTo(d.id, next, viaStep)}
+                    onInvalid={badPrice}
+                  />
+                  <RoleRadios
+                    role={role}
+                    label={`Role of the line at ${fmtPrice(price)}`}
+                    onChange={(r) => setRole(d.id, r)}
+                  />
                   <div className={styles.alertCell}>
                     {!derived && !armed && (
                       <select
@@ -359,6 +393,7 @@ export default function ChartPlanPanel({
             })}
           </ul>
         )}
+        <AddLevelForm onAdd={addLevelAt} onInvalid={badPrice} />
 
         <div className={styles.numbers} aria-live="polite" data-tour="chart-plan-numbers">
           {reading.status === 'error' && <p className={styles.err} role="alert">{reading.error}</p>}
