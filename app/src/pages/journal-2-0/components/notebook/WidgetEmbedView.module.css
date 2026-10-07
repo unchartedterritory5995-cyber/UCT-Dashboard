@@ -277,3 +277,25 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   pointer-events: none;
 }
 
+/* The "Block actions" button (EmbedBlockActions.jsx): move or remove this block without
+   selecting it. Hidden on a desktop, where hover, the grip and the keyboard do the same.
+   At 1024 px and below (the touch tier) the toolbar is always shown, so the button is
+   always there, and it is a full tap target. Kept LAST so it wins over .toolBtn. */
+.blockActions { display: none; }
+@media (max-width: 1024px) {
+  .toolbar { display: inline-flex; }
+  .blockActions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    padding: 0 10px;
+    border: 1px solid var(--border, #2a2f37);
+    border-radius: 6px;
+    background: var(--bg-elevated, #14171c);
+    color: var(--text-bright, #e8eaed);
+    font: 600 18px/1 var(--font-ui, system-ui, sans-serif);
+    cursor: pointer;
+  }
+}
