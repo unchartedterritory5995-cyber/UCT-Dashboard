@@ -1,0 +1,128 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PUT /api/j2/entry-context/why",
+    "path": "/api/j2/entry-context/why",
+    "requestBody": {
+      "entryDay": "2026-10-05",
+      "symbol": "ECNV",
+      "text": "VCP through the pivot on volume"
+    },
+    "status": 200
+  },
+  "body": {
+    "context": {
+      "captureDay": "2026-10-05",
+      "captureKind": "at_entry",
+      "capturedAt": "2026-10-05T14:30:00+00:00",
+      "capturedLate": false,
+      "entryDay": "2026-10-05",
+      "fields": {
+        "breadth_pct_above_50": {
+          "asOf": "2026-10-05T10:15:00-04:00",
+          "detail": {
+            "degraded": false,
+            "measured": 3000,
+            "universe": "live"
+          },
+          "missing": null,
+          "source": "breadth_live.compute_live(cached_only) pct_above_50sma",
+          "value": 55.1
+        },
+        "days_to_earnings": {
+          "asOf": "2026-10-05T14:30:00+00:00",
+          "detail": {
+            "countedFrom": "2026-10-05",
+            "reportDate": "2026-10-20"
+          },
+          "missing": null,
+          "source": "earnings_table._next_report_date",
+          "value": 15
+        },
+        "exposure": {
+          "asOf": "2026-10-05",
+          "detail": null,
+          "missing": null,
+          "source": "journal_two.regime.get_current_regime (wire UCT Exposure Rating)",
+          "value": 72.5
+        },
+        "fingerprint": {
+          "asOf": "2026-10-05",
+          "detail": {
+            "mode": "bars",
+            "version": 1
+          },
+          "missing": null,
+          "source": "journal_two.tech_fingerprint.compute",
+          "value": {
+            "as_of": "2026-10-05",
+            "fields": {
+              "adr_pct": {
+                "missing": null,
+                "source": "bars",
+                "value": 4.2
+              }
+            },
+            "mode": "bars",
+            "requested_as_of": "2026-10-05",
+            "symbol": "ECNV",
+            "v": 1
+          }
+        },
+        "member_screens": {
+          "asOf": "20261002",
+          "detail": {
+            "swept": 1
+          },
+          "missing": null,
+          "source": "user_definitions.list_for_user + screener.scan_store.hits",
+          "value": [
+            {
+              "asOf": "20261002",
+              "defId": "d1",
+              "name": "My breakouts"
+            }
+          ]
+        },
+        "regime": {
+          "asOf": "2026-10-05",
+          "detail": null,
+          "missing": null,
+          "source": "journal_two.regime.get_current_regime",
+          "value": "amber"
+        },
+        "rs_rank": {
+          "asOf": "2026-10-05T14:30:00+00:00",
+          "detail": {
+            "rsScore": 1.4
+          },
+          "missing": null,
+          "source": "rs_ranking.get_rs_for_ticker",
+          "value": 91
+        },
+        "uct_scans": {
+          "asOf": "2026-10-05",
+          "detail": {
+            "scans": [
+              "pullback_ma",
+              "gapper_news",
+              "remount"
+            ]
+          },
+          "missing": null,
+          "source": "engine.get_candidates / engine.candidate_tickers",
+          "value": [
+            "pullback_ma"
+          ]
+        }
+      },
+      "symbol": "ECNV",
+      "trigger": "on_demand",
+      "version": 1,
+      "why": {
+        "text": "VCP through the pivot on volume",
+        "updatedAt": "2026-10-05T14:30:00+00:00"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "DELETE /api/j2/research-capture/passed-setups/38876a94117248abbaac0124a9c99817",
+    "path": "/api/j2/research-capture/passed-setups/38876a94117248abbaac0124a9c99817",
+    "status": 200
+  },
+  "body": {
+    "ok": true
+  }
+}

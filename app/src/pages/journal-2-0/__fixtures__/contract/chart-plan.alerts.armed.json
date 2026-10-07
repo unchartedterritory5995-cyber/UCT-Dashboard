@@ -1,0 +1,36 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/chart-plan/alerts",
+    "path": "/api/j2/chart-plan/alerts",
+    "requestBody": {
+      "alert_type": "line",
+      "direction": "below",
+      "drawingId": "d-CPNV-stop",
+      "embedId": "cp-emb",
+      "noteId": "393164190b984b2b87b8ed6e48502c2b",
+      "target_price": 97.25
+    },
+    "status": 200
+  },
+  "body": {
+    "alert": {
+      "alert_type": "line",
+      "anchor_p1": null,
+      "anchor_p2": null,
+      "anchor_t1": null,
+      "anchor_t2": null,
+      "created_at": "2026-10-05T14:30:00+00:00",
+      "direction": "below",
+      "drawing_id": "d-CPNV-stop",
+      "id": "d4520981-5ca",
+      "is_active": 1,
+      "sym": "CPNV",
+      "target_price": 97.25,
+      "user_id": "contract-chart-plan"
+    },
+    "embedId": "cp-emb",
+    "noteId": "393164190b984b2b87b8ed6e48502c2b",
+    "symbol": "CPNV"
+  }
+}

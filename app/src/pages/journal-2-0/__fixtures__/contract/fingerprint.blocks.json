@@ -1,0 +1,498 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-fingerprint/blocks",
+    "path": "/api/j2/notebook-fingerprint/blocks",
+    "status": 200
+  },
+  "body": {
+    "blocks": [
+      {
+        "asOf": "2026-09-30",
+        "embedId": "vp-f",
+        "embedKey": "vp-f",
+        "fingerprint": {
+          "as_of": "2026-09-30",
+          "fields": {
+            "adr_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "base_depth_pct": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 9.0
+            },
+            "base_length_bars": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "close_cv_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ema_stack_intact": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ma_stack": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "patterns": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma10": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma20": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma200": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma50": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pole_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pullback_depth_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_line_trend": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_rank": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "vol_nweek_low": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            }
+          },
+          "mode": "nightly",
+          "requested_as_of": "2026-09-30",
+          "symbol": "X",
+          "v": 1
+        },
+        "fingerprintSource": "note",
+        "frozenAt": null,
+        "mode": "snapshot",
+        "noteId": "047c53d6818548c7b0f5e7765fe7db46",
+        "noteTitle": "VPTS plan",
+        "position": 0,
+        "setupTag": "Bull Flag",
+        "symbol": "VPTS",
+        "timeframe": "W",
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 9.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": null,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedId": "vp-u",
+        "embedKey": "vp-u",
+        "fingerprint": {
+          "as_of": "2026-09-30",
+          "fields": {
+            "adr_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "base_depth_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "base_length_bars": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "close_cv_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ema_stack_intact": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ma_stack": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "patterns": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma10": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma20": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma200": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma50": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pole_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pullback_depth_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_line_trend": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_rank": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 99
+            },
+            "vol_nweek_low": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            }
+          },
+          "mode": "nightly",
+          "requested_as_of": "2026-09-30",
+          "symbol": "X",
+          "v": 1
+        },
+        "fingerprintSource": "note",
+        "frozenAt": null,
+        "mode": "snapshot",
+        "noteId": "43f63216d10d4ac393d3dd633c92307b",
+        "noteTitle": "untagged",
+        "position": 0,
+        "setupTag": null,
+        "symbol": "VPAA",
+        "timeframe": "D",
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 99,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedId": "vp-a",
+        "embedKey": "vp-a",
+        "fingerprint": {
+          "as_of": "2026-09-30",
+          "fields": {
+            "adr_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "base_depth_pct": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 12.0
+            },
+            "base_length_bars": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "close_cv_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ema_stack_intact": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ma_stack": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "patterns": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma10": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma20": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma200": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma50": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pole_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pullback_depth_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_line_trend": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_rank": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 95
+            },
+            "vol_nweek_low": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            }
+          },
+          "mode": "nightly",
+          "requested_as_of": "2026-09-30",
+          "symbol": "X",
+          "v": 1
+        },
+        "fingerprintSource": "note",
+        "frozenAt": null,
+        "mode": "snapshot",
+        "noteId": "9399ccb999044f71a088fab6a52216b6",
+        "noteTitle": "VPNV plan",
+        "position": 0,
+        "setupTag": "VCP",
+        "symbol": "VPNV",
+        "timeframe": "D",
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 12.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 95,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedId": "vp-b",
+        "embedKey": "vp-b",
+        "fingerprint": {
+          "as_of": "2026-09-30",
+          "fields": {
+            "adr_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "base_depth_pct": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 22.0
+            },
+            "base_length_bars": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "close_cv_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ema_stack_intact": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "ma_stack": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "patterns": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma10": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma20": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma200": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pct_vs_sma50": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pole_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "pullback_depth_pct": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_line_trend": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            },
+            "rs_rank": {
+              "missing": null,
+              "source": "screener_row",
+              "value": 80
+            },
+            "vol_nweek_low": {
+              "missing": "not_in_screener_row",
+              "source": "screener_row",
+              "value": null
+            }
+          },
+          "mode": "nightly",
+          "requested_as_of": "2026-09-30",
+          "symbol": "X",
+          "v": 1
+        },
+        "fingerprintSource": "note",
+        "frozenAt": null,
+        "mode": "snapshot",
+        "noteId": "9efa3777940c48f792ad601bdcb89a56",
+        "noteTitle": "VPAM plan",
+        "position": 0,
+        "setupTag": "VCP",
+        "symbol": "VPAM",
+        "timeframe": "D",
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 22.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 80,
+          "vol_nweek_low": null
+        }
+      }
+    ],
+    "count": 4,
+    "pending": 0
+  }
+}

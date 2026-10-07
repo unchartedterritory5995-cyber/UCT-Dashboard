@@ -1,0 +1,47 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/1689e0ab6e0e4fa28a284e57bdab0439",
+    "path": "/api/j2/template-gallery/admin/items/1689e0ab6e0e4fa28a284e57bdab0439",
+    "requestBody": {
+      "action": "reject",
+      "note": "Too thin to be useful yet."
+    },
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Alice Trader",
+      "category": "review",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "",
+      "featured": false,
+      "firm": false,
+      "hidden": false,
+      "id": "1689e0ab6e0e4fa28a284e57bdab0439",
+      "listedAt": null,
+      "mine": false,
+      "openReports": 0,
+      "preview": [
+        {
+          "kind": "heading",
+          "text": "Before the breakout"
+        },
+        {
+          "kind": "text",
+          "text": "Is the base at least five weeks long?"
+        },
+        {
+          "kind": "text",
+          "text": "Is volume drying up into the pivot?"
+        }
+      ],
+      "propertyCount": 2,
+      "reviewNote": "Too thin to be useful yet.",
+      "status": "rejected",
+      "title": "Weekly review",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0
+    }
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/plan-grades/trades/pg-planned",
+    "path": "/api/j2/plan-grades/trades/pg-planned",
+    "status": 200
+  },
+  "body": {
+    "candidates": [
+      {
+        "editedAfterEntry": false,
+        "id": "pg-note-plan",
+        "kind": "note",
+        "plan": {
+          "entry": 100.0,
+          "primaryShape": "text",
+          "roles": {
+            "entry": {
+              "shape": "text",
+              "state": "ok",
+              "value": 100.0,
+              "values": []
+            },
+            "shares": {
+              "shape": "text",
+              "state": "ok",
+              "value": 100.0,
+              "values": []
+            },
+            "stop": {
+              "shape": "text",
+              "state": "ok",
+              "value": 96.0,
+              "values": []
+            },
+            "target": {
+              "shape": "text",
+              "state": "ok",
+              "value": 120.0,
+              "values": []
+            }
+          },
+          "setup": null,
+          "shares": 100.0,
+          "side": null,
+          "stop": 96.0,
+          "target": 120.0
+        },
+        "planAsOf": "2026-09-05T12:00:00+00:00",
+        "tier": "window",
+        "title": "PGNV plan"
+      }
+    ],
+    "checks": {
+      "entry": {
+        "actual": 100.5,
+        "chaseR": 0.125,
+        "deltaPct": 0.005,
+        "planned": 100.0,
+        "state": "kept",
+        "tolerance": 1.0
+      },
+      "followedPlan": false,
+      "r": 4.0,
+      "sideMismatch": false,
+      "size": {
+        "actual": 150.0,
+        "deltaPct": 0.5,
+        "planned": 100.0,
+        "state": "missed"
+      },
+      "stop": {
+        "exit": 94.5,
+        "exitVsStopR": -0.375,
+        "limit": 95.0,
+        "planned": 96.0,
+        "state": "missed"
+      },
+      "target": {
+        "exit": 94.5,
+        "hitLine": 119.0,
+        "mfePrice": null,
+        "planned": 120.0,
+        "state": "unknown"
+      }
+    },
+    "closes": 1,
+    "dateOnly": false,
+    "enteredShares": 150.0,
+    "entryDay": "2026-09-10",
+    "labels": [],
+    "plan": {
+      "entry": 100.0,
+      "matchTier": "window",
+      "matchedAt": "2026-10-05T14:30:00+00:00",
+      "noteId": "pg-note-plan",
+      "noteTitle": "PGNV plan",
+      "planAsOf": "2026-09-05T12:00:00+00:00",
+      "primaryShape": "text",
+      "relinkCount": 0,
+      "relinkedAt": null,
+      "roles": {
+        "entry": {
+          "shape": "text",
+          "state": "ok",
+          "value": 100.0,
+          "values": []
+        },
+        "shares": {
+          "shape": "text",
+          "state": "ok",
+          "value": 100.0,
+          "values": []
+        },
+        "stop": {
+          "shape": "text",
+          "state": "ok",
+          "value": 96.0,
+          "values": []
+        },
+        "target": {
+          "shape": "text",
+          "state": "ok",
+          "value": 120.0,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": 100.0,
+      "side": null,
+      "source": "text",
+      "sourceKind": "note",
+      "sourceLabel": "Plan note",
+      "stop": 96.0,
+      "target": 120.0,
+      "verdictId": null,
+      "versionId": "current@2026-09-05T12:00:00+00:00"
+    },
+    "setupChip": null,
+    "side": "Long",
+    "status": "planned",
+    "symbol": "PGNV",
+    "tradeId": "pg-planned",
+    "tradeRef": "id:pg-planned"
+  }
+}

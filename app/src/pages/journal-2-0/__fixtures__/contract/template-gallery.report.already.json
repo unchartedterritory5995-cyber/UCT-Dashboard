@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/report",
+    "path": "/api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/report",
+    "requestBody": {
+      "reason": "spam"
+    },
+    "status": 200
+  },
+  "body": {
+    "already": true,
+    "reported": true
+  }
+}

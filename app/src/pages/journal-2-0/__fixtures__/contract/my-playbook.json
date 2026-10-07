@@ -1,0 +1,1219 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/my-playbook",
+    "path": "/api/j2/my-playbook",
+    "status": 200
+  },
+  "body": {
+    "accountId": null,
+    "asOf": "2026-10-05T14:30:00+00:00",
+    "notesBySetup": {
+      "Breakout": [
+        {
+          "noteId": "pb-note-01",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-02",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-03",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-04",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-05",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-06",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-07",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-08",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-09",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-10",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-11",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        },
+        {
+          "noteId": "pb-note-12",
+          "title": "Pre-trade",
+          "tradeCount": 1
+        }
+      ],
+      "EP": [],
+      "Pullback": []
+    },
+    "patterns": {
+      "caption": "Patterns, not proof",
+      "constants": {
+        "MAX_FINDINGS": 6,
+        "MAX_TRADES": 500,
+        "MIN_MENTIONS": 3,
+        "MIN_NOTED_PER_SIDE": 5
+      },
+      "excludes": "Break-even trades, and notes written or edited after entry, are not read.",
+      "findings": [
+        {
+          "citations": [
+            {
+              "exitDate": "2026-03-04T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-03-03T14:30:00+00:00",
+                  "noteId": "pb-note-10",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Win",
+              "symbol": "PBNV",
+              "tradeId": "pb-059",
+              "tradeRef": "id:pb-059"
+            },
+            {
+              "exitDate": "2026-03-03T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-03-02T14:30:00+00:00",
+                  "noteId": "pb-note-09",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Win",
+              "symbol": "PBNV",
+              "tradeId": "pb-058",
+              "tradeRef": "id:pb-058"
+            },
+            {
+              "exitDate": "2026-03-02T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-03-01T14:30:00+00:00",
+                  "noteId": "pb-note-08",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Win",
+              "symbol": "PBNV",
+              "tradeId": "pb-057",
+              "tradeRef": "id:pb-057"
+            },
+            {
+              "exitDate": "2026-03-01T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-02-28T14:30:00+00:00",
+                  "noteId": "pb-note-07",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Win",
+              "symbol": "PBNV",
+              "tradeId": "pb-056",
+              "tradeRef": "id:pb-056"
+            }
+          ],
+          "kind": "emotion",
+          "leans": "wins",
+          "losses": {
+            "k": 0,
+            "n": 6
+          },
+          "term": "patient",
+          "wins": {
+            "k": 4,
+            "n": 6
+          }
+        },
+        {
+          "citations": [
+            {
+              "exitDate": "2026-02-26T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-02-25T14:30:00+00:00",
+                  "noteId": "pb-note-04",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Loss",
+              "symbol": "PBNV",
+              "tradeId": "pb-053",
+              "tradeRef": "id:pb-053"
+            },
+            {
+              "exitDate": "2026-02-25T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-02-24T14:30:00+00:00",
+                  "noteId": "pb-note-03",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Loss",
+              "symbol": "PBNV",
+              "tradeId": "pb-052",
+              "tradeRef": "id:pb-052"
+            },
+            {
+              "exitDate": "2026-02-24T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-02-23T14:30:00+00:00",
+                  "noteId": "pb-note-02",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Loss",
+              "symbol": "PBNV",
+              "tradeId": "pb-051",
+              "tradeRef": "id:pb-051"
+            },
+            {
+              "exitDate": "2026-02-23T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-02-22T14:30:00+00:00",
+                  "noteId": "pb-note-01",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Loss",
+              "symbol": "PBNV",
+              "tradeId": "pb-050",
+              "tradeRef": "ext:X-PB-50"
+            },
+            {
+              "exitDate": "2026-03-05T19:30:00+00:00",
+              "notes": [
+                {
+                  "asOf": "2026-03-04T14:30:00+00:00",
+                  "noteId": "pb-note-11",
+                  "title": "Pre-trade"
+                }
+              ],
+              "result": "Win",
+              "symbol": "PBNV",
+              "tradeId": "pb-060",
+              "tradeRef": "id:pb-060"
+            }
+          ],
+          "kind": "mistake",
+          "leans": "losses",
+          "losses": {
+            "k": 4,
+            "n": 6
+          },
+          "term": "FOMO",
+          "wins": {
+            "k": 1,
+            "n": 6
+          }
+        }
+      ],
+      "noted": {
+        "losses": 6,
+        "wins": 6
+      },
+      "status": "ok",
+      "tradesRead": 61,
+      "vocabulary": {
+        "source": "standard",
+        "terms": [
+          "confident",
+          "anxious",
+          "greedy",
+          "fearful",
+          "calm",
+          "frustrated",
+          "euphoric",
+          "bored",
+          "disciplined",
+          "impulsive",
+          "patient",
+          "rushed",
+          "focused",
+          "distracted",
+          "revenge-driven",
+          "overtrading",
+          "FOMO",
+          "chasing",
+          "early_exit",
+          "late_entry",
+          "no_stop",
+          "oversized",
+          "countertrend",
+          "revenge",
+          "ignored_thesis",
+          "added_to_loser",
+          "cut_winner",
+          "broke_loss_rule",
+          "broke_size_rule",
+          "broke_checklist",
+          "boredom",
+          "hesitation"
+        ]
+      }
+    },
+    "sample": {
+      "normalFrom": 25,
+      "rangeZ": 1.96,
+      "tooFewBelow": 10,
+      "wording": {
+        "normal": null,
+        "thin": "thin sample",
+        "too_few": "too few to judge"
+      }
+    },
+    "setups": [
+      {
+        "adherence": null,
+        "adherenceCoverage": {
+          "computed": 0,
+          "eligible": 24
+        },
+        "adherenceVsExpectancy": {
+          "adhered": {
+            "expectancy": null,
+            "n": 0
+          },
+          "notAdhered": {
+            "expectancy": null,
+            "n": 0
+          }
+        },
+        "avgR": 0.5,
+        "avgRStat": {
+          "band": "thin",
+          "mean": 0.5,
+          "n": 24,
+          "range": [
+            -0.162,
+            1.162
+          ],
+          "wording": "thin sample"
+        },
+        "beCount": 0,
+        "exitEffCoverage": {
+          "computed": 0,
+          "eligible": 24
+        },
+        "exitEfficiency": null,
+        "expectancy": 50.0,
+        "expectancyR": 0.5,
+        "expectancyStat": {
+          "band": "thin",
+          "mean": 50.0,
+          "n": 24,
+          "range": [
+            -16.193,
+            116.193
+          ],
+          "wording": "thin sample"
+        },
+        "lastFive": [
+          "W",
+          "W",
+          "W",
+          "W",
+          "W"
+        ],
+        "lossCount": 12,
+        "profitFactor": 2.0,
+        "sample": {
+          "band": "thin",
+          "n": 24,
+          "wording": "thin sample"
+        },
+        "setup": "Breakout",
+        "totalPnlDollar": 1200.0,
+        "totalR": 12.0,
+        "tradeCount": 24,
+        "trades": [
+          {
+            "entryDate": "2026-01-02T14:30:00+00:00",
+            "exitDate": "2026-01-02T19:30:00+00:00",
+            "id": "pb-001",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-001"
+          },
+          {
+            "entryDate": "2026-01-03T14:30:00+00:00",
+            "exitDate": "2026-01-03T19:30:00+00:00",
+            "id": "pb-002",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-002"
+          },
+          {
+            "entryDate": "2026-01-04T14:30:00+00:00",
+            "exitDate": "2026-01-04T19:30:00+00:00",
+            "id": "pb-003",
+            "pnlDollar": 150.0,
+            "rMultiple": 1.5,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-003"
+          },
+          {
+            "entryDate": "2026-01-05T14:30:00+00:00",
+            "exitDate": "2026-01-05T19:30:00+00:00",
+            "id": "pb-004",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-004"
+          },
+          {
+            "entryDate": "2026-01-06T14:30:00+00:00",
+            "exitDate": "2026-01-06T19:30:00+00:00",
+            "id": "pb-005",
+            "pnlDollar": 300.0,
+            "rMultiple": 3.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-005"
+          },
+          {
+            "entryDate": "2026-01-07T14:30:00+00:00",
+            "exitDate": "2026-01-07T19:30:00+00:00",
+            "id": "pb-006",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-006"
+          },
+          {
+            "entryDate": "2026-01-08T14:30:00+00:00",
+            "exitDate": "2026-01-08T19:30:00+00:00",
+            "id": "pb-007",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-007"
+          },
+          {
+            "entryDate": "2026-01-09T14:30:00+00:00",
+            "exitDate": "2026-01-09T19:30:00+00:00",
+            "id": "pb-008",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-008"
+          },
+          {
+            "entryDate": "2026-01-10T14:30:00+00:00",
+            "exitDate": "2026-01-10T19:30:00+00:00",
+            "id": "pb-009",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-009"
+          },
+          {
+            "entryDate": "2026-01-11T14:30:00+00:00",
+            "exitDate": "2026-01-11T19:30:00+00:00",
+            "id": "pb-010",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-010"
+          },
+          {
+            "entryDate": "2026-01-12T14:30:00+00:00",
+            "exitDate": "2026-01-12T19:30:00+00:00",
+            "id": "pb-011",
+            "pnlDollar": 250.0,
+            "rMultiple": 2.5,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-011"
+          },
+          {
+            "entryDate": "2026-01-13T14:30:00+00:00",
+            "exitDate": "2026-01-13T19:30:00+00:00",
+            "id": "pb-012",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-012"
+          },
+          {
+            "entryDate": "2026-02-23T14:30:00+00:00",
+            "exitDate": "2026-02-23T19:30:00+00:00",
+            "id": "pb-050",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": "broker",
+            "symbol": "PBNV",
+            "tradeRef": "ext:X-PB-50"
+          },
+          {
+            "entryDate": "2026-02-24T14:30:00+00:00",
+            "exitDate": "2026-02-24T19:30:00+00:00",
+            "id": "pb-051",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-051"
+          },
+          {
+            "entryDate": "2026-02-25T14:30:00+00:00",
+            "exitDate": "2026-02-25T19:30:00+00:00",
+            "id": "pb-052",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-052"
+          },
+          {
+            "entryDate": "2026-02-26T14:30:00+00:00",
+            "exitDate": "2026-02-26T19:30:00+00:00",
+            "id": "pb-053",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-053"
+          },
+          {
+            "entryDate": "2026-02-27T14:30:00+00:00",
+            "exitDate": "2026-02-27T19:30:00+00:00",
+            "id": "pb-054",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-054"
+          },
+          {
+            "entryDate": "2026-02-28T14:30:00+00:00",
+            "exitDate": "2026-02-28T19:30:00+00:00",
+            "id": "pb-055",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-055"
+          },
+          {
+            "entryDate": "2026-03-01T14:30:00+00:00",
+            "exitDate": "2026-03-01T19:30:00+00:00",
+            "id": "pb-056",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-056"
+          },
+          {
+            "entryDate": "2026-03-02T14:30:00+00:00",
+            "exitDate": "2026-03-02T19:30:00+00:00",
+            "id": "pb-057",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-057"
+          },
+          {
+            "entryDate": "2026-03-03T14:30:00+00:00",
+            "exitDate": "2026-03-03T19:30:00+00:00",
+            "id": "pb-058",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-058"
+          },
+          {
+            "entryDate": "2026-03-04T14:30:00+00:00",
+            "exitDate": "2026-03-04T19:30:00+00:00",
+            "id": "pb-059",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-059"
+          },
+          {
+            "entryDate": "2026-03-05T14:30:00+00:00",
+            "exitDate": "2026-03-05T19:30:00+00:00",
+            "id": "pb-060",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-060"
+          },
+          {
+            "entryDate": "2026-03-06T14:30:00+00:00",
+            "exitDate": "2026-03-06T19:30:00+00:00",
+            "id": "pb-061",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-061"
+          }
+        ],
+        "winCount": 12,
+        "winRate": 0.5,
+        "winRateStat": {
+          "band": "thin",
+          "k": 12,
+          "n": 24,
+          "range": [
+            0.314,
+            0.686
+          ],
+          "rate": 0.5,
+          "wording": "thin sample"
+        }
+      },
+      {
+        "adherence": null,
+        "adherenceCoverage": {
+          "computed": 0,
+          "eligible": 25
+        },
+        "adherenceVsExpectancy": {
+          "adhered": {
+            "expectancy": null,
+            "n": 0
+          },
+          "notAdhered": {
+            "expectancy": null,
+            "n": 0
+          }
+        },
+        "avgR": 0.2,
+        "avgRStat": {
+          "band": "normal",
+          "mean": 0.2,
+          "n": 25,
+          "range": null,
+          "wording": null
+        },
+        "beCount": 0,
+        "exitEffCoverage": {
+          "computed": 0,
+          "eligible": 25
+        },
+        "exitEfficiency": null,
+        "expectancy": 20.0,
+        "expectancyR": 0.2,
+        "expectancyStat": {
+          "band": "normal",
+          "mean": 20.0,
+          "n": 25,
+          "range": null,
+          "wording": null
+        },
+        "lastFive": [
+          "W",
+          "W",
+          "L",
+          "L",
+          "L"
+        ],
+        "lossCount": 15,
+        "profitFactor": 1.3333,
+        "sample": {
+          "band": "normal",
+          "n": 25,
+          "wording": null
+        },
+        "setup": "Pullback",
+        "totalPnlDollar": 500.0,
+        "totalR": 5.0,
+        "tradeCount": 25,
+        "trades": [
+          {
+            "entryDate": "2026-01-23T14:30:00+00:00",
+            "exitDate": "2026-01-23T19:30:00+00:00",
+            "id": "pb-022",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-022"
+          },
+          {
+            "entryDate": "2026-01-24T14:30:00+00:00",
+            "exitDate": "2026-01-24T19:30:00+00:00",
+            "id": "pb-023",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-023"
+          },
+          {
+            "entryDate": "2026-01-25T14:30:00+00:00",
+            "exitDate": "2026-01-25T19:30:00+00:00",
+            "id": "pb-024",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-024"
+          },
+          {
+            "entryDate": "2026-01-26T14:30:00+00:00",
+            "exitDate": "2026-01-26T19:30:00+00:00",
+            "id": "pb-025",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-025"
+          },
+          {
+            "entryDate": "2026-01-27T14:30:00+00:00",
+            "exitDate": "2026-01-27T19:30:00+00:00",
+            "id": "pb-026",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-026"
+          },
+          {
+            "entryDate": "2026-01-28T14:30:00+00:00",
+            "exitDate": "2026-01-28T19:30:00+00:00",
+            "id": "pb-027",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-027"
+          },
+          {
+            "entryDate": "2026-02-01T14:30:00+00:00",
+            "exitDate": "2026-02-01T19:30:00+00:00",
+            "id": "pb-028",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-028"
+          },
+          {
+            "entryDate": "2026-02-02T14:30:00+00:00",
+            "exitDate": "2026-02-02T19:30:00+00:00",
+            "id": "pb-029",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-029"
+          },
+          {
+            "entryDate": "2026-02-03T14:30:00+00:00",
+            "exitDate": "2026-02-03T19:30:00+00:00",
+            "id": "pb-030",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-030"
+          },
+          {
+            "entryDate": "2026-02-04T14:30:00+00:00",
+            "exitDate": "2026-02-04T19:30:00+00:00",
+            "id": "pb-031",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-031"
+          },
+          {
+            "entryDate": "2026-02-05T14:30:00+00:00",
+            "exitDate": "2026-02-05T19:30:00+00:00",
+            "id": "pb-032",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-032"
+          },
+          {
+            "entryDate": "2026-02-06T14:30:00+00:00",
+            "exitDate": "2026-02-06T19:30:00+00:00",
+            "id": "pb-033",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-033"
+          },
+          {
+            "entryDate": "2026-02-07T14:30:00+00:00",
+            "exitDate": "2026-02-07T19:30:00+00:00",
+            "id": "pb-034",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-034"
+          },
+          {
+            "entryDate": "2026-02-08T14:30:00+00:00",
+            "exitDate": "2026-02-08T19:30:00+00:00",
+            "id": "pb-035",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-035"
+          },
+          {
+            "entryDate": "2026-02-09T14:30:00+00:00",
+            "exitDate": "2026-02-09T19:30:00+00:00",
+            "id": "pb-036",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-036"
+          },
+          {
+            "entryDate": "2026-02-10T14:30:00+00:00",
+            "exitDate": "2026-02-10T19:30:00+00:00",
+            "id": "pb-037",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-037"
+          },
+          {
+            "entryDate": "2026-02-11T14:30:00+00:00",
+            "exitDate": "2026-02-11T19:30:00+00:00",
+            "id": "pb-038",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-038"
+          },
+          {
+            "entryDate": "2026-02-12T14:30:00+00:00",
+            "exitDate": "2026-02-12T19:30:00+00:00",
+            "id": "pb-039",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-039"
+          },
+          {
+            "entryDate": "2026-02-13T14:30:00+00:00",
+            "exitDate": "2026-02-13T19:30:00+00:00",
+            "id": "pb-040",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-040"
+          },
+          {
+            "entryDate": "2026-02-14T14:30:00+00:00",
+            "exitDate": "2026-02-14T19:30:00+00:00",
+            "id": "pb-041",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-041"
+          },
+          {
+            "entryDate": "2026-02-15T14:30:00+00:00",
+            "exitDate": "2026-02-15T19:30:00+00:00",
+            "id": "pb-042",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-042"
+          },
+          {
+            "entryDate": "2026-02-16T14:30:00+00:00",
+            "exitDate": "2026-02-16T19:30:00+00:00",
+            "id": "pb-043",
+            "pnlDollar": 200.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-043"
+          },
+          {
+            "entryDate": "2026-02-17T14:30:00+00:00",
+            "exitDate": "2026-02-17T19:30:00+00:00",
+            "id": "pb-044",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-044"
+          },
+          {
+            "entryDate": "2026-02-18T14:30:00+00:00",
+            "exitDate": "2026-02-18T19:30:00+00:00",
+            "id": "pb-045",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-045"
+          },
+          {
+            "entryDate": "2026-02-19T14:30:00+00:00",
+            "exitDate": "2026-02-19T19:30:00+00:00",
+            "id": "pb-046",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-046"
+          }
+        ],
+        "winCount": 10,
+        "winRate": 0.4,
+        "winRateStat": {
+          "band": "normal",
+          "k": 10,
+          "n": 25,
+          "range": null,
+          "rate": 0.4,
+          "wording": null
+        }
+      },
+      {
+        "adherence": null,
+        "adherenceCoverage": {
+          "computed": 0,
+          "eligible": 9
+        },
+        "adherenceVsExpectancy": {
+          "adhered": {
+            "expectancy": null,
+            "n": 0
+          },
+          "notAdhered": {
+            "expectancy": null,
+            "n": 0
+          }
+        },
+        "avgR": 0.3333,
+        "avgRStat": {
+          "band": "too_few",
+          "mean": 0.3333,
+          "n": 9,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "beCount": 0,
+        "exitEffCoverage": {
+          "computed": 0,
+          "eligible": 9
+        },
+        "exitEfficiency": null,
+        "expectancy": 33.33,
+        "expectancyR": 0.3333,
+        "expectancyStat": {
+          "band": "too_few",
+          "mean": 33.3333,
+          "n": 9,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "lastFive": [
+          "W",
+          "W",
+          "L",
+          "W",
+          "W"
+        ],
+        "lossCount": 3,
+        "profitFactor": 2.0,
+        "sample": {
+          "band": "too_few",
+          "n": 9,
+          "wording": "too few to judge"
+        },
+        "setup": "EP",
+        "totalPnlDollar": 300.0,
+        "totalR": 3.0,
+        "tradeCount": 9,
+        "trades": [
+          {
+            "entryDate": "2026-01-14T14:30:00+00:00",
+            "exitDate": "2026-01-14T19:30:00+00:00",
+            "id": "pb-013",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-013"
+          },
+          {
+            "entryDate": "2026-01-15T14:30:00+00:00",
+            "exitDate": "2026-01-15T19:30:00+00:00",
+            "id": "pb-014",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-014"
+          },
+          {
+            "entryDate": "2026-01-16T14:30:00+00:00",
+            "exitDate": "2026-01-16T19:30:00+00:00",
+            "id": "pb-015",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-015"
+          },
+          {
+            "entryDate": "2026-01-17T14:30:00+00:00",
+            "exitDate": "2026-01-17T19:30:00+00:00",
+            "id": "pb-016",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-016"
+          },
+          {
+            "entryDate": "2026-01-18T14:30:00+00:00",
+            "exitDate": "2026-01-18T19:30:00+00:00",
+            "id": "pb-017",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-017"
+          },
+          {
+            "entryDate": "2026-01-19T14:30:00+00:00",
+            "exitDate": "2026-01-19T19:30:00+00:00",
+            "id": "pb-018",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-018"
+          },
+          {
+            "entryDate": "2026-01-20T14:30:00+00:00",
+            "exitDate": "2026-01-20T19:30:00+00:00",
+            "id": "pb-019",
+            "pnlDollar": -100.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-019"
+          },
+          {
+            "entryDate": "2026-01-21T14:30:00+00:00",
+            "exitDate": "2026-01-21T19:30:00+00:00",
+            "id": "pb-020",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-020"
+          },
+          {
+            "entryDate": "2026-01-22T14:30:00+00:00",
+            "exitDate": "2026-01-22T19:30:00+00:00",
+            "id": "pb-021",
+            "pnlDollar": 100.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "side": "Long",
+            "source": null,
+            "symbol": "PBNV",
+            "tradeRef": "id:pb-021"
+          }
+        ],
+        "winCount": 6,
+        "winRate": 0.6666666666666666,
+        "winRateStat": {
+          "band": "too_few",
+          "k": 6,
+          "n": 9,
+          "range": null,
+          "rate": 0.6667,
+          "wording": "too few to judge"
+        }
+      }
+    ],
+    "untagged": {
+      "count": 3
+    }
+  }
+}

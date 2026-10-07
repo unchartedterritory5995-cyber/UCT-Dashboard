@@ -1,0 +1,26 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/use",
+    "path": "/api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/use",
+    "status": 200
+  },
+  "body": {
+    "properties": {
+      "added": [
+        "Setup"
+      ],
+      "existing": [
+        "Thesis Status"
+      ],
+      "skipped": []
+    },
+    "template": {
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "id": "5897d8b902f14fb9b8e7a6014493c600",
+      "name": "Breakout checklist",
+      "title": "Breakout checklist",
+      "updatedAt": "2026-10-05T14:30:00+00:00"
+    }
+  }
+}

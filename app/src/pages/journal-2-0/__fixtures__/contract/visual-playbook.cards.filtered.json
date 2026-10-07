@@ -1,0 +1,138 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/cards",
+    "note": "One setup, RS rank 90 and up: the slice and what the filter left out.",
+    "path": "/api/j2/notebook-visual-playbook/cards?setup=VCP&range=rs_rank:90:",
+    "status": 200
+  },
+  "body": {
+    "cards": [
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vp-a",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vp-a.png",
+          "w": 800
+        },
+        "noteId": "9399ccb999044f71a088fab6a52216b6",
+        "noteTitle": "VPNV plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VPNV",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VPNV",
+            "tradeId": "vp-win",
+            "tradeRef": "ext:X-VPNV-1"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 12.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 95,
+          "vol_nweek_low": null
+        }
+      }
+    ],
+    "count": 1,
+    "excludedMissing": {},
+    "facets": {
+      "setups": {
+        "Bull Flag": 1,
+        "VCP": 2
+      },
+      "timeframes": {
+        "D": 2,
+        "W": 1
+      }
+    },
+    "pending": 0,
+    "rangeFields": [
+      "adr_pct",
+      "pct_vs_sma10",
+      "pct_vs_sma20",
+      "pct_vs_sma50",
+      "pct_vs_sma200",
+      "rs_rank",
+      "base_length_bars",
+      "base_depth_pct",
+      "pullback_depth_pct",
+      "vol_nweek_low",
+      "close_cv_pct",
+      "pole_pct"
+    ],
+    "regime": {
+      "available": true,
+      "excludedUnknown": 0,
+      "facets": {
+        "amber": 0,
+        "green": 0,
+        "orange": 0,
+        "red": 0
+      },
+      "selected": null,
+      "source": "entry_context (13E, at_entry rows only)",
+      "unknown": 3,
+      "unknownReasons": {
+        "captured_late": "the context was frozen after the entry day, so it is not the market at the fill",
+        "no_trade": "no trade is linked to this chart, so there is no entry day",
+        "not_captured": "no market context was frozen on this trade's entry day",
+        "regime_missing": "the frozen context has no regime value"
+      },
+      "values": [
+        "green",
+        "amber",
+        "orange",
+        "red"
+      ]
+    },
+    "sampleSizeSource": "adapter:plan_grading (swap for 13B sample_size.py)",
+    "stats": {
+      "avgR": 2.0,
+      "avgRRange": null,
+      "band": "too_few",
+      "breakeven": 0,
+      "charts": 1,
+      "losses": 0,
+      "n": 1,
+      "rTrades": 1,
+      "totalPnlDollar": 800.0,
+      "trades": 1,
+      "unlinkedCharts": 0,
+      "winRate": 1.0,
+      "winRateRange": null,
+      "wins": 1,
+      "wording": "too few to judge"
+    }
+  }
+}

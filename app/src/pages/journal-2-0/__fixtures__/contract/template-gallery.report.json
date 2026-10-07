@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/report",
+    "path": "/api/j2/template-gallery/f2cc8eec9e274139b9688fbef7aa99ff/report",
+    "requestBody": {
+      "note": "The second line is cut off.",
+      "reason": "broken"
+    },
+    "status": 200
+  },
+  "body": {
+    "already": false,
+    "reported": true
+  }
+}

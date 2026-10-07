@@ -1,0 +1,98 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/review-drafts/monthly",
+    "path": "/api/j2/review-drafts/monthly?month=2026-09&accountId=acct-review",
+    "status": 200
+  },
+  "body": {
+    "aggregates": {
+      "avg_r": null,
+      "bes": 0,
+      "losses": 0,
+      "net_pnl_dollar": 0.0,
+      "net_pnl_pct": 0.0,
+      "process_score_avg": null,
+      "profit_factor": null,
+      "trade_count": 0,
+      "win_rate": null,
+      "wins": 0
+    },
+    "baseline": {
+      "avgNetPnlPerTrade": null,
+      "avgR": null,
+      "n": 0
+    },
+    "bestTrade": null,
+    "compassText": null,
+    "discipline": {
+      "entry": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "needsPickCount": 0,
+      "planRate": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "plannedCount": 0,
+      "size": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "stop": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "targetHitRate": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "unplannedCount": 0
+    },
+    "leaks": [],
+    "links": {
+      "plans": [],
+      "resurfaced": [],
+      "reviews": []
+    },
+    "period": "monthly",
+    "range": {
+      "end": "2026-09-30",
+      "start": "2026-09-01"
+    },
+    "sample": {
+      "normalFrom": 25,
+      "rangeZ": 1.96,
+      "tooFewBelow": 10,
+      "wording": {
+        "normal": null,
+        "thin": "thin sample",
+        "too_few": "too few to judge"
+      }
+    },
+    "setupChanges": [],
+    "tradeCount": 0,
+    "worstTrade": null
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery",
+    "requestBody": {
+      "category": "trade_plan",
+      "description": "What I check before a breakout.",
+      "templateId": "tg-template",
+      "title": "Breakout checklist"
+    },
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Alice Trader",
+      "category": "trade_plan",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "What I check before a breakout.",
+      "featured": false,
+      "firm": false,
+      "hidden": false,
+      "id": "f2cc8eec9e274139b9688fbef7aa99ff",
+      "listedAt": null,
+      "mine": true,
+      "preview": [
+        {
+          "kind": "heading",
+          "text": "Before the breakout"
+        },
+        {
+          "kind": "text",
+          "text": "Is the base at least five weeks long?"
+        },
+        {
+          "kind": "text",
+          "text": "Is volume drying up into the pivot?"
+        }
+      ],
+      "propertyCount": 2,
+      "reviewNote": "",
+      "status": "pending",
+      "title": "Breakout checklist",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0
+    }
+  }
+}

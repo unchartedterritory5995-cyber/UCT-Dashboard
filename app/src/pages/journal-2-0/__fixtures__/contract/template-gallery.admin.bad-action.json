@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/f2cc8eec9e274139b9688fbef7aa99ff",
+    "path": "/api/j2/template-gallery/admin/items/f2cc8eec9e274139b9688fbef7aa99ff",
+    "requestBody": {
+      "action": "explode"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Unknown review action."
+  }
+}

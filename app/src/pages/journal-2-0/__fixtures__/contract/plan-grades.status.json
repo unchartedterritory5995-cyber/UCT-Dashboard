@@ -1,0 +1,28 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/plan-grades/status",
+    "path": "/api/j2/plan-grades/status?ids=pg-planned,pg-pick,pg-unplanned,pg-placeholder,nope",
+    "status": 200
+  },
+  "body": {
+    "statuses": {
+      "pg-pick": {
+        "status": "needs_pick",
+        "tradeRef": "id:pg-pick"
+      },
+      "pg-placeholder": {
+        "status": "planned",
+        "tradeRef": "ext:X-PGPH-1"
+      },
+      "pg-planned": {
+        "status": "planned",
+        "tradeRef": "id:pg-planned"
+      },
+      "pg-unplanned": {
+        "status": "unplanned",
+        "tradeRef": "id:pg-unplanned"
+      }
+    }
+  }
+}

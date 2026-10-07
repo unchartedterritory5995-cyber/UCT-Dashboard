@@ -1,0 +1,79 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": [
+        {
+          "id": "d-CPNV-entry",
+          "price": 101.5,
+          "role": "entry",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-stop",
+          "price": 97.25,
+          "role": "stop",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-target",
+          "price": 115.0,
+          "role": "target",
+          "type": "horizontal"
+        }
+      ],
+      "symbol": "CPNV"
+    },
+    "status": 200
+  },
+  "body": {
+    "account": {
+      "accountId": "acct-chart",
+      "accountSize": 100000.0,
+      "riskPct": 1.0
+    },
+    "compass": {
+      "ok": true,
+      "regime": "GREEN",
+      "risk_pct": 1.0,
+      "shares": 235,
+      "sizedBy": "compass"
+    },
+    "plan": {
+      "entry": 101.5,
+      "roles": {
+        "entry": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 101.5,
+          "values": []
+        },
+        "shares": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "stop": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 97.25,
+          "values": []
+        },
+        "target": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 115.0,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": null,
+      "side": "long",
+      "stop": 97.25,
+      "target": 115.0
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery",
+    "note": "The author's own submissions while they wait for review.",
+    "path": "/api/j2/template-gallery?section=mine",
+    "status": 200
+  },
+  "body": {
+    "templates": [
+      {
+        "author": "Alice Trader",
+        "category": "review",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "",
+        "featured": false,
+        "firm": false,
+        "hidden": false,
+        "id": "1689e0ab6e0e4fa28a284e57bdab0439",
+        "listedAt": null,
+        "mine": true,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reviewNote": "",
+        "status": "pending",
+        "title": "Weekly review",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "Alice Trader",
+        "category": "trade_plan",
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "description": "What I check before a breakout.",
+        "featured": false,
+        "firm": false,
+        "hidden": false,
+        "id": "f2cc8eec9e274139b9688fbef7aa99ff",
+        "listedAt": null,
+        "mine": true,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "reviewNote": "",
+        "status": "pending",
+        "title": "Breakout checklist",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      }
+    ],
+    "viewer": {
+      "admin": false
+    }
+  }
+}

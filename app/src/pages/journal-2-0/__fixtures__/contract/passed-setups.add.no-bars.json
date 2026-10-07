@@ -1,0 +1,68 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "note": "A name UCT holds no daily bars for: every horizon is a labelled gap.",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2026-08-31",
+      "symbol": "PSZZ"
+    },
+    "status": 200
+  },
+  "body": {
+    "deduped": false,
+    "item": {
+      "baseClose": null,
+      "baseDate": null,
+      "id": "38876a94117248abbaac0124a9c99817",
+      "noBarsLabel": "No stored daily bars for this name on or before the save",
+      "outcomes": [
+        {
+          "key": "r1",
+          "label": "No stored daily bars for this name on or before the save",
+          "missing": "no_bars",
+          "pct": null,
+          "sessions": 1
+        },
+        {
+          "key": "r5",
+          "label": "No stored daily bars for this name on or before the save",
+          "missing": "no_bars",
+          "pct": null,
+          "sessions": 5
+        },
+        {
+          "key": "r10",
+          "label": "No stored daily bars for this name on or before the save",
+          "missing": "no_bars",
+          "pct": null,
+          "sessions": 10
+        },
+        {
+          "key": "r20",
+          "label": "No stored daily bars for this name on or before the save",
+          "missing": "no_bars",
+          "pct": null,
+          "sessions": 20
+        },
+        {
+          "best": true,
+          "key": "best20",
+          "label": "No stored daily bars for this name on or before the save",
+          "missing": "no_bars",
+          "pct": null,
+          "sessions": 20
+        }
+      ],
+      "savedAt": "2026-08-31T20:00:00+00:00",
+      "savedDay": "2026-08-31",
+      "sessionsStored": 0,
+      "source": "manual",
+      "sourceRef": null,
+      "status": "no_bars",
+      "symbol": "PSZZ",
+      "tradedOn": null
+    }
+  }
+}

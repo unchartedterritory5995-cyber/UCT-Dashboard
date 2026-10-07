@@ -1,0 +1,53 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/earnings-prep/soon",
+    "path": "/api/j2/earnings-prep/soon",
+    "status": 200
+  },
+  "body": {
+    "asOf": "2026-10-05T14:30:00+00:00",
+    "items": [
+      {
+        "date": "2026-10-05",
+        "daysAway": 0,
+        "prepNote": {
+          "createdAt": "2026-10-05T14:30:00+00:00",
+          "id": "9c3ac6754aa74e838e208237c2be46ef",
+          "title": "Earnings Prep — EPAM"
+        },
+        "sources": [
+          "watchlist"
+        ],
+        "symbol": "EPAM",
+        "timing": "bmo"
+      },
+      {
+        "date": "2026-10-07",
+        "daysAway": 2,
+        "prepNote": null,
+        "sources": [
+          "positions",
+          "watchlist"
+        ],
+        "symbol": "EPNV",
+        "timing": "amc"
+      },
+      {
+        "date": "2026-10-12",
+        "daysAway": 7,
+        "prepNote": null,
+        "sources": [
+          "flagged"
+        ],
+        "symbol": "EPCR",
+        "timing": null
+      }
+    ],
+    "partial": false,
+    "source": "UCT earnings calendar",
+    "today": "2026-10-05",
+    "watched": 3,
+    "windowDays": 7
+  }
+}

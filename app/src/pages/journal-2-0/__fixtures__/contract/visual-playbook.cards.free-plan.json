@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/cards",
+    "path": "/api/j2/notebook-visual-playbook/cards",
+    "status": 402
+  },
+  "body": {
+    "detail": "The visual playbook requires a paid plan"
+  }
+}

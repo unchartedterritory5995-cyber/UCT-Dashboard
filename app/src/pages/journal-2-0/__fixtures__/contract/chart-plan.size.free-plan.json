@@ -1,0 +1,77 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "note": "A free member is sized with the starter formulas: Compass is not asked.",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": [
+        {
+          "id": "d-CPNV-entry",
+          "price": 101.5,
+          "role": "entry",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-stop",
+          "price": 97.25,
+          "role": "stop",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-target",
+          "price": 115.0,
+          "role": "target",
+          "type": "horizontal"
+        }
+      ],
+      "symbol": "CPNV"
+    },
+    "status": 200
+  },
+  "body": {
+    "account": {
+      "accountId": "acct-chart",
+      "accountSize": 100000.0,
+      "riskPct": 1.0
+    },
+    "compass": {
+      "ok": false,
+      "reason": "Compass sizing needs a paid plan"
+    },
+    "plan": {
+      "entry": 101.5,
+      "roles": {
+        "entry": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 101.5,
+          "values": []
+        },
+        "shares": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "stop": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 97.25,
+          "values": []
+        },
+        "target": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 115.0,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": null,
+      "side": "long",
+      "stop": 97.25,
+      "target": 115.0
+    }
+  }
+}

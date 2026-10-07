@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/chart-plan/alerts",
+    "note": "Another member's note answers the one 404.",
+    "path": "/api/j2/chart-plan/alerts",
+    "requestBody": {
+      "alert_type": "line",
+      "direction": "below",
+      "drawingId": "d-CPNV-stop",
+      "embedId": "cp-emb",
+      "noteId": "546e09e1f51f49d7a0a3d768b54ee830",
+      "target_price": 97.25
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "That chart was not found in this note."
+  }
+}

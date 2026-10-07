@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/plan-grades/discipline",
+    "path": "/api/j2/plan-grades/discipline",
+    "status": 401
+  },
+  "body": {
+    "detail": "Not authenticated"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/chart-plan/alerts",
+    "path": "/api/j2/chart-plan/alerts",
+    "requestBody": {
+      "alert_type": "line",
+      "direction": "below",
+      "drawingId": "d-CPNV-stop",
+      "embedId": "cp-emb",
+      "noteId": "393164190b984b2b87b8ed6e48502c2b",
+      "target_price": "abc"
+    },
+    "status": 422
+  },
+  "body": {
+    "detail": "That request could not be read."
+  }
+}

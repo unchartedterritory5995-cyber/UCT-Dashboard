@@ -1,0 +1,287 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/review-drafts/daily",
+    "path": "/api/j2/review-drafts/daily?day=2026-09-30&accountId=acct-review",
+    "status": 200
+  },
+  "body": {
+    "aggregates": {
+      "avg_r": 0.16666666666666666,
+      "bes": 0,
+      "losses": 2,
+      "net_pnl_dollar": -100.0,
+      "net_pnl_pct": -0.0111,
+      "process_score_avg": null,
+      "profit_factor": 0.8571428571428571,
+      "trade_count": 3,
+      "win_rate": 0.3333333333333333,
+      "wins": 1
+    },
+    "baseline": {
+      "avgNetPnlPerTrade": -34.33,
+      "avgR": 0.1667,
+      "n": 3
+    },
+    "bestTrade": {
+      "entryDate": "2026-09-30T14:00:00+00:00",
+      "entryPrice": 100.0,
+      "exitDate": "2026-09-30T15:00:00+00:00",
+      "exitPrice": 106.0,
+      "id": "rd-win",
+      "pnlDollar": 599.0,
+      "rMultiple": 2.0,
+      "side": "Long",
+      "symbol": "RDWN",
+      "tradeRef": "id:rd-win"
+    },
+    "compassText": null,
+    "discipline": {
+      "entry": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "needsPickCount": 0,
+      "planRate": {
+        "band": "too_few",
+        "k": 0,
+        "n": 3,
+        "range": null,
+        "rate": 0.0,
+        "wording": "too few to judge"
+      },
+      "plannedCount": 0,
+      "size": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "stop": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "targetHitRate": {
+        "band": "too_few",
+        "k": 0,
+        "n": 0,
+        "range": null,
+        "rate": null,
+        "wording": "too few to judge"
+      },
+      "unplannedCount": 3
+    },
+    "leaks": [
+      {
+        "detail": {
+          "flags": [
+            {
+              "minutesApart": 15.0,
+              "pairKey": "id:rd-loss->id:rd-reentry",
+              "prevTradeRef": "id:rd-loss",
+              "symbol": "RDLS",
+              "tradeRef": "id:rd-reentry"
+            }
+          ],
+          "timeComponentCoverage": {
+            "timed": 3,
+            "total": 3
+          }
+        },
+        "dollarImpact": {
+          "avgR": -0.67,
+          "baselineAvgNetPnlPerTrade": -34.33,
+          "baselineAvgR": 0.1667,
+          "netPnl": -201.0
+        },
+        "kind": "revenge_reentry",
+        "label": "Revenge re-entries",
+        "sample": {
+          "band": "too_few",
+          "mean": -0.67,
+          "n": 1,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "trades": [
+          {
+            "exitDate": "2026-09-30T14:15:00+00:00",
+            "id": "rd-reentry",
+            "pnlDollar": -201.0,
+            "rMultiple": -0.67,
+            "symbol": "RDLS",
+            "tradeRef": "id:rd-reentry"
+          }
+        ]
+      },
+      {
+        "detail": {
+          "hourEt": 9,
+          "hourLabel": "9:00 AM-10:00 AM ET"
+        },
+        "dollarImpact": {
+          "avgR": -0.75,
+          "baselineAvgNetPnlPerTrade": -34.33,
+          "baselineAvgR": 0.1667,
+          "netPnl": -702.0
+        },
+        "kind": "weak_time_window",
+        "label": "A weak time window",
+        "sample": {
+          "band": "too_few",
+          "mean": -0.75,
+          "n": 2,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "trades": [
+          {
+            "exitDate": "2026-09-30T13:30:00+00:00",
+            "id": "rd-loss",
+            "pnlDollar": -501.0,
+            "rMultiple": -0.83,
+            "symbol": "RDLS",
+            "tradeRef": "id:rd-loss"
+          },
+          {
+            "exitDate": "2026-09-30T14:15:00+00:00",
+            "id": "rd-reentry",
+            "pnlDollar": -201.0,
+            "rMultiple": -0.67,
+            "symbol": "RDLS",
+            "tradeRef": "id:rd-reentry"
+          }
+        ]
+      },
+      {
+        "detail": {},
+        "dollarImpact": {
+          "avgR": 0.1667,
+          "baselineAvgNetPnlPerTrade": -34.33,
+          "baselineAvgR": 0.1667,
+          "netPnl": -103.0
+        },
+        "kind": "unplanned_trades",
+        "label": "Unplanned trades",
+        "sample": {
+          "band": "too_few",
+          "mean": 0.1667,
+          "n": 3,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "trades": [
+          {
+            "exitDate": "2026-09-30T13:30:00+00:00",
+            "id": "rd-loss",
+            "pnlDollar": -501.0,
+            "rMultiple": -0.83,
+            "symbol": "RDLS",
+            "tradeRef": "id:rd-loss"
+          },
+          {
+            "exitDate": "2026-09-30T14:15:00+00:00",
+            "id": "rd-reentry",
+            "pnlDollar": -201.0,
+            "rMultiple": -0.67,
+            "symbol": "RDLS",
+            "tradeRef": "id:rd-reentry"
+          },
+          {
+            "exitDate": "2026-09-30T15:00:00+00:00",
+            "id": "rd-win",
+            "pnlDollar": 599.0,
+            "rMultiple": 2.0,
+            "symbol": "RDWN",
+            "tradeRef": "id:rd-win"
+          }
+        ]
+      }
+    ],
+    "links": {
+      "plans": [],
+      "resurfaced": [],
+      "reviews": []
+    },
+    "period": "daily",
+    "range": {
+      "end": "2026-09-30",
+      "start": "2026-09-30"
+    },
+    "sample": {
+      "normalFrom": 25,
+      "rangeZ": 1.96,
+      "tooFewBelow": 10,
+      "wording": {
+        "normal": null,
+        "thin": "thin sample",
+        "too_few": "too few to judge"
+      }
+    },
+    "setupChanges": [
+      {
+        "allTimeAvgR": -0.75,
+        "allTimeAvgRStat": {
+          "band": "too_few",
+          "mean": -0.75,
+          "n": 2,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "delta": 0.0,
+        "periodAvgRStat": {
+          "band": "too_few",
+          "mean": -0.75,
+          "n": 2,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "periodTradeCount": 2,
+        "setup": "Pullback"
+      },
+      {
+        "allTimeAvgR": 2.0,
+        "allTimeAvgRStat": {
+          "band": "too_few",
+          "mean": 2.0,
+          "n": 2,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "delta": 0.0,
+        "periodAvgRStat": {
+          "band": "too_few",
+          "mean": 2.0,
+          "n": 1,
+          "range": null,
+          "wording": "too few to judge"
+        },
+        "periodTradeCount": 1,
+        "setup": "Breakout"
+      }
+    ],
+    "tradeCount": 3,
+    "worstTrade": {
+      "entryDate": "2026-09-30T13:00:00+00:00",
+      "entryPrice": 100.0,
+      "exitDate": "2026-09-30T13:30:00+00:00",
+      "exitPrice": 95.0,
+      "id": "rd-loss",
+      "pnlDollar": -501.0,
+      "rMultiple": -0.83,
+      "side": "Long",
+      "symbol": "RDLS",
+      "tradeRef": "id:rd-loss"
+    }
+  }
+}

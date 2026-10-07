@@ -1,0 +1,48 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery",
+    "requestBody": {
+      "category": "review",
+      "description": "",
+      "templateId": "tg-second",
+      "title": "Weekly review"
+    },
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Alice Trader",
+      "category": "review",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "",
+      "featured": false,
+      "firm": false,
+      "hidden": false,
+      "id": "1689e0ab6e0e4fa28a284e57bdab0439",
+      "listedAt": null,
+      "mine": true,
+      "preview": [
+        {
+          "kind": "heading",
+          "text": "Before the breakout"
+        },
+        {
+          "kind": "text",
+          "text": "Is the base at least five weeks long?"
+        },
+        {
+          "kind": "text",
+          "text": "Is volume drying up into the pivot?"
+        }
+      ],
+      "propertyCount": 2,
+      "reviewNote": "",
+      "status": "pending",
+      "title": "Weekly review",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0
+    }
+  }
+}
