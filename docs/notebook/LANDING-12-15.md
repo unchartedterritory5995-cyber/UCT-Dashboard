@@ -520,13 +520,14 @@ In other workstreams' files:
 | `test_shared_state_landmines.py` | import-time binds in `test_discord_render_goldens.py`, `test_mobile_audit_route_validity.py`, `test_oi44_loop_blockers_gate.py`, `test_w8_accuracy_audit.py` | Discord render; mobile audit; Terminal; wave 8 audit |
 | `test_auth_surface_reads.py`, `test_open_reads_gate.py`, `test_rate_limit_policy.py` (5) | undeclared routes under `/api/ltr`, `/api/marketcap`, `/live-trading-room`, `/api/artifact-versions`, `/api/exports`, `/api/options`, `/api/options-screener`, `/api/terminal`, `/api/pine`, `/api/instruments` | Live trading room; Market cap; Terminal; Options; Pine |
 
-Notebook-owned, and still red:
+Notebook-owned: **none remain.** Two more were found while sorting this list, both red on master
+as well, and both are fixed (`tests/test_parity_scorecard.py`, `test_notebook_bridges_pin_the_root.py`):
 
-| Test | What it is | Why it is not fixed here |
+| Was red | What it was | Fix |
 |---|---|---|
-| `test_notebook_bridges_pin_the_root.py` | `tools/notebook_w11b_scale.py:69` sets `NOTEBOOK_FORMULAS_ENABLED` for its own run | It is a Notebook tool (wave 11), red on master. It can take the same named exemption the fixture tool got. Not done without a ruling: it changes what the rail excuses |
-| `test_shared_state_landmines.py`, two of its six lines | `tests/test_parity_scorecard.py:59` and `:64` bind two tool modules into `sys.modules` at import | A Notebook test (wave 9), red on master. The fix is a fixture that installs and removes the bind. Not done here: untouched by this landing and needs its own check |
+| `test_shared_state_landmines.py`, two of its six lines | `tests/test_parity_scorecard.py` bound two tool modules into `sys.modules` at import and left them there | The tools are loaded by a helper that binds the name only while the module body runs, then removes it. The scorecard tests pass; the landmine rail now names only the four files of other workstreams |
+| `test_notebook_bridges_pin_the_root.py` | `tools/notebook_w11b_scale.py:69` (wave 11) switches one capability flag on for its own run | It takes the same named exemption the fixture tool has, with its reason. The rail is fully green |
 
-So after the trade canvas fix two Notebook-owned reds remain, both already on master and neither
-touched by this landing. They are listed, not hidden.
-
+Run together: `tests/test_parity_scorecard.py`, `tests/test_notebook_bridges_pin_the_root.py`,
+`tests/test_shared_state_landmines.py`: 1 failed, 62 passed. The one failure is the landmine
+rail on the four files listed in the table above.

@@ -193,6 +193,10 @@ ENV_WRITES_AFTER_THE_CENSUS = {
         "per run and switches the Notebook capability flags on and off to record each route's "
         "answer both ways; every write is undone when the run ends, and the run fails if the "
         "shared-root tripwire recorded anything"),
+    "notebook_w11b_scale.py": (
+        "after `import conftest` has pinned every data path, it switches ONE capability on for its "
+        "own process (NOTEBOOK_FORMULAS_ENABLED, the gate under test) before importing the code "
+        "that reads it; a flag, never a data path, and the process ends with the run"),
 }
 _BY_HAND = "sets an environment variable by hand"
 
