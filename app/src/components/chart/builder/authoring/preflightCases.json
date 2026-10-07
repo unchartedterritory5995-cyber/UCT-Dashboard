@@ -1,0 +1,252 @@
+{
+  "description": "SLICE 2 - the pre-flight's pinned verdicts, asserted IDENTICALLY by tests/test_conversation_preflight.py and authoring/preflight.test.js. gate null = NOT intercepted (the model handles it).",
+  "cases": [
+    {
+      "message": "Can it compare AAPL with SPY?",
+      "chart": {
+        "sym": "XRPN",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "compare AAPL to SPY",
+      "chart": null,
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "use SPY",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "use $SPY",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "Plot the RSI of QQQ instead",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "how does it do relative to SPY",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "Can I compare it against QQQ?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-symbol"
+    },
+    {
+      "message": "use AAPL",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "use SPY",
+      "chart": null,
+      "gate": null
+    },
+    {
+      "message": "Can this use another symbol?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "What's the difference between EMA and SMA here?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "Use EMA instead of SMA",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "compare the EMA vs the SMA",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "RSI above 70 on RTH only",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5m"
+      },
+      "gate": null
+    },
+    {
+      "message": "Make it 50",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "What does this indicator do?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "on the 5 minute timeframe",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-timeframe"
+    },
+    {
+      "message": "use weekly RSI while chart is daily",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-timeframe"
+    },
+    {
+      "message": "show the 15-minute close",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-timeframe"
+    },
+    {
+      "message": "use the hourly chart",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-timeframe"
+    },
+    {
+      "message": "switch to the 15 minute bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:other-timeframe"
+    },
+    {
+      "message": "on the 5 minute timeframe",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5m"
+      },
+      "gate": null
+    },
+    {
+      "message": "use weekly RSI",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "1W"
+      },
+      "gate": null
+    },
+    {
+      "message": "use weekly RSI",
+      "chart": null,
+      "gate": null
+    },
+    {
+      "message": "a 20-day EMA",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "14 day RSI above 70",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "Does this work on a 5 minute chart?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "Would the weekly RSI be smoother?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "make the line 2 pixels wide",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "average volume over 50 bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "Would 50 be slower?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    },
+    {
+      "message": "What CAN SLIM characteristics should I put in an earnings table?",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null
+    }
+  ]
+}

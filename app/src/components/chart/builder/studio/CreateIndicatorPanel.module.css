@@ -144,6 +144,18 @@
 .msgUct .lead { color: var(--menu-text, #ededed); }
 .msgRefusal { border-left-color: rgba(239, 83, 80, 0.6); }
 .msgQuiet { border-left-color: var(--menu-border, #33333a); }
+/* SLICE 2 — an answer is the assistant talking: no change marker, the text reads
+   at full strength. A limit (unsupported) is quiet, not an error. */
+.msgAnswer { color: var(--menu-text, #ededed); }
+.msgLimit { border-left-color: var(--menu-border, #33333a); }
+.updated {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--menu-accent, #dcbb5e);
+}
+.status {
+  font-size: 11px; color: var(--menu-text-faint, #93939a);
+  padding: 0 0 6px 12px;
+}
 .working {
   font-size: 11.5px; color: var(--menu-text-faint, #93939a);
   padding-left: 12px;
@@ -174,7 +186,9 @@
 .cardName {
   flex: 1 1 auto; min-width: 0;
   font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* SLICE 2 — the dock shows the authored name in full: two lines, then clip. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; overflow-wrap: anywhere;
 }
 .cue {
   flex: none;

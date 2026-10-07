@@ -47,7 +47,7 @@ function stubFetch() {
       const body = JSON.parse(init.body)
       const slot = (body.view.definition.outputs[0].slots || []).find((s) => s.value === 20)
       return { ok: true, status: 200, json: async () => ({
-        ok: true, turn: 'patch', not_understood: [], unavailable: [],
+        ok: true, disposition: 'change', reply: '', turn: 'patch', not_understood: [], unavailable: [],
         envelope: { contract: 'uct.authoring.patch/1', baseRevision: body.view.revision,
           ops: [{ op: 'set_slot', slot: slot.id, value: 50 }], assumptions: [] },
       }) }
@@ -76,8 +76,7 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
     await flush()
     fireEvent.click(screen.getByRole('button', { name: 'Edit My line' }))
     await flush()
-    const sheetSave = () => screen.getAllByRole('button', { name: /^Save changes/ })
-      .find((b) => b.getAttribute('data-testid') !== 'converse-save')
+    const sheetSave = () => screen.getByTestId('sheet-save')
     expect(sheetSave().disabled).toBe(false)
 
     fireEvent.click(screen.getByTestId('converse-open-editing'))
@@ -85,7 +84,11 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
     fireEvent.change(screen.getByLabelText('Change it'), { target: { value: 'make it 50' } })
     fireEvent.click(screen.getByTestId('converse-send'))
     await flush()
-    fireEvent.click(screen.getByTestId('converse-save'))
+    // ⭐ SLICE 2 — exactly ONE "Save changes" on screen, and it is the footer's,
+    // committing the conversation (the box has no button of its own).
+    expect(screen.getAllByRole('button', { name: /^Save changes/ })).toHaveLength(1)
+    expect(screen.queryByTestId('converse-save')).toBeNull()
+    fireEvent.click(sheetSave())
     await flush()
 
     const writes = H.requests.filter((r) => r.method !== 'GET' && !r.url.endsWith(CONVERSE_ENDPOINT))

@@ -21,6 +21,9 @@ import { setCreateIndicatorFlag } from '../../components/chart/builder/studio/cr
 import { scriptedReply } from '../createIndicator/scriptedConverse'
 
 const BLOCKED = []
+/** SLICE 2 — every /converse request that left the page (the scripted model
+ *  stands in for the server, so a pre-flight refusal shows as NO entry here). */
+const CONVERSE = []
 const realFetch = window.fetch.bind(window)
 const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'content-type': 'application/json' } })
 window.fetch = async (input, init) => {
@@ -33,6 +36,7 @@ window.fetch = async (input, init) => {
   if (url.includes('/api/user-definitions/converse') && method === 'POST') {
     let body = {}
     try { body = JSON.parse((init && init.body) || '{}') } catch { /* */ }
+    CONVERSE.push({ message: body.message, chart: body.chart || null })
     await new Promise((r) => setTimeout(r, 300))
     return json(scriptedReply(body.message, body.view))
   }
@@ -48,6 +52,7 @@ function Harness() {
   useEffect(() => {
     window.__dfh = {
       blocked: () => BLOCKED.slice(),
+      converse: () => CONVERSE.slice(),
       flag: (on) => setCreateIndicatorFlag(on),
       reopen: () => { setOpen(false); setTimeout(() => setOpen(true), 50) },
     }

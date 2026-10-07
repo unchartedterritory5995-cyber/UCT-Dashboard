@@ -431,6 +431,9 @@ class ConverseIn(BaseModel):
     view: dict
     authoring: Optional[dict] = None
     snippets: Optional[list] = None
+    #: SLICE 2 — the chart the member is on: ``{sym, tf}`` only, for the
+    #: deterministic pre-flight (another symbol / timeframe). Strings, bounded.
+    chart: Optional[dict] = None
 
 
 def require_admin_dark_rollout(user: dict = Depends(require_paid)) -> dict:
@@ -462,9 +465,11 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     """
     _charge_propose(str(user["id"]))
     from api.services import definition_conversation
+    chart = body.chart if isinstance(body.chart, dict) else {}
+    chart = {k: chart[k][:24] for k in ("sym", "tf") if isinstance(chart.get(k), str)}
     return definition_conversation.converse(
         body.message, user_id=user["id"], view=body.view,
-        authoring=body.authoring, snippets=body.snippets)
+        authoring=body.authoring, snippets=body.snippets, chart=chart)
 
 
 @router.get("/library")

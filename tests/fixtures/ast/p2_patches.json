@@ -45,7 +45,8 @@
       "slot": "value#0.1",
       "text": "standard length"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -107,7 +108,8 @@
       "placement": "price",
       "primary": "value"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -120,7 +122,8 @@
       "op": "rename_definition",
       "name": "x"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -148,7 +151,8 @@
       },
       "label": "RSI"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -161,7 +165,8 @@
       "op": "remove_output",
       "output": "rsi"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -175,7 +180,8 @@
       "output": "rsi",
       "label": "Momentum"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -212,7 +218,8 @@
        ]
       }
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -226,7 +233,8 @@
       "slot": "value#1",
       "value": 80
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -240,7 +248,8 @@
       "slot": "value#0.0",
       "series": "high"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -254,7 +263,8 @@
       "slot": "value#1.n",
       "value": 2
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -302,7 +312,8 @@
        ]
       }
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -315,7 +326,8 @@
       "op": "remove_clause",
       "clause": "value#1"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -329,7 +341,8 @@
       "intent": "signal",
       "output": "value"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -342,7 +355,8 @@
       "op": "set_placement",
       "target": "price"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -357,7 +371,8 @@
       "color": "#2962FF",
       "width": 2
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -371,7 +386,8 @@
       "output": "rsi",
       "color": "rgba(41, 98, 255, 0.5)"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -387,7 +403,8 @@
       "position": "belowBar",
       "text": "OB"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -400,7 +417,8 @@
       "op": "remove_marker",
       "output": "value"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -415,7 +433,8 @@
       "channel": "barcolor",
       "color": "#FFD700"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -429,7 +448,8 @@
       "output": "value",
       "channel": "bgcolor"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -443,7 +463,8 @@
       "output": "rsi",
       "format": "auto"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -457,7 +478,8 @@
       "output": "value",
       "triggerPolicy": "becomes_true"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -471,7 +493,8 @@
       "kind": "alert",
       "output": "value"
      }
-    ]
+    ],
+    "disposition": "change"
    }
   },
   {
@@ -489,7 +512,8 @@
        "21"
       ]
      }
-    ]
+    ],
+    "disposition": "clarify"
    }
   },
   {
@@ -503,7 +527,8 @@
       "name": "x"
      }
     ],
-    "note": "anything"
+    "note": "anything",
+    "disposition": "change"
    }
   }
  ],
@@ -518,7 +543,8 @@
       "op": "set_semantics",
       "value": 2
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:unknown-op"
   },
@@ -534,7 +560,8 @@
       "triggerPolicy": "becomes_true",
       "outputType": "condition"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:unknown-field"
   },
@@ -544,7 +571,9 @@
     "contract": "uct.authoring.patch/1",
     "baseRevision": 0,
     "ops": [],
-    "definition": {}
+    "definition": {},
+    "disposition": "answer",
+    "reply": "An answer, nothing changed."
    },
    "code": "schema:unknown-field"
   },
@@ -560,7 +589,8 @@
       "channel": "barcolor",
       "color": "gold; background:url(x)"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:pattern"
   },
@@ -575,7 +605,8 @@
       "slot": "value#a.b",
       "value": 1
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:pattern"
   },
@@ -591,7 +622,8 @@
       "value": 1,
       "series": "high"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:one-of"
   },
@@ -605,7 +637,8 @@
       "op": "set_slot",
       "slot": "value#1"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:one-of"
   },
@@ -620,7 +653,8 @@
       "slot": "value#1",
       "value": -5
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:range"
   },
@@ -682,7 +716,8 @@
       "op": "rename_definition",
       "name": "x"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:items"
   },
@@ -690,7 +725,9 @@
    "name": "missing baseRevision",
    "patch": {
     "contract": "uct.authoring.patch/1",
-    "ops": []
+    "ops": [],
+    "disposition": "answer",
+    "reply": "An answer, nothing changed."
    },
    "code": "schema:required"
   },
@@ -699,7 +736,9 @@
    "patch": {
     "contract": "uct.authoring.patch/2",
     "baseRevision": 0,
-    "ops": []
+    "ops": [],
+    "disposition": "answer",
+    "reply": "An answer, nothing changed."
    },
    "code": "schema:const"
   },
@@ -714,7 +753,8 @@
       "output": "value",
       "shape": "cross"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:enum"
   },
@@ -728,7 +768,8 @@
       "op": "set_style",
       "output": "rsi"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:empty"
   },
@@ -743,7 +784,8 @@
       "output": "value",
       "triggerPolicy": "crosses"
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:enum"
   },
@@ -767,7 +809,8 @@
        ]
       }
      }
-    ]
+    ],
+    "disposition": "change"
    },
    "code": "schema:enum"
   },
@@ -787,7 +830,8 @@
       "id": "q",
       "text": "?"
      }
-    ]
+    ],
+    "disposition": "clarify"
    },
    "code": "patch:questions-with-ops",
    "lane": "engine"

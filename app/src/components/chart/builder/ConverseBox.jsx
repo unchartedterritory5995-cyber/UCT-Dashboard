@@ -19,12 +19,23 @@
 //
 // ⛔ A question turn applies nothing; its choices are buttons that send the
 // answer as the next turn.
+//
+// ⭐⭐ SLICE 2 — A TURN IS NOT "CHANGE MY INDICATOR" (`classifyTurn`): an ANSWER or
+// an UNSUPPORTED reply is the assistant's words and nothing else happens; only a
+// CHANGE (and a CLARIFY's questions) reaches the engine. "Unsaved" is `isDirty`
+// — the working definition against the persisted base — never the transcript.
+// The conversation lives under `sessionKey` (in memory, per tab) so closing the
+// sheet does not lose it; when the sheet hosts the box (`onCommitState`), its
+// commit is the sheet footer's ONE primary button, not a second "Save changes".
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  newAuthoringState, openAuthoringState, applyTurn, undo, readback, PATCH_CONTRACT,
+  newAuthoringState, openAuthoringState, applyTurn, undo, readback, isDirty, PATCH_CONTRACT,
 } from './authoring'
 import { converseTurn } from './authoring/converseClient'
+import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
+import { preflight } from './authoring/preflight'
+import { readSession, writeSession, clearSession, editKey } from './authoring/conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from './conversationSave'
 import PreviewPane from './editor/PreviewPane'
 import { CONVERSE_PREVIEW_DEF_ID } from './editor/previewDefinition'
@@ -78,18 +89,26 @@ function errorLine(e, ops) {
  * @param {boolean} props.disabled
  * @param {Function} props.converse  injectable converse client (tests)
  * @param {Function|null} props.onSaved `(defId, version)` after a conversational save
+ * @param {string|null} props.sessionKey  SLICE 2 — the opaque authoring context (`edit:<defId>` /
+ *                                       `new:<scope>`) the conversation is kept under
+ * @param {Function|null} props.onCommitState SLICE 2 — the host footer owns the ONE save button:
+ *                                       `({dirty, canSave, saving, label})` on every change
+ * @param {{current: object|null}|null} props.commitRef SLICE 2 — `{save}` for that button
  */
 export default function ConverseBox({
   settings = null, onChange = null, sym = null, tf = null, editing = null, disabled = false,
-  converse = converseTurn, onSaved = null,
+  converse = converseTurn, onSaved = null, sessionKey = null, onCommitState = null, commitRef = null,
 }) {
-  const [state, setState] = useState(() => newAuthoringState())
+  const [initial] = useState(() => readSession(sessionKey))
+  /** The key this conversation is kept under. A NEW definition's conversation
+   *  moves to its `edit:<id>` key once saved, so "New formula" later starts clean
+   *  and editing that definition later continues it. */
+  const [activeKey, setActiveKey] = useState(sessionKey)
+  const [state, setState] = useState(() => (initial && initial.state) || newAuthoringState())
   const stateRef = useRef(state)
   const commit = useCallback((next) => { stateRef.current = next; setState(next) }, [])
-  /** The revision at the last save/open; `null` = never saved. */
-  const [savedRevision, setSavedRevision] = useState(null)
-  const [savedVersion, setSavedVersion] = useState(null)
-  const [transcript, setTranscript] = useState([])
+  const [savedVersion, setSavedVersion] = useState(() => (initial ? initial.savedVersion : null))
+  const [transcript, setTranscript] = useState(() => (initial && initial.transcript) || [])
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -103,7 +122,14 @@ export default function ConverseBox({
   const say = useCallback((entry) => setTranscript((t) => [...t, { id: t.length, ...entry }]), [])
 
   const rb = useMemo(() => readback(state.working, state, gateCtx), [state, gateCtx])
-  const unsaved = !!state.working && state.revision !== savedRevision
+  // ⭐ SLICE 2 — the ONE dirty authority (definition vs persisted base).
+  const unsaved = isDirty(state)
+
+  useEffect(() => {
+    if (!activeKey) return
+    if (!transcript.length && !state.working) return
+    writeSession(activeKey, { state, transcript, savedVersion })
+  }, [activeKey, state, transcript, savedVersion])
   const name = state.working && state.working.meta ? state.working.meta.name : null
 
   // A fresh ack per working definition: the member acknowledges what they see.
@@ -141,36 +167,49 @@ export default function ConverseBox({
       return
     }
     const disclosed = (result.changes || []).map(changeLine).filter(Boolean)
-    say({ role: 'uct', kind: extra.kind || 'readback', lines: [...disclosed, ...out.readback.lines] })
+    say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return
-    setBusy(true)
     const before = stateRef.current
     const snippets = transcript.slice(-6).map((t) => (t.role === 'member'
       ? { role: 'member', text: t.text }
       : { role: 'assistant', text: (t.lines || []).join(' · ') }))
     say({ role: 'member', text: words })
     setMessage('')
+    // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / timeframe request: no call.
+    const caught = preflight(words, { sym, tf })
+    if (caught) {
+      say({ role: 'uct', kind: 'unsupported', preflight: true, gate: caught.gate, lines: [caught.reason, 'Nothing was changed.'] })
+      setPartial(null)
+      return
+    }
+    setBusy(true)
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
       const gaps = [
         ...((res && res.notUnderstood) || []).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
         ...((res && res.unavailable) || []).map((n) => `Not available: ${n.column || n.name || ''} — ${n.reason || ''}`),
       ]
-      if (!res || !res.ok) {
-        say({ role: 'uct', kind: 'refusal', lines: ['Nothing was changed.', (res && res.reason) || 'The assistant gave no usable answer.', ...gaps], gate: res && res.gate })
+      const turn = classifyTurn(res)
+      if (turn.outcome === OUTCOMES.ANSWER) {
+        say({ role: 'uct', kind: 'answer', lines: [turn.reply, ...gaps] })
+        return
+      }
+      if (turn.outcome === OUTCOMES.UNSUPPORTED || turn.outcome === OUTCOMES.REFUSED) {
+        say({ role: 'uct', kind: turn.outcome === OUTCOMES.UNSUPPORTED ? 'unsupported' : 'refusal',
+          lines: ['Nothing was changed.', turn.reply || turn.reason, ...gaps], gate: turn.gate || null })
         setPartial(null)
         return
       }
       if (gaps.length) say({ role: 'uct', kind: 'gaps', lines: gaps })
-      applyEnvelope(res.envelope)
+      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : {})
     } finally {
       setBusy(false)
     }
-  }, [busy, transcript, converse, gateCtx, say, applyEnvelope])
+  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope])
 
   const applyValidPart = useCallback(() => {
     if (!partial) return
@@ -199,7 +238,6 @@ export default function ConverseBox({
     const next = openAuthoringState(editing.prior, { defId: editing.defId, version: editing.version })
     storedRef.current = editing.prior
     commit(next)
-    setSavedRevision(next.revision)
     setSavedVersion(editing.version)
     setPartial(null)
     say({ role: 'uct', kind: 'opened', lines: [`Opened “${(editing.prior.meta && editing.prior.meta.name) || editing.defId}” (saved version ${editing.version}).`, ...readback(next.working, next, gateCtx).lines] })
@@ -224,9 +262,14 @@ export default function ConverseBox({
       })
       storedRef.current = stored.storedDoc
       commit(next)
-      setSavedRevision(next.revision)
       setSavedVersion(stored.storedDoc.version)
       setPartial(null)
+      // ⭐ SLICE 2 — a NEW definition is now stored: its conversation continues
+      // under that definition's own context; the new-formula context is free.
+      if (activeKey && activeKey !== editKey(stored.storedDoc.id)) {
+        clearSession(activeKey)
+        setActiveKey(editKey(stored.storedDoc.id))
+      }
       // tell the host sheet — its own form may now be an older version of this row
       if (typeof onSaved === 'function') onSaved(stored.storedDoc.id, stored.storedDoc.version)
       say({
@@ -237,7 +280,7 @@ export default function ConverseBox({
     } finally {
       setSaving(false)
     }
-  }, [saving, acked, settings, onChange, sym, tf, commit, say, onSaved])
+  }, [saving, acked, settings, onChange, sym, tf, commit, say, onSaved, activeKey])
 
   /** The preview draws the WHOLE working definition (every output, its
    *  presentation and placement) under its own transient id. */
@@ -252,6 +295,16 @@ export default function ConverseBox({
   const needsAck = rb.needsAck || []
   const canSave = !!state.working && unsaved && !busy && !saving && !disabled && (!needsAck.length || acked)
   const offerOpen = editing && editing.prior && state.defId !== editing.defId
+  const saveLabel = state.defId ? 'Save changes' : 'Save and add to chart'
+
+  // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
+  // conversation's commit while the conversation has unsaved changes.
+  const hosted = typeof onCommitState === 'function'
+  useLayoutEffect(() => { if (commitRef) commitRef.current = { save } })
+  useEffect(() => {
+    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel })
+  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel])
+  useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (
     <section style={S.box} aria-label="Build it by conversation" data-testid="converse">
@@ -300,7 +353,11 @@ export default function ConverseBox({
       )}
 
       <label style={S.head} htmlFor="converse-input">{state.working ? 'Change it' : 'Describe the indicator'}</label>
-      <textarea id="converse-input" style={S.input} value={message} disabled={busy || disabled}
+      {/* ⭐ SLICE 2 — NOT disabled while a turn runs (only Send is): a disabled
+          field drops focus, and the member's next keystrokes then fall through
+          to whatever is underneath (measured: the drill board's list moved).
+          `send` already refuses a second turn while one is in flight. */}
+      <textarea id="converse-input" style={S.input} value={message} disabled={disabled}
         placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI overbought'}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
@@ -332,10 +389,10 @@ export default function ConverseBox({
         </label>
       )}
 
-      {state.working && (
+      {state.working && !hosted && (
         <div style={S.row}>
           <button type="button" style={dim(S.primary, !canSave)} data-testid="converse-save" disabled={!canSave} onClick={save}>
-            {saving ? 'Saving…' : (state.defId ? 'Save changes' : 'Save and add to chart')}
+            {saving ? 'Saving…' : saveLabel}
           </button>
         </div>
       )}
