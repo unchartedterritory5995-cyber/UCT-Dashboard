@@ -50,11 +50,12 @@
     }
     img { display: block; max-width: 100%; height: auto; }
     a { color: var(--green); }
+    a:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 3px; border-radius: 4px; }
     .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 16px; }
     @media (min-width: 720px) { .wrap { padding: 0 28px; } }
 
-    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 18px; padding-bottom: 18px; }
-    .brand { display: flex; align-items: center; gap: 10px; color: var(--text-bright); text-decoration: none; min-width: 0; }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 13px; padding-bottom: 13px; }
+    .brand { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--text-bright); text-decoration: none; min-width: 0; }
     .brand img { width: 34px; height: 34px; flex: none; }
     .brand span { font-weight: 700; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; }
     .brand b { color: var(--green); font-weight: 700; }
@@ -78,6 +79,8 @@
     }
     .contact { margin: 22px 0 0; font-size: 16px; color: var(--text-bright); overflow-wrap: anywhere; }
     .back { margin: 28px 0 0; padding-bottom: 48px; font-size: 16px; }
+    /* Vertical padding on an inline link grows its tap area to 44px without moving any text. */
+    li a, .contact a, .back a { padding: 12px 0; }
 
     @media (max-width: 420px) {
       .brand span { font-size: 11px; letter-spacing: 2px; }
