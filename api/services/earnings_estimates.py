@@ -172,9 +172,10 @@ def get_earnings_intel(ticker: str) -> dict | None:
     # history.
     beat_history = []
     fmp_hist = None
+    next_report_fiscal = None
     try:
-        from api.services.earnings_history_fmp import fmp_beat_history
-        fmp_hist = fmp_beat_history(ticker, limit=8)
+        from api.services.earnings_history_fmp import fmp_history
+        fmp_hist, next_report_fiscal = fmp_history(ticker, limit=8)
     except Exception as exc:                       # never let this leg raise
         _logger.warning("FMP earnings history failed for %s: %s", ticker, exc)
     if fmp_hist:
@@ -256,6 +257,10 @@ def get_earnings_intel(ticker: str) -> dict | None:
 
     result = {
         "beat_history": beat_history,
+        # The fiscal quarter the NEXT report covers, through the same
+        # fiscal_calendar authority as the history rows' labels (None when FMP
+        # carried no forward row or no fiscal calendar could be built).
+        "next_report_fiscal": next_report_fiscal,
         "consensus": consensus,
         "price_target": price_target,
         # Did the history leg ANSWER, or did it just not reply?

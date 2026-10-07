@@ -3584,9 +3584,11 @@ def _build_enrichment_for_date(target: str) -> dict:
         # say WHICH symbols were shed -- and the modal states its answer per
         # symbol, so the signal has to travel per symbol too.
         history_unresolved = False
+        next_fiscal = None
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None
+            next_fiscal = intel.get("next_report_fiscal") if intel else None
             # `intel is None` = all three legs failed; `history_answered` False
             # = the history leg specifically did not reply. Either way we do
             # not know this ticker's history, which is NOT the same as knowing
@@ -3605,7 +3607,9 @@ def _build_enrichment_for_date(target: str) -> dict:
                      "expected_move_outcome": em_outcome,
                      "beat_history": hist,
                      "hist_stats": hist_stats,
-                     "history_unresolved": history_unresolved}
+                     "history_unresolved": history_unresolved,
+                     # fiscal identity of the next report (ERN upcoming row)
+                     "next_report_fiscal": next_fiscal}
 
     # Bounded WAIT for a compute slot — a request that can't get one returns
     # empty (uncached) instead of parking an anyio thread for the duration of
