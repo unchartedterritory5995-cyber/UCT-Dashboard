@@ -66,6 +66,26 @@ export function journalPageTitle(pathname) {
 const modalOpen = () => typeof document !== 'undefined'
   && document.querySelector('[role="dialog"][aria-modal="true"]') != null
 
+/** How long a page's late landing is waited for after a navigation. */
+const LATE_LANDING_MS = 4000
+
+/** The page's own landing: the first `[data-route-landing]` that is in the page. */
+function pageLanding() {
+  if (typeof document === 'undefined') return null
+  for (const el of document.querySelectorAll('[data-route-landing]')) {
+    if (el.isConnected && !el.closest('[hidden], [aria-hidden="true"]')) return el
+  }
+  return null
+}
+
+/**
+ * A landing a page drops in front of its main content. Same shape as the title target:
+ * focusable by script only, visually hidden, its text is what a screen reader reads.
+ */
+export function RouteLanding({ title }) {
+  return <span tabIndex={-1} data-route-landing="" style={HIDDEN}>{title}</span>
+}
+
 /**
  * Moves focus to `ref.current` when the path changes by an in-app navigation. Mounting counts
  * as an arrival (a standalone page, or the layout entered from elsewhere in the app).
@@ -86,15 +106,32 @@ export function useRouteFocus(ref) {
     if (before && before.closest && before.closest('[role="dialog"]')) return undefined
     if (modalOpen()) return undefined
     let raf = 0
+    let mo = null
+    let timer = 0
+    const stopWatching = () => { if (mo) { mo.disconnect(); mo = null } clearTimeout(timer) }
     raf = requestAnimationFrame(() => {
       const el = ref.current
       if (!el || !el.isConnected || modalOpen()) return
       const now = document.activeElement
       // Something took focus for itself since the navigation: it owns it.
       if (now && now !== document.body && now !== before) return
-      el.focus({ preventScroll: true })
+      // The page's own landing when it has one, else the title before the page.
+      const here = pageLanding()
+      ;(here || el).focus({ preventScroll: true })
+      if (here || typeof MutationObserver === 'undefined') return
+      // The page's content can arrive after the navigation (a lazy chunk, a fetch). Its
+      // landing takes focus when it appears, but only while focus is still where this hook
+      // put it. The watch ends by itself.
+      mo = new MutationObserver(() => {
+        const late = pageLanding()
+        if (!late) return
+        stopWatching()
+        if (document.activeElement === el && !modalOpen()) late.focus({ preventScroll: true })
+      })
+      mo.observe(document.body, { childList: true, subtree: true })
+      timer = setTimeout(stopWatching, LATE_LANDING_MS)
     })
-    return () => cancelAnimationFrame(raf)
+    return () => { cancelAnimationFrame(raf); stopWatching() }
   }, [location.pathname, location.key, location.state, navType, ref])
 }
 
