@@ -90,6 +90,10 @@ function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessa
   const uid = useId()
   const [reporting, setReporting] = useState(false)
   const [working, setWorking] = useState(false)
+  // FIN-A11Y (review R4, M-4): closing the Report form removes the control that had focus;
+  // the Report button is still there, so focus goes back to it.
+  const reportBtnRef = useRef(null)
+  const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
   const admin = async (action) => {
     setWorking(true)
     try {
@@ -125,7 +129,7 @@ function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessa
           Use template
         </button>
         {!item.mine && (
-          <button type="button" className={styles.btn} onClick={() => setReporting((v) => !v)}
+          <button type="button" ref={reportBtnRef} className={styles.btn} onClick={() => setReporting((v) => !v)}
             aria-expanded={reporting} aria-label={`Report ${item.title}`}>
             Report
           </button>
@@ -133,7 +137,8 @@ function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessa
         {isAdmin && (
           <>
             <button type="button" className={styles.btn} disabled={working}
-              onClick={() => admin(item.featured ? 'unfeature' : 'feature')}>
+              onClick={() => admin(item.featured ? 'unfeature' : 'feature')}
+              aria-label={`${item.featured ? 'Unfeature' : 'Feature'} ${item.title}`}>
               {item.featured ? 'Unfeature' : 'Feature'}
             </button>
             <button type="button" className={styles.btn} disabled={working} onClick={() => admin('hide')}
@@ -146,8 +151,8 @@ function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, onMessa
       {reporting && (
         <ReportForm
           item={item}
-          onCancel={() => setReporting(false)}
-          onDone={(text) => { setReporting(false); onMessage({ tone: 'ok', text }) }}
+          onCancel={closeReport}
+          onDone={(text) => { closeReport(); onMessage({ tone: 'ok', text }) }}
         />
       )}
     </li>
@@ -163,6 +168,23 @@ function MySubmissions({ onMessage }) {
   const { templates, error, isLoading, refresh } = useTemplateGallery({ section: 'mine' })
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
+  // FIN-A11Y (review R4, M-4): Unpublish swaps itself for a confirm row and "Keep it" swaps
+  // back; each removes the button that had focus. Focus follows: into the confirm row on
+  // "Keep it" (the safe answer), and back to that template's Unpublish button after.
+  const listRef = useRef(null)
+  const focusRef = useRef(null) // { id, on: 'keep' | 'open' }
+  useEffect(() => {
+    const want = focusRef.current
+    if (!want) return
+    const row = [...(listRef.current?.querySelectorAll('[data-gallery-row]') || [])]
+      .find((el) => el.getAttribute('data-gallery-row') === want.id)
+    const el = row?.querySelector(`[data-gallery-focus="${want.on}"]`)
+    if (!el) return
+    focusRef.current = null
+    el.focus()
+  }, [confirm])
+  const askUnpublish = (item) => { focusRef.current = { id: item.id, on: 'keep' }; setConfirm(item.id) }
+  const keep = (item) => { focusRef.current = { id: item.id, on: 'open' }; setConfirm(null) }
   const unpublish = async (item) => {
     setWorking(true)
     try {
@@ -186,9 +208,9 @@ function MySubmissions({ onMessage }) {
     )
   }
   return (
-    <ul className={styles.list} aria-label="Your submissions">
+    <ul ref={listRef} className={styles.list} aria-label="Your submissions">
       {templates.map((item) => (
-        <li key={item.id} className={styles.card} data-gallery-mine={item.status}>
+        <li key={item.id} className={styles.card} data-gallery-mine={item.status} data-gallery-row={item.id}>
           <div className={styles.cardHead}>
             <h4 className={styles.cardTitle}>{item.title}</h4>
             <span className={`${styles.status} ${styles[`status_${item.hidden ? 'hidden' : item.status}`] || ''}`}>
@@ -203,12 +225,12 @@ function MySubmissions({ onMessage }) {
               <span className={styles.note}>Take “{item.title}” out of the gallery?</span>
               <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
                 onClick={() => unpublish(item)}>Unpublish</button>
-              <button type="button" className={styles.btn} onClick={() => setConfirm(null)}>Keep it</button>
+              <button type="button" className={styles.btn} onClick={() => keep(item)} data-gallery-focus="keep">Keep it</button>
             </div>
           ) : (
             <div className={styles.actions}>
-              <button type="button" className={styles.btn} onClick={() => setConfirm(item.id)}
-                aria-label={`Unpublish ${item.title}`}>Unpublish</button>
+              <button type="button" className={styles.btn} onClick={() => askUnpublish(item)}
+                aria-label={`Unpublish ${item.title}`} data-gallery-focus="open">Unpublish</button>
             </div>
           )}
         </li>
@@ -312,17 +334,25 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false }) {
           ))}
       </div>
 
-      {message && (
-        <div className={message.tone === 'error' ? styles.error : styles.ok} role={message.tone === 'error' ? 'alert' : 'status'}>
-          <span>{message.text}</span>
-          {message.made && onUseNow && (
-            <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy}
-              onClick={() => onUseNow(message.made)}>
-              Make a note from it
-            </button>
-          )}
-        </div>
-      )}
+      {/* Always mounted and refilled (FIN-A11Y, review R4 M-16): a status that mounts with its
+          text is often not announced. An error is still an alert. */}
+      <div
+        className={message ? (message.tone === 'error' ? styles.error : styles.ok) : undefined}
+        role={message?.tone === 'error' ? 'alert' : 'status'}
+        data-gallery-message=""
+      >
+        {message && (
+          <>
+            <span>{message.text}</span>
+            {message.made && onUseNow && (
+              <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy}
+                onClick={() => onUseNow(message.made)}>
+                Make a note from it
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {view === 'browse' && (
         <>

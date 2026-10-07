@@ -94,7 +94,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
         {pending.length === 0 && <p className={styles.note}>Nothing is waiting.</p>}
         {pending.map((item) => (
           <div key={item.id} className={styles.queueItem} data-gallery-pending={item.id}>
-            <strong className={styles.cardTitle}>{item.title}</strong>
+            <h5 className={styles.cardTitle}>{item.title}</h5>
             <span className={styles.meta}>by {item.author} · {categoryLabel(item.category)}</span>
             {item.description && <p className={styles.cardDesc}>{item.description}</p>}
             <div className={styles.actions}>
@@ -119,15 +119,17 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
         {reported.length === 0 && <p className={styles.note}>No open reports.</p>}
         {reported.map((item) => (
           <div key={item.id} className={styles.queueItem} data-gallery-reported={item.id}>
-            <strong className={styles.cardTitle}>{item.title}</strong>
+            <h5 className={styles.cardTitle}>{item.title}</h5>
             <span className={styles.meta}>by {item.author} · {item.openReports} open report{item.openReports === 1 ? '' : 's'}</span>
             {(item.reports || []).map((r) => (
               <div key={r.id} className={styles.actions}>
                 <p className={styles.reportLine}>“{reasonLabel(r.reason)}”{r.note ? ` — ${r.note}` : ''}</p>
                 <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
-                  onClick={() => act(() => resolveGalleryReport(r.id, 'hide'), `Hid “${item.title}”.`)}>Hide template</button>
+                  onClick={() => act(() => resolveGalleryReport(r.id, 'hide'), `Hid “${item.title}”.`)}
+                  aria-label={`Hide template ${item.title}`}>Hide template</button>
                 <button type="button" className={styles.btn} disabled={working}
-                  onClick={() => act(() => resolveGalleryReport(r.id, 'dismiss'), 'Dismissed the report.')}>Dismiss</button>
+                  onClick={() => act(() => resolveGalleryReport(r.id, 'dismiss'), 'Dismissed the report.')}
+                  aria-label={`Dismiss the report on ${item.title}`}>Dismiss</button>
               </div>
             ))}
             <div className={styles.actions}>
@@ -143,7 +145,7 @@ export default function TemplateGalleryReviewPanel({ onMessage = () => {} }) {
         {hidden.length === 0 && <p className={styles.note}>Nothing is hidden.</p>}
         {hidden.map((item) => (
           <div key={item.id} className={styles.queueItem} data-gallery-hidden={item.id}>
-            <strong className={styles.cardTitle}>{item.title}</strong>
+            <h5 className={styles.cardTitle}>{item.title}</h5>
             <span className={styles.meta}>by {item.author}</span>
             <div className={styles.actions}>
               <button type="button" className={styles.btn} disabled={working}
