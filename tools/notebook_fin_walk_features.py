@@ -33,7 +33,7 @@ import notebook_w13h2_walk as h2  # noqa: E402
 PW = "LocalTest2026!"
 SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
-         "earnings", "transcript", "passed", "child", "resurface", "board2", "trades", "grading", "discipline",
+         "transcript", "passed", "child", "resurface", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
@@ -413,9 +413,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    "PASS" if hidden and offer_.count() == 0 else "FAIL", hidden=hidden, offers_after_reload=offer_.count(),
                    notebook_tours=w.prefs_of(ctx, base).get("notebook_tours"))
         C.goto(pg, base, "/support")
-        C.vis_loc(pg.get_by_role("link", name="Replay", exact=True), 20000)
-        rows = [x.replace("Replay", "").strip() for x in
-                pg.locator("li", has=pg.get_by_role("link", name="Replay", exact=True)).all_inner_texts()]
+        replay = pg.get_by_role("link", name=re.compile(r"^Replay"))   # "Replay the <title> tour" since lane A11Y
+        C.vis_loc(replay, 20000)
+        rows = [x.replace("\n", " ").strip() for x in pg.locator("li", has=replay).all_inner_texts()]
         registry = q2.read_registry()
         want = [t["title"] for t in registry if t["replayable"]]
         missing = [t for t in want if not any(t in r for r in rows)]
@@ -661,6 +661,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         wl_id = (wl or {}).get("id") if isinstance(wl, dict) else None
         if wl_id:
             C.api(ctx, inst, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": "AMZN"})
+            C.api(ctx, inst, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": "AMD"})
         s1, p1 = C.api(ctx, inst, "POST", base, "/api/j2/positions", {"symbol": "AMD", "side": "Long", "shares": 40, "entryPrice": entry,
                                                                      "stopPrice": stop, "entryDate": C.TODAY.isoformat(), "setup": "VCP"})
         s2, p2 = C.api(ctx, inst, "POST", base, "/api/j2/positions", {"symbol": "NVDA", "side": "Long", "shares": 30, "entryPrice": 121.0,
@@ -791,9 +792,20 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         except Exception as e:  # noqa: BLE001
             err = str(e)[:300]
         sources = sorted(set(re.findall(r"Source: [^\"\\\\]{3,60}", body)))[:8]
+        ntext = pg.locator(".ProseMirror").first.inner_text() if made else ""
         C.step(pg, inst, "earnings prep", "one click builds the prep note, each part naming its source",
                "PASS" if made and sources else "FAIL", note=made, source_lines=sources, body_chars=len(body), reach_error=err,
-               note_text=(pg.locator(".ProseMirror").first.inner_text()[:700] if made else None))
+               note_text=ntext[:700])
+        # the member's own closed AMD trade must print its percent result as a percent (a 12.3% trade reads "+12.3%")
+        plan = S.get("amd_plan") or {}
+        if made and plan.get("entry") and plan.get("target"):
+            e_, t_ = round(float(plan["entry"]), 2), round(float(plan["target"]), 2)
+            pct = (t_ - e_) / e_ * 100
+            want = f"+{pct:.1f}%"
+            pcts = re.findall(r"[+\-\u2212]?\d+(?:\.\d+)?%", ntext)
+            C.step(pg, inst, "earnings prep", "the prep note prints the member's own trade result as the right percent",
+                   "PASS" if want in ntext else "FAIL", seeded_entry=e_, seeded_exit=t_, expected=want, percents_in_note=pcts[:20],
+                   trade_lines=[ln.strip()[:160] for ln in ntext.splitlines() if "%" in ln and ("AMD" in ln or "trade" in ln.lower())][:6])
         S["prep_note"] = made
     run("earnings", earnings)
 

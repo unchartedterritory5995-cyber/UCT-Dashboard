@@ -446,7 +446,7 @@ CENSUS_JS = r"""
     else if (kind === 'button') els = [...document.querySelectorAll('button,[role=button],[role=tab]')].filter(e => txt(e) === v.toLowerCase() || e.getAttribute('aria-label') === v)
     else if (kind === 'buttonprefix') els = [...document.querySelectorAll('button')].filter(e => (e.getAttribute('aria-label') || txt(e)).toLowerCase().startsWith(v.toLowerCase()))
     else if (kind === 'embedbtn') els = [...document.querySelectorAll('[data-widget-embed-view] button')].filter(e => txt(e) === v.toLowerCase() || e.getAttribute('aria-label') === v)
-    else if (kind === 'link') els = [...document.querySelectorAll('a')].filter(e => txt(e) === v.toLowerCase())
+    else if (kind === 'link') els = [...document.querySelectorAll('a')].filter(e => txt(e).startsWith(v.toLowerCase()) || (e.getAttribute('aria-label') || '').toLowerCase().startsWith(v.toLowerCase()))
     else if (kind === 'dialog') els = [...document.querySelectorAll('[role=dialog]')].filter(e => e.getAttribute('aria-label') === v || txt(e).startsWith(v.toLowerCase()))
     const n = els.filter(vis).length
     if (n) out[key] = n
@@ -888,6 +888,22 @@ def run_c1(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
             REC.setdefault("driver_errors", []).append(f"c1 {vp}: {type(e).__name__}: {str(e)[:300]}")
     if not only or "sample" in only or "all" in only:
         c1_sample(browser, admin, base, fs)
+    import notebook_fin_walk_live as live
+    for vp in ("1280", "820", "390"):
+        if only and f"live{vp}" not in only and "all" not in only:
+            continue
+        try:
+            live.run_live(sys.modules[__name__], browser, admin, base, fs, vp)
+        except h.SetupFailed:
+            raise
+        except Exception as e:  # noqa: BLE001
+            REC.setdefault("driver_errors", []).append(f"c1 live {vp}: {type(e).__name__}: {str(e)[:300]}")
+    if not only or "unpaid" in only or "all" in only:
+        for vp in ("1280", "390"):
+            try:
+                live.run_unpaid(sys.modules[__name__], browser, admin, base, vp)
+            except Exception as e:  # noqa: BLE001
+                REC.setdefault("driver_errors", []).append(f"c1 unpaid {vp}: {type(e).__name__}: {str(e)[:300]}")
 
 
 # ── c3: a dependent switched on without its prerequisite ────────────────────────────────────
