@@ -10,7 +10,7 @@
 
 .item {
   padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 .item:last-child { border-bottom: none; }
 
@@ -27,7 +27,7 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .horizon {
@@ -36,7 +36,7 @@
   padding: 1px 6px;
   border-radius: 3px;
   color: var(--text-muted, #8b8678);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   white-space: nowrap;
 }
 
@@ -60,7 +60,7 @@
 .quote {
   margin: 0;
   padding: 4px 0 4px 10px;
-  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  border-left: 2px solid var(--ut-gold);
   font-size: 12.5px;
   line-height: 1.6;
   color: var(--text, #e8e6df);
@@ -78,7 +78,7 @@
   margin-left: 8px;
   padding: 0;
   font-size: var(--text-sm);
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   background: none;
   border: none;
   cursor: pointer;

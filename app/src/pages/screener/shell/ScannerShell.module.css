@@ -29,13 +29,13 @@
 .railHead:hover .railHeadIcon, .railHead[aria-expanded="true"] .railHeadIcon { color: var(--ut-gold); }
 .railChev { display: inline-flex; color: var(--text-muted); }
 .railHead:hover .railChev, .railHead[aria-expanded="true"] .railChev { color: var(--ut-gold); }
-.railPip { background: var(--ut-gold); color: #141207; border-radius: 999px; padding: 1px 6px;
+.railPip { background: var(--ut-gold); color: var(--bg); border-radius: 999px; padding: 1px 6px;
   font-size: 9.5px; font-weight: 700; }
 /* PACKET-AB CP1 (fingerprint bc19457cf): the fast preview-count badge -- a
    visual affordance beside the search row, never carrying aria-live (that
    stays ShellToolbar's alone, see FilterRail.jsx's own comment). */
 .railMatchCount { padding: 4px 10px 8px; font-size: 11px; color: var(--text-muted); }
-.railMatchCountEmpty { color: var(--loss, #ef4444); font-weight: 500; }
+.railMatchCountEmpty { color: var(--loss); font-weight: 500; }
 .railMatchAsOf { color: var(--text-dim); font-weight: 400; }
 /* Keyboard-driven filter editing: the arrow-key-highlighted row ahead of an
    Enter jump. A left accent bar (never a border, which would shift layout)
@@ -70,7 +70,7 @@
 .pickerPresetChip:hover { border-color: var(--ut-gold); }
 .pickerPresetDel { background: none; border: none; color: var(--text-muted); cursor: pointer;
   padding: 3px 7px 3px 3px; display: inline-flex; align-items: center; }
-.pickerPresetDel:hover { color: var(--color-danger, #f87171); }
+.pickerPresetDel:hover { color: var(--color-danger, var(--loss)); }
 
 /* ── In-screener chart review overlay (flip through the screened charts) ── */
 .reviewOverlay { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg); }
@@ -126,7 +126,7 @@
 /* ── "Save as view" footer in the column picker ── */
 .pickerSave { display: flex; gap: 6px; align-items: center; padding: 8px 10px;
   border-top: 1px solid var(--border); background: var(--bg-surface); position: sticky; bottom: 0; }
-.pickerSaveBtn { background: var(--ut-gold); color: #141207; border: 0; border-radius: var(--radius-sm, 6px);
+.pickerSaveBtn { background: var(--ut-gold); color: var(--bg); border: 0; border-radius: var(--radius-sm, 6px);
   padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .pickerSaveBtn:disabled { opacity: .5; cursor: default; }
 .statusLine { color: var(--text-muted); font-size: 12px; margin-left: auto; }
@@ -157,7 +157,7 @@
    `nightly` would be false. It is styled as a warning, not as a live chip.
    All three are inline spans inside the seal BUTTON — one control, not a second. */
 .sealLive { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--ut-gold); font-weight: 600; }
-.sealUnnamed { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--warning, #d9a441); font-family: var(--font-sans, inherit); font-size: 10px; letter-spacing: .3px; }
+.sealUnnamed { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--warn); font-family: var(--font-sans, inherit); font-size: 10px; letter-spacing: .3px; }
 .sealNightly { margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--text-muted); font-family: var(--font-sans, inherit); font-size: 10px; text-transform: lowercase; letter-spacing: .3px; }
 .sealLiveBlock { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 .sealLiveLead { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-muted); }
@@ -229,7 +229,7 @@
   border-radius: 5px; padding: 6px 8px; color: var(--text); font-size: 12px; }
 .flaggedClear { width: 100%; text-align: left; background: none; border: none; color: var(--text-muted);
   cursor: pointer; font-size: 11.5px; padding: 6px 8px; margin-top: 4px; border-radius: 5px; }
-.flaggedClear:hover { color: var(--color-danger, #f87171); background: var(--bg-hover); }
+.flaggedClear:hover { color: var(--color-danger, var(--loss)); background: var(--bg-hover); }
 
 /* "Save as scan" — the inline name form in the toolbar's save slot. */
 .saveScanWrap { display: inline-flex; align-items: center; }
@@ -245,7 +245,7 @@
 .typeToggleBtn { font-family: inherit; font-size: 11.5px; padding: 5px 12px; min-height: 28px;
   background: var(--bg-elevated); border: none; color: var(--text-muted); cursor: pointer; }
 .typeToggleBtn + .typeToggleBtn { border-left: 1px solid var(--border); }
-.typeToggleOn { background: var(--ut-gold); color: #141207; font-weight: 600; }
+.typeToggleOn { background: var(--ut-gold); color: var(--bg); font-weight: 600; }
 .typeOpts { display: flex; flex-direction: column; gap: 2px; }
 .typeOpt { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text);
   cursor: pointer; padding: 4px 2px; border-radius: 5px; }
@@ -295,7 +295,7 @@
   font-weight: 500; cursor: pointer; color: var(--text-muted); background: transparent; border: 0;
   padding: 6px 12px; border-radius: 5px; }
 .uBtn:hover { color: var(--text); background: var(--bg-hover); }
-.uBtn[aria-pressed="true"] { color: #141207; background: var(--ut-gold); font-weight: 600; }
+.uBtn[aria-pressed="true"] { color: var(--bg); background: var(--ut-gold); font-weight: 600; }
 .uMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px;
   max-height: min(60vh, 360px); overflow-y: auto; background: var(--bg-elevated);
   border: 1px solid var(--border-accent); border-radius: 7px; box-shadow: 0 16px 40px rgba(0,0,0,.5); padding: 7px; }
@@ -325,7 +325,7 @@
   border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted);
   cursor: pointer; white-space: nowrap; transition: color .1s, border-color .1s, background .1s; }
 .presetChip:hover { color: var(--text); border-color: var(--ut-gold); }
-.presetChipOn { background: var(--ut-gold); color: #141207; border-color: var(--ut-gold); font-weight: 600; }
+.presetChipOn { background: var(--ut-gold); color: var(--bg); border-color: var(--ut-gold); font-weight: 600; }
 /* "Edit" — pick which preset scans appear as chips. */
 .presetManageWrap { position: relative; display: inline-flex; }
 .presetManageBtn { display: inline-flex; align-items: center; gap: 4px; font-family: inherit;

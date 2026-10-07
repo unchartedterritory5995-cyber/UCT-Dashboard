@@ -1202,6 +1202,15 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.services.screener import distribution
             distribution.distributions()
 
+        def _his_wire_archive():
+            # TERM-049 HIS: the wire lane parses every archived Morning Wire once per
+            # process (ticker_history._WIRE_DOC_MEMO), so the first HIS open after each
+            # deploy paid ~1 s. Local disk only, bounded by file count and a wall-clock
+            # budget inside warm_wire_archive; skipped while the HIS route is dark.
+            from api.services import ticker_history
+            if ticker_history.is_enabled():
+                log.info("[dashboard-warm] his-wire-archive %s", ticker_history.warm_wire_archive())
+
         def _calendar():
             from api.routers.calendar import get_calendar
             get_calendar()
@@ -1280,6 +1289,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
             _warm("screener-meta", _screener_meta)
+            _warm("his-wire-archive", _his_wire_archive)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
             # NOT `_enrichment` — and `_enrichment` is the 60-100s step in this
@@ -9483,6 +9493,8 @@ from api.routers import screen_promote as screen_promote_router  # noqa: E402  (
 app.include_router(screen_promote_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
 app.include_router(screener_nl_router.router)
+from api.routers import uct_agent as uct_agent_router  # noqa: E402  (UCT Agent, admin-dark)
+app.include_router(uct_agent_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)

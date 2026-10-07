@@ -3,6 +3,7 @@ import OffNotice from './OffNotice'
 import { money } from './MarketTidePanel'
 import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
+import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
 // BRK-08 positioning extensions under the option chain: FT-047 named levels, FT-049 heatmap,
 // FT-055 max pain + NOPE, FT-050 Options Impact, FT-052 dealer short.
@@ -67,12 +68,12 @@ function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and 
       {data && (
         <>
           <div className={styles.scroll}>
-            <table className={styles.table}>
-              <thead><tr><th>Expiry</th>{data.strikes.map((k) => <th key={k}>{num(k)}</th>)}</tr></thead>
+            <table className={styles.table} aria-label={title}>
+              <thead><tr><th scope="col">Expiry</th>{data.strikes.map((k) => <th scope="col" key={k}>{num(k)}</th>)}</tr></thead>
               <tbody>
                 {data.expirations.map((e, i) => (
                   <tr key={e}>
-                    <th>{e}</th>
+                    <th scope="row">{e}</th>
                     {data.cells[i].map((v, j) => (
                       <td key={data.strikes[j]} className={v == null ? undefined : (v >= 0 ? styles.cellPos : styles.cellNeg)}
                         style={v == null ? undefined : { '--heat': Math.min(1, Math.abs(v) / max) }}>
@@ -203,6 +204,10 @@ export const positioningUrls = (s) => [
 // `offNotice`: set by the terminal's POS, which opens this panel on its own.
 export default function PositioningPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
+  // TERM-019: every section below is computed by UCT from Massive's chain; each dates itself.
+  // The header carries the levels read's `computed_at` (same SWR key as <Levels>, one request).
+  const levels = useDarkSection(s ? positioningUrls(s)[0] : null)
+  usePanelFreshness(s ? panelAsOf('UCT, computed from Massive options data', levels.data?.computed_at) : null)
   if (!s) return null
   return (
     <div data-testid="positioning">

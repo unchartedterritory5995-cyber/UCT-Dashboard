@@ -216,10 +216,22 @@ def get_earnings_table_endpoint(
     if not s:
         return {"ticker": "", "annual": [], "quarterly": []}
     try:
-        return get_earnings_table(s, debug=bool(debug))
+        out = get_earnings_table(s, debug=bool(debug))
     except Exception as e:
         _log.warning("earnings-table failed for %s: %s", s, e)
         return {"ticker": s, "annual": [], "quarterly": []}
+    # The company's reporting currency (TSM -> "TWD"), the SAME field and source
+    # EE/FA carry (`research.reporting_currency`, one FMP read cached 24h per
+    # symbol; None = unknown -> the widget renders "$" exactly as before). Stamped
+    # here, on a copy, so the cached/persisted payload shape is untouched.
+    # Accuracy follow-up 7: the Fundamentals widget printed TSM's TWD sales as "$".
+    try:
+        from api.services.research import reporting_currency
+        state, code = reporting_currency.read(s, timeout=5)
+        currency = code if state == "ok" else None
+    except Exception:  # noqa: BLE001 -- unknown, never a guess
+        currency = None
+    return {**out, "currency": currency} if isinstance(out, dict) else out
 
 
 @router.get("/api/admin/fundamentals-health")
@@ -390,6 +402,12 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
     # Finnhub metric leg failed) used to pin a blank for the full hour
     # in-memory even though the disk copy correctly refused to be poisoned.
     complete = any(v is not None for k, v in result.items() if k != "ticker")
+    # TERM-019: the instant this snapshot was BUILT from the providers. It rides the cached and
+    # persisted payload, so a cache or disk hit keeps the build time and never reads as "now".
+    # Only a build that produced something is dated: an all-null build has no data to age.
+    if complete:
+        import datetime as _dt
+        result["as_of"] = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
     set_by_completeness(
         f"api_fund::{sym}", result, complete=complete,
         ttl_ok=_FH_METRIC_TTL, ttl_partial=_FUND_FAIL_TTL,

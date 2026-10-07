@@ -3813,7 +3813,7 @@ let _generation = 0
 
 export function registryGeneration() { return _generation }
 
-/** `id@version#fn` — the identity an install compares on.
+/** `id@version#fn~sem~content` — the identity an install compares on.
  *
  *  Two documents with the same id, version and compute handle are the SAME
  *  CLAIM, so re-installing one must not bump the generation: `useUserDefinitions`
@@ -3824,7 +3824,26 @@ function installKey(def) {
   // (the builder's local copy before the list refetches) is a different
   // evaluation and must reinstall. Unchanged for semantics 1.
   const sem = semanticsOf(def) === 1 ? '' : `~s${semanticsOf(def)}`
-  return `${def.id}@${def.version}#${def.compute && def.compute.fn}${sem}`
+  // ⭐ P3S — …and the CONTENT. `compute.fn` is the astHash of the scan/primary tree
+  // ONLY, so a live preview (one fixed id + version for its whole life) that changed
+  // a SECOND output's tree, a paint, a style, a fill or its levels kept the same key,
+  // the install was skipped, and the chart drew the previous document (P3R: "gold
+  // when RSI is above 70" → "crossing above 70" left every above-70 bar gold until
+  // Save). An identical re-read still keys identically — the SWR revalidate stays a
+  // no-op. ⛔ Ephemeral install identity only: nothing persisted, not the result key.
+  return `${def.id}@${def.version}#${def.compute && def.compute.fn}${sem}~${contentPrint(def)}`
+}
+
+/** FNV-1a over the document's JSON: a short, stable fingerprint of what will draw. */
+function contentPrint(def) {
+  let s
+  try { s = JSON.stringify(def) } catch { return 'x' }
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h.toString(16)
 }
 
 /**

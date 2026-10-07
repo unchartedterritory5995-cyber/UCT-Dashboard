@@ -56,7 +56,7 @@ export default function DateStatusStrip({ syms }) {
           {(data.unknown || []).length > 0 && <span className={styles.chip}>{data.unknown.length} not yet tracked</span>}
         </summary>
         <div className={styles.scroll}>
-          <table className={styles.grid}>
+          <table className={styles.grid} aria-label="Earnings date status">
             <thead><tr><th scope="col">Symbol</th><th scope="col">Date</th><th scope="col">Status</th><th scope="col">Since</th><th scope="col">First confirmed</th><th scope="col">Moved</th></tr></thead>
             <tbody>
               {rows.map(([sym, r]) => (

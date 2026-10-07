@@ -8,17 +8,17 @@
   align-items: center;
   padding: 2px 8px;
   border-radius: 5px;
-  border: 1px solid rgba(212, 170, 80, 0.3);
-  background: rgba(212, 170, 80, 0.12);
-  color: var(--ut-gold, #dcbb5e);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+  color: var(--ut-gold);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
 }
-.chip:hover { border-color: var(--ut-gold, #dcbb5e); }
-.chipOpen { background: var(--ut-gold, #dcbb5e); color: var(--bg); }
+.chip:hover { border-color: var(--ut-gold); }
+.chipOpen { background: var(--ut-gold); color: var(--bg); }
 
 .pop {
   position: absolute;
@@ -30,7 +30,7 @@
   padding: 5px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border, #2a2a2a);
-  background: var(--panel, #101010);
+  background: var(--bg-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
 }
@@ -45,7 +45,7 @@
   font-size: 12px;
   text-decoration: none;
 }
-.row:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
+.row:hover { background: var(--bg-hover, color-mix(in srgb, var(--text-heading) 6%, transparent)); }
 .rowTitle {
   flex: 1;
   overflow: hidden;

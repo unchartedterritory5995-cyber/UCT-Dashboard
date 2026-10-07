@@ -10,7 +10,7 @@ import RrgPanel, { SECTOR_ETFS, rrgUniverse } from './RrgPanel'
 import RelPanel, { relSymbols, ratioVerdict, axisDecimals } from './RelPanel'
 import CorrPanel, { corrSymbols, corrTint } from './CorrPanel'
 import { clearClosesCache, settleLimited, MAX_IN_FLIGHT } from './useCloses'
-import { fakeBarsFetch, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
+import { fakeBarsFetch, fridays, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
 
 const realFetch = globalThis.fetch
 let fetchSpy
@@ -24,7 +24,7 @@ afterEach(() => { globalThis.fetch = realFetch })
 const requested = () => fetchSpy.mock.calls.map(([u]) => decodeURIComponent(String(u).match(/\/api\/bars\/([^?]+)/)[1]))
 
 describe('RRG', () => {
-  const dates = weekdays(60)
+  const dates = fridays(60)   // weekly bars: one per week (closesFromBars re-keys W bars to the ISO Friday)
   const bench = series(dates, () => 0.001)
   const shaped = (rel) => series(dates, (i) => (1.001 * (1 + rel(i))) - 1)
 
@@ -43,6 +43,9 @@ describe('RRG', () => {
     fireEvent.click(screen.getByTitle('Open XLU GP'))
     expect(onRun).toHaveBeenCalledWith('XLU GP')
     expect(screen.getByTestId('terminal-rrg-method').textContent).toContain("not JdK's proprietary formula")
+    // a11y (audit 2026-10-06): the graph's name states what it SHOWS, and the table is named
+    expect(screen.getByRole('img', { name: /vs SPY.*Leading: XLK\..*Lagging: XLU\./ })).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'Rotation quadrants vs SPY' })).toBeTruthy()
     // weekly closes, one request per name, at the shared depth
     expect(fetchSpy.mock.calls.every(([u]) => /tf=W&bars=120/.test(u))).toBe(true)
   })
@@ -93,6 +96,8 @@ describe('REL', () => {
     expect(screen.getByTestId('terminal-rel-row-NVDA').textContent).toContain('+28.6%')
     expect(screen.getByTestId('terminal-rel-row-NVDA').textContent).toContain('base')
     expect(screen.getByTestId('terminal-rel-row-AMD').textContent).toContain('-28.6%')
+    // a11y (audit 2026-10-06): the chart's name carries the result, not only the axis
+    expect(screen.getByTestId('terminal-rel-chart').getAttribute('aria-label')).toMatch(/: NVDA \+28\.6%, AMD [^,]+$/)
     expect(screen.getByTestId('terminal-rel-verdict').textContent).toBe(
       'NVDA has outperformed AMD by 28.6% on the ratio over 6M. The ratio is above its 50-session average: NVDA is gaining on AMD now.')
   })

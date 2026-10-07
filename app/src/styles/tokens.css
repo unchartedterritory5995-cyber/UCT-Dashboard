@@ -84,7 +84,12 @@
      --field-edge (D-A4-3): non-text UI, >= 3:1 against every page surface
      (an input's fill varies by file: --bg / --bg-surface / --bg-elevated).
      Neutral grey family of --border (same hue/sat, lightness only). */
-  --danger-ink: #e67070; /* dark: 4.93:1 worst (loss-bg over bg-elevated) */
+  /* Terminal a11y audit 2026-10-06 (pages/terminal/a11y/terminalContrast.test.js): danger-ink
+     is ALSO the loss-as-TEXT ink for the terminal's red numbers, so it must clear 4.5:1 on
+     --bg-hover in every catalog theme too, not only on the Notebook's surfaces. #e67070 read
+     4.05:1 on Midnight Navy's hover; #e87878 (same hue, lightness lifted) reads 4.61:1 worst
+     (Nord --bg-hover). --loss itself is untouched: it also colours chart candles. */
+  --danger-ink: #e87878; /* 4.61:1 worst across dark + the 12 dark catalog themes */
   --success-ink: var(--gain); /* dark: 5.20:1 worst, already clears 4.5:1 */
   --field-edge: #6a6f7c; /* dark: 3.28:1 worst vs bg/bg-surface/bg-elevated */
 
@@ -638,7 +643,9 @@
      oled: danger-ink 4.97:1 worst (loss-bg over bg-elevated) · success-ink
      reuses --gain, 6.08:1 worst, already clears 4.5:1 · field-edge 3.29:1
      worst vs bg/bg-surface/bg-elevated. */
-  --danger-ink: #e35e5e;
+  /* Lifted 2026-10-06 (terminal a11y audit): the 12 dark catalog themes ride THIS block, and
+     #e35e5e read 3.76:1 on Nord's --bg-hover. Same value as :root now. */
+  --danger-ink: #e87878;
   --success-ink: var(--gain);
   --field-edge: #666666;
 
@@ -753,6 +760,16 @@
   /* Tick-flash tint (read inside Theme Tracker / watchlist keyframes). */
   --tick-up-bg: rgba(10, 92, 34, 0.26);
   --tick-down-bg: rgba(125, 22, 32, 0.24);
+
+  /* Score ramp on white (terminal theme lane, 2026-10-06). The :root ramp is five bright
+     hexes tuned for a dark ground; on white the middle steps fall under 3:1. Each step is
+     derived from THIS theme's own up / caution / down inks, so a score follows the theme
+     exactly as a P&L figure does. The --grade-* aliases ride along (they point here). */
+  --score-elite: var(--gain);
+  --score-strong: color-mix(in srgb, var(--gain) 55%, var(--warn));
+  --score-neutral: var(--warn);
+  --score-weak: color-mix(in srgb, var(--warn) 45%, var(--loss));
+  --score-poor: var(--loss);
 
   /* NO --glass-* HERE, ON PURPOSE. Spec §3.2: light-theme adaptation of the
      glass surfaces is deferred to the post-launch app-wide token sweep (§10).

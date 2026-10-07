@@ -52,6 +52,9 @@ def test_week_param_builds_range_week_with_tbd_state():
     assert body["is_current_week"] is False
     assert body["source"] == "range_finnhub"
     assert body["week_start"] == monday.isoformat()
+    # TERM-019: the week carries its own build instant (cached with it, never re-stamped).
+    from datetime import datetime as _dt, timezone as _tz
+    assert (_dt.now(_tz.utc) - _dt.fromisoformat(body["as_of"])).total_seconds() < 120
 
     day = body["days"][monday.isoformat()]
     assert [e["sym"] for e in day["bmo"]] == ["PEP"]      # ZZZZOFF cap-filtered

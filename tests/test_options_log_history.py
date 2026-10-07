@@ -88,6 +88,8 @@ def test_straddle_history_is_dollars_and_percent_with_its_dte(seed):
         [(d1, 4.0, 2), (d2, 5.0, 1)]                                      # 4/100, 4/80
     assert h["n"] == 2 and h["sessions_without_straddle"] == [d3]
     assert h["logging_began"] == d1
+    assert h["as_of"] == d3                       # TERM-019: the newest session the log holds
+    assert lh.daily_move("TST", now=NOW)["as_of"] == d3
 
 
 # ── FT-007 ─────────────────────────────────────────────────────────────────────

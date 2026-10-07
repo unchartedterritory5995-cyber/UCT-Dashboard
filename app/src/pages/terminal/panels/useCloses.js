@@ -27,7 +27,7 @@ export function fetchCloses(sym, tf = 'D') {
   if (memo.has(key)) return memo.get(key)
   const url = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BARS_FOR_TF[tf] ?? BARS_FOR_TF.D}`
   const p = jsonFetcher(url, { credentials: 'include' }).then((payload) => {
-    const series = closesFromBars(payload)
+    const series = closesFromBars(payload, { weekly: tf === 'W' })
     if (series.length < 2) throw Object.assign(new Error(`${sym}: no bars`), { status: 404 })
     return series
   })
@@ -78,4 +78,25 @@ export default function useCloses(syms, tf = 'D') {
   }, [key, tf])
   if (!list.length) return IDLE
   return state.key === key ? state : LOADING
+}
+
+/** Where the comparison panels' closes come from, in the words the panel header shows. */
+export const CLOSES_SOURCE = 'UCT bar store (daily closes)'
+
+/**
+ * TERM-019 — the panel-header report for a settled `useCloses` read: the source, and the newest
+ * close any series reached (a calendar date, rendered as given — never parsed). `null` while
+ * loading, so no header claims an age for numbers that are not on screen yet.
+ */
+export function closesProvenance(state, tf = 'D') {
+  if (!state || state.phase !== 'ready') return null
+  let through = null
+  for (const series of Object.values(state.series || {})) {
+    const d = series?.[series.length - 1]?.d
+    if (d && (!through || d > through)) through = d
+  }
+  return {
+    source: CLOSES_SOURCE,
+    age: { dataClass: tf === 'W' ? 'weekly' : 'end_of_day', asOfDate: through },
+  }
 }

@@ -130,6 +130,9 @@ describe('the reason survives every hop between the endpoint and the modal', () 
       expected_move: null,
       expected_move_outcome: outcome('no_atm_strike'),
       history_unresolved: false,
+      // Accuracy follow-up 2 (2026-10-06): the next report's fiscal identity,
+      // absent on this fixture -> explicit null like every allow-listed field.
+      next_report_fiscal: null,
       // 2026-09-03 A5 modernization — canonical entity (S3), absent on this
       // fixture's input so it degrades to explicit null, same as every other
       // allow-listed field with no enrichment.

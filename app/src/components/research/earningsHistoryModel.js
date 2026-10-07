@@ -185,7 +185,11 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
     const fiscalYear = num(h?.year)
     const fiscalQuarter = num(h?.quarter)
     return emptyRow({
-      quarter: quarterLabel(h?.period, fiscalQuarter, fiscalYear),
+      // `h.label` is the backend's fiscal label (`fiscal_calendar.display_label`
+      // via `earnings_history_fmp`) — the SAME authority EE's quarter labels go
+      // through, so ERN and EE cannot number one quarter two ways. Absent on a
+      // Finnhub-sourced row or with no fiscal calendar -> the old derivation.
+      quarter: (typeof h?.label === 'string' && h.label) || quarterLabel(h?.period, fiscalQuarter, fiscalYear),
       // `h.period` (Finnhub /stock/earnings) is the fiscal PERIOD END, not the
       // announcement date — `report_date` and `period_end` are semantically
       // different concepts (see the module comment above). The true
@@ -225,8 +229,20 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   // The calendar row's own fiscal identity, when the caller has it (see
   // DECISION 4) — same Finnhub quarter/year fields as beat_history, so the
   // current row labels and keys identically to a past row for the SAME print.
-  const currentFiscalYear = num(row?.year)
-  const currentFiscalQuarter = num(row?.quarter)
+  //
+  // Accuracy follow-up 2: when the calendar row carries no fiscal identity, the
+  // backend's `next_report_fiscal` (placed by `fiscal_calendar` from the
+  // company's own filed year ends) supplies it — but only for THIS report
+  // (its report date within a few days of `rd`), never a different one.
+  const nrf = row?.next_report_fiscal
+  const nrfKey = dayKey(nrf?.report_date)
+  const nrfMatches = !!nrfKey && Math.abs(Date.parse(nrfKey) - Date.parse(rd)) <= 7 * 864e5
+  const ownYear = num(row?.year)
+  const ownQuarter = num(row?.quarter)
+  const useNrf = (ownYear == null || ownQuarter == null) && nrfMatches
+  const currentFiscalYear = useNrf ? num(nrf?.fiscal_year) : ownYear
+  const currentFiscalQuarter = useNrf ? num(nrf?.fiscal_quarter) : ownQuarter
+  const currentLabel = useNrf && typeof nrf?.label === 'string' && nrf.label ? nrf.label : null
   const matchesByFiscal = currentFiscalYear != null && currentFiscalQuarter != null
     && past.some((p) => p.fiscal_year === currentFiscalYear && p.fiscal_quarter === currentFiscalQuarter)
 
@@ -252,7 +268,7 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   }
 
   past.push(emptyRow({
-    quarter: quarterLabel(rd, currentFiscalQuarter, currentFiscalYear),
+    quarter: currentLabel || quarterLabel(rd, currentFiscalQuarter, currentFiscalYear),
     report_date: rd,
     period_end: rd,
     fiscal_year: currentFiscalYear,

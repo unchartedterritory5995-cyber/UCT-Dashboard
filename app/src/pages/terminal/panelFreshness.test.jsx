@@ -6,7 +6,7 @@
 //   * a panel that reports nothing renders no badge (opt-in, backward-compatible default);
 //   * MovePanel renders the badge instead of a raw, un-badged `as_of` string once its data lands.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // `Panel` resolves a real function code through the real registry (`functions.js`) and renders
@@ -21,7 +21,8 @@ vi.mock('./panels', async (importOriginal) => {
 vi.mock('../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../utils/jsonFetcher'
 import MovePanel from './panels/MovePanel'
-import { Panel } from './TerminalShell'
+import { Panel, PanelProvenance } from './TerminalShell'
+import { QuietPanelFreshness } from '../../components/terminal'
 
 function basePanelProps(overrides = {}) {
   return {
@@ -119,5 +120,63 @@ describe('terminal panel freshness (V8)', () => {
       since_last_visit: { first_visit: true, new: [] } })
     await screen.findByTestId('terminal-move')
     expect(await screen.findByTestId('terminal-panel-freshness-0')).toBeTruthy()
+  })
+})
+
+describe('TERM-019 — the panel header names the source, through S8, and never a blank age', () => {
+  it('a reported source renders through <Provenance> beside the age, in the panel header', async () => {
+    function SourcedPanel() {
+      usePanelFreshness({ source: 'SEC EDGAR', age: { asOfDate: '2026-10-01' } })
+      return <div data-testid="stub-body">body</div>
+    }
+    stubs.set('Move', SourcedPanel)
+    render(<Panel {...basePanelProps()} />)
+    await screen.findByTestId('stub-body')
+    const host = screen.getByTestId('terminal-panel-freshness-0')
+    const source = screen.getByTestId('terminal-panel-source-0')
+    expect(host.contains(source)).toBe(true)
+    // S8's own renderer, not a local span: the Provenance present state with its disclosure.
+    expect(source.querySelector('[data-testid="provenance-present"]')).toBeTruthy()
+    expect(source.textContent).toContain('Source: SEC EDGAR')
+    expect(host.querySelector('[data-testid="freshness-age"]').textContent).toContain('as of 2026-10-01')
+  })
+
+  it('a source with no age says "undated" — an unknown age is never shown as nothing', () => {
+    render(<PanelProvenance report={{ source: 'UCT Model Book' }} index={3} />)
+    expect(screen.getByTestId('terminal-panel-source-3').textContent).toContain('Source: UCT Model Book')
+    expect(screen.getByTestId('terminal-panel-freshness-3').textContent).toContain('undated')
+  })
+
+  it('observedAt reaches the source disclosure without inventing a freshness class', () => {
+    render(<PanelProvenance report={{ source: 'Massive (OPRA quotes)', observedAt: '2026-10-05T14:30:05Z',
+      age: { asOfDate: '2026-10-05 14:30:05 UTC' } }} index={0} />)
+    expect(screen.queryByTestId('freshness-tier')).toBeNull()
+    fireEvent.click(screen.getByTestId('provenance-detail-toggle'))
+    return screen.findByTestId('provenance-detail-panel').then((p) => {
+      expect(p.textContent).toContain('Source: Massive (OPRA quotes)')
+      expect(p.textContent).toContain('Observed:')
+    })
+  })
+
+  it('a report with neither a source nor an age renders nothing', () => {
+    const { container } = render(<PanelProvenance report={{ source: '   ' }} index={0} />)
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('an embedded panel inside <QuietPanelFreshness> does not speak for the panel around it', async () => {
+    function Inner() {
+      usePanelFreshness({ source: 'inner feed' })
+      return <div data-testid="inner">inner</div>
+    }
+    function Host() {
+      usePanelFreshness({ source: 'host feed' })
+      return <QuietPanelFreshness><Inner /></QuietPanelFreshness>
+    }
+    stubs.set('Move', Host)
+    render(<Panel {...basePanelProps()} />)
+    await screen.findByTestId('inner')
+    const source = await screen.findByTestId('terminal-panel-source-0')
+    expect(source.textContent).toContain('host feed')
+    expect(source.textContent).not.toContain('inner feed')
   })
 })

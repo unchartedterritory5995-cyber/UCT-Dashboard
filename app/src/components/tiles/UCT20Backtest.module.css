@@ -144,7 +144,7 @@
   border-radius: var(--radius-sm);
   padding: 12px 14px 10px;
   margin-bottom: 18px;
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text-heading) 2%, transparent);
 }
 .abHead {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -170,6 +170,7 @@
   text-align: right; width: 30%;
 }
 .abLabel {
+  text-align: left;
   font-family: var(--font-sans);
   font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
   color: var(--text-muted); text-transform: uppercase;

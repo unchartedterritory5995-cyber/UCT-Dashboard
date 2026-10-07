@@ -36,14 +36,14 @@ export function capNote(d) {
 
 function Row({ kind, r }) {
   if (kind === 'covered_calls') {
-    return <tr><th>{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.premium_yield_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.if_called_pct)}%</td></tr>
+    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.premium_yield_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.if_called_pct)}%</td></tr>
   }
   if (kind === 'cash_secured_puts') {
-    return <tr><th>{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.yield_on_cash_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.breakeven)} ({num(r.cushion_pct)}%)</td></tr>
+    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.yield_on_cash_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.breakeven)} ({num(r.cushion_pct)}%)</td></tr>
   }
   const credit = r.credit != null
   return (
-    <tr><th>{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
+    <tr><th scope="row">{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
       <td>{credit ? `+${perContract(r.credit)}` : `-${perContract(r.debit)}`}</td><td>{perContract(r.max_profit)}</td><td>{perContract(r.max_loss)}</td>
       <td>{credit ? `${num(r.return_on_risk_pct, 1)}%` : `${num(r.reward_to_risk)} : 1`}</td></tr>
   )
@@ -91,8 +91,8 @@ function FirstScreens() {
           {capNote(res.data) && <p className={styles.note} data-testid="strategy-capped">{capNote(res.data)}</p>}
           {res.data.rows.length > 0 ? (
             <div className={styles.scroll}>
-              <table className={styles.table}>
-                <thead><tr><th>Ticker</th>{heads.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <table className={styles.table} aria-label={`Strategy screen: ${cat.data.strategies.find((s) => s.id === kind)?.label || kind}`}>
+                <thead><tr><th scope="col">Ticker</th>{heads.map((h) => <th scope="col" key={h}>{h}</th>)}</tr></thead>
                 <tbody>{res.data.rows.map((r, i) => <Row key={`${r.underlying}-${i}`} kind={kind} r={r} />)}</tbody>
               </table>
             </div>
@@ -107,15 +107,15 @@ function FirstScreens() {
 
 function MoreRow({ kind, r }) {
   if (kind === 'call_butterflies') {
-    return <tr><th>{r.underlying}</th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
+    return <tr><th scope="row">{r.underlying}</th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
       <td>-{perContract(r.debit)}</td><td>{perContract(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
   }
   if (kind === 'by_expiration') {
-    return <tr><th>{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
+    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
       <td>{Number(r.open_interest).toLocaleString()}</td><td>{r.call_share_pct == null ? '—' : `${num(r.call_share_pct, 1)}%`}</td>
       <td>{fracPct(r.atm_iv)}</td></tr>
   }
-  return <tr><th>{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
+  return <tr><th scope="row">{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
     <td>${Math.round(r.premium).toLocaleString()}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
 }
 
@@ -163,8 +163,8 @@ export function MoreStrategyScreens() {
           {kind !== 'block_trades' && capNote(d) && <p className={styles.note} data-testid="more-capped">{capNote(d)}</p>}
           {d.rows.length > 0 ? (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="more-rows">
-                <thead><tr><th>Ticker</th>{MORE_HEADS[kind].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <table className={styles.table} data-testid="more-rows" aria-label={`More strategy screens: ${cat.data.strategies.find((x) => x.id === kind)?.label || kind}`}>
+                <thead><tr><th scope="col">Ticker</th>{MORE_HEADS[kind].map((h) => <th scope="col" key={h}>{h}</th>)}</tr></thead>
                 <tbody>{d.rows.map((r, i) => <MoreRow key={`${r.underlying || r.symbol}-${i}`} kind={kind} r={r} />)}</tbody>
               </table>
             </div>
@@ -196,11 +196,11 @@ export function SizzlePanel() {
           {data.note && <p className={styles.note} data-testid="sizzle-note">{data.note}</p>}
           {(data.ranked || []).length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="sizzle-ranked">
-                <thead><tr><th>Ticker</th><th>Sizzle</th><th>Volume</th><th>5-session mean</th></tr></thead>
+              <table className={styles.table} data-testid="sizzle-ranked" aria-label="Sizzle, 5-day">
+                <thead><tr><th scope="col">Ticker</th><th scope="col">Sizzle</th><th scope="col">Volume</th><th scope="col">5-session mean</th></tr></thead>
                 <tbody>
                   {data.ranked.map((r) => (
-                    <tr key={r.underlying}><th>{r.underlying}</th><td>{num(r.ratio)}x</td><td>{Number(r.volume).toLocaleString()}</td><td>{Number(r.average).toLocaleString()}</td></tr>
+                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{Number(r.volume).toLocaleString()}</td><td>{Number(r.average).toLocaleString()}</td></tr>
                   ))}
                 </tbody>
               </table>

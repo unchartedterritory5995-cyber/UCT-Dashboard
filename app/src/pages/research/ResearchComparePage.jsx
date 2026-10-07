@@ -251,8 +251,8 @@ export default function ResearchComparePage() {
 
       <div className={isPhone ? styles.stackPhone : styles.columns2}>
         <TileCard title="Summary" icon="columns">
-          <table className={styles.tbl}>
-            <thead><tr><th /><th>{sym}</th><th>{comparator}</th></tr></thead>
+          <table className={styles.tbl} aria-label={`Summary: ${sym} versus ${comparator}`}>
+            <thead><tr><td /><th scope="col">{sym}</th><th scope="col">{comparator}</th></tr></thead>
             <tbody>
               <SummaryRow label="Price" a={a?.price?.last} b={b?.price?.last} fmt={fmtPrice} />
               <tr>
@@ -283,8 +283,8 @@ export default function ResearchComparePage() {
               {b?.fundamentals?.error && <div>No fundamentals available for {comparator}.</div>}
             </div>
           )}
-          <table className={styles.tbl}>
-            <thead><tr><th /><th>{sym}</th><th>{comparator}</th></tr></thead>
+          <table className={styles.tbl} aria-label={`Fundamentals and valuation: ${sym} versus ${comparator}`}>
+            <thead><tr><td /><th scope="col">{sym}</th><th scope="col">{comparator}</th></tr></thead>
             <tbody>
               <SummaryRow label="P/E (trailing)" a={a?.fundamentals?.pe_trailing} b={b?.fundamentals?.pe_trailing} fmt={(v) => fmtNum(v)} />
               <SummaryRow label="P/E (forward)" a={a?.fundamentals?.pe_forward} b={b?.fundamentals?.pe_forward} fmt={(v) => fmtNum(v)} />
@@ -302,8 +302,8 @@ export default function ResearchComparePage() {
 
         {Array.isArray(data?.estimates_aligned) && data.estimates_aligned.length > 0 && (
           <TileCard title="Estimates" icon="chart">
-            <table className={styles.tbl}>
-              <thead><tr><th>Period</th><th>{sym} EPS</th><th>{comparator} EPS</th></tr></thead>
+            <table className={styles.tbl} aria-label={`EPS estimates: ${sym} versus ${comparator}`}>
+              <thead><tr><th scope="col">Period</th><th scope="col">{sym} EPS</th><th scope="col">{comparator} EPS</th></tr></thead>
               <tbody>
                 {data.estimates_aligned.map(row => (
                   <SummaryRow key={row.period} label={row.period} a={row.a?.eps_avg} b={row.b?.eps_avg} fmt={(v) => fmtNum(v)} />
@@ -314,8 +314,8 @@ export default function ResearchComparePage() {
         )}
 
         <TileCard title="Ratings" icon="sparkle">
-          <table className={styles.tbl}>
-            <thead><tr><th /><th>{sym}</th><th>{comparator}</th></tr></thead>
+          <table className={styles.tbl} aria-label={`Ratings: ${sym} versus ${comparator}`}>
+            <thead><tr><td /><th scope="col">{sym}</th><th scope="col">{comparator}</th></tr></thead>
             <tbody>
               <SummaryRow label="UCT Composite" a={a?.ratings?.composite} b={b?.ratings?.composite} fmt={(v) => (v == null ? '—' : String(v))} />
               <SummaryRow label="Analyst Consensus" a={a?.analyst?.consensus?.label} b={b?.analyst?.consensus?.label} />

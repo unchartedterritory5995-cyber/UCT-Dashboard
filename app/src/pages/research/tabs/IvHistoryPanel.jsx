@@ -5,6 +5,7 @@ import styles from './OptionsChainTab.module.css'
 import OffNotice from '../../optionsAnalytics/OffNotice'
 import { num as optNum } from '../../optionsAnalytics/optionsFormat'
 import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // RM-L01 (IV-history half) + RM-L02 (BRK-10 first slice): IV history read ONLY from our own
 // options log (api/services/research/iv_history.py). Massive sells no IV history, so this is
@@ -76,6 +77,10 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
   const key = s ? `/api/research/iv-history/${encodeURIComponent(s)}` : null
   const { data, error } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !data.paywalled && !error
+    ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.covers_to || null } }
+    : null)
 
   if (key && error?.status === 404 && offNotice) return <OffNotice urls={[key]} feature="IV history" />
   if (offNotice && data?.paywalled) return <div className={styles.note} data-testid="feature-paywalled">IV history requires a paid plan.</div>

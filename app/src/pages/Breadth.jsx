@@ -372,12 +372,6 @@ const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
 // TIER_SCORES / TIER_LABELS / TIER_TIP_COLORS moved to breadth/heatmapMetrics.js
 // (imported + re-exported above).
 
-// Y-axis label colors per group
-const HM_GROUP_COLORS = {
-  Score: '#c9a84c', Primary: '#b8c94a', MA: '#4ac97d',
-  Regime: '#7b9fc7', 'Highs/Lows': '#c9944a', Sentiment: '#b44ac9',
-}
-
 // HM_METRICS / FFILL_KEYS / PCTILE_KEYS / TIER_CELL_COLORS / HM_METRICS_BY_KEY /
 // TREEMAP_DEF moved to breadth/heatmapMetrics.js (imported + re-exported above).
 
@@ -1177,17 +1171,18 @@ export default function Breadth() {
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap} ref={tableWrapRef}>
-          <table className={styles.table}>
+          <table className={styles.table} aria-label="Breadth monitor">
             <thead>
               {/* Single column-label row — the colored group-header strip was
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
               <tr>
-                <th className={`${styles.th} ${styles.dateCol}`}>Date</th>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`}>Date</th>
                 {visibleCols.map(col => {
                   const isColCollapsed = collapsedCols.has(col.key)
                   return (
                     <th
+                      scope="col"
                       key={col.key}
                       title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
                       className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}

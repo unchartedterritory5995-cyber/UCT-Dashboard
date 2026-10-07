@@ -8,6 +8,7 @@ import {
   relabelDollarText, reportingCurrencyNote,
 } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
 // high/low and dispersion, and the firms acting on the stock by name.
@@ -36,6 +37,10 @@ export default function BrokerEstimatesPanel({ sym }) {
   const { data, error, mutate } = useSWR(s ? `/api/research/broker-estimates/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
   const reask = usePendingReask(data?.state === 'pending', mutate, s)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  // `as_of` is when the consensus was read from FMP (the cache fill); absent while pending.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error && data.source ? panelAsOf(memberText(data.source), data.as_of) : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
@@ -49,7 +54,7 @@ export default function BrokerEstimatesPanel({ sym }) {
           ? <p className={styles.note} data-testid="broker-state">{memberSentence(data.reason)}</p>
           : (
             <div className={styles.scroll}>
-              <table className={styles.grid}>
+              <table className={styles.grid} aria-label="Estimates by contributor">
                 <thead>
                   <tr><th scope="col">Quarter ending</th><th scope="col">{headIn('EPS mean', data.currency)}</th><th scope="col"># Ests</th><th scope="col">Low–high</th><th scope="col">Spread</th>
                     <th scope="col">{headIn('Revenue mean', data.currency)}</th><th scope="col"># Ests</th></tr>

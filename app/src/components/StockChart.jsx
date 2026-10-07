@@ -2938,6 +2938,20 @@ export default function StockChart({
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
     }
   }
+  // ⭐ A CHANGE TO THE STORED SCALE WINS OVER A STALE LOCAL OVERRIDE. The override
+  // above exists for surfaces whose settings write is MASKED (stored scale never
+  // changes there, so this never fires and the override keeps working). Where the
+  // write lands (/charts), a toggle click sets the override AND moves the stored
+  // scale to the same value, so clearing it changes nothing visible — but an
+  // EXTERNAL writer (UCT Agent's chart.setScale, a template, a restore) used to be
+  // silently outranked by an override left from an earlier click.
+  const storedScale = cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith')
+  const storedScaleRef = useRef(storedScale)
+  useEffect(() => {
+    if (storedScaleRef.current === storedScale) return
+    storedScaleRef.current = storedScale
+    setScaleOverride(null)
+  }, [storedScale])
   // The price pane's right scale, addressed via the candle series so it's always
   // the PRICE scale even when an index-comparison pane sits at pane 0 (where
   // chart.priceScale('right') would otherwise resolve). Falls back to the bare
@@ -7629,10 +7643,19 @@ export default function StockChart({
   // basis, value sanity) still gates it — a wrong-basis deep set is never spliced.
   // Only reached where the arm previously drew `data.bars`; every other outcome is
   // unchanged, and the pre-server arm keeps its refusal untouched.
+  // ⛔ BUT NOT THE LAST-BAR PRICE SANITY. `_idbDailyLastInsane` judges the cache's LAST
+  // bar as a stock price (positive, open within 50% of close) because that bar would be
+  // the first frame's tail. The splice never draws it — the tail is the server's — and
+  // the rule is wrong for a value series: NASDAQ:NETHL / MCO close below zero and a
+  // %-above-MA can double in a session, so every such day dropped the deep history and
+  // the chart "began" at the 600-bar window (May 2024, 2026-10-07).
+  const _splitDeepSpliceable = _splitOn && idbBars?.length > 0
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !_idbBasisMismatch
   const _splitDeepBehindFresh = useMemo(
-    () => ((_netMatches && !data.delta && _splitDeepUsable && !(_idbFresh || _splitDeepPaintable))
+    () => ((_netMatches && !data.delta && _splitDeepSpliceable && !(_idbFresh || _splitDeepPaintable))
       ? spliceDeepLeftOfFresh(idbBars, data.bars) : null),
-    [_netMatches, data, idbBars, _splitDeepUsable, _idbFresh, _splitDeepPaintable],
+    [_netMatches, data, idbBars, _splitDeepSpliceable, _idbFresh, _splitDeepPaintable],
   )
   const bars = _isCustomTf
     ? customBars   // custom TF: the resampled base bars (null until the base loads)

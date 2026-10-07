@@ -325,6 +325,13 @@ class TestCachePolicy:
         assert r.status_code == 200
         assert seen.get("ttl") == router_mod._FH_METRIC_TTL
         assert "TESTCP" in persisted
+        # TERM-019: the build instant rides the cached AND persisted payload, so a later cache
+        # or disk hit answers with the build time, never a fresh "now".
+        import datetime as _dt
+        stamp = persisted["TESTCP"]["as_of"]
+        assert stamp == r.json()["as_of"]
+        age = _dt.datetime.now(_dt.timezone.utc) - _dt.datetime.fromisoformat(stamp)
+        assert 0 <= age.total_seconds() < 120
 
     def test_all_sources_failing_gets_the_short_ttl_and_is_not_persisted(self, client, monkeypatch):
         """THE regression: before this fix `cache.set` at the router level ran

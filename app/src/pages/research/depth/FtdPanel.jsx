@@ -4,6 +4,7 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // FT-068 — SEC fails-to-deliver as its own dataset. DARK behind FTD_DATASET_ENABLED.
 //
@@ -21,6 +22,11 @@ export default function FtdPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/ftd/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error
+    ? { source: memberText(data.source) || null, age: { asOfDate: data.window?.through || null } }
+    : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="ftd-unavailable">Fails-to-deliver data is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
@@ -41,7 +47,7 @@ export default function FtdPanel({ sym }) {
           <p className={styles.warn} data-testid="ftd-mismatch">Files whose row count did not match their trailer: {data.mismatched_files.join(', ')}.</p>
         )}
         <div className={styles.scroll}>
-          <table className={styles.grid}>
+          <table className={styles.grid} aria-label="Fails to deliver (SEC)">
             <thead><tr><th scope="col">Settlement date</th><th scope="col">Fails (shares)</th><th scope="col">Price</th><th scope="col">Value</th></tr></thead>
             <tbody>
               {pts.slice(0, 60).map((p) => (

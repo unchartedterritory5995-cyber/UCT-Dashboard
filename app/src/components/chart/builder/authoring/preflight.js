@@ -25,6 +25,11 @@ const NOT_TICKERS = new Set([
   ...Object.keys(TABLE.series || {}).map((n) => n.toUpperCase()),
 ])
 
+const escapeRe = (w) => w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&')
+const PHRASE_SOURCE = '\\b(?:' + RULES.notTickerPhrases
+  .map((p) => p.split(/[\s-]+/).map(escapeRe).join('[\\s-]+'))
+  .join('|') + ')\\b'
+
 const RE = {
   compare: new RegExp(RULES.compareCue, 'i'),
   directCue: () => new RegExp(RULES.useCue, 'g'),            // case-SENSITIVE: the ticker as typed
@@ -33,8 +38,47 @@ const RE = {
   tfWord: () => new RegExp(RULES.tfWord, 'gi'),
   after: new RegExp(RULES.tfContextAfter, 'i'),
   before: new RegExp(RULES.tfContextBefore, 'i'),
-  question: new RegExp(RULES.questionLead, 'i'),
+  possessive: () => new RegExp(RULES.possessiveTicker, 'g'),  // case-SENSITIVE
+  adjacent: () => new RegExp(RULES.adjacentTicker, 'g'),      // case-SENSITIVE
+  // ⭐ P3: "CAN SLIM" is a method, not ticker CAN (space or hyphen between words)
+  phrases: () => new RegExp(PHRASE_SOURCE, 'gi'),
 }
+
+const Q = Object.fromEntries(['clauseSplit', 'discourse', 'trailingQuestion', 'interrogativeLead',
+  'advisoryLead', 'compareLead', 'requestLead', 'wantLead'].map((k) => [k, new RegExp(RULES.questionShape[k], 'i')]))
+
+const ADJACENT_NOUNS = new Set([
+  ...RULES.adjacentNouns.map((w) => w.toLowerCase()),
+  ...Object.keys(TABLE.functions || {}).map((n) => n.toLowerCase()),
+  ...Object.keys(TABLE.series || {}).map((n) => n.toLowerCase()),
+])
+
+function clauses(message) {
+  return message.split(Q.clauseSplit)
+    .filter((p) => p && p.trim())
+    .map((p) => p.trim().replace(Q.discourse, '').trim())
+    .filter(Boolean)
+}
+
+/**
+ * ⭐ P3 — what the member's words ARE (the server's `conversation_preflight.shape`,
+ * same rules file): 'authoring' | 'question' | 'compare' | 'other'. An authoring
+ * clause anywhere wins ("Add the McGinley Dynamic. What do you think?").
+ */
+export function messageShape(message) {
+  if (typeof message !== 'string' || !message.trim()) return 'other'
+  const cs = clauses(message)
+  for (const c of cs) {
+    if (Q.advisoryLead.test(c)) continue
+    if (Q.requestLead.test(c) || Q.wantLead.test(c)) return 'authoring'
+  }
+  if (Q.trailingQuestion.test(message.trim())) return 'question'
+  if (cs.some((c) => Q.interrogativeLead.test(c) || Q.advisoryLead.test(c))) return 'question'
+  if (cs.some((c) => Q.compareLead.test(c))) return 'compare'
+  return 'other'
+}
+
+export const isQuestion = (message) => messageShape(message) === 'question'
 
 const normSym = (s) => (typeof s === 'string' && s.trim() ? s.trim().replace(/^\$/, '').toUpperCase() : null)
 
@@ -69,7 +113,8 @@ function tickers(message) {
   return out
 }
 
-function otherSymbol(message, chartSym) {
+function otherSymbol(raw, chartSym) {
+  const message = raw.replace(RE.phrases(), (m) => ' '.repeat(m.length))
   const ts = tickers(message)
   if (RE.compare.test(message) && ts.length) {
     if (chartSym) {
@@ -84,12 +129,29 @@ function otherSymbol(message, chartSym) {
       const t = m[1].toUpperCase()
       if (!NOT_TICKERS.has(t) && t !== chartSym) return t
     }
+    // ⭐ P3: "SPY's RSI", "use QQQ's close" — a possessive ticker …
+    for (const m of message.matchAll(RE.possessive())) {
+      const t = m[1].toUpperCase()
+      if (!NOT_TICKERS.has(t) && t !== chartSym) return t
+    }
+    // … and "SPY RSI above 50" — a ticker directly before an indicator / bar word.
+    for (const m of message.matchAll(RE.adjacent())) {
+      const t = m[1].toUpperCase()
+      if (!NOT_TICKERS.has(t) && t !== chartSym && ADJACENT_NOUNS.has(m[2].toLowerCase())) return t
+    }
   }
   return null
 }
 
+/** ⭐ P3 — the other-symbol DETECTOR alone, question or not (server twin:
+ *  `conversation_preflight.other_symbol`). */
+export function otherSymbolNamed(message, chart = null) {
+  if (typeof message !== 'string' || !message.trim()) return null
+  const c = chart && typeof chart === 'object' ? chart : {}
+  return otherSymbol(message, normSym(c.sym))
+}
+
 function wantedTimeframe(message) {
-  if (RE.question.test(message)) return null
   const hits = []
   for (const m of message.matchAll(RE.tfNum())) {
     const n = Number(m[1])
@@ -118,6 +180,11 @@ export function preflight(message, chart = null) {
   const c = chart && typeof chart === 'object' ? chart : {}
   const chartSym = normSym(c.sym)
   const chartTf = normTf(c.tf)
+
+  // ⭐ P3: a QUESTION is never intercepted — about another symbol or another
+  // timeframe alike. Only the model can answer it (the server refuses a CHANGE
+  // that comes back for a question naming another ticker).
+  if (isQuestion(message)) return null
 
   const other = otherSymbol(message, chartSym)
   if (other) {

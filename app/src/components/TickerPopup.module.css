@@ -72,7 +72,7 @@
 .switchWrap { position: relative; }
 .switchInput {
   width: 148px;
-  border: 1px solid #dcbb5e55;
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 33%, transparent);
   border-radius: var(--radius-md);
   padding: 6px 11px;
   font-family: var(--font-sans);
@@ -85,7 +85,7 @@
   transition: border-color 0.15s;
 }
 .switchInput::placeholder { color: var(--text-muted); }
-.switchInput:focus { border-color: #dcbb5e; }
+.switchInput:focus { border-color: var(--ut-gold); }
 /* Predictive matches, dropped inline beneath the input (no portal). */
 .switchMenu {
   position: absolute;
@@ -94,8 +94,8 @@
   width: 240px;
   max-height: 320px;
   overflow-y: auto;
-  background: #0e0e10;
-  border: 1px solid #242426;
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
   border-radius: var(--radius-lg);
   padding: 4px;
   z-index: 1000;
@@ -116,7 +116,7 @@
   border-radius: 5px;
   cursor: pointer;
 }
-.switchOpt:hover, .switchOptActive { background: #ffffff12; }
+.switchOpt:hover, .switchOptActive { background: color-mix(in srgb, var(--text-heading) 7%, transparent); }
 .switchOptSym {
   font-family: var(--font-mono);
   font-size: 12.5px;
@@ -157,7 +157,7 @@
   color: var(--ut-green-bright);
 }
 .modalChangeDown {
-  color: var(--ut-red, #ef4444);
+  color: var(--ut-red, var(--loss));
 }
 /* ── Close button (icon-only, square; red-tinted hover = the close affordance) ── */
 .closeBtn {
@@ -175,9 +175,9 @@
 }
 .closeBtn:hover {
   opacity: 1;
-  color: #f2555a;
-  border-color: rgba(242, 85, 90, 0.4);
-  background: rgba(242, 85, 90, 0.1);
+  color: var(--loss);
+  border-color: color-mix(in srgb, var(--loss) 40%, transparent);
+  background: color-mix(in srgb, var(--loss) 10%, transparent);
 }
 /* ── Research / Ask AI buttons (icon-only, square; same chrome as Flag/Close) ── */
 .actionBtn {
@@ -193,7 +193,7 @@
   transition: all 0.15s;
   opacity: 0.6;
 }
-.actionBtn:hover { opacity: 1; color: var(--ut-gold); border-color: rgba(212, 170, 80, 0.4); background: var(--bg-hover); }
+.actionBtn:hover { opacity: 1; color: var(--ut-gold); border-color: color-mix(in srgb, var(--ut-gold) 40%, transparent); background: var(--bg-hover); }
 /* ── Compare entry (closes the Compare dead end) — same SymbolSearch "+ Compare"
    picker as /research's header, just sized to sit among the icon-only actions. ── */
 .compareEntry { font-size: 11px; display: flex; align-items: center; }
@@ -214,8 +214,8 @@
 .flagBtn:hover { opacity: 1; background: var(--bg-hover); }
 .flagBtnActive {
   color: var(--ut-gold);
-  border-color: rgba(212, 170, 80, 0.4);
-  background: rgba(212, 170, 80, 0.1);
+  border-color: color-mix(in srgb, var(--ut-gold) 40%, transparent);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
   opacity: 1;
 }
 
@@ -231,8 +231,8 @@
 }
 .flagToastAdded {
   color: var(--ut-gold);
-  background: rgba(212, 170, 80, 0.15);
-  border: 1px solid rgba(212, 170, 80, 0.35);
+  background: color-mix(in srgb, var(--ut-gold) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
 }
 .flagToastRemoved {
   color: var(--text-muted);
@@ -327,7 +327,7 @@
 }
 .modalModeBtn:hover { color: var(--text-bright); }
 .modalModeBtnActive {
-  background: #dcbb5e;
+  background: var(--ut-gold);
   color: var(--bg) !important;
 }
 
@@ -475,7 +475,7 @@
 }
 .insiderSell {
   color: var(--text-bright);
-  background: var(--ut-red, #ef4444);
+  background: var(--ut-red, var(--loss));
 }
 .insiderShares {
   flex: 0 0 80px;
@@ -528,7 +528,7 @@
   font-weight: 700;
 }
 .eiBeat { color: var(--ut-green-bright); }
-.eiMiss { color: var(--ut-red, #ef4444); }
+.eiMiss { color: var(--ut-red, var(--loss)); }
 .eiNA { color: var(--text-muted); opacity: 0.5; }
 .eiConsensus {
   display: flex;
@@ -537,7 +537,7 @@
 }
 .eiBuyCount { color: var(--ut-green-bright); font-weight: 600; }
 .eiHoldCount { color: var(--text-muted); font-weight: 600; }
-.eiSellCount { color: var(--ut-red, #ef4444); font-weight: 600; }
+.eiSellCount { color: var(--ut-red, var(--loss)); font-weight: 600; }
 .eiTarget {
   font-weight: 600;
   color: var(--ut-cream);

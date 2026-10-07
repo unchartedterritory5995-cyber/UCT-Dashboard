@@ -19,6 +19,7 @@ import { mergeChain, atmIvOf, midOf, volOiOf, isItm, expectedMove } from './chai
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import Select from '../../../components/ui/Select'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { QuietPanelFreshness, usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { num } from '../../optionsAnalytics/optionsFormat'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
@@ -83,6 +84,11 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const expiration = picked || ''
   const chain = useSWR(s ? `/api/research/options/${encodeURIComponent(s)}/chain?expiration=${expiration}&strikes=10` : null,
     sectionFetcher, { refreshInterval: 60_000, revalidateOnFocus: false })
+  // TERM-019: the terminal panel header names the chain's source and the instant the server read it.
+  const served = chain.data && !chain.data.paywalled && !chain.error ? chain.data.served_at || null : null
+  usePanelFreshness(chain.data && !chain.data.paywalled && !chain.error
+    ? { source: 'Massive (OPRA quotes)', observedAt: served, age: { asOfDate: served ? served.replace('T', ' ').replace('+00:00', ' UTC') : null } }
+    : null)
 
   const greeks = useDarkSection(s ? `/api/research/options/${encodeURIComponent(s)}/chain-greeks` : null)
   const full = greeks.data && greeks.data.rho ? greeks.data : null
@@ -172,14 +178,14 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         </p>
       ) : (
       <div className={styles.scroll}>
-        <table className={styles.grid}>
+        <table className={styles.grid} aria-label={d.expiration ? `Option chain for ${s}, ${d.expiration} expiration` : `Option chain for ${s}`}>
           <thead>
-            <tr>{isPhone && <th />}{showCalls && <th colSpan={cols.length}>Calls</th>}{!isPhone && <th />}{showPuts && <th colSpan={cols.length}>Puts</th>}</tr>
+            <tr>{isPhone && <td />}{showCalls && <th scope="colgroup" colSpan={cols.length}>Calls</th>}{!isPhone && <td />}{showPuts && <th scope="colgroup" colSpan={cols.length}>Puts</th>}</tr>
             <tr>
-              {isPhone && <th className={styles.strikeHead}>Strike</th>}
-              {showCalls && cols.map(([k, l, , t]) => <th key={`c-${k}`} title={t}>{l}</th>)}
-              {!isPhone && <th className={styles.strikeHead}>Strike</th>}
-              {showPuts && cols.map(([k, l, , t]) => <th key={`p-${k}`} title={t}>{l}</th>)}
+              {isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
+              {showCalls && cols.map(([k, l, , t]) => <th scope="col" key={`c-${k}`} title={t}>{l}</th>)}
+              {!isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
+              {showPuts && cols.map(([k, l, , t]) => <th scope="col" key={`p-${k}`} title={t}>{l}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -227,11 +233,15 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
       <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
       {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
       <VolSkewPanels sym={s} />
-      <IvHistoryPanel sym={s} />
-      {backtest && <BacktestPanel sym={s} />}
-      <OptionsHistoryPanel sym={s} />
-      <VolStatsPanel sym={s} />
-      <PositioningPanel sym={s} />
+      {/* TERM-019: these are panels of their own elsewhere; inside the chain they stay quiet so the
+          terminal header names the chain's source, not whichever embedded panel reported last. */}
+      <QuietPanelFreshness>
+        <IvHistoryPanel sym={s} />
+        {backtest && <BacktestPanel sym={s} />}
+        <OptionsHistoryPanel sym={s} />
+        <VolStatsPanel sym={s} />
+        <PositioningPanel sym={s} />
+      </QuietPanelFreshness>
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
         (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money

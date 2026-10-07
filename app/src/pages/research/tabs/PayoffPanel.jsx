@@ -126,8 +126,8 @@ export default function PayoffPanel({ rows, spot, sym = '', expiration = '', atm
                 {todayPath ? ' · dashed line = P/L today at each leg’s vendor IV' : ' · no "today" line: a leg has no vendor IV'}
               </p>
               {slices && (
-                <table className={styles.grid} data-testid="payoff-slices">
-                  <thead><tr><th>Price</th><th>P/L today</th><th>P/L at expiry</th><th>Chance below</th></tr></thead>
+                <table className={styles.grid} data-testid="payoff-slices" aria-label="Payoff by price">
+                  <thead><tr><th scope="col">Price</th><th scope="col">P/L today</th><th scope="col">P/L at expiry</th><th scope="col">Chance below</th></tr></thead>
                   <tbody>
                     {slices.map((r) => (
                       <tr key={r.price}>

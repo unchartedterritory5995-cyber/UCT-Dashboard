@@ -5,7 +5,7 @@
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
-import { useInTerminalPanel, PanelSkeleton, PanelState } from '../components/terminal'
+import { useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, panelAsOf } from '../components/terminal'
 import { formatPercent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
@@ -40,6 +40,10 @@ function CapBar({ label, valuePct, capPct }) {
 
 export default function PortfolioHeat() {
   const { data, error, mutate } = useMobileSWR('/api/portfolio/heat', fetcher, { refreshInterval: 60000 })
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // Computed per request from the journal's entry and stop prices (no live quote is read), so the
+  // computation instant is the as-of.
+  usePanelFreshness(data && !error && !data.paywalled ? panelAsOf('your Journal 2.0 open positions (entry and stop prices)', data.as_of) : null)
   // Inside a UCT Terminal panel the panel header names the function and the shell insets the
   // body, so the page's own title and padding step aside and the shared panel states are used.
   const inPanel = useInTerminalPanel()
@@ -154,14 +158,14 @@ export default function PortfolioHeat() {
 
       <h2 className={styles.subheading}>Positions</h2>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={styles.table} aria-label="Positions">
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Side</th>
-              <th>Dist. to stop</th>
-              <th>Risk %</th>
-              <th>Stop</th>
+              <th scope="col">Symbol</th>
+              <th scope="col">Side</th>
+              <th scope="col">Dist. to stop</th>
+              <th scope="col">Risk %</th>
+              <th scope="col">Stop</th>
             </tr>
           </thead>
           <tbody>

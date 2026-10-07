@@ -249,6 +249,19 @@ def test_submit_returns_before_the_run_and_the_poll_gets_the_result(jobs):
     assert st["state"] == "done" and len(st["result"]["trades"]) == 9
 
 
+def test_a_done_run_is_dated_by_when_it_finished_never_now(jobs):
+    """TERM-019: a cached identical run answers with the time it was actually simulated."""
+    import datetime as _dt
+    job = ob.submit("u1", "spy", BASE)
+    st = _wait(job)
+    key = next(iter(ob._cache))
+    finished = float(int(time.time()) - 30)          # inside the result cache's TTL
+    ob._cache[key] = (finished, ob._cache[key][1])
+    again = ob.job_status(job, "u1")
+    assert st["as_of"]
+    assert _dt.datetime.fromisoformat(again["as_of"]).timestamp() == finished
+
+
 def test_an_identical_run_is_served_from_the_cache_and_costs_no_quota(jobs, monkeypatch):
     _wait(ob.submit("u1", "SPY", BASE))
     calls = []

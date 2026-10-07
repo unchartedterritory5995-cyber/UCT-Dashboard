@@ -441,15 +441,28 @@ class ConverseIn(BaseModel):
     chart: Optional[dict] = None
 
 
-def require_admin_dark_rollout(user: dict = Depends(require_paid)) -> dict:
-    """⛔⛔ RELEASE GATE 2026-10-06 — `/converse` is ADMIN-ONLY while conversational
-    authoring is DARK. It once shipped reachable by every paid member (rolled back).
-    The browser flag is a door, not a lock: THIS is the lock. The role authority is
-    the existing `auth_middleware.require_admin` (403 "Admin access required"), run
-    on the same user `require_paid` resolved — no second entitlement system. A free
-    user still gets the router's 402 first. Lifting the dark rollout = deleting
-    this dependency from the route, deliberately."""
-    return require_admin(user)
+def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
+    """⛔⛔ THE LOCK on `/converse` (the browser flag and the dock are doors).
+
+    Allowed: an ADMIN (the existing `auth_middleware.require_admin` rule -- the dark
+    owner review), OR a member the CONTROLLED ROLLOUT has released it to:
+    `rollout_gate.create_indicator_enabled_for` -- the `CREATE_INDICATOR_COHORT_ENABLED`
+    flag read FIRST and per call, then an admin-written `create-indicator` cohort
+    `user_tags` row. Nothing a member can write (preferences, localStorage, a
+    request body) grants it. Everyone else: 403 exactly as before. A free user still
+    gets the router's 402 first. No second entitlement system: the cohort store is
+    `api/services/rollout.py`, operated with `tools/rollout_cohort.py`."""
+    if user.get("role") == "admin":
+        return user
+    from api.services import rollout_gate
+    if rollout_gate.create_indicator_enabled_for(user.get("id")):
+        return user
+    return require_admin(user)      # the established 403 "Admin access required"
+
+
+#: The P2 name, kept as the SAME function object so every existing override and
+#: rail (``tests/test_p2x_truth_converse.py`` lifts it by name) keeps meaning one door.
+require_admin_dark_rollout = require_create_indicator_access
 
 
 @router.post("/converse")

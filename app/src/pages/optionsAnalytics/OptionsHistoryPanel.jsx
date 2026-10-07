@@ -2,6 +2,7 @@ import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
+import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
 // FT-009 straddle history, FT-007 daily implied vs actual move, FT-010 IV crush — read ONLY from
 // our own options log (api/services/options_analytics/log_history.py). The log began 2026-09-30.
@@ -98,15 +99,15 @@ function IvCrush({ sym }) {
         <>
           {data.prints.length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.table}>
-                <thead><tr><th>Print</th>{offs.map((k) => <th key={k}>{k > 0 ? `+${k}` : k}</th>)}<th>Crush</th></tr></thead>
+              <table className={styles.table} aria-label="IV around earnings">
+                <thead><tr><th scope="col">Print</th>{offs.map((k) => <th scope="col" key={k}>{k > 0 ? `+${k}` : k}</th>)}<th scope="col">Crush</th></tr></thead>
                 <tbody>
                   {data.prints.map((p) => (
-                    <tr key={p.report_date}><th>{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
+                    <tr key={p.report_date}><th scope="row">{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
                       <td>{p.crush_pct == null ? '' : `${num(p.crush_pct, 1)}%`}</td></tr>
                   ))}
                   {data.summary && ['average', 'max', 'min'].map((s) => (
-                    <tr key={s}><th>{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>
+                    <tr key={s}><th scope="row">{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>
                   ))}
                 </tbody>
               </table>
@@ -127,6 +128,11 @@ export const optionsHistoryUrls = (s) => ['straddle', 'daily-move', 'iv-crush']
 // `offNotice`: set by the terminal's OHIS, which opens this panel on its own.
 export default function OptionsHistoryPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
+  // TERM-019: every section below is computed by UCT from Massive's options history; each dates itself.
+  // The header carries the newest logged session (`as_of`, logged 16:30 ET) from the straddle
+  // read -- the same SWR key <Straddle> uses, so no extra request.
+  const straddle = useDarkSection(s ? optionsHistoryUrls(s)[0] : null)
+  usePanelFreshness(s ? panelAsOf('UCT, computed from Massive options data', straddle.data?.as_of, { dataClass: 'end_of_day' }) : null)
   if (!s) return null
   return (
     <div data-testid="options-history">

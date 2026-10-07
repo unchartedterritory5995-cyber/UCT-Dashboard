@@ -43,6 +43,9 @@ export default function ResponsiveTable({
   // F4 / A2R-02: an optional `(row, i) => string` naming what activating a
   // row DOES ("Open NVDA thesis"). Only read when `onRowClick` is set.
   rowLabel,
+  // The table's accessible name (WCAG 1.3.1): what the grid lists ("Notes"). Rendered as
+  // `aria-label` on the table element; a caller that omits it keeps an unnamed table.
+  label,
 }) {
   const isPhone = useIsPhone()
 
@@ -85,12 +88,13 @@ export default function ResponsiveTable({
         phoneScroll && freezeFirst ? styles.freezeFirst : ''
       }`}
     >
-      <table className={`${styles.table} ${className}`}>
+      <table className={`${styles.table} ${className}`} aria-label={label || undefined}>
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
+                scope="col"
                 className={col.className}
                 style={{ textAlign: col.align || 'left' }}
                 // D-40's sibling, FX2 (wave 10, proof-walk item 2): an optional

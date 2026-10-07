@@ -21,7 +21,7 @@ import EpFlag, { isEpSetup } from './EpBaseRate'
 import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
 import Input from '../ui/Input'
 import Textarea from '../ui/Textarea'
-import { ASC, DESC, nextSort, sortCaretFor } from '../../lib/presentation/dataGrid'
+import { ASC, DESC, nextSort, sortCaretFor, ariaSortFor } from '../../lib/presentation/dataGrid'
 import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
@@ -341,6 +341,8 @@ function SortableTh({ col, className, sortBy, onSort, children }) {
   const arrow = catalystCaret(sortBy, col)
   return (
     <th
+      scope="col"
+      aria-sort={ariaSortFor(catalystToSeed(sortBy), col, 'none')}
       className={`${className} ${styles.sortableHeader} ${active ? styles.sortActive : ''}`}
       onClick={() => onSort(col)}
       title="Click to sort"
@@ -789,14 +791,14 @@ export default function CatalystTable({
         </div>
       ) : (
         <div className={styles.tableWrap}>
-          <table className={styles.table}>
+          <table className={styles.table} aria-label="Stock catalysts">
             <thead>
               <tr>
-                <SortableTh col="sym"    className={styles.colSym}     sortBy={sortBy} onSort={toggleSort}>Sym</SortableTh>
+                <SortableTh col="sym"   className={styles.colSym}     sortBy={sortBy} onSort={toggleSort}>Sym</SortableTh>
                 <SortableTh col="price"  className={styles.colPrice}   sortBy={sortBy} onSort={toggleSort}>Price</SortableTh>
                 <SortableTh col="change" className={styles.colGap}     sortBy={sortBy} onSort={toggleSort}>% Change</SortableTh>
                 <SortableTh col="volx"   className={styles.colVol}     sortBy={sortBy} onSort={toggleSort}>Vol×</SortableTh>
-                <th className={styles.colThesis}>Catalyst</th>
+                <th scope="col" className={styles.colThesis}>Catalyst</th>
                 <SortableTh col="when"   className={styles.colUpdated} sortBy={sortBy} onSort={toggleSort}>When · ET</SortableTh>
               </tr>
             </thead>

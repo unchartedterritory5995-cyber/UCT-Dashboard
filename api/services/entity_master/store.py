@@ -163,9 +163,23 @@ def rebuild_cache(db_path: str | None = None) -> int:
     return len(rows)
 
 
+# One cold load at a time. Without it, every request thread that arrives
+# before the first load finishes sees `_CACHE_LOADED` False and runs its OWN
+# full scan of the open aliases (tens of thousands of rows) -- right after a
+# boot, when the research page's estimates/financials and ticker search all
+# ask at once. With it, the first thread loads and the rest wait for that one
+# scan and read its result: the same wait, a fraction of the work. Held only
+# around the first load (a warm cache never takes it), never across a write,
+# and it holds no SQLite lock of its own.
+_LOAD_LOCK = threading.Lock()
+
+
 def _ensure_cache_loaded(db_path: str | None = None) -> None:
-    if not _CACHE_LOADED:
-        rebuild_cache(db_path)
+    if _CACHE_LOADED:
+        return
+    with _LOAD_LOCK:
+        if not _CACHE_LOADED:
+            rebuild_cache(db_path)
 
 
 def open_alias_candidates(alias: str, db_path: str | None = None) -> list[str]:
