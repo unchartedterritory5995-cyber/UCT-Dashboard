@@ -180,7 +180,8 @@ def extract_blocks(body_json: Any) -> list[dict]:
 def project_note(conn: sqlite3.Connection, user_id: str, note_id: str,
                  body_json: Any, note_updated_at: str) -> int:
     """Rebuild one note's rows (delete, then insert) inside the caller's
-    transaction. Returns the number of rows written."""
+    transaction. Returns the number of rows written. The body is parsed BEFORE
+    the first write statement, so the write lock is never held across a parse."""
     if isinstance(body_json, str):
         try:
             body_json = json.loads(body_json)
@@ -230,19 +231,33 @@ def catch_up(user_id: str, conn: sqlite3.Connection | None = None, *,
             psql, (user_id, note_id) if note_id is not None else (user_id,))}
         gone = [n for n in projected if n not in current]
         stale = [n for n, u in current.items() if projected.get(n) != u]
-        for n in gone:
-            conn.execute("DELETE FROM j2_chart_blocks WHERE user_id = ? AND note_id = ?", (user_id, n))
+        # ⛔ A READ WITH NOTHING STALE WRITES NOTHING, AND NO WRITE LOCK IS HELD ACROSS A
+        # PARSE (security review I-3). This runs on every fingerprint and visual-playbook
+        # read, on the session database, whose connections wait three seconds for a lock.
+        # It used to run an unconditional DELETE and a commit on every call, and to hold
+        # one transaction across every stale note. Now: each removal batch and each note
+        # is its own short transaction, and each write is preceded by a read that says
+        # there is something to write.
+        if gone:
+            for n in gone:
+                conn.execute("DELETE FROM j2_chart_blocks WHERE user_id = ? AND note_id = ?", (user_id, n))
+            conn.commit()
         written = 0
         for n in stale:
             r = conn.execute("SELECT body_json, updated_at FROM j2_notes WHERE id = ? AND user_id = ?",
                              (n, user_id)).fetchone()
             if r is not None:
                 written += project_note(conn, user_id, n, r["body_json"], r["updated_at"])
+                conn.commit()
         # The ledger of a note that no longer exists at all (hard-deleted).
-        conn.execute(
-            "DELETE FROM j2_chart_fingerprints WHERE user_id = ? AND note_id NOT IN"
-            " (SELECT id FROM j2_notes WHERE user_id = ?)", (user_id, user_id))
-        conn.commit()
+        orphaned = conn.execute(
+            "SELECT 1 FROM j2_chart_fingerprints WHERE user_id = ? AND note_id NOT IN"
+            " (SELECT id FROM j2_notes WHERE user_id = ?) LIMIT 1", (user_id, user_id)).fetchone()
+        if orphaned is not None:
+            conn.execute(
+                "DELETE FROM j2_chart_fingerprints WHERE user_id = ? AND note_id NOT IN"
+                " (SELECT id FROM j2_notes WHERE user_id = ?)", (user_id, user_id))
+            conn.commit()
         frozen = freeze_pending(user_id, conn, limit=freeze_budget, note_id=note_id, compute=compute)
         pending = _count_pending(conn, user_id, note_id)
         return {"notes_projected": len(stale), "notes_removed": len(gone), "rows_written": written,
