@@ -56,13 +56,6 @@
 }
 
 @media (max-width: 1024px) {
-  /* FIN-A11Y (I-8): on the touch tier the card is fixed to the bottom edge (about 200px
-     tall), and a target scrolled into view with block: 'nearest' came to rest at the bottom
-     edge, UNDER it. The margin keeps the target clear of the card and of the top bar. */
-  :global([data-tour-active='true']) {
-    scroll-margin-top: 64px;
-    scroll-margin-bottom: calc(260px + env(safe-area-inset-bottom));
-  }
   .explainer {
     left: 12px;
     right: 12px;

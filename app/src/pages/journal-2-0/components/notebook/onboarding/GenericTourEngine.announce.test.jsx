@@ -13,8 +13,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import GenericTourEngine from './GenericTourEngine'
 import { installTourLayout } from './__fixtures__/tourLayout'
 
@@ -153,20 +151,5 @@ describe('M-3 -- the passive explainer is announced politely', () => {
   })
 })
 
-describe('I-8 -- on touch a target is never left under the bottom card', () => {
-  const css = readFileSync(
-    join(process.cwd(), 'src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.module.css'),
-    'utf8',
-  ).replace(/\/\*[\s\S]*?\*\//g, '')
-
-  it('the active anchor carries a scroll margin at 1024px and under', () => {
-    const touch = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*)\}\s*$/.exec(css.trim())
-    expect(touch, 'a touch-tier block at the end of the stylesheet').not.toBeNull()
-    const rule = /:global\(\[data-tour-active='true'\]\)\s*\{([^}]*)\}/.exec(touch[1])
-    expect(rule, 'a [data-tour-active] rule inside it').not.toBeNull()
-    expect(rule[1]).toMatch(/scroll-margin-bottom:\s*calc\(\s*\d{3}px\s*\+\s*env\(safe-area-inset-bottom\)\s*\)/)
-    expect(rule[1]).toMatch(/scroll-margin-top:\s*\d+px/)
-    // room for the card: it is about 200px tall, so the margin must clear it
-    expect(Number(/scroll-margin-bottom:\s*calc\(\s*(\d+)px/.exec(rule[1])[1])).toBeGreaterThanOrEqual(240)
-  })
-})
+// The touch scroll margin lives in NotebookTour.module.css (both tours share that
+// stylesheet); it is railed in NotebookTour.announce.test.jsx.
