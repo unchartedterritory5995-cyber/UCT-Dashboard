@@ -100,9 +100,9 @@ rail checks them against every other binding.
 | Layout jank while a panel loads | Every panel body renders the shared `PanelSkeleton` inside Suspense; the grid uses fixed `1fr` tracks and the panel header has a fixed min-height, so loading does not move neighbours. The command-line echo row has a reserved min-height. Not measured in a browser. | OK (unmeasured) |
 | Focus after a notice action | Returns to the command line (audit #24). | OK |
 | MENU (back) | Browser Back already replays the previous `?cmd=` into the panel it came from. | OK |
-| Panel count | Buttons 1-4 on the bar (desktop) and switcher row (phone). No key. | LEFT (low value; Alt+Shift+digit is free if wanted) |
-| Reorder by mouse | Only the new keyboard move exists; no drag. | LEFT |
-| History is per browser | ↑ history and function recents live in localStorage, so a second device starts empty. Entity recents and boards already sync (board document). | LEFT (would need a server key; `POST /api/auth/preferences` replaces whole values, so it must read-modify-write) |
+| Panel count | Buttons 1-4 on the bar (desktop) and switcher row (phone). No key. | FIXED on terminal/fn2-daily2: **Alt+Shift+1..4** sets the count (physical digit key, so it works whatever Shift does to the digit on your layout), says the new count, and the buttons carry the key in their tooltip. Alt+N without Shift still focuses panel N. |
+| Reorder by mouse | Only the new keyboard move exists; no drag. | FIXED on terminal/fn2-daily2: each panel header has a move handle. Drag it onto another panel (mouse); tap or click it for a "Move to panel N" list (touch, where HTML5 drag never fires); or focus it and press left/right. One pure move (`boardModel.reorderPanel`), saved with the board. |
+| History is per browser | ↑ history and function recents live in localStorage, so a second device starts empty. Entity recents and boards already sync (board document). | FIXED on terminal/fn2-daily2 for ↑ history: server preference `terminal_command_history` (100 lines, newest first), written read-modify-write through `setPrefMerged`; localStorage stays as the fallback while the preference loads or cannot be read. Function recents are still per browser. |
 
 ## Shortcut list (after this branch)
 
@@ -114,6 +114,7 @@ Panel and board keys (work from the command line too; declared in `pages/command
 | Ctrl/Cmd+K | Command palette |
 | Alt+1 … Alt+4 | Focus panel 1-4 |
 | Alt+[ / Alt+] | Previous / next panel (wraps) |
+| Alt+Shift+1 … Alt+Shift+4 | Show 1-4 panels (terminal/fn2-daily2) |
 | Alt+Shift+[ / Alt+Shift+] | Move the focused panel left / right |
 | Alt+M | Maximise / restore the focused panel |
 | Alt+X | Close the focused panel |
@@ -137,8 +138,8 @@ Command-line keys (`COMMAND_LINE_KEYS` in `CommandLine.jsx`, printed by HELP):
 
 ## What is still left
 
-1. Per-member (cross-device) command history. Today it is per browser.
-2. Mouse drag to reorder panels.
-3. A key for panel count.
+1. ~~Per-member (cross-device) command history.~~ Done on terminal/fn2-daily2 (function recents are still per browser).
+2. ~~Mouse drag to reorder panels.~~ Done on terminal/fn2-daily2 (drag, a Move list for touch, and arrows on the handle).
+3. ~~A key for panel count.~~ Done on terminal/fn2-daily2 (Alt+Shift+1..4).
 4. A real-browser pass (no browser was used here): confirm Alt+letter on macOS Safari/Chrome
    reaches the page with the command line focused, and confirm no visible jank on slow panels.

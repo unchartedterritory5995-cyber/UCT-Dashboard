@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import RrgPanel, { SECTOR_ETFS, rrgUniverse } from './RrgPanel'
-import RelPanel, { relSymbols, ratioVerdict } from './RelPanel'
+import RelPanel, { relSymbols, ratioVerdict, axisDecimals } from './RelPanel'
 import CorrPanel, { corrSymbols, corrTint } from './CorrPanel'
 import { clearClosesCache, settleLimited, MAX_IN_FLIGHT } from './useCloses'
 import { fakeBarsFetch, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
@@ -116,6 +116,14 @@ describe('REL', () => {
   it('a laggard first reads as the laggard, losing ground (non-vacuity for the verdict)', () => {
     expect(ratioVerdict({ a: 'B', b: 'A', change: -12.34, aboveAvg: false }, '3M'))
       .toBe('A has outperformed B by 12.3% on the ratio over 3M. The ratio is below its 50-session average: B is losing ground to A now.')
+  })
+
+  it('axis labels carry enough decimals that top and bottom never read the same', () => {
+    // Live 2026-10-06: NVDA/SPY ran 0.27 to 0.30 and both labels printed 0.3.
+    expect(axisDecimals(0.2985, 0.2702)).toBe(3)
+    expect((0.2985).toFixed(axisDecimals(0.2985, 0.2702))).not.toBe((0.2702).toFixed(axisDecimals(0.2985, 0.2702)))
+    expect(axisDecimals(34.3, 0)).toBe(1)
+    expect(axisDecimals(1, 1)).toBe(1)
   })
 
   it('an unreadable comparator is an error that names it, never an empty chart', async () => {
