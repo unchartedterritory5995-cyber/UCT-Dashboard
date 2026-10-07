@@ -15,6 +15,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
@@ -173,6 +174,8 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   attrsRef.current = attrs
   const archivedOnceRef = useRef(false)
   const [toolbarMsg, setToolbarMsg] = useState(null)
+  // The stop starts on Plan when the plan door is there: the plan is the row's main door.
+  const toolbarRoving = useToolbarRoving({ prefer: '[data-tour="chart-plan-open"]' })
   // Toolbar collapse toggle (per the charts "Hide toolbar" affordance).
   const [toolbarOpen, setToolbarOpen] = useState(true)
   const [resizing, setResizing] = useState(false)
@@ -616,7 +619,11 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       data-widget-embed-view={attrs.widgetId || 'unknown'}
     >
       {editor?.isEditable !== false && !frozen && (
-        <div className={styles.toolbar} contentEditable={false}>
+        // ONE Tab stop for the whole row (the toolbar pattern): Left and Right move inside
+        // it, Home and End jump to its ends. Tabindex only; hover and touch are untouched.
+        <div className={styles.toolbar} contentEditable={false}
+          role="toolbar" aria-label="Chart tools"
+          ref={toolbarRoving.ref} onKeyDown={toolbarRoving.onKeyDown} onFocus={toolbarRoving.onFocus}>
           {toolbarMsg && <span className={styles.toolbarMsg}>{toolbarMsg}</span>}
           {/* Collapse toggle — hide/show the rest of the toolbar (the charts
               "Hide toolbar" affordance). Absent in draw mode (Done is the only
