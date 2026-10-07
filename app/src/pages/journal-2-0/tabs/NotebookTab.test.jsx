@@ -878,3 +878,25 @@ describe('lane KEYS3 (Q18): a drafted review opens on its first collapsed block'
     expect(editor).toHaveAttribute('data-open-focus', 'landmark')
   })
 })
+
+// Finish program, lane KEYS3 (Q11): tag and move five notes, on a keyboard. From Research Home
+// the notes list was 19 to 21 keys away: a skip link into the folder panel, 7 Tabs to the tree,
+// Enter on "All notes", then 7 to 9 Tabs past "+ New folder" and every sidebar tag (two stops
+// each) to the list. The command palette's "All notes" arrives with "#notes", and the Notebook
+// puts focus on the list's own heading: the header toolbar and the list are the next two stops.
+describe('lane KEYS3 (Q11): "#notes" lands keyboard focus on the notes list\'s heading', () => {
+  const heading = () => document.querySelector('h2[tabindex="-1"]')
+
+  it('arriving on the list with "#notes" puts focus on the pane heading', async () => {
+    renderTab('/journal/notebook?view=all#notes')
+    await waitFor(() => expect(document.activeElement).toBe(heading()))
+    expect(heading().textContent).toMatch(/notes/i)
+  })
+
+  it('CONTROL: without the door nothing takes focus', async () => {
+    renderTab('/journal/notebook?view=all')
+    await screen.findByRole('button', { name: 'Templates' })
+    await new Promise((r) => setTimeout(r, 60))
+    expect(document.activeElement).toBe(document.body)
+  })
+})

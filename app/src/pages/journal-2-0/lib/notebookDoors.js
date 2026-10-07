@@ -31,6 +31,10 @@ export const NOTEBOOK_DOORS = Object.freeze({
 export const NOTEBOOK_TEMPLATES_HASH = '#templates'
 export const NOTEBOOK_TEMPLATES_TO = `/journal/notebook?view=all${NOTEBOOK_TEMPLATES_HASH}`
 
+/** The door to the notes list itself: keyboard focus lands on the list's own heading. */
+export const NOTEBOOK_LIST_HASH = '#notes'
+export const NOTEBOOK_LIST_TO = `/journal/notebook?view=all${NOTEBOOK_LIST_HASH}`
+
 /** Ask for a door. Returns true when a mounted surface took it. */
 export function openNotebookDoor(door, extra = {}) {
   if (typeof window === 'undefined') return false

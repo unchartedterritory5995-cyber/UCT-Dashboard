@@ -52,7 +52,7 @@ import useGridRoving from '../lib/useGridRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
-import { NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
+import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
   joinUndo, runNoteBatch, undoFor,
@@ -462,6 +462,16 @@ export default function NotebookTab() {
   useEffect(() => {
     if (location.hash !== NOTEBOOK_TEMPLATES_HASH) return
     setPickerOpen(true)
+  }, [location.hash, location.key])
+
+  // Lane KEYS3 (Q11): the command palette's "All notes" arrives with `#notes`. Keyboard focus
+  // goes to the list's own heading (what "Skip to notes list" does), so the header toolbar and
+  // the list are the next two Tab stops. A frame later: the palette hands focus back to
+  // wherever it was opened from as it closes, and the member asked to be HERE.
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_LIST_HASH) return undefined
+    const raf = requestAnimationFrame(() => paneHeadingRef.current?.focus())
+    return () => cancelAnimationFrame(raf)
   }, [location.hash, location.key])
 
   // Divider drag. The live width is written straight to a CSS variable on the

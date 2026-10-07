@@ -1555,7 +1555,14 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
         raise Inconclusive("setup: no folder to move into")
     ids = [fresh_note(cx, f"Bulk {tag} {i}") for i in range(5)]
     open_start(pg, cx.base, "/journal/notebook")
-    go_all_notes(m)
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "All notes" lands on the list's own heading.
+        # Before: a skip link into the folder panel, 7 Tabs to the tree, Enter on "All notes",
+        # then 7 to 9 Tabs past the sidebar's tags to the list.
+        palette_command(m, "all notes", r"^All notes$", "All notes")
+        pg.wait_for_url("**/journal/notebook?*view=*", timeout=20000)
+    else:
+        go_all_notes(m)
     # 13Q-3: the bulk-select checkboxes are in the pane's own grid -- "Skip to notes list"
     # lands right before it, same reasoning as Q2.
     if m.mode != "keys":            # as in Q2: forward of the folder panel on a keyboard

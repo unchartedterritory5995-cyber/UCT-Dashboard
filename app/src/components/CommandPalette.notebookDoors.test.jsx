@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
-import { NOTEBOOK_DOORS, NOTEBOOK_TEMPLATES_TO, onNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
+import { NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_TEMPLATES_TO, onNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import RouteFocusTarget from '../pages/journal-2-0/lib/routeFocus'
 
@@ -210,5 +210,21 @@ describe('palette: New note from a template (Q2)', () => {
     fireEvent.change(box, { target: { value: 'new note' } })
     expect(await screen.findByRole('option', { name: 'New Note' })).toBeTruthy()
     expect(option('New note from a template')).toBeTruthy()      // "new note" starts its phrase too
+  })
+})
+
+describe('palette: All notes (Q11)', () => {
+  it('choosing it lands on the notes list with the list door', async () => {
+    renderPalette('/journal/notebook')
+    await openAndType('all notes')
+    fireEvent.click(await screen.findByRole('option', { name: 'All notes' }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_LIST_TO))
+    expect(NOTEBOOK_LIST_TO).toBe('/journal/notebook?view=all#notes')
+  })
+
+  it('five characters or fewer never offer it ("notes" stays a plain query)', async () => {
+    renderPalette('/journal/notebook')
+    await openAndType('all n')
+    expect(option('All notes')).toBeNull()
   })
 })

@@ -21,7 +21,9 @@ import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/no
 import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
-import { NOTEBOOK_DOORS, NOTEBOOK_TEMPLATES_TO, noteOpenAt, openNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
+import {
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_TEMPLATES_TO, noteOpenAt, openNotebookDoor,
+} from '../pages/journal-2-0/lib/notebookDoors'
 import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
 import styles from './CommandPalette.module.css'
 
@@ -100,6 +102,10 @@ const NOTEBOOK_COMMANDS = [
   { id: 'nb-templates', kind: 'command', label: 'New note from a template', icon: 'document',
     to: NOTEBOOK_TEMPLATES_TO, keywords: [],
     match: phraseStart('new note from a template', 'note from a template', 'from a template', 'templates') },
+  // Q11: the notes list ("Open Notebook" above is Research Home). Focus lands on its heading.
+  { id: 'nb-all-notes', kind: 'command', label: 'All notes', icon: 'library',
+    to: NOTEBOOK_LIST_TO, keywords: [],
+    match: phraseStart('all notes', 'notes list') },
   // Q23: the active setups board, a plain route. Its link on Research Home is 9 Tab stops in.
   { id: 'nb-active-setups', kind: 'command', label: 'Active setups', icon: 'library',
     to: SETUPS_BOARD_PATH, keywords: [],
