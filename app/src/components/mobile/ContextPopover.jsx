@@ -189,9 +189,11 @@ export default function ContextPopover({
         width,
         visibility: pos ? 'visible' : 'hidden',
       }}
-      role="menu"
-      // A menu needs a name (axe: aria-input-field-name). The title when it is plain text.
-      aria-label={typeof title === 'string' && title ? title : 'Actions'}
+      // The role follows the content. An action list is a menu of menu items. Custom
+      // children (a form, a picker) are not menu items, so that form is a named dialog.
+      role={children != null ? 'dialog' : 'menu'}
+      // Both need a name. The title when it is plain text.
+      aria-label={typeof title === 'string' && title ? title : (children != null ? 'Options' : 'Actions')}
       tabIndex={-1}
       onKeyDown={onMenuKeyDown}
     >
