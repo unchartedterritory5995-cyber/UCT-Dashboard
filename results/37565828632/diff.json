@@ -1,0 +1,296 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 14,
+    "fixed": 1,
+    "unchanged": 182,
+    "missing": 0,
+    "baseline": 183,
+    "current": 198,
+    "current_ran": 39428,
+    "new_flaky": 2,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 5,
+    "new_unattributed": 9
+  },
+  "arithmetic": "baseline 183 = unchanged 182 + fixed 1 + missing 0  |  current 198 = unchanged 182 + new 14 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "37491758202",
+  "current_run_id": "37565828632",
+  "baseline_sha": "20e11b5c90590b50f19ae65aec2090d5d060a9d7",
+  "current_sha": "aedd2533b64a88948466ec1483e04a37dab1b239",
+  "commit_range": "20e11b5c90590b50f19ae65aec2090d5d060a9d7..aedd2533b64a88948466ec1483e04a37dab1b239",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_address_space|test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason",
+    "pytest|tests.test_breadth_industries|test_request_path_does_not_block",
+    "pytest|tests.test_corp_actions_census|test_every_corporate_action_site_is_REGISTERED_with_a_state",
+    "pytest|tests.test_corp_actions_census|test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason",
+    "pytest|tests.test_corp_actions_census|test_the_census_runs_as_a_command_and_reports_its_verdict",
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window",
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive",
+    "pytest|tests.test_persistence_manifest_server_keys|test_every_server_preference_is_declared_in_the_manifest",
+    "pytest|tests.test_phase_e_acceptance|test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step",
+    "pytest|tests.test_phase_e_acceptance|test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED",
+    "pytest|tests.test_phase_e_acceptance|test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW",
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates",
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_ai_doors_census|test_every_module_that_calls_a_model_is_described_in_the_door_table"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_address_space|test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_address_space.py or anything it imports"
+    },
+    "pytest|tests.test_breadth_industries|test_request_path_does_not_block": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_breadth_industries.py or anything it imports"
+    },
+    "pytest|tests.test_corp_actions_census|test_every_corporate_action_site_is_REGISTERED_with_a_state": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_corp_actions_census.py or anything it imports"
+    },
+    "pytest|tests.test_corp_actions_census|test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_corp_actions_census.py or anything it imports"
+    },
+    "pytest|tests.test_corp_actions_census|test_the_census_runs_as_a_command_and_reports_its_verdict": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_corp_actions_census.py or anything it imports"
+    },
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_earnings_window_single_walk.py or anything it imports"
+    },
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_entitlements_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_persistence_manifest_server_keys|test_every_server_preference_is_declared_in_the_manifest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_persistence_manifest_server_keys.py or anything it imports"
+    },
+    "pytest|tests.test_phase_e_acceptance|test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step": {
+      "class": "imported-file-change",
+      "commits": [
+        "a06b45b7a",
+        "736e17221",
+        "61c63035d"
+      ],
+      "workstreams": [
+        {
+          "commit": "a06b45b7a",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "736e17221",
+          "workstream": "fix/boot-contention",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "61c63035d",
+          "workstream": "fix/boot-contention",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_phase_e_acceptance|test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED": {
+      "class": "imported-file-change",
+      "commits": [
+        "a06b45b7a",
+        "736e17221",
+        "61c63035d"
+      ],
+      "workstreams": [
+        {
+          "commit": "a06b45b7a",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "736e17221",
+          "workstream": "fix/boot-contention",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "61c63035d",
+          "workstream": "fix/boot-contention",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_phase_e_acceptance|test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW": {
+      "class": "imported-file-change",
+      "commits": [
+        "a06b45b7a",
+        "736e17221",
+        "61c63035d"
+      ],
+      "workstreams": [
+        {
+          "commit": "a06b45b7a",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "736e17221",
+          "workstream": "fix/boot-contention",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "61c63035d",
+          "workstream": "fix/boot-contention",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates": {
+      "class": "imported-file-change",
+      "commits": [
+        "7e47459ae",
+        "fa3e3101f",
+        "51561656e",
+        "fc2d8f884",
+        "81cfb46fd"
+      ],
+      "workstreams": [
+        {
+          "commit": "7e47459ae",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fa3e3101f",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "51561656e",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fc2d8f884",
+          "workstream": "Market Cap PIT V1 production lifecycle",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "81cfb46fd",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties": {
+      "class": "imported-file-change",
+      "commits": [
+        "7e47459ae",
+        "fa3e3101f",
+        "51561656e",
+        "fc2d8f884",
+        "81cfb46fd"
+      ],
+      "workstreams": [
+        {
+          "commit": "7e47459ae",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fa3e3101f",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "51561656e",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fc2d8f884",
+          "workstream": "Market Cap PIT V1 production lifecycle",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "81cfb46fd",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_theme_index_watchlist.py or anything it imports"
+    },
+    "pytest|tests.test_ai_doors_census|test_every_module_that_calls_a_model_is_described_in_the_door_table": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 20e11b5c9..aedd2533b touched tests/test_ai_doors_census.py or anything it imports"
+    }
+  }
+}
