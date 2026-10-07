@@ -27,6 +27,7 @@ import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import LoadFailed from '../LoadFailed'
+import { SkipLinkPortal } from '../../../../components/skipLinks'
 import styles from './ResearchHome.module.css'
 
 // Wave 13 lane 13G-1: Passed setups, loaded only when its gate is on (the Notebook's
@@ -84,9 +85,10 @@ function NoteRow({ note, onOpen, reason }) {
 // Wave 13 lane 13F: one small, self-contained door on Home -- "Reviews that write
 // themselves". Renders nothing (and calls nothing) while notebook_review_drafts_enabled
 // is off, the same contract as the other Home boxes below (aiBox/prepBox/passedBox).
-function ReviewDraftsHomeBox({ onOpenNote }) {
+export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
+  const headingRef = useRef(null)
   if (!reviewDraftsEnabled()) return null
 
   const run = async (period, fn) => {
@@ -106,8 +108,20 @@ function ReviewDraftsHomeBox({ onOpenNote }) {
 
   return (
     <div className={styles.section} data-tour="review-drafts-home">
+      {/* Lane KEYS: the reviews and the morning board sat 21 and 24 Tabs into this page. This
+          link goes in the shell's skip-link slot (hidden until focused) and lands on the
+          heading below, so the next Tab is "Today's recap". Only when the Notebook hands in
+          its skip-link class: rendered alone, the box is unchanged. */}
+      {skipLinkClassName && (
+        <SkipLinkPortal>
+          <a href="#nb-home-reviews" className={skipLinkClassName}
+            onClick={(e) => { e.preventDefault(); headingRef.current?.focus() }}>
+            Skip to reviews and setups
+          </a>
+        </SkipLinkPortal>
+      )}
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>Reviews that write themselves</h3>
+        <h3 id="nb-home-reviews" ref={headingRef} tabIndex={-1} className={styles.sectionTitle}>Reviews that write themselves</h3>
       </div>
       <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-daily"
@@ -171,6 +185,8 @@ export default function ResearchHome({
   // function its All Notes list header's "Today" button already calls (one authority, never
   // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
   onOpenToday = null,
+  // Lane KEYS: the Notebook's hidden-until-focused skip-link class, for this page's own link.
+  skipLinkClassName = '',
 }) {
   const { home, isLoading, error: homeError, refresh: refreshHome } = useNotebookHome()
   const navigate = useNavigate()
@@ -437,7 +453,7 @@ export default function ResearchHome({
   // Wave 13 lane 13F: "Reviews that write themselves" -- the FOURTH child of the same
   // fragment in every return below, for the same reason as the three boxes above (a
   // home that flips between quiet and full must not remount it mid-draft).
-  const reviewBox = <ReviewDraftsHomeBox onOpenNote={openNote} />
+  const reviewBox = <ReviewDraftsHomeBox onOpenNote={openNote} skipLinkClassName={skipLinkClassName} />
   // Wave 13 lane 13Q-3 (click-budget fix, Q5): same "one authority" reasoning as the three
   // boxes above -- rendered in EVERY non-first-run, non-loading state (quiet-with-error,
   // quiet, and the full home) so a member landing on bare-root Research Home always has a

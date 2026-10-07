@@ -2139,6 +2139,7 @@ export default function NotebookTab() {
             // day-note opener -- so the bare-root Research Home reaches Today in one
             // click/tap instead of "All notes" -> "Today" (2).
             onOpenToday={openToday}
+            skipLinkClassName={styles.skipLink}
           />
         ) : (
           <>
