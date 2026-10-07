@@ -733,3 +733,67 @@ def test_a_note_state_is_parsed_once_per_request_not_once_per_trade(conn, pg, mo
     parsed_few, calls[:] = len(calls), []
     pg.statuses(conn, U, many)
     assert parsed_few > 0 and len(calls) == parsed_few
+
+
+# ── round 2: the plan-grade routes are rate limited per member ───────────────────────────────
+#
+# These routes are session-only and each read walks trades and notes. They had no limit at
+# all. They now use the limiter the sibling Notebook routes use (`public_note_payload.
+# enforce_rate` over `api/limiter.py`), keyed on the member.
+
+@pytest.fixture
+def fresh_limiter():
+    from api.limiter import limiter
+    limiter.reset()
+    yield limiter
+    limiter.reset()
+
+
+def _as(app, uid):
+    app.dependency_overrides[authmw.get_current_user] = lambda: {"id": uid, "role": "member"}
+
+
+def test_the_read_routes_answer_429_past_the_members_rate_and_another_member_is_untouched(
+        conn, app, client, monkeypatch, fresh_limiter):
+    from api.routers import notebook_plan_grades as r
+    monkeypatch.setenv(FLAG, "1")
+    monkeypatch.setattr(r, "READ_RATE", "3/minute")
+    tid = add_trade(conn)
+    paths = [f"/api/j2/plan-grades/trades/{tid}", f"/api/j2/plan-grades/status?ids={tid}",
+             "/api/j2/plan-grades/discipline"]
+    assert [client.get(p).status_code for p in paths] == [200, 200, 200]      # one bucket for the reads
+    for p in paths:
+        over = client.get(p)
+        assert over.status_code == 429 and over.json()["detail"] == r.RATE_SENTENCE
+    _as(app, OTHER)                                                           # per member, not global
+    assert client.get("/api/j2/plan-grades/discipline").status_code == 200
+
+
+def test_the_relink_route_has_its_own_rate(conn, app, client, monkeypatch, fresh_limiter):
+    from api.routers import notebook_plan_grades as r
+    monkeypatch.setenv(FLAG, "1")
+    monkeypatch.setattr(r, "WRITE_RATE", "2/minute")
+    tid = add_trade(conn)
+    url = f"/api/j2/plan-grades/trades/{tid}/relink"
+    assert [client.post(url, json={"none": True}).status_code for _ in range(3)] == [200, 200, 429]
+    assert client.get("/api/j2/plan-grades/discipline").status_code == 200    # reads are a separate bucket
+
+
+def test_the_limit_is_charged_after_the_gate_and_the_session_never_before(app, client, monkeypatch, fresh_limiter):
+    """An off gate still answers its one 404, and a signed-out caller its 401: neither spends
+    a member's budget or reveals the limiter."""
+    from api.routers import notebook_plan_grades as r
+    monkeypatch.setattr(r, "READ_RATE", "1/minute")
+    monkeypatch.delenv(FLAG, raising=False)
+    assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(3)] == [404, 404, 404]
+    monkeypatch.setenv(FLAG, "1")
+    app.dependency_overrides.clear()
+    assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(3)] == [401, 401, 401]
+    _as(app, U)
+    assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(2)] == [200, 429]
+
+
+def test_the_shipped_rates_are_the_sibling_routes_rates():
+    from api.routers import notebook_plan_grades as r, notebook_shares
+    assert r.READ_RATE == notebook_shares.PUBLIC_RATE == "60/minute"
+    assert r.WRITE_RATE == "30/minute"
