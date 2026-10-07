@@ -304,3 +304,22 @@ def test_writes_the_census_table(rows):
             reading = [r for r in rows if r.reads_body]
             fh.write(f"<!-- {len(rows)} family routes, {len(reading)} read a body -->\n")
             fh.write(text)
+            fh.write("<!-- OUTSIDE -->\n")
+            fh.write(outside_markdown())
+
+
+def outside_markdown() -> str:
+    """Routers outside the family that read a body: a count per router and kind.
+    Listed in the doc as out of scope; nothing here is a check."""
+    from collections import Counter
+    from api.main import app
+    counts: Counter = Counter()
+    kinds = {"fastapi-param": "declared body parameter", "raw": "raw read, no bound",
+             "capped": "request_body_cap", "stream-loop": "streaming loop with a running total"}
+    for row in bc.census(app, lambda route: not in_family(route)):
+        for x in row.reads:
+            counts[(row.module.replace("api.routers.", "").replace("api.", ""), kinds[x.how])] += 1
+    lines = ["| router | how the body is read | routes |", "|---|---|---|"]
+    for (module, kind), n in sorted(counts.items()):
+        lines.append(f"| `{module}` | {kind} | {n} |")
+    return "\n".join(lines) + "\n"
