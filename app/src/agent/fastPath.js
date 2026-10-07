@@ -35,9 +35,32 @@ function matchClause(raw, host) {
     // `host` lets a phrase resolve against REAL state (a layout name in the member's
     // catalog); a capability that can't resolve it with certainty returns null.
     const args = cap.fast({ raw: raw.trim(), lower, core, host })
-    if (args) hits.push({ action: name, args })
+    if (args) {
+      // A capability that resolved its own target against real state names it as
+      // `__target`; it becomes the op's target (still re-validated by the planner).
+      const { __target, ...rest } = args
+      hits.push(__target ? { action: name, args: rest, target: __target } : { action: name, args: rest })
+    }
   }
   return hits.length === 1 ? hits[0] : null      // ambiguous phrase -> let the model decide
+}
+
+// Capabilities whose phrases are WHOLE SENTENCES with lists inside them ("add RKLB,
+// PLTR and ASTS to Momentum") declare `fastWhole`; they are tried on the whole text
+// BEFORE it is split into clauses on "," / "and".
+function matchWhole(text, host) {
+  const lower = clean(text)
+  const hits = []
+  for (const name of allCapabilityNames()) {
+    const cap = getCapability(name)
+    if (!cap.fastWhole || typeof cap.fast !== 'function') continue
+    const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
+    if (args) {
+      const { __target, ...rest } = args
+      hits.push(__target ? { action: name, args: rest, target: __target } : { action: name, args: rest })
+    }
+  }
+  return hits.length === 1 ? hits[0] : null
 }
 
 // ── target qualifiers ("the left chart", "on the right", "both charts") ──
@@ -82,6 +105,8 @@ export function fastParse(text, { host = null } = {}) {
     const n = Number(sub[4]) || WORDNUM[sub[4]]
     if (n > 0) return { kind: 'subset', count: n }
   }
+  const whole = matchWhole(text, host)
+  if (whole) return { kind: 'ops', ops: [whole], target: null }
   const { text: rest, target } = extractTarget(text)
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
   if (!clauses.length || clauses.length > 6) return null

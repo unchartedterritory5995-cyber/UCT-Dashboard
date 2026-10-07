@@ -12,6 +12,16 @@ export function scriptedTurn(body) {
   const names = new Set((body.capabilities || []).map(c => c.name))
   const first = charts[0]?.ref
 
+  // "Create a watchlist called X with A, B and C" — the production model's shape
+  // (measured 2026-10-07): create with `as`, then add to that alias.
+  const wlib = body.context?.watchlistLibrary?.[0]
+  const cm = /^create a (?:new )?watch ?list (?:called|named) (.+?)(?: with (.+?))?[.!]?$/i.exec(String(body.message || '').trim())
+  if (wlib && cm) {
+    const ops = [{ action: 'watchlist.create', target: wlib.ref, args: { name: cm[1], as: cm[2] ? 'new1' : null } }]
+    if (cm[2]) ops.push({ action: 'watchlist.add', target: 'new1', args: { symbols: cm[2].split(/\s*(?:,|\band\b)\s*/).filter(Boolean).map(s => s.toUpperCase()) } })
+    return env('propose', ops, `I'll create ${cm[1]}${cm[2] ? ' and fill it' : ''}.`)
+  }
+
   // Layout names the fast path could not resolve (as the production model does, measured
   // 2026-10-07): several real matches → clarify with them; none → say so, invent nothing.
   const lib = body.context?.layouts?.[0]
