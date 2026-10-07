@@ -1,0 +1,246 @@
+{
+ "tool": "tools/notebook_fin_fe2_sweep.py",
+ "config": "sweep",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe2\\sweep-final-eeccbdf6a2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 14:10:16",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 14:10:50",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 14:11:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe2\\sweep-final-eeccbdf6a2\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T14-10-11.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "V390_sample_remove_it",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._sampleStripAction_yzfs1_421), box=[57, 400, 73, 44]; voice button while open=0; done=True: message='The sample notes are in Trash. You can restore them from there.'; active sample notes after=0"
+  },
+  {
+   "id": "V390_bulk_move_to_trash",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._action_x7dzq_95 _danger_x7dzq_141), box=[57, 555, 120, 44]; voice button while open=0; done=True: a confirm dialog opened=False; notice=['Moved 2 notes to the Trash.Undo']; selected notes still in the active list=[]"
+  },
+  {
+   "id": "V390_folder_delete",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._dangerBtn_wu5n8_211), box=[284, 786, 84, 44]; voice button while open=0; done=True: folder still listed=False"
+  },
+  {
+   "id": "V390_saved_view_delete",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._dangerBtn_wu5n8_211), box=[284, 786, 84, 44]; voice button while open=0; done=True: view still listed=False"
+  },
+  {
+   "id": "V390_version_restore",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._primaryBtn_wu5n8_211), box=[277, 786, 91, 44]; voice button while open=0; done=True: the note reads its first version again=True"
+  },
+  {
+   "id": "V390_gallery_unpublish",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._btn_u43uz_435 _danger_u43uz_495), box=[265, 720, 76, 44]; voice button while open=0; done=True: message='Unpublished “Sweep template”. Copies other members made are theirs and stay.'; inside a sheet=True"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "sample_add": 200,
+  "sample_remove_it": {
+   "hit": {
+    "box": [
+     57,
+     400,
+     73,
+     44
+    ],
+    "cx": 93.375,
+    "cy": 421.625,
+    "top_is_button": true,
+    "top_tag": "BUTTON._sampleStripAction_yzfs1_421"
+   },
+   "voice_button_while_open": 0,
+   "voice_buttons_on_page": 1,
+   "message": "The sample notes are in Trash. You can restore them from there.",
+   "status_after": {
+    "activeIds": 0,
+    "ids": 10
+   }
+  },
+  "seed": {
+   "folder": 200,
+   "saved_view": 200,
+   "saved_view_body": "{\"savedView\":{\"id\":\"9b22b5915b1e47f9a81fc2c13b028e13\",\"name\":\"Sweep view\",\"viewType\":\"list\",\"spec\":{},\"sortOrder\":0,\"createdAt\":\"2026-10-07T19:10:32.944092+00:0",
+   "template": 200,
+   "template_body": "{\"template\":{\"id\":\"42db997fde054a43a852c69bce62e0de\",\"name\":\"Sweep template\",\"title\":\"sweep template source\",\"createdAt\":\"2026-10-07T19:10:33.019883+00:00\",\"updatedAt\":\"2026-10-07T19:10:33.019883+00:0",
+   "publish": 200,
+   "publish_body": "{\"template\":{\"id\":\"d5c6e65ae996402f9af8b83531bdbed6\",\"title\":\"Sweep template\",\"description\":\"\",\"category\":\"trade_plan\",\"author\":\"fe2sweep\",\"firm\":false,\"featured\":false,\"usedBy\":0,\"listedAt\":null,\"upd"
+  },
+  "bulk_move_to_trash": {
+   "hit": {
+    "box": [
+     57,
+     555,
+     120,
+     44
+    ],
+    "cx": 117.1484375,
+    "cy": 576.75,
+    "top_is_button": true,
+    "top_tag": "BUTTON._action_x7dzq_95 _danger_x7dzq_141"
+   },
+   "voice_buttons_on_page": 1,
+   "dialogs_after_tap": [],
+   "confirm_dialog": false,
+   "voice_button_while_open": 0,
+   "dialog_left": 0,
+   "notice": [
+    "Moved 2 notes to the Trash.Undo"
+   ]
+  },
+  "folder_delete": {
+   "dialog": "Delete folder \"Sweep folder\"?\n×\n\nSubfolders and notes move up one level. This does not delete any notes.\n\nCancel\nDelete",
+   "hit": {
+    "box": [
+     284,
+     786,
+     84,
+     44
+    ],
+    "cx": 325.8203125,
+    "cy": 808,
+    "top_is_button": true,
+    "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+   },
+   "voice_button_while_open": 0,
+   "body_overflow": "hidden",
+   "dialog_left": 0
+  },
+  "stage": "restore: waiting for the confirm",
+  "saved_view_delete": {
+   "delete_buttons": 1,
+   "door": {
+    "box": [
+     310,
+     431,
+     44,
+     44
+    ],
+    "cx": 332,
+    "cy": 453.375,
+    "top_is_button": true,
+    "top_tag": "path."
+   },
+   "dialogs_after_tap": [
+    {
+     "name": "Delete view \"Sweep view\"?",
+     "box": [
+      0,
+      0,
+      390,
+      844
+     ],
+     "shown": true
+    }
+   ],
+   "dialog": "Delete view \"Sweep view\"?\n×\n\nThis removes the saved view. It does not delete any notes.\n\nCancel\nDelete",
+   "hit": {
+    "box": [
+     284,
+     786,
+     84,
+     44
+    ],
+    "cx": 325.8203125,
+    "cy": 808,
+    "top_is_button": true,
+    "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+   },
+   "voice_button_while_open": 0,
+   "body_overflow": "hidden",
+   "dialog_left": 0
+  },
+  "version_restore": {
+   "history_controls": 1,
+   "dialogs_history": [
+    {
+     "name": "Version history",
+     "box": [
+      0,
+      315,
+      390,
+      529
+     ],
+     "shown": true
+    }
+   ],
+   "dialog": "Restore this version?\n×\n\nYour current content is saved to History first, so nothing is lost — you can always undo this by restoring again.\n\nCancel\nRestore",
+   "hit": {
+    "box": [
+     277,
+     786,
+     91,
+     44
+    ],
+    "cx": 322.3515625,
+    "cy": 808,
+    "top_is_button": true,
+    "top_tag": "BUTTON._primaryBtn_wu5n8_211"
+   },
+   "voice_button_while_open": 0,
+   "body_overflow": "hidden",
+   "dialog_left": 0
+  },
+  "gallery_unpublish": {
+   "hit": {
+    "box": [
+     265,
+     720,
+     76,
+     44
+    ],
+    "cx": 303.484375,
+    "cy": 742,
+    "top_is_button": true,
+    "top_tag": "BUTTON._btn_u43uz_435 _danger_u43uz_495"
+   },
+   "voice_button_while_open": 0,
+   "inside_a_dialog": true,
+   "message": "Unpublished “Sweep template”. Copies other members made are theirs and stay.",
+   "mine_after": "{\"templates\":[{\"id\":\"c0675e28ceb94da5baa91d28b0ebf950\",\"title\":\"Weekly Review\",\"description\":\"Patterns, leaks, and the ONE commitment for next week.\",\"category\":\"review\",\"author\":\"UCT\",\"firm\":true,\"featured\":true,\"usedBy\":0,\"listedAt\":\"2026-10-07T19:10:21.212648+00:00\",\"updatedAt\":\"2026-10-07T19:10:"
+  },
+  "page_errors": []
+ }
+}

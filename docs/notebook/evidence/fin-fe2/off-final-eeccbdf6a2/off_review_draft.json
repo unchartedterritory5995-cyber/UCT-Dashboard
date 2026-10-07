@@ -1,0 +1,10 @@
+{
+ "button": "Today's recap",
+ "discipline_part": "Discipline record\n\nPlan grading is switched off, so this draft has no discipline record.\n\nSetup changes\n\nNo tagged setups this period.\n\nLinks\nPlans used this period\n\nNo plan notes linked to this period’s trades.\n\nPrior r",
+ "draft_head": "Today's recap — Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n0\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n0 / 0 / 0\n\n\n\n\nWin rate\n\n\t\n\n—\n\n\n\n\nAverage R\n\n\t\n\n—\n\n\n\n\nNet P&L\n\n\t\n\n$0.00\n\n\n\n\nProfit factor\n\n\t\n\n—\n\n",
+ "trade_seed": {
+  "status": 200,
+  "body": "{\"id\":\"6e998958-1609-4188-9e0f-18d7c51294e6\",\"userId\":\"2bdf1dd1-4b3f-490e-8c15-aa952cf407e9\",\"positionId\":\"manual-aa66acbf-8563-4f7d-b437-928063669343\",\"symbol\""
+ },
+ "insights_box": "Reviews that write themselves\n\nOne click drafts the trades and P&L, setup changes, links to plans and prior reviews, the best and worst trade, and any leaks — from your own numbers, never generated. The discipline record is left out: it comes from plan grading, which is not switched on for your account.\n\nDraft today’s recap\nDraft this week’s review\nDraft this month’s review"
+}
