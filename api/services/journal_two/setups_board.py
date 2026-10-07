@@ -51,7 +51,7 @@ import sqlite3
 from datetime import date, datetime
 from typing import Any, Callable, Iterable
 
-from api.services.journal_two import chart_blocks, plan_extract, sample_marker
+from api.services.journal_two import chart_blocks, chart_plan, plan_extract, sample_marker
 from api.services.journal_two.timeutil import ET, compute_trading_day_et
 from api.services.notebook_flags import flag_on
 
@@ -80,6 +80,19 @@ _BUCKET = {"waiting": 0, "watching": 0, "triggered": 0, "invalidated": 1, "no_pr
 def enabled() -> bool:
     """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
     return flag_on(FLAG, False)
+
+
+def plan_drawing() -> dict[str, Any]:
+    """Whether a member can draw a NEW plan on a chart right now (fin walk P7).
+
+    A card comes from an entry line drawn in the chart plan panel, which has its own switch.
+    The board still shows cards that already exist while that switch is off, but its empty
+    state tells the member to draw one. This says whether they can, read from the chart plan's
+    own gate and never restated here."""
+    if chart_plan.enabled():
+        return {"available": True, "reason": None, "sentence": None}
+    return {"available": False, "reason": "chart_plan_off",
+            "sentence": "Drawing a plan on a chart is switched off, so no new setup can be added here yet."}
 
 
 # ── the pure maths ──────────────────────────────────────────────────────────────────────────
@@ -281,6 +294,10 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
                 # never one of the member's setups: it is in no count below, and the client
                 # labels it "Example" from this flag, never by guessing from a title.
                 "example": sample_marker.is_sample(note["import_source"]),
+                # fin walk P9: "Find more like this" on an example promises a match that
+                # cannot come, because the nightly run leaves sample charts out
+                # (`similar_matches.templates_for`). Said on the card, by the same predicate.
+                "similarNeverMatched": sample_marker.is_sample(note["import_source"]),
             })
     quotes = (prices or read_prices)(sorted({c["symbol"] for c in pending}))
     cards = []
@@ -296,4 +313,5 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
     # The member's own setups first, in the board's order; examples after them. `count` is the
     # member's own and is what every "N setups" and every empty-state decision reads.
     return {"cards": own + examples, "count": len(own), "exampleCount": len(examples),
-            "today": today, "pageSize": PAGE_SIZE, "scanned": len(rows), "capped": capped}
+            "today": today, "pageSize": PAGE_SIZE, "scanned": len(rows), "capped": capped,
+            "planDrawing": plan_drawing()}

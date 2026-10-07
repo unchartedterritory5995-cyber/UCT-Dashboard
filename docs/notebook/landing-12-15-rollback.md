@@ -138,6 +138,11 @@ no gallery at all (the module arrives with this landing), so nothing reads or wr
 the column is ignored. There is nothing to revert and nothing to drop. Rolling forward again
 finds it already there.
 
+A second column of the same kind: `j2_note_folders.import_source` (finish program, data lane 2).
+It is additive and nullable. The sample notebook's import sets it on the folders it creates, so
+"Remove it" can delete exactly those folders. Older code never reads or writes it, and a folder
+with no value reads as a member's own folder. There is nothing to revert and nothing to drop.
+
 ### The keep-list
 
 | Kept exactly as the landing has it | Why |

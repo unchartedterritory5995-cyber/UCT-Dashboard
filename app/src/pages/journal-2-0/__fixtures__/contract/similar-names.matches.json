@@ -1231,10 +1231,12 @@
         "symbol": "SM09"
       }
     ],
+    "neverMatched": null,
     "status": "ready",
     "template": {
       "asOf": "2026-09-28",
       "embedKey": "e-SBNV",
+      "example": false,
       "frozen": true,
       "noteId": "fb251b57c22e461b8291aac48f4db344",
       "noteTitle": "SBNV breakout",

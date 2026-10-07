@@ -85,6 +85,7 @@
       },
       "unplannedCount": 16
     },
+    "disciplineOmitted": null,
     "gradingCap": {
       "graded": 17,
       "limit": 300,
