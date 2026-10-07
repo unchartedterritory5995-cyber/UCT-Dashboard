@@ -1,25 +1,9 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
+/* The window itself is the shared Sheet (components/mobile/Sheet.jsx): backdrop, surface,
+   focus trap, scroll lock and safe-area insets are its. This is only the layout inside. */
 .panel {
-  width: min(820px, 96vw);
-  background: var(--surface-1, #101013);
-  border: 1px solid var(--border, #2a2a2e);
-  border-radius: 14px;
-  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 92vh;
-  overflow-y: auto;
 }
 
 .head {
@@ -45,6 +29,9 @@
 }
 
 .close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--text-muted, #8a8a8a);
@@ -89,10 +76,14 @@
 }
 
 .playBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 6px 14px;
-  border: 1px solid #dcbb5e;
+  border: 1px solid var(--accent);
   border-radius: var(--radius-lg);
-  background: rgba(220, 187, 94, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
   font-size: 13px;
   font-weight: 600;
@@ -101,6 +92,10 @@
 }
 
 .speedBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: 5px 10px;
   border: 1px solid var(--border, #2a2a2e);
   border-radius: var(--radius-pill);
@@ -110,11 +105,17 @@
   cursor: pointer;
 }
 
-.speedOn { color: var(--accent); border-color: #dcbb5e; }
+/* Selected speed: filled, bold and check-marked (BarReplay.jsx), never colour alone. */
+.speedOn {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
 
 .scrub {
   flex: 1 1 160px;
-  accent-color: #dcbb5e;
+  accent-color: var(--accent);
   min-width: 120px;
 }
 
@@ -123,6 +124,10 @@
 
 /* Wave 13 lane 13H-2: "what happened next" steps one bar at a time. */
 .stepBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 6px 12px;
   border: 1px solid var(--border, #2a2a2e);
   border-radius: var(--radius-lg);
@@ -132,7 +137,7 @@
   font-weight: 600;
   cursor: pointer;
 }
-.stepBtn:hover:not(:disabled) { border-color: #dcbb5e; color: var(--accent); }
+.stepBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .stepBtn:disabled { opacity: 0.45; cursor: default; }
 
 .levels {
@@ -144,7 +149,6 @@
 }
 
 @media (max-width: 640px) {
-  .panel { padding: 12px; }
   .chart { min-height: 260px; }
 }
 
