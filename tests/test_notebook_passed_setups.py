@@ -242,9 +242,10 @@ def test_no_stored_bars_is_labelled_no_bars(db_path, bars):
 
 
 def test_a_gap_in_the_store_is_missing_and_a_session_not_yet_had_is_pending(db_path, bars):
-    bars("SPY", _rising(n=7))                            # the market has had 7 sessions
+    bars("SPY", _rising(n=7))
     bars("NVDA", _rising(n=3))                           # the store holds 3 of NVDA's
-    item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
+    # The evening of the 7th session after the reference: the market has had 7 (the calendar).
+    item = _manual(A, "NVDA", BASE_DAY, _at(AFTER[6], 20))["item"]
     lab = _labels(item)
     assert lab["r1"] == (1.0, None)
     assert lab["r5"] == (None, "missing")               # SPY had 5 sessions; NVDA's bars are not stored
@@ -254,7 +255,11 @@ def test_a_gap_in_the_store_is_missing_and_a_session_not_yet_had_is_pending(db_p
     assert {o["key"]: o["label"] for o in item["outcomes"]}["r5"] == "Bars missing from the store"
 
 
-def test_no_calendar_after_the_reference_is_unknown_not_pending(db_path, bars):
+def test_outside_the_published_calendar_with_no_spy_rows_it_is_unknown_not_pending(db_path, bars, monkeypatch):
+    """`unknown` is now only for a day the published calendar does not cover AND no stored
+    calendar rows: the one case where sessions cannot be counted at all."""
+    from api.services import session_calendar
+    monkeypatch.setattr(session_calendar, "covers", lambda d, cal=None: False)
     bars("NVDA", _rising(n=0))                           # the reference bar only; no SPY at all
     item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
     assert {miss for _, miss in _labels(item).values()} == {"unknown"}
@@ -573,9 +578,9 @@ def test_the_refresh_commits_row_by_row_so_no_one_transaction_spans_every_row(db
     open_during = []
     real = ps.score_row
 
-    def spy(c, row):
+    def spy(c, row, *rest):
         open_during.append(c.in_transaction)      # is a write transaction already open?
-        return real(c, row)
+        return real(c, row, *rest)
 
     monkeypatch.setattr(ps, "score_row", spy)
     ps.refresh(A, conn=conn, now=NOW)
@@ -624,18 +629,20 @@ def test_a_hole_at_the_end_leaves_plus_twenty_missing(db_path, bars):
     assert lab["best20"] == (None, "missing")
 
 
-def test_a_holiday_is_not_a_session_so_nothing_is_missing_and_nothing_shifts(db_path, bars):
-    """The market was shut on the 3rd weekday: neither the calendar nor the name has a bar.
-    "+5 days" is the 5th day the market was OPEN."""
-    holiday = AFTER[2]
-    open_days = [d for d in AFTER if d != holiday]
+def test_a_day_missing_from_both_stores_is_still_a_session_when_the_calendar_says_so(db_path, bars):
+    """Round 3. The 3rd weekday is a real NYSE session with no bar from SPY and none from the
+    name (a failed ingest). It is NOT treated as a holiday: every horizon stays on its own
+    session, so "+5 days" is the 5th session's close (the name's 4th stored row), never the
+    6th session's. (A real holiday is the Labor Day test further down.)"""
+    hole = AFTER[2]
+    open_days = [d for d in AFTER if d != hole]
     rows = [(BASE_DAY, 100.0)] + [(open_days[i], 100.0 + i + 1) for i in range(22)]
     bars("SPY", rows)
     bars("NVDA", rows)
-    item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
-    lab = _labels(item)
-    assert (lab["r1"], lab["r5"], lab["r10"], lab["r20"]) == ((1.0, None), (5.0, None), (10.0, None), (20.0, None))
-    assert lab["best20"][1] is None and item["status"] == "scored"
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, NOW)["item"])
+    assert lab["r1"] == (1.0, None)
+    assert lab["r5"] == (4.0, None) and lab["r10"] == (9.0, None) and lab["r20"] == (19.0, None)
+    assert lab["best20"] == (None, "missing")              # one of the twenty sessions has no bar
 
 
 def test_a_hole_in_the_calendars_own_bars_does_not_shift_a_name_that_has_the_day(db_path, bars):
@@ -646,7 +653,9 @@ def test_a_hole_in_the_calendars_own_bars_does_not_shift_a_name_that_has_the_day
     assert (lab["r5"], lab["r10"], lab["r20"]) == ((5.0, None), (10.0, None), (20.0, None))
 
 
-def test_with_no_calendar_at_all_a_names_own_bars_are_not_counted_as_sessions(db_path, bars):
+def test_outside_the_published_calendar_a_names_own_bars_are_not_counted_as_sessions(db_path, bars, monkeypatch):
+    from api.services import session_calendar
+    monkeypatch.setattr(session_calendar, "covers", lambda d, cal=None: False)
     bars("NVDA", _rising())                                 # the name has every bar; SPY has none
     item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
     assert {(pct, miss) for pct, miss in _labels(item).values()} == {(None, "unknown")}
@@ -664,3 +673,89 @@ def test_score_is_by_session_day_never_by_position():
     only_late = [{"t": days[1], "c": 102.0, "h": 102.5}]
     assert ps.score(100.0, only_late, days)["r1"] is None      # never the next stored bar
     assert ps.score(100.0, only_late, days)["gaps"]["1"] == "missing"
+
+
+# ── round 3: sessions are counted on the published market calendar, not on SPY's rows ────────
+#
+# Round 2 counted sessions from SPY's stored daily bars, so with no SPY rows every horizon read
+# "unknown": a whole feature resting on one symbol's rows being in the web pod's bar store.
+# The repo has a session authority that needs no price rows (`api/services/session_calendar`,
+# the NYSE dataset the browser reads too). Sessions are counted there. SPY's rows are only a
+# cross-check, and only ever a fallback outside the dataset's coverage.
+
+def test_horizons_are_right_with_no_spy_rows_at_all(db_path, bars):
+    bars("NVDA", _rising())                                 # SPY has no row in the store
+    item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
+    got = {o["key"]: (o["pct"], o["missing"]) for o in item["outcomes"]}
+    assert got == {"r1": (1.0, None), "r5": (5.0, None), "r10": (10.0, None), "r20": (20.0, None),
+                   "best20": (20.5, None)}
+    assert item["status"] == "scored"
+
+
+def test_a_missing_bar_is_still_missing_and_never_filled_with_no_spy_rows(db_path, bars):
+    bars("NVDA", _without(_rising(), AFTER[4]))             # the 5th session is not stored; no SPY
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, NOW)["item"])
+    assert lab["r5"] == (None, "missing"), "+5 was filled from the 6th session"
+    assert (lab["r1"], lab["r10"], lab["r20"]) == ((1.0, None), (10.0, None), (20.0, None))
+    assert lab["best20"] == (None, "missing")
+
+
+def test_a_real_market_holiday_is_not_a_session_with_no_spy_rows(db_path, bars):
+    """Labor Day, Monday 2026-09-07, from the published calendar (no fixture stands in for it).
+    Reference: Friday 09-04. "+1 day" is Tuesday 09-08, and "+5 days" is Monday 09-14."""
+    from api.services import session_calendar
+    import datetime as _d
+    assert session_calendar.is_trading_day(_d.date(2026, 9, 7)) is False     # the control
+    open_days = [d for d in _sessions("2026-09-08", 30) if session_calendar.is_trading_day(_d.date.fromisoformat(d))]
+    rows = [("2026-09-04", 100.0)] + [(open_days[i], 100.0 + i + 1) for i in range(22)]
+    bars("NVDA", rows)
+    item = _manual(A, "NVDA", "2026-09-04", _at("2026-10-12", 20))["item"]
+    lab = _labels(item)
+    assert item["baseDate"] == "2026-09-04"
+    assert (lab["r1"], lab["r5"], lab["r10"], lab["r20"]) == ((1.0, None), (5.0, None), (10.0, None), (20.0, None))
+    assert open_days[0] == "2026-09-08" and open_days[4] == "2026-09-14"
+
+
+def test_a_session_that_has_not_closed_yet_is_pending(db_path, bars):
+    bars("NVDA", _rising(n=3))
+    # 11:00 ET on the 4th session after the reference: three sessions have closed.
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, _at(AFTER[3], 11))["item"])
+    assert lab["r1"] == (1.0, None)
+    assert lab["r5"] == (None, "pending") and lab["r10"] == (None, "pending")
+
+
+def test_the_latest_session_is_pending_not_missing_while_the_store_catches_up(db_path, bars):
+    """Bars land some hours after the close. Until then the newest session is not yet a hole."""
+    bars("NVDA", _rising(n=4))                              # the 5th session's bar has not landed
+    just_after = _at(AFTER[4], 17)                          # an hour after that session's close
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, just_after)["item"])
+    assert lab["r5"] == (None, "pending")
+    conn = _conn()
+    conn.execute("UPDATE j2_passed_setups SET status = 'pending'")
+    conn.commit()
+    conn.close()
+    _refresh(A, _at(AFTER[6], 20))                          # two sessions later it is a real hole
+    assert _row(A, "NVDA")["r5"] is None
+    assert json.loads(_row(A, "NVDA")["gaps"])["5"] == "missing"
+
+
+def test_spy_rows_only_cross_check_the_calendar(db_path, bars):
+    from api.services.journal_two import passed_setups as ps
+    import datetime as _d
+    cal = [_d.date(2026, 8, 10) + _d.timedelta(days=i) for i in range(5)]      # Mon..Fri
+    key = lambda d: int(d.strftime("%Y%m%d"))                                   # noqa: E731
+    now = _at("2026-09-25", 20)
+    bar = lambda d: {"t": key(d)}                                               # noqa: E731
+    # The calendar LEADS. A listed session with no bar from SPY and none from the name is still
+    # a session: rows going missing from both on one day (a failed ingest) must never shift
+    # every later horizon, which is the defect this whole section exists to prevent.
+    spy = [bar(d) for d in cal if d != cal[2]]
+    name = [bar(d) for d in cal if d != cal[2]]
+    assert ps.session_days(cal, spy, name, now) == [key(d) for d in cal]
+    assert ps.session_days(cal, [bar(d) for d in cal], name, now) == [key(d) for d in cal]
+    # With no SPY rows the calendar stands on its own.
+    assert ps.session_days(cal, [], name, now) == [key(d) for d in cal]
+    # A bar on a day the calendar did not list proves a session (the calendar is never
+    # allowed to hide a day that traded).
+    short = [d for d in cal if d != cal[2]]
+    assert ps.session_days(short, [], [bar(cal[2])], now) == [key(d) for d in cal]

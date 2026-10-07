@@ -20,8 +20,10 @@ THE RULES, each a decision with a rail (`tests/test_notebook_passed_setups.py`):
                         the market's Nth session, never the Nth stored row: a hole in the
                         store never shifts a later horizon onto the wrong day;
       - ``pending``  -- that many sessions have not happened yet;
-      - ``unknown``  -- neither this symbol nor SPY has a stored bar after the reference day,
-                        so whether the session happened cannot be told from the store.
+      - ``unknown``  -- the reference day is outside the published market calendar AND the
+                        store holds no calendar rows, so sessions cannot be counted at all.
+    Sessions are counted on the published NYSE calendar (`api/services/session_calendar`),
+    never on a symbol's stored rows; SPY's rows only cross-check it (`session_days`).
   * TRADED LEAVES THE LIST. A position in the name opened from the save day through the 10th
     session after the reference close (or held across the save) marks the row ``traded``; it
     stays in the table, is counted, and is not listed as a pass.
@@ -268,16 +270,82 @@ def score(base_close: float, forward: list[dict], sessions: list[int] | None) ->
     return out
 
 
-def session_days(calendar: list[dict], forward: list[dict], calendar_known: bool) -> list[int] | None:
-    """The days the market was open after the reference, oldest first, at most `BEST_WINDOW`.
+#: Daily bars land some hours after the close. For this long after a session closes, a
+#: missing bar for it means "the store has not caught up", so that session is not counted yet
+#: (its horizons read `pending`); after it, a missing bar is a real hole (`missing`).
+STORE_LAG_GRACE_S = 18 * 3600
+#: Never walk the calendar further than this many days for `BEST_WINDOW` sessions.
+_CALENDAR_SPAN_DAYS = 60
 
-    Every day EITHER store shows a bar for: the calendar symbol's, or this name's own (a day
-    the name traded was a session, even when the calendar's bar for it is the one missing).
-    None when the store holds no calendar at all: a name's own rows cannot vouch that no
-    session is missing between them, which is the whole question."""
-    if not calendar and not calendar_known:
+
+def calendar_sessions(base_day: _dt.date, now: _dt.datetime) -> list[_dt.date] | None:
+    """The NYSE sessions after `base_day` that have CLOSED by `now`, oldest first, at most
+    `BEST_WINDOW` -- from the published market calendar, with no price row read.
+
+    ⛔ THE SESSION AUTHORITY IS `api/services/session_calendar` (the NYSE dataset the browser
+    also reads; holidays and half-days, 2000 to its published horizon), never a symbol's
+    stored bars. ⚰️ Sessions were counted from SPY's stored daily bars, so a bar store with no
+    SPY rows made every horizon of every pass read "unknown". None when the dataset does not
+    cover the days asked about: the caller then falls back to stored calendar rows."""
+    from api.services import session_calendar as sc
+    if not sc.covers(base_day):
         return None
-    days = {int(b["t"]) for b in calendar} | {int(b["t"]) for b in forward}
+    out: list[_dt.date] = []
+    day = base_day
+    for _ in range(_CALENDAR_SPAN_DAYS):
+        day = day + _dt.timedelta(days=1)
+        if not sc.covers(day):
+            return None
+        closes = sc.close_time(day)
+        if closes is None:
+            continue                       # a weekend or a market holiday: not a session
+        if closes > now:
+            break                          # not closed yet, and nothing after it has either
+        out.append(day)
+        if len(out) >= BEST_WINDOW:
+            break
+    return out
+
+
+def session_days(sessions: list[_dt.date] | None, calendar_bars: list[dict], forward: list[dict],
+                 now: _dt.datetime, *, calendar_known: bool = False) -> list[int] | None:
+    """The days the market was open after the reference, oldest first, at most `BEST_WINDOW`,
+    as YYYYMMDD keys.
+
+    `sessions` is the published calendar's answer (`calendar_sessions`) and it LEADS. Stored
+    bars (the calendar symbol's and this name's own) only cross-check it, two ways, and
+    neither can remove a session that has had time to be stored:
+      * a bar on a day the calendar did not list proves that day traded, so it is a session;
+      * the newest listed day, closed less than `STORE_LAG_GRACE_S` ago, with no bar from
+        either yet, is not counted yet (the store has not caught up; `pending`, not `missing`).
+    ⛔ A listed session is NEVER dropped because rows are absent. A day missing from both
+    stores is far more often a failed ingest than a market closure the dataset does not know,
+    and dropping it would shift every later horizon by a session, unlabelled.
+    With no calendar rows at all the published calendar stands on its own.
+
+    FALLBACK, only when `sessions` is None (a day outside the dataset): every day either store
+    shows a bar for, or None when the store holds no calendar rows either -- a name's own rows
+    cannot vouch that no session is missing between them."""
+    spy = {int(b["t"]) for b in calendar_bars}
+    own = {int(b["t"]) for b in forward}
+    if sessions is None:
+        if not spy and not calendar_known:
+            return None
+        return sorted(spy | own)[:BEST_WINDOW]
+    key = lambda d: int(d.strftime("%Y%m%d"))  # noqa: E731
+    listed = [key(d) for d in sessions]
+    from api.services import session_calendar as sc
+    days = set()
+    for d, k in zip(sessions, listed):
+        if k in spy or k in own:
+            days.add(k)
+            continue
+        closed = sc.close_time(d)
+        if closed is not None and (now - closed).total_seconds() < STORE_LAG_GRACE_S:
+            continue                       # the store has not caught up with this session yet
+        days.add(k)
+    last = listed[-1] if listed else None
+    days |= {k for k in (spy | own) if last is None or k <= last}   # a bar proves a session
     return sorted(days)[:BEST_WINDOW]
 
 
@@ -450,8 +518,9 @@ def traded_on(conn, user_id: str, sym: str, saved_day: str, until_day: str) -> s
 
 # ── the refresh ──────────────────────────────────────────────────────────────
 
-def score_row(conn, row: sqlite3.Row) -> None:
+def score_row(conn, row: sqlite3.Row, now: _dt.datetime | None = None) -> None:
     """Score one open row in place. Frozen: a found reference and a filled horizon never move."""
+    now = now or _now_utc()
     sym = row["symbol"]
     saved_at = parse_saved_at(row["saved_at"])
     if saved_at is None:
@@ -465,10 +534,16 @@ def score_row(conn, row: sqlite3.Row) -> None:
     base_ts = int(base_date.replace("-", "")) if base_date else cutoff
     forward = read_after(sym, base_ts, BEST_WINDOW) if base_date else []
     calendar = read_after(CALENDAR_SYMBOL, base_ts, BEST_WINDOW)
-    # No calendar session after the reference: zero sessions have passed IF the calendar is
-    # stored up to the reference day itself; otherwise the store cannot tell.
-    spy_base = None if calendar else read_base(CALENDAR_SYMBOL, base_ts)
-    days = session_days(calendar, forward, bool(spy_base and spy_base["t"] == base_ts))
+    # Sessions come from the published market calendar; the stored rows of the calendar symbol
+    # only cross-check it (`session_days`). Only for a day the dataset does not cover do stored
+    # rows decide, and then "zero sessions have passed" needs the calendar symbol stored up to
+    # the reference day itself.
+    listed = calendar_sessions(_dt.date.fromisoformat(base_date), now) if base_date else None
+    known = False
+    if listed is None and not calendar:
+        spy_base = read_base(CALENDAR_SYMBOL, base_ts)
+        known = bool(spy_base and spy_base["t"] == base_ts)
+    days = session_days(listed, calendar, forward, now, calendar_known=known)
 
     # ⛔ TRADED FIRST, whatever the bars say: a name the member traded is not a pass even when
     # the store holds no bars for it. The window ends at the 10th session after the reference
@@ -520,7 +595,7 @@ def refresh(user_id: str, *, conn: sqlite3.Connection | None = None,
             " AND status IN (?, ?)", (user_id, STATUS_PENDING, STATUS_NO_BARS)).fetchall()
         for r in open_rows:
             try:
-                score_row(conn, r)
+                score_row(conn, r, now)
             except Exception as e:  # noqa: BLE001 -- one bad row never blanks the others
                 _log.warning("[passed_setups] scoring %s failed: %s", r["symbol"], e)
             # ⛔ ONE ROW, ONE COMMIT (security review I-3). Scoring reads bars between its
@@ -636,7 +711,7 @@ def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
             conn.commit()
         row = conn.execute(f"SELECT * FROM j2_passed_setups WHERE {own}", key).fetchone()
         if row["status"] in (STATUS_PENDING, STATUS_NO_BARS) and row["dismissed_at"] is None:
-            score_row(conn, row)
+            score_row(conn, row, now)
             conn.commit()
         if row["dismissed_at"] is not None:
             conn.execute("UPDATE j2_passed_setups SET dismissed_at = NULL WHERE id = ?", (row["id"],))

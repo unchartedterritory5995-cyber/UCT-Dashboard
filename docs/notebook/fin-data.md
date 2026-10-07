@@ -313,3 +313,48 @@ the twelve wave-13 tables are listed):
 **Single-process state** (add to the "SINGLE-PROCESS assumptions" list in `CLAUDE.md`):
 
 > `entry_context._capture_executor` + `_capture_pending` (the manual-add capture queue: 2 threads, 40 queued in total, 3 per member), `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and `entry_context._vendor_cache` (one answer per symbol per capture day), and `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes). A second web process doubles each bound and keeps its own cache. The plan-grade rate limits (`notebook-plan-grades-read`, `notebook-plan-grades-relink`) are in the `api/limiter.py` storage already on that list.
+
+## Round 3: passed-setups sessions come from the published market calendar
+
+Round 2 counted sessions from SPY's stored daily bars, so with no SPY rows every horizon read
+"unknown". That made the feature depend on one symbol's rows being in one bar store.
+
+**The authority.** The repo already has a trading-session authority that needs no price row:
+`api/services/session_calendar.py` (`covers` at `:163`, `is_trading_day` at `:168`,
+`close_time` at `:187`). It reads `app/src/lib/marketClock/market_calendar.json`, the NYSE
+dataset the browser reads too: holidays and half-days from 2000 to its published horizon.
+`passed_setups.calendar_sessions` counts the sessions that have closed after the reference
+from it.
+
+**SPY is now only a cross-check, and a fallback outside the dataset.** In
+`passed_setups.session_days`:
+- a stored bar (SPY's or the name's own) on a day the calendar did not list proves that day
+  traded, so it counts;
+- the newest session, closed less than 18 hours ago, with no bar from either yet, is not
+  counted yet, so its horizons read "pending" while the store catches up, not "missing";
+- a listed session is never dropped because rows are absent. A day missing from both stores is
+  far more often a failed ingest than a closure the dataset does not know, and dropping it
+  would shift every later horizon, which is the original defect.
+Only for a reference day outside the dataset do stored rows decide, and with no SPY rows there
+either the horizons read "unknown".
+
+**Which bar store, and is SPY guaranteed there.** `passed_setups.read_base` (`:213`) and
+`read_after` (`:220`) call `bars_sqlite.get_bars_before` and `get_bars_since`, which read the
+local SQLite file `<DATA_DIR>/bars.db` (`api/services/bars_sqlite.py:18`). On the web service
+that is the web pod's own volume. Nothing in that path calls a remote bars service. The web's
+copy is filled by its own chart fetches and by merging the worker's snapshots
+(`api/services/data_sync.py:1022` `merge_snapshot`, `:1077` `sync_if_newer_merge`). SPY is the
+first name in the prewarm priority list (`api/services/bars_prewarm.py:778`). That makes SPY
+daily bars very likely to be there. It is not a guarantee: nothing asserts it, and a fresh
+volume, a failed merge or a paused worker leaves it empty. The feature no longer depends on it.
+
+**Tests** (`tests/test_notebook_passed_setups.py`): horizons are right with no SPY rows at all;
+a missing bar is still "missing" and never filled, with no SPY rows; a real market holiday
+(Labor Day 2026-09-07, from the published calendar) is not a session; a session that has not
+closed is "pending"; the newest session is "pending" for the store's lag and "missing" after
+it; a day missing from both stores is still a session. Three mutations, all red. Two older
+tests that pinned the SPY-rows calendar were restated on the published one.
+
+**One thing to know.** The published calendar runs to its horizon (2028-12-31 today) and has
+its own rail that goes red twelve months before it lapses. An unscheduled closure that is not
+yet in the dataset would show that day's horizon as "missing" until the dataset is refreshed.
