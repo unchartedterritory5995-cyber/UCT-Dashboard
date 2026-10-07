@@ -22,7 +22,8 @@ that keeps it.
    The client half (an editor without the attribute drops it at parse time) is pinned in
    app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js.
 
-2. `account_purge.py`. The landing adds twelve tables to the account-deletion list. A revert
+2. `account_purge.py`. The landing adds thirteen tables to the account-deletion list (twelve
+   from the waves, and `j2_trade_plan_misses` from the finish program's data lane). A revert
    leaves the tables and the rows in the database; a reverted list would leave those rows
    behind when the member deletes their account.
 
@@ -221,6 +222,9 @@ LANDING_TABLES = (
     "j2_passed_setups",
     "j2_note_levels", "j2_note_resurface_fires",
     "j2_similar_matches",
+    # Finish program, lane DATA (aef6b44744): the "unplanned" memo for plan grading. Safe to
+    # drop, and a member's rows must still leave with their account.
+    "j2_trade_plan_misses",
 )
 
 
@@ -228,7 +232,7 @@ GALLERY_CHILD_TABLES = ("j2_template_gallery_reports", "j2_template_gallery_uses
 
 
 def _db_with_the_landing_tables() -> sqlite3.Connection:
-    """The database a rollback leaves behind: the twelve tables exist and hold rows, whatever
+    """The database a rollback leaves behind: the thirteen tables exist and hold rows, whatever
     the code that created them looks like now. Minimal DDL on purpose -- the purge keys on
     `user_id`, and this file must not import the landing's modules. The one other column it
     reads is `gallery_id` on the two gallery child tables: the security lane's M-7 also removes
@@ -250,13 +254,13 @@ def _rows(conn, user_id: str) -> dict[str, int]:
             for t in LANDING_TABLES}
 
 
-def test_the_deletion_list_names_all_twelve_tables_the_landing_added():
-    assert len(set(LANDING_TABLES)) == 12
+def test_the_deletion_list_names_all_thirteen_tables_the_landing_added():
+    assert len(set(LANDING_TABLES)) == 13
     missing = [t for t in LANDING_TABLES if t not in ap._DIRECT_USER_TABLES]
     assert not missing, f"account deletion no longer clears: {missing}"
 
 
-def test_a_deleted_members_rows_leave_all_twelve_tables_and_nobody_elses_do():
+def test_a_deleted_members_rows_leave_all_thirteen_tables_and_nobody_elses_do():
     conn = _db_with_the_landing_tables()
     assert set(_rows(conn, "member-leaving").values()) == {1}                # non-vacuity
     report = ap.purge_user_rows("member-leaving", conn)

@@ -120,9 +120,14 @@ Two things would be lost. Both are measured in `tests/test_notebook_rollback_nev
    requires level 4 for that note, and the save is refused. The note becomes read-only with the
    sentence "This note has content from a newer version of the app. Reload to edit it." It is
    never stripped. Bringing the feature back brings editing back.
-2. **Account deletion.** The landing adds twelve tables to the list that account deletion
+2. **Account deletion.** The landing adds thirteen tables to the list that account deletion
    clears. A revert leaves the tables and their rows in the database. A reverted list would
    leave those rows behind when a member deletes their account.
+
+The thirteenth table is `j2_trade_plan_misses` (finish program, data lane). It is a memo: plan
+grading remembers that a trade had no plan so a repeat read does no work. It can be dropped at
+any time and is rebuilt on the next read. It is in the deletion list, so it is covered by the
+kept `account_purge.py`, and the keep-list test names it.
 
 One thing a revert leaves behind that needs nothing done: the column
 `j2_template_gallery.preview_json`. The security lane added it with `ALTER TABLE` so the gallery
@@ -270,7 +275,7 @@ The A/B probe is one save and one account deletion, the same file on both trees
 | | Tree A, keep-list kept | Tree B, whole revert |
 |---|---|---|
 | A level-3 editor saves a plan note without its plan data | answered 409, the plan data is still in the note | answered 200, the plan data is gone |
-| A member deletes their account; the twelve tables hold their rows | 0 rows left behind | 12 rows left behind |
+| A member deletes their account; the twelve tables hold their rows (rehearsed before the thirteenth, `j2_trade_plan_misses`, existed) | 0 rows left behind | 12 rows left behind |
 
 What the rehearsal does not show:
 
