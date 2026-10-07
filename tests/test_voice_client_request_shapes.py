@@ -55,6 +55,9 @@ DECLARED_UNATTRIBUTED = {
     ("src/components/voice/VoiceTelemetryPanel.jsx", "/api/voice/transcripts/export"),  # download link
     ("src/hooks/useReadAloud.js", "/api/voice/tts/stream"),                       # <audio> source
     ("src/hub/voiceNote.js", "/api/voice/transcribe"),                            # a constant, see below
+    # master's agent test harness: a fetch stand-in that ANSWERS for the server (a string test on
+    # the path), never a request the client sends
+    ("src/testing/agent/agentHarness.jsx", "/api/voice/transcribe"),
 }
 
 

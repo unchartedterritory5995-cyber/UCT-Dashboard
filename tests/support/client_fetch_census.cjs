@@ -318,6 +318,12 @@ for (const file of files) {
     if (node.type !== 'CallExpression' || !node.arguments.length) return
     const url = literalUrl(node.arguments[0])
     if (url === null || !url.startsWith(prefix)) return
+    // A string TEST is not a request. `path.startsWith('/api/voice/transcribe')` is how a fetch
+    // stand-in decides what to answer (master's agent harness, src/testing/agent/agentHarness.jsx);
+    // read as a call it became "GET /api/voice/transcribe", a door that does not exist. The
+    // literal is left unclaimed, so it is reported as unattributed and must be declared by name.
+    if (node.callee.type === 'MemberExpression' && node.callee.property.type === 'Identifier'
+      && ['startsWith', 'endsWith', 'includes', 'indexOf', 'match', 'test'].includes(node.callee.property.name)) return
     claimed.add(node.arguments[0])
     const scopeFns = ancestors.filter(isFn)
     scopeFns.unshift(ast.program)
