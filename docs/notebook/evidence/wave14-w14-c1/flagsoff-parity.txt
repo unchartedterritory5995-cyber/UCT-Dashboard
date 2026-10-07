@@ -1,9 +1,9 @@
 == flags-off render parity
-base b06ec4fd85 vs HEAD bcc334159e
+base b06ec4fd85 vs HEAD 296309a7d8
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 capture fingerprints (same tree, same fingerprints): A fd2e765038de3db0 | B e52c2ed7d44450c0
-swapped 482 source files to the base blob; restored, git status unchanged
+swapped 488 source files to the base blob; restored, git status unchanged
 36 identical | 4 differ only by a named expected difference | 0 differ (40 cases)
   EXPECTED: notebook home | prod-like: every capability on, getting-started off | fresh member
     explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV)
