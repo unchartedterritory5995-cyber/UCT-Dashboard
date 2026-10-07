@@ -113,7 +113,8 @@ class TestPanel:
         out = p.panel("X")
         assert out["state"] == "ok" and out["summary"]["reaction"]["n"] == 1
         assert out["next_report_date"] == "2026-04-30" and out["source"].startswith("UCT daily bar store")
-        assert set(out["method"]) == {"run_in", "gap", "reaction", "drift", "reacting_session"}
+        assert set(out["method"]) == {"run_in", "gap", "reaction", "drift", "reacting_session", "realized_vol"}
+        assert "sample standard deviation" in out["method"]["realized_vol"]   # accuracy follow-up 6
 
     def test_no_reported_quarter_is_a_stated_state(self, monkeypatch):
         monkeypatch.setattr(p, "_cached_earnings", lambda s: {"quarters": [{"reported": False}]})
@@ -128,12 +129,14 @@ class TestImplied:
         p._queued.clear()
         gate, ran_on = threading.Event(), []
 
-        def slow(sym, d):
+        def slow(sym, d, timing=None):
             ran_on.append(threading.current_thread().name)
             gate.wait(5)
             return {"pct": 6.2, "dollar": 8.1, "expiry": "2026-05-01", "strike": 130.0,
                     "spot": 131.0, "call_mark": 4.2, "put_mark": 3.9}
         monkeypatch.setattr(ee, "get_implied_move", slow)
+        from api.services import implied_move as im
+        monkeypatch.setattr(im, "report_timing", lambda s, d: None)   # no vendor call
         first = p.implied_snapshot("ZZTEST", "2026-04-30")
         assert first["state"] == "pending"
         gate.set()

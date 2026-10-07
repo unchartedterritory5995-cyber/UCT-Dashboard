@@ -27,14 +27,15 @@ from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
 from api.services.cache import TTLCache
+from api.services.realized_vol import METHOD as _HV_DEF, annualized_hv
 
 _ET = ZoneInfo("America/New_York")
 TRADING_DAYS = 252
 HV_WINDOWS = (10, 20, 30)
 BARS_TTL_S = 3600.0
 RANK_BANDS = ((20, "Very low"), (40, "Low"), (60, "Moderate"), (80, "Elevated"))
-HV_METHOD = ("Historical volatility = the standard deviation of daily log returns (close to "
-             "close) over the last N completed sessions, x sqrt(252). Computed from daily bars.")
+HV_METHOD = (f"Historical volatility = {_HV_DEF}, over the last N completed sessions -- the "
+             "same definition the earnings-reaction panel (ERX) uses. Computed from daily bars.")
 
 _BARS = TTLCache(max_size=512)
 
@@ -73,16 +74,12 @@ def _completed_closes(sym: str, today: Optional[str] = None) -> Optional[list]:
 
 
 def hv(closes: list, n: int) -> Optional[float]:
-    """Annualized close-to-close HV over the last n returns (needs n+1 closes)."""
+    """Annualized close-to-close HV over the last n returns (needs n+1 closes), through the
+    shared `realized_vol.annualized_hv` (sample standard deviation) -- the SAME definition
+    ERX's realized vol uses."""
     if len(closes) < n + 1:
         return None
-    window = closes[-(n + 1):]
-    rets = [math.log(window[i] / window[i - 1]) for i in range(1, len(window)) if window[i - 1] > 0]
-    if len(rets) < 2:
-        return None
-    mean = sum(rets) / len(rets)
-    var = sum((r - mean) ** 2 for r in rets) / (len(rets) - 1)
-    return math.sqrt(var) * math.sqrt(TRADING_DAYS)
+    return annualized_hv(closes[-(n + 1):], TRADING_DAYS)
 
 
 def realized(sym: str) -> dict:

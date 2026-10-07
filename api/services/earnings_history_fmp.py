@@ -131,15 +131,61 @@ def fmp_beat_history(ticker: str, limit: int = 8) -> list[dict] | None:
     this company; [] means FMP answered and this ticker has no reported
     quarters.
     """
+    return fmp_history(ticker, limit)[0]
+
+
+def _calendar_from_income(income):
+    """The company's fiscal calendar from the SAME income-statement rows the
+    join reads: each Q4 row's `date` is a fiscal year end the company filed;
+    every quarterly `date` is an observed period end. None without a Q4 row."""
+    from api.services.fiscal_calendar import FiscalCalendar
+    if not isinstance(income, list):
+        return None
+    year_ends, period_ends = [], []
+    for r in income:
+        if not isinstance(r, dict):
+            continue
+        d, q = _day(r.get("date")), _fiscal_q(r.get("period"))
+        if d and q:
+            period_ends.append(d)
+            if q == 4:
+                year_ends.append(d)
+    cal = FiscalCalendar(year_ends, period_ends, source="fmp_income_statement")
+    return cal if cal.anchors else None
+
+
+def _fiscal_identity(cal, period_end, fallback_year, fallback_quarter):
+    """(fiscal_year, fiscal_quarter, label) through `fiscal_calendar` -- the ONE
+    authority EE's quarter labels use (`estimates_consensus.fiscal_relabel`).
+    Without a calendar the FMP join's own identity is kept and no label is
+    stamped (the client keeps its fallback)."""
+    from api.services.fiscal_calendar import display_label
+    if cal is not None and period_end is not None:
+        info = cal.resolve(period_end)
+        if info.get("fiscal_year") and info.get("fiscal_quarter"):
+            year, quarter = info["fiscal_year"], info["fiscal_quarter"]
+            return year, quarter, display_label(year, quarter, period_end.isoformat())
+    return fallback_year, fallback_quarter, None
+
+
+def fmp_history(ticker: str, limit: int = 8, *, today: _dt.date | None = None):
+    """(beat_history rows | None, next_report_fiscal | None).
+
+    `next_report_fiscal` is the fiscal quarter the company's NEXT scheduled
+    report covers -- {report_date, period_end, fiscal_year, fiscal_quarter,
+    label} -- placed by `FiscalCalendar.period_end_for_report` on the earliest
+    forward `stable/earnings` row (accuracy follow-up 2: the ERN modal's
+    upcoming row used to be numbered by the report date's CALENDAR month).
+    """
     sym = (ticker or "").upper()
     if not sym:
-        return None
+        return None, None
 
     # Ask for more than `limit`: forward (not-yet-reported) rows are filtered
     # out below, and they sit at the TOP of a newest-first list.
     earnings = _ee._fmp_get("/stable/earnings", {"symbol": sym, "limit": max(limit * 2, 16)}, timeout=10)
     if not isinstance(earnings, list):
-        return None                      # a shrug, not an answer
+        return None, None                # a shrug, not an answer
 
     income = _ee._fmp_get("/stable/income-statement",
                           {"symbol": sym, "period": "quarter", "limit": max(limit * 2, 16)}, timeout=10)
@@ -158,12 +204,18 @@ def fmp_beat_history(ticker: str, limit: int = 8) -> list[dict] | None:
                 fiscal.append({"end": d, "q": q, "acc": acc,
                                "y": _int(r.get("fiscalYear")) or d.year})
 
+    cal = _calendar_from_income(income)
+    today = today or _dt.date.today()
+
     rows = []
+    forward = []
     for r in earnings:
         if not isinstance(r, dict):
             continue
         announced = _day(r.get("date"))
         eps_actual = r.get("epsActual")
+        if announced is not None and eps_actual is None and announced >= today:
+            forward.append(announced)
         # Not yet reported — the forward strip is a different concept and is
         # built elsewhere. `beat_history` is REPORTED quarters only.
         if announced is None or eps_actual is None:
@@ -176,20 +228,31 @@ def fmp_beat_history(ticker: str, limit: int = 8) -> list[dict] | None:
             if abs((match["acc"] - announced).days) > _MAX_JOIN_DAYS:
                 match = None
 
+        # The period end: the join's, else the calendar's placement of the
+        # announcement (a plausible 5-135 day lag), else nothing known.
+        period_end = match["end"] if match else None
+        if period_end is None and cal is not None:
+            period_end = _day(cal.period_end_for_report(announced).get("period_end"))
+        year, quarter, label = _fiscal_identity(
+            cal, period_end, match["y"] if match else None, match["q"] if match else None)
+
         rows.append({
             # `period` keeps Finnhub's meaning — the fiscal PERIOD END — so the
             # client model needs no change to read it. When the income
             # statement is missing we fall back to the announcement date,
             # which is the best available and is what the old calendar
             # derivation would have used anyway.
-            "period": (match["end"] if match else announced).isoformat(),
+            "period": (period_end or announced).isoformat(),
             "actual": eps_actual,
             "estimate": r.get("epsEstimated"),
             "beat": (None if r.get("epsEstimated") is None
                      else eps_actual >= r.get("epsEstimated")),
             "surprise": _pct(eps_actual, r.get("epsEstimated")),
-            "year": match["y"] if match else None,
-            "quarter": match["q"] if match else None,
+            "year": year,
+            "quarter": quarter,
+            # EE's own label for this quarter (`fiscal_calendar.display_label`);
+            # None when no fiscal calendar could be built.
+            "label": label,
             # The half Finnhub never had — this is what stops the history
             # table's REV column rendering an em dash on every row.
             "revenue_actual": r.get("revenueActual"),
@@ -198,7 +261,17 @@ def fmp_beat_history(ticker: str, limit: int = 8) -> list[dict] | None:
         })
 
     rows.sort(key=lambda x: x["period"], reverse=True)
-    return rows[:limit]
+
+    nxt = None
+    if forward and cal is not None:
+        nd = min(forward)
+        pe = _day(cal.period_end_for_report(nd).get("period_end"))
+        if pe is not None:
+            fy, fq, lab = _fiscal_identity(cal, pe, None, None)
+            if fy and fq:
+                nxt = {"report_date": nd.isoformat(), "period_end": pe.isoformat(),
+                       "fiscal_year": fy, "fiscal_quarter": fq, "label": lab}
+    return rows[:limit], nxt
 
 
 def _int(v):

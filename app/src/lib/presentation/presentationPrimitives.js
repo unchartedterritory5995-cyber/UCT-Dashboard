@@ -126,10 +126,16 @@ export function formatNumberMax(value, { maxDecimals = 2, absent = ABSENT } = {}
  */
 export function formatPercent(value, { decimals = 2, signed = false, absent = ABSENT } = {}) {
   if (!Number.isFinite(value)) return absent
-  const body = Number(value).toFixed(decimals)
+  let body = Number(value).toFixed(decimals)
+  // ⛔ A value that ROUNDS to zero is zero: -0.001 at two decimals is "0.00%", never
+  // "-0.00%" — toFixed keeps the sign of what it rounded away (accuracy audit
+  // 2026-10-06, design note 3). It gets no sign at all, signed render or not:
+  // nothing positive happened either. (An exact or positive zero keeps "+0.00%".)
+  const negZero = body.startsWith('-') && Number(body) === 0
+  if (negZero) body = body.slice(1)
   // `toFixed` already carries the minus sign; only the plus is ours to add,
   // and only when the caller asked for a signed render.
-  const sign = signed && Number(value) >= 0 ? '+' : ''
+  const sign = signed && !negZero && Number(value) >= 0 ? '+' : ''
   return `${sign}${body}%`
 }
 
@@ -189,8 +195,8 @@ export const COMPACT_TIERS = Object.freeze([
  *     < 1,000   whole number     "$812"
  *
  * Unit letters are always K/M/B/T, a currency sign sits inside the minus
- * ("-$1.25B"), and the tier is picked on the magnitude before rounding (see
- * `formatCompact`). It is the research tabs' money grammar (EE/FA/OWN/FLOW and
+ * ("-$1.25B"), and a value that rounds up to the next tier prints in it
+ * (999,999 -> "1.0M", never "1000K"; see `formatCompact`). It is the research tabs' money grammar (EE/FA/OWN/FLOW and
  * the statement tables already agreed on it); the panels that disagreed
  * (calendar cards at one decimal on B/T, QuoteStrip volume at two on M, the
  * money columns that had no K tier) moved onto it.
@@ -217,9 +223,13 @@ export function formatCompactTerminal(value, { money = false, absent = ABSENT } 
  * moved onto somebody else's:
  *
  *   • `tiers`  — `[{ at, suffix, decimals }]`, largest first. The tier is
- *     chosen on the MAGNITUDE (`Math.abs`) before rounding, so 999,950 at one
- *     decimal reads "1000.0K", never "1.0M" — every grammar this replaced did
- *     exactly that, and "fixing" it would move a member-visible number.
+ *     chosen on the MAGNITUDE (`Math.abs`), then PROMOTED once if rounding
+ *     carried the number to the next tier's threshold: 999,950 at one decimal
+ *     reads "1.0M", not "1000.0K"; 999.6 reads "1.0K", not "1000" (accuracy
+ *     audit 2026-10-06, design note 2 — the grammars this replaced all printed
+ *     the "1000K" form; only those boundary values moved). A ladder with no
+ *     larger tier (COT's M ceiling) keeps "1000.00M": there is nothing to
+ *     promote to.
  *   • `decimals` — a number is `toFixed(decimals)`. The string `'round'` is
  *     `Math.round`, which is NOT `toFixed(0)`: they part ways on a negative
  *     half (-2.5 → -2 one way, "-3" the other). The COT grammar has always
@@ -243,14 +253,22 @@ export function formatCompact(value, { tiers = COMPACT_TIERS, prefix = '', absen
   if (!Number.isFinite(value)) return absent
   const n = Number(value)
   const magnitude = Math.abs(n)
-  for (const { at, suffix, decimals } of tiers) {
-    if (magnitude >= at) {
-      const scaled = n / at
-      const body = decimals === 'round' ? Math.round(scaled) : scaled.toFixed(decimals)
-      return `${signOutside(prefix, body)}${suffix}`
-    }
+  const render = (i) => {
+    const { at, suffix, decimals } = tiers[i]
+    const scaled = n / at
+    const body = decimals === 'round' ? Math.round(scaled) : scaled.toFixed(decimals)
+    return { text: `${signOutside(prefix, body)}${suffix}`, rounded: Math.abs(Number(body)) * at }
   }
-  return signOutside(prefix, Math.round(n))
+  // ⛔ A value that ROUNDS up to the next tier's threshold prints in the next tier: 999,999 on
+  // the terminal ladder is "1.0M", not "1000K" (accuracy audit 2026-10-06, design note 2). The
+  // tier is chosen on the magnitude first, then promoted once if rounding carried it over.
+  const promote = (i, cur) => (i > 0 && cur.rounded >= tiers[i - 1].at ? render(i - 1).text : cur.text)
+  for (let i = 0; i < tiers.length; i++) {
+    if (magnitude >= tiers[i].at) return promote(i, render(i))
+  }
+  const whole = Math.round(n)
+  if (tiers.length && Math.abs(whole) >= tiers[tiers.length - 1].at) return render(tiers.length - 1).text
+  return signOutside(prefix, whole)
 }
 
 // --------------------------------------------------------------------------

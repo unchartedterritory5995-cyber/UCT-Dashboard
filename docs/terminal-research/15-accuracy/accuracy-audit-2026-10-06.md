@@ -40,12 +40,55 @@ read; no credentials were used.
 
 ### Design choices flagged for an owner (arithmetic correct, presentation debatable)
 
+> **All six were resolved on 2026-10-06 (branch `terminal/fn5-acc2`), plus the foreign-filer
+> "$" gap — see "Follow-ups fixed" directly below this list.** The list is kept as it was
+> written so the before-state stays readable.
+
 1. **Two realized-vol definitions.** VOL/IVH `hv()` uses the SAMPLE std (n−1) of log returns; ERX `realized_vol()` uses the POPULATION std (n). Both match their own reference exactly, but the same 20-day vol differs by √(20/19) ≈ 2.6 % between two panels a member can open side by side.
 2. **`formatCompact` picks the tier before rounding** (documented in source as deliberate): 999,999 → "1000K", 999,950,000 → "1000.0M" on the terminal ladder.
 3. **`formatPercent(-0.001, {signed})` → "-0.00%"** (a negative zero survives `toFixed`).
 4. **CORR silently ignores `2Y` / `YTD`** (the lookback arg accepts them; `CORR_WINDOWS` does not, so the panel stays on 3M). Not a wrong number, but the typed window is not echoed as unapplied.
 5. **Callers of the implied move without session timing** — the ERX panel (`earnings_reaction_panel._read_implied`), Discord chart context and `enrich_earnings_response` still use the on-or-after rule; they need the report's BMO/AMC to benefit from D3.
 6. **ERN modal parity.** `estimates_consensus._quarter_label`'s docstring says EE and the ERN modal number a quarter the same way; after D4, EE uses the company's fiscal label for non-December filers while the ERN modal's estimate rows still use the calendar mapper (`earnings_estimates._fiscal_q_from_period_end`). Same arithmetic class; the ERN side is a separate surface and was left for its owner.
+
+### Follow-ups fixed (branch `terminal/fn5-acc2`, base `f7524c40d`)
+
+Each with a regression test whose expected values come from an independent reference
+(numpy / a hand-written Pearson / each company's own fiscal label), never from the product.
+
+| # | Was | Fix | Commit | Rail |
+|---|---|---|---|---|
+| F1 (note 5) | ERX panel, Discord chart context and `enrich_earnings_response` passed no BMO/AMC, so every after-close reporter still got the same-day (pre-print) expiry | `implied_move.report_timing(sym, date)` resolves the session from the engine weekly calendar (cache/disk, no vendor) then Finnhub `/calendar/earnings` `hour`; cached 6 h per (sym, date), None included. ERX `_read_implied` and Discord `_implied` pass it (ERX result carries `timing`); `enrich_earnings_response(..., timing=)` takes the row's own session (warm rows carry BMO/AMC; `engine._row_timing`, TBD = unknown) and resolves otherwise. **Documented default:** dmh / unlisted / a vendor failure = unknown = on-or-after (the same-day expiry) — right for a pre-market or intraday print, one expiry early for an after-close print no source states. The click path's rows (`routers/earnings._resolve_row`) carry no report date at all, so they take the front expiry and timing does not apply. | `67500f6cf` | `tests/test_implied_move_timing_callers.py` (NVDA Wed 2026-10-07 AMC → Fri 2026-10-09, hand-picked) |
+| F2 (note 6) | ERN modal history rows used FMP's join identity with a calendar-month fallback; its upcoming row was numbered by the REPORT date's calendar month | One authority: `fiscal_calendar.display_label(fy, q, period_end)` — `Q3 2026` when the fiscal quarter equals the calendar one (every December filer, byte for byte), else `Q3 FY2027`. EE's `fiscal_relabel` uses it. `earnings_history_fmp.fmp_history` builds a `FiscalCalendar` from the same income-statement rows (Q4 dates = filed year ends), stamps `year`/`quarter`/`label` on every history row, places an unjoinable print with `period_end_for_report`, and returns `next_report_fiscal` for the earliest forward report; `get_earnings_intel` → calendar enrichment → `mergeEnrichment` + `toModalRow` carry it; `buildQuarters` prints the backend label and takes `next_report_fiscal` only for THIS report (±7 days). | `e32ca6f08` | `tests/test_ern_fiscal_labels.py` (Apple Dec-2025 quarter = Q1 FY2026, NVIDIA Oct-2025 = Q3 FY2026; ERN == EE on every quarter), `earningsHistoryModel.fiscal.test.js` |
+| F3 (note 4) | `CORR … 2Y` / `YTD` parsed, then ignored (panel stayed on 3M) | Supported: `CORR_WINDOWS` = 1M 3M 6M 1Y 2Y YTD (every window `args.js` accepts; the 600-bar D read holds 2Y's 504 returns). `relativeMath.corrWindow`: 2Y = 504 sessions, YTD = every return dated in the newest session's year (`since` bound on `correlationMatrix`). A window the panel cannot draw now renders "Window X is not available here; showing 3M." | `233a44ba0` | `CorrPanel.windows.test.jsx` (independent Pearson; 2Y n = 504, YTD from 2026-01-01; rendered cells) |
+| F4 (note 2) | `formatCompact` picked the tier before rounding: 999,999 → "1000K" (terminal), 999,950 → "1000.0K" (default), 999,950,000 → "$1000.0M" | The tier is chosen on the magnitude, then promoted once if rounding reached the next tier's threshold, in that tier's own decimals: 999,999 → "1.0M", 999,950,000 → "$1.00B" (terminal money), 999.6 → "1.0K" (below the smallest tier too). A ladder with no larger tier keeps counting (COT "1000.00M"; terminal T is the top). | `0180b66a0` | `presentationPrimitives.test.js` (typed boundaries + a 20,000-value sweep: no rendered number reads ≥ 1000 of a unit that has a next tier) |
+| F5 (note 3) | `formatPercent(-0.001, {signed})` → "-0.00%" | A negative that rounds to zero is "0.00%" — no sign, signed render or not. A real -0.01 keeps its sign; a positive/exact zero keeps "+0.00%" when signed. | `0180b66a0` | `presentationPrimitives.test.js` |
+| F6 (note 1) | VOL/IVH sample std (n−1), ERX population std (n): 20-session vols √(20/19) ≈ 2.6 % apart | Both call `api/services/realized_vol.annualized_hv` — the SAMPLE standard deviation of daily log returns × √252, the conventional HV estimator. ERX's figure moves up ~2.6 % at 20 sessions. VOL's `HV_METHOD` and ERX's `method.realized_vol` (now rendered under the ERX realized-vol line) both name it and point at the other panel. | `7bfe32051` | B5 now numpy `ddof=1`; new: VOL HV20 == ERX realized vol on the NVDA fixture; `EarningsReactionPanel.test.jsx` rendered method |
+| F7 | FundamentalsWidget, BusinessTrend and CompanySearch printed "$" on a foreign filer's figures (TSM reports in TWD) | Shared helpers (`currencyPrefix` / `reportingCurrencyNote` / `isForeignCurrency`) on the reporting currency the backend already serves, EE/FA's rule: amounts in the reporting currency, EPS without a symbol, USD/unknown byte-for-byte unchanged. `/api/fundamentals/earnings-table` stamps `currency` (from `research.reporting_currency`, EE/FA's source) on a COPY so the cached payload and `_PAYLOAD_VERSION` are untouched; BusinessTrend takes the earnings-intel payload's `currency` (DockProfile already holds it); CompanySearch uses `/api/fundamentals-full`'s `reporting_currency` (Yahoo `financialCurrency`, the statements' own source). | `2ff6af7c5` | `widgetCurrency.accuracy.test.jsx`, `FundamentalsWidget.test.jsx` (rendered TWD, no "$"; USD unchanged), `test_earnings_table_router.py` |
+
+**Edge changes members will see (F4), and only these:** every grammar on `formatCompact`
+prints a value that rounds up to its next tier in that tier. Boundary values that moved
+(examples, each pinned in its test): profile `fmtVol(999,950)` "$1000.0K" → "$1.0M" and
+`fmtVol(999,999,999)` "$1000.0M" → "$1.0B"; `fmtShares(999,500)` "1000K" → "1.0M";
+`fmtRevenue(-999,995,000)` "$-1000.00M" → "-$1.00B"; COT `fmtCompact(999,500)` "1000K" →
+"1.00M" (its 1e9 "1000.00M" is unchanged — no B tier); dock `fmtSales(999,500)` "$1000K" →
+"$1M", `fmtShares(999,999)` → "1.0M", `fmtMoney(999,999)` → "$1.0M", `stripSales(999,500)` →
+"$1M"; board `CompanySearch.fmtMoney(999,950)` "$1000.0K" → "$1.0M",
+`BusinessTrend.fmtMoney(999,999,999)` "$1000M" → "$1.0B", OptionsFlow `fmt(999,999)` "$1000K" →
+"$1.0M", Scatter `abbrev(999,999)` "1000K" → "1.0M", VolumeScan `fmtDollar(999,600)` "$1000K" →
+"$1.0M", LeverageInverse `fmtVol(999,999,999)` "$1000.0M/d" → "$1.0B/d"; watchlist
+`fmtVol(999,999)` "1000K" → "1.0M", `fmtDolVol(999,999)` "$1000K" → "$1.0M"; and below the
+smallest tier, 999.5 → "1.0K" (default) / "1K" (terminal). The frozen TERM-066 oracles in
+`compactAdoption.test.jsx`, `dockFormatters.term066.test.js`, `widgetFormatters.term066.test.js`
+and `Watchlists.term066.test.js` are unchanged verbatim; each is wrapped by
+`lib/presentation/__fixtures__/compactBoundary.withPromotion`, which expects the next tier ONLY
+where the oracle's own printed number reached a threshold the value is below — every other
+input is still byte-for-byte the frozen body. `columnDefs.compact.test.js` needed no change.
+
+**Other edge changes:** ERX realized vol reads √(20/19) higher (F6); a non-December filer's ERN
+labels read `Q1 FY2026` (was `Q1 26` on a joined row, and a calendar-month guess such as
+`Q4 25` on an unjoined row or the upcoming row) — December filers are unchanged (F2); a tiny
+negative percent reads "0.00%" (F5); a foreign filer's dock sales/revenue read "TWD …" (F7).
 
 ## What was checked, function by function
 
@@ -85,7 +128,7 @@ NVDA + SPY, 2023-01-03 … 2026-10-02 (936 sessions each, split-adjusted).
 | B2 | HV20 NVDA | same | identical | | PASS |
 | B3 | HV30 NVDA | same | identical | | PASS |
 | B4 | HV with < n+1 closes | definition | None | None | PASS |
-| B5 | ERX realized vol, 20 sessions | `np.std(..., ddof=0)·√252·100`, 1dp | identical; through 2026-10-02 | `realized_vol` | PASS |
+| B5 | ERX realized vol, 20 sessions | `np.std(..., ddof=1)·√252·100`, 1dp (was ddof=0 — F6) | identical; through 2026-10-02 | `realized_vol` | PASS |
 | B6 | ERX rows, 8 NVDA AMC reports 2024-02-21…2025-11-19 | pandas: reacting session = report day or next by \|gap\|; gap, reaction, run-in (5), drift (5) | all 8 × 6 fields equal (2dp); every AMC print reacts next session | `quarter_rows` | PASS |
 | B7 | ERX stat block | numpy mean / mean\|x\| / median / share > 0 | identical | `_stat` | PASS |
 | B8 | SEAS months + weekdays | pandas `resample('ME').last().pct_change()`, first & running month excluded; weekday `pct_change` | n, avg, median, % up equal for all 12 months, 5 weekdays; coverage 2023-01-03…2026-10-02 | `seasonality.compute` | PASS |
@@ -295,10 +338,10 @@ Hand-derived fixtures (prev close 187.62, regular close 189.11, after-hours 186.
 | M23 | compact terminal: 812 | "$812" | "$812" | PASS |
 | M24 | compact terminal: negative money sign outside | "-$1.25B" | "-$1.25B" | PASS |
 | M25 | compact terminal: NaN -> em dash | "â€”" | "â€”" | PASS |
-| M26 | compact terminal: tier boundary 999_999 (tier picked pre-rounding) | "1000K" | "1000K" | PASS |
-| M27 | compact terminal: 999_950_000 | "1000.0M" | "1000.0M" | PASS |
+| M26 | compact terminal: tier boundary 999_999 (tier picked pre-rounding) — **now "1.0M" (F4)** | "1000K" | "1000K" | PASS |
+| M27 | compact terminal: 999_950_000 — **now "1.00B" (F4)** | "1000.0M" | "1000.0M" | PASS |
 | M28 | compact default ladder: 1.234e9 | "1.2B" | "1.2B" | PASS |
-| M29 | formatPercent signed | ["+1.50%","-0.25%","-0.00%"] | ["+1.50%","-0.25%","-0.00%"] | PASS |
+| M29 | formatPercent signed — **the third is now "0.00%" (F5)** | ["+1.50%","-0.25%","-0.00%"] | ["+1.50%","-0.25%","-0.00%"] | PASS |
 | M30 | currency TWD label | "TWD 535.87" | "TWD 535.87" | PASS |
 | M31 | currency negative TWD | "-TWD 2.90" | "-TWD 2.90" | PASS |
 | M32 | currency USD/unknown = $ | ["$1.00","$1.00"] | ["$1.00","$1.00"] | PASS |
@@ -306,6 +349,25 @@ Hand-derived fixtures (prev close 187.62, regular close 189.11, after-hours 186.
 | M34 | relabel negative $ text for TWD | "-TWD 450M" | "-TWD 450M" | PASS |
 
 ## Test totals
+
+### Follow-ups (`terminal/fn5-acc2`), one suite at a time, memory checked first
+
+```
+pytest 27 files (implied-move callers + timing, ERX panel, Discord context, enrichment,
+       earnings analysis/warm/router, ERN fiscal labels, earnings_history_fmp,
+       fiscal_calendar, EE fiscal key, FA/EE depth, implied_store fiscal identity,
+       earnings_intel model, earnings_table + router, reporting_currency x2,
+       options vol, iv_history, vol_surface, earnings_reaction,
+       terminal_accuracy_reference)                                             526 passed
+vitest src/lib/presentation src/pages/terminal src/components/terminal
+       src/pages/research src/components/research src/pages/calendar src/pages/cot
+       Watchlists.term066 columnDefs.compact                                    254 files: 3283 passed, 5 skipped
+vitest src/pages/charts/widgets (dock/widget TERM-066 oracles, currency)         49 files: 598 passed
+Not this lane's (environmental): tests/test_hub_sandbox_model_keys.py 2 failures
+(installed SDK env-var set + socket listener control) -- unrelated to these changes.
+```
+
+### Original lane (`terminal/fn4-accuracy`)
 
 Run on branch `terminal/fn4-accuracy` after the last fix, one suite at a time, memory checked first:
 

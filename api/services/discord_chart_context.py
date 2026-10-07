@@ -65,8 +65,13 @@ def _next_earnings(ticker: str, today: _dt.date) -> Optional[dict]:
 
 
 def _implied(ticker: str, report_date: str) -> Optional[dict]:
+    """The report's session comes from `implied_move.report_timing` (engine
+    weekly calendar, then Finnhub `hour`): an after-close print takes the first
+    expiry STRICTLY after the date. Unknown session = on-or-after (default)."""
     from api.services import earnings_enrichment
-    return earnings_enrichment.get_implied_move(ticker, report_date)
+    from api.services.implied_move import report_timing
+    return earnings_enrichment.get_implied_move(
+        ticker, report_date, timing=report_timing(ticker, report_date))
 
 
 def _catalyst(ticker: str, today: _dt.date) -> Optional[dict]:

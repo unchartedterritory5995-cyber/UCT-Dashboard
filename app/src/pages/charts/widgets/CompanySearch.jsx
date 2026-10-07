@@ -14,7 +14,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import { searchCompany, groupResults, highlightParts, POPULAR } from './companySearchIndex'
 import styles from './CompanySearch.module.css'
 import Input from '../../../components/ui/Input'
-import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { currencyPrefix, formatCompact, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 const EXPLORE = ['Financial Statements', 'Earnings History', 'Valuation', 'Overview']
@@ -31,24 +31,30 @@ const MONEY_TIERS = [
   { at: 1e3, suffix: 'K', decimals: 1 },
 ]
 const SHARES_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }]
-export function fmtMoney(v) {
+// `ccy` = the reporting currency the fundamentals snapshot already carries
+// (`/api/fundamentals-full` -> `reporting_currency`, Yahoo `financialCurrency`, the same
+// source as the statements this panel reads). Statement amounts print in it ("TWD 1.2T"),
+// never "$"; EPS prints without a symbol for a non-USD filer (EE/FA's rule). USD or unknown
+// renders exactly as before (accuracy follow-up 7).
+export function fmtMoney(v, ccy) {
   if (v == null) return '—'
+  const prefix = currencyPrefix(ccy)
   const a = Math.abs(v), s = v < 0 ? '-' : ''
-  if (a < 1e3) return `${s}$${a.toFixed(0)}`
-  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix: '$' })}`
+  if (a < 1e3) return `${s}${prefix}${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix })}`
 }
 export const fmtShares = (v) => (v == null ? '—' : Math.abs(v) >= 1e6 ? formatCompact(Number(v), { tiers: SHARES_TIERS }) : `${v}`)
-function fmtBy(v, kind) {
+export function fmtBy(v, kind, ccy) {
   if (v == null || v === '') return '—'
   switch (kind) {
-    case 'eps': return `$${Number(v).toFixed(2)}`
+    case 'eps': return `${isForeignCurrency(ccy) ? '' : '$'}${Number(v).toFixed(2)}`
     case 'shares': return fmtShares(v)
     case 'pct': return `${Number(v).toFixed(1)}%`
     case 'pct+': return `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(1)}%`
     case 'x': return `${Number(v).toFixed(Number(v) >= 100 ? 0 : Number(v) >= 10 ? 1 : 2)}x`
     case 'num': return Number(v).toFixed(2)
     case 'moneystr': return v            // already a formatted string ("$5.56T")
-    default: return fmtMoney(v)
+    default: return fmtMoney(v, ccy)
   }
 }
 function pctChange(a, b) { return (a == null || b == null || b === 0) ? null : ((a - b) / Math.abs(b)) * 100 }
@@ -109,7 +115,7 @@ function Stat({ label, value, cls }) {
 }
 
 // metric-appropriate context chips for a Financials line item
-function finExtras(row, latest, statements, full) {
+function finExtras(row, latest, statements, full, ccy) {
   const revLatest = statements?.income?.annual?.[0]?.values?.revenue
   const margin = (v) => (revLatest && v != null && revLatest !== 0) ? `${((v / revLatest) * 100).toFixed(1)}%` : null
   const out = []
@@ -124,7 +130,7 @@ function finExtras(row, latest, statements, full) {
     case 'total_debt': {
       if (full?.debt_to_equity != null) out.push({ label: 'debt/equity', value: Number(full.debt_to_equity).toFixed(2) })
       const nd = statements?.balance?.annual?.[0]?.values?.net_debt
-      if (nd != null) out.push({ label: 'net debt', value: fmtMoney(nd) })
+      if (nd != null) out.push({ label: 'net debt', value: fmtMoney(nd, ccy) })
       break
     }
     default: break
@@ -143,16 +149,19 @@ function ResultDetail({ item, statements, full, compact }) {
     const series = annual.map(p => p.values[item.row])
     const latest = series[0]
     const yoy = pctChange(latest, series[1])
-    const extras = finExtras(item.row, latest, statements, full)
+    const ccy = full?.reporting_currency ?? null
+    const extras = finExtras(item.row, latest, statements, full, ccy)
+    const ccyNote = reportingCurrencyNote(ccy)
     return (
       <div className={styles.detail}>
         <div className={styles.detailHead}>
-          <span className={styles.detailVal}>{fmtBy(latest, fmt)}</span>
+          <span className={styles.detailVal}>{fmtBy(latest, fmt, ccy)}</span>
           {yoy != null && <span className={`${styles.detailDelta} ${yoy >= 0 ? styles.pos : styles.neg}`}>{`${yoy > 0 ? '+' : ''}${yoy.toFixed(0)}% YoY`}</span>}
           <Spark series={series.slice().reverse()} />
         </div>
         {extras.length > 0 && <div className={styles.detailStats}>{extras.map(e => <Stat key={e.label} label={e.label} value={e.value} />)}</div>}
         <div className={styles.detailFoot}>{item.hint}</div>
+        {ccyNote && <div className={styles.detailNote} data-testid="company-search-currency">{ccyNote}</div>}
       </div>
     )
   }
