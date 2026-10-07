@@ -5,7 +5,7 @@
 // ⛔ NOTHING HERE IS A SECOND LIST. Functions come from the registry, rules and prefixes from
 // grammar.js, keys from the shortcut registry's own declarations — each railed to its source.
 import { useEffect, useMemo } from 'react'
-import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, flagOn } from '../functions'
+import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, flagOn } from '../functions'
 import {
   ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
   ROW_RULE, TICKER_COLLISIONS,
@@ -77,7 +77,7 @@ export function KeysTable() {
 
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
-  const focus = focusCode && BY_CODE[focusCode] ? focusCode : null
+  const focus = focusCode && BY_CODE[focusCode] ? BY_CODE[focusCode].code : null
   const rows = focus ? [BY_CODE[focus]] : FUNCTIONS
   // The numbered order = the order rendered (grouped), so "3" opens the row labelled 3.
   const ordered = useMemo(() => FUNCTION_GROUPS.flatMap((g) => rows.filter((f) => f.group === g)), [rows])
@@ -144,7 +144,14 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                     <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpFnRow}`} onClick={() => onRun?.(f.code)}>
                       <span className={styles.rowNum} aria-hidden="true">{n}</span>
                       <span className={styles.code}>{f.code}</span>
-                      <span>{f.label}</span>
+                      <span>
+                        {f.label}
+                        {aliasesOf(f.code).length > 0 && (
+                          <span className={styles.helpScope} data-testid={`terminal-help-alias-${f.code}`}>
+                            {' '}(also {aliasesOf(f.code).join(', ')})
+                          </span>
+                        )}
+                      </span>
                       <span className={styles.helpScope}>
                         {[f.ticker && 'security', f.market && 'market'].filter(Boolean).join(' · ')}
                         {enabled != null && (

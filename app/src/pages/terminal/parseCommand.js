@@ -24,7 +24,7 @@
 //   ALIAS N = cmd · UNALIAS N · ALIAS → member aliases (collisions REFUSED, never shadowed)
 //
 // Never silent: every input yields `{ ok: true, … }` or `{ ok: false, error, suggestions }`.
-import { BY_CODE, ABSENT, isCode, suggest } from './functions'
+import { BY_CODE, ABSENT, canonicalCode, isCode, suggest } from './functions'
 import { CHANNEL_RE, aliasNameRefusal, compareMode, isTickerCollision, looksLikeQuestion } from './grammar'
 import { ARG_KINDS } from './args'
 import { normalizeSym as normalizeUrlSym } from '../calendar/useEarningsModalRoute'
@@ -223,7 +223,7 @@ function parseCore(raw) {
   if (second && isCode(second)) {
     const sym = normalizeSym(firstTok)
     if (!sym) return { ok: false, error: `"${firstTok}" is not a ticker. A ticker is letters, like NVDA or BRK.B.`, suggestions: [] }
-    return { ok: true, type: 'function', code: second.toUpperCase(), sym, args: rest }
+    return { ok: true, type: 'function', code: canonicalCode(second), sym, args: rest }
   }
   if (second && !forced && Object.prototype.hasOwnProperty.call(ABSENT, second.toUpperCase())) {
     return { ok: false, error: ABSENT[second.toUpperCase()], absent: second.toUpperCase(), suggestions: [] }
@@ -231,13 +231,13 @@ function parseCore(raw) {
 
   // FUNC [TICKER] [args]
   if (!forced && isCode(FIRST)) {
-    if (!second) return { ok: true, type: 'function', code: FIRST, sym: null, args: [] }
+    if (!second) return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [] }
     const secondForced = second.startsWith('$')
     // `GP W` — a token the code DECLARES as an argument (GP's timeframe) is that argument, the
     // same reading the echo and args.js give it. `GP $W` still means the ticker W (Wayfair),
     // and a single-letter ticker in FIRST position (`W GP`) is untouched.
     if (!secondForced && isDeclaredArg(FIRST, second)) {
-      const r = { ok: true, type: 'function', code: FIRST, sym: null, args: [second, ...rest] }
+      const r = { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
       // The `$` escape exists only for a code that CAN take a ticker (`GP W` vs `GP $W`). CAL
       // takes none, so "type $TODAY for the ticker" would send the member somewhere that
       // cannot work (round 3).
@@ -245,9 +245,9 @@ function parseCore(raw) {
     }
     const sym = normalizeSym(second)
     if (sym && BY_CODE[FIRST].ticker) {
-      return { ok: true, type: 'function', code: FIRST, sym, args: rest }
+      return { ok: true, type: 'function', code: canonicalCode(FIRST), sym, args: rest }
     }
-    return { ok: true, type: 'function', code: FIRST, sym: null, args: [second, ...rest] }
+    return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
   }
   if (!forced && Object.prototype.hasOwnProperty.call(ABSENT, FIRST)) {
     return { ok: false, error: ABSENT[FIRST], absent: FIRST, suggestions: [] }

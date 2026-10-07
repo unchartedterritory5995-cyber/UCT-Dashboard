@@ -43,7 +43,7 @@ in the panel, no new route".
 | 1 | **Relative-rotation graph** for sectors (and any ticker set): where each group sits on relative-strength trend × momentum, with its path over the last weeks | Bloomberg ships RRG as a licensed function. The corpus records the *question* rather than the screen: Bloomberg 06 §movers, *"the question that starts a rotation thesis rather than a single-name one"*; best-of-breed A1, *"a sorted change list cannot answer a rotation question"* | `components/tiles/SectorRotation.jsx` ranks 11 SPDR ETFs by return over one window; `/api/theme-rotation` gives a 1W-vs-1M rank delta. **Neither shows trajectory or quadrant**, and neither is a terminal code | 5 | 5 | **25** | **BUILT: `RRG`** |
 | 2 | **Relative performance and A/B ratio**: N tickers rebased to 0 % over a window, plus the A÷B ratio line (is A beating B, and since when) | Bloomberg `COMP` (*"compare returns against 2 other securities"*, 06 line 487); Koyfin `AAPL:FB` relative tickers with Relative Strength (A/B) and Relative Spread (%A − %B) documented as separate modes (Koyfin dossier, relative-ticker expressions); Unusual Whales `/compare` | `CMP` is a door to a two-security **snapshot table** (`ResearchComparePage.jsx`) with no time series; `/charts` Compare Symbols overlays %-performance on a chart, but **not in the terminal and with no ratio line** | 5 | 5 | **25** | **BUILT: `REL`** |
 | 3 | **Correlation matrix** of daily returns across a set of names: how concentrated a swing book really is | Unusual Whales `/correlation` and a `correlations` API (UW dossier, market overview and charting rows); Bloomberg `PC` over the shared `RV` peer set (05 §RV) | None anywhere in the app. ⚠️ `CLAUDE.md`'s Data Sources table lists a "Correlation Matrix — Massive API 60-day bars (numpy corrcoef), 1hr cache" row, but on this branch `corrcoef` appears in no file under `api/` or `app/src/` and no route serves a correlation. The row is stale | 4 | 5 | **20** | **BUILT: `CORR`** |
-| 4 | **Index/theme contribution**: which names are driving a group's move (`MOV`/`IMOV`) | Bloomberg `MOV`/`IMOV` (06 §movers; best-of-breed A1 mechanism) | Theme holdings exist (`theme_db`) but `weight_pct` is written as `0.0` (`theme_performance.py`); no index weights in the estate | 4 | 2 | 8 | Deferred: an equal-weight contribution is honest for UCT's equal-weight themes but **not** for SPY/QQQ, and index weights would need a new source |
+| 4 | **Index/theme contribution**: which names are driving a group's move (`MOV`/`IMOV`) | Bloomberg `MOV`/`IMOV` (06 §movers; best-of-breed A1 mechanism) | Theme holdings exist (`theme_db`) but `weight_pct` is written as `0.0` (`theme_performance.py`); no index weights in the estate | 4 | 2 | 8 | **BUILT for UCT themes only: `IMOV`** (fn3-imov, §6). Equal weight is what a UCT theme is; SPY/QQQ, the sector SPDRs and any theme-proxy ETF are **refused** in the panel, because index weights would need a new source |
 | 5 | **Earnings implied-move calibration**: has the option market over- or under-priced this name's last N earnings moves | Market Chameleon "overestimated 77 % of the time in the last 13 quarters" (`desk-tools/market-chameleon.md` obs. 2) | `ERX` (`EarningsReactionPanel`) already shows 8 quarters of reaction, gap and drift **and** the next print's implied move. What is missing is the **historical** implied move per past print: UCT's own options log began 2026-09-30 (`OptionsHistoryPanel.jsx` header) | 4 | 2 | 8 | Deferred until the options log covers enough quarters. Reconstructing past implied moves from historical chains is a bulk Massive backfill, a job of its own |
 | 6 | **Short-interest history** | Bloomberg `SI`; UW short interest + FTD (UW dossier) | Current value only, single-sourced to Finviz (ledger D8). `FTD` panel exists | 3 | 3 | 9 | **Owned by the backlog** (`FB-A7-02`, FINRA bi-monthly floor) — not built here |
 | 7 | **Movers lenses in the terminal** (`MOST`/`LVI`/`OVI`/`HILO`: one tape, several hypotheses) | Bloomberg 06 §movers | Movers sidebar (single gap threshold), `/api/volume-scan`, NH/NL. No terminal code opens a movers list | 3 | 4 | 12 | **BUILT: `MOST`** (fn2-movers, §5) |
@@ -72,9 +72,10 @@ variant is a one-line change. The shell already refuses a flagged code whose key
 
 ## 4. Left for other lanes, or deferred, and why
 
-* **#4 contribution** needs index weights UCT does not hold. Equal-weight themes could get an honest
-  version first, but it would sit beside SPY/QQQ with no weights, which is the mixed-truth surface
-  PROD-C7 warns about.
+* **#4 contribution**: built for UCT themes only as `IMOV` (§6). The index half (SPY/QQQ, sector
+  ETFs) still needs index weights UCT does not hold, so the panel refuses those symbols with the
+  reason rather than sitting an equal-weight figure beside them (the mixed-truth surface PROD-C7
+  warns about).
 * **#5 implied-move calibration** becomes cheap once `options_analytics/log_history.py` holds at least
   four earnings per name, around 2027-Q1 for most names. Until then any calibration figure would be
   built on n≈0. Revisit then. `ERX` is the natural home (a block inside it, not a new code).
@@ -115,3 +116,36 @@ Last session (not a live list) otherwise.
 the whole tape by shares traded; the Volume column sorts what the three lists hold, which is
 labelled as what it is rather than presented as the market's most active. `MOV`-style index
 contribution stays deferred for the reason in #4.
+
+## 6. `IMOV` — theme contribution (#4, branch `terminal/fn3-imov`)
+
+| Typed | Shows |
+|---|---|
+| `IMOV` | the theme moving most today (or the one this tab last opened), with a theme picker |
+| `IMOV 1W` · `1M` · `3M` | the same over that window (`1D` is the default) |
+| `NVDA IMOV` | the UCT theme(s) holding NVDA, NVDA's own contribution and its rank |
+| `SPY IMOV` · `XLK IMOV` · `SMH IMOV` | refused, with the reason; a theme-proxy ETF offers that UCT theme by name instead |
+
+**Method, stated in the panel, labelled "Equal-weighted".** A UCT theme is an equal-weight basket,
+so each name contributes its return over the window ÷ N, where N is the members with a return for
+that window. The panel lists the top 8 contributors and top 8 detractors and a reconciliation line
+(contributors + detractors + the rest = the total), which is the theme's plain equal-weight return.
+1D is the live overlay; 1W/1M/3M are the live price against the reference closes
+`theme_performance` already stores. A member with no return for the window is named and not
+counted; an engine-overlay member (`source='engine'`) is never counted, mirroring
+`theme_performance._theme_owner_syms` exactly (absent source = owner, plus the `_owner_syms` stash).
+
+**It does not always equal the Theme Tracker's number, and says so.** The tracker's `group_return`
+is an upside-winsorized mean (`scan_period._robust_group_pct` caps the top ~10% of gainers), and
+UCT 20 uses its portfolio NAV past 1D. When the two differ the panel prints the tracker's figure
+and why. Only the plain mean is decomposable into per-name contributions that add up.
+
+**Source:** `/api/theme-performance`, the cached, live-overlaid payload the Theme Tracker tile
+already polls (same SWR key). No new route, no vendor call, no `api/**` change.
+
+**Linking:** a row click, or its number + Enter, loads that name into the linked group and keeps
+every panel's function. A panel following the group reopens on the theme it was showing when that
+theme holds the new name.
+
+**`MOVERS`** is now a second spelling of `MOST` (`CODE_ALIASES` in `functions.js`): the parser
+answers it with `MOST` itself, so the panel, URL and history carry one name. HELP shows the alias.
