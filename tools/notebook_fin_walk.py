@@ -244,7 +244,11 @@ def snap(pg, name: str, full: bool = False) -> str | None:
         if im.height > 2400:
             im = im.crop((0, 0, im.width, 2400))
         im = im.quantize(colors=64)
-        dest = OUT / "shots" / (re.sub(r"[^A-Za-z0-9_.-]+", "-", name) + ".png")
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", name)
+        if len(safe) > 110:   # Windows and git both refuse a very long path
+            import hashlib
+            safe = safe[:100] + "-" + hashlib.sha1(safe.encode()).hexdigest()[:8]
+        dest = OUT / "shots" / (safe + ".png")
         dest.parent.mkdir(parents=True, exist_ok=True)
         im.save(dest, optimize=True)
         return dest.name
