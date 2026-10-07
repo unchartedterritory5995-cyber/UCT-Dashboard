@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import useSWR from 'swr'
 import LoadFailed from '../LoadFailed'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -75,7 +76,7 @@ function MatchRow({ m }) {
       <div className={styles.matchHead}>
         <span className={styles.matchRank}>{m.rank}</span>
         <span className={styles.symbol}>{m.symbol}</span>
-        <span className={styles.score} title="100 is an identical fingerprint">{m.score} match</span>
+        <span className={styles.score}>{m.score} match</span>
       </div>
       <p className={styles.reasons} data-reasons="">{summary}</p>
       <details className={styles.allFields}>
@@ -96,14 +97,15 @@ function MatchRow({ m }) {
 
 export default function SimilarNames({ noteId, embedKey }) {
   const enabled = findSimilarEnabled()
+  const titleId = useId()
   const key = enabled && noteId && embedKey ? similarUrl(noteId, embedKey) : null
   const { data, error, isLoading, mutate } = useSWR(key, fetchJson,
     { revalidateOnFocus: false, shouldRetryOnError: false })
   if (!enabled) return null
   const t = data?.template
   return (
-    <section className={styles.similar} aria-labelledby="similar-title" data-similar-names="">
-      <h3 id="similar-title" className={styles.sectionTitle}>
+    <section className={styles.similar} aria-labelledby={titleId} data-similar-names="">
+      <h3 id={titleId} className={styles.sectionTitle}>
         Names like {t?.symbol || 'this chart'}{t?.setupTag ? ` (${t.setupTag})` : ''}
       </h3>
       {error && <LoadFailed compact what="the similar names" error={error} onRetry={() => mutate()} />}
@@ -121,7 +123,8 @@ export default function SimilarNames({ noteId, embedKey }) {
         <>
           <p className={styles.scope}>
             Today’s scored names closest to your chart (as of {data.asOf}). The first value is the
-            name’s, the second is your chart’s.
+            name’s, the second is your chart’s. A match is scored out of 100: 100 is an identical
+            fingerprint.
           </p>
           <ol className={styles.matchList}>
             {data.matches.map((m) => <MatchRow key={m.symbol} m={m} />)}
