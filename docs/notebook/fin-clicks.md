@@ -11,6 +11,9 @@ Branch `feat/notebook-fin-nav`. Budgets: `docs/notebook/WAVE-13-PLAN.md` section
 | `44aa449a16` | raw evidence, onboarding flows O1 to O6; Q21 keyboard reach of Plan |
 | (this commit) | raw evidence for the Q20 and Q21 re-run, this record |
 
+> **Final reading: section 12** (round 2: the keyboard ruling, more focus fixes, the final
+> table). Keyboard is 9 of 23 inside budget; mouse and touch are 18 of 23.
+>
 > **Second reading: section 11** (lane KEYS, branch `feat/notebook-fin-keys`). Keyboard is now 7
 > of 23 inside budget, Q20 has a keyboard path, and every keyboard flow still over has its count,
 > cause and floor there. Sections 1 to 10 are the first reading, kept as written.
@@ -433,3 +436,178 @@ Tests, each from `app/` with `--maxWorkers=2`, log read for the totals line:
   unchanged.
 * The custom-children branch of ContextPopover.
 * No screen reader was run. The announcements were checked by tests of the rendered text only.
+
+## 12. Lane KEYS round 2: the ruling, more focus fixes, and the final table
+
+Same branch, `feat/notebook-fin-keys`. Section 11 is the reading before this round and is kept
+as written. This section is the final reading.
+
+| commit | what |
+|---|---|
+| `6eebf70a9d` | the three key listeners this landing added go through the shortcut registry |
+| `04a570a8a7` | a ContextPopover that holds custom content is a named dialog, not a menu |
+| `f1883bd59b` | the chart toolbar in a note is one Tab stop |
+| `b492dedbd6` | a page can mark where keyboard focus lands after a navigation |
+| `50bb59c15a` | Trades, Insights and My Playbook mark their landing |
+| `9432875ec0` | opening the trade plan puts focus in it |
+| `ce16e3f4d5` | Research Home: a skip link to the reviews and the setups |
+| `7af200a4e0` | the keyboard ruling in the plan, the tool and a test |
+| `2bc846c6fd` | the phone card list on Trades is a landing too |
+| `b86027ad9b` | tool: console errors are recorded |
+| `ed6ec69cfd` and two more | raw evidence, committed before this reading |
+
+### 12.1 The ruling on keyboard budgets (controller, 2026-10-07)
+
+A keyboard budget below the arithmetic floor cannot be met by any design, so it is not a
+usable bar. The floor is the keys that are not Tab, plus one Tab for each move to a new control.
+For the eight flows where the floor is above the plan's number, the keyboard budget is now the
+floor plus 2. Mouse and touch budgets are unchanged. Every other flow keeps its plan number.
+
+The ruling is written into the plan that owns the budgets: `docs/notebook/WAVE-13-PLAN.md`
+section 6, "Keyboard budgets by ruling", with each floor and its reason. The tool reads the
+same numbers (`KEYS_RULING_FLOOR` in `tools/notebook_w13q_clicks.py`) and its verdict uses
+them. `tests/test_notebook_w13q_clicks.py` cross-reads the two.
+
+| flow | plan keys | floor | keys budget now |
+|---|---|---|---|
+| Q6 | 6 | 8 | 10 |
+| Q9 | 5 | 7 | 9 |
+| Q11 | 15 | 25 | 27 |
+| Q12 | 6 | 10 | 12 |
+| Q16 | 4 | 6 | 8 |
+| Q17 | 4 | 5 | 7 |
+| Q19 | 6 | 7 | 9 |
+| Q20 | 10 | 20 | 22 |
+
+### 12.2 Final counts
+
+Evidence: `docs/notebook/evidence/fin-keys/4b46b05a4c/q/` (all 23) and
+`docs/notebook/evidence/fin-keys/f54318e14d/q6-q13/` (Q6 and Q13 after the phone landing).
+
+* **Mouse, 1280 px: 18 of 23 inside budget.** Over: Q2, Q6, Q11, Q13, Q20.
+* **Touch, 390 px: 18 of 23 inside budget.** Over: Q2, Q6, Q11, Q13, Q20.
+* **Keyboard: 9 of 23 inside budget at both widths** (Q1, Q3, Q4, Q5, Q7, Q8, Q10, Q13, Q14).
+  It was 6 at the first reading and 7 after round 1. 14 are still over.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 | keys 390 | keys budget | keys verdict |
+|---|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 | 2 | 3 | pass |
+| Q2 | 5 (4) over | 5 (4) over | 209 | 159 | 6 | over |
+| Q3 | 2 (2) | 1 (3) | 2 | 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 | 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 | 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 23 | 19 | 10 | over |
+| Q7 | 1 (3) | 1 (3) | 5 | 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 | 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 18 | 24 | 9 | over |
+| Q10 | 1 (2) | 1 (3) | 4 | 4 | 4 | pass |
+| Q11 | 12 (8) over | 12 (10) over | 219 | 234 | 27 | over |
+| Q12 | 3 (3) | 3 (3) | 32 | 31 | 12 | over |
+| Q13 | 3 (2) over | 3 (2) over | **4** | **4** | 4 | pass (was 47 / 13) |
+| Q14 | 3 (3) | 3 (3) | **6** | **6** | 6 | pass (was 38 / 18) |
+| Q15 | 1 (2) | 1 (2) | 7 | 7 | 5 | over |
+| Q16 | 2 (2) | 2 (2) | 46 | 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 27 | 21 | 7 | over |
+| Q18 | 2 (3) | 2 (3) | 48 | 38 | 6 | over (was 91 / 83) |
+| Q19 | 3 (3) | 3 (4) | 12 | 12 | 9 | over |
+| Q20 | 13 (6) over | 13 (8) over | 25 | 25 | 22 | over (was 42 / 43) |
+| Q21 | 2 (2) | 2 (2) | 15 | 15 | 4 | over (was 31 / 32) |
+| Q22 | 2 (2) | 2 (3) | 21 | 21 | 4 | over (was 34 / 35) |
+| Q23 | 2 (3) | 2 (3) | 14 | 14 | 6 | over (was 31 / 31) |
+
+### 12.3 Every keyboard flow still over: the count, the floor, the reason
+
+**A correction to section 11.3 first.** For a flow that starts on a freshly loaded page, the
+floor there counted one Tab to reach the page's own skip link. The shell's "Skip to main
+content" is always the first stop and the page's link comes after it, so that move costs at
+least two Tabs. The shell is not this lane's to change. The floors below are corrected: Q15 is
+5 (was 4), Q18 is 7 (was 6) and Q23 is 7 (was 6). For Q18 and Q23 the corrected floor is above
+the plan's number of 6. The ruling named eight flows; it was not stretched to cover these two.
+They are an open decision for the controller.
+
+| flow | now 1280 / 390 | budget | floor | what the keys are | why it is still over | built this round |
+|---|---|---|---|---|---|---|
+| Q2 | 209 / 159 | 6 | 11 on today's path | skip, All notes, skip, Templates, pick, Ticker | Research Home has no template door, so the flow goes through All notes (86 Tabs to the list's skip link). The new note puts focus in its title, and Ticker is before the title, so a forward Tab goes round the page (89) | nothing. The door is the same change the mouse miss needs (12.4). Moving first focus from title to Ticker changes where every new note starts, a product choice |
+| Q6 | 23 / 19 | 10 | 8 | g, j, 11 Tabs to the trade, Enter, 5 Tabs to Save to Notebook, Enter, 2 Tabs, Enter | the trade is the sixth row and each row is two stops (the row and its setup list); Save to Notebook is the fifth stop on the trade page | the Trades landing (was 64 / 27) |
+| Q9 | 18 / 24 | 9 | 7 | 8 Tabs to the skip link, Enter, 2 Tabs to Ask, Enter, Enter, 4 Tabs to Insert, Enter | the note's "Skip to editor toolbar" is the fourth skip link, and the run starts with focus low in the page, so it passes two floating buttons first; Insert is the fourth stop of the answer | nothing |
+| Q11 | 219 / 234 | 27 | 25 | see 11.3 | 162 Tabs (177) from the folder tree to "Skip to notes list": after choosing a folder focus stays in the tree and the skip link is behind the whole page | nothing |
+| Q12 | 32 / 31 | 12 | 10 | 10 Tabs to the skip link, Enter, 7 to More, Enter, 8 to Export, Enter, 3 Down, Enter | More note actions is a list of plain buttons, not a menu with arrow keys; Export is its eighth | nothing |
+| Q15 | 7 / 7 | 5 | 5 | 2 Tabs to the skip link, Enter, 3 Tabs, Enter | two stops (Ask Notebook, the ticker's research link) come before the prep button | nothing. Putting the button first means moving it in front of its own ticker link |
+| Q16 | 46 / 45 | 8 | 6 | skip, 9 Tabs to the Compass section, Enter, 33 Tabs, Enter | the notice is at the end of Settings' Compass and Voice section | nothing. `Settings.jsx` is not a Notebook or Journal file |
+| Q17 | 27 / 21 | 7 | 5 | skip, 22 Tabs (16), type, 2 Tabs, Enter | the position page's chart header (22 controls) is before the card. The flow starts on a fresh load, so the landing does not apply | nothing |
+| Q18 | 48 / 38 | 6 | 7 | 4 Tabs to the new skip link, Enter, 2 Tabs, Enter, 39 Tabs (29), Enter | the drafted note opens with focus at its top; the leak's arrow is after the note's header, the editor's toolbar and two charts | the skip link and the one-stop toolbar (was 91 / 83) |
+| Q19 | 12 / 12 | 9 | 7 | Enter, /, Enter, 5 Tabs, Enter, 2 Tabs, Enter | the passage sheet opens on Close; quarter, search and the first turn come before the wanted turn | nothing |
+| Q20 | 25 / 25 | 22 | 20 | 10 keys that are not Tab, 15 Tabs | after "Add level" focus follows the new level's row (lane A11Y's design), so the way back to the price box is 4 and then 3 Tabs | plan focus on open and the one-stop toolbar (was 42 / 43) |
+| Q21 | 15 / 15 | 4 | 4 | 1 Tab to Plan, Enter, 12 Tabs, Enter | each level row is four stops and the stop is the third row | Plan is the toolbar's stop and the plan takes focus (was 31 / 32) |
+| Q22 | 21 / 21 | 4 | 4 | 9 Tabs to Visual playbook, Enter, 10 Tabs, Enter | the playbook door is the last control under the chart (after the chart, three scale buttons and the fingerprint row); the sheet opens on Close and four filters and four fields come before the "only this setup" button | the one-stop toolbar (was 34 / 35) |
+| Q23 | 14 / 14 | 6 | 7 | 4 Tabs to the new skip link, Enter, 5 Tabs to Active setups, Enter, 2 Tabs, Enter | the reviews box (four buttons) is between the landing and the board link; each card's plan link is before its "find more" button | the skip link (was 31 / 31) |
+
+### 12.4 The pointer misses: one change each, and where it lives
+
+None was built. Each row says whether that is because of ownership or because the change is
+not additive.
+
+| flow | now | budget | the one change | count after | file | why not built |
+|---|---|---|---|---|---|---|
+| Q2 | 5 | 4 | a Templates button on Research Home | 4 | `tabs/NotebookTab.jsx` (the New note sheet is mounted only in the list view and must be lifted out), `components/notebook/ResearchHome.jsx` | Notebook-owned, but not additive: Research Home is live with no switch of its own, and a new visible button on it changes the switches-off page |
+| Q6 | 5 | 3 | a "Link a trade" control in the note header | 3 (open it, pick the trade, confirm) | `components/notebook/NoteEditorPage.jsx` and a new picker | a new control and a new picker: a design decision |
+| Q11 | 12 (touch 12) | 8 (touch 10) | "Select all shown" in the list header | 8 (one tick replaces five) | `tabs/NotebookTab.jsx` | Notebook-owned and additive. Not built in this round for lack of time, not for any other reason. It is the cheapest of the five |
+| Q13 | 3 | 2 | Trades opens on the segment the member used last | 2 | `tabs/TradesSurface.jsx` (the segment is `?seg=` in the address) | changes what every member sees first on Trades: a product choice |
+| Q20 mouse | 13 | 6 | keep the line tool armed after a line is placed, and name the three lines by price order | 8 (touch budget met; mouse still 2 over) | the shared chart: `components/chart/ChartDrawingOverlay.jsx`, and `ChartPlanPanel.jsx` | the chart overlay is not a Notebook or Journal file |
+
+### 12.5 The key listener census
+
+`app/src/pages/command/keyListenerCensus.test.js` was red, 114 against 111. `origin/master`
+holds none of the three extra listeners (counts on master: `NotebookTab.jsx` 2,
+`toggleNode.js` 0, `GenericTourEngine.jsx` 0), so this landing added them. The rail's contract
+is "declare the binding in `shortcutRegistry.js` and bind it with `registerShortcuts()`", and
+its ceiling may only go down. All three now do that. Each declaration says its target, phase
+and reason. Three overlaps with existing Escape and Tab bindings are listed in
+`ACKNOWLEDGED_OVERLAPS` with how each is resolved. No baseline or ceiling number was changed.
+The test is green.
+
+One behaviour to know: Enter on a collapsible block's arrow is now one document listener for
+all editors on the page, bound while an editor exists. It acts only on a press on an arrow.
+
+### 12.6 Findings
+
+* **A page stuck on "Loading..." three times in three runs** (Q6 on a keyboard: twice at
+  1280 px, once at 390 px, never the same row twice). The Journal's lazy Trades page did not
+  finish loading within 45 seconds after "g then j" from an open note. The server log shows the
+  page's files being fetched and the list stopping part way (`sandbox.log` of the probe run:
+  `optionCalcs` is the last file, six more are never asked for), with no page error. The box
+  was under heavy load (the server's own probe line reads `cpu=1233%`). This did not happen in
+  any earlier run. The cause is not established. It may be the sandbox (one browser holding
+  several long streams to a plain HTTP/1.1 server), or it may be this round. It is not excused
+  here: it should be reproduced on a quiet box before this branch ships.
+* `components/screener/reachable.test.js` has one red case that is not from this lane: a
+  chart-engine parking note expired on 2026-10-06 (`textLayout.js`, `versionRender.js` and
+  three more). Every other case in that file passes, including the reachability of this
+  lane's new modules.
+* Section 11.3's floors for flows that start on a fresh page were one too low (12.3).
+
+### 12.7 Runs and tests
+
+| run | port | verdict line | integrity |
+|---|---|---|---|
+| all 23, tree `4b46b05a4c` | 8723 | `RAN -- 92 rows; INCONCLUSIVE 1, OVER 38, PASS 53` | CLEAN |
+| Q6 and Q13, tree `4b46b05a4c` | 8724 | `RAN -- 8 rows; INCONCLUSIVE 1, OVER 6, PASS 1` | CLEAN |
+| Q6 probe (scratch, not committed) | 8720 | 1 INCONCLUSIVE | CLEAN |
+| Q6 and Q13, tree `f54318e14d` | 8721 | `RAN -- 8 rows; OVER 6, PASS 2` | CLEAN |
+
+Two builds. First-open bytes after the last one: 2,207,883 B across 59 files against a budget
+of 2,260,793 B, PASS.
+
+| tests (from `app/`, `--maxWorkers=2`) | totals |
+|---|---|
+| `src/pages/journal-2-0/a11y/`, the `onboarding/` directory, the seven `Layout.*` and five `JournalLayout.*` tests, `styles/tapFloor.test.js`, `src/pages/command/` (the census) | 106 files passed; 1131 tests passed, 1 skipped |
+| every ContextPopover user, this round's new tests and the tests of the files it touched, `insights/`, `tabs/`, `reachable.test.js`, `tokens.reachable.test.js` | 96 of 97 files; 1080 of 1081 tests. The one failure is the expired parking note above |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 63 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+
+### 12.8 Not covered
+
+* "Select all shown" for Q11 (12.4), and the six flows with "nothing" in 12.3's last column.
+* The "Loading..." stall was not reproduced by hand or explained.
+* No screen reader was run.
+* The landing is used on Trades, Insights and My Playbook only.
