@@ -36,9 +36,13 @@ FOCUS = """() => { const el = document.activeElement;
 
 
 def probe(cx: q.Ctx, pg, m: q.Meter, width: str) -> dict:
+    have = cx.req.get(cx.base + "/api/j2/note-folders")
+    names = {f.get("name") for f in ((have.json() or {}).get("folders") or [])} if have.status == 200 else set()
     for name in ("Gaps", "Goals"):
+        if name in names:                  # the wide run of this probe made them already
+            continue
         r = cx.req.post(cx.base + "/api/j2/note-folders", data={"name": name})
-        if r.status not in (200, 201, 409):
+        if r.status not in (200, 201):
             raise q.Inconclusive(f"setup: could not make the folder {name} (HTTP {r.status})")
     q.open_start(pg, cx.base, "/journal/notebook?view=all")
     tree = pg.locator('[role="tree"]')
