@@ -219,3 +219,83 @@ def test_the_sample_constants_ride_the_payload_for_the_client_to_word_anything_i
     payload = r.json()
     assert payload["sample"]["tooFewBelow"] == 10
     assert payload["sample"]["normalFrom"] == 25
+
+
+# ── fin-data I2: the daily draft files a trade under its trading day ───────────────────────
+#
+# A manual trade entered with a date and no time is stored at UTC midnight
+# (`trades._combine_manual_datetime`). That instant is 8 PM Eastern the day BEFORE, so an
+# Eastern-midnight window over `exit_date` filed it under the wrong day. `trading_day_et`
+# (the column `filters._DAY` reads, and the one the scorecard inside this same draft uses)
+# is the authority for which day a trade belongs to.
+
+def _date_only_trade(conn, day, **kw):
+    """The journal's own date-only convention: exact UTC midnight, trading day = the typed day."""
+    return add_trade(conn, entry_date=f"{day}T00:00:00+00:00", exit_date=f"{day}T00:00:00+00:00",
+                     trading_day_et=day, hour_et=None, **kw)
+
+
+def test_a_date_only_trade_is_in_its_own_days_draft_and_not_the_day_befores(conn, client):
+    tid = _date_only_trade(conn, "2026-10-01", symbol="NVDA", entry_price=100.0, exit_price=103.0)
+
+    own = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-01", "accountId": ACCOUNT}).json()
+    before = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
+
+    assert own["tradeCount"] == 1 and own["bestTrade"]["id"] == tid
+    assert before["tradeCount"] == 0 and before["bestTrade"] is None
+
+
+def test_every_half_of_one_daily_draft_counts_the_same_trades(conn, client):
+    """The numbers table, the trade list and the scorecard are three readers. They must name
+    one set of trades, date-only and timed alike."""
+    _date_only_trade(conn, "2026-10-01", symbol="NVDA", entry_price=100.0, exit_price=103.0,
+                     context_at_entry='{"compass_verdict_id": "v1", "compass_verdict_label": "SKIP"}')
+    add_trade(conn, symbol="AAPL", entry_date="2026-10-01T14:00:00+00:00",
+              exit_date="2026-10-01T19:30:00+00:00", entry_price=200.0, exit_price=195.0)
+    # The neighbours, each of which must stay out: a date-only trade the day before and after.
+    _date_only_trade(conn, "2026-09-30", symbol="MSFT", entry_price=50.0, exit_price=51.0)
+    _date_only_trade(conn, "2026-10-02", symbol="AMZN", entry_price=50.0, exit_price=49.0)
+
+    from api.services.journal_two import verdict_scorecard
+    from api.services.journal_two.filters import FilterSpec
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-01", "accountId": ACCOUNT}).json()
+    scorecard = verdict_scorecard.get_verdict_scorecard(
+        U, ACCOUNT, spec=FilterSpec(date_from="2026-10-01", date_to="2026-10-01"), conn=conn)
+
+    assert payload["tradeCount"] == 2
+    assert payload["aggregates"]["trade_count"] == payload["tradeCount"]
+    assert scorecard["coverage"]["tradesTotal"] == payload["tradeCount"]
+    assert payload["aggregates"]["net_pnl_dollar"] == pytest.approx(300.0 - 500.0)
+    assert payload["baseline"]["n"] == 2
+
+
+def test_a_timed_trade_after_8pm_eastern_stays_on_its_eastern_day(conn, client):
+    """The other direction: 9 PM Eastern is already the next UTC date."""
+    tid = add_trade(conn, symbol="NVDA", entry_date="2026-10-01T19:00:00+00:00",
+                    exit_date="2026-10-02T01:00:00+00:00", entry_price=100.0, exit_price=101.0,
+                    trading_day_et="2026-10-01")
+    own = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-01", "accountId": ACCOUNT}).json()
+    after = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-02", "accountId": ACCOUNT}).json()
+    assert own["tradeCount"] == 1 and own["bestTrade"]["id"] == tid
+    assert own["aggregates"]["trade_count"] == 1
+    assert after["tradeCount"] == 0
+
+
+def test_a_row_from_before_the_trading_day_column_falls_back_to_its_exit_date(conn, client):
+    """`filters._DAY`'s own fallback: no `trading_day_et` reads the exit date's first ten chars."""
+    tid = add_trade(conn, symbol="NVDA", entry_date="2026-10-01T14:00:00+00:00",
+                    exit_date="2026-10-01T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
+    conn.execute("UPDATE j2_trades SET trading_day_et = NULL WHERE id = ?", (tid,))
+    conn.commit()
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-01", "accountId": ACCOUNT}).json()
+    assert payload["tradeCount"] == 1 and payload["aggregates"]["trade_count"] == 1
+
+
+def test_the_daily_draft_reads_the_day_through_the_filter_modules_own_spine():
+    """One authority, not a second copy: the daily fetch splices `filters._DAY` itself."""
+    import inspect
+    from api.services.journal_two import filters, review_drafts
+    src = inspect.getsource(review_drafts)
+    assert "trading_day_et, substr(exit_date" not in src.split('"""', 2)[2], \
+        "review_drafts.py restates the trading-day expression; import filters._DAY instead"
+    assert review_drafts._DAY is filters._DAY

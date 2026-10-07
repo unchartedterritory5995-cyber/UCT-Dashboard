@@ -8,12 +8,21 @@ Notebook's one create door (or appends it to the member's daily note, for the da
 this module never writes a note itself, and nothing here is scheduled (no background drafts).
 
 **Never a second authority.**
-  * Period P&L: `coach_data_assembler.assemble_day` / `assemble_week` for daily/weekly. There is
-    no `assemble_month` -- the monthly case calls the SAME private primitives those two
-    functions call internally (`_trades_in_range` + `_aggregate_trades`), never a reimplemented
-    aggregate. (Reusing a sibling module's underscore-prefixed helper rather than restating its
+  * Period P&L: `coach_data_assembler.assemble_week` for weekly. There is no
+    `assemble_month` -- the monthly case calls the SAME private primitives that function calls
+    internally (`_trades_in_range` + `_aggregate_trades`), never a reimplemented aggregate.
+    (Reusing a sibling module's underscore-prefixed helper rather than restating its
     arithmetic is this codebase's own precedent -- 13B's `playbook_patterns.py` reuses
     `plan_grading._note_state_at` the same way.)
+  * WHICH DAY A TRADE BELONGS TO (daily): `filters._DAY`, the trading-day spine
+    (`trading_day_et`, falling back to the exit date for a row from before that column). The
+    daily draft fetches its trades ONCE on that spine and both the trade list and the numbers
+    table (`coach_data_assembler._aggregate_trades` over those same rows) come from that one
+    fetch, so they cannot count different trades. The verdict scorecard called below is
+    already on the same spine. ⚰️ The daily fetch and `assemble_day` both windowed on
+    `exit_date` between Eastern midnights, which files a date-only manual trade (stored at
+    UTC midnight = 8 PM Eastern the day before) under the PREVIOUS day, while the scorecard
+    in the same draft filed it under its own.
   * Setups: `playbook_stats.get_playbook_stats` (the all-time per-setup baseline).
   * Grades: 13A's `plan_grading.grade_payload`, called once per period trade.
   * Leaks: `leak_finder.find_leaks`, a pure function of the enriched trade list below.
@@ -42,12 +51,11 @@ import sqlite3
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from api.services.journal_two import coach, coach_data_assembler, entry_context, leak_finder, notes
 from api.services.journal_two import playbook_stats, sample_size, verdict_scorecard
 from api.services.journal_two.coach_scope import resolve_account_scope
-from api.services.journal_two.filters import FilterSpec
+from api.services.journal_two.filters import _DAY, FilterSpec  # noqa: PLC2701 -- the ONE trading-day spine
 from api.services.journal_two.note_levels import note_link
 from api.services.journal_two.plan_grading import (
     STATUS_MEMBER_NONE, STATUS_NEEDS_PICK, STATUS_PLANNED, STATUS_UNPLANNED,
@@ -62,8 +70,6 @@ FLAG = "NOTEBOOK_REVIEW_DRAFTS_ENABLED"
 #: A Compass excerpt is quoted, never the whole thing -- a review note cites it, it does not
 #: become it. Cut at a word boundary, never mid-word.
 COMPASS_EXCERPT_MAX_CHARS = 420
-
-_ET = ZoneInfo("America/New_York")
 
 
 def enabled() -> bool:
@@ -80,11 +86,7 @@ def _plain_account_id(account_id: str | None) -> str | None:
 # ── period boundaries ──────────────────────────────────────────────────────────────────────
 
 
-def _day_bounds_et(day_iso: str) -> tuple[datetime, datetime]:
-    day = datetime.fromisoformat(day_iso).date()
-    start_et = datetime.combine(day, datetime.min.time(), tzinfo=_ET)
-    end_et = start_et + timedelta(days=1)
-    return start_et.astimezone(timezone.utc), end_et.astimezone(timezone.utc)
+
 
 
 def _week_bounds(week_start: str) -> tuple[datetime, datetime, str]:
@@ -136,6 +138,42 @@ def _fetch_period_trades(
     ).fetchall()
 
 
+def _fetch_day_trades(conn: sqlite3.Connection, user_id: str, account_id: str, day_iso: str) -> list[sqlite3.Row]:
+    """Every closed equity trade whose TRADING DAY is `day_iso` -- the same columns and the
+    same account scope and `analytics_excluded` rule as `_fetch_period_trades`, selected on
+    `filters._DAY` rather than an instant window. A date-only trade has no instant to window
+    on: its stored UTC midnight is the evening before in Eastern time."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    marks = ",".join("?" * len(ids))
+    return conn.execute(
+        f"""
+        SELECT id, symbol, side, shares, entry_price, exit_price, entry_date, exit_date,
+               original_stop, setup, pnl_dollar, pnl_percent, r_multiple, result, fees,
+               hour_et, trading_day_et, context_at_entry, source, external_id, account_id
+          FROM j2_trades
+         WHERE user_id = ? AND account_id IN ({marks})
+           AND {_DAY} = ?
+           AND (analytics_excluded IS NULL OR analytics_excluded = 0)
+         ORDER BY exit_date ASC
+        """,
+        [user_id, *ids, day_iso],
+    ).fetchall()
+
+
+def _aggregate_rows(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """The numbers table for exactly `rows`: `coach_data_assembler._aggregate_trades` (the
+    arithmetic every period uses) over the rows the trade list itself was built from."""
+    def num(v: Any) -> float | None:
+        return float(v) if v is not None else None
+    return coach_data_assembler._aggregate_trades([  # noqa: SLF001 -- precedented reuse, see module docstring
+        {"result": r["result"], "r_multiple": num(r["r_multiple"]),
+         "pnl_dollar": num(r["pnl_dollar"]), "pnl_percent": num(r["pnl_percent"])}
+        for r in rows
+    ])
+
+
 def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
     if not rows:
         return []
@@ -172,11 +210,6 @@ def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Ro
 def _period_aggregates(
     conn: sqlite3.Connection, user_id: str, account_id: str, period: str, **kwargs: Any,
 ) -> dict[str, Any]:
-    if period == "daily":
-        full = coach_data_assembler.assemble_day(
-            user_id=user_id, account_id=account_id, day_iso=kwargs["day_iso"], conn=conn,
-        )
-        return full["today"]["aggregates"]
     if period == "weekly":
         full = coach_data_assembler.assemble_week(
             user_id=user_id, account_id=account_id, week_start=kwargs["week_start"], conn=conn,
@@ -413,9 +446,10 @@ def _assemble(
 
 
 def build_daily_draft(conn: sqlite3.Connection, user_id: str, account_id: str, day_iso: str) -> dict[str, Any]:
-    start_utc, end_utc = _day_bounds_et(day_iso)
-    enriched = _enrich_trades(conn, user_id, _fetch_period_trades(conn, user_id, account_id, start_utc, end_utc))
-    aggregates = _period_aggregates(conn, user_id, account_id, "daily", day_iso=day_iso)
+    # ONE fetch, on the trading-day spine; the list and the numbers are both made from it.
+    rows = _fetch_day_trades(conn, user_id, account_id, day_iso)
+    enriched = _enrich_trades(conn, user_id, rows)
+    aggregates = _aggregate_rows(rows)
     compass = _compass_text(conn, user_id, account_id, "daily", day_iso=day_iso)
     return _assemble(
         conn, user_id, account_id, "daily", enriched, aggregates,
