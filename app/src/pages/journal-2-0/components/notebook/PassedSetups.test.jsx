@@ -128,3 +128,33 @@ describe('PassedSetups', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('A pass can be dated at most 60 days back.')
   })
 })
+
+// fin-security I-3: the list is a plain read; the server refreshes after answering and says so.
+describe('PassedSetups — the follow-up read after a queued refresh', () => {
+  beforeEach(() => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_passed_setups_enabled: true })
+  })
+  afterEach(() => __resetNotebookFlags())
+
+  it('reads once more when the server says a refresh was queued, and only once', async () => {
+    let n = 0
+    const calls = installFetch(() => {
+      n += 1
+      return [200, { ...LIST, refreshQueued: n === 1 }]
+    })
+    wrap()
+    await screen.findByText('$NVDA')
+    await waitFor(() => expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2), { timeout: 5000 })
+    await new Promise((r) => setTimeout(r, 2800))
+    expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2)
+  }, 12000)
+
+  it('reads once when no refresh was queued', async () => {
+    const calls = installFetch(() => [200, { ...LIST, refreshQueued: false }])
+    wrap()
+    await screen.findByText('$NVDA')
+    await new Promise((r) => setTimeout(r, 2800))
+    expect(calls.filter((c) => c.method === 'GET')).toHaveLength(1)
+  }, 8000)
+})

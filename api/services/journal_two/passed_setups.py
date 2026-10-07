@@ -36,6 +36,8 @@ import json
 import logging
 import re
 import sqlite3
+import threading
+import time
 import uuid
 from typing import Any, Iterable
 
@@ -497,11 +499,73 @@ def refresh(user_id: str, *, conn: sqlite3.Connection | None = None,
                 score_row(conn, r)
             except Exception as e:  # noqa: BLE001 -- one bad row never blanks the others
                 _log.warning("[passed_setups] scoring %s failed: %s", r["symbol"], e)
-        conn.commit()
+            # ⛔ ONE ROW, ONE COMMIT (security review I-3). Scoring reads bars between its
+            # writes; one commit for the whole member held auth.db's write lock across up to
+            # 300 rows of bar reads, and every other writer there waits only three seconds.
+            conn.commit()
         return {"added": added, "scored": len(open_rows)}
     finally:
         if owned:
             conn.close()
+
+
+# ── when the list view may ask for a refresh ─────────────────────────────────
+
+#: A member's list is refreshed on view at most this often (seconds). The nightly job is the
+#: schedule; this only covers a member who has never been collected, or who looks again later
+#: the same day.
+REFRESH_MIN_INTERVAL_S = 15 * 60
+_REFRESH_SEEN_MAX = 5000
+#: {user_id: monotonic seconds of the last refresh that STARTED}. Per process, on purpose:
+#: it bounds work, it is not a record. A second web process doubles the bound, no more.
+_refresh_seen: dict[str, float] = {}
+_refresh_lock = threading.Lock()
+
+
+def _reset_refresh_clock() -> None:
+    with _refresh_lock:
+        _refresh_seen.clear()
+
+
+def claim_refresh(user_id: str, *, clock=time.monotonic) -> bool:
+    """Take this member's refresh slot if none was taken within `REFRESH_MIN_INTERVAL_S`.
+    Check and mark are one step under the lock, so two views at once queue one refresh. The
+    slot is taken when the refresh is QUEUED, not when it runs: a second view arriving before
+    the first's refresh has started must not queue another. Touches no database."""
+    uid = str(user_id)
+    now = clock()
+    with _refresh_lock:
+        last = _refresh_seen.get(uid)
+        if last is not None and now - last < REFRESH_MIN_INTERVAL_S:
+            return False
+        if len(_refresh_seen) >= _REFRESH_SEEN_MAX:
+            _refresh_seen.clear()
+        _refresh_seen[uid] = now
+        return True
+
+
+def run_claimed_refresh(user_id: str) -> bool:
+    """The refresh a claimed slot stands for. Never raises (it runs after the response, with
+    nobody waiting on it); a failed refresh frees the slot so the next view can try again."""
+    uid = str(user_id)
+    try:
+        refresh(uid)
+        return True
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[passed_setups] refresh on view failed for a member: %s", e)
+        with _refresh_lock:
+            _refresh_seen.pop(uid, None)
+        return False
+
+
+def refresh_if_stale(user_id: str, *, clock=time.monotonic) -> bool:
+    """Refresh this member's list unless one was claimed within `REFRESH_MIN_INTERVAL_S`.
+
+    ⛔ THE LIST VIEW NEVER CALLS `refresh` ITSELF (security review I-3). `GET /passed-setups`
+    used to refresh on every call: a write for each open row before it could answer. The
+    route now answers from a plain read, claims the slot and queues the refresh for after the
+    response. True when a refresh ran."""
+    return claim_refresh(user_id, clock=clock) and run_claimed_refresh(user_id)
 
 
 def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
