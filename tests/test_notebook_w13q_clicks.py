@@ -891,7 +891,7 @@ def test_instrument_budgets_match_the_plan_doc_exactly():
     assert set(plan) == set(w13q.BUDGET)
     for fid, (mouse, keys, taps) in plan.items():
         b = w13q.BUDGET[fid]
-        #  is the plan table's own number;  is that number, or the ruled
+        # keys_plan is the plan table's own number; keys is that number, or the ruled
         # one for the eight flows of the 2026-10-07 keyboard ruling (checked above).
         assert (b["mouse"], b["keys_plan"], b["taps"]) == (mouse, keys, taps), fid
 
