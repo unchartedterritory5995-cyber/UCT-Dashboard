@@ -1,0 +1,944 @@
+[
+ {
+  "sha": "5ecf9ef3900ce72bc319f6bc4d6e62fc06f06f9f",
+  "subject": "perf(terminal): stop four request-path hazards from the speed audit",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/App.jsx"
+  ],
+  "sel": [
+   "app/src/App.jsx"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "d1397a558ee448a56748e34e54c532979b0860bf",
+  "subject": "fix(research): data-accuracy defects across the research panels",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/lib/presentation/presentationPrimitives.js"
+  ],
+  "sel": [
+   "app/src/lib/presentation/presentationPrimitives.js"
+  ],
+  "owned": [],
+  "nfiles": 40
+ },
+ {
+  "sha": "adf70d0271b3a6a257080bf5a301f6206f013811",
+  "subject": "fix(terminal): clear deleted open board, validate preset tickers, preserve restore success, open version history directly, warn on unreadable calendar pref",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/AbsenceReceipt.jsx"
+  ],
+  "sel": [
+   "app/src/components/provenance/AbsenceReceipt.jsx"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "39878fc7a4651f182bbd61d333d6434398fcd1fe",
+  "subject": "fix(terminal): loading placeholder on calendar landing, dual-class ticker in absence receipt, per-member flag status in HELP",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/AbsenceReceipt.jsx",
+   "app/src/components/provenance/AbsenceReceipt.test.jsx"
+  ],
+  "sel": [
+   "app/src/components/provenance/AbsenceReceipt.jsx",
+   "app/src/components/provenance/AbsenceReceipt.test.jsx"
+  ],
+  "owned": [],
+  "nfiles": 8
+ },
+ {
+  "sha": "f26bbee7dd0ba7697a0e0fadaea4882a732381aa",
+  "subject": "feat(terminal): panel freshness badges wired to TERM-006 (V8)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "sel": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "owned": [],
+  "nfiles": 6
+ },
+ {
+  "sha": "69420baf31ce09c1cf5b62829f6d8959852b2382",
+  "subject": "feat(alerts): member controls for expiry (FT-035) + standing screener alerts (FT-027)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/Settings.jsx"
+  ],
+  "sel": [
+   "app/src/pages/Settings.jsx"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "dea6777622dfd862518f221919eb9892b2d0e015",
+  "subject": "feat(screener): save-time fork dialog \u2014 frozen list / re-runnable / standing alert (AC-11)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "sel": [
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "80262848305734254cca508c2fa23f58ef52d27c",
+  "subject": "feat(ltr): room privacy page at /live-trading-room/privacy",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "0d7a79cdaff5dd58f9597d95193ec9cab493d5d0",
+  "subject": "feat(ltr): room terms page, room-scoped footer/logo, root link to the room",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "e0371c94dd0b7d319ef1f9efa625e9523faf50fc",
+  "subject": "fix(ltr): serve /live-trading-room/*.webp as image/webp, not text/plain",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 2
+ },
+ {
+  "sha": "09fa6c7c7c2d29cd7cbc98a5fa3baf22f65322fb",
+  "subject": "feat(site): public /live-trading-room landing page, served as static HTML",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 18
+ },
+ {
+  "sha": "7b734c8235c75f81d4d84e0e2f84a05dd0a5df7a",
+  "subject": "chore(provenance): bank the FA/EE SourceLine as a panel adopter",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "sel": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "owned": [],
+  "nfiles": 1
+ },
+ {
+  "sha": "9c9fc866fd3d28e1639bd8587b312f6e29e33066",
+  "subject": "FA/EE on FMP: statement tables + ratios, multi-year consensus",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 25
+ },
+ {
+  "sha": "c0d912b7821e3786a021108465d30630526e1c39",
+  "subject": "fix(terminal): clear the gate's NEW reds on the combined lane tree",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/hooks/usePreferences.additionsOnly.test.js",
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "sel": [
+   "app/src/hooks/usePreferences.additionsOnly.test.js",
+   "app/src/lib/context/symbolLinkChannels.test.js"
+  ],
+  "owned": [],
+  "nfiles": 10
+ },
+ {
+  "sha": "575bb261591f5e0d8fa042329dc390cf2ab07373",
+  "subject": "feat(options): Lane O panels - every remainder surface reaches the page, each dark on its own switch",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "sel": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "owned": [],
+  "nfiles": 20
+ },
+ {
+  "sha": "40c82dc9ecffe84162743f24d12889bba2642cef",
+  "subject": "feat(pine): GT - server half of the runtime pane switch-on rulings (D1, D2, D6, RT4 notice)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 10
+ },
+ {
+  "sha": "9dd932428a34c824a92d0e7849c851e15b3321a7",
+  "subject": "feat(research): Lane R D-4 transcript chapters + recap review label, D-5 call replay (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 23
+ },
+ {
+  "sha": "9cc1d5d01bff8c09614400fe1b2efc31cce40737",
+  "subject": "feat(research): lane R D-9/D-11/D-12 - Research notices under the header, each dark",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 17
+ },
+ {
+  "sha": "4a136418bf24ba52e9d2f5e62753819ad978b250",
+  "subject": "feat(calendar): Lane R D-1/D-2/D-3/D-10 calendar depth, dark per surface",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 24
+ },
+ {
+  "sha": "3c09102c55dc193d27cade8898c953bc82837026",
+  "subject": "feat(research-depth): lane R worker E - COV-10 colour groups E-H and FT-046 how-to checklists (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 23
+ },
+ {
+  "sha": "e82e6a6618c55ca9bba1c7ef1b59c950b7d19c4e",
+  "subject": "feat(platform): lane P checkpoint 1 - X-16 knobs ledger, TERM-082 breadth serve-stale, TERM-014 RSS series, Arch 5-B.8 retention registry",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 18
+ },
+ {
+  "sha": "5c5d700dd17a5aa7fb008e2e6fecd317e9768d3d",
+  "subject": "feat(research): Lane R D-6/D-7/D-8 news desk -- story versions, importance label, read state (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 17
+ },
+ {
+  "sha": "5e816c1a5a9cc9c7f4712b33243661e3db4a84b9",
+  "subject": "test(lane-o): the purge rail pre-creates options_spread_book like every self-ensured table",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "tests/test_journal_two_account_purge.py"
+  ],
+  "sel": [
+   "tests/test_journal_two_account_purge.py"
+  ],
+  "owned": [
+   "tests/test_journal_two_account_purge.py"
+  ],
+  "nfiles": 1
+ },
+ {
+  "sha": "6affbc7b90a102340a54e8e1557985b5926aedb5",
+  "subject": "wip(terminal): checkpoint at the weekly-limit stop - UNVERIFIED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "fe220a7549fb5cbe7a13066222bf9b3ea4736700",
+  "subject": "wip(terminal): checkpoint at the weekly-limit stop - UNVERIFIED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "9247b7d480fb6250f372f1d0ac50145424d0b3c2",
+  "subject": "wip(terminal): checkpoint at the weekly-limit stop - UNVERIFIED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/services/journal_two/account_purge.py"
+  ],
+  "sel": [
+   "api/services/journal_two/account_purge.py"
+  ],
+  "owned": [
+   "api/services/journal_two/account_purge.py"
+  ],
+  "nfiles": 27
+ },
+ {
+  "sha": "4d293c72d1424d8355c314799dd8803a8108d417",
+  "subject": "wip(terminal): checkpoint at the weekly-limit stop - UNVERIFIED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "app/src/components/CommandPalette.jsx"
+  ],
+  "sel": [
+   "api/main.py",
+   "app/src/components/CommandPalette.jsx"
+  ],
+  "owned": [],
+  "nfiles": 18
+ },
+ {
+  "sha": "609b8e6517d8f141cfb270958f14ace9c576dd35",
+  "subject": "T1 shell reach: OSCR/OBT live, 24 new codes, 7 doors embedded via panelSet, args honoured",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/screener/reachable.test.js",
+   "app/src/surfaces/panelSet.js",
+   "app/src/surfaces/panelSet.test.js"
+  ],
+  "sel": [
+   "app/src/components/screener/reachable.test.js",
+   "app/src/surfaces/panelSet.js",
+   "app/src/surfaces/panelSet.test.js"
+  ],
+  "owned": [],
+  "nfiles": 17
+ },
+ {
+  "sha": "20f30762f9107106081c99e55715c9ff3630f6b4",
+  "subject": "feat(screener): plain English compiled into the where-grammar (FT-024/030, dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 11
+ },
+ {
+  "sha": "37ca6b44bf53b3c9ab1f577e055d38b99ee34456",
+  "subject": "feat(screen+alerts): scan -> watchlist, chart-pattern presets, per-alert expiry (FT-027/022/035, dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "sel": [
+   "api/main.py",
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "owned": [],
+  "nfiles": 15
+ },
+ {
+  "sha": "15cee136a3efb8298d4b9ca2d383bd63079a80e7",
+  "subject": "feat(research): FT-071 estimates with # Ests beside the mean, firms named; record what stays open (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 13
+ },
+ {
+  "sha": "4812df1fded3b0e4054d1f97d9fd3d6b6010c73b",
+  "subject": "feat(alerts): signed outbound webhooks and one routing rule with suspend (FT-033/036, dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "app/src/pages/Settings.jsx"
+  ],
+  "sel": [
+   "api/main.py",
+   "app/src/pages/Settings.jsx"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "cc0faa2ccb0a21997091533c204ee10b548b9e68",
+  "subject": "feat(research): FT-080 room attention series per ticker from the /buzz store (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 12
+ },
+ {
+  "sha": "464badea5f89291e5e6944e15190cbf9f8806e3f",
+  "subject": "feat(research): FT-068 SEC fails-to-deliver as its own dataset (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 15
+ },
+ {
+  "sha": "15d19772192924bab1f46ec933c626381d4e8a9d",
+  "subject": "feat(screener): grouped criteria, the where-grammar, and the count's as-of (FT-026/028/029, dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "sel": [
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "owned": [],
+  "nfiles": 19
+ },
+ {
+  "sha": "03c27b6cc3220a4364364b5001516526df04d04e",
+  "subject": "feat(research): FT-064 EVTS, events staged T-n/T+n against the nearest print (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 12
+ },
+ {
+  "sha": "291241c81c216651a668e1e50ec865b69826a522",
+  "subject": "feat(research): FT-005 earnings-reaction panel, 8 quarters of run-in, gap, reaction and drift (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 12
+ },
+ {
+  "sha": "684cc03370de7dfe59accfc6a5bb3d699ed90f1b",
+  "subject": "feat(options): FT-056 Market Tide - market-wide net premium by minute from our flow tape (DARK)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "00fb3f004c4a71dc103879943684c7f2337203a2",
+  "subject": "feat(exports): metered CSV/Excel export for screener, watchlists, chain, news, bars (FT-041/042/043, dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "app/src/pages/Watchlists.jsx",
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "sel": [
+   "api/main.py",
+   "app/src/pages/Watchlists.jsx",
+   "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "owned": [],
+  "nfiles": 13
+ },
+ {
+  "sha": "b4b53fe137f79f7fcf29aa30fbb1c923ceea78d4",
+  "subject": "feat(research): FT-058/059/060 filing search, boolean + NEAR/n + synonyms + section scope (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 18
+ },
+ {
+  "sha": "66c731da7f9b64a7dfed0c6771edcea1367593f7",
+  "subject": "feat(terminal): registry reaches every member page; GEX opens on its ticker",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/App.jsx"
+  ],
+  "sel": [
+   "app/src/App.jsx"
+  ],
+  "owned": [],
+  "nfiles": 10
+ },
+ {
+  "sha": "303c83ea8ce28dfd8d2a9aa92433b6a1bc54a568",
+  "subject": "feat(research): RM-L19 COV-05 People, COV-07 Estimate history, COV-09 Filings feed (all dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 35
+ },
+ {
+  "sha": "e5f189c56d5f017e9735a683430eb4db74ae9b42",
+  "subject": "feat(terminal): UCT Terminal shell, slice A-F, gated behind TERMINAL_NEXT_ENABLED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py",
+   "app/src/App.jsx"
+  ],
+  "sel": [
+   "api/routers/auth.py",
+   "app/src/App.jsx"
+  ],
+  "owned": [],
+  "nfiles": 32
+ },
+ {
+  "sha": "79f5fa10abfd6c2848db86572545f52ebfc67bca",
+  "subject": "feat(screener): COV-02/03 Options view on the Screener page (DARK, no trade buttons)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "sel": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "owned": [],
+  "nfiles": 6
+ },
+ {
+  "sha": "63bb5382937794174e3d2e290c47272f15a44e78",
+  "subject": "feat(options-screener): COV-02 option screener + COV-03 unusual volume / IV percentile over our own options log (DARK)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "d5ecfb2f052b9f2fed9cc18f07846f619fa8b3cb",
+  "subject": "fix(boot): the pattern-vision contract LOG LINE can no longer hang the lifespan (10/02 outage)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 2
+ },
+ {
+  "sha": "a293e2af8c7b1cdff81dd69fbe576e4643f0dfd4",
+  "subject": "feat(research): BRK-01 inc 4 backend - the options strategy backtester, dark",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "f67a15b9c6f9ea9b3fcf69507a0b983fbeacb184",
+  "subject": "fix(bars): web boot never touches bars.db on the event loop; snapshot carries the by-date index",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "e509700b25753261604ed84b1ffc57f9ed5cff34",
+  "subject": "feat(term-001): a board holds at most 16 widgets; an over-bound board stays whole and editable down",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 10
+ },
+ {
+  "sha": "4e581a8bcee56c3e4b8cfffa30dee68c7aeb12fa",
+  "subject": "feat(term-093): \"what else was open, named\" capture, DARK behind WHAT_ELSE_OPEN_CAPTURE_ENABLED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 8
+ },
+ {
+  "sha": "593969148b09f19182410be8012f81eaa94d89a3",
+  "subject": "feat(paywall): TERM-081 / OI-12 - the Wire API refuses a free session 402",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "tests/test_paywall_gate_free_tier.py"
+  ],
+  "sel": [
+   "tests/test_paywall_gate_free_tier.py"
+  ],
+  "owned": [],
+  "nfiles": 12
+ },
+ {
+  "sha": "a30aa584c07ccd32731722823cf5ea82412212d4",
+  "subject": "feat(pine): L1 - the Pine library store, its read door, and the fetch tool",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 6
+ },
+ {
+  "sha": "b33e091d42de2c1744d9e5d370e4c6561aaf63ad",
+  "subject": "feat(paywall): TERM-081 / OI-12 - no free member pages; the Wire is paid",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/App.jsx"
+  ],
+  "sel": [
+   "app/src/App.jsx"
+  ],
+  "owned": [],
+  "nfiles": 13
+ },
+ {
+  "sha": "7255c2ec5e83b03abb81ce303bb8fa2000da5888",
+  "subject": "feat(alerts): BRK-04 Web Push as an alert channel, dark behind WEB_PUSH_ENABLED",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "app/src/main.jsx",
+   "app/src/pages/Settings.jsx"
+  ],
+  "sel": [
+   "api/main.py",
+   "app/src/main.jsx",
+   "app/src/pages/Settings.jsx"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "f92239a2d9a2afc35e373fb9b2643bce7c94a019",
+  "subject": "feat(iv-history): per-symbol ATM IV series + BRK-10 implied-vs-realized from our own options log (DARK)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 7
+ },
+ {
+  "sha": "88e68c94e69b18b260568b8b932f3c91bf9919aa",
+  "subject": "Notebook 10/10 wave 10 QR: quiet-box evidence; scale curve (14d) MET, typing (4d) stays NOT MET (#264)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "tests/test_parity_scorecard.py"
+  ],
+  "sel": [
+   "tests/test_parity_scorecard.py"
+  ],
+  "owned": [],
+  "nfiles": 28
+ },
+ {
+  "sha": "8fa5ce494cf6f6eee1b4eb407f610d88b7a26624",
+  "subject": "fix(gate): rule 12 + TERM-047 reds from the batch-2 re-gate, fixed at the cause",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "sel": [
+   "app/src/components/provenance/panelAdoption.baseline.json"
+  ],
+  "owned": [],
+  "nfiles": 11
+ },
+ {
+  "sha": "30b181001cd8b1f9f4cbfcbc862448e6bbacfc45",
+  "subject": "feat(cov-10): saved-screen and theme list sources (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/main.py",
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 5
+ },
+ {
+  "sha": "68661fdb2ee26e4359005141046cf609c124c995",
+  "subject": "feat(cov-06): Recently deleted + watchlist Version history doors (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/Watchlists.jsx"
+  ],
+  "sel": [
+   "app/src/pages/Watchlists.jsx"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "05db3077a5f8c17848219fead07289c37be16e7c",
+  "subject": "feat(charts): COV-10 - a Watchlist widget subscribes to its group's scan, frozen or tracking (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 14
+ },
+ {
+  "sha": "60d27e3de6d1d505693c74e498af6cccebc5ee8d",
+  "subject": "feat(cov-06): version history for saved screens and named layouts (dark)",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/main.py"
+  ],
+  "sel": [
+   "api/main.py"
+  ],
+  "owned": [],
+  "nfiles": 7
+ },
+ {
+  "sha": "9cc977ac7e10fb312532466795363d47dcdd3625",
+  "subject": "feat(a11y): TERM-067 - the video dock's timestamp note has a name",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/components/video/VideoDockSlot.jsx"
+  ],
+  "sel": [
+   "app/src/components/video/VideoDockSlot.jsx"
+  ],
+  "owned": [],
+  "nfiles": 2
+ },
+ {
+  "sha": "4e765f16db40ada548e67742a555fb549602fbc6",
+  "subject": "feat(research): BRK-01 inc 3 backend - the implied-vol surface from today's chain, dark",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "api/routers/auth.py"
+  ],
+  "sel": [
+   "api/routers/auth.py"
+  ],
+  "owned": [],
+  "nfiles": 9
+ },
+ {
+  "sha": "b40fc83c06847eaf0cc376328dbe078f1f94eda6",
+  "subject": "feat(a11y): TERM-067 - the COT market search names its inputs",
+  "by_subject": false,
+  "by_path": true,
+  "paths": [
+   "app/src/pages/CotData.jsx"
+  ],
+  "sel": [
+   "app/src/pages/CotData.jsx"
+  ],
+  "owned": [],
+  "nfiles": 2
+ }
+]

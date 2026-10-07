@@ -13,6 +13,7 @@ Rails:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -142,10 +143,36 @@ process.stdout.write(JSON.stringify(out))
 """
 
 
-def _run_js(js_path: Path, payload: dict) -> dict:
+NODE_MISSING = ("node is not on PATH, so the R3 wording parity between sample_size.py and "
+                "sampleSize.js was NOT CHECKED by this run")
+
+
+def _must_have_node() -> bool:
+    """Is a missing Node a failure here? Yes in CI (GitHub Actions sets both names) and wherever
+    UCT_REQUIRE_NODE=1 says so: this rail's whole job is to run the JS file, so a run that could
+    not is a run that proved nothing, and a skip in a gate reads as a pass."""
+    truthy = ("1", "true", "yes", "on")
+    return any(os.environ.get(name, "").strip().lower() in truthy
+               for name in ("CI", "GITHUB_ACTIONS", "UCT_REQUIRE_NODE"))
+
+
+def _node() -> str:
+    """The Node binary. Absent: a FAILURE where one is required (`_must_have_node`), otherwise a
+    skip whose reason says what was not checked. ⚰️ Until 2026-10-06 this was a bare
+    `pytest.skip("node is not on PATH")` everywhere, so the parity rail for ruling R3's wording
+    passed silently on any runner without Node."""
     node = shutil.which("node")
-    if node is None:
-        pytest.skip("node is not on PATH")
+    if node is not None:
+        return node
+    if _must_have_node():
+        pytest.fail(f"{NODE_MISSING}. Node is required here (CI, or UCT_REQUIRE_NODE=1): install "
+                    "it on the runner, do not skip this rail.")
+    pytest.skip(f"NOT CHECKED: {NODE_MISSING}. Install Node, or set UCT_REQUIRE_NODE=1 to make "
+                "this a failure.")
+
+
+def _run_js(js_path: Path, payload: dict) -> dict:
+    node = _node()
     proc = subprocess.run([node, "--input-type=module", "-e", _NODE_SCRIPT, str(js_path)],
                           input=json.dumps(payload), capture_output=True, text=True, encoding="utf-8",
                           timeout=60, check=False)
@@ -199,3 +226,48 @@ def test_the_parity_rail_can_fail(tmp_path):
     rates, means = _grid()
     diffs = _diffs(_python_side(rates, means), _run_js(bad, {"rates": rates, "means": means}))
     assert diffs and any("constants" in d for d in diffs) and any(d.startswith("rates[") for d in diffs)
+
+
+# ── a missing Node: loud where the rail is a gate, an explicit "not checked" elsewhere ────────
+
+_NODE_ENV = ("CI", "GITHUB_ACTIONS", "UCT_REQUIRE_NODE")
+
+
+def _without_node(monkeypatch, **env):
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    for name in _NODE_ENV:
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+
+@pytest.mark.parametrize("env", [{"CI": "true"}, {"GITHUB_ACTIONS": "true"}, {"UCT_REQUIRE_NODE": "1"}])
+def test_a_missing_node_FAILS_the_parity_rail_where_node_is_required(monkeypatch, env):
+    _without_node(monkeypatch, **env)
+    with pytest.raises(pytest.fail.Exception, match="NOT CHECKED"):
+        try:
+            _run_js(JS, {"rates": [], "means": []})
+        except pytest.skip.Exception as skipped:
+            # ⛔ A skip raised inside a test SKIPS THE TEST: it would sail through `pytest.raises`
+            # and this rail would report "skipped", which is the defect it exists to catch
+            # (measured 2026-10-06: the mutation that restores the bare skip survived the first
+            # version of this test for exactly that reason).
+            raise AssertionError(f"a missing Node was SKIPPED where Node is required: {skipped}") from None
+
+
+def test_a_missing_node_is_an_explicit_skip_locally_and_says_what_was_not_checked(monkeypatch):
+    _without_node(monkeypatch)
+    with pytest.raises(pytest.skip.Exception, match=r"NOT CHECKED: node is not on PATH.*sampleSize\.js"):
+        _run_js(JS, {"rates": [], "means": []})
+    # a value that does not mean "on" is not a requirement
+    _without_node(monkeypatch, CI="false", UCT_REQUIRE_NODE="0")
+    with pytest.raises(pytest.skip.Exception):
+        _run_js(JS, {"rates": [], "means": []})
+
+
+def test_with_node_present_the_rail_runs_whatever_the_environment_says(monkeypatch):
+    """Control for the two tests above: the requirement only matters when Node is absent."""
+    if shutil.which("node") is None:
+        _node()                                  # fails or skips by the rule above, never passes
+    monkeypatch.setenv("CI", "true")
+    assert Path(_node()).name.lower().startswith("node")

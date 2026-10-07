@@ -1,0 +1,9 @@
+<<<<<<< OURS(prev)
+    # L13 (2026-09-30): the G-062 row now cites lane G62's walk report (run 3). 55 + 1 = 56.
+    # Quiet re-score QR (2026-10-02): the 14d cell now cites the quiet per-call curve's log, its box
+    # record and its reading (curve-d22-q2.log, curve-d22-q2-box.txt, README-quiet.md). 56 + 3 = 59.
+    assert len(paths) == 59, (len(paths), paths)
+=======
+    assert len(paths) == 55, (len(paths), paths)
+>>>>>>> THEIRS(pre-landing)
+

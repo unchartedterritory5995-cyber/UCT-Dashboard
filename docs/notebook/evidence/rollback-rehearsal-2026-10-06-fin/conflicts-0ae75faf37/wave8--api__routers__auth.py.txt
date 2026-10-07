@@ -1,0 +1,16 @@
+<<<<<<< OURS(prev)
+# Wave 8 seam S8-1: the ONE parse for every Notebook capability flag. The truthy /
+# falsy sets live there now; `_breadth_dc_flags` below reads the same two sets.
+from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on
+# S12 rung zero (TERM-068 / RM-N11): the request-time cohort gate. The STORE is
+# `api/services/rollout.py`; this is the half that answers per request, and it is
+# where the kill switch is read. `_access_payload`'s `cohorts` field is its only
+# caller today.
+from api.services import rollout_gate
+# TERM-021: the versioned workspace document. Its hooks in `upsert_preference` do no I/O
+# while WORKSPACE_DOC_STORE_ENABLED is unset.
+from api.services import workspace_doc_store
+from api.services import board_bound
+=======
+>>>>>>> THEIRS(pre-landing)
+
