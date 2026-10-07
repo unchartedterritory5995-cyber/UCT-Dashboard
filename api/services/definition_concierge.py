@@ -49,21 +49,25 @@ the budget's) verdict BEFORE THE USER DOES and gets exactly one more attempt. An
 unbounded repair loop is an unbounded bill and an unbounded wait, and
 ``cost_guard`` is a cap on spend, not on patience.
 
-⚠️ SINGLE-PROCESS ASSUMPTION, DECLARED. ``_USER_SPEND`` below is process-local
-module state, exactly like ``cost_guard._HARD_CAP_TRIPPED`` /
-``_SOFT_CAP_LOGGED_FOR_DATE`` and the broker sync's ``_locks``. The web pod is
-deliberately ONE uvicorn process, so this is correct today and is the first thing
-to break on scale-out. It is a CAP, not a cache: a second instance would give one
-account two allowances.
+⭐ THE PER-MEMBER ALLOWANCE IS PERSISTENT (budget isolation, 2026-10-07).
+``spend_for`` reads the member's ``concierge:<user>`` rows for the ET market date
+from the shared cost ledger (``catalyst_cost_log``), which every call already
+writes. A redeploy, a restart or a second instance no longer hands a member a
+fresh allowance. ``_USER_SPEND`` survives only as a process-local FLOOR (the
+larger of the two is used), so a ledger read that fails can never under-count
+below what this process itself saw.
 """
 from __future__ import annotations
 
+import contextlib
 import copy
+import functools
 import json
 import logging
 import math
 import os
 import re
+import threading
 from datetime import datetime
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Tuple
@@ -157,8 +161,24 @@ def _market_date() -> str:
 
 
 def spend_for(user_id: Any, market_date: Optional[str] = None) -> float:
-    """What this process has recorded for one user today. Observable on purpose."""
-    return _USER_SPEND.get(((market_date or _market_date()), str(user_id)), 0.0)
+    """What this member has spent on the interactive AI doors on one ET market
+    date. ⭐ THE LEDGER IS THE SOURCE OF TRUTH: the sum of the member's
+    ``concierge:<user>`` rows in ``catalyst_cost_log`` -- the rows ``cost_guard.record``
+    writes for /propose and /converse alike, so the two doors share one allowance.
+    Persistent across deploys, restarts and instances; a new ET date starts at $0
+    because the key changes, not because anything resets.
+
+    The process-local ``_USER_SPEND`` is a floor (``max``), so a failed ledger read
+    falls back to what this process saw rather than to zero."""
+    md = market_date or _market_date()
+    local = _USER_SPEND.get((md, str(user_id)), 0.0)
+    try:
+        from api.services.catalyst import store as _cost_store
+        ledger = _cost_store.spend_for_ticker(md, f"concierge:{user_id}")
+    except Exception:                               # noqa: BLE001 -- a cap never crashes a door
+        logger.exception("[concierge] ledger read failed; using this process's floor")
+        ledger = 0.0
+    return max(local, ledger)
 
 
 def _record_spend(user_id: Any, market_date: str, usd: float) -> None:
@@ -167,8 +187,35 @@ def _record_spend(user_id: Any, market_date: str, usd: float) -> None:
 
 
 def reset_spend() -> None:
-    """Drop the per-user ledger. For tests; the process has no other lifetime."""
+    """Drop the process-local floor. For tests (the ledger itself is the tests' tmp DB)."""
     _USER_SPEND.clear()
+
+
+#: ⭐ ONE INTERACTIVE AI CALL IN FLIGHT PER MEMBER. The allowance is checked BEFORE
+#: a call, so N concurrent requests from one member could each pass the check and
+#: overshoot by N calls; the hourly window bounds HOW MANY, not how many AT ONCE.
+#: A second request while one is running is REFUSED at once (``rate:busy``) rather
+#: than queued, so a burst can never pin the server's worker threads. /propose and
+#: /converse share the slot because they share the allowance.
+#: ⚠️ Per process, like the hourly window: the web pod is one uvicorn process; on a
+#: future scale-out the overshoot bound becomes one call per instance.
+_INFLIGHT: Dict[str, threading.Lock] = {}
+_INFLIGHT_GUARD = threading.Lock()
+
+
+@contextlib.contextmanager
+def interactive_slot(user_id: Any):
+    """``with interactive_slot(uid) as free:`` -- ``free`` is False while another
+    interactive AI call for the same member is running."""
+    key = str(user_id)
+    with _INFLIGHT_GUARD:
+        lock = _INFLIGHT.setdefault(key, threading.Lock())
+    got = lock.acquire(blocking=False)
+    try:
+        yield got
+    finally:
+        if got:
+            lock.release()
 
 
 # --------------------------------------------------------------------------- #
@@ -190,6 +237,9 @@ REFUSALS: Mapping[str, str] = {
         "the formula assistant has reached its spending limit for today"),
     "cost:user": (
         "you have used up today's allowance of the formula assistant"),
+    "rate:busy": (
+        "the formula assistant is still working on your previous request -- "
+        "wait for it to finish, then try again"),
     "model:transport": (
         "the formula assistant could not be reached"),
     "model:no-tool": (
@@ -3011,6 +3061,20 @@ def _internal_error(stage: str, not_understood: Any,
             "unavailable": understanding.get("unavailable")}
 
 
+def _one_in_flight(fn):
+    """⭐ One interactive AI call in flight per member (``interactive_slot``): a
+    concurrent request is refused with ``rate:busy`` and spends nothing. A
+    decorator, so ``propose``'s own source -- which the rails read -- is unchanged."""
+    @functools.wraps(fn)
+    def guarded(prompt, *args, user_id: Any, **kwargs):
+        with interactive_slot(user_id) as free:
+            if not free:
+                return {"ok": False, "gate": "rate:busy", "reason": REFUSALS["rate:busy"]}
+            return fn(prompt, *args, user_id=user_id, **kwargs)
+    return guarded
+
+
+@_one_in_flight
 def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
             kind: str = INDICATOR_KIND) -> Dict[str, Any]:
     """English in, a canonical tree out -- or a refusal that names its door.
