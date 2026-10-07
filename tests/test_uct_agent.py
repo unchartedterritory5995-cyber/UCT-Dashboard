@@ -387,3 +387,20 @@ def test_talk_is_general_purpose_not_trading_only():
     "outside my wheelhouse" — the opening line scoped TALK to trading."""
     p = turn.system_prompt(turn.validate_manifest(CAPS))
     assert "general-purpose assistant" in p and "answer ANY question" in p
+
+
+def test_a_target_declared_earlier_in_the_plan_by_as_is_accepted_and_not_before():
+    add = {"name": "widget.add", "domain": "widget", "target": "workspace", "summary": "Add a widget.", "hints": None,
+           "risk": "local", "reversible": True,
+           "args": {"type": "object", "properties": {"type": {"type": "string", "enum": ["chart"]}, "as": {"type": ["string", "null"]}},
+                    "required": ["type", "as"], "additionalProperties": False}}
+    ctx = {"surface": "charts", "workspace": [{"ref": "w1"}], "charts": [{"ref": "c1"}]}
+    ops = [{"action": "widget.add", "target": "w1", "args": {"type": "chart", "as": "new1"}},
+           {"action": "chart.setType", "target": "new1", "args": {"type": "bars"}}]
+    c = caller_of(_resp(env("propose", ops=ops)))
+    out = turn.run_turn(message="add a bar chart", context=ctx, history=[], capabilities=CAPS + [add], caller=c)
+    assert out["envelope"]["ops"] == ops
+    # an alias used BEFORE it is declared is a question, never a guess
+    c2 = caller_of(_resp(env("propose", ops=list(reversed(ops)))))
+    out2 = turn.run_turn(message="add a bar chart", context=ctx, history=[], capabilities=CAPS + [add], caller=c2)
+    assert out2["envelope"]["disposition"] == "clarify"

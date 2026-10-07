@@ -26,6 +26,7 @@ import { primaryChartTypeFor } from '../../components/chart/engine/sourceCapabil
 import { canonicalFamily, canonicalProduct, canonicalSourceCapability } from '../../hooks/useMarketIndicators'
 import { isEconomicId } from '../../components/chart/engine/econMark'
 import { unknownSymbols } from '../agentClient'
+import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
 const TYPE_LABEL = { candles: 'Candles', hollow: 'Hollow Candles', bars: 'Bars', hlc: 'HLC Bars', line: 'Line', area: 'Area' }
 const TF_LABEL = { 1: '1 minute', 5: '5 minutes', 15: '15 minutes', 30: '30 minutes', 60: '1 hour', D: 'Daily', W: 'Weekly', M: 'Monthly' }
@@ -55,7 +56,10 @@ export function normalizeColor(raw) {
 // ── symbol capability: parity with StockChart's own clamp, so a receipt never
 // claims a chart type the canvas will silently override ──
 function capabilityFor(sym) {
-  if (!sym || isEconomicId(sym)) return { econ: true, cap: null }
+  // No symbol yet = a chart created earlier in this request: unknown, not
+  // economic (the real chart is re-validated against its real symbol at commit).
+  if (!sym) return { econ: false, cap: null }
+  if (isEconomicId(sym)) return { econ: true, cap: null }
   const fam = canonicalFamily(sym)
   const cap = canonicalProduct(sym)
     ? canonicalSourceCapability(sym, false)
@@ -63,7 +67,8 @@ function capabilityFor(sym) {
   return { econ: false, cap }
 }
 function hasIntradayBars(sym) {
-  if (!sym || isEconomicId(sym)) return false
+  if (!sym) return true
+  if (isEconomicId(sym)) return false
   const fam = canonicalFamily(sym)
   return fam === 'unknown' || fam === 'security' || fam === 'volatility'
 }
@@ -109,6 +114,16 @@ export const chartKind = {
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
+  // A chart that does not exist yet (created earlier in the same request): the
+  // product's defaults for a new chart, used ONLY to validate the plan before the
+  // first write. The runtime re-plans against the real chart once it exists.
+  virtual: ({ alias, n }) => ({
+    ref: alias, label: `New chart ${n}`, position: null, symbol: null, tf: 'D',
+    cs: mergeChartSettings(null), stored: null, linkedCount: 0, virtual: true,
+  }),
+  // A new chart given its OWN symbol must be created unlinked, or the symbol
+  // would retarget every existing widget in the default link group.
+  createFlags: (ops) => (ops.some(o => o.action === 'chart.setSymbol') ? { unlink: true } : {}),
 }
 
 export function describeChart(snap, shortRef) {

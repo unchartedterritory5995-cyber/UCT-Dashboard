@@ -2807,7 +2807,7 @@ export default function ChartsWorkspace() {
   // widget.add / its undo go through the SAME handlers the Widgets menu and a
   // widget's ✕ use — read through a ref so the host never holds a stale closure.
   const agentWidgetOpsRef = useRef(null)
-  agentWidgetOpsRef.current = { add: (t) => handleAddWidget(t), remove: handleRemoveWidget }
+  agentWidgetOpsRef.current = { add: (t) => handleAddWidget(t), remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd }
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
@@ -2816,6 +2816,8 @@ export default function ChartsWorkspace() {
       layout: () => layoutRef.current,
       add: (t) => agentWidgetOpsRef.current.add(t),
       remove: (id) => agentWidgetOpsRef.current.remove(id),
+      color: (id, c) => agentWidgetOpsRef.current.color(id, c),
+      cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
     },
   }), [])
 

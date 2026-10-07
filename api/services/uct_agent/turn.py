@@ -301,7 +301,17 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         ops = []                      # TALK never mutates, whatever the model emitted
     ops = [o for o in ops[:MAX_OPS] if isinstance(o, dict)
            and (cap_names is None or o.get("action") in cap_names)]
-    bad_targets = [o for o in ops if o.get("target") not in valid_refs]
+    # A target may also be a TRANSACTION-LOCAL alias that an EARLIER op in this
+    # same plan declares through its `as` argument (a widget created in this
+    # request). Generic: any capability may declare one; the browser resolves it.
+    known = set(valid_refs)
+    bad_targets = []
+    for o in ops:
+        if o.get("target") not in known:
+            bad_targets.append(o)
+        alias = (o.get("args") or {}).get("as") if isinstance(o.get("args"), dict) else None
+        if isinstance(alias, str) and alias:
+            known.add(alias)
     if disp in MUTATING and not ops:
         disp = "answer"               # a plan with nothing in it is just a reply
     if bad_targets:

@@ -34,7 +34,10 @@ else root.dataset.theme = THEME === 'light' ? 'light' : THEME === 'oled' ? 'oled
 
 // ── fixture board ──
 const BOARD = params.get('board') || ''
-const widgets = BOARD === 'gap'
+const widgets = BOARD === 'rail'
+  // a Watchlist rail on the right; the product places up to four charts left of it
+  ? [{ id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: {} }]
+  : BOARD === 'gap'
   // half the board empty, so widget.add has somewhere to land without resizing anything
   ? [{ id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: 'D' } }]
   : NCHARTS === 1
@@ -98,7 +101,7 @@ window.fetch = async (input, init) => {
   if (path.startsWith('/api/agent/conversations')) return json(path === '/api/agent/conversations' ? { conversations: [] } : {}, path === '/api/agent/conversations' ? 200 : 404)
   if (path.startsWith('/api/ticker-search')) {
     const q = new URL(url, location.origin).searchParams.get('q') || ''
-    return json({ results: /^(SPY|NVDA|AAPL|MSFT|AMD|TSLA)$/i.test(q) ? [{ ticker: q.toUpperCase() }] : [] })
+    return json({ results: /^(SPY|QQQ|IBM|DIA|NVDA|AAPL|MSFT|AMD|TSLA)$/i.test(q) ? [{ ticker: q.toUpperCase() }] : [] })
   }
   if (path.startsWith('/api/voice/transcribe')) return json({ text: SAY, seconds_billed: 1 })
   if (path.startsWith('/api/')) {

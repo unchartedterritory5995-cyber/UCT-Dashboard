@@ -84,19 +84,40 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
       const all = layout.widgets || []
       const visible = getWidgets() || []
       const count = boardWidgetCount(layout) ?? 0
-      const fits = {}
-      for (const t of WORKSPACE_MENU_TYPES) {
-        try { fits[t] = !(planPlacement(all, t).mutations || []).length } catch { fits[t] = false }
+      // planPlacement is pure: simulate a SEQUENCE of adds exactly as the product
+      // would place them one after another, and say whether every one lands in
+      // empty space (no `mutations` = nothing else resized or moved).
+      const fitsSequence = (types) => {
+        let board = all.map(w => ({ ...w }))
+        for (let i = 0; i < types.length; i++) {
+          let plan
+          try { plan = planPlacement(board, types[i]) } catch { return false }
+          if (!plan || !plan.place || (plan.mutations || []).length) return false
+          board = [...board, { id: `__sim${i}`, type: types[i], ...plan.place }]
+        }
+        return true
       }
+      const capacity = (type, limit) => {
+        let n = 0
+        while (n < limit && fitsSequence(Array(n + 1).fill(type))) n++
+        return n
+      }
+      const fits = {}
+      for (const t of WORKSPACE_MENU_TYPES) fits[t] = fitsSequence([t])
       return {
         ref: 'workspace', label: 'Workspace',
-        widgets: all.map(w => ({ id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h })),
+        widgets: all.map(w => ({
+          id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, color: w.color,
+          optsSig: JSON.stringify(w.opts ?? null),
+        })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
-        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits,
+        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity,
       }
     },
     add: (type) => widgetOps.add(type),
     remove: (id) => widgetOps.remove(id),
+    color: (id, color) => widgetOps.color?.(id, color),
+    cancelPending: () => widgetOps.cancelPending?.(),
   }
 }
 

@@ -12,6 +12,20 @@ export function scriptedTurn(body) {
   const names = new Set((body.capabilities || []).map(c => c.name))
   const first = charts[0]?.ref
 
+  // "Add 4 charts. Make them all 5-minute. Put SPY, QQQ, NVDA and TSLA in them."
+  const nm = /add (\d+|two|three|four|five|six) charts?/.exec(m)
+  const ws = body.context?.workspace?.[0]?.ref
+  if (nm && ws) {
+    const words = { two: 2, three: 3, four: 4, five: 5, six: 6 }
+    const n = Number(nm[1]) || words[nm[1]]
+    const syms = (String(body.message).match(/\b[A-Z]{2,5}\b/g) || []).slice(0, n)
+    const tf = /5-?min/.test(m) ? '5' : null
+    const ops = []
+    for (let i = 1; i <= n; i++) ops.push({ action: 'widget.add', target: ws, args: { type: 'chart', as: `new${i}` } })
+    if (tf) for (let i = 1; i <= n; i++) ops.push({ action: 'chart.setTimeframe', target: `new${i}`, args: { timeframe: tf } })
+    syms.forEach((s, i) => ops.push({ action: 'chart.setSymbol', target: `new${i + 1}`, args: { symbol: s } }))
+    return env('propose', ops, `I'll add ${n} charts${tf ? ' on 5-minute' : ''}${syms.length ? `: ${syms.join(', ')}` : ''}.`)
+  }
   if (/^(what|why|how|explain|is |are |does |should )/.test(m) || m.endsWith('?')) {
     return env('answer', [], 'An exponential moving average (EMA) weights recent prices more heavily, so it turns faster than a simple moving average (SMA), which weights every bar in the window equally. Traders use the EMA for responsiveness and the SMA for a steadier read of trend. (harness double)')
   }

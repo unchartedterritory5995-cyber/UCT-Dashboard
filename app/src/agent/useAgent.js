@@ -109,7 +109,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
       return
     }
-    const res = await commitPlan(host, plan)
+    const res = await commitPlan(host, plan, { env, ctx: capCtx })
     if (res.undo) {
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
     }
@@ -248,7 +248,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const p = pendingRef.current
       const pending = p?.kind === 'proposal'
-        ? { ops: p.ops.filter(o => back[o.target]).map(o => ({ ...o, target: back[o.target] })) }
+        // Transaction-local aliases (new1…) are not context refs: they pass through.
+        ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
         : null
       const res = await agentTurn({
         conversationId: conversationRef.current, message: text, voice, pending,

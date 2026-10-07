@@ -71,6 +71,20 @@ export function registerTargetKind(kind) {
   return () => KINDS.delete(kind.name)
 }
 
+// OPTIONAL hooks for compound CREATION (a plan that makes new targets and then
+// configures them in the same request):
+//   capability.creates(args) -> null | { kind, alias, spec }
+//        this op makes a new target of `kind`; later ops in the SAME plan may
+//        target `alias` (transaction-local — never persisted, never an id)
+//   kind.virtual({ alias, n, spec }) -> snapshot
+//        a planning stand-in for a target that does not exist yet (its defaults)
+//   kind.createFlags(ops on that alias) -> object
+//        anything the creator must do at creation time for those ops to be safe
+//        (charts: unlink when the plan gives the new chart its own symbol)
+//   kind.fingerprintFor(host, snap, undoItem) -> string
+//        narrow the stale-undo check to what this item actually owns
+//   kind.commit may be async and may return { created: { alias: realRef } }
+
 /** provider = { key, kind?, build(host, refFor) -> JSON-able context section } */
 export function registerContextProvider(p) {
   if (!p || !p.key || typeof p.build !== 'function') throw new Error('context provider needs key + build()')
