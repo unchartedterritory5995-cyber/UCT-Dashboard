@@ -245,7 +245,14 @@ def _without_node(monkeypatch, **env):
 def test_a_missing_node_FAILS_the_parity_rail_where_node_is_required(monkeypatch, env):
     _without_node(monkeypatch, **env)
     with pytest.raises(pytest.fail.Exception, match="NOT CHECKED"):
-        _run_js(JS, {"rates": [], "means": []})
+        try:
+            _run_js(JS, {"rates": [], "means": []})
+        except pytest.skip.Exception as skipped:
+            # ⛔ A skip raised inside a test SKIPS THE TEST: it would sail through `pytest.raises`
+            # and this rail would report "skipped", which is the defect it exists to catch
+            # (measured 2026-10-06: the mutation that restores the bare skip survived the first
+            # version of this test for exactly that reason).
+            raise AssertionError(f"a missing Node was SKIPPED where Node is required: {skipped}") from None
 
 
 def test_a_missing_node_is_an_explicit_skip_locally_and_says_what_was_not_checked(monkeypatch):
