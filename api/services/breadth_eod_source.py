@@ -474,12 +474,50 @@ def on_push(date_str: str, metrics: dict) -> tuple:
 
 # ── parity report ────────────────────────────────────────────────────────────
 
+#: How many sessions are enough to switch to `server` — DECIDED 2026-10-07 under the
+#: owner's delegation (`docs/terminal-research/12-decisions/2026-10-07-owner-delegated-
+#: decisions.md`, TERM-042): the newest TEN completed sessions (two trading weeks), in a
+#: row, each GRADED with every owned metric passing. A session that could not be graded
+#: (healed, low coverage, not comparable) breaks the run rather than being skipped: the
+#: switch is earned on sessions that were actually compared, never on gaps.
+SWITCH_CLEAN_SESSIONS = 10
+
+
+def _clean(rec: dict) -> bool:
+    fields = ((rec.get("report") or {}).get("fields") or {})
+    return (rec.get("status") == "graded" and bool(fields)
+            and all(f.get("pass") for f in fields.values()))
+
+
+def switch_readiness(recs: list, required: int = SWITCH_CLEAN_SESSIONS) -> dict:
+    """Whether the parallel run has earned `BREADTH_EOD_SOURCE=server`. `recs` is
+    `shadow_records()` (newest first). Reads only; it switches nothing — setting
+    the variable stays a person's act on Railway. `current` rows (re-reads of an
+    unchanged session) are not in the store, so every record is one session."""
+    run, broke_on = 0, None
+    for r in recs:
+        if _clean(r):
+            run += 1
+            continue
+        broke_on = {"date": r.get("date"), "status": r.get("status"),
+                    "reason": r.get("reason") or ("a metric failed" if r.get("status") == "graded"
+                                                  else None)}
+        break
+    ready = run >= required
+    return {"required_consecutive_clean": required, "consecutive_clean": run,
+            "ready": ready, "broken_by": broke_on,
+            "sentence": (f"Ready: the newest {run} sessions all graded clean; set "
+                         f"BREADTH_EOD_SOURCE=server with BREADTH_EOD_SERVER_FROM = the next session."
+                         if ready else
+                         f"Not yet: {run} of {required} consecutive clean sessions.")}
+
+
 def parity_report(limit: int = 60) -> dict:
     """Per metric across every GRADED session: n, passes, the failing sessions by
     DATE, and the worst delta. Sessions that could not be graded are listed by
-    name with their reason. No verdict: how many sessions are enough is the
-    owner's call."""
-    recs = shadow_records(limit)
+    name with their reason. `switch` carries the decided bar
+    (`SWITCH_CLEAN_SESSIONS` consecutive clean sessions) as a reading, never an act."""
+    recs = shadow_records(max(int(limit), SWITCH_CLEAN_SESSIONS))
     graded = [r for r in recs if r["status"] == "graded"]
     per: dict = {}
     for r in graded:
@@ -501,6 +539,7 @@ def parity_report(limit: int = 60) -> dict:
     collector_only = sorted({k for r in graded
                              for k in (r["report"] or {}).get("collector_only") or []})
     return {"sessions_graded": len(graded),
+            "switch": switch_readiness(recs),
             "metrics_with_failures": sorted(k for k, e in per.items() if e["failed_on"]),
             "per_metric": dict(sorted(per.items())),
             "breadth_score": scores,
