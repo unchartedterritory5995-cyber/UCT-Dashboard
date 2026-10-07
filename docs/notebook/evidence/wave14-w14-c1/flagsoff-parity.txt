@@ -1,7 +1,19 @@
 == flags-off render parity
-base b06ec4fd85 vs HEAD 647cb42bda
+base b06ec4fd85 vs HEAD b17f4a3e13
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
-swapped 436 source files to the base blob; restored, git status unchanged
-40 identical | 0 differ (40 cases)
-VERDICT: PASS -- identical
+swapped 462 source files to the base blob; restored, git status unchanged
+36 identical | 4 differ (40 cases)
+  DIFFERS: notebook home | prod-like: every capability on, getting-started off | fresh member
+    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
+    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
+  DIFFERS: notebook home | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
+    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
+  DIFFERS: notebook home | every capability on, onboarding off | fresh member
+    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
+    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
+  DIFFERS: notebook home | every capability on, onboarding off | base tour done, checklist closed
+    HEAD: ... a watchlist show up here, scored on what they did next — or add one above.</p><p class="_quiet_ _notice_" role="status" data-passed-status=""></p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Revi
+    BASE: ... a watchlist show up here, scored on what they did next — or add one above.</p></section><div class="_section_"><div class="_sectionHeader_"><h3 class="_sectionTitle_">Reviews that write themselves</h3></div><div class="_rows_" style="displ
+VERDICT: DIFFERS
