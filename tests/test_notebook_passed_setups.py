@@ -582,3 +582,85 @@ def test_the_refresh_commits_row_by_row_so_no_one_transaction_spans_every_row(db
     conn.close()
     assert len(open_during) == 3 and not any(open_during), (
         "a row was scored while an earlier row's write was still uncommitted")
+
+
+# ── D5: a horizon is a SESSION of the market, never a position in the rows that are stored ──
+#
+# `score` read "+5 days" at position 5 of the name's own stored bars. With one session missing
+# from the store, every later horizon was read one session late and nothing said so: "+5 days"
+# showed the six-session return. A member reads these as what they missed or dodged. Each
+# horizon is now the market's Nth session after the reference (the session calendar), and a
+# horizon whose bar is not stored is "missing", never the neighbouring session's number.
+
+def _without(rows, *days):
+    return [r for r in rows if r[0] not in days]
+
+
+def test_a_hole_in_the_middle_never_shifts_a_later_horizon(db_path, bars):
+    bars("SPY", _rising())
+    bars("NVDA", _without(_rising(), AFTER[4]))            # the 5th session is not in the store
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, NOW)["item"])
+    assert lab["r1"] == (1.0, None)
+    assert lab["r5"] == (None, "missing"), "+5 was filled from the 6th session"
+    assert lab["r10"] == (10.0, None), "+10 was read one session late"
+    assert lab["r20"] == (20.0, None)
+    assert lab["best20"] == (None, "missing")              # the best of 20 needs all 20
+
+
+def test_a_hole_at_the_start_leaves_plus_one_missing_and_the_rest_on_their_own_sessions(db_path, bars):
+    bars("SPY", _rising())
+    bars("NVDA", _without(_rising(), AFTER[0]))
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, NOW)["item"])
+    assert lab["r1"] == (None, "missing")
+    assert (lab["r5"], lab["r10"], lab["r20"]) == ((5.0, None), (10.0, None), (20.0, None))
+
+
+def test_a_hole_at_the_end_leaves_plus_twenty_missing(db_path, bars):
+    bars("SPY", _rising())
+    bars("NVDA", _without(_rising(), AFTER[19]))
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, NOW)["item"])
+    assert (lab["r1"], lab["r5"], lab["r10"]) == ((1.0, None), (5.0, None), (10.0, None))
+    assert lab["r20"] == (None, "missing"), "+20 was filled from the 21st session"
+    assert lab["best20"] == (None, "missing")
+
+
+def test_a_holiday_is_not_a_session_so_nothing_is_missing_and_nothing_shifts(db_path, bars):
+    """The market was shut on the 3rd weekday: neither the calendar nor the name has a bar.
+    "+5 days" is the 5th day the market was OPEN."""
+    holiday = AFTER[2]
+    open_days = [d for d in AFTER if d != holiday]
+    rows = [(BASE_DAY, 100.0)] + [(open_days[i], 100.0 + i + 1) for i in range(22)]
+    bars("SPY", rows)
+    bars("NVDA", rows)
+    item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
+    lab = _labels(item)
+    assert (lab["r1"], lab["r5"], lab["r10"], lab["r20"]) == ((1.0, None), (5.0, None), (10.0, None), (20.0, None))
+    assert lab["best20"][1] is None and item["status"] == "scored"
+
+
+def test_a_hole_in_the_calendars_own_bars_does_not_shift_a_name_that_has_the_day(db_path, bars):
+    """The calendar is every session EITHER store shows: a day the name traded was a session."""
+    bars("SPY", _without(_rising(), AFTER[4]))
+    bars("NVDA", _rising())
+    lab = _labels(_manual(A, "NVDA", BASE_DAY, NOW)["item"])
+    assert (lab["r5"], lab["r10"], lab["r20"]) == ((5.0, None), (10.0, None), (20.0, None))
+
+
+def test_with_no_calendar_at_all_a_names_own_bars_are_not_counted_as_sessions(db_path, bars):
+    bars("NVDA", _rising())                                 # the name has every bar; SPY has none
+    item = _manual(A, "NVDA", BASE_DAY, NOW)["item"]
+    assert {(pct, miss) for pct, miss in _labels(item).values()} == {(None, "unknown")}
+    assert item["baseClose"] == 100.0
+
+
+def test_score_is_by_session_day_never_by_position():
+    from api.services.journal_two import passed_setups as ps
+    days = [20260810 + i for i in range(5)]
+    forward = [{"t": d, "c": 100.0 + i + 1, "h": 100.5 + i + 1} for i, d in enumerate(days) if i != 1]
+    out = ps.score(100.0, forward, days)
+    assert out["r1"] == 1.0 and out["r5"] == 5.0
+    assert out["gaps"] == {"10": "pending", "20": "pending", "best20": "pending"}
+    assert ps.score(100.0, forward, None)["gaps"]["1"] == "unknown"
+    only_late = [{"t": days[1], "c": 102.0, "h": 102.5}]
+    assert ps.score(100.0, only_late, days)["r1"] is None      # never the next stored bar
+    assert ps.score(100.0, only_late, days)["gaps"]["1"] == "missing"

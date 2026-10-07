@@ -15,8 +15,10 @@ THE RULES, each a decision with a rail (`tests/test_notebook_passed_setups.py`):
     pass was worth. A row is final (`scored`) when +20 and the best move are both in.
   * DETERMINISTIC, NEVER INVENTED. A horizon with no bar carries a LABEL, not a number:
       - ``no_bars``  -- no stored daily bar on or before the reference day;
-      - ``missing``  -- the market has had that many sessions since (counted on SPY's stored
-                        bars) but the store lacks this symbol's bars;
+      - ``missing``  -- the market has had that many sessions since (the session calendar)
+                        but the store lacks this symbol's bar for THAT session. A horizon is
+                        the market's Nth session, never the Nth stored row: a hole in the
+                        store never shifts a later horizon onto the wrong day;
       - ``pending``  -- that many sessions have not happened yet;
       - ``unknown``  -- neither this symbol nor SPY has a stored bar after the reference day,
                         so whether the session happened cannot be told from the store.
@@ -225,32 +227,58 @@ def _pct(a: float, b: float) -> float:
     return round((a / b - 1.0) * 100.0, 4)
 
 
-def score(base_close: float, forward: list[dict], calendar_sessions: int | None) -> dict[str, Any]:
+def score(base_close: float, forward: list[dict], sessions: list[int] | None) -> dict[str, Any]:
     """Returns {r1, r5, r10, r20, best20, gaps, sessions_stored}. Pure.
 
-    `forward` are this symbol's stored bars after the reference, oldest first;
-    `calendar_sessions` is how many sessions the market has had since (SPY's stored bars),
-    or None when that cannot be read."""
-    out: dict[str, Any] = {"gaps": {}, "sessions_stored": len(forward)}
+    `forward` are this symbol's stored bars after the reference. `sessions` are the days the
+    MARKET was open after the reference, oldest first (YYYYMMDD keys, the session calendar),
+    or None when the store holds no calendar to count on.
+
+    ⛔ A HORIZON IS THE MARKET'S Nth SESSION, NEVER THE Nth ROW THAT HAPPENS TO BE STORED.
+    "+5 days" is the name's close on `sessions[4]`. ⚰️ It used to be `forward[4]`: with one
+    session missing from the store every later horizon was read one session late and nothing
+    said so ("+5 days" showed the six-session return). When the bar for a horizon's own
+    session is not stored the horizon is `missing`; it is never filled from a neighbour.
+      - ``unknown``  no calendar: sessions cannot be counted, so nothing is claimed;
+      - ``pending``  the market has not had that many sessions yet;
+      - ``missing``  it has, and this name's bar for that session is not in the store.
+    The best move needs every one of its sessions, or it would understate."""
+    by_day = {int(b["t"]): b for b in forward}
+    known = sessions if sessions is not None else []
+    out: dict[str, Any] = {"gaps": {}, "sessions_stored": sum(1 for d in known if d in by_day)}
+
+    def gap(h: int) -> str:
+        if sessions is None:
+            return "unknown"
+        return "pending" if len(sessions) < h else "missing"
+
     for h in HORIZONS:
-        key = f"r{h}"
-        if len(forward) >= h:
-            out[key] = _pct(forward[h - 1]["c"], base_close)
+        bar = by_day.get(sessions[h - 1]) if sessions is not None and len(sessions) >= h else None
+        if bar is not None:
+            out[f"r{h}"] = _pct(bar["c"], base_close)
         else:
-            out[key] = None
-            out["gaps"][str(h)] = _gap(h, len(forward), calendar_sessions)
-    if len(forward) >= BEST_WINDOW:
-        out["best20"] = _pct(max(b["h"] for b in forward[:BEST_WINDOW]), base_close)
+            out[f"r{h}"] = None
+            out["gaps"][str(h)] = gap(h)
+    window = [by_day.get(d) for d in known[:BEST_WINDOW]]
+    if len(window) >= BEST_WINDOW and all(b is not None for b in window):
+        out["best20"] = _pct(max(b["h"] for b in window), base_close)
     else:
         out["best20"] = None
-        out["gaps"]["best20"] = _gap(BEST_WINDOW, len(forward), calendar_sessions)
+        out["gaps"]["best20"] = gap(BEST_WINDOW)
     return out
 
 
-def _gap(h: int, have: int, calendar_sessions: int | None) -> str:
-    if calendar_sessions is None:
-        return "unknown"
-    return "missing" if calendar_sessions >= h > have else "pending"
+def session_days(calendar: list[dict], forward: list[dict], calendar_known: bool) -> list[int] | None:
+    """The days the market was open after the reference, oldest first, at most `BEST_WINDOW`.
+
+    Every day EITHER store shows a bar for: the calendar symbol's, or this name's own (a day
+    the name traded was a session, even when the calendar's bar for it is the one missing).
+    None when the store holds no calendar at all: a name's own rows cannot vouch that no
+    session is missing between them, which is the whole question."""
+    if not calendar and not calendar_known:
+        return None
+    days = {int(b["t"]) for b in calendar} | {int(b["t"]) for b in forward}
+    return sorted(days)[:BEST_WINDOW]
 
 
 # ── candidates (read-only on the member's notes and watchlists) ──────────────
@@ -437,11 +465,15 @@ def score_row(conn, row: sqlite3.Row) -> None:
     base_ts = int(base_date.replace("-", "")) if base_date else cutoff
     forward = read_after(sym, base_ts, BEST_WINDOW) if base_date else []
     calendar = read_after(CALENDAR_SYMBOL, base_ts, BEST_WINDOW)
+    # No calendar session after the reference: zero sessions have passed IF the calendar is
+    # stored up to the reference day itself; otherwise the store cannot tell.
+    spy_base = None if calendar else read_base(CALENDAR_SYMBOL, base_ts)
+    days = session_days(calendar, forward, bool(spy_base and spy_base["t"] == base_ts))
 
     # ⛔ TRADED FIRST, whatever the bars say: a name the member traded is not a pass even when
     # the store holds no bars for it. The window ends at the 10th session after the reference
     # close (read on the session calendar, else this name's own bars, else two calendar weeks).
-    sessions = calendar or forward
+    sessions = [{"t": d} for d in days] if days else forward
     if len(sessions) >= TRADED_WITHIN:
         until = _ymd_iso(sessions[TRADED_WITHIN - 1]["t"])
     else:
@@ -461,15 +493,7 @@ def score_row(conn, row: sqlite3.Row) -> None:
             (STATUS_NO_BARS, json.dumps({"base": "no_bars"}), _now_utc().isoformat(), row["id"]))
         return
 
-    if calendar:
-        calendar_n: int | None = len(calendar)
-    else:
-        # No SPY session after the reference: zero sessions have passed IF the calendar is
-        # stored up to the reference day itself; otherwise the store cannot tell.
-        spy = read_base(CALENDAR_SYMBOL, base_ts)
-        calendar_n = 0 if (spy and spy["t"] == base_ts) else None
-
-    s = score(base_close, forward, calendar_n)
+    s = score(base_close, forward, days)
     # ⛔ FROZEN: COALESCE keeps every value already filled; only an empty slot takes a new one.
     done = all(s[f"r{h}"] is not None for h in HORIZONS) and s["best20"] is not None
     conn.execute(
