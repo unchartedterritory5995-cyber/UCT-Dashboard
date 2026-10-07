@@ -13,7 +13,7 @@
  * Dark behind `notebook_playbook_enabled`: with the gate off nothing is fetched and the route sends
  * the member back to Insights.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { playbookEnabled } from '../../lib/myPlaybookLink'
@@ -44,12 +44,16 @@ const noteHref = (id) => `/journal/notebook?note=${encodeURIComponent(id)}`
 const tradeHref = (id) => `/journal-2-0/trade/${encodeURIComponent(id)}`
 
 /** One number, worded by its sample (R3), with its n beside it and its trades one click away. */
-export function StatCell({ label, stat, fmt, onDrill }) {
+// Lane FIN-A11Y (review R4, I-10): a number is a disclosure. `expanded` says whether ITS trades
+// are the ones open, `controls` names the table once it exists, and `drillKey` lets Close find
+// the number again to hand focus back.
+export function StatCell({ label, stat, fmt, onDrill, expanded = false, controls, drillKey }) {
   const n = stat?.n ?? 0
   const value = fmt(stat?.value)
   const nChip = <span className={styles.n} data-n={n}>n={n}</span>
   const drillBtn = (
     <button type="button" className={styles.valueBtn} onClick={onDrill}
+            aria-expanded={expanded} aria-controls={expanded ? controls : undefined} data-drill-key={drillKey}
             aria-label={`${label} ${value}, show the ${n} trade${n === 1 ? '' : 's'} behind it`}>
       {value}
     </button>
@@ -80,15 +84,20 @@ export function StatCell({ label, stat, fmt, onDrill }) {
   )
 }
 
-function Drill({ setup, idx, item, trades, onClose }) {
+function Drill({ id, setup, idx, item, trades, onClose }) {
   const rows = trades.filter(item.drill)
+  // The table opens further down the card than the number that opened it: focus goes to its
+  // heading, which is what tells a screen reader member that it opened and what it holds.
+  const headingRef = useRef(null)
+  useEffect(() => { headingRef.current?.focus() }, [item.key])
   return (
-    <section className={styles.drill} aria-labelledby={`pb-drill-${idx}`} data-testid="playbook-drill">
+    <section id={id} className={styles.drill} aria-labelledby={`pb-drill-${idx}`} data-testid="playbook-drill">
       <div className={styles.drillHead}>
-        <h4 id={`pb-drill-${idx}`} className={styles.drillTitle}>
+        <h4 id={`pb-drill-${idx}`} ref={headingRef} tabIndex={-1} className={styles.drillTitle}>
           {setup} {item.label.toLowerCase()}: the {rows.length} {item.drillLabel} behind it
         </h4>
-        <button type="button" className={styles.linkBtn} onClick={onClose}>Close</button>
+        <button type="button" className={styles.linkBtn} onClick={onClose}
+                aria-label={`Close the trades behind ${setup} ${item.label.toLowerCase()}`}>Close</button>
       </div>
       <table className={styles.table}>
         <thead>
@@ -114,8 +123,17 @@ function SetupCard({ rec, idx, notes, open, onDrill, onClose }) {
   const stats = cardStats(rec)
   const openItem = open ? stats.find((s) => s.key === open) : null
   const sampleWord = rec.sample?.wording
+  const drillId = useId()
+  const cardRef = useRef(null)
+  // Close removes the table with focus inside it: hand focus back to the number that opened it.
+  const closeDrill = () => {
+    const opener = [...(cardRef.current?.querySelectorAll('[data-drill-key]') || [])]
+      .find((el) => el.getAttribute('data-drill-key') === open)
+    onClose()
+    opener?.focus()
+  }
   return (
-    <article className={styles.card} aria-labelledby={`pb-setup-${idx}`} data-setup={rec.setup} data-tour="my-playbook-setup-card">
+    <article ref={cardRef} className={styles.card} aria-labelledby={`pb-setup-${idx}`} data-setup={rec.setup} data-tour="my-playbook-setup-card">
       <div className={styles.cardHead}>
         <h3 id={`pb-setup-${idx}`} className={styles.setupName}>{rec.setup}</h3>
         <span className={styles.muted} data-n={rec.tradeCount}>
@@ -124,10 +142,11 @@ function SetupCard({ rec, idx, notes, open, onDrill, onClose }) {
       </div>
       <div className={styles.stats}>
         {stats.map((s) => (
-          <StatCell key={s.key} label={s.label} stat={s.stat} fmt={s.fmt} onDrill={() => onDrill(s.key)} />
+          <StatCell key={s.key} label={s.label} stat={s.stat} fmt={s.fmt} onDrill={() => onDrill(s.key)}
+                    expanded={open === s.key} controls={drillId} drillKey={s.key} />
         ))}
       </div>
-      {openItem && <Drill setup={rec.setup} idx={idx} item={openItem} trades={rec.trades || []} onClose={onClose} />}
+      {openItem && <Drill id={drillId} setup={rec.setup} idx={idx} item={openItem} trades={rec.trades || []} onClose={closeDrill} />}
       <div className={styles.notes} data-tour="my-playbook-notes">
         <h4 className={styles.subTitle}>From your notes</h4>
         {notes.length ? (
@@ -261,7 +280,8 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
   }
 
   return (
-    <main className={styles.page} aria-labelledby="pb-title" data-testid="my-playbook">
+    // A section, not <main>: the app shell already is the page's one main landmark (M-11).
+    <section className={styles.page} aria-labelledby="pb-title" data-testid="my-playbook">
       <Link className={styles.back} to="/journal/insights">Back to Insights</Link>
       <div className={styles.head}>
         <div>
@@ -276,14 +296,18 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
           {snap?.state === 'saving' ? 'Saving…' : 'Save a snapshot note'}
         </button>
       </div>
-      {snap?.state === 'saved' && snap.note?.id && (
-        <p className={styles.muted} role="status">
-          Snapshot saved. It will not change.{' '}
-          <button type="button" className={styles.linkBtn} onClick={() => navigate(noteHref(snap.note.id))}>Open the note</button>
-        </p>
-      )}
+      {/* Always mounted, filled on save: a status that mounts with its text is often not
+          announced (review R4, M-16). */}
+      <p className={`${styles.muted} ${styles.statusLine}`} role="status">
+        {snap?.state === 'saved' && snap.note?.id && (
+          <>
+            Snapshot saved. It will not change.{' '}
+            <button type="button" className={styles.linkBtn} onClick={() => navigate(noteHref(snap.note.id))}>Open the note</button>
+          </>
+        )}
+      </p>
       {snap?.state === 'error' && <p className={styles.muted} role="alert">{snap.error}</p>}
       {body}
-    </main>
+    </section>
   )
 }
