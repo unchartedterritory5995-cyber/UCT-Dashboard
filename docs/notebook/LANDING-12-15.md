@@ -36,7 +36,8 @@ Each row was checked against the diff, not taken from a plan.
 | New tables created at boot | `journal_two/db.py::ensure_schema` creates the gallery tables and the wave-13 tables; the firm templates are seeded once | Nothing visible. Additive, idempotent |
 | Chart-plan line in note exports | `notes_export.py`, `notes_export_formats.py` | Only for a chart block whose drawings carry plan roles, which needs the dark chart-plan feature to create |
 | Schema node types | `journal_two/notebook_schema.py` and the client schema | New node types are accepted by the server. See rollback, section 4 |
-| **flow-worker restarts** | `api/flow_worker_deploy_marker.txt`, bump 11 | The options tape drops for the length of the restart and Massive does not replay it. **Land this after hours** |
+| **flow-worker restarts. MERGE OUTSIDE MARKET HOURS** | `api/flow_worker_deploy_marker.txt`, bump 11. It is the only file in the diff on flow-worker's watch list; fifteen `journal_two` files flow-worker reaches but does not watch ride along with it | The options tape drops for the length of the restart and Massive does not replay it |
+| Not this landing's, for the merge summary | `docs/api/member-api-whitelist.json`, `docs/api/skill.md` | Master added four member reads without regenerating these (`/api/agent/conversations`, `/api/agent/conversations/{conversation_id}`, `/api/flow/tape-span`, `/api/flow/ticker/{symbol}/day-counts`), and three `/api/marketcap/pit*` paths its generator does not produce. Master's to fix. This landing leaves the files as master has them plus its own entries, so `tests/test_skill_whitelist.py` stays red until then |
 | Schema layer imports no web framework (this lane, `1a7dd79ff8`) | `journal_two/public_note_payload.py` | Nothing. It unblocks the deploy gate |
 
 Open for the controller: this lane did not walk any of these in a browser.
@@ -476,4 +477,56 @@ Every inherited red, re-read against the NEW master. None was fixed upstream:
 
 Still to come before the final gate: `fin-keys`, the `fin-walk` tools, and a small top-up master
 merge if master moves again.
+
+## 12. Phase 7 (2026-10-07): the keep-list, the trade canvas test, the reds by owner
+
+Where this section disagrees with an earlier one, this section is newer.
+
+**The fixed write-protection rail is on the rollback keep-list** (controller ruling).
+`tests/test_notes_cas_is_atomic.py` joins `KEEP_WITH_LANDING` for this landing, the keep-list
+rail, the rehearsal script and the rollback page. Rehearsal re-run at `65f56566e5`, tree A (the
+landing reverted with the keep-list):
+
+| Run | Before | Now |
+|---|---|---|
+| Note save and load (five files) | 3 failed, 185 passed | **193 passed** |
+| Kept rails | 42 passed | 42 passed |
+| Server imports and mounts | 8 passed | 8 passed |
+| Probe, safe outcome | 3 passed | 3 passed |
+| Kept client rail | 17 passed | 17 passed |
+
+Tree B (a plain revert) is unchanged: the loss probe passes and the safe-outcome probe fails,
+as it must.
+
+**The trade canvas ledger test was the Notebook's own, and is fixed.**
+`tests/test_notebook_trade_canvas.py` asserted the gate's ledger entry was `dark`. The gate was
+armed on web on 2026-10-03 by this program: the entry says so ("ARMED on web 2026-10-03 ... live
+from web deploy 01c5a7697") and PR #267 (`a0509fae96`) recorded it. The test now reads the
+ledger and holds that the entry agrees with itself, whichever state it is in. 25 passed. No
+sibling restates a ledger status: the AI actions gate, armed in the same PR, has no such
+assertion, and no other Notebook test does either.
+
+**The reds this landing carries, by owner.** Each is red on master too, by content.
+
+In other workstreams' files:
+
+| Test | The file that has to change | Owning area |
+|---|---|---|
+| `screener/reachable.test.js`, parking note past its expiry | the `WAVE 2 IN FLIGHT` block for five `components/chart/engine` files | Charts and indicator renderer |
+| `test_feature_flag_ledger.py` | ledger rows for three `BREADTH_EXCH_*` flags | Breadth |
+| `test_skill_whitelist.py` | master's whitelist: three `/api/marketcap/pit*` paths, four unlisted reads | Market cap; Terminal agent; Options flow |
+| `test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag` | `tools/runtime_pane_smoke.py`, which defines and calls its own `flag_on` | Pine and indicators |
+| `test_user_definitions_auth.py` | one refusal sentence shared by `screener.py`, `screener_nl.py`, `screen_promote.py` | Screener |
+| `test_shared_state_landmines.py` | import-time binds in `test_discord_render_goldens.py`, `test_mobile_audit_route_validity.py`, `test_oi44_loop_blockers_gate.py`, `test_w8_accuracy_audit.py` | Discord render; mobile audit; Terminal; wave 8 audit |
+| `test_auth_surface_reads.py`, `test_open_reads_gate.py`, `test_rate_limit_policy.py` (5) | undeclared routes under `/api/ltr`, `/api/marketcap`, `/live-trading-room`, `/api/artifact-versions`, `/api/exports`, `/api/options`, `/api/options-screener`, `/api/terminal`, `/api/pine`, `/api/instruments` | Live trading room; Market cap; Terminal; Options; Pine |
+
+Notebook-owned, and still red:
+
+| Test | What it is | Why it is not fixed here |
+|---|---|---|
+| `test_notebook_bridges_pin_the_root.py` | `tools/notebook_w11b_scale.py:69` sets `NOTEBOOK_FORMULAS_ENABLED` for its own run | It is a Notebook tool (wave 11), red on master. It can take the same named exemption the fixture tool got. Not done without a ruling: it changes what the rail excuses |
+| `test_shared_state_landmines.py`, two of its six lines | `tests/test_parity_scorecard.py:59` and `:64` bind two tool modules into `sys.modules` at import | A Notebook test (wave 9), red on master. The fix is a fixture that installs and removes the bind. Not done here: untouched by this landing and needs its own check |
+
+So after the trade canvas fix two Notebook-owned reds remain, both already on master and neither
+touched by this landing. They are listed, not hidden.
 

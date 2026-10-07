@@ -10,8 +10,8 @@ F
 ================================== FAILURES ===================================
 ________ test_a_level_3_editor_saves_a_plan_note_without_its_plan_data ________
 
-tmp_path = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-659/test_a_level_3_editor_saves_a_0')
-monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000024D5C3775C0>
+tmp_path = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-679/test_a_level_3_editor_saves_a_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000018E9ACB75C0>
 
     def test_a_level_3_editor_saves_a_plan_note_without_its_plan_data(tmp_path, monkeypatch):
         monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
@@ -52,8 +52,8 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000024D5C3775C0>
 E       AssertionError: assert {'plan_data_s...'status': 200} == {'plan_data_s...'status': 409}
 E         
 E         Differing items:
-E         {'status': 200} != {'status': 409}
 E         {'plan_data_still_in_the_note': False} != {'plan_data_still_in_the_note': True}
+E         {'status': 200} != {'status': 409}
 E         Use -v to get more diff
 
 docs\notebook\evidence\rollback-rehearsal-2026-10-06-fin\landing\test_ab_probe.py:91: AssertionError
@@ -94,4 +94,4 @@ docs\notebook\evidence\rollback-rehearsal-2026-10-06-fin\landing\test_ab_probe.p
 =========================== short test summary info ===========================
 FAILED docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py::test_a_level_3_editor_saves_a_plan_note_without_its_plan_data
 FAILED docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py::test_account_deletion_on_a_database_the_landing_wrote_to
-2 failed, 1 passed in 0.99s
+2 failed, 1 passed in 2.58s

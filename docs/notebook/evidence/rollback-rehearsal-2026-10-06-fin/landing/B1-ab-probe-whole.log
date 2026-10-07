@@ -7,4 +7,4 @@ The event loop scope for asynchronous fixtures will default to the fixture cachi
 AB-PROBE save: {"status": 200, "plan_data_still_in_the_note": false}
 .AB-PROBE purge: {"rows_left_behind": 12, "other_members_rows": 12}
 .
-3 passed in 1.11s
+3 passed in 4.55s
