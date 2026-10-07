@@ -42,7 +42,7 @@ in dark, oled and light.
 | I-1 | Verified. `--bg-surface-2` is defined nowhere, so the preview was near black in every theme. | The preview uses `--bg-elevated`. The chip dot's undefined `--color-info` becomes `--info`. | `ThesisChip.test.jsx`, `a11y/notebookContrast.test.js` | In the light theme, open a thesis chip on Positions and Holdings. The preview is light and readable. |
 | I-2 | Verified, all five parts. | The door is chosen at the click from the live media query. At 1024px and under a click opens the shared `Sheet`. On desktop the preview is `position: fixed`, placed from the chip, so the table wrapper cannot clip it. It closes on Escape, on focus leaving, and on a pointerdown outside. Focus alone does not open a sheet on touch. | `ThesisChip.test.jsx` (touch sheet, fixed position, Tab order, outside pointerdown, Escape) | On a phone and a tablet: tap a chip, the sheet opens, tapping the backdrop closes it. On desktop: open the chip in the last row of Positions, nothing is cut off. Scroll the table sideways with it open, the preview follows. At a 1024px-wide window with a keyboard, Tab does not open anything and Enter opens the sheet. |
 | I-3 | Verified. The chip button and its "Open note" link were inside the row link. | A Holdings row that carries a chip is a plain container. The link covers the row as a sibling and the chip sits above it. A row with no chip keeps the old markup, so flags-off output is unchanged. The chip's clicks and Enter/Space no longer reach its host row. | `HoldingsList.thesisChip.test.jsx` | In Holdings with VoiceOver on iOS: swipe reaches the row link, then the chip, then "Open note". Tapping anywhere else on the row still opens the position. The press effect and the hover tint still show. The joystick hub cursor still lands on the row. |
-| I-4 | Verified. No focus move, no trap, no Escape, no scroll lock. `--surface-1` is defined nowhere. | The window is the shared `Sheet`. The panel follows the theme. The status row is live only while paused. Glyph characters are replaced with `UIcon` and the buttons are named by words. Autoplay does not start under reduced motion. The selected speed is filled, bold and check-marked. | `BarReplay.a11y.test.jsx` | Open "What happened next" from a note chart and the replay on a trade page. Focus is inside, Tab stays inside, Escape closes, focus returns to the Replay button. On Safari the button may not take focus on click, so check where focus returns there. With NVDA, pressing Play does not read a message per bar. In the light theme the panel is light. The chart canvas inside it stays dark (see section 5). On a phone it opens as a bottom sheet and clears the home indicator. |
+| I-4 | Verified. No focus move, no trap, no Escape, no scroll lock. `--surface-1` is defined nowhere. | The window is the shared `Sheet`. The panel follows the theme. The status row is live only while paused. Glyph characters are replaced with `UIcon` and the buttons are named by words. Autoplay does not start under reduced motion. The selected speed is filled, bold and check-marked. | `BarReplay.a11y.test.jsx` | Open "What happened next" from a note chart and the replay on a trade page. Focus is inside, Tab stays inside, Escape closes, focus returns to the Replay button. On Safari the button may not take focus on click, so check where focus returns there. With NVDA, pressing Play does not read a message per bar. In the light theme the panel is light. The chart canvas follows the theme too (round 2, section 5). On a phone it opens as a bottom sheet and clears the home indicator. |
 | I-5 | Verified. Left, Right, Home and End were prevented in the search box. | From the search box only ArrowUp and ArrowDown move the target. The field points at the target card with `aria-activedescendant`, describes the keys, and a polite live region says which template Enter opens. Arrow keys between the cards are unchanged. | `TemplatePicker.searchCaret.test.jsx`, `TemplatePicker.searchKeyboardReach.test.jsx` | Type a word, press Left and Home, edit it. With NVDA and VoiceOver: on ArrowDown the screen reader says the new template name. See the open decision in section 6. |
 | I-6 | Verified. No typed way to make or move a level. | The panel has "Add a level at price" (number, role, button). Each level's price is a number field with step keys. The role radios are one Tab stop with arrow keys. Nothing in `StockChart.jsx` or the drawing overlay changed. | `ChartPlanPanel.keyboardDoor.test.jsx` | Add a level by price with the keyboard only. A horizontal line appears on the chart at that price, the R:R and size numbers update, and "Arm alert at this level" works on it. Step a level with ArrowUp and watch the line move. Check the new line has the same look as a drawn one. With a screen reader the price field reads as a spin button with its value. |
 | I-7 | Verified. 4.31:1 and 4.01:1 in the default dark theme. | The four stylesheet rules and four inline styles use `--danger-ink`. `--loss` is not changed. The contrast rail now reads six Journal-side stylesheets it never reached. It found one more failure, the Why prompt textarea border at 1.18:1, now `--field-edge`. | `a11y/notebookContrast.test.js` (three new cases and a control) | None beyond a look at an error message on the plan grade card in the dark theme. |
@@ -56,7 +56,7 @@ in dark, oled and light.
 |---|---|---|---|---|
 | M-1 | Verified. | The count is a polite live region. A tick on the focused step moves focus to the card heading. When the last step is done a polite status says so. | `GettingStartedList.announce.test.jsx` | Finish a step with a screen reader on: the new count is read. |
 | M-2 | Verified. | The offer card hands focus to the page heading before it answers. A tour started from the offer returns focus there. | `TourOfferPrompt.focus.test.jsx` | Choose "Not now" by keyboard: focus is on the page heading. Take the tour and close it: same. |
-| M-3 | Verified. | The explainer has a polite status, mounted empty and filled a moment later. | `GenericTourEngine.announce.test.jsx` | A screen reader announces the note when it appears. "Got it" is still at the end of the page in Tab order (not changed, see section 5). |
+| M-3 | Verified. | The explainer has a polite status, mounted empty and filled a moment later. | `GenericTourEngine.announce.test.jsx` | A screen reader announces the note when it appears. "Got it" is now the first Tab stop (round 2, section 5). |
 | M-4 | Verified. | Report, Unpublish and "Keep it" give focus to a sensible control. Feature and Unfeature name the template. | `TemplateGallery.focus.test.jsx` | After a successful Unpublish the row leaves the list. Check where focus is then. |
 | M-5 | Verified. | Add and Remove fill a status line that is always mounted. After Remove, focus goes to the next row, else the row before, else the ticker field. | `researchMinors.a11y.test.jsx` | None beyond a keyboard pass. |
 | M-6 | Verified. | "Reading your plan" is a status. Picking a plan returns focus to Re-link and a mounted status says which plan was linked. | `journalMinors.a11y.test.jsx` | None beyond a keyboard pass. |
@@ -74,7 +74,7 @@ in dark, oled and light.
 M-16 item by item:
 
 - Filter result counts. Fixed for the visual playbook (test in `researchMinors.a11y.test.jsx`)
-  and the transcript find box. The transcript count has no dedicated test.
+  and the transcript find box (its own test was added in round 2).
 - Statuses mounted with their text. Fixed for the gallery, My Playbook and the fingerprint
   plan message: each region is mounted from the start and refilled. A new `PoliteStatus`
   component does this for hidden announcements.
@@ -103,58 +103,101 @@ M-16 item by item:
   "Open note" next in the Tab order without a hand-built focus order. A fixed element is only
   clipped by an ancestor that is transformed or filtered. The two host stylesheets were read
   and have no such rule on a row, a cell or a card.
-- **I-8 and the base tour.** The fix is in `GenericTourEngine` only. `NotebookTour.jsx` (the
-  base tour) has the same description and the same `block: 'nearest'` scroll. It was left
-  alone because its stylesheet and output are pinned byte for byte by
-  `baseTour.zeroDrift.test.jsx`.
+- **I-8 and the base tour.** Round 1 fixed `GenericTourEngine` only. Round 2 applied the same
+  fix to `NotebookTour.jsx` (section 5). Round 1 said the base tour was pinned byte for byte.
+  That was wrong: `baseTour.zeroDrift.test.jsx` pins its steps, copy and key, not its markup.
 - **Other existing tests edited, each for one line.** `MyPlaybook.test.jsx` waited for the
   status region and now waits for its text. `TemplateGallery.test.jsx` named the admin button
   "Hide template" and now names "Hide template Reported one".
 
-## 5. Not fixed, and why
+## 5. Round 2: what was listed as not fixed, and what happened to it
 
-- **Positions phone card.** `PositionsTable.jsx` renders each phone card as `role="button"`
-  with the thesis chip, and the Edit, Close and Delete buttons, inside it. That is interactive
-  content inside a button, the same class of defect as I-3. It predates the chip and needs the
-  card restructured. This lane only stopped the chip's clicks and keys from also opening the
-  card. Severity: IMPORTANT. Suggested fix: the same covering-link pattern used in Holdings.
-- **The replay chart canvas.** The lightweight-charts canvas in the replay window uses fixed
-  dark colours set in JavaScript. In the light theme it is a dark chart inside a light panel.
-  It is readable. Making it follow the theme means reading tokens at runtime.
-- **"Got it" on the passive explainer.** It is announced now, but it is still portaled to the
-  end of the page, so a keyboard member reaches it last.
+The controller ruled on the two open decisions (I-5: keep buttons with
+`aria-activedescendant`; I-4: the bottom-sheet replay stands, the older trade replay
+included) and asked for the four items below.
+
+| Item | What changed | Test | A person or the walk must confirm |
+|---|---|---|---|
+| Positions phone card | The card was `role="button"` with the chip and Edit, Close and Delete inside it. It is a named group now ("AAPL position"). Its primary action is a real button on the title, with the old accessible name. The chip and the three actions are its siblings. A tap anywhere on the card still opens it. The hub carrier attribute stays on the card, and the card keeps `tabIndex -1` so the delete-focus fallback can land on it. Broker and option rules are untouched. | `PositionsTable.nesting.test.jsx`, `PositionsTable.phone.test.jsx` | On a phone with VoiceOver: swipe reaches the title button, the chip, then each action, one at a time. A tap on the card body still opens the chart. The title button is 44px tall and the card height is the same as before (the button has a negative margin to keep it). The joystick hub cursor still outlines the whole card. After deleting a position, focus lands on the next card. |
+| Desktop Positions row | Checked, no change needed. The row is a focusable `row` with no interactive role, and no control in it is nested in another. The chip does not open the row by click or by Enter. | `PositionsTable.nesting.test.jsx` | None. |
+| Base tour (`NotebookTour.jsx`) | The dialog is described by "Step N of M" and then the body. The heading that takes focus on every step is described by the count. The touch scroll margin moved to `NotebookTour.module.css`, which both tours load. | `NotebookTour.announce.test.jsx` | With NVDA and VoiceOver, each base tour step reads its title and then "Step 2 of 8". On a phone, a base tour target is visible above the card. |
+| Replay chart colours | A token choice in Notebook code (`BarReplay.jsx` owns its own lightweight-charts instance). The background, axis text, grid, borders, candles and default line colour are read from the theme tokens when the chart is created. Nothing was needed from `StockChart.jsx`. | `BarReplay.theme.test.jsx` | In the light theme, open a replay: the chart is light, candles are the theme's green and red, the grid is faint. In dark and oled the grid is now the `--border` colour, a little stronger than before. Switch theme with the window open: it applies the next time it opens. |
+| Passive explainer Tab order | The note goes into a slot at the start of the page, so "Got it" is the first Tab stop instead of the last. It is `position: fixed`, so it looks the same. Its announcement ends with "Got it closes this note." | `GenericTourEngine.announce.test.jsx` | From the top of a page showing the note, the first Tab lands on "Got it", before the skip links. Confirm that order is acceptable. |
+| Transcript find count | Its own test now. | `SaveTranscriptPassage.test.jsx` | None. |
+
+### The base tour and the pins
+
+- **No test pinned the base tour's markup byte for byte.** `baseTour.zeroDrift.test.jsx` pins
+  the eight steps, their order, anchors, copy and the preference key. It passes unchanged.
+  What changed in the rendered card: one `id` on the progress line and two
+  `aria-describedby` values. No text, step or order changed.
+- **The flags-off parity rail, `tools/notebook_w14_flagsoff_parity.py`, was run twice.**
+  It renders 40 cases with the wave-14 switch off and compares them with the wave-13 landing
+  (`b06ec4fd85`).
+  - On the landing tip it read 40 identical (its recorded evidence file).
+  - On this branch it reads **36 identical, 4 differ, VERDICT: DIFFERS**, before and after the
+    base tour change. The base tour change adds no difference, and the rail could not show one
+    either way: **no case in the capture has the tour card on screen** (0 of 40 in both
+    passes).
+  - All four differing cases are Notebook Home with every capability flag on. The whole
+    difference, in each, is one element from round 1 (M-5): the always-mounted
+    `<p role="status" data-passed-status="">` in Passed setups. It is there only when
+    `notebook_passed_setups_enabled` is on. Every case with the capability flags off is
+    identical.
+  - So this is an intended difference in a wave-13 surface, not a flags-off leak. But the rail
+    is binary and it is red now. The owner should either accept it or move the rail's base.
+    This lane did not edit the tool and put its evidence file back as it was.
+
+### Still not fixed
+
+- **Line and marker colours that callers pass to the replay.** `ChartPlanPanel.jsx`
+  (`ROLE_COLOR`) and `TradeReplay.jsx` pass fixed literals for entry, stop, target and exit.
+  The gold entry line is about 2.2:1 on the light chart. `ChartPlanPanel.jsx` is the file
+  lane FE is editing, so this lane left its constants alone.
 - **Row removed after Unpublish.** Focus is returned to the Unpublish button. When the list
   refreshes and the row goes, focus can still be lost.
+- **`board-title` and `vp-regime-why`** are still fixed ids (one instance per page).
 
-## 6. Open decisions for the owner
+## 6. Decisions
 
-1. I-5: keep buttons with `aria-activedescendant` on the search box (what shipped), or rebuild
-   the picker as a real listbox and give up Tab to every card. A screen reader pass should
-   decide.
-2. I-4: the replay window now locks the page behind it and opens as a bottom sheet on touch.
-   That also applies to the older trade replay on the trade page.
-3. The Positions phone card (section 5) is a separate piece of work.
+Ruled by the controller: I-5 keeps buttons with `aria-activedescendant`. I-4's bottom-sheet
+replay stands, the older trade replay included.
+
+Still open:
+
+1. The flags-off parity rail reads DIFFERS because of the Passed setups status line
+   (section 5). Accept it, or move the rail's base commit.
+2. The passive explainer is now the first Tab stop on the page, ahead of the skip links.
+3. The fixed line colours callers pass to the replay (section 5).
 
 ## 7. Tests
 
 Run from `app/`, named files only, `--maxWorkers=2`. Logs are in the lane's scratchpad.
+These are the round 2 totals (the final state of the branch).
 
 - Rails: `tapFloor`, `tokens.reachable`, `themeIslands`, the Notebook contrast rail, surface
   and aria coverage, target floors, the tour registry, anchors, reachability and lazy rails,
-  `Sheet.test.jsx`, `components/screener/reachable.test.js`.
+  `baseTour.zeroDrift`, `Sheet.test.jsx`, `components/screener/reachable.test.js`.
   Result: 20 files passed, 1 failed; 348 tests passed, 1 failed, 1 skipped.
   The one failure is in `reachable.test.js`: a parking note for five chart-engine files
   expired on 2026-10-06, the day of this run. This lane did not touch that file or those
   modules.
-- Touched components, part 1: 31 files, 359 tests, all passed.
-- Touched components and the a11y surface suites, part 2: 45 files, 389 tests, all passed.
+- Touched components, part 1 (includes the Positions tests): 34 files, 376 tests, all passed.
+- Touched components, base tour and the a11y surface suites, part 2: 53 files, 454 tests, all
+  passed.
+- `tools/notebook_w14_flagsoff_parity.py`: 36 identical, 4 differ (see section 5).
 
 New test files: `ThesisChip.test.jsx` (extended), `HoldingsList.thesisChip.test.jsx`,
-`BarReplay.a11y.test.jsx`, `TemplatePicker.searchCaret.test.jsx`,
+`BarReplay.a11y.test.jsx`, `BarReplay.theme.test.jsx`, `TemplatePicker.searchCaret.test.jsx`,
 `ChartPlanPanel.keyboardDoor.test.jsx`, `GenericTourEngine.announce.test.jsx`,
-`TourOfferPrompt.focus.test.jsx`, `WhyPrompt.focus.test.jsx`, `MyPlaybook.focus.test.jsx`,
-`GettingStartedList.announce.test.jsx`, `TemplateGallery.focus.test.jsx`,
-`researchMinors.a11y.test.jsx`, `journalMinors.a11y.test.jsx`.
+`NotebookTour.announce.test.jsx`, `TourOfferPrompt.focus.test.jsx`, `WhyPrompt.focus.test.jsx`,
+`MyPlaybook.focus.test.jsx`, `GettingStartedList.announce.test.jsx`,
+`TemplateGallery.focus.test.jsx`, `researchMinors.a11y.test.jsx`,
+`journalMinors.a11y.test.jsx`, `PositionsTable.nesting.test.jsx`.
+
+Existing tests edited on purpose, each named in its commit: three 13Q-5 search-box key tests,
+one My Playbook status wait, one gallery admin button name, one Help replay link name, and two
+Positions phone tests that asserted `role="button"` on the card.
 
 ## 8. Commits, one surface each
 
@@ -175,4 +218,11 @@ New test files: `ThesisChip.test.jsx` (extended), `HoldingsList.thesisChip.test.
 | `9818cc26be` | Help walkthroughs | M-14 |
 | `83568a12d2` | Bulk action bar | M-15 |
 
-A last commit carries this file, the regenerated contrast table and three lint fixes.
+| `51bd784f14` | Round 1 docs, regenerated contrast table, lint | |
+| `ec016d8f35` | Positions phone card | round 2, item 1 |
+| `fffec74ffe` | Base tour | round 2, item 2 |
+| `bb35f63360` | Replay chart colours | round 2, item 3 |
+| `65393413b9` | Passive explainer Tab order | round 2, item 4 |
+| `7a7d75f229` | Transcript count test | round 2, item 4 |
+
+A last commit carries the round 2 update of this file.
