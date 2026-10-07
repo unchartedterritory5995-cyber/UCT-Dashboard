@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 3760,
+  "passed": 3745,
+  "failed": 8,
+  "errored": 0,
+  "skipped": 7,
+  "wall_s": 706.9,
+  "failed_files": [
+    "tests/test_a12_s6_consistency_rail.py",
+    "tests/test_account_tombstones.py",
+    "tests/test_address_space.py",
+    "tests/test_alert_outbound.py",
+    "tests/test_alert_taxonomy_indicator_condition_schema.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "8 failed, 3745 passed, 7 skipped, 30 warnings in 706.90s (0:11:46)",
+  "ok": true
+}
