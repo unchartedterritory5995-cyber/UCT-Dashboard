@@ -492,7 +492,13 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   the vendor for 60 s — per process, so a second pod keeps calling a failing vendor for
   its own 60 s, and a restart clears the pause) · the two document permit pools
   `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
-  second process doubles how many extractions and OCR runs the box does at once).
+  second process doubles how many extractions and OCR runs the box does at once) · since
+  the wave 12-15 landing `entry_context._capture_executor` + `_capture_pending` (the
+  manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
+  `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
+  `entry_context._vendor_cache` (one answer per symbol per capture day), and
+  `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes). A second
+  web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
   the meaning search's daily embed count into ONE durable table, so none of them doubles or
