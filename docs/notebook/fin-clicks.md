@@ -11,6 +11,9 @@ Branch `feat/notebook-fin-nav`. Budgets: `docs/notebook/WAVE-13-PLAN.md` section
 | `44aa449a16` | raw evidence, onboarding flows O1 to O6; Q21 keyboard reach of Plan |
 | (this commit) | raw evidence for the Q20 and Q21 re-run, this record |
 
+> **Follow-up branch `feat/notebook-fin-keys2`: section 14.** The folder panel is a tree and one
+> Tab stop. Q2 on a keyboard is 25 and Q11 is 41.
+>
 > **Latest reading: section 13** (round 3). The "Loading..." stall of section 12.6 was the
 > click tool, not the page. Keyboard is 10 of 23 inside budget; mouse and touch are 18 of 23.
 >
@@ -744,3 +747,195 @@ attempted. Q16 is in a file this lane does not own.
 
 Still true from 12.6: one red case in `components/screener/reachable.test.js`, a chart-engine
 parking note that expired on 2026-10-06. Not from this lane.
+
+## 14. Lane KEYS round 4 (follow-up branch): the folder panel as a tree
+
+Branch `feat/notebook-fin-keys2`, cut from `f4a444f15b`. It lands in its own pull request after
+the main landing. Sections 1 to 13 are kept as written.
+
+### 14.1 Verdict
+
+* **The folder panel is a tree and one Tab stop.** Q2 on a keyboard went from 82 / 61 to
+  25 / 25, and Q11 from 103 / 80 to 41 / 43. Both are still over budget (6 and 27).
+* **The list header is one toolbar stop**, and Favorites and Recents are one stop each.
+* **Nothing the pointer could do in the panel is lost.** Walked in a real browser by mouse at
+  1280 px and by touch at 390 px: 14 of 14 steps. The keyboard walk: 5 of 5.
+* **The browser walk found four defects that no test had seen**, one of them in shared code
+  and older than this lane (14.4). All four are fixed with a test that was red first.
+* **Not built: the notes list as one stop, and the "one remaining change" for Q21, Q22, Q18,
+  Q12, Q20, Q6, Q9, Q15 and Q19.** Item 3 of the brief is not done. See 14.6.
+* Keyboard inside budget: still 10 of 23. Mouse 18, touch 18.
+
+### 14.2 What was built
+
+| commit | what |
+|---|---|
+| `d422ba06eb` | `lib/useTreeRoving.js`: the keyboard model of a tree, with a test for every key |
+| `2e033275b2` | `FolderSidebar.jsx` is a tree: `tree`, `treeitem`, `group`; the row menu |
+| `abeea1db92` | the notes list header is one toolbar stop |
+| `13f0a593dc` | Favorites and Recents are one stop each (Down and Up) |
+| `bb33312bf4` | an anchored menu takes focus even with "reduce motion" on (`ContextPopover.jsx`) |
+| `41df2bfc58` | three defects of the folder menu key, found in the browser |
+| `cd940bcfff`, `a06409b7b1` | tool: a row of a tree is reached as a member reaches it; the folder walk |
+
+The tree, as a member meets it:
+
+* The standing rows (All notes, Unfiled, Archived, Trash), every folder, and the notes inside
+  an open folder are rows of one tree. Each row has a name, a level, and says whether it is
+  open and whether it is selected.
+* One row is the Tab stop: the last one that had focus, else the selected one, else the first.
+* Down and Up move between the rows showing. Home and End go to the ends. Right opens a closed
+  folder, then moves to its first child. Left closes an open folder, else moves to the parent.
+* Enter or Space selects the folder (or opens the note). A letter moves to the next row whose
+  name starts with it; typing on extends the search.
+* Shift+F10, or the context-menu key, opens the folder's actions as a menu: Rename, Add
+  subfolder, Delete, and the extra action the row carries (Publish). They call the same
+  handlers as the row's icon buttons. Focus returns to the folder's row afterwards.
+* For the pointer nothing changed: the same named buttons, the hover reveal, double-click to
+  rename. The buttons are out of the Tab order (`tabindex="-1"`) and still clickable.
+* "+ New folder" is outside the tree and is its own Tab stop.
+
+Read before the structure was changed, as asked: every `FolderSidebar*` test, the a11y
+directory, the onboarding directory (tour anchors and reachability), `src/hub/` (the hub
+cursor's `data-note-card-id` rows are unchanged) and the write-path rails. No new write door:
+the menu calls handlers that already existed.
+
+**Two existing tests pinned a Tab stop per row action**
+(`FolderSidebar.folderActions.test.jsx`, `NotebookTab.publishFolder.test.jsx`). Their reason,
+read first: in wave 8 the actions had been spans a keyboard could not reach at all. That
+purpose is kept and the pin is restated: the actions are real named buttons, out of the Tab
+order, and the keyboard reaches them through the row's menu, with focus back on the row.
+
+**There is no drag and drop in the folder panel.** The brief asked to confirm "drag a note onto
+a folder" still works. Neither `FolderSidebar.jsx` nor `NoteCard.jsx` nor `NotebookTab.jsx` has
+a drag or drop handler; notes are moved with the bulk bar's Move control. Nothing to keep.
+
+### 14.3 The final table
+
+Evidence: `docs/notebook/evidence/fin-keys2/cd940bcfff/q/` (all 23, 92 rows, integrity CLEAN),
+and `.../c6dfdec05a/q9/` for Q9. The full run was taken before the four fixes of 14.4. Those
+change the folder menu and the menu's focus, which no flow uses, so the run was not repeated.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | verdict |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | pass |
+| Q2 | 5 (4) over | 5 (4) over | **25 / 25** (was 82 / 61) | 6 | over |
+| Q3 | 2 (2) | 1 (3) | 2 / 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 / 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 / 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 23 / 19 | 10 | over |
+| Q7 | 1 (3) | 1 (3) | 5 / 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 / 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 18 / 24 | 9 | over |
+| Q10 | 1 (2) | 1 (3) | 4 / 4 | 4 | pass |
+| Q11 | 9 (8) over | 12 (10) over | **41 / 43** (was 103 / 80) | 27 | over |
+| Q12 | 3 (3) | 3 (3) | 20 / 19 | 12 | over |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | pass |
+| Q14 | 3 (3) | 3 (3) | 6 / 6 | 6 | pass |
+| Q15 | 1 (2) | 1 (2) | 7 / 7 | 5 | over |
+| Q16 | 2 (2) | 2 (2) | 46 / 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 7 / 7 | 7 | pass |
+| Q18 | 2 (3) | 2 (3) | 27 / 27 | 9 | over |
+| Q19 | 3 (3) | 3 (4) | 12 / 12 | 9 | over |
+| Q20 | 13 (6) over | 13 (8) over | 25 / 25 | 22 | over |
+| Q21 | 2 (2) | 2 (2) | 15 / 15 | 4 | over |
+| Q22 | 2 (2) | 2 (3) | 21 / 21 | 4 | over |
+| Q23 | 2 (3) | 2 (3) | 14 / 14 | 9 | over |
+
+Q9 with a mouse and by touch read 4 in the full run and 3 in the re-run. The page did not
+change. The Ask panel puts focus in its field two frames after it opens, on purpose, and the
+tool looked at once and charged a click. It now waits up to 0.6 seconds for a field the page
+focuses itself.
+
+Where Q2 and Q11 stand now:
+
+* Q2, 25 keys: 3 Tabs to the folder skip link and Enter, 7 Tabs to the tree (the panel's own controls, and Favorites and Recents as one stop each) and
+  Enter on All notes, 4 Tabs to the header toolbar, 2 arrows to Templates, Enter, Enter to pick, 4
+  Shift+Tabs to the Ticker field, Tab. What is left is the route itself: the flow starts on
+  Research Home, which has no template door (12.4).
+* Q11, 41 keys: the same 12 to reach and press All notes, 7 Tabs to the first tick, then 2 Tabs and a
+  Space for each of the other four notes, then the bulk bar. The eight Tabs between the ticks
+  are the list: every note is two stops (its tick box and its card).
+
+### 14.4 Four defects the browser walk found
+
+`tools/notebook_fin_keys_folder_walk.py` walks the panel in a real browser. Its first runs
+failed on the keyboard menu, and each failure was a real defect. None showed in jsdom.
+
+1. **An anchored menu never took focus when "reduce motion" was on.** This is in shared code
+   (`components/mobile/ContextPopover.jsx`) and is older than this lane. `styles/tokens.css`
+   gives every element a 0.01 ms transition on every property when reduce motion is on. So
+   the menu's change from hidden to visible is a transition, and at the instant it starts the
+   menu is still computed hidden. A browser silently refuses to focus a hidden element. The
+   component asked once, at that instant. The trace from the browser: one call,
+   `focus() on menuitem:Rename ... vis=hidden`, and no focus event at all. The menu was on
+   screen and every key went to the page behind it. It affected every anchored ContextPopover
+   menu for a member with reduce motion on. It now asks again each frame until focus is inside.
+2. The menu key also raises the browser's own context menu. It is held back right after the
+   key; a right-click still gets the browser's menu.
+3. A second open for the same folder replaced the open menu's anchor, and the menu gave focus
+   back to the row. A second open for the same folder now changes nothing.
+4. Rename (and Add subfolder) from the menu closed at once with nothing renamed. The menu
+   hands focus back to the row as it closes; the field had just taken focus, lost it, and it
+   saves on blur. The field now opens a frame after the menu has let go.
+
+The lesson for this repo is the first one: jsdom focuses a hidden element and has no
+transitions, so a test that only asks "is focus in the menu" cannot see it.
+`ContextPopover.focusWhenVisible.test.jsx` makes jsdom refuse the way the browser does.
+
+### 14.5 The walk, and the tests
+
+The folder walk, last run (`docs/notebook/evidence/fin-keys2/folder-walk-final2/`), 19 steps,
+0 failed, integrity CLEAN:
+
+| input | steps, all ok |
+|---|---|
+| mouse, 1280 px | expand a folder; select a folder; the panel is still there; rename; add a subfolder; the Publish action opens its confirmation; delete (with its confirmation) |
+| touch, 390 px | the same seven |
+| keyboard, 1280 px | the tree is one Tab stop and no control inside it is; one Tab leaves the tree; Home, End, typing a name, Right into a folder, Left back out; Enter selects; Shift+F10 opens the menu and Rename from it renames the folder on the server |
+
+The earlier runs of the walk are committed too (`folder-walk-1` to `-6`, `-final`), the
+failing ones included.
+
+| tests (from `app/`, `--maxWorkers=2`) | totals |
+|---|---|
+| every `FolderSidebar*` and `NotebookTab*` test, every ContextPopover user, the a11y directory, the onboarding directory, `src/hub/`, `src/pages/command/`, the two hooks' tests, `styles/tapFloor.test.js`, `styles/tokens.reachable.test.js`, layout tests | 236 files passed; 2987 tests passed, 1 skipped |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 65 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+| first-open bytes | 2,213,947 B of 2,260,793 B, PASS |
+
+### 14.6 Asked for and not done
+
+* **The notes list as one Tab stop** (item 2, second half). Each note is still two stops. This
+  is what is left in Q11. The list has selection keys from lane 13Q-5 (Shift+Arrow,
+  Ctrl+Alt+B) and tests that pin them; they were not read, so nothing was changed.
+* **Item 3, all of it:** the one remaining change for Q21, Q22, Q18, Q12, Q20, Q6, Q9, Q15
+  and Q19. Their counts are the same as in section 13, and the causes are in 13.4.
+* **Q16** lives in `Settings.jsx`. Proposal only, as asked: the Voice Insights Inbox is at the
+  end of the Compass and Voice section, 33 stops in. A skip link "Skip to your notices" on the
+  Settings page, or the inbox first in its section, would bring Q16 from 46 to about 8.
+* The full 23-flow run was not repeated after the four fixes of 14.4.
+
+### 14.7 For a screen reader user to check by hand
+
+No screen reader was run. Everything below is asserted by markup and by tests of the rendered
+names and roles, not by listening.
+
+1. On entering the folder panel: is it announced as a tree named "Folders", with the row's
+   name, its level, "collapsed" or "expanded", and "selected" on the open folder?
+2. The standing rows carry their count in the name ("All notes, 56"). Is that read well, or
+   is the number read as part of the name in a confusing way?
+3. A folder row holds real buttons (expand, the folder's own button, Rename, Add subfolder,
+   Delete). They are out of the Tab order. Does the reader's browse mode still list them
+   inside the tree item, and is that noise or useful?
+4. Shift+F10 on a folder: is the menu announced with the folder's name, and do the arrow keys
+   read each item? After choosing Rename, is the rename field announced, and after Enter does
+   focus return to the folder row with its new name?
+5. With reduce motion ON in the operating system: open any anchored menu (a folder's menu, a
+   chart's block menu on a wide screen). Focus should be in the menu at once (14.4, defect 1).
+6. Type-ahead: letters typed on a row move focus by name. Does the reader's own single-letter
+   navigation take the keys first in browse mode? In focus mode it should not.
+7. The notes inside an open folder are rows of the tree at the next level. Is a long folder
+   of notes tiring to arrow through, and is Left to the parent discoverable?
+8. The focus mark on a folder row is a gold ring on the row and a gold bar down the left of
+   the folder and its contents. Is it visible enough in all three themes at 200 percent zoom?
