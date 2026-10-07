@@ -88,7 +88,7 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
     () => sortRows(filterRows(all, { lens, minPrice, minVolume }), sort).slice(0, MAX_ROWS),
     [all, lens, minPrice, minVolume, sort],
   )
-  const cmds = useMemo(() => rows.map((r) => `${r.sym}`), [rows])
+  const cmds = useMemo(() => rows.map((r) => `$${r.sym}`), [rows])
   const rowSyms = useMemo(() => rows.map((r) => r.sym), [rows])
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
 

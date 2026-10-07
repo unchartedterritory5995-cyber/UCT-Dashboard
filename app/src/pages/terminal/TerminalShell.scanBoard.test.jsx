@@ -212,8 +212,10 @@ describe('scan-to-board — a typed list', () => {
     const lib = JSON.parse(store.prefs.terminal_boards)
     expect(lib.boards.map((b) => b.name)).toEqual(['GP · your list'])
     expect(lib.boards[0].layout.panels.slice(0, 4).map((p) => p.sym)).toEqual(['NVDA', 'AMD', 'MSFT', 'TSLA'])
-    // No new preference key: only the two the terminal already owns (plus the groups) were written.
-    expect([...new Set(store.writes.map(([k]) => k))].sort()).toEqual(['terminal_boards', 'terminal_layout'])
+    // No new preference key: only keys the terminal already owns were written (the typed line also
+    // lands in the existing command history).
+    expect([...new Set(store.writes.map(([k]) => k))].sort())
+      .toEqual(['terminal_boards', 'terminal_command_history', 'terminal_layout'])
     expect(notice()).toMatch(/Saved as GP · your list/)
     expect(screen.getByTestId('terminal-notice-board-next')).toBeTruthy()
     expect(screen.getByTestId('terminal-notice-revert')).toBeTruthy()
