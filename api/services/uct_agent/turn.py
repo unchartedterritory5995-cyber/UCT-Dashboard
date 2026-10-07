@@ -44,7 +44,7 @@ from typing import Any, Callable
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
 MUTATING = ("apply", "propose")
 MAX_MESSAGE = 2000
-MAX_CONTEXT_BYTES = 12000
+MAX_CONTEXT_BYTES = 24000   # charts + layouts + watchlists + the Screener field catalog (~4 KB)
 MAX_OPS = 12
 MAX_RESEARCH_CALLS = 1
 MAX_TOKENS = 2048
@@ -65,6 +65,7 @@ def model() -> str:
 # ── the capability manifest (from the browser registry) ──────────────────────
 MAX_CAPABILITIES = 60
 MAX_CAP_BYTES = 6000
+MAX_HINTS = 1000
 _CAP_NAME = re.compile(r"^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$")
 _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum", "const",
                 "items", "anyOf", "description"}
@@ -111,7 +112,9 @@ def validate_manifest(caps: Any) -> list[dict]:
         out.append({
             "name": name,
             "summary": str(c.get("summary") or "")[:400],
-            "hints": str(c.get("hints"))[:400] if c.get("hints") else None,
+            # 1000, not 400: a capability's hints carry its usage rules (widget.add's alias
+            # rule, screener.run's field/refine rules); a cut there silently changes behaviour.
+            "hints": str(c.get("hints"))[:MAX_HINTS] if c.get("hints") else None,
             "target": str(c.get("target") or "")[:40],
             "risk": "confirm" if c.get("risk") == "confirm" else "local",
             "args": args,
