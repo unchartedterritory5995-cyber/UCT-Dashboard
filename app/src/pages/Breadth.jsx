@@ -44,7 +44,7 @@ export {
 }
 import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
-import { useInTerminalPanel } from '../components/terminal'
+import { useInTerminalPanel, PanelState } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
 import { formatNumber } from '../lib/presentation/presentationPrimitives'
 
@@ -1134,7 +1134,7 @@ export default function Breadth() {
                 : isLoading ? 'Loading…' : 'No data')
             : (grid.count > 0
                 ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : grid.ready ? 'No data' : 'Loading…')}
+                : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')}
         </span>
         {activeTab === 'breadth' && (
           <button
@@ -1180,6 +1180,19 @@ export default function Breadth() {
           belongs above the LATEST window; teleported back in time, "today" has
           no business sitting over a historical sheet. */}
       {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
+
+      {/* Completeness audit 2026-10-07: the Monitor grid swallowed a failed timeline read and
+          failed row blocks -- "Loading…" forever, rows that never filled. Said, with a Retry;
+          a failed row is never drawn as data (it stays an unfilled row under this notice). */}
+      {activeTab === 'breadth' && (grid.datesFailed || grid.blocksFailed > 0) && (
+        <PanelState kind="error" compact role="status" testId="breadth-monitor-failed"
+          title={grid.datesFailed
+            ? (grid.count > 0
+                ? "The breadth timeline couldn't be refreshed; the saved sessions are shown."
+                : "The breadth monitor couldn't be loaded right now.")
+            : "Some breadth sessions couldn't be loaded; their rows are left empty, not zero."}
+          action={<button type="button" onClick={() => grid.retry()}>Retry</button>} />
+      )}
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap} ref={tableWrapRef}>

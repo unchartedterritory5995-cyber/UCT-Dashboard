@@ -46,7 +46,7 @@ export default function useMonitorGrid({ enabled, liveRow }) {
   // (no wait for the /dates round-trip), then revalidate + rewrite the cache.
   const datesFallbackRef = useRef(undefined)
   if (datesFallbackRef.current === undefined) datesFallbackRef.current = readLS(LS_DATES) || undefined
-  const { data: datesData } = useSWR(
+  const { data: datesData, error: datesError, mutate: mutateDates } = useSWR(
     enabled ? '/api/breadth-monitor/dates' : null, fetcher,
     {
       revalidateOnFocus: false,
@@ -74,6 +74,10 @@ export default function useMonitorGrid({ enabled, liveRow }) {
   }
   const loadedRef = useRef(new Set())     // block index -> loaded
   const loadingRef = useRef(new Set())    // block index -> in flight
+  // block index -> its last read FAILED. Completeness audit 2026-10-07: a failed block (and a
+  // failed /dates) was swallowed -- the rows stayed skeletons and the header said "Loading…"
+  // forever. The failure is now reported up (blocksFailed / datesFailed) with a `retry`.
+  const failedRef = useRef(new Set())
   const [version, setVersion] = useState(0)
 
   // A new timeline (or live row) invalidates the block bookkeeping but not the row
@@ -84,6 +88,7 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     idxKeyRef.current = idxKey
     loadedRef.current = new Set()
     loadingRef.current = new Set()
+    failedRef.current = new Set()
   }
 
   const fetchBlock = useCallback(async (k) => {
@@ -98,6 +103,7 @@ export default function useMonitorGrid({ enabled, liveRow }) {
         `/api/breadth-monitor?days=${stored.length}&end=${stored[0]}&anchor=le`)
       for (const row of res?.rows ?? []) cacheRef.current.set(row.date, row)
       loadedRef.current.add(k)
+      failedRef.current.delete(k)
       setVersion((v) => v + 1)
       // Persist the freshly-revalidated recent window for the next instant open.
       if (k === 0) {
@@ -106,7 +112,10 @@ export default function useMonitorGrid({ enabled, liveRow }) {
         if (recent.length) writeLS(LS_RECENT, recent)
       }
     } catch {
-      /* leave unloaded — it retries on the next range change */
+      // Left unloaded, so the next range change asks again -- and REPORTED, so the sheet says
+      // these rows failed rather than drawing skeletons that never resolve.
+      failedRef.current.add(k)
+      setVersion((v) => v + 1)
     } finally {
       loadingRef.current.delete(k)
     }
@@ -134,6 +143,7 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     cacheRef.current = new Map()
     loadedRef.current = new Set()
     loadingRef.current = new Set()
+    failedRef.current = new Set()
     setVersion((v) => v + 1)
     const [f, l] = lastRangeRef.current
     const b0 = Math.max(0, Math.floor(f / BLOCK) - 1)
@@ -142,6 +152,15 @@ export default function useMonitorGrid({ enabled, liveRow }) {
   }, [fetchBlock])
 
   useEffect(() => () => clearTimeout(settleRef.current), [])
+
+  // Retry: re-ask the timeline index, and every block whose read failed.
+  const retry = useCallback(() => {
+    mutateDates()
+    const failed = [...failedRef.current]
+    failedRef.current = new Set()
+    setVersion((v) => v + 1)
+    for (const k of failed) fetchBlock(k)
+  }, [mutateDates, fetchBlock])
 
   const getRow = useCallback((i) => {
     const d = allDates[i]
@@ -186,5 +205,10 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     allDates, getRow, trail, ensureRange, refresh, indexOfDate, indexOfYearStart,
     min: datesData?.min ?? null, max: datesData?.max ?? null,
     ready: !!datesData, count: allDates.length,
+    // a failed /dates read (with a saved index on screen, `count` stays > 0 and the sheet still
+    // draws the saved dates; without one there is nothing to draw)
+    datesFailed: Boolean(datesError),
+    blocksFailed: failedRef.current.size,
+    retry,
   }
 }
