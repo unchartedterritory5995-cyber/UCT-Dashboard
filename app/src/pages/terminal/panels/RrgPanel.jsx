@@ -166,7 +166,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
             {rows.map((r, i) => (
               <tr key={r.sym} data-testid={`terminal-rrg-row-${r.sym}`}>
                 <td>
-                  <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`${r.sym} GP`)} title={`Open ${r.sym} GP`}>
+                  <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`${r.sym} GP`, { next: true })} title={`Open ${r.sym} GP beside this graph`}>
                     <span className={styles.rowNum}>{i + 1}</span>
                     <span className={styles.symCell}>{r.sym}</span>
                     {r.name ? <span className={styles.muted}> {r.name}</span> : null}
@@ -201,7 +201,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         Closes through {asOf}{cadence === 'W' ? ' (the newest week is still forming until Friday\'s close)' : ''}.
         UCT&apos;s approximation, not JdK&apos;s proprietary formula: RS = 100 × price ÷ {RRG_BENCHMARK};
         RS-Ratio = 100 × RS ÷ its {RRG_METHOD.ratioLen}-{unit} average; RS-Momentum = 100 × RS-Ratio ÷ its{' '}
-        {RRG_METHOD.momLen}-{unit} average. Tails show the last {RRG_METHOD.tail} {unit}s. Type a row number to open its chart.
+        {RRG_METHOD.momLen}-{unit} average. Tails show the last {RRG_METHOD.tail} {unit}s. Click a row, or type its number, to open its chart beside this graph.
       </p>
     </div>
   )

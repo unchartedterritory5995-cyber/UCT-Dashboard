@@ -119,7 +119,7 @@ describe('MOST', () => {
     fireEvent.click(screen.getByTestId('terminal-movers-why-AAA'))
     expect(screen.getByTestId('terminal-movers-thesis-AAA').textContent).toContain('Beat and raised guidance.')
     fireEvent.click(screen.getByText('Open AAA MOVE'))
-    expect(onRun).toHaveBeenCalledWith('AAA MOVE')
+    expect(onRun).toHaveBeenCalledWith('AAA MOVE', { next: true })
   })
 
   it('outside the regular session it never says Live, and names the basis it is showing', async () => {

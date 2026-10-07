@@ -55,8 +55,14 @@ vi.mock('./panels', async (importOriginal) => {
             return (
               <div data-testid="stub-Movers" data-lens={lens || ''}>
                 <button type="button" onClick={() => onRun?.('$AMD', { keepFunction: true })}>row AMD</button>
+                <button type="button" onClick={() => onRun?.('AMD MOVE', { next: true })}>story AMD</button>
               </div>
             )
+          }
+          : name === 'Rrg'
+          ? function RrgStub({ onRows }) {
+            useEffect(() => { onRows?.(['XLK GP', 'XLU GP']) }, [onRows])
+            return <div data-testid="stub-Rrg">Rrg</div>
           }
           : function Stub({ sym }) { return <div data-testid={`stub-${name}`}>{name}:{sym || '-'}</div> })
       }
@@ -191,5 +197,58 @@ describe('a movers row loads the name into the linked panels', () => {
     expect(code(1)).toBe('MOST')
     const lensed = screen.getAllByTestId('stub-Movers').map((n) => n.getAttribute('data-lens'))
     expect(lensed).toContain('down')
+  })
+})
+
+describe('an "open X" link inside a list opens BESIDE the list, never over it', () => {
+  it('the MOST story link "Open AMD MOVE" adds a panel after MOST when the board has room; MOST, GP and FA stay', async () => {
+    seedBoard()
+    renderShell()
+    await act(async () => { fireEvent.mouseDown(screen.getByTestId('terminal-panel-0')) })
+    await act(async () => { fireEvent.click(screen.getByText('story AMD')) })
+    expect([code(0), code(1), code(2), code(3)]).toEqual(['MOST', 'MOVE', 'GP', 'FA'])
+    expect(screen.getByTestId('stub-Move')).toHaveTextContent('Move:AMD')
+    // MOST is unlinked, so the new panel is too: group A (GP, FA) still shows NVDA.
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:NVDA')
+    expect(notice()).toBe('Opened AMD MOVE in a new panel 2; MOST stays in panel 1.')
+  })
+
+  it('a second story replaces the first MOVE beside the list instead of stacking another panel', async () => {
+    seedBoard()
+    renderShell()
+    await act(async () => { fireEvent.mouseDown(screen.getByTestId('terminal-panel-0')) })
+    await act(async () => { fireEvent.click(screen.getByText('story AMD')) })
+    await act(async () => { fireEvent.mouseDown(screen.getByTestId('terminal-panel-0')) })
+    await act(async () => { fireEvent.click(screen.getByText('story AMD')) })
+    expect([code(0), code(1), code(2), code(3)]).toEqual(['MOST', 'MOVE', 'GP', 'FA'])
+    expect(screen.getAllByTestId('stub-Move')).toHaveLength(1)
+  })
+
+  it('on a full board it reuses the next visible panel, and MOST is still kept', async () => {
+    seedBoard()
+    const lay = JSON.parse(store.prefs.terminal_layout)
+    lay.count = 4
+    lay.panels = [...lay.panels, { id: 'p4', code: 'DES', channel: 'A', sym: null, args: [] }]
+    store.prefs.terminal_layout = JSON.stringify(lay)
+    renderShell()
+    await act(async () => { fireEvent.mouseDown(screen.getByTestId('terminal-panel-0')) })
+    await act(async () => { fireEvent.click(screen.getByText('story AMD')) })
+    expect([code(0), code(1), code(2), code(3)]).toEqual(['MOST', 'MOVE', 'FA', 'DES'])
+    expect(notice()).toBe('Opened AMD MOVE in panel 2; MOST stays in panel 1.')
+  })
+
+  it('an RRG row typed by number opens its chart beside the graph, exactly as clicking it does', async () => {
+    store.prefs = {
+      terminal_layout: JSON.stringify({ ...DEFAULT_LAYOUT, count: 1, focus: 0,
+        panels: [{ id: 'p1', code: 'RRG', channel: null, sym: null, args: [] }, ...DEFAULT_LAYOUT.panels.slice(1)], closed: [] }),
+      charts_workspace_groups: JSON.stringify({ A: 'NVDA' }),
+    }
+    renderShell()
+    await screen.findByTestId('stub-Rrg')
+    const input = screen.getByTestId('terminal-command')
+    fireEvent.change(input, { target: { value: '2' } })
+    await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }) })
+    expect([code(0), code(1)]).toEqual(['RRG', 'GP'])
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:XLU')
   })
 })

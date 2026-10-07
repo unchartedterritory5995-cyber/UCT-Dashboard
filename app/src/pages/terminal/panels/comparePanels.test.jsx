@@ -40,8 +40,8 @@ describe('RRG', () => {
     expect(screen.getByTestId('rrg-point-XLK').getAttribute('data-quadrant')).toBe('Leading')
     expect(screen.getByTestId('terminal-rrg-row-XLK').textContent).toContain('Technology')
     expect(onRows).toHaveBeenLastCalledWith(['XLK GP', 'XLU GP'])
-    fireEvent.click(screen.getByTitle('Open XLU GP'))
-    expect(onRun).toHaveBeenCalledWith('XLU GP')
+    fireEvent.click(screen.getByTitle('Open XLU GP beside this graph'))
+    expect(onRun).toHaveBeenCalledWith('XLU GP', { next: true })
     expect(screen.getByTestId('terminal-rrg-method').textContent).toContain("not JdK's proprietary formula")
     // a11y (audit 2026-10-06): the graph's name states what it SHOWS, and the table is named
     expect(screen.getByRole('img', { name: /vs SPY.*Leading: XLK\..*Lagging: XLU\./ })).toBeTruthy()
