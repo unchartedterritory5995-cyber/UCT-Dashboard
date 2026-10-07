@@ -1378,6 +1378,19 @@ def availability() -> dict:
         if ex is not None:                       # ⭐ NYSE/NASDAQ: ask THEIR authority, never the V1 store
             out[uid] = ex
             continue
+        # ⭐ US UNDER V2: ask the V2 authority too (2026-10-07). The V1 store still holds rows the
+        # member never sees (it reported a session the served chart did not have yet), and the
+        # library's "data through" line is a promise about the SERVED series.
+        try:
+            from api.services import breadth_authority as _ba
+            v2_ds = _ba.universe_dates(uid)
+        except Exception:
+            v2_ds = None
+        if v2_ds is not None:
+            out[uid] = {"state": "available" if v2_ds else "not_populated", "rows": len(v2_ds),
+                        "first": v2_ds[0] if v2_ds else None, "last": v2_ds[-1] if v2_ds else None,
+                        "floor": floor, "authority": "breadth-v2"}
+            continue
         try:
             st = _store.stats(uid) or {}
         except Exception:

@@ -91,3 +91,18 @@ def test_a_signed_breadth_quote_has_no_percent(monkeypatch):
     assert q["UCTMC"]["change"] == pytest.approx(25.0) and q["UCTMC"]["change_pct"] is None
     assert q["UCTA50"]["change_pct"] == pytest.approx(50.0)
     assert all(math.isfinite(v["change"]) for v in q.values())
+
+
+def test_us_data_through_is_the_v2_authority_not_the_v1_store(monkeypatch):
+    """⛔ The library's "data through" line is a promise about the SERVED series. Under V2 the old
+    V1 store can hold a session members do not have yet — it must not leak into availability."""
+    from api.services import breadth_symbols as bs
+    from api.services import breadth_authority as ba
+    from api.services import breadth_daily_ohlc as store
+    monkeypatch.setattr(ba, "universe_dates", lambda u, since="": ["2008-01-02", "2026-10-05"] if u == "us" else None)
+    monkeypatch.setattr(store, "stats", lambda u="uct": {"rows": 9, "first": "2008-01-02", "last": "2026-10-06"})
+    bs._avail_cache.update(at=0.0, value=None)
+    av = bs.availability()
+    assert av["us"]["last"] == "2026-10-05" and av["us"]["authority"] == "breadth-v2"
+    assert av["uct"]["last"] == "2026-10-06"           # UCT is not V2-owned here: unchanged path
+    bs._avail_cache.update(at=0.0, value=None)
