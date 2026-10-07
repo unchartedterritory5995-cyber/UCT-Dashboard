@@ -336,6 +336,8 @@ export default function ChartSettingsModal({
   onCreateFormula = null,
   // ⭐ P2 Track B — Create Indicator's door; passed through to the Indicators tab.
   onCreateIndicator = null,
+  // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
+  definitionDoors = null,
 }) {
   const panelRef = useRef(null)
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
@@ -1289,6 +1291,7 @@ export default function ChartSettingsModal({
             openRowId={indTargetRow(scrollTo)}
             chartTf={chartTf}
             chartFeatures={chartFeatures}
+            definitionDoors={definitionDoors}
             openAdd={scrollTo === 'add'}
           />
           )}

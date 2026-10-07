@@ -131,9 +131,12 @@ export function useUserDefinitions() {
 /**
  * @param {object} definition
  * @param {string|null} [defId]
- * @param {{previewAcked?: boolean}|null} [options] P0/0P — `previewAcked:
+ * @param {{previewAcked?: boolean, baseVersion?: number}|null} [options] P0/0P — `previewAcked:
  *   true` says every `preview-repaints` plot in this save was acknowledged by
  *   the author (the server's `repaint_acknowledged`; never persisted).
+ *   ⭐ PHASE 4 — `baseVersion`: the version an EDIT opened. The server refuses a
+ *   stale write (409) instead of overwriting a newer version; the result then
+ *   carries `conflict: true` and the server's own sentence.
  * @param {{importId: string, dialect?: string}|null} [telemetry] Phase One
  *   Track C — TELEMETRY-ONLY, never merged into `definition`. Lets the
  *   server's `import_accepted` event join back to whichever client-observed
@@ -174,6 +177,8 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
         // and never persisted — the same contract as the sheet's checkbox (it
         // is NOT the alert-arm acknowledgement the document can carry).
         ...(options && options.previewAcked === true ? { repaint_acknowledged: true } : {}),
+        // ⭐ PHASE 4 — revision-aware save: only an EDIT sends the version it opened.
+        ...(defId && options && Number.isInteger(options.baseVersion) ? { base_version: options.baseVersion } : {}),
       }),
     })
   } catch {
@@ -208,7 +213,49 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
     // `detail` is either '' or a real sentence, and the `||` is then honest.
     if (typeof body?.detail === 'string') detail = body.detail.trim()
   } catch { /* not JSON — an HTML error page, or an empty body */ }
-  return { ok: false, error: detail || `The server refused this formula (${r.status}).` }
+  return {
+    ok: false,
+    error: detail || `The server refused this formula (${r.status}).`,
+    // ⭐ PHASE 4 — a stale edit: nothing was saved; the editor says so in its words.
+    ...(r.status === 409 ? { conflict: true } : {}),
+  }
+}
+
+/**
+ * ⭐ PHASE 4 — DUPLICATE AS A NEW INDICATOR ("Create custom copy"). The server
+ * copies the caller's OWN live definition under a NEW id with its own history
+ * (`POST /{def_id}/fork`); nothing about the source changes.
+ * @returns {Promise<{ok: true, row: object} | {ok: false, error: string}>}
+ */
+export async function forkUserDefinition(defId) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/fork`, {
+      method: 'POST', credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  if (r.ok) {
+    mutate(USER_DEFINITIONS_KEY)
+    mutate(META_KEY)
+    let made = null
+    try { made = await r.json() } catch { /* a body-less 200 is still a copy */ }
+    if (!made || !made.def_id) return { ok: false, error: 'The copy was made but the server did not say where.' }
+    // The fork answer is the save receipt; the caller needs the STORED row (its
+    // definition) to draw and open the copy — read it back through the ordinary door.
+    try {
+      const g = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(made.def_id)}`, { credentials: 'include' })
+      if (g.ok) {
+        const row = await g.json()
+        if (row && row.def_id && row.definition) return { ok: true, row }
+      }
+    } catch { /* fall through */ }
+    return { ok: true, row: { def_id: made.def_id, version: made.version, definition: null } }
+  }
+  let detail = ''
+  try { const body = await r.json(); if (typeof body?.detail === 'string') detail = body.detail.trim() } catch { /* not JSON */ }
+  return { ok: false, error: detail || `The server could not copy this indicator (${r.status}).` }
 }
 
 /** HTTP statuses that are an AUTHORITATIVE "this session has no definitions".

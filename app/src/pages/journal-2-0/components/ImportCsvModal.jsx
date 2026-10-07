@@ -55,6 +55,13 @@ async function refusalOf(res) {
 
 const asSentence = (text) => (/[.!?]$/.test(text) ? text : `${text}.`)
 
+// What a failed step tells the member. The ONLY text taken from the failure is `reason`,
+// which `refusalOf` sets for one case alone: the server's own sentence for a file refused
+// for its size. The exception's message never reaches the member (rawErrorSurface.test.js),
+// so the message is built here, from that one vetted value, and not inside a catch.
+const sizeReason = (err) => (typeof err?.reason === 'string' && err.reason ? err.reason : null)
+const failedMessage = (reason, outcome, fallback) => (reason ? `${asSentence(reason)} ${outcome}` : fallback)
+
 export default function ImportCsvModal({ onConfirmed, onClose }) {
   const { accountId, accounts } = useJ2SelectedAccount()
   const [step, setStep] = useState('drop') // drop | mapping | preview
@@ -89,9 +96,8 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       else setStep('preview')
     } catch (e) {
       console.error('Failed to preview CSV import:', e)
-      setErrorMsg(e?.reason
-        ? `${asSentence(e.reason)} Nothing was imported.`
-        : "Couldn't read this file. Nothing was imported — try again.")
+      setErrorMsg(failedMessage(sizeReason(e), 'Nothing was imported.',
+        "Couldn't read this file. Nothing was imported — try again."))
     } finally {
       setBusy(false)
     }
@@ -115,9 +121,8 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       setStep('preview')
     } catch (e) {
       console.error('Failed to preview mapped CSV import:', e)
-      setErrorMsg(e?.reason
-        ? `${asSentence(e.reason)} Nothing was imported.`
-        : "Couldn't read this file with that column mapping. Nothing was imported — try again.")
+      setErrorMsg(failedMessage(sizeReason(e), 'Nothing was imported.',
+        "Couldn't read this file with that column mapping. Nothing was imported — try again."))
     } finally {
       setBusy(false)
     }
@@ -176,9 +181,8 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       onClose?.()
     } catch (e) {
       console.error('Failed to import trades:', e)
-      setErrorMsg(e?.reason
-        ? `${asSentence(e.reason)} Nothing was added.`
-        : "Couldn't import these trades. Nothing was added — try again.")
+      setErrorMsg(failedMessage(sizeReason(e), 'Nothing was added.',
+        "Couldn't import these trades. Nothing was added — try again."))
     } finally {
       setBusy(false)
     }

@@ -12,6 +12,7 @@
  */
 import useSWR from 'swr'
 import { notebookFlag } from '../lib/offline/notebookFlags'
+import { usableBaseline } from '../lib/offline/baseline'
 
 export const ENTRY_CONTEXT_FLAG = 'notebook_entry_context_enabled'
 const BASE = '/api/j2/entry-context'
@@ -78,7 +79,7 @@ export async function putWhy(symbol, entryDay, text, baseUpdatedAt = null) {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ symbol, entryDay, text, baseUpdatedAt: baseUpdatedAt ?? null }),
+    body: JSON.stringify({ symbol, entryDay, text, baseUpdatedAt: usableBaseline(baseUpdatedAt) }),
   })
   if (!res.ok) {
     let detail = `Could not save (${res.status})`

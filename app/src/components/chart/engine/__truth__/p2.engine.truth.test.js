@@ -452,9 +452,11 @@ describe('P2 engine — atomicity, undo, multi-output, imports, semantics, prose
 describe('P2 engine — fidelity, view and the shared patch fixture', () => {
   it('UNREPRESENTABLE — a definition carrying a field the Builder would drop is refused, never rebuilt without it (REFUSAL)', () => {
     const d = created()
-    const odd = deepFreeze({ ...d, plots: d.plots.map((p, i) => (i === 0 ? { ...p, legend: { decimals: 4 } } : p)) })
+    // ⭐ PHASE 4 — MATHS the row model cannot hold (an unknown compute stage) still
+    // refuses; a presentation field it cannot author is CARRIED (phase4 tests).
+    const odd = deepFreeze({ ...d, compute: { ...d.compute, importedStage: { kind: 'foreign' } } })
     const r = applyPatch(odd, env({ revision: 0 }, [{ op: 'rename_definition', name: 'x' }]))
-    expect(r.errors[0]).toMatchObject({ code: 'authoring:unrepresentable', paths: ['plots[value].legend.decimals'] })
+    expect(r.errors[0]).toMatchObject({ code: 'authoring:unrepresentable', paths: ['compute.importedStage'] })
     const native = applyPatch({ id: 'rsi', compute: { kind: 'native', fn: 'rsi' }, plots: [{ key: 'rsi' }] },
       env({ revision: 0 }, [{ op: 'rename_definition', name: 'x' }]))
     expect(native.errors[0].code).toBe('authoring:kind')

@@ -26,6 +26,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import VoiceInputButton from './VoiceInputButton'
 import { notebookFlag } from '../lib/offline/notebookFlags'
 import { putWhy, WHY_CHANGED } from '../hooks/useEntryContext'
+import { usableBaseline } from '../lib/offline/baseline'
 import styles from './WhyPrompt.module.css'
 
 export const VOICE_NOTES_FLAG = 'notebook_voice_notes_enabled'
@@ -62,7 +63,9 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   // "cleared"); undefined when there is no conflict to show.
   const [theirs, setTheirs] = useState(undefined)
   // The version the typed words are based on. A ref: it is read at Save, never rendered.
-  const base = useRef(why?.updatedAt ?? null)
+  // Chosen through the one baseline authority (lib/offline/baseline.js): an empty string is
+  // "no version", exactly like null, so it can never go out as a compare-and-set.
+  const base = useRef(usableBaseline(why?.updatedAt))
 
   // Reseed when the identity changes (a different position's card) or the server's own
   // answer changes (another tab saved it) — never mid-edit on this same key.
@@ -74,13 +77,13 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
     focusAfterRef.current = null
     setHeard(undefined)
     setTheirs(undefined)
-    base.current = why?.updatedAt ?? null
+    base.current = usableBaseline(why?.updatedAt)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, entryDay])
 
   // Once the parent's refetch catches up with what the server told us, the prop leads again.
   useEffect(() => {
-    if (heard !== undefined && (why?.updatedAt ?? null) === (heard?.updatedAt ?? null)) setHeard(undefined)
+    if (heard !== undefined && usableBaseline(why?.updatedAt) === usableBaseline(heard?.updatedAt)) setHeard(undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [why?.updatedAt])
 
@@ -89,7 +92,7 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   const known = heard !== undefined ? heard : (why || null)
 
   const startEditing = () => {
-    base.current = known?.updatedAt ?? null   // taken HERE; a refetch mid-edit never moves it
+    base.current = usableBaseline(known?.updatedAt)   // taken HERE; a refetch mid-edit never moves it
     setText(known?.text || '')
     focusAfterRef.current = 'field'           // focus lands in the text field (FIN-A11Y)
     setNotice('')
@@ -103,7 +106,7 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
       const res = await putWhy(symbol, entryDay, text, base.current)
       const saved = res.context?.why ?? null
       setHeard(saved)
-      base.current = saved?.updatedAt ?? null
+      base.current = usableBaseline(saved?.updatedAt)
       setTheirs(undefined)
       focusAfterRef.current = 'edit'
       setEditing(false)
@@ -116,7 +119,7 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
         const current = e.current ?? null
         setTheirs(current)
         setHeard(current)
-        base.current = current?.updatedAt ?? null
+        base.current = usableBaseline(current?.updatedAt)
       }
       setError(e.message || 'Could not save.')
     } finally {

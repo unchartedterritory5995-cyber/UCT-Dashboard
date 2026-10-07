@@ -247,8 +247,15 @@ async function uploadMediaItem(noteId, item) {
     // over its size cap is a 413 "File must be < 25 MB", a type that is not allowed
     // a 400 that names the type. Say that. A 5xx detail is plumbing, so it keeps
     // the bare status.
-    const refusal = res.status < 500 ? await res.json().catch(() => null) : null
-    const said = typeof refusal?.detail === 'string' ? refusal.detail : null
+    // The upload has already failed here and the summary says so either way: a body
+    // that is not JSON only means there is no sentence to quote.
+    let said = null
+    if (res.status < 500) {
+      try {
+        const refusal = await res.json()
+        if (typeof refusal?.detail === 'string') said = refusal.detail
+      } catch { /* not JSON: the status below is all there is */ }
+    }
     throw new Error(said || `Upload failed (HTTP ${res.status})`)
   }
   const data = await res.json()

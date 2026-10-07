@@ -134,6 +134,49 @@ window.fetch = async (input, init) => {
     }
     return json({ detail: 'refused by harness' }, 403)
   }
+  // FIXTURE Screener engine (in-page): the same routes and shapes as api/routers/screener.py.
+  // /scan filters a fixed 6-row universe by the posted spec, so counts are REAL for it.
+  if (path.startsWith('/api/screener/')) {
+    const p0 = path.split('?')[0]
+    let body = null
+    try { body = init && init.body ? JSON.parse(init.body) : null } catch { /* */ }
+    H.screener = H.screener || []
+    H.screener.push({ method, path: p0, body })
+    if (p0 === '/api/screener/fields') return json({ fields: [
+      { key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
+      { key: 'chg_pct_1m', label: 'Change 1M', type: 'range', unit: '%' }, { key: 'above_50sma', label: 'Above 50 SMA', type: 'bool', unit: null },
+      { key: 'sector', label: 'Sector', type: 'enum', unit: null },
+    ] })
+    if (p0 === '/api/screener/saved-screens') return json({ saved: [{ id: 7, name: 'Agent Test Screen', spec: { filters: [{ key: 'chg_pct_1m', op: 'gte', min: 20 }], sort: { key: 'chg_pct_1m', dir: 'desc' } } }], starters: [] })
+    if (p0 === '/api/screener/scan' && method === 'POST') {
+      const U = [
+        { ticker: 'RKLB', company: 'Rocket Lab', price: 52.1, adr_pct: 7.2, chg_pct_1m: 31, chg_pct_1d: 2.1, above_50sma: 1 },
+        { ticker: 'ASTS', company: 'AST SpaceMobile', price: 61.4, adr_pct: 8.9, chg_pct_1m: 24, chg_pct_1d: -1.2, above_50sma: 1 },
+        { ticker: 'SOUN', company: 'SoundHound', price: 9.4, adr_pct: 9.5, chg_pct_1m: 12, chg_pct_1d: 3.3, above_50sma: 0 },
+        { ticker: 'PLTR', company: 'Palantir', price: 180.2, adr_pct: 4.1, chg_pct_1m: 9, chg_pct_1d: 0.4, above_50sma: 1 },
+        { ticker: 'NVDA', company: 'NVIDIA', price: 190.3, adr_pct: 3.1, chg_pct_1m: 6, chg_pct_1d: 0.2, above_50sma: 1 },
+        { ticker: 'KO', company: 'Coca-Cola', price: 70.1, adr_pct: 1.1, chg_pct_1m: -2, chg_pct_1d: -0.1, above_50sma: 0 },
+      ]
+      const ok = (r, f) => {
+        const v = r[f.key]
+        if (v == null) return false
+        if (f.op === 'gt') return v > f.min
+        if (f.op === 'gte') return v >= f.min
+        if (f.op === 'lt') return v < f.max
+        if (f.op === 'lte') return v <= f.max
+        if (f.op === 'between') return v >= f.min && v <= f.max
+        if (f.op === 'eq') return v === f.value
+        return false
+      }
+      const unknown = (body.filters || []).find(f => !['adr_pct', 'price', 'chg_pct_1m', 'above_50sma'].includes(f.key))
+      if (unknown) return json({ detail: `Unknown filter "${unknown.key}"` }, 400)
+      let rows = U.filter(r => (body.filters || []).every(f => ok(r, f)))
+      const s = body.sort || { key: 'uct_composite', dir: 'desc' }
+      if (s.key in U[0]) rows = [...rows].sort((a, b) => (s.dir === 'asc' ? 1 : -1) * (a[s.key] - b[s.key]))
+      return json({ total: rows.length, rows: rows.slice(0, body.page_size || 50), snapshot_date: '2026-10-07', snapshot: { live: { state: 'live' } } })
+    }
+    return json({ detail: 'refused by harness' }, 403)
+  }
   if (WATCHLISTS && path.startsWith('/api/watchlists') && !/^\/api\/watchlists\/(flagged|themes-batch|bulk-meta|intelligence|digest-settings|public|prebuilt)/.test(path)) {
     let body = null
     try { body = init && init.body ? JSON.parse(init.body) : null } catch { /* */ }

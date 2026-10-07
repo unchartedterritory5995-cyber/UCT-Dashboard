@@ -634,6 +634,18 @@ function ChartPane({
     setSettingsOpen(false)
     try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
   }, [])
+  /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
+   *  same toolbar calls the legend menu makes. The modal closes first (one surface
+   *  holding Escape at a time — the hazard `openFormulaBuilder` describes). */
+  const definitionDoors = useMemo(() => ({
+    canModify: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
+    modify: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openCreateIndicator?.({ defId }) ?? false } catch { return false } },
+    editFormula: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openFormulaEditor?.({ defId }) ?? false } catch { return false } },
+    customCopy: async (def, inputs) => {
+      setSettingsOpen(false)
+      try { return (await paneToolbarApi.current?.createCustomCopy?.({ def, inputs })) ?? { ok: false } } catch { return { ok: false } }
+    },
+  }), [])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {
     try {
@@ -1120,6 +1132,7 @@ function ChartPane({
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
         onCreateIndicator={openCreateIndicator}
+        definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
       />
       {/* The Create Indicator dock host. Always mounted (so the panel can portal

@@ -972,9 +972,9 @@ exports[`PositionsTable renders identically on the DataGrid seed > every header,
 ]
 `;
 
-exports[`TradesTable renders identically on the DataGrid seed > a sorted state — full HTML 1`] = `"<div class="_tableWrap_0aed41"><table class="_table_0aed41"><thead><tr><th class="_th_0aed41 _thLeft_0aed41" title="Ticker." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Symbol</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Win / Loss / BE per settings.breakevenRange." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Result</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Shares closed in this trade record." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Shares</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Entry price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Entry $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Entry date. Default sort (newest first)." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Entry Date</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Exit price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Exit date." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit Date</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Gross (exit − entry) × shares (Long); sign-flipped for Short." scope="col" aria-sort="descending"><button type="button" class="_thBtn_0aed41 _thBtnActive_0aed41"><span>P&amp;L $</span><span class="_sortCaret_0aed41" aria-hidden="true">▼</span></button></th><th class="_th_0aed41 _thRight_0aed41" title="P&amp;L minus fees/commissions." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Net P&amp;L</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Commissions and fees for this trade." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Fees</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="(exit − entry) / entry." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>P&amp;L %</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Reward / risk, using the ORIGINAL stop — frozen for R math." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>R</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Calendar days between entry and exit, UTC." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Hold</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Setup classification." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Setup</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Original stop (frozen — used for R math)." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Stop</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th></tr></thead><tbody><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">CCC</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$5.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$7.00</td><td class="_td_0aed41 _tdLeft_0aed41">05/08/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$190.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+40.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41">8.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">—</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">AAA</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$10.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/28/26</td><td class="_td_0aed41 _tdRight_0aed41">$12.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/04/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$195.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$5.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+20.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">+2.0R</td><td class="_td_0aed41 _tdRight_0aed41">4.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">$9.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">EEE</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">10</td><td class="_td_0aed41 _tdRight_0aed41">$3.00</td><td class="_td_0aed41 _tdLeft_0aed41">01/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$2.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/02/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$12.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$2.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-33.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-1.5R</td><td class="_td_0aed41 _tdRight_0aed41">2.0d</td><td class="_td_0aed41 _tdLeft_0aed41">Breakout</td><td class="_td_0aed41 _tdRight_0aed41">$2.50</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">BBB</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">50</td><td class="_td_0aed41 _tdRight_0aed41">$20.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$18.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/01/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-10.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-2.0R</td><td class="_td_0aed41 _tdRight_0aed41">1.0d</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$19.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">DDD</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeBe_0aed41">BE</span></td><td class="_td_0aed41 _tdRight_0aed41">1.5</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41">0.0R</td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$95.00</td></tr></tbody></table></div>"`;
+exports[`TradesTable renders identically on the DataGrid seed > a sorted state — full HTML 1`] = `"<div class="_tableWrap_0aed41"><table class="_table_0aed41"><thead><tr><th class="_th_0aed41 _thLeft_0aed41" title="Ticker." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Symbol</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Win / Loss / BE per settings.breakevenRange." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Result</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Shares closed in this trade record." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Shares</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Entry price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Entry $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Entry date. Default sort (newest first)." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Entry Date</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Exit price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Exit date." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit Date</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Gross (exit − entry) × shares (Long); sign-flipped for Short." scope="col" aria-sort="descending"><button type="button" class="_thBtn_0aed41 _thBtnActive_0aed41"><span>P&amp;L $</span><span class="_sortCaret_0aed41" aria-hidden="true">▼</span></button></th><th class="_th_0aed41 _thRight_0aed41" title="P&amp;L minus fees/commissions." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Net P&amp;L</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Commissions and fees for this trade." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Fees</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="(exit − entry) / entry." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>P&amp;L %</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Reward / risk, using the ORIGINAL stop — frozen for R math." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>R</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Calendar days between entry and exit, UTC." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Hold</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Setup classification." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Setup</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Original stop (frozen — used for R math)." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Stop</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th></tr></thead><tbody tabindex="-1" data-route-landing="" aria-label="Trades"><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">CCC</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$5.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$7.00</td><td class="_td_0aed41 _tdLeft_0aed41">05/08/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$190.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+40.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41">8.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">—</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">AAA</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$10.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/28/26</td><td class="_td_0aed41 _tdRight_0aed41">$12.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/04/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$195.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$5.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+20.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">+2.0R</td><td class="_td_0aed41 _tdRight_0aed41">4.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">$9.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">EEE</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">10</td><td class="_td_0aed41 _tdRight_0aed41">$3.00</td><td class="_td_0aed41 _tdLeft_0aed41">01/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$2.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/02/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$12.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$2.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-33.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-1.5R</td><td class="_td_0aed41 _tdRight_0aed41">2.0d</td><td class="_td_0aed41 _tdLeft_0aed41">Breakout</td><td class="_td_0aed41 _tdRight_0aed41">$2.50</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">BBB</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">50</td><td class="_td_0aed41 _tdRight_0aed41">$20.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$18.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/01/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-10.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-2.0R</td><td class="_td_0aed41 _tdRight_0aed41">1.0d</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$19.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">DDD</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeBe_0aed41">BE</span></td><td class="_td_0aed41 _tdRight_0aed41">1.5</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41">0.0R</td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$95.00</td></tr></tbody></table></div>"`;
 
-exports[`TradesTable renders identically on the DataGrid seed > default render — full HTML 1`] = `"<div class="_tableWrap_0aed41"><table class="_table_0aed41"><thead><tr><th class="_th_0aed41 _thLeft_0aed41" title="Ticker." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Symbol</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Win / Loss / BE per settings.breakevenRange." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Result</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Shares closed in this trade record." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Shares</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Entry price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Entry $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Entry date. Default sort (newest first)." scope="col" aria-sort="descending"><button type="button" class="_thBtn_0aed41 _thBtnActive_0aed41"><span>Entry Date</span><span class="_sortCaret_0aed41" aria-hidden="true">▼</span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Exit price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Exit date." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit Date</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Gross (exit − entry) × shares (Long); sign-flipped for Short." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>P&amp;L $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="P&amp;L minus fees/commissions." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Net P&amp;L</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Commissions and fees for this trade." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Fees</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="(exit − entry) / entry." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>P&amp;L %</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Reward / risk, using the ORIGINAL stop — frozen for R math." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>R</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Calendar days between entry and exit, UTC." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Hold</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Setup classification." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Setup</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Original stop (frozen — used for R math)." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Stop</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th></tr></thead><tbody><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">CCC</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$5.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$7.00</td><td class="_td_0aed41 _tdLeft_0aed41">05/08/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$190.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+40.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41">8.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">—</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">DDD</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeBe_0aed41">BE</span></td><td class="_td_0aed41 _tdRight_0aed41">1.5</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41">0.0R</td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$95.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">BBB</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">50</td><td class="_td_0aed41 _tdRight_0aed41">$20.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$18.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/01/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-10.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-2.0R</td><td class="_td_0aed41 _tdRight_0aed41">1.0d</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$19.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">AAA</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$10.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/28/26</td><td class="_td_0aed41 _tdRight_0aed41">$12.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/04/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$195.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$5.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+20.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">+2.0R</td><td class="_td_0aed41 _tdRight_0aed41">4.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">$9.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">EEE</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">10</td><td class="_td_0aed41 _tdRight_0aed41">$3.00</td><td class="_td_0aed41 _tdLeft_0aed41">01/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$2.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/02/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$12.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$2.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-33.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-1.5R</td><td class="_td_0aed41 _tdRight_0aed41">2.0d</td><td class="_td_0aed41 _tdLeft_0aed41">Breakout</td><td class="_td_0aed41 _tdRight_0aed41">$2.50</td></tr></tbody></table></div>"`;
+exports[`TradesTable renders identically on the DataGrid seed > default render — full HTML 1`] = `"<div class="_tableWrap_0aed41"><table class="_table_0aed41"><thead><tr><th class="_th_0aed41 _thLeft_0aed41" title="Ticker." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Symbol</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Win / Loss / BE per settings.breakevenRange." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Result</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Shares closed in this trade record." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Shares</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Entry price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Entry $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Entry date. Default sort (newest first)." scope="col" aria-sort="descending"><button type="button" class="_thBtn_0aed41 _thBtnActive_0aed41"><span>Entry Date</span><span class="_sortCaret_0aed41" aria-hidden="true">▼</span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Exit price." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Exit date." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Exit Date</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Gross (exit − entry) × shares (Long); sign-flipped for Short." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>P&amp;L $</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="P&amp;L minus fees/commissions." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Net P&amp;L</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Commissions and fees for this trade." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Fees</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="(exit − entry) / entry." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>P&amp;L %</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Reward / risk, using the ORIGINAL stop — frozen for R math." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>R</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Calendar days between entry and exit, UTC." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Hold</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thLeft_0aed41" title="Setup classification." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Setup</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th><th class="_th_0aed41 _thRight_0aed41" title="Original stop (frozen — used for R math)." scope="col" aria-sort="none"><button type="button" class="_thBtn_0aed41 "><span>Stop</span><span class="_sortCaret_0aed41" aria-hidden="true"></span></button></th></tr></thead><tbody tabindex="-1" data-route-landing="" aria-label="Trades"><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">CCC</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$5.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$7.00</td><td class="_td_0aed41 _tdLeft_0aed41">05/08/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$190.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+40.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41">8.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">—</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">DDD</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeBe_0aed41">BE</span></td><td class="_td_0aed41 _tdRight_0aed41">1.5</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/30/26</td><td class="_td_0aed41 _tdRight_0aed41">$100.00</td><td class="_td_0aed41 _tdLeft_0aed41">—</td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="">—</span></td><td class="_td_0aed41 _tdRight_0aed41">0.0R</td><td class="_td_0aed41 _tdRight_0aed41">—</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$95.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">BBB</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">50</td><td class="_td_0aed41 _tdRight_0aed41">$20.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$18.00</td><td class="_td_0aed41 _tdLeft_0aed41">04/01/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$100.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-10.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-2.0R</td><td class="_td_0aed41 _tdRight_0aed41">1.0d</td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_dash_0aed41">—</span></td><td class="_td_0aed41 _tdRight_0aed41">$19.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">AAA</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeWin_0aed41">Win</span></td><td class="_td_0aed41 _tdRight_0aed41">100</td><td class="_td_0aed41 _tdRight_0aed41">$10.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/28/26</td><td class="_td_0aed41 _tdRight_0aed41">$12.00</td><td class="_td_0aed41 _tdLeft_0aed41">03/04/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$200.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+$195.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$5.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_pos_0aed41">+20.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">+2.0R</td><td class="_td_0aed41 _tdRight_0aed41">4.0d</td><td class="_td_0aed41 _tdLeft_0aed41">VCP</td><td class="_td_0aed41 _tdRight_0aed41">$9.00</td></tr><tr class="_row_0aed41"><td class="_td_0aed41 _tdLeft_0aed41"><span class="_symbolCell_0aed41">EEE</span></td><td class="_td_0aed41 _tdLeft_0aed41"><span class="_resultBadge_0aed41 _badgeLoss_0aed41">Loss</span></td><td class="_td_0aed41 _tdRight_0aed41">10</td><td class="_td_0aed41 _tdRight_0aed41">$3.00</td><td class="_td_0aed41 _tdLeft_0aed41">01/31/26</td><td class="_td_0aed41 _tdRight_0aed41">$2.00</td><td class="_td_0aed41 _tdLeft_0aed41">02/02/26</td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$10.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-$12.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span>-$2.00</span></td><td class="_td_0aed41 _tdRight_0aed41"><span class="_neg_0aed41">-33.00%</span></td><td class="_td_0aed41 _tdRight_0aed41">-1.5R</td><td class="_td_0aed41 _tdRight_0aed41">2.0d</td><td class="_td_0aed41 _tdLeft_0aed41">Breakout</td><td class="_td_0aed41 _tdRight_0aed41">$2.50</td></tr></tbody></table></div>"`;
 
 exports[`TradesTable renders identically on the DataGrid seed > empty state — full HTML 1`] = `"<div class="_empty_0aed41"><p>No trades yet.</p><p class="_emptyHint_0aed41">Close a position or use <strong>+ Add Trade</strong> to record one.</p><p class="_emptyHint_0aed41">Or <a href="/settings?section=connections">connect your brokerage</a> to auto-import every trade.</p></div>"`;
 
@@ -1000,7 +1000,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||▼||||||||||",
-    "html": "9440f6c5",
+    "html": "a49dfba6",
     "order": [
       "CCC",
       "DDD",
@@ -1029,7 +1029,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "▲||||||||||||||",
-    "html": "ef3c3ab7",
+    "html": "6aaa9704",
     "order": [
       "AAA",
       "BBB",
@@ -1058,7 +1058,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "▼||||||||||||||",
-    "html": "2bdef01f",
+    "html": "233f8254",
     "order": [
       "EEE",
       "DDD",
@@ -1087,7 +1087,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|▲|||||||||||||",
-    "html": "a01bd045",
+    "html": "9a1cbeb6",
     "order": [
       "DDD",
       "BBB",
@@ -1116,7 +1116,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|▼|||||||||||||",
-    "html": "cf307a97",
+    "html": "b164beb0",
     "order": [
       "CCC",
       "AAA",
@@ -1145,7 +1145,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||▼||||||||||||",
-    "html": "3d6b5195",
+    "html": "9c95723a",
     "order": [
       "CCC",
       "AAA",
@@ -1174,7 +1174,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||▲||||||||||||",
-    "html": "f431c137",
+    "html": "830abcdc",
     "order": [
       "DDD",
       "EEE",
@@ -1203,7 +1203,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||▼|||||||||||",
-    "html": "340a192b",
+    "html": "8a776b08",
     "order": [
       "DDD",
       "BBB",
@@ -1232,7 +1232,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||▲|||||||||||",
-    "html": "c458d40f",
+    "html": "6364f85c",
     "order": [
       "EEE",
       "CCC",
@@ -1261,7 +1261,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||▼||||||||||",
-    "html": "9440f6c5",
+    "html": "a49dfba6",
     "order": [
       "CCC",
       "DDD",
@@ -1290,7 +1290,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||▲||||||||||",
-    "html": "520d5669",
+    "html": "77a86c92",
     "order": [
       "EEE",
       "AAA",
@@ -1319,7 +1319,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||▼|||||||||",
-    "html": "c6b23dad",
+    "html": "37b890fe",
     "order": [
       "DDD",
       "BBB",
@@ -1348,7 +1348,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||▲|||||||||",
-    "html": "5385dd31",
+    "html": "680ee122",
     "order": [
       "EEE",
       "CCC",
@@ -1377,7 +1377,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||▼||||||||",
-    "html": "4c65b82b",
+    "html": "ef305b2c",
     "order": [
       "CCC",
       "BBB",
@@ -1406,7 +1406,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||▲||||||||",
-    "html": "f966f265",
+    "html": "8125b16e",
     "order": [
       "EEE",
       "AAA",
@@ -1435,7 +1435,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||▼|||||||",
-    "html": "5f753459",
+    "html": "81105176",
     "order": [
       "CCC",
       "AAA",
@@ -1464,7 +1464,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||▲|||||||",
-    "html": "7d3fa56d",
+    "html": "36cb527a",
     "order": [
       "BBB",
       "EEE",
@@ -1493,7 +1493,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||||▼||||||",
-    "html": "505289b3",
+    "html": "3a7c7e98",
     "order": [
       "AAA",
       "CCC",
@@ -1522,7 +1522,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||||▲||||||",
-    "html": "c45c6757",
+    "html": "afd637a0",
     "order": [
       "BBB",
       "EEE",
@@ -1551,7 +1551,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||||▼|||||",
-    "html": "1a69f5ed",
+    "html": "eb26b986",
     "order": [
       "CCC",
       "AAA",
@@ -1580,7 +1580,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||||▲|||||",
-    "html": "41d5e241",
+    "html": "5a063c7a",
     "order": [
       "DDD",
       "EEE",
@@ -1609,7 +1609,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||||||▼||||",
-    "html": "1b8e0911",
+    "html": "b5f179d6",
     "order": [
       "CCC",
       "AAA",
@@ -1638,7 +1638,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||||||▲||||",
-    "html": "d7dd17ed",
+    "html": "975f19d6",
     "order": [
       "EEE",
       "BBB",
@@ -1667,7 +1667,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||||||▼|||",
-    "html": "29e5b59d",
+    "html": "5255169e",
     "order": [
       "AAA",
       "DDD",
@@ -1696,7 +1696,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||||||▲|||",
-    "html": "58951a3b",
+    "html": "d6af554c",
     "order": [
       "BBB",
       "EEE",
@@ -1725,7 +1725,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||||||||▼||",
-    "html": "ff7e0205",
+    "html": "87666cf2",
     "order": [
       "CCC",
       "AAA",
@@ -1754,7 +1754,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "||||||||||||▲||",
-    "html": "95755409",
+    "html": "0ca5b04a",
     "order": [
       "BBB",
       "EEE",
@@ -1783,7 +1783,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||||||||▲|",
-    "html": "903df6eb",
+    "html": "0812b08c",
     "order": [
       "EEE",
       "CCC",
@@ -1812,7 +1812,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "none",
     ],
     "carets": "|||||||||||||▼|",
-    "html": "399f4d99",
+    "html": "a9c5afc2",
     "order": [
       "CCC",
       "AAA",
@@ -1841,7 +1841,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "descending",
     ],
     "carets": "||||||||||||||▼",
-    "html": "4b4055bd",
+    "html": "f8c66e42",
     "order": [
       "DDD",
       "BBB",
@@ -1870,7 +1870,7 @@ exports[`TradesTable renders identically on the DataGrid seed > every header, cl
       "ascending",
     ],
     "carets": "||||||||||||||▲",
-    "html": "b1e497e9",
+    "html": "1020aa12",
     "order": [
       "EEE",
       "AAA",

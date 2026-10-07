@@ -3254,3 +3254,28 @@
   color: var(--menu-text, #ededed);
   cursor: pointer;
 }
+
+
+/* ⭐ PHASE 4 — a saved indicator's own doors in "Your indicators" */
+/* The saved indicator's doors sit on their OWN line under its name, inside the
+   row's main column (the title row itself stays one line — `.insAdd .resTitleRow`). */
+.resMain:has(.resActions) { flex-wrap: wrap; }
+.resActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+  flex-basis: 100%;
+}
+.resAction { white-space: nowrap; }
+.resAction {
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--uct-border, rgba(255, 255, 255, 0.14));
+  background: transparent;
+  color: var(--uct-text-muted, inherit);
+  cursor: pointer;
+}
+.resAction:hover { color: var(--uct-text, inherit); border-color: var(--uct-gold, #c9a84c); }
+.resAction:focus-visible { outline: 2px solid var(--uct-gold, #c9a84c); outline-offset: 1px; }

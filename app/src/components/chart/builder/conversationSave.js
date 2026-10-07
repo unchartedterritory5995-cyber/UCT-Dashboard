@@ -40,8 +40,17 @@ export async function storeConversation(state, { previewAcked = false, draftId =
   if (prep.needsAck.length && !previewAcked) {
     return { ok: false, stage: 'ack', error: `Tick the acknowledgement first: ${prep.needsAck.join(', ')} reads a bar ahead and is not final until it closes.` }
   }
-  const res = await save(prep.doc, prep.defId, null, prep.needsAck.length ? { previewAcked: true } : null)
-  if (!res || !res.ok) return { ok: false, stage: 'store', error: (res && res.error) || 'The server refused this definition.' }
+  // ⭐ PHASE 4 — an EDIT is revision-aware: the store refuses (409) when the
+  // definition moved on after this conversation opened it, instead of overwriting.
+  const opts = {
+    ...(prep.needsAck.length ? { previewAcked: true } : {}),
+    ...(prep.defId && Number.isInteger(state.baseVersion) ? { baseVersion: state.baseVersion } : {}),
+  }
+  const res = await save(prep.doc, prep.defId, null, Object.keys(opts).length ? opts : null)
+  if (!res || !res.ok) {
+    return { ok: false, stage: res && res.conflict ? 'conflict' : 'store',
+      error: (res && res.error) || 'The server refused this definition.' }
+  }
   const row = res.row || { def_id: prep.doc.id, version: prep.doc.version, rev: 1 }
   // ⛔ THE STORE'S id / version / rev / semantics — never the draft's guess.
   const storedDoc = withStoredSemantics({

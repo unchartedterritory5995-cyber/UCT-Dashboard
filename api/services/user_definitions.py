@@ -1082,6 +1082,23 @@ def lint_verdict(definition: dict) -> dict:
 SAVE_GATES = ("tree", "budget", "repaint", "repaint-ack", "presentation")
 
 
+class SaveConflict(ValueError):
+    """⭐ PHASE 4 — a stale write: the editor opened version ``expected`` and the
+    store has moved on to ``current`` since. Nothing was written. IS a
+    `ValueError` like `SaveRefused`; the router answers it with a 409."""
+
+    def __init__(self, def_id: str, expected: Any, current: Any) -> None:
+        super().__init__(
+            "This indicator was changed somewhere else after you opened it "
+            f"(you opened version {expected}; it is now version {current}). Nothing "
+            "was saved — reopen it to see the latest version.")
+        self.def_id, self.expected, self.current = def_id, expected, current
+
+    def as_dict(self) -> dict:
+        return {"def_id": self.def_id, "expected_version": self.expected,
+                "current_version": self.current}
+
+
 class SaveRefused(ValueError):
     """A save refused by the admission gate. IS a `ValueError`, so every caller
     that already turns store refusals into a 4xx keeps doing so; the router
@@ -1501,6 +1518,30 @@ def _with_semantics(doc: dict, value: int) -> dict:
     return {**doc, "meta": {**meta, "semantics": value}}
 
 
+#: ⭐ PHASE 4 — PINE MATHS THAT ARRIVED BY THE BUILDER'S "APPLY" DOOR. That door
+#: writes the translated formula as native text (no `meta.recurrenceOrigin`, which
+#: would also switch on the Pine object/other-symbol lanes it does not use), so
+#: until Phase 4 nothing on the stored row said where the maths came from and a
+#: later maths edit stamped semantics 2 onto Pine-translated comparisons. New Apply
+#: saves carry `meta.importedFrom = {dialect: 'pine', via: 'apply', ...}`; such a
+#: row keeps Pine's `na`-compares-false rule (semantics 1) through every later
+#: edit, exactly like a `recurrenceOrigin` translation. ⛔ Provenance only: it does
+#: not change how the document evaluates (`ast_interpret.semantics_for` does not
+#: read it), and rows saved before it existed are NOT migrated (Phase 4A audit).
+PINE_IMPORT_DIALECT = "pine"
+
+
+def is_pine_import(definition: Any) -> bool:
+    """Pine-translated maths by ANY door: a `recurrenceOrigin` translation, or a
+    Builder "Apply" import stamped `meta.importedFrom.dialect == 'pine'`."""
+    from api.services import ast_interpret
+    if ast_interpret.is_pine_origin(definition):
+        return True
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    imp = meta.get("importedFrom") if isinstance(meta, Mapping) else None
+    return isinstance(imp, Mapping) and str(imp.get("dialect") or "").lower() == PINE_IMPORT_DIALECT
+
+
 def decide_semantics(definition: Mapping[str, Any], prev_definition: Optional[Mapping[str, Any]],
                      maths_moved: bool, *, source_dialect: Any = None,
                      carried: Any = None, copy_of_stored: bool = False) -> Optional[int]:
@@ -1511,14 +1552,14 @@ def decide_semantics(definition: Mapping[str, Any], prev_definition: Optional[Ma
     copy of a row this store already decided."""
     from api.services import ast_interpret
     two = ast_interpret.SEMANTICS_UNKNOWN_PROPAGATES
-    if ast_interpret.is_pine_origin(definition):
+    if is_pine_import(definition):
         return None
     # ⛔ P2 — A PINE-ORIGIN ROW STAYS UNSTAMPED, whatever the incoming copy says.
     # An edit door that rebuilds the document (the manual Builder's reopen→save)
     # can drop `meta.recurrenceOrigin`; without this, a maths edit would stamp
     # semantics 2 onto a Pine import and silently move its `na`-compares-false
     # outputs to unknown. Source-language fidelity is decided by the STORED row.
-    if prev_definition is not None and ast_interpret.is_pine_origin(prev_definition):
+    if prev_definition is not None and is_pine_import(prev_definition):
         return None
     if copy_of_stored:
         return two if (not isinstance(carried, bool) and carried == two) else None
@@ -1537,8 +1578,14 @@ def save(user_id: Any, def_id: str, definition: dict,
          limits: Any = None, *, role: Any = None,
          repaint_acknowledged: Any = None,
          source_dialect: Any = None,
+         expected_version: Optional[int] = None,
          _copy_of_stored: bool = False) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
+
+    ⭐ PHASE 4 — ``expected_version``: the version the editor OPENED. When given,
+    the save is refused with `SaveConflict` (nothing written) unless it is still
+    the newest stored version — checked inside the write lock, so two editors
+    cannot both pass it. ``None`` keeps every pre-existing caller unchanged.
 
     Returns ``{def_id, version, rev, rev_bumped, migrated, notified, ast_hash,
     repaint, appended}``.
@@ -1712,6 +1759,10 @@ def save(user_id: Any, def_id: str, definition: dict,
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         _ensure(c)
         prev = _newest(c, user_id, def_id)
+        if expected_version is not None:
+            current = prev["version"] if prev is not None else None
+            if current != expected_version:
+                raise SaveConflict(def_id, expected_version, current)
 
         # ⚠️ THE CAP IS CHECKED WHENEVER A SAVE WOULD MAKE A DEFINITION LIVE THAT
         # IS NOT LIVE NOW — a create OR a RESURRECT. Checking only `prev is None`
@@ -2388,6 +2439,48 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     # admission gate) where it was saved, so the gate does not re-run here.
     out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True)
     out["origin"] = doc["origin"]
+    return out
+
+
+class ForkRefused(ValueError):
+    """The source of a fork does not exist (or is deleted) in the caller's own
+    namespace — the router answers 404, never revealing another member's rows."""
+
+
+#: ⭐ PHASE 4 — the suffix a custom copy's default name carries.
+COPY_NAME_SUFFIX = " (copy)"
+
+
+def fork(user_id: Any, def_id: str, limits: Any = None, *, role: Any = None) -> dict:
+    """⭐ PHASE 4 — DUPLICATE AS A NEW INDICATOR: the caller's OWN live definition
+    copied under a NEW def_id, with its own (fresh) version history.
+
+    ⭐ THE SHARE-INSTALL SHAPE (`install_share`), WITHOUT A SHARE: a copy, never a
+    reference — the same maths, presentation and inputs, `_copy_of_stored` so the
+    stored semantics travels with the copy and the admission gate (which admitted
+    the source) does not re-run. ⛔ OWNER-SCOPED: the source is read from the
+    caller's own namespace only; another member's id is a 404, not a copy.
+    Provenance rides on the copy as ``meta.forkedFrom`` (`def_id`, `version`,
+    `ast_hash`), never as a link: editing either definition never touches the
+    other. The count cap applies (a fork makes a definition live)."""
+    src = get(user_id, def_id)
+    if src is None:
+        raise ForkRefused("Not found")
+    doc = json.loads(json.dumps(src["definition"]))
+    new_id = new_def_id()
+    doc["id"] = new_id
+    doc["version"] = 1
+    meta = doc.get("meta") if isinstance(doc.get("meta"), dict) else {}
+    name = str(meta.get("name") or "").strip() or "Indicator"
+    meta["name"] = name if name.endswith(COPY_NAME_SUFFIX) else f"{name}{COPY_NAME_SUFFIX}"
+    meta["forkedFrom"] = {"def_id": def_id, "version": src["version"],
+                          "ast_hash": src.get("ast_hash")}
+    doc["meta"] = meta
+    compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else None
+    if compute is not None and "rev" in compute:
+        compute["rev"] = FIRST_REV
+    out = save(user_id, new_id, doc, limits=limits, role=role, _copy_of_stored=True)
+    out["forked_from"] = meta["forkedFrom"]
     return out
 
 

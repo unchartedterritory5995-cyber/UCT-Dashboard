@@ -779,6 +779,9 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
     assert sorted(writes) == [
         ("POST", "/api/user-definitions"),
         ("POST", "/api/user-definitions/shared/{token}/install"),
+        # ⭐ PHASE 4 (2026-10-07) — "Create custom copy": it PERSISTS A NEW
+        # DEFINITION, so it is in BOTH classes (paid AND counted) — see `appends`.
+        ("POST", "/api/user-definitions/{def_id}/fork"),
         ("POST", "/api/user-definitions/{def_id}/list"),
         ("POST", "/api/user-definitions/{def_id}/share"),
         ("PUT", "/api/user-definitions/{def_id}"),
@@ -791,6 +794,7 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
     # only the routes that PERSIST A NEW DEFINITION carry the count cap
     appends = [("POST", "/api/user-definitions"),
                ("POST", "/api/user-definitions/shared/{token}/install"),
+               ("POST", "/api/user-definitions/{def_id}/fork"),
                ("PUT", "/api/user-definitions/{def_id}")]
     assert set(appends) <= set(writes)
     for key in appends:

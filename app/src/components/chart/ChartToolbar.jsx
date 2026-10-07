@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import { legendModeOf, nextLegendMode } from './legendMode'
@@ -49,7 +49,10 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 // ⭐ P2 Track B — lazy for the same reason: it pulls the authoring engine.
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
-import { mintScope, createKey } from './builder/authoring/conversationSessions'
+import { mintScope, createKey, editKey } from './builder/authoring/conversationSessions'
+import { useUserDefinitions } from '../../hooks/useUserDefinitions'
+import { createCustomCopy } from './builder/definitionActions'
+import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
@@ -63,7 +66,7 @@ import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 import { averageSlotView, writeAverageSlot } from './maAdoption'
 import { MA_TYPES } from './movingAverages'
 import { chordForTool } from './keyboardShortcuts'
-import { useIsPaid } from '../../context/AuthContext'
+import { useIsPaid, AuthContext } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import { toolbarFor } from '../../utils/dividerColor'
 import styles from './ChartToolbar.module.css'
@@ -1132,6 +1135,23 @@ function ChartToolbar({
   // ⭐ P2 Track B — CREATE INDICATOR. Mounted only while open: closing it IS the
   // end of the conversation, and its unmount is what tears the preview down.
   const [createOpen, setCreateOpen] = useState(false)
+  // ⭐ PHASE 4 — UNIFIED EDITING. The STORE's row the studio / builder was opened on
+  // (null = a new indicator). Held in state (a stable identity: the builder's
+  // `editRow` contract), resolved from the member's own definitions by id.
+  const [createEditRow, setCreateEditRow] = useState(null)
+  const [builderEditRow, setBuilderEditRow] = useState(null)
+  const { rows: userDefinitionRows } = useUserDefinitions()
+  const userRowsRef = useRef(userDefinitionRows)
+  useEffect(() => { userRowsRef.current = userDefinitionRows }, [userDefinitionRows])
+  const rowFor = useCallback((opts) => {
+    if (!opts) return null
+    if (opts.row && opts.row.def_id && opts.row.definition) return opts.row
+    if (!opts.defId) return null
+    return (userRowsRef.current || []).find((r) => r && r.def_id === opts.defId && r.definition) || null
+  }, [])
+  // ⭐ "Modify with UCT Intelligence" uses the EXISTING Create Indicator access —
+  // the same answer the studio itself and the server's `/converse` gate give.
+  const canModifyWithIntelligence = useCreateIndicatorAccess(useContext(AuthContext))
   // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
   // (per chart), so closing the dock keeps that chart's draft conversation and a
   // different chart never sees it. Never derived from a symbol, name or formula.
@@ -1220,13 +1240,57 @@ function ChartToolbar({
     // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator". Only a
     // writable toolbar that carries the preview channel can open it (the primary
     // one); every other mount reports the refusal, like `openFormulaBuilder`.
-    openCreateIndicator: () => {
+    // ⭐ PHASE 4 — `{defId}` (or `{row}`) opens the studio ON THAT DEFINITION
+    // ("Modify with UCT Intelligence"); no argument is Create Indicator as before.
+    // An unknown id refuses (false) rather than opening a blank studio.
+    openCreateIndicator: (opts = null) => {
       if (!canManageIndicators || typeof onStudioPreview !== 'function') return false
+      const row = rowFor(opts)
+      if (opts && (opts.defId || opts.row) && !row) return false
       setLibraryOpen(false)
       setBuilderOpen(false)
+      setCreateEditRow(row)
       setCreateOpen(true)
       return true
     },
+    // ⭐ PHASE 4 — "Edit formula": the builder opened on the definition (its own
+    // `editRow` door). Returns false on a read-only mount or an unknown id.
+    openFormulaEditor: (opts = null) => {
+      if (!canManageIndicators) return false
+      const row = rowFor(opts)
+      if (!row) return false
+      setLibraryOpen(false)
+      setCreateOpen(false)
+      setBuilderEditRow(row)
+      setBuilderMode(null)
+      setBuilderEverOpened(true)
+      setBuilderOpen(true)
+      return true
+    },
+    // ⭐ PHASE 4 — "Create custom copy": a NEW, independent definition (`definitionActions`),
+    // added to this chart, then opened for editing — in the studio when the member has
+    // UCT Intelligence, else in the formula editor.
+    createCustomCopy: async ({ def, inputs = {} } = {}) => {
+      if (!canManageIndicators) return { ok: false, error: 'This chart is read-only.' }
+      const res = await createCustomCopy({ def, inputs, settings: chartSettings, registry: engineRegistry })
+      if (!res.ok) return res
+      if (res.settings && res.settings !== chartSettings) onUpdateSettings(res.settings)
+      setLibraryOpen(false)
+      if (canModifyWithIntelligence && typeof onStudioPreview === 'function') {
+        setBuilderOpen(false)
+        setCreateEditRow(res.row)
+        setCreateOpen(true)
+      } else {
+        setCreateOpen(false)
+        setBuilderEditRow(res.row)
+        setBuilderMode(null)
+        setBuilderEverOpened(true)
+        setBuilderOpen(true)
+      }
+      return res
+    },
+    /** ⭐ PHASE 4 — may this member open "Modify with UCT Intelligence"? */
+    canModifyWithIntelligence: () => !!(canModifyWithIntelligence && canManageIndicators && typeof onStudioPreview === 'function'),
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
     // right-click **Add alert on <label>…** row, reach THIS popover rather than
     // mounting a second one. ⚠️ IT RETURNS `false` WHEN THERE IS NO SYMBOL, for
@@ -1239,7 +1303,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview])
+  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1697,7 +1761,7 @@ function ChartToolbar({
           <Suspense fallback={null}>
           <BuilderSheet
             open={builderOpen}
-            onClose={() => setBuilderOpen(false)}
+            onClose={() => { setBuilderOpen(false); setBuilderEditRow(null) }}
             /* ⭐ PHASE D TASK 16 — the same pair `IndicatorLibraryDialog` takes,
                and for the same reason: adding a formula to the chart is the same
                act as ticking one in the library, so it goes through the same
@@ -1714,7 +1778,7 @@ function ChartToolbar({
                over the indicator it had just added. Closing IS the confirmation
                here: the formula is already on the chart with its legend row,
                exactly as if it had been ticked in the indicator library. */
-            onSaved={() => setBuilderOpen(false)}
+            onSaved={() => { setBuilderOpen(false); setBuilderEditRow(null) }}
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
@@ -1722,6 +1786,8 @@ function ChartToolbar({
             sym={currentSym}
             tf={tf}
             initialMode={builderMode}
+            /* ⭐ PHASE 4 — "Edit formula" from the legend / inspector / Your indicators */
+            editRow={builderEditRow}
           />
           </Suspense>
         )}
@@ -1734,7 +1800,12 @@ function ChartToolbar({
         {canManageIndicators && createOpen && typeof onStudioPreview === 'function' && (
           <Suspense fallback={null}>
             <CreateIndicatorPanel
-              onClose={() => setCreateOpen(false)}
+              /* ⭐ PHASE 4 — one panel per definition: re-opened on another
+                 definition, it is a new conversation (and a new preview). */
+              key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
+              editRow={createEditRow}
+              onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
+              onClose={() => { setCreateOpen(false); setCreateEditRow(null) }}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}
@@ -1742,7 +1813,7 @@ function ChartToolbar({
               anchorRef={anchorRef || favBoundsRef}
               dockHost={studioDockHost}
               onDocked={onStudioDockChange}
-              sessionKey={createKey(studioScope)}
+              sessionKey={createEditRow ? editKey(createEditRow.def_id) : createKey(studioScope)}
               onPreview={onStudioPreview}
               onOpenBuilder={(mode) => { setCreateOpen(false); openBuilder(mode) }}
               onOpenLibrary={onOpenLibrary ? () => { setCreateOpen(false); onOpenLibrary() } : null}

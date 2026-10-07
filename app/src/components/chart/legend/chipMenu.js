@@ -100,8 +100,12 @@ export function displaySubmenu(options, current, onMove, instanceId) {
  * @param {object} chip a `readout.legendChips` row (label, hidden, instanceId…)
  * @param {object} def  its definition, or null
  * @param {object} h    `{onSettings, onToggleHidden, onMove, onDuplicate, onAlerts, onAbout, onRemove}`
+ *   ⭐ PHASE 4 — and, for a DEFINITION the member can edit or copy:
+ *   `{onModify, onEditFormula, onCustomCopy}` (each takes the instance id; the caller
+ *   resolves the definition from it)
  * @param {object} [caps] what the CALLER knows and this file cannot:
  *   `{alertsRefusal, displayOptions, displayCurrent, canDuplicate}`
+ *   ⭐ PHASE 4 — `{definitionKind: 'user'|'builtin'|'other', canModify, copyRefusal}`
  * @returns {Array} rows for `mobile/ContextPopover`
  */
 export function chipMenuItems(chip, def, h, caps = {}) {
@@ -172,12 +176,42 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       onClick: (!on && caps.infoValueRefusal) ? undefined : () => h.onInfoValue(chip.instanceId, chip.plotKey, on),
     })
   }
+  // ⭐⭐ PHASE 4 — THE DEFINITION'S OWN VERBS. "Edit in Indicators…" above edits THIS
+  // instance (its inputs and look); these edit or copy the INDICATOR ITSELF.
+  //   Modify with UCT Intelligence — the conversational studio, opened on it
+  //   Edit formula                 — the manual formula editor, opened on it
+  // Both are offered only for the member's OWN formula definitions; the first only
+  // with Create Indicator access (the caller asks the same gate the studio uses).
+  const userDef = caps.definitionKind === 'user'
+  if (userDef && caps.canModify && typeof h.onModify === 'function') {
+    rows.push({ key: 'modify', label: 'Modify with UCT Intelligence', icon: 'sparkle',
+      onClick: () => h.onModify(chip.instanceId) })
+  }
+  if (userDef && typeof h.onEditFormula === 'function') {
+    rows.push({ key: 'edit-formula', label: 'Edit formula', icon: 'edit',
+      onClick: () => h.onEditFormula(chip.instanceId) })
+  }
   if (caps.canDuplicate !== false) {
     rows.push({
       key: 'duplicate',
-      label: 'Duplicate',
+      // ⭐ PHASE 4 — SAYS WHAT IT IS: another instance of the SAME indicator on this
+      // chart (editing its formula edits both). "Create custom copy" below is the
+      // independent one.
+      label: 'Duplicate on chart',
       icon: 'copy',
       onClick: () => h.onDuplicate(chip.instanceId),
+    })
+  }
+  if ((caps.definitionKind === 'user' || caps.definitionKind === 'builtin') && typeof h.onCustomCopy === 'function') {
+    rows.push({
+      key: 'custom-copy',
+      // A NEW, independent definition the member owns — the built-in (or the source
+      // formula) is never changed. A built-in that cannot be reproduced exactly
+      // shows the row DISABLED with its reason: never hidden, never approximated.
+      label: 'Create custom copy',
+      icon: 'copy',
+      disabled: caps.copyRefusal || undefined,
+      onClick: caps.copyRefusal ? undefined : () => h.onCustomCopy(chip.instanceId),
     })
   }
   rows.push(
