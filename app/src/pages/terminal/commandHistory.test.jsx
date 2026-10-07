@@ -104,12 +104,13 @@ describe('useCommandHistory', () => {
     expect(store.writes).toEqual([])
   })
 
-  it('a member with no server history yet starts from this browser\'s, and saves both', async () => {
+  it('a member with no server history starts empty; this browser\'s copy is never carried into the account', async () => {
+    // A shared computer: the browser copy holds the previous person's commands.
     window.localStorage.setItem(HISTORY_KEY, JSON.stringify(['OLD 1', 'OLD 2']))
     const { result } = renderHook(() => useCommandHistory())
-    expect(result.current.history).toEqual(['OLD 1', 'OLD 2'])
+    expect(result.current.history).toEqual([])
     await act(async () => { result.current.push('NEW') })
-    expect(serverList()).toEqual(['NEW', 'OLD 1', 'OLD 2'])
+    expect(serverList()).toEqual(['NEW'])
     expect(JSON.parse(window.localStorage.getItem(HISTORY_KEY))).toEqual(['NEW', 'OLD 1', 'OLD 2'])
   })
 

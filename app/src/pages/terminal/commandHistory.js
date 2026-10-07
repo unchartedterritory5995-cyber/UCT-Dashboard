@@ -11,8 +11,9 @@
 //
 // ⭐ GRACEFUL FALLBACK. localStorage keeps a mirror (every access wrapped: private windows throw).
 //   * while the preferences are loading, or could not be read at all, ↑ walks the mirror;
-//   * a member with NO server history yet starts from this browser's mirror (a one-time carry
-//     of the per-browser history they already had), and their first command saves both;
+//   * a member with NO server history yet starts EMPTY. The browser copy is never carried up
+//     into an account: on a shared computer it holds the previous person's commands, and
+//     seeding a server list from it would hand them to the next member on every device;
 //   * a stored value that is not a list is NEVER saved over (the board's own rule, IA §2 #7):
 //     ↑ walks the mirror and only the mirror is written, until something readable is stored.
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -92,7 +93,7 @@ export default function useCommandHistory() {
   // Bumped on every push so a walk of the browser copy (no server answer to re-render on) is current.
   const [localTick, setLocalTick] = useState(0)
   const history = useMemo(() => {
-    if (source === 'server' && stored.status === 'ok') return stored.history
+    if (source === 'server') return stored.status === 'ok' ? stored.history : []
     return readHistory()
   // `raw` changes whenever the stored list does; the mirror is re-read with it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,12 +105,12 @@ export default function useCommandHistory() {
   const push = useCallback((text) => {
     const t = String(text || '').trim()
     if (!t) return
-    const local = pushHistory(t)
+    pushHistory(t)
     setLocalTick((n) => n + 1)
     const { source: src } = stateRef.current
     if (src !== 'server' || typeof setPrefMerged !== 'function') return
     const p = setPrefMerged('terminal_command_history', (cur) => {
-      if (cur === undefined || cur === null || cur === '') return pushCommand(local.slice(1), t)
+      if (cur === undefined || cur === null || cur === '') return [t]
       const base = normalizeHistory(cur)
       if (!base) return undefined                // not a list: never saved over
       const next = pushCommand(base, t)
