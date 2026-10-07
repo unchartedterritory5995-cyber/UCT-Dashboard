@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/onboarding/sample-notebook",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 402
+  },
+  "body": {
+    "detail": "The sample notebook is part of a paid plan."
+  }
+}
