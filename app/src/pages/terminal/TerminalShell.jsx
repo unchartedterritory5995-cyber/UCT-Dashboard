@@ -231,11 +231,14 @@ export function Panel({
     codes: boardCodes || [],
     pageSize: BOARD_PAGE,
   } : null), [onList, onBoard, owner, boardCodes])
+  // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
+  // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''} ${reorder?.dropTarget ? styles.panelDropTarget : ''} ${reorder?.dragging ? styles.panelDragging : ''}`}
       onMouseDown={onFocus}
       onFocusCapture={onFocus}
+      role={isPhone && !standalone ? 'tabpanel' : undefined}
       aria-label={`Panel ${index + 1}: ${title || 'empty'}`}
       id={domId}
       data-testid={`terminal-panel-${index}`}
@@ -284,8 +287,9 @@ export function Panel({
             <span aria-hidden="true">{channel ? channel.id : ''}</span>
           </button>
         ) : (
+          // role="img": an aria-label on a bare <span> (generic role) is not exposed by screen readers.
           <span className={styles.groupDotStatic} title="This function does not follow a security"
-            aria-label="Does not follow a security" data-testid={`terminal-group-${index}`} />
+            role="img" aria-label="Does not follow a security" data-testid={`terminal-group-${index}`} />
         )}
         <span className={styles.panelTitle}>
           <span className={styles.code}>{title}</span>
@@ -1104,6 +1108,13 @@ export default function TerminalShell() {
     closePopoutWindow(layout.panels[i].id)
     save(res.layout)
     setNotice({ kind: 'info', text: `Closed ${layout.panels[i].code}.`, actions: [{ label: 'Undo', id: 'undo-close' }] })
+    // a11y (audit 2026-10-06): the close button that had focus just unmounted, which drops a
+    // keyboard user to <body>. Land them on the notice's Undo — the next thing they may want,
+    // and it sits beside the sentence saying what happened. Only when focus was actually lost.
+    requestAnimationFrame(() => {
+      const a = document.activeElement
+      if (!a || a === document.body) document.querySelector('[data-testid="terminal-notice-undo-close"]')?.focus()
+    })
   }
   const onUndoClose = () => {
     const cur = layoutRef.current
@@ -1499,7 +1510,7 @@ export default function TerminalShell() {
   // a group retargeted from Recents) used to land underneath it, unseen. While a sheet is open
   // the same notice renders at the top of that sheet instead. One element, one place at a time.
   const noticeEl = notice ? (
-        <div className={`${styles.notice} ${notice.kind === 'error' ? styles.noticeError : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'} data-testid="terminal-notice">
+        <div className={`${styles.notice} ${notice.kind === 'error' ? styles.noticeError : ''}`} role={notice.kind === 'error' ? 'alert' : undefined} data-testid="terminal-notice">
           <span>{notice.text}</span>
           {notice.suggestions?.length > 0 && (
             <span className={styles.noticeSuggest}>
@@ -1514,7 +1525,10 @@ export default function TerminalShell() {
             <button key={a.id} type="button" className={styles.chip} onClick={() => noticeAction(a)}
               data-testid={`terminal-notice-${a.id}`}>{a.label}</button>
           ))}
-          <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">
+          {/* a11y (audit 2026-10-06): Dismiss unmounts with the notice; hand focus to the command
+              line (desktop, no sheet open) rather than letting it fall to <body>. */}
+          <button type="button" className={styles.noticeClose} aria-label="Dismiss"
+            onClick={() => { setNotice(null); if (!isPhone && !sheet) inputRef.current?.focus() }}>
             <UIcon name="x" size={14} gold={false} />
           </button>
         </div>
@@ -1522,6 +1536,13 @@ export default function TerminalShell() {
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
       data-testid="terminal-shell">
+      {/* a11y (audit 2026-10-06): ONE always-mounted polite live region speaks info notices. A
+          role="status" element inserted together with its text (how the notice line mounts) is
+          not reliably announced; a region that already exists and changes text is. Errors keep
+          role="alert" on the notice itself, which IS announced on insertion. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="terminal-notice-announce">
+        {notice && notice.kind !== 'error' ? notice.text : ''}
+      </div>
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
         <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards}

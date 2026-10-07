@@ -171,14 +171,16 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
         </PanelState>
       ) : (
         <div className={styles.tableBox}>
-          <table className={styles.table} data-testid="terminal-movers-table">
+          <table className={styles.table} data-testid="terminal-movers-table" aria-label={`${LENSES[lens]}, sortable`}>
             <thead>
               <tr>
                 {columns.map((c) => (
                   <th key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}>
                     <button type="button" className={styles.sortBtn} onClick={() => toggleSort(c.key)}
                       data-testid={`terminal-movers-sort-${c.key}`}>
-                      {c.label}{sortCaretFor(sort, c.key) ? ` ${sortCaretFor(sort, c.key)}` : ''}
+                      {c.label}
+                      {/* The caret is decoration: the <th>'s aria-sort already says which way. */}
+                      {sortCaretFor(sort, c.key) ? <span aria-hidden="true">{` ${sortCaretFor(sort, c.key)}`}</span> : null}
                     </button>
                   </th>
                 ))}

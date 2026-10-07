@@ -63,6 +63,19 @@ const W = 560
 const H = 380
 const PAD = 34
 
+const QUADRANT_ORDER = ['Leading', 'Weakening', 'Lagging', 'Improving']
+
+/** What the graph SHOWS, for a screen reader: the axes, then which names sit in which
+ *  quadrant (a11y audit 2026-10-06 — a static "relative rotation graph" said nothing). */
+function rrgChartLabel(rows) {
+  const parts = QUADRANT_ORDER.map((q) => {
+    const syms = rows.filter((r) => r.quadrant === q).map((r) => r.sym)
+    return syms.length ? `${q}: ${syms.join(', ')}` : null
+  }).filter(Boolean)
+  return `Relative rotation graph vs ${RRG_BENCHMARK}, RS-Ratio across and RS-Momentum up, centred on 100. `
+    + (parts.length ? `${parts.join('. ')}.` : 'Nothing plotted.')
+}
+
 function Graph({ rows }) {
   const xs = rows.flatMap((r) => r.tail.map((p) => p.x))
   const ys = rows.flatMap((r) => r.tail.map((p) => p.y))
@@ -72,8 +85,7 @@ function Graph({ rows }) {
   const py = (v) => H - PAD - ((v - (100 - hy)) / (2 * hy)) * (H - 2 * PAD)
   return (
     <div className={styles.chartBox}>
-      <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} role="img"
-        aria-label="Relative rotation graph: RS-Ratio across, RS-Momentum up, centred on 100">
+      <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={rrgChartLabel(rows)}>
         <line className={styles.axis} x1={px(100)} x2={px(100)} y1={PAD / 2} y2={H - PAD} />
         <line className={styles.axis} x1={PAD} x2={W - PAD / 2} y1={py(100)} y2={py(100)} />
         <text className={styles.quadText} x={W - PAD} y={PAD} textAnchor="end">Leading</text>
@@ -141,7 +153,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
       </p>
       <Graph rows={rows} />
       <div className={styles.tableBox}>
-        <table className={styles.table} data-testid="terminal-rrg-table">
+        <table className={styles.table} data-testid="terminal-rrg-table" aria-label={`Rotation quadrants vs ${RRG_BENCHMARK}`}>
           <thead>
             <tr>
               <th>Symbol</th><th>Quadrant</th><th>{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>
