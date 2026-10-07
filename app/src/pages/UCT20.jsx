@@ -20,7 +20,11 @@ import jsonFetcher from '../utils/jsonFetcher'
 import { useThemeInk, SEMANTIC_INK } from '../lib/theme'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// 2026-10-07 completeness audit: the four side reads used a bare `fetch().then(r => r.json())`,
+// so a 402/5xx `{detail}` became data and a failed holdings read blanked every DAYS / SINCE ADD
+// cell to "—" and dropped the NEW badges with no word. They throw on a non-2xx now, and a failed
+// holdings read says so above the list.
+const fetcher = url => jsonFetcher(url)
 // The leadership read THROWS on failure (jsonFetcher: non-2xx, network, 30 s deadline). With
 // the bare fetcher a 503 {detail} became an empty list and read "not yet available, check back".
 const leadershipFetcher = url => jsonFetcher(url)
@@ -387,7 +391,7 @@ export default function UCT20() {
   const inPanel = useInTerminalPanel()
   const { mutate } = useSWRConfig()
   const { data: rows, error: rowsError, mutate: retryRows } = useSWR('/api/leadership', leadershipFetcher, { refreshInterval: 3600000 })
-  const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
+  const { data: portData, error: portError } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
   const { data: breadthData } = useSWR('/api/breadth', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
@@ -575,6 +579,13 @@ export default function UCT20() {
         </div>
       )}
       <TileCard title={`UCT 20 — Current Top Stocks${leadershipUpdated ? ` · as of ${leadershipUpdated}` : ''}`}>
+        {rows && portError && !portData && (
+          <p className={styles.emptyStateBody} role="status" data-testid="uct20-holdings-error">
+            {portError.status === 402
+              ? 'Holding history (days held, return since added, NEW) requires a paid plan.'
+              : 'Holding history could not be read right now, so days held, return since added and the NEW marks are not shown. That is a gap in what we could read, not a change to the list.'}
+          </p>
+        )}
         {rowsError && !rows ? (
           <div className={styles.emptyState} data-testid="uct20-error">
             <p className={styles.emptyStateTitle}>The UCT 20 could not be read right now</p>
