@@ -893,3 +893,77 @@ def test_the_setup_ledger_is_read_through_its_symbol_index(stores):
             "AND (trigger_date >= ? OR substr(resolved_at, 1, 10) >= ?)", ("NVDA", "2026-01-01", "2026-01-01")))
     assert "USING INDEX" in plan and "SCAN setup_triggers" not in plan, plan
     assert "UPPER(symbol)" not in inspect.getsource(th.setups_lane)
+
+
+# ── TERM-019 as-of + the boot warm of the wire-archive parse ─────────────────────────────
+
+def test_the_history_is_dated_by_its_oldest_lane_read_never_now(stores, monkeypatch):
+    import itertools
+    clock = itertools.count(1_790_000_000.0)
+    monkeypatch.setattr(th.time, "time", lambda: next(clock))
+    out = th.history("NVDA", days=30)
+    ok = [n for n, s in out["lanes"].items() if s["status"] == "ok"]
+    assert ok, out["lanes"]                                  # non-vacuity: lanes answered
+    assert out["as_of"] is not None
+    stamp = datetime.fromisoformat(out["as_of"]).timestamp()
+    # the OLDEST lane read (the fake clock's early ticks), never the wall clock's "now"
+    assert 1_790_000_000 <= stamp < 1_790_000_000 + 10_000
+
+
+def test_a_history_with_no_answering_lane_is_undated(stores, monkeypatch):
+    def boom(*_a, **_k):
+        raise RuntimeError("store gone")
+    for name in th.LANES:
+        monkeypatch.setitem(th._LANE_FNS, name, boom)
+    out = th.history("NVDA", days=30)
+    assert all(s["status"] != "ok" for s in out["lanes"].values())
+    assert out["as_of"] is None
+
+
+def test_the_wire_archive_warm_fills_the_memo_the_lane_reads(stores, monkeypatch):
+    th._WIRE_DOC_MEMO.clear()
+    got = th.warm_wire_archive()
+    assert got["parsed"] == 2 and got["stopped"] is None, got
+    from api.services import wire_archive
+    reads = []
+    real = wire_archive.read
+    monkeypatch.setattr(wire_archive, "read", lambda ymd: (reads.append(ymd), real(ymd))[1])
+    rows = _lane(th.history("NVDA", days=30), "wire")
+    assert rows and reads == [], reads                       # the lane parsed nothing itself
+    th._WIRE_DOC_MEMO.clear()
+
+
+def test_the_wire_archive_warm_is_bounded_by_its_budget_and_the_memo_cap(stores, monkeypatch):
+    th._WIRE_DOC_MEMO.clear()
+    assert th.warm_wire_archive(budget_s=-1)["stopped"] == "budget"
+    assert th._WIRE_DOC_MEMO == {}
+    monkeypatch.setattr(th, "_WIRE_DOC_MEMO_MAX", 1)
+    got = th.warm_wire_archive()
+    assert got["parsed"] == 1 and got["stopped"] == "memo_cap", got
+    th._WIRE_DOC_MEMO.clear()
+
+
+def test_the_boot_warm_runs_the_wire_archive_warm(monkeypatch):
+    import time as _time
+    calls = []
+    monkeypatch.setattr(th, "is_enabled", lambda: True)
+    monkeypatch.setattr(th, "warm_wire_archive", lambda: calls.append(1) or {})
+    for target in ("api.services.massive.get_movers", "api.services.engine.get_news",
+                   "api.routers.theme_performance.get_theme_performance",
+                   "api.services.earnings_preview_warm.warm_week_previews",
+                   "api.services.earnings_preview_warm.warm_reported_analyses",
+                   "api.services.screener.distribution.distributions"):
+        monkeypatch.setattr(target, lambda *a, **k: None)
+    monkeypatch.setattr("api.routers.breadth_monitor.get_breadth_history", lambda days=90: None)
+    monkeypatch.setattr("api.services.breadth_live.warm", lambda: None)
+    monkeypatch.setattr("api.routers.calendar.get_calendar", lambda week=None: None)
+    monkeypatch.setattr("api.routers.calendar.get_enrichment_batch", lambda dates=None: {})
+    monkeypatch.setattr("api.live_massive_router.warm_recent", lambda **kw: None)
+    monkeypatch.setattr("api.live_massive_router.day_stats", lambda **kw: None)
+    from api.main import _start_dashboard_warm_background
+    _start_dashboard_warm_background(delay_seconds=0)
+    for _ in range(200):
+        if calls:
+            break
+        _time.sleep(0.05)
+    assert calls, "the boot warm never warmed the HIS wire archive"

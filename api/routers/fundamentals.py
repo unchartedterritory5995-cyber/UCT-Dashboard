@@ -390,6 +390,12 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
     # Finnhub metric leg failed) used to pin a blank for the full hour
     # in-memory even though the disk copy correctly refused to be poisoned.
     complete = any(v is not None for k, v in result.items() if k != "ticker")
+    # TERM-019: the instant this snapshot was BUILT from the providers. It rides the cached and
+    # persisted payload, so a cache or disk hit keeps the build time and never reads as "now".
+    # Only a build that produced something is dated: an all-null build has no data to age.
+    if complete:
+        import datetime as _dt
+        result["as_of"] = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
     set_by_completeness(
         f"api_fund::{sym}", result, complete=complete,
         ttl_ok=_FH_METRIC_TTL, ttl_partial=_FUND_FAIL_TTL,

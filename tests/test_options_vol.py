@@ -159,8 +159,22 @@ def test_vrp_is_iv30_minus_hv30(monkeypatch):
         "term": {"points": [{"expiration": "2026-10-22", "dte": 20, "atm_iv": 0.30},
                             {"expiration": "2026-11-11", "dte": 40, "atm_iv": 0.40}]}})
     r = vol.vrp("TST")
+    assert r["as_of"] is None                     # the stub surface carries no build time
     assert r["iv30"] == 0.3697 and r["hv30"] == hv_expected(30)
     assert r["vrp_points"] == round(0.3697 - hv_expected(30), 4)
+
+
+def test_the_iv_reads_are_dated_by_the_surface_build_never_now(monkeypatch):
+    """TERM-019: interpolated IV and VRP carry vol_surface's own `served_at` (its cache fill)."""
+    from api.services import vol_surface
+    monkeypatch.setattr(vol_surface, "get_surface", lambda s, selected="": {
+        "spot": 100, "served_at": "2026-10-06T14:05:00+00:00",
+        "term": {"points": [{"expiration": "2026-10-22", "dte": 20, "atm_iv": 0.30},
+                            {"expiration": "2026-11-11", "dte": 40, "atm_iv": 0.40}]}})
+    assert vol.term_structure("TST")["as_of"] == "2026-10-06T14:05:00+00:00"
+    assert vol.interpolated_iv("TST", 30)["as_of"] == "2026-10-06T14:05:00+00:00"
+    r = vol.vrp("TST")
+    assert r["as_of"] == "2026-10-06T14:05:00+00:00" and r["hv_through"]
 
 
 def test_a_vendor_surface_failure_is_a_503(monkeypatch):

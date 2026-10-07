@@ -1,7 +1,7 @@
 // UCT Terminal — the shared primitives a page or tab uses when it renders inside a terminal panel.
 // The shell (pages/terminal) provides the context; every export here is safe outside it.
 export {
-  TerminalPanelContext, useInTerminalPanel, PanelFreshnessContext, usePanelFreshness,
+  TerminalPanelContext, useInTerminalPanel, PanelFreshnessContext, usePanelFreshness, panelAsOf,
   PanelListContext, usePanelBoard, usePanelList, QuietPanelFreshness,
 } from './terminalPanel'
 export { default as BoardFromList } from './BoardFromList'

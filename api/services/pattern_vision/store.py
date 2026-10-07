@@ -233,6 +233,23 @@ def count_evaluated(ticker, tf="D", today: str | None = None) -> int:
 
 
 
+def last_judged_at(ticker, tf="D", today: str | None = None) -> int | None:
+    """TERM-019: when the judge last ran on the population `count_evaluated` counts -- the
+    same window and the same latest-per-setup rule (keep the three edited together). Epoch
+    seconds, or None when nothing in the window was ever judged."""
+    floor = confirmed_window_floor(today)
+    with connect() as c:
+        r = c.execute(
+            "SELECT MAX(v.judged_at) FROM pattern_verdicts v "
+            "WHERE v.ticker=? AND v.tf=? "
+            "  AND v.asof_date = (SELECT MAX(v2.asof_date) FROM pattern_verdicts v2 "
+            "                     WHERE v2.ticker=v.ticker AND v2.tf=v.tf "
+            "                       AND v2.setup=v.setup) "
+            "  AND v.asof_date >= ?",
+            (ticker.upper(), tf, floor)).fetchone()
+        return int(r[0]) if r and r[0] else None
+
+
 def cost_today(day: str) -> float:
     with connect() as c:
         r = c.execute("SELECT COALESCE(SUM(cost_usd),0) FROM vision_cost_log WHERE day=?",

@@ -232,6 +232,47 @@ def _archived_wire_doc(ymd: str):
     return doc
 
 
+#: Boot warm bound (`warm_wire_archive`): the wall-clock budget for one warm pass.
+WIRE_WARM_BUDGET_S = float(os.environ.get("HIS_WIRE_WARM_BUDGET_S") or 20.0)
+
+
+def warm_wire_archive(budget_s: Optional[float] = None) -> dict:
+    """Parse the archived wires the HIS lane can read (the last MAX_DAYS, newest first) into
+    `_WIRE_DOC_MEMO`, so the first HIS open after a deploy does not pay the parse (~1 s).
+
+    Bounded three ways: at most `_WIRE_DOC_MEMO_MAX` files (one memo fill, never a clear),
+    a wall-clock budget, and local disk only (no vendor call). Called from the web boot-warm
+    background thread (api/main.py), never from a request; a failure is the caller's log line.
+    """
+    from api.services import wire_archive
+    budget = WIRE_WARM_BUDGET_S if budget_s is None else float(budget_s)
+    since = _since(MAX_DAYS)
+    t0 = time.monotonic()
+    parsed = skipped = 0
+    stopped = None
+    held = sorted(wire_archive.held_dates(), reverse=True)
+    for ymd in held:
+        if parsed >= _WIRE_DOC_MEMO_MAX:
+            stopped = "memo_cap"
+            break
+        if time.monotonic() - t0 > budget:
+            stopped = "budget"
+            break
+        try:
+            d = date.fromisoformat(wire_archive.parse_date(ymd))
+        except (ValueError, TypeError):
+            skipped += 1
+            continue
+        if d < since:
+            break                                   # newest first: everything after is older
+        if _archived_wire_doc(ymd) is None:
+            skipped += 1
+        else:
+            parsed += 1
+    return {"held": len(held), "parsed": parsed, "skipped": skipped, "stopped": stopped,
+            "ms": round((time.monotonic() - t0) * 1000)}
+
+
 # ── lanes ────────────────────────────────────────────────────────────────────
 
 def wire_lane(sym: str, since: date) -> list[dict]:
@@ -782,7 +823,7 @@ def _lane_done(key, fut) -> None:
             del _LANE_PARKED[k]
         _LANE_PARKED[key] = (now, fut)
     try:
-        name, _status, _rows, ms = fut.result()
+        name, _status, _rows, ms, _read_at = fut.result()
         if ms >= SLOW_HISTORY_LOG_S * 1000:
             logger.warning("[ticker-history] late lane %s for %s took %d ms", name, key[1], ms)
     except Exception:  # noqa: BLE001 -- _one never raises; this is only the log line
@@ -841,7 +882,9 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
         _RUN_MEMO.d = {}
         try:
             name_, status, rows = _one_lane(name)
-            return name_, status, rows, (time.monotonic() - t_lane) * 1000
+            # TERM-019: the wall-clock instant this lane's stores were read. A parked answer
+            # keeps the time of ITS read, so the response's as_of never claims a later read.
+            return name_, status, rows, (time.monotonic() - t_lane) * 1000, time.time()
         finally:
             _RUN_MEMO.d = None
 
@@ -888,12 +931,13 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
         fut, how = _lane_future(key, lambda n=n: _one(n))
         futures.append((n, key, fut, how))
     t0 = time.monotonic()
+    read_times = []
     for n, key, f, how in futures:
         # One budget for the whole request, counted from when the lanes started, so the
         # lanes' times are not added on top of each other.
         budget = max(0.0, LANE_WAIT_S - (time.monotonic() - t0))
         try:
-            name, status, rows, ms = f.result(timeout=budget)
+            name, status, rows, ms, read_at = f.result(timeout=budget)
         except FutureTimeout:
             # Still reading. The read keeps going and parks its answer, so the panel's next
             # ask is answered at once. Not "nothing" and not "unavailable": the lane has not
@@ -904,6 +948,8 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
         if how != "parked":
             _lane_consumed(key, f)
         lanes[name] = status
+        if status.get("status") == "ok":
+            read_times.append(read_at)
         timeline.extend(rows)
         timing.append((n, 0.0 if how == "parked" else ms, status["status"] if how == "read" else how))
     timeline.sort(key=lambda r: (r["date"], LANES.index(r["lane"])), reverse=True)
@@ -914,6 +960,10 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
     return {"ticker": sym, "key": "entity" if entity["status"] == "resolved" else "ticker",
             "entity": entity, "since": since.isoformat(), "days": days, "lanes": lanes,
             "not_rendered": not_rendered, "timeline": timeline,
+            # TERM-019: the OLDEST read among the lanes that answered -- what this timeline is
+            # current through. None when no lane answered (the panel then says "undated").
+            "as_of": (datetime.fromtimestamp(min(read_times), ET).isoformat(timespec="seconds")
+                      if read_times else None),
             "_timing": timing + [("total", total_ms, "ok")]}
 
 
