@@ -1,0 +1,23 @@
+{
+  "suite": "pytest",
+  "collected": 2696,
+  "passed": 2667,
+  "failed": 25,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 731.67,
+  "failed_files": [
+    "tests/test_launch_hardening.py",
+    "tests/test_massive_guard_census.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py",
+    "tests/test_mutation_harness_hygiene.py",
+    "tests/test_no_cr_in_tracked_text_blobs.py",
+    "tests/test_notebook_bench_uct.py",
+    "tests/test_notebook_bridges_pin_the_root.py",
+    "tests/test_notebook_flag_parse.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "25 failed, 2667 passed, 4 skipped, 33 warnings in 731.67s (0:12:11)",
+  "ok": true
+}
