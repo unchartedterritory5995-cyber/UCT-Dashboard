@@ -122,9 +122,14 @@ export function registerWorkspaceCapabilities() {
     surfaces: ['charts'],
     available: (ctx) => ctx.surface === 'charts',
     summary: 'Add ONE widget of a given type to the Charts workspace, placed automatically in empty space. Use one op per widget.',
-    hints: `Types: ${WORKSPACE_MENU_TYPES.map(t => `${t} (${label(t)})`).join(', ')}. target = the ref of the workspace entry. `
-      + 'To configure a new CHART in the same request, set "as" to a short name (new1, new2, …) and use that name as the target of later chart actions; otherwise "as" is null. '
-      + 'Example: add 2 charts on SPY and QQQ → widget.add{type:chart, as:new1}, widget.add{type:chart, as:new2}, chart.setSymbol on new1 SPY, chart.setSymbol on new2 QQQ.',
+    // ⚠️ The "as" rule comes FIRST, ahead of the long type list: with it at the
+    // end, the production model (measured 2026-10-07, 4/4) targeted new1… but
+    // left every "as" null, so the plan was refused as naming unknown targets.
+    hints: 'target = the ref of the workspace entry. "as" NAMES THE NEW WIDGET: if any later op in this plan changes the new widget '
+      + '(a new chart\'s symbol, timeframe, …), set "as" to a short unique name (new1, new2, …) and use exactly that name as those ops\' target '
+      + '— a later op may not target a new widget whose "as" is null. Otherwise "as" is null. '
+      + 'Example: "add 2 charts on SPY and QQQ" → widget.add{type:chart, as:"new1"}, widget.add{type:chart, as:"new2"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. '
+      + `Types: ${WORKSPACE_MENU_TYPES.map(t => `${t} (${label(t)})`).join(', ')}.`,
     args: {
       type: 'object',
       properties: { type: { type: 'string', enum: [...WORKSPACE_MENU_TYPES] }, as: { type: ['string', 'null'] } },

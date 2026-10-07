@@ -85,6 +85,17 @@ describe('compound creation: several charts, each configured, one transaction', 
     expect(state.widgets[0]).toMatchObject({ id: 'c', x: 0, y: 0, w: 12, h: 20 })   // the existing chart: untouched
     expect(host.charts.read('c').symbol).toBe('AAPL')                                // and so is its symbol
   })
+  it('the order and names the production model actually emits: interleaved per chart, free-form aliases', async () => {
+    const { host, state } = BASE()
+    const ops = ['IBM', 'DIA'].flatMap(s => [
+      addOp('chart', `${s.toLowerCase()}_chart`),
+      { action: 'chart.setSymbol', target: `${s.toLowerCase()}_chart`, args: { symbol: s } },
+      { action: 'chart.setTimeframe', target: `${s.toLowerCase()}_chart`, args: { timeframe: '5' } },
+    ])
+    const res = await commitPlan(host, wsPlan(host, ops))
+    expect(res.ok).toBe(true)
+    expect(newCharts(state).map(w => [host.charts.read(w.id).symbol, host.charts.read(w.id).tf])).toEqual([['IBM', '5'], ['DIA', '5']])
+  })
   it('an INVALID symbol refuses the whole plan before any widget exists', () => {
     const { host, state } = BASE()
     const p = wsPlan(host, build(['SPY', 'ZZZZQ']), { unknownSymbols: new Set(['ZZZZQ']) })
