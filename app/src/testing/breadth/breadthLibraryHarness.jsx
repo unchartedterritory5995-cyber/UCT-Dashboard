@@ -421,6 +421,7 @@ function Harness() {
         value={q}
         data-testid="q"
         placeholder="try: 50 day / new lows / NASDAQ breadth"
+        aria-label="Search breadth library"
         onChange={(e) => setQ(e.target.value)}
       />
       <div style={S.chipRow}>

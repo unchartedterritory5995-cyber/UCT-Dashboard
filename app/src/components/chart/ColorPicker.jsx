@@ -133,6 +133,7 @@ export default function ColorPicker({ value, onChange, label, disabled = false, 
               onChange={e => setHex(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && commitHex()}
               placeholder="#hex"
+              aria-label="Hex color"
               spellCheck={false}
             />
             <button className={styles.hexOk} onClick={commitHex}>OK</button>

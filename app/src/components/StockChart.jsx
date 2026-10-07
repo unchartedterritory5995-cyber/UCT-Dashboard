@@ -19589,6 +19589,7 @@ export default function StockChart({
           <span style={{ font: '11px "Instrument Sans", sans-serif', color: '#c9a84c', letterSpacing: '0.04em' }}>GO TO</span>
           <input
             type="date"
+            aria-label="Go to date"
             autoFocus
             onChange={(e) => { if (e.target.value) { jumpToDate(e.target.value); setDateJumpOpen(false) } }}
             onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setDateJumpOpen(false) } }}

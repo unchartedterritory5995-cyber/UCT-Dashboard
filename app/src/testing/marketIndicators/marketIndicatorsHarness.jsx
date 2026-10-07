@@ -173,6 +173,7 @@ function App() {
         <input
           value={q} onChange={e => setQ(e.target.value)}
           placeholder="Search — try: McClellan · 50 day · NAAIM · VIX · NASI · UCTA50"
+          aria-label="Search market indicators"
           style={{
             width: '100%', padding: '9px 11px', background: '#151a20', color: '#e6e8ec',
             border: '1px solid #242a33', borderRadius: 4, fontSize: 13, marginBottom: 12,

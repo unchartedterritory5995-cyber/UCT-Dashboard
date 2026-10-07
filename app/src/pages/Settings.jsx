@@ -42,6 +42,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Checkbox from '../components/ui/Checkbox'
 import Textarea from '../components/ui/Textarea'
+import Radio from '../components/ui/Radio'
 
 // Memoized {__html} object — the TOTP screen re-renders on every keystroke of
 // the 6-digit code, and React 19 diffs dangerouslySetInnerHTML by OBJECT
@@ -273,8 +274,7 @@ function CompassVoicePicker({ value, onChange, enabled }) {
             }}
             onClick={() => enabled && onChange(v.id)}
           >
-            <input
-              type="radio"
+            <Radio
               name="compass-voice"
               aria-label={v.label}
               checked={selected}
