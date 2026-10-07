@@ -143,6 +143,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/FinancialFactView.jsx': { coveredBy: 'editor-nodes' },
   'components/notebook/NoteLinkView.jsx': { coveredBy: 'editor-nodes' },
   'components/notebook/WidgetEmbedView.jsx': { coveredBy: 'editor-nodes' },
+  // Landing 12-15 (lane FE round 3): the chart block's "Block actions" button, shown at 1024 px
+  // and under and loaded on demand, so no editor recipe renders it; rail
+  // a11y/embedBlockActions.a11y.test.jsx (the button, and its open menu).
+  'components/notebook/EmbedBlockActions.jsx': { recipe: 'embed-block-actions' },
   'components/notebook/AskInsertPicker.jsx': { coveredBy: 'ask-insert-picker' },
 
   // ── the journal embed renderers ────────────────────────────────────────────
