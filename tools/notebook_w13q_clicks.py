@@ -2071,6 +2071,10 @@ def run_one(br, state, base: str, flow: Flow, mode: str, width: str, cx: Ctx, ou
     pg.bring_to_front()
     pg.on("pageerror", lambda e: errors.append({"flow": flow.fid, "mode": mode, "width": width,
                                                  "error": str(e)[:300]}))
+    # Console errors too: a failure the page reports without throwing (a lazy chunk that did
+    # not load, a refused registration) is otherwise invisible in the record.
+    pg.on("console", lambda c: errors.append({"flow": flow.fid, "mode": mode, "width": width,
+                                               "console": c.text[:400]}) if c.type == "error" else None)
     pg.on("dialog", lambda d: d.accept())
     m = Meter(pg, mode)
     try:
