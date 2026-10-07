@@ -2147,9 +2147,12 @@ def q23_board_similar(cx: Ctx, pg, m: Meter, width: str) -> dict:
         door.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
         raise Inconclusive("no 'Active setups' door on Research Home")
-    if not use_skip_link(m, r"^Skip to reviews and setups$", "Skip to reviews and setups"):
-        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
-    m.press(door, "Active setups")
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "Active setups" (a plain route). Before: 4 Tabs to
+        # Research Home's skip link, Enter, 5 Tabs past the reviews box to the board's link.
+        palette_command(m, "active setups", r"^Active setups$", "Active setups")
+    else:
+        m.press(door, "Active setups")
     try:
         pg.wait_for_url("**/journal/notebook/setups", timeout=20000)
         pg.get_by_role("heading", name="Active setups").wait_for(state="visible", timeout=60000)

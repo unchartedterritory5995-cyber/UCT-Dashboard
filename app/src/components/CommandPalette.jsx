@@ -22,6 +22,7 @@ import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
 import { NOTEBOOK_DOORS, noteOpenAt, openNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
+import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -95,6 +96,11 @@ const NOTEBOOK_COMMANDS = [
     action: 'door', door: NOTEBOOK_DOORS.ASK, keywords: [],
     match: phraseStart('ask about this note', 'ask this note', 'ask note'),
     when: ({ location }) => noteOpenAt(location) },
+  // Q23: the active setups board, a plain route. Its link on Research Home is 9 Tab stops in.
+  { id: 'nb-active-setups', kind: 'command', label: 'Active setups', icon: 'library',
+    to: SETUPS_BOARD_PATH, keywords: [],
+    match: phraseStart('active setups', 'setups board', 'setups'),
+    when: () => setupsBoardEnabled() },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact

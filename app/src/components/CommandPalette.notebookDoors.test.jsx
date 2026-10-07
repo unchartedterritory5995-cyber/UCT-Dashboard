@@ -15,6 +15,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import RouteFocusTarget from '../pages/journal-2-0/lib/routeFocus'
 
 function RouteSpy() {
   const l = useLocation()
@@ -134,5 +135,61 @@ describe('palette: Ask about this note (Q9)', () => {
     renderPalette('/journal/notebook')
     await openAndType('ask this note')
     expect(option('Ask about this note')).toBeNull()
+  })
+})
+
+describe('palette: Active setups (Q23)', () => {
+  it('with the board\'s switch on, choosing it opens the board', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    renderPalette('/journal/notebook')
+    await openAndType('active setups')
+    fireEvent.click(await screen.findByRole('option', { name: 'Active setups' }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe('/journal/notebook/setups'))
+  })
+
+  it('it is offered from anywhere in the app, by "setups" too', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    renderPalette('/dashboard')
+    await openAndType('setups')
+    expect(await screen.findByRole('option', { name: 'Active setups' })).toBeTruthy()
+  })
+
+  it('DARK: with the switch off, or never answered, it is not offered', async () => {
+    renderPalette('/journal/notebook')
+    const box = await openAndType('active setups')
+    expect(option('Active setups')).toBeNull()
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_setups_board_enabled: false })
+    fireEvent.change(box, { target: { value: 'active setups ' } })
+    fireEvent.change(box, { target: { value: 'active setups' } })
+    expect(option('Active setups')).toBeNull()
+  })
+
+  it('"setup" (five letters) never offers it', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    renderPalette('/journal/notebook')
+    await openAndType('setup')
+    expect(option('Active setups')).toBeNull()
+  })
+})
+
+// A PIN, not a fix (it passed before any change here). The palette is a modal dialog, and a
+// Journal page never takes focus for its landing while a dialog holds it (lib/routeFocus.jsx).
+// The palette closes in the same render as the move, so by the time the page looks, the dialog
+// is gone and the landing takes focus. Q23's count depends on that; a special "close first"
+// branch was written for it, shown to be unnecessary by removing it, and deleted.
+describe('palette: Active setups lands keyboard focus on the page (Q23)', () => {
+  it('after the move, focus is on the Journal page\'s landing, not on <body>', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <CommandPalette />
+        <RouteFocusTarget />
+        <button type="button">first control of the page</button>
+      </MemoryRouter>)
+    await openAndType('active setups')
+    fireEvent.click(await screen.findByRole('option', { name: 'Active setups' }))
+    await waitFor(() => expect(document.activeElement?.hasAttribute('data-route-focus')).toBe(true))
+    expect(document.activeElement.textContent).toBe('Active setups')
   })
 })
