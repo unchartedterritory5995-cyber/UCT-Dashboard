@@ -550,3 +550,111 @@ def test_the_samples_row_never_blocks_a_save_the_member_made_from_a_watchlist(db
     finally:
         c.close()
     assert {r["source"] for r in _passed_rows(U1)} == {"watchlist", passed_setups.SOURCE_SAMPLE}
+
+
+# ── every example is in the shape its own feature's reader and writer use ────────────────────
+#
+# The sample's chart plan stored each level as `{role, type, price}`: no `id`, no `points`.
+# That is not what the product writes when a member draws a plan (`lib/chartPlan.js`
+# `withPlanRole`: the line's anchor `points[0].price` IS the level, and no `price` is kept).
+# The server read it all the same, so every test was green -- and in the browser the role
+# buttons did nothing, "Arm alert" refused and no line was drawn. The example misrepresented
+# the feature it is there to teach. These tests read the example through the feature's OWN
+# reader and hold it to the rules the product's own writer applies.
+
+import pathlib  # noqa: E402
+import re  # noqa: E402
+
+from api.services.journal_two import chart_plan, plan_extract, tech_fingerprint  # noqa: E402
+
+_REPO = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _client_role_types():
+    """The drawing types the CLIENT lets carry a plan role, read from its own source."""
+    src = (_REPO / "app/src/pages/journal-2-0/lib/chartPlan.js").read_text(encoding="utf-8")
+    m = re.search(r"PLAN_ROLE_DRAWING_TYPES\s*=\s*Object\.freeze\(\[([^\]]*)\]\)", src)
+    assert m, "chartPlan.js no longer declares PLAN_ROLE_DRAWING_TYPES where this test reads it"
+    return set(re.findall(r"'([^']+)'", m.group(1)))
+
+
+def _example_chart(db, title_prefix, embed_id):
+    c = _conn()
+    try:
+        row = c.execute("SELECT body_json FROM j2_notes WHERE user_id = ? AND title LIKE ?",
+                        (U1, title_prefix + "%")).fetchone()
+    finally:
+        c.close()
+    attrs = chart_plan.find_chart_block(row["body_json"], embed_id)
+    assert attrs is not None, f"no chart block {embed_id!r} in the example note"
+    return attrs
+
+
+def _assert_drawn_shape(levels, wanted_roles, frozen_at):
+    assert [a["role"] for a in levels] == wanted_roles
+    ids = [a.get("id") for a in levels]
+    assert all(isinstance(i, str) and i for i in ids), "a level has no id: the role buttons cannot address it"
+    assert len(set(ids)) == len(ids), "two levels share an id: a role set on one lands on both"
+    for a in levels:
+        assert a["type"] in _client_role_types(), "the client would refuse a plan role on this drawing type"
+        assert "price" not in a, ("a top-level price is a second copy of the level: plan_extract reads it "
+                                  "FIRST, and the client deletes it whenever a role is set")
+        pts = a.get("points")
+        assert isinstance(pts, list) and len(pts) == 1 and isinstance(pts[0], dict)
+        assert isinstance(pts[0]["price"], float) and pts[0]["price"] > 0     # the alert and the line read this
+        assert pts[0]["time"] == frozen_at                                    # anchored where the chart is frozen
+        assert plan_extract._annotation_price(a) == pts[0]["price"]
+
+
+def test_the_plan_examples_levels_are_drawn_levels_and_the_servers_reader_agrees(db, seeded):
+    attrs = _example_chart(db, "Trade plan: example", "ex-plan")
+    _assert_drawn_shape(attrs["annotations"], ["entry", "stop", "target"], attrs["params"]["to"])
+    plan = chart_plan.read_block_plan(attrs, sample_examples.SYM_PLAN)
+    assert (plan["entry"], plan["stop"], plan["target"], plan["shares"]) == (180.0, 170.0, 205.0, 100.0)
+    assert plan["side"] == "long" and plan["setup"] == "Classic Flag/Pullback"
+    assert {r: plan["roles"][r]["state"] for r in ("entry", "stop", "target")} == {
+        "entry": plan_extract.STATE_OK, "stop": plan_extract.STATE_OK, "target": plan_extract.STATE_OK}
+
+
+def test_the_active_setup_examples_levels_are_drawn_levels_too(db, seeded):
+    attrs = _example_chart(db, "Active setup: example", "ex-setup")
+    _assert_drawn_shape(attrs["annotations"], ["entry", "stop"], attrs["params"]["to"])
+    plan = chart_plan.read_block_plan(attrs, sample_examples.SYM_SETUP)
+    assert (plan["entry"], plan["stop"], plan["target"]) == (410.0, 395.0, None)
+    c = _conn()
+    try:
+        cards = setups_board.build_cards(c, U1)["cards"]
+    finally:
+        c.close()
+    assert any(card["symbol"] == sample_examples.SYM_SETUP for card in cards)   # still on its board
+
+
+def test_the_two_examples_never_share_a_level_id(db, seeded):
+    a = _example_chart(db, "Trade plan: example", "ex-plan")["annotations"]
+    b = _example_chart(db, "Active setup: example", "ex-setup")["annotations"]
+    ids = [x["id"] for x in a + b]
+    assert len(set(ids)) == len(ids)
+
+
+def test_the_examples_fingerprint_is_the_shape_the_fingerprint_module_writes(db, seeded):
+    """The example's fingerprint is hand-written (it must never call `compute`), so it is held
+    to the real module's own field list and version here, where importing it is allowed."""
+    fp = _example_chart(db, "Trade plan: example", "ex-plan")["ta"]["fingerprint"]
+    assert fp["v"] == tech_fingerprint.FINGERPRINT_VERSION == sample_examples.FINGERPRINT_VERSION
+    assert tuple(fp["fields"]) == tuple(tech_fingerprint.FIELDS)
+    for name, field in fp["fields"].items():
+        assert set(field) >= {"value", "source", "missing"} and field["missing"] is None, name
+    assert tech_fingerprint.summary_values(fp)                      # the module's own reader takes it
+    block = next(b for b in chart_blocks.list_blocks(U1) if b["embedKey"] == "ex-plan")
+    assert block["setupTag"] == "Classic Flag/Pullback" and block["fingerprint"]["fields"]["rs_rank"]["value"] == 92
+
+
+def test_the_thesis_example_is_read_by_the_plan_reader_as_a_stop_and_nothing_else(db, seeded):
+    c = _conn()
+    try:
+        note = _thesis_note(c, U1)
+        row = c.execute("SELECT body_json, properties_json FROM j2_notes WHERE id = ?", (note["id"],)).fetchone()
+    finally:
+        c.close()
+    reading = plan_extract.read_note_plan(row["body_json"], row["properties_json"], [], sample_examples.SYM_THESIS)
+    assert reading.value("stop") == 110.0 and reading.value("entry") is None and reading.value("target") is None

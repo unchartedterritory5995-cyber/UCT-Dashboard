@@ -217,13 +217,30 @@ def _chart_embed(*, embed_id: str, symbol: str, as_of_day: str, annotations: lis
     return {"type": "widgetEmbed", "attrs": attrs}
 
 
+def _drawn_levels(embed_id: str, as_of_day: str, **levels: float) -> list[dict]:
+    """Plan levels in the shape the PRODUCT writes when a member draws them on a chart.
+
+    ⛔ THE DRAWN SHAPE, NOT A SHORTHAND. A level a member draws and gives a role is
+    `{id, type, role, points: [{time, price}]}` (`lib/chartPlan.js` `withPlanRole`: the line's
+    anchor `points[0].price` IS the level, and a top-level `price` is deleted whenever a role
+    is set, because `plan_extract` reads `price` first and a copy would go stale). The example
+    used to store `{role, type, price}`. The server reads either, so every server test was
+    green -- and in the browser the role buttons did nothing (they address a level by `id`),
+    "Arm alert at this level" refused (`anchorsForDrawing` needs `points[0].price`), and no
+    line was drawn (the overlay draws from `points`). An example must be what the feature
+    itself would have written, or it teaches the wrong thing.
+
+    Each id is unique across every example (`<embed id>-<role>`); the anchor time is the
+    instant the chart block is frozen at (`params.to`).
+    Rail: tests/test_sample_notebook_examples.py reads this through `chart_plan`'s own reader."""
+    to = _unix_seconds_et_close(date.fromisoformat(as_of_day))
+    return [{"id": f"{embed_id}-{role}", "type": "horizontal", "role": role,
+             "points": [{"time": to, "price": float(price)}]} for role, price in levels.items()]
+
+
 def _plan_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float, stop: float,
                     target: float, shares: float, setup_tag: str, fingerprint: dict) -> dict:
-    annotations = [
-        {"role": "entry", "type": "horizontal", "price": entry},
-        {"role": "stop", "type": "horizontal", "price": stop},
-        {"role": "target", "type": "horizontal", "price": target},
-    ]
+    annotations = _drawn_levels("ex-plan", as_of_day, entry=entry, stop=stop, target=target)
     return {"type": "doc", "content": [
         _p(("Example", [{"type": "bold"}]), " -- a plan written BEFORE a trade. "
            f"{symbol} is a real ticker; the numbers are hand-written for this example, not "
@@ -244,10 +261,7 @@ def _plan_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float,
 
 def _active_setup_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float,
                             stop: float, setup_tag: str) -> dict:
-    annotations = [
-        {"role": "entry", "type": "horizontal", "price": entry},
-        {"role": "stop", "type": "horizontal", "price": stop},
-    ]
+    annotations = _drawn_levels("ex-setup", as_of_day, entry=entry, stop=stop)
     return {"type": "doc", "content": [
         _p(("Example", [{"type": "bold"}]), " -- a plan that has not been traded yet. "
            "Notes like this one, with a drawn entry and stop and no linked trade, are what "
