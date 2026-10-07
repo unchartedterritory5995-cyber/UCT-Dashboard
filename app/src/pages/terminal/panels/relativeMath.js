@@ -253,15 +253,21 @@ export function returnsByDate(series) {
  * (accuracy audit 2026-10-06: NVDA/AMD with one AMD session missing read r = 0.390 against
  * the pandas reference 0.382, on 62 returns instead of 63).
  */
-export function correlationMatrix(seriesBySym, syms, sessions = 63) {
-  const own = Object.fromEntries(syms.map((s) => [s, Math.min(sessions, Math.max(0, (seriesBySym[s]?.length || 0) - 1))]))
+export function correlationMatrix(seriesBySym, syms, sessions = 63, { since = null } = {}) {
+  // `since` ('YYYY-MM-DD', inclusive) bounds the window by DATE instead of a session count:
+  // YTD keeps every return dated in the current year, and nothing from before it.
+  const inWindow = (d) => !since || d >= since
+  const own = Object.fromEntries(syms.map((s) => {
+    const rets = [...returnsByDate(seriesBySym[s] || []).keys()].filter(inWindow)
+    return [s, Math.min(sessions, rets.length)]
+  }))
   const cell = (a, b) => {
     if (a === b) return { r: 1, n: own[a] }
     const { dates, closes } = alignCloses({ a: seriesBySym[a] || [], b: seriesBySym[b] || [] })
     const pair = (k) => returnsByDate(dates.map((d, i) => ({ d, c: closes[k][i] })))
     const ra = pair('a')
     const rb = pair('b')
-    const keep = [...ra.keys()].filter((d) => rb.has(d)).sort().slice(-sessions)
+    const keep = [...ra.keys()].filter((d) => rb.has(d) && inWindow(d)).sort().slice(-sessions)
     const res = pearson(keep.map((d) => ra.get(d)), keep.map((d) => rb.get(d)))
     return res.n < MIN_CORR_SESSIONS ? { r: null, n: res.n } : res
   }
@@ -282,6 +288,21 @@ export function correlationMatrix(seriesBySym, syms, sessions = 63) {
     most: pairs[0] || null,
     least: pairs.length > 1 ? pairs[pairs.length - 1] : null,
   }
+}
+
+/** CORR's window → `{ sessions, since }` for `correlationMatrix`. A fixed window is a session
+ *  count (2Y = 504); YTD is every return dated in the newest session's calendar year. */
+export function corrWindow(lookback, seriesBySym, syms) {
+  if (lookback === 'YTD') {
+    let newest = ''
+    for (const s of syms) {
+      const ser = seriesBySym[s]
+      const d = ser?.length ? ser[ser.length - 1].d : ''
+      if (d > newest) newest = d
+    }
+    return { sessions: Infinity, since: newest ? `${newest.slice(0, 4)}-01-01` : null }
+  }
+  return { sessions: LOOKBACK_SESSIONS[lookback] ?? LOOKBACK_SESSIONS['3M'], since: null }
 }
 
 // ── the panels' symbol list ────────────────────────────────────────────────────────────────
