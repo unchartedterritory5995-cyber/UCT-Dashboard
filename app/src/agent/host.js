@@ -153,9 +153,91 @@ export function buildLayoutSource(getLayouts) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts }) {
+/**
+ * The member's OWN saved watchlists — the DATA, not the Watchlist widget. Read from the
+ * same `/api/watchlists` the Watchlists page reads; written ONLY through the same REST
+ * routes the page and the ticker menu call (bulk add, delete-by-item, add, reorder,
+ * create, rename), then every `/api/watchlists*` SWR key is revalidated so each open
+ * list re-reads. The Agent keeps no list store of its own: `fresh` only holds the
+ * server's latest answer between a write and the SWR refetch, so a read-back never sees
+ * the pre-write cache.
+ *   getLists()   → the SWR list rows (own lists, prebuilt excluded) or undefined
+ *   getWidgets() → the visible board (which Watchlist widget shows which list)
+ *   revalidate() → re-read every /api/watchlists* key
+ */
+export function buildWatchlistSource({ getLists, getWidgets, revalidate, request = (u, o) => fetch(u, { credentials: 'include', ...o }) }) {
+  const fresh = new Map()       // id → { row, at }
+  let swrAt = 0
+  let lastRows = null
+  const slimItems = (row) => (row?.items || []).filter(i => i && i.sym).map(i => ({ id: String(i.id), sym: String(i.sym).toUpperCase(), notes: i.notes || '' }))
+  const editableWhy = (row) => (row.origin?.mode === 'link' ? 'it is linked to its source list (save a copy to edit it)' : null)
+  function rows() {
+    const r = getLists() || []
+    if (r !== lastRows) { lastRows = r; swrAt = Date.now() }
+    const byId = new Map(r.filter(x => x && x.id && !x.is_flagged_list && !x.is_prebuilt).map(x => [String(x.id), x]))
+    for (const [id, f] of fresh) if (f.at >= swrAt) byId.set(id, f.row)
+    return [...byId.values()]
+  }
+  function shownIn(id, widgets) {
+    const lists = widgets.filter(w => w.type === 'watchlist')
+    return lists.filter(w => w.opts?.watchKey === `user:${id}`).map(w => positionWord(w, lists) || 'on the board')
+  }
+  const remember = (row) => { if (row?.id) fresh.set(String(row.id), { row: { ...row, id: String(row.id) }, at: Date.now() }); return row }
+  async function json(r, what) {
+    if (!r.ok) {
+      const b = await r.json().catch(() => ({}))
+      throw new Error(b.detail || `${what} failed (${r.status})`)
+    }
+    return r.json()
+  }
+  const enc = encodeURIComponent
+  const send = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  return {
+    loaded: () => Array.isArray(getLists()),
+    snapshot() {
+      const widgets = getWidgets() || []
+      return rows().map(row => ({
+        id: String(row.id), name: row.name, items: slimItems(row),
+        editable: !editableWhy(row), why: editableWhy(row), shownIn: shownIn(String(row.id), widgets),
+      }))
+    },
+    /** The server's CURRENT list (never the cache) — read right before and after a write. */
+    async fetchList(id) {
+      return remember(await json(await request(`/api/watchlists/${enc(id)}?slim=1`, { cache: 'no-store' }), 'Reading the watchlist'))
+    },
+    async fetchAll() {
+      const list = await json(await request('/api/watchlists?include_items=0&include_prebuilt=0', { cache: 'no-store' }), 'Reading your watchlists')
+      return Array.isArray(list) ? list.filter(x => !x.is_flagged_list && !x.is_prebuilt) : []
+    },
+    bulkAdd: async (id, symbols) => json(await request(`/api/watchlists/${enc(id)}/items/bulk`, send('POST', { symbols })), 'Adding'),
+    addItem: async (id, sym, notes = '') => json(await request(`/api/watchlists/${enc(id)}/items`, send('POST', { sym, notes })), 'Adding'),
+    removeItem: async (id, itemId) => json(await request(`/api/watchlists/${enc(id)}/items/${enc(itemId)}`, { method: 'DELETE' }), 'Removing'),
+    reorder: async (id, itemIds) => json(await request(`/api/watchlists/${enc(id)}/reorder`, send('PUT', { item_ids: itemIds })), 'Reordering'),
+    async create(name) {
+      const row = await json(await request('/api/watchlists', send('POST', { name, description: '', is_public: false })), 'Creating the watchlist')
+      remember({ ...row, items: row.items || [] })
+      return row
+    },
+    rename: async (id, name) => json(await request(`/api/watchlists/${enc(id)}`, send('PUT', { name })), 'Renaming'),
+    /** Only to take back a list THIS transaction just created (compensation). */
+    async deleteCreated(id) {
+      await json(await request(`/api/watchlists/${enc(id)}`, { method: 'DELETE' }), 'Removing the new list')
+      fresh.delete(String(id))
+      revalidate?.()
+    },
+    /** After a write: the server's list becomes what the Agent reads, and every open list re-reads. */
+    async settle(id) {
+      const row = await this.fetchList(id)
+      revalidate?.()
+      return row
+    },
+  }
+}
+
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   return {
+    ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets }),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(layoutSource ? {

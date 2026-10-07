@@ -4,10 +4,10 @@
 // dot can unlink a widget ('N' → its own `N:<id>` symbol key, as WidgetHost
 // does), and charts read their symbol from their link group.
 import { planPlacement } from '../../pages/charts/placement/place'
-import { buildWidgetSource, buildLayoutSource } from '../host'
+import { buildWidgetSource, buildLayoutSource, buildWatchlistSource } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
-export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null } = {}) {
+export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
   let n = 0
   let adds = 0
@@ -108,6 +108,80 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
     })
     host.layouts = source
     host.epoch = () => { const a = source.snapshot().active; return a ? `${a.scope}:${a.id}` : 'unsaved' }
+  }
+  // Optional saved WATCHLISTS behind an in-memory server with the REAL routes'
+  // semantics (watchlist_service.py): bulk add skips symbols already there and appends
+  // in order; one add is idempotent; delete is by item id; reorder takes the full id
+  // order; create mints an id (names are NOT unique server-side); rename is a PUT.
+  // `getLists()` is the SWR cache: it only changes when `revalidate()` "refetches".
+  if (watchlists) {
+    let seq = 0
+    const server = {
+      lists: watchlists.map(l => ({ id: l.id, name: l.name, origin: l.origin || null, items: (l.symbols || []).map(sym => ({ id: `${l.id}-i${++seq}`, sym, notes: (l.notes || {})[sym] || '' })) })),
+      calls: [], failOn: null,
+    }
+    state.server = server
+    let cache = JSON.parse(JSON.stringify(server.lists))
+    const ok = (o) => ({ ok: true, status: 200, json: async () => o })
+    const nope = (status, detail) => ({ ok: false, status, json: async () => ({ detail }) })
+    const request = async (url, init = {}) => {
+      const method = (init.method || 'GET').toUpperCase()
+      const body = init.body ? JSON.parse(init.body) : null
+      const path = url.split('?')[0]
+      server.calls.push([method, path, body])
+      if (server.failOn && server.failOn(method, path, body)) return nope(500, 'server error')
+      if (method === 'GET' && path === '/api/watchlists') return ok(server.lists.map(l => ({ id: l.id, name: l.name, item_count: l.items.length })))
+      if (method === 'POST' && path === '/api/watchlists') {
+        const row = { id: `wl${++seq}`, name: body.name, items: [] }
+        server.lists.push(row)
+        return ok({ ...row })
+      }
+      const m = /^\/api\/watchlists\/([^/]+)(\/.*)?$/.exec(path)
+      const wl = m && server.lists.find(l => l.id === decodeURIComponent(m[1]))
+      if (!wl) return nope(404, 'Watchlist not found')
+      const sub = m[2] || ''
+      if (method === 'GET' && !sub) return ok(JSON.parse(JSON.stringify(wl)))
+      if (wl.origin?.mode === 'link' && sub) return nope(409, 'linked')
+      if (method === 'POST' && sub === '/items/bulk') {
+        let added = 0
+        for (const raw of body.symbols) {
+          const sym = raw.trim().toUpperCase()
+          if (!sym || wl.items.some(i => i.sym === sym)) continue
+          wl.items.push({ id: `${wl.id}-i${++seq}`, sym, notes: '' }); added++
+        }
+        return ok({ added, watchlist: JSON.parse(JSON.stringify(wl)) })
+      }
+      if (method === 'POST' && sub === '/items') {
+        const sym = body.sym.trim().toUpperCase()
+        const hit = wl.items.find(i => i.sym === sym)
+        if (hit) return ok({ ...hit, duplicate: true })
+        const row = { id: `${wl.id}-i${++seq}`, sym, notes: body.notes || '' }
+        wl.items.push(row)
+        return ok({ ...row, duplicate: false })
+      }
+      const di = /^\/items\/([^/]+)$/.exec(sub)
+      if (method === 'DELETE' && di) {
+        const before = wl.items.length
+        wl.items = wl.items.filter(i => i.id !== decodeURIComponent(di[1]))
+        return before === wl.items.length ? nope(404, 'Item not found') : ok({ ok: true })
+      }
+      if (method === 'PUT' && sub === '/reorder') {
+        const pos = new Map(body.item_ids.map((id, k) => [id, k]))
+        wl.items = [...wl.items].sort((a, b) => (pos.get(a.id) ?? 1e9) - (pos.get(b.id) ?? 1e9))
+        return ok({ ok: true })
+      }
+      if (method === 'PUT' && !sub) { wl.name = body.name; return ok({ ...wl }) }
+      if (method === 'DELETE' && !sub) { server.lists = server.lists.filter(l => l !== wl); return ok({ ok: true }) }
+      return nope(400, 'unexpected')
+    }
+    host.watchlists = buildWatchlistSource({
+      getLists: () => cache,
+      getWidgets: () => state.widgets,
+      revalidate: () => { cache = JSON.parse(JSON.stringify(server.lists)) },
+      request,
+    })
+    // "The member edits the list by hand" (another tab, the Watchlists page).
+    state.manual = (id, fn) => { const wl = server.lists.find(l => l.id === id); fn(wl); cache = JSON.parse(JSON.stringify(server.lists)) }
   }
   return { host, state, widgetOps }
 }

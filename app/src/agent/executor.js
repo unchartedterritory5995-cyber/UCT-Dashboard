@@ -155,14 +155,17 @@ export function summarize(plans, labelOf = (p) => p.snap.label) {
   const real = plans.filter(p => !p.virtual)
   const virt = plans.filter(p => p.virtual)
   const lines = []
+  // A kind whose lines already name their target ("Added AMD to “Momentum”") is
+  // never prefixed with its label again.
+  const named = (p) => !!getTargetKind(p.kind)?.selfDescribing
   const multiReal = real.filter(p => p.lines.length).length > 1
-  for (const p of real) for (const l of p.lines) lines.push(multiReal ? `${labelOf(p)}: ${l}` : l)
+  for (const p of real) for (const l of p.lines) lines.push(multiReal && !named(p) ? `${labelOf(p)}: ${l}` : l)
   if (virt.length === 1) {
-    for (const l of virt[0].lines) lines.push(`${labelOf(virt[0])}: ${l}`)
+    for (const l of virt[0].lines) lines.push(named(virt[0]) ? l : `${labelOf(virt[0])}: ${l}`)
   } else if (virt.length > 1) {
     const shared = virt[0].lines.filter(l => virt.every(p => p.lines.includes(l)))
     for (const l of shared) lines.push(`All ${virt.length} new: ${l}`)
-    for (const p of virt) for (const l of p.lines) if (!shared.includes(l)) lines.push(`${labelOf(p)}: ${l}`)
+    for (const p of virt) for (const l of p.lines) if (!shared.includes(l)) lines.push(named(p) ? l : `${labelOf(p)}: ${l}`)
   }
   return lines
 }
@@ -175,7 +178,13 @@ export async function prepareOps(ops) {
     if (c?.prepare) { if (!byCap.has(c)) byCap.set(c, []); byCap.get(c).push(op) }
   }
   const env = {}
-  for (const [c, list] of byCap) Object.assign(env, await c.prepare(list))
+  for (const [c, list] of byCap) {
+    // Two capabilities may look up the same thing (every ticker check fills
+    // `unknownSymbols`): Sets are UNIONED, never overwritten by the later one.
+    for (const [k, v] of Object.entries(await c.prepare(list) || {})) {
+      env[k] = v instanceof Set && env[k] instanceof Set ? new Set([...env[k], ...v]) : v
+    }
+  }
   return env
 }
 

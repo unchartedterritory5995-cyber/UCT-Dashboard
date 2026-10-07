@@ -148,7 +148,8 @@ export default function AgentPanel({ host, gridMode, onClose }) {
       )}
 
       <div className={styles.list} ref={listRef} data-testid="agent-transcript">
-        {agent.items.length === 0 && (
+        {agent.restoring && <div className={styles.thinking} aria-live="polite" data-testid="agent-restoring">Loading this conversation…</div>}
+        {agent.items.length === 0 && !agent.restoring && (
           <div className={styles.empty}>
             <p className={styles.para}>Ask a question, or tell me what to change on your charts.</p>
             <div className={styles.choices}>

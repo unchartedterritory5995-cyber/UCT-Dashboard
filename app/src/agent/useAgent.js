@@ -30,6 +30,8 @@ registerBuiltins()
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // Which board the host is showing (null for hosts without layouts).
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
+// A proposal is pinned to the board only if it touches something ON the board.
+const boardEpoch = (host, ops) => (kindsOf(ops).some(k => getTargetKind(k)?.boardScoped !== false) ? epochOf(host) : null)
 
 let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
@@ -63,18 +65,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
 
   // Reopen the remembered conversation (transcript only; proposals and undo are per session).
+  // ⭐ MERGED, never replaced: the composer stays usable while this loads, and a
+  // message sent meanwhile (and its answer) must survive the history arriving —
+  // replacing the transcript here is how a typed message "disappeared" after a reload.
+  const [restoring, setRestoring] = useState(() => !!conversationRef.current)
   useEffect(() => {
     let alive = true
     const id = conversationRef.current
     if (!id) return undefined
     agentConversation(id).then((conv) => {
       if (!alive) return
+      setRestoring(false)
       if (!conv) { setConversationId(null); return }
-      setItems(conv.turns.map(t => ({
+      const history = conv.turns.map(t => ({
         id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
         text: t.text, history: true,
-      })))
-    })
+      }))
+      setItems(xs => [...history, ...xs.filter(x => !x.history)])
+    }, () => { if (alive) setRestoring(false) })
     return () => { alive = false }
   }, [setConversationId])
 
@@ -110,7 +118,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const mode = suggested === 'approved' ? 'apply' : decideMode(suggested, plan)
     if (mode === 'propose') {
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops, epoch: epochOf(host) }
+      pendingRef.current = { kind: 'proposal', id: pid, ops, epoch: boardEpoch(host, ops) }
       push({ id: pid, role: 'proposal', lines: plan.lines.length ? plan.lines : plan.noops, status: 'pending' })
       record({ member, outcome: `Proposed: ${plan.lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -168,7 +176,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     pendingRef.current = null
     // A proposal belongs to the board it was made on. If another layout is open now,
     // its refs (and "the workspace") would mean a different board: never apply it there.
-    if (p.epoch !== epochOf(host)) {
+    if (p.epoch != null && p.epoch !== epochOf(host)) {
       patchItem(p.id, { status: 'dismissed' })
       const text = "A different layout is open now, so I didn't apply that proposal — it was for the board you had open then. Nothing was changed. Ask again if you still want it."
       push({ role: 'refusal', text })
@@ -232,6 +240,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         push({ role: 'agent', text: t })
         record({ member: text, outcome: t, telemetry: { path: 'fast', voice } })
         return
+      }
+      // Ops whose capability already resolved the target (a named saved list) run as-is.
+      if (fast?.kind === 'ops' && fast.ops.every(o => o.target)) {
+        return await execute(fast.ops, { path: 'fast', mode: 'apply', member: text, voice })
       }
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length === 1) {
         const kind = getTargetKind(kindsOf(fast.ops)[0])
@@ -323,7 +335,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const canUndo = (undoId) => undoRef.current.some(e => e.id === undoId)
 
   return {
-    items, busy, conversationId, send, newChat, openConversation,
+    items, busy, restoring, conversationId, send, newChat, openConversation,
     undo: (undoId) => doUndo(undoId, { member: null }),
     approve: () => approve(null, { member: null }), dismiss: () => dismiss({ member: null }),
     chooseTarget, canUndo,

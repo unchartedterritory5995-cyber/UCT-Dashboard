@@ -37,6 +37,12 @@ const BOARD = params.get('board') || ''
 const widgets = BOARD === 'rail'
   // a Watchlist rail on the right; the product places up to four charts left of it
   ? [{ id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: {} }]
+  : BOARD === 'wl'
+  // a chart + a Watchlist widget showing the fixture list "Momentum" (user:m1)
+  ? [
+      { id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 18, h: 20, opts: { tf: 'D' } },
+      { id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { watchKey: 'user:m1', watchName: 'Momentum' } },
+    ]
   : BOARD === 'gap'
   // half the board empty, so widget.add has somewhere to land without resizing anything
   ? [{ id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: 'D' } }]
@@ -68,6 +74,16 @@ const LIB = LAYOUTS ? {
   ],
 } : { global: [], mine: [] }
 let layoutSeq = 100
+// ?watchlists=1 — FIXTURE saved watchlists (in-page only), answering the same routes
+// with the same semantics as api/routers/watchlists.py + watchlist_service.py.
+const WATCHLISTS = params.get('watchlists') === '1'
+let wlSeq = 0
+const wlRow = (id, name, syms, notes = {}) => ({ id, user_id: 1, name, description: '', is_public: 0, items: syms.map(sym => ({ id: `${id}-i${++wlSeq}`, watchlist_id: id, sym, notes: notes[sym] || '', sort_order: wlSeq })) })
+const WL = WATCHLISTS ? [
+  wlRow('m1', 'Momentum', ['NVDA', 'TSLA', 'META', 'AAPL'], { TSLA: 'earnings 10/22' }),
+  wlRow('s1', 'Swing', ['MSFT']),
+  wlRow('l1', 'Long Term', []),
+] : []
 const PREFS = {
   charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }),
   charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: 'AAPL', D: 'MSFT' }),
@@ -75,7 +91,7 @@ const PREFS = {
   ...(LAYOUTS ? { charts_active_template: JSON.stringify({ id: 11, name: 'Agent Test', scope: 'user' }) } : {}),
 }
 
-const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [] })
+const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [], wl: WL, wlWrites: [] })
 setAgentFlag(true)
 // Only an explicit ?open= seeds the remembered state; otherwise the Agent's own
 // persistence decides (so the harness can prove it survives a reload).
@@ -87,7 +103,7 @@ let convSeq = 0
 window.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : (input && input.url) || ''
   const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
-  const path = url.replace(/^https?:\/\/[^/]+/, '')
+  let path = url.replace(/^https?:\/\/[^/]+/, '')
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 1, email: 'harness@local', role: 'admin', display_name: 'Harness' }, plan: 'pro', subscription: null, trial: null })
   }
@@ -116,6 +132,37 @@ window.fetch = async (input, init) => {
       row.name = body.name
       return json(row)
     }
+    return json({ detail: 'refused by harness' }, 403)
+  }
+  if (WATCHLISTS && path.startsWith('/api/watchlists') && !/^\/api\/watchlists\/(flagged|themes-batch|bulk-meta|intelligence|digest-settings|public|prebuilt)/.test(path)) {
+    let body = null
+    try { body = init && init.body ? JSON.parse(init.body) : null } catch { /* */ }
+    const path0 = path
+    path = path.split('?')[0]                // the routes ignore ?include_prebuilt / ?slim here
+    if (method !== 'GET') H.wlWrites.push({ method, path: path0, body, at: Date.now() })
+    const view = (w) => ({ ...w, item_count: w.items.length, items: w.items.map(i => ({ ...i })) })
+    if (method === 'GET' && path === '/api/watchlists') return json(WL.map(view))
+    if (method === 'POST' && path === '/api/watchlists') { const row = wlRow(`n${++wlSeq}`, body.name, []); WL.push(row); return json(view(row)) }
+    const m = /^\/api\/watchlists\/([^/]+)(\/.*)?$/.exec(path)
+    const wl = m && WL.find(w => w.id === decodeURIComponent(m[1]))
+    if (!wl) return json({ detail: 'Watchlist not found' }, 404)
+    const sub = m[2] || ''
+    if (method === 'GET' && !sub) return json(view(wl))
+    if (method === 'POST' && sub === '/items/bulk') {
+      let added = 0
+      for (const raw of body.symbols) { const sym = raw.trim().toUpperCase(); if (!sym || wl.items.some(i => i.sym === sym)) continue; wl.items.push({ id: `${wl.id}-i${++wlSeq}`, watchlist_id: wl.id, sym, notes: '', sort_order: wlSeq }); added++ }
+      return json({ added, watchlist: view(wl) })
+    }
+    if (method === 'POST' && sub === '/items') {
+      const sym = body.sym.trim().toUpperCase(); const hit = wl.items.find(i => i.sym === sym)
+      if (hit) return json({ ...hit, duplicate: true })
+      const row = { id: `${wl.id}-i${++wlSeq}`, watchlist_id: wl.id, sym, notes: body.notes || '', sort_order: wlSeq }; wl.items.push(row); return json({ ...row, duplicate: false })
+    }
+    const di = /^\/items\/([^/]+)$/.exec(sub)
+    if (method === 'DELETE' && di) { const n = wl.items.length; wl.items = wl.items.filter(i => i.id !== decodeURIComponent(di[1])); return n === wl.items.length ? json({ detail: 'Item not found' }, 404) : json({ ok: true }) }
+    if (method === 'PUT' && sub === '/reorder') { const pos = new Map(body.item_ids.map((id, k) => [id, k])); wl.items.sort((a, b) => (pos.get(a.id) ?? 1e9) - (pos.get(b.id) ?? 1e9)); return json({ ok: true }) }
+    if (method === 'PUT' && !sub) { if (body.name) wl.name = body.name; return json(view(wl)) }
+    if (method === 'DELETE' && !sub) { WL.splice(WL.indexOf(wl), 1); return json({ ok: true }) }
     return json({ detail: 'refused by harness' }, 403)
   }
   if (path.startsWith('/api/auth/preferences') || path.startsWith('/api/charts/layouts') || path.startsWith('/api/workspace')) {
@@ -149,7 +196,7 @@ window.fetch = async (input, init) => {
   if (path.startsWith('/api/agent/conversations')) return json(path === '/api/agent/conversations' ? { conversations: [] } : {}, path === '/api/agent/conversations' ? 200 : 404)
   if (path.startsWith('/api/ticker-search')) {
     const q = new URL(url, location.origin).searchParams.get('q') || ''
-    return json({ results: /^(SPY|QQQ|IBM|DIA|NVDA|AAPL|MSFT|AMD|TSLA)$/i.test(q) ? [{ ticker: q.toUpperCase() }] : [] })
+    return json({ results: /^(SPY|QQQ|IBM|DIA|NVDA|AAPL|MSFT|AMD|TSLA|RKLB|PLTR|ASTS|AVGO|TSM|META)$/i.test(q) ? [{ ticker: q.toUpperCase() }] : [] })
   }
   if (path.startsWith('/api/voice/transcribe')) return json({ text: SAY, seconds_billed: 1 })
   if (path.startsWith('/api/')) {

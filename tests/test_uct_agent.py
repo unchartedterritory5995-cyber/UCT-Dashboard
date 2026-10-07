@@ -452,3 +452,27 @@ def test_compact_args_that_do_not_match_are_unreadable_never_guessed(args_json):
     c = caller_of(_resp(env("apply", ops=[bad])))
     with pytest.raises(turn.TurnError):
         turn.run_turn(message="set it", context=CTX, history=[], capabilities=many, caller=c)
+
+
+def test_compact_array_args_are_checked_element_by_element():
+    many = _many_caps(turn.STRICT_OP_VARIANTS_MAX + 3) + [{
+        "name": "example.addMany", "domain": "example", "target": "chart", "summary": "Add tickers.",
+        "hints": None, "risk": "local", "reversible": True,
+        "args": {"type": "object", "properties": {"symbols": {"type": "array", "items": {"type": "string"}}},
+                 "required": ["symbols"], "additionalProperties": False}}]
+    good = {"action": "example.addMany", "target": "c1", "args_json": json.dumps({"symbols": ["NVDA", "AMD"]})}
+    out = turn.run_turn(message="add", context=CTX, history=[], capabilities=many, caller=caller_of(_resp(env("apply", ops=[good]))))
+    assert out["envelope"]["ops"][0]["args"] == {"symbols": ["NVDA", "AMD"]}
+    bad = {"action": "example.addMany", "target": "c1", "args_json": json.dumps({"symbols": ["NVDA", 7]})}
+    with pytest.raises(turn.TurnError):
+        turn.run_turn(message="add", context=CTX, history=[], capabilities=many, caller=caller_of(_resp(env("apply", ops=[bad]))))
+
+
+def test_an_EMPTY_answer_is_never_shown_as_a_blank_reply():
+    with pytest.raises(turn.TurnError):
+        turn.run_turn(message="what lists?", context=CTX, history=[], capabilities=CAPS,
+                      caller=caller_of(_resp(env("answer", reply="  "))))
+    # a plan whose ops were all dropped is the same case
+    rogue = {"action": "account.delete", "target": "c1", "args": {}}
+    with pytest.raises(turn.TurnError):
+        turn.run_turn(message="x", context=CTX, history=[], capabilities=CAPS, caller=caller_of(_resp(env("apply", ops=[rogue]))))

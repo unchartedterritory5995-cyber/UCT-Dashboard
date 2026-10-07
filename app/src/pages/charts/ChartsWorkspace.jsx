@@ -10,6 +10,7 @@ import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
+import useSWR, { useSWRConfig } from 'swr'
 import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import { buildWorkspaceHost } from '../../agent/host'
 const AgentPanel = lazy(() => import('../../agent/AgentPanel'))
@@ -2824,6 +2825,18 @@ export default function ChartsWorkspace() {
   const agentAllowed = agentFlag && isAdmin
   const [agentOpen, setAgentOpenState] = useState(() => readLocal(AGENT_OPEN_KEY) === '1')
   const setAgentOpen = useCallback((v) => { setAgentOpenState(v); writeLocal(AGENT_OPEN_KEY, v ? '1' : '0') }, [])
+  // Saved watchlists (the DATA, not the widget) for the Agent: the member's OWN lists,
+  // the same rows the Watchlists page reads, fetched only while the Agent is open.
+  // Writes go through the page's own REST routes (agent/host.js); afterwards every
+  // /api/watchlists* key re-reads, so each open list — widget or page — updates.
+  const { data: agentWatchlists } = useSWR(agentAllowed && agentOpen ? '/api/watchlists?include_prebuilt=0' : null,
+    (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : [])), { revalidateOnFocus: false })
+  const { mutate: swrMutate } = useSWRConfig()
+  const agentWatchlistsRef = useRef(null)
+  agentWatchlistsRef.current = {
+    lists: agentWatchlists,
+    revalidate: () => swrMutate(k => typeof k === 'string' && k.startsWith('/api/watchlists')),
+  }
   // ⚠️ Hooks live ABOVE the phone early-return; the ref is filled below it.
   const agentWidgetsRef = useRef([])
   // widget.add / its undo go through the SAME handlers the Widgets menu and a
@@ -2870,6 +2883,10 @@ export default function ChartsWorkspace() {
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
     },
     layouts: () => agentLayoutsRef.current,
+    watchlists: {
+      getLists: () => agentWatchlistsRef.current.lists,
+      revalidate: () => agentWatchlistsRef.current.revalidate(),
+    },
   }), [])
 
   if (isMobile) {
