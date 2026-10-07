@@ -307,8 +307,12 @@ export function buildDraftBlocks(payload) {
   const blocks = []
   blocks.push(...numbersSection(payload.aggregates))
   blocks.push(hr())
-  blocks.push(...disciplineSection(payload.discipline))
-  blocks.push(hr())
+  // `discipline` is null while plan grading's own switch is off (the server then grades
+  // nothing and writes nothing). The section is left out, never drawn as a row of zeros.
+  if (payload.discipline) {
+    blocks.push(...disciplineSection(payload.discipline))
+    blocks.push(hr())
+  }
   blocks.push(...setupChangesSection(payload.setupChanges))
   blocks.push(hr())
   blocks.push(...linksSection(payload.links))

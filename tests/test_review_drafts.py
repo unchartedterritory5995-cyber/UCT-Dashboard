@@ -299,3 +299,98 @@ def test_the_daily_draft_reads_the_day_through_the_filter_modules_own_spine():
     assert "trading_day_et, substr(exit_date" not in src.split('"""', 2)[2], \
         "review_drafts.py restates the trading-day expression; import filters._DAY instead"
     assert review_drafts._DAY is filters._DAY
+
+
+# ── fin-flags I5: review drafts never write plan-grading state while plan grading is off ────
+#
+# A draft grades each trade through `plan_grading.grade_payload`, and a first match FREEZES the
+# plan (`j2_trade_plan_links`, ruling R4). With review drafts armed and plan grading not, a
+# draft froze plans the member could neither see nor Re-link (that control is behind the
+# plan-grading switch). A feature must not write another feature's data while it is off.
+
+PG_FLAG = "NOTEBOOK_PLAN_GRADING_ENABLED"
+
+
+def _own_plan_note(conn, symbol="NVDA", stop=95.0, written="2026-09-29T12:00:00+00:00"):
+    from api.services.journal_two import notes, sample_examples
+    out = notes.import_confirm(U, {"source": "file", "notes": [{
+        "importKey": f"own:{symbol}", "title": f"My {symbol} plan", "tags": [], "folderPath": [],
+        "ticker": symbol, "createdAt": written, "updatedAt": written,
+        "bodyJson": sample_examples._thesis_note_body(symbol, stop)}]}, conn=conn)
+    assert not out["failed"]
+    return out["created"][0]["id"]
+
+
+def _plan_links(conn):
+    return conn.execute("SELECT trade_ref, note_id FROM j2_trade_plan_links WHERE user_id = ?", (U,)).fetchall()
+
+
+def _three_drafts(client):
+    return [
+        client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json(),
+        client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json(),
+        client.get("/api/j2/review-drafts/monthly", params={"month": "2026-09", "accountId": ACCOUNT}).json(),
+    ]
+
+
+def test_with_plan_grading_off_a_draft_writes_no_plan_link_and_shows_no_grade(conn, client, monkeypatch):
+    monkeypatch.delenv(PG_FLAG, raising=False)
+    _own_plan_note(conn)
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
+              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
+    for payload in _three_drafts(client):
+        assert payload["tradeCount"] == 1
+        assert payload["discipline"] is None, "a plan-grading surface was built with plan grading off"
+        assert payload["links"]["plans"] == []
+        assert not {f["kind"] for f in payload["leaks"]} & {"unplanned_trades", "stops_not_honoured"}
+    assert _plan_links(conn) == [], "review drafts wrote plan-grading state while plan grading was off"
+
+
+def test_control_with_plan_grading_on_the_same_draft_freezes_the_plan_and_grades(conn, client, monkeypatch):
+    monkeypatch.setenv(PG_FLAG, "1")
+    note_id = _own_plan_note(conn)
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
+              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
+    assert payload["discipline"]["plannedCount"] == 1
+    assert [p["noteId"] for p in payload["links"]["plans"]] == [note_id]
+    assert [r["note_id"] for r in _plan_links(conn)] == [note_id]
+
+
+def test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch():
+    """The rail. `plan_grading`'s matcher writes on a read, so every module that calls it must
+    be gated on the plan-grading switch. A new caller is not in this list and fails by name."""
+    import ast
+    import pathlib
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    writers = {"grade_payload", "match_trade", "statuses", "discipline_record", "freeze", "relink"}
+    gated = {
+        # every route sits behind the router-level dependency (asserted below)
+        "api/routers/notebook_plan_grades.py",
+        # asks `plan_grading_enabled()` before grading (the two tests above)
+        "api/services/journal_two/review_drafts.py",
+    }
+    callers = set()
+    for path in sorted((repo / "api").rglob("*.py")):
+        rel = path.relative_to(repo).as_posix()
+        if path.name.startswith("test_") or rel == "api/services/journal_two/plan_grading.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        names = {a.asname or a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)
+                 and (n.module or "").endswith("plan_grading") for a in n.names}
+        for n in ast.walk(tree):
+            if not isinstance(n, ast.Call):
+                continue
+            f = n.func
+            if isinstance(f, ast.Attribute) and f.attr in writers and isinstance(f.value, ast.Name)                     and f.value.id == "plan_grading":
+                callers.add(rel)
+            if isinstance(f, ast.Name) and f.id in writers and f.id in names:
+                callers.add(rel)
+    assert callers, "the scan found no caller at all; it is not looking at the code"
+    assert callers <= gated, ("these call plan_grading's matcher and are not known to be gated on "
+                              "NOTEBOOK_PLAN_GRADING_ENABLED: " + ", ".join(sorted(callers - gated)))
+    assert gated <= callers, "listed as a gated caller but no longer calls it: " + ", ".join(sorted(gated - callers))
+    router = (repo / "api/routers/notebook_plan_grades.py").read_text(encoding="utf-8")
+    assert "dependencies=[Depends(_require_enabled)]" in router
+    drafts = (repo / "api/services/journal_two/review_drafts.py").read_text(encoding="utf-8")
+    assert "plan_grading_enabled()" in drafts

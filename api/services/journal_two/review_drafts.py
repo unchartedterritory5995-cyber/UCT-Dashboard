@@ -24,7 +24,13 @@ this module never writes a note itself, and nothing here is scheduled (no backgr
     UTC midnight = 8 PM Eastern the day before) under the PREVIOUS day, while the scorecard
     in the same draft filed it under its own.
   * Setups: `playbook_stats.get_playbook_stats` (the all-time per-setup baseline).
-  * Grades: 13A's `plan_grading.grade_payload`, called once per period trade.
+  * Grades: 13A's `plan_grading.grade_payload`, called once per period trade -- and ONLY
+    while plan grading's own switch is on. ⛔ That call FREEZES a first match into
+    `j2_trade_plan_links` (R4). With review drafts armed and plan grading not, a draft froze
+    plans the member could neither see nor Re-link. A feature never writes another feature's
+    data while that feature is off: with the switch off no trade is graded, nothing is
+    written, `discipline` is None and the client leaves that section out
+    (`tests/test_review_drafts.py`, which also lists every caller of the matcher).
   * Leaks: `leak_finder.find_leaks`, a pure function of the enriched trade list below.
   * The SKIP-overridden dollar figure: `verdict_scorecard.get_verdict_scorecard`.
   * Compass text: read-only, from whatever `coach.list_eod_recaps` / `list_weekly_reviews`
@@ -61,6 +67,7 @@ from api.services.journal_two.plan_grading import (
     STATUS_MEMBER_NONE, STATUS_NEEDS_PICK, STATUS_PLANNED, STATUS_UNPLANNED,
     _prop_defs, grade_payload,
 )
+from api.services.journal_two.plan_grading import enabled as plan_grading_enabled
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
 from api.services.notebook_flags import flag_on
@@ -177,14 +184,16 @@ def _aggregate_rows(rows: list[sqlite3.Row]) -> dict[str, Any]:
 def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
     if not rows:
         return []
-    defs = _prop_defs(conn, user_id)
+    grading = plan_grading_enabled()   # read once per draft; off = no grade, and NO write
+    defs = _prop_defs(conn, user_id) if grading else []
     shaped = [{"id": r["id"], "symbol": r["symbol"], "entryDate": r["entry_date"]} for r in rows]
     contexts = entry_context.contexts_for_trades(user_id, shaped, conn=conn) if entry_context.enabled() else {}
     out = []
     for r in rows:
         gross = float(r["pnl_dollar"])
         fees = float(r["fees"] or 0)
-        payload = grade_payload(conn, user_id, r, defs, with_candidates=False)
+        payload = (grade_payload(conn, user_id, r, defs, with_candidates=False) if grading
+                   else {"status": None, "checks": None, "plan": None})
         out.append({
             "id": r["id"], "tradeRef": trade_ref_for_row(r), "symbol": r["symbol"], "side": r["side"],
             "shares": float(r["shares"]), "entryPrice": float(r["entry_price"]),
@@ -429,7 +438,7 @@ def _assemble(
         "range": range_,
         "tradeCount": len(enriched),
         "aggregates": aggregates,
-        "discipline": _period_discipline(enriched),
+        "discipline": _period_discipline(enriched) if plan_grading_enabled() else None,
         "setupChanges": _setup_changes(conn, user_id, account_id, enriched),
         "bestTrade": best,
         "worstTrade": worst,
