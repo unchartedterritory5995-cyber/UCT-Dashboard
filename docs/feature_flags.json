@@ -2777,10 +2777,21 @@
       "repo": "uct-dashboard",
       "read_at": "api/services/desk_daily_session.py::first_comment_enabled (read per upload; 1/true/yes is on)",
       "kind": "toggle",
-      "status": "pending",
+      "status": "armed",
+      "where": ["web"],
       "since": "2026-10-05",
       "default": "off",
-      "note": "After a successful Desk upload, post one channel comment via commentThreads.insert ('Join the live trading room: https://whop.com/c/uncharted/yt-desk  Education only, not financial advice.') and add a pin reminder to the ops publish notice (the Data API cannot pin). Default OFF: the comment is public on every show, which is the owner's call. Fail-soft: a rejected comment is logged and the upload proceeds. Reversal: unset it."
+      "note": "After a successful Desk upload, post one channel comment via commentThreads.insert and add a pin reminder to the ops publish notice (the Data API cannot pin). The text is first_comment_text(): DESK_YT_FIRST_COMMENT_TEXT when set, else the built-in default 'Join today! The live trading room: https://whop.com/c/uncharted/yt-desk' (no disclaimer, owner decision 2026-10-06). Default OFF: the comment is public on every show, which is the owner's call. ARMED on web by the owner on 2026-10-06 (read live as 1 that day; the exact flip minute was not recorded here). Fail-soft: a rejected comment is logged and the upload proceeds. Reversal: unset it."
+    },
+    "DESK_YT_FIRST_COMMENT_TEXT": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/desk_daily_session.py::first_comment_text (read per upload; a non-blank value is posted verbatim, blank or unset means the built-in default)",
+      "kind": "config",
+      "status": "armed",
+      "where": ["web"],
+      "since": "2026-10-06",
+      "default": "unset (the built-in FIRST_COMMENT_TEXT)",
+      "note": "Optional override for the first YouTube comment, so time-limited wording never lives in source. Set on web 2026-10-06 to 'Join today! Use code JOINUCT for a nice discount: https://whop.com/c/uncharted/yt-desk'. The JOINUCT code expires 2026-10-31: clear or change this variable then (clearing falls back to the default; a delete needs a redeploy to reach the running process). It does nothing unless DESK_YT_FIRST_COMMENT is on."
     },
     "DESK_YT_PLAYLISTS": {
       "repo": "uct-dashboard",
