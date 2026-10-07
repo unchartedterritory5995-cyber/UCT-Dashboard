@@ -242,6 +242,9 @@ describe('scan-to-board — a typed list', () => {
     renderAt()
     await type('NVDA AMD MSFT')
     expect(notice()).toMatch(/BOARD GP NVDA AMD MSFT/)
+    // The current wording (the old "...or open a board with B:<name>" is gone for good).
+    expect(screen.getByTestId('terminal-notice-board-list')).toHaveTextContent('Open them as a board of charts')
+    expect(notice()).not.toMatch(/B:<name>/)
     await click('terminal-notice-board-list')
     expect(board()).toEqual(['GP:NVDA', 'GP:AMD', 'GP:MSFT'])
   })

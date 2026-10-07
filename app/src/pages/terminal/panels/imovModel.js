@@ -147,3 +147,65 @@ export function biggestMover(themes, win = DEFAULT_WINDOW) {
   }
   return best
 }
+
+// ── naming a theme on the command line (`IMOV semiconductors`, `IMOV "AI / GPU Chips"`) ──
+
+/** Pure: the comparable form of a theme name, id or ticker — case, spacing and punctuation
+ *  insensitive (`AI / GPU Chips`, `ai-gpu chips` and `AI_GPU_CHIPS` are one key). */
+export const themeQueryKey = (s) => String(s ?? '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '')
+
+const keysOf = (t) => [...new Set([t?.name, t?.theme_id, t?.ticker].map(themeQueryKey).filter(Boolean))]
+const byName = (a, b) => String(a.name).localeCompare(String(b.name))
+
+function editDistance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]
+    row[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j]
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1))
+      prev = cur
+    }
+  }
+  return row[b.length]
+}
+
+/** How many themes a "did you mean" offers at most. */
+export const THEME_SUGGESTIONS = 6
+
+/**
+ * Pure: which theme a typed name means.
+ *   { status: 'ok', theme }                    an exact name / id / ticker, or a UNIQUE prefix
+ *   { status: 'ambiguous', query, options }    the name or prefix fits several themes
+ *   { status: 'unknown', query, suggestions }  nothing fits; the nearest names, never a guess
+ *   { status: 'empty' }                        nothing was typed
+ * A word INSIDE a name (`gpu`) is only ever a suggestion: opening a theme on it would be a guess.
+ */
+export function matchTheme(themes, query) {
+  const q = themeQueryKey(query)
+  if (!q) return { status: 'empty' }
+  const list = Array.isArray(themes) ? themes : []
+  const exact = list.filter((t) => keysOf(t).includes(q))
+  if (exact.length === 1) return { status: 'ok', theme: exact[0] }
+  if (exact.length > 1) return { status: 'ambiguous', query, options: exact.sort(byName).slice(0, THEME_SUGGESTIONS) }
+  const prefix = list.filter((t) => keysOf(t).some((k) => k.startsWith(q)))
+  if (prefix.length === 1) return { status: 'ok', theme: prefix[0] }
+  if (prefix.length > 1) return { status: 'ambiguous', query, options: prefix.sort(byName).slice(0, THEME_SUGGESTIONS) }
+  const inside = list.filter((t) => keysOf(t).some((k) => k.includes(q)))
+  const suggestions = inside.length ? inside.sort(byName)
+    : list.map((t) => ({ t, d: Math.min(...keysOf(t).map((k) => editDistance(q, k.slice(0, q.length + 2)))) }))
+      .filter((x) => x.d <= Math.max(2, Math.floor(q.length / 3)))
+      .sort((a, b) => a.d - b.d || byName(a.t, b.t))
+      .map((x) => x.t)
+  return { status: 'unknown', query, suggestions: suggestions.slice(0, THEME_SUGGESTIONS) }
+}
+
+/** Pure: the command that reopens IMOV on a hand-picked theme — what the panel writes into its own
+ *  args (and so `?cmd=`, history and a reload). The theme travels by its stable key behind the
+ *  `THEME` marker (args.js THEME_MARKER), so one-word names are never read as a ticker. */
+export function imovCommand({ sym = null, theme, win = DEFAULT_WINDOW } = {}) {
+  const key = String(themeKey(theme)).trim().toUpperCase().replace(/\s+/g, '_')
+  return [sym, 'IMOV', key ? 'THEME' : null, key || null, win && win !== DEFAULT_WINDOW ? win : null]
+    .filter(Boolean).join(' ')
+}

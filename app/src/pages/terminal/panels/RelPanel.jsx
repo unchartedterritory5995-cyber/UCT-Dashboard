@@ -86,6 +86,8 @@ export default function RelPanel({ sym, lookback, ...props }) {
   const syms = useMemo(() => relSymbols(sym, props), [sym, withKey])
   const [win, setWin] = useState(REL_WINDOWS.includes(lookback) ? lookback : '6M')
   useEffect(() => { if (REL_WINDOWS.includes(lookback)) setWin(lookback) }, [lookback])
+  // A typed window this panel cannot draw is SAID, never silently replaced (the CORR pattern).
+  const unapplied = lookback && !REL_WINDOWS.includes(lookback) ? lookback : null
   const state = useCloses(syms.length >= 2 ? syms : [], 'D')
   // TERM-019: the panel header names the bar store and the newest close on screen.
   usePanelFreshness(closesProvenance(state, 'D'))
@@ -112,6 +114,11 @@ export default function RelPanel({ sym, lookback, ...props }) {
           <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}>{w}</button>
         ))}
       </div>
+      {unapplied && (
+        <p className={styles.note} role="status" data-testid="terminal-rel-unapplied">
+          Window {unapplied} is not available here; showing {win}.
+        </p>
+      )}
       <p className={styles.lede} data-testid="terminal-rel-lede">
         {read.lines.map((l) => l.sym).join(' vs ')}, rebased to 0 % on {read.dates[0]}, through {read.dates[read.dates.length - 1]} ({read.sessions} sessions).
       </p>
