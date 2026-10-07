@@ -196,7 +196,9 @@ def anthropic_tool() -> Dict[str, Any]:
             "what the turn is: change (ops, never questions), clarify (questions, ops: []), "
             "answer or unsupported (`reply`, ops: []). You do not write the indicator, "
             "its read-back, its type, its id or its semantics; deterministic code "
-            "applies and reads back any change."),
+            "applies and reads back any change. Put contract, baseRevision, disposition, "
+            "ops and the other fields at the TOP LEVEL of this tool's input -- never "
+            "nested inside another object such as \"args\"."),
         "input_schema": _strip_meta(composed_schema()),
     }
 
@@ -827,6 +829,33 @@ def _tool_input(msg: Any) -> Optional[dict]:
     return None
 
 
+#: ⭐ P3S -- the ONE argument wrapper the real model was measured to put around an
+#: otherwise complete envelope: its FIRST emit_patch arrives as ``{"args": {...}}``
+#: (keys ``["args"]``; "Additional properties are not allowed ('args' was
+#: unexpected)") and the repair call re-emits the SAME envelope at the top level.
+#: 16 of 17 P3R turns paid that second ~15k-token call for nothing.
+INPUT_WRAPPERS: Tuple[str, ...] = ("args",)
+
+
+def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]:
+    """``(envelope, wrapper)``. Removes ONE known argument wrapper -- an input whose
+    ONLY key is a name in ``INPUT_WRAPPERS`` and whose value is an object -- and says
+    which. Anything else is returned untouched (``wrapper`` None).
+
+    ⛔ EXTRACTION, NOT VALIDATION. The inner object then meets the SAME strict
+    ``check_envelope`` (contract, schema, disposition, revision, trees) as a
+    top-level answer: nothing is defaulted, stripped, merged or repaired, a wrapper
+    beside any other key is not unwrapped, and a wrapped malformed patch is refused
+    and repaired exactly as an unwrapped one is. The envelope schema defines no
+    property of that name, so this can never discard a field the contract owns."""
+    if isinstance(value, dict) and len(value) == 1:
+        (key, inner), = value.items()
+        if key in INPUT_WRAPPERS and isinstance(inner, dict) \
+                and key not in composed_schema().get("properties", {}):
+            return inner, key
+    return value, None
+
+
 def _repair_turns(messages: List[dict], msg: Any, tool_input: Optional[dict],
                   refused: _Refused) -> List[dict]:
     tool_use_id = None
@@ -937,7 +966,8 @@ def reset_conversation_usage() -> None:
 
 def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
              outcome: str, admin: bool, cap_usd: float,
-             repair_gate: Optional[str] = None) -> Dict[str, Any]:
+             repair_gate: Optional[str] = None,
+             input_wrapper: Optional[str] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
 
     ⛔ SHAPE ONLY. Model id, token counts, call count, dollars, the outcome code
@@ -955,6 +985,8 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "outcome": outcome,
         # ⭐ P3: the gate CODE that made this turn pay for a repair (None = no repair)
         "repair_gate": repair_gate,
+        # ⭐ P3S: the argument wrapper unwrapped this turn (None = the input arrived bare)
+        "input_wrapper": input_wrapper,
         "conversation": None,
     }
     key = conversation_key(conversation_id)
@@ -1012,7 +1044,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     try:
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
                                    admin=admin, cap_usd=cap_usd,
-                                   repair_gate=trace.get("repair_gate"))
+                                   repair_gate=trace.get("repair_gate"),
+                                   input_wrapper=trace.get("input_wrapper"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     return result
@@ -1111,8 +1144,13 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                       "usd": round(spent, 6)})
 
         tool_input = _tool_input(msg)
+        candidate, wrapper = _unwrap_input(tool_input)
+        if wrapper:
+            # shape only: the wrapper NAME and the attempt, never its content
+            logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
+            trace.setdefault("input_wrapper", wrapper)
         try:
-            envelope = check_envelope(tool_input, revision)
+            envelope = check_envelope(candidate, revision)
         except _Refused as refused:
             last = refused
             # the diagnostic (op path, validator text) is for the model and a DEBUG
