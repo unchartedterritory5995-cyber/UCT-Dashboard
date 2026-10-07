@@ -115,6 +115,7 @@ import {
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import lazyChunk from '../../lib/lazyChunk'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
@@ -2613,6 +2614,10 @@ export default function NoteEditorPage({
   const [formatOpen, setFormatOpen] = useState(false)
   const formatToggleRef = useRef(null)
   const toolbarRowRef = useRef(null)
+  // Lane KEYS: the formatting toolbar is ONE Tab stop (Left and Right inside it, Home and End
+  // to its ends). Off while the phone's Format panel is open: that panel keeps Tab inside the
+  // row, so there every control stays an ordinary stop.
+  const editorToolbarRoving = useToolbarRoving({ enabled: !formatOpen })
   const formatRunId = useId()
   const closeFormat = useCallback(() => setFormatOpen(false), [])
   const firstFormatControl = useCallback(
@@ -4265,10 +4270,12 @@ export default function NoteEditorPage({
           (review M-4: it rendered as an empty, named toolbar). */}
       {editor && !locked && !isCanvas && (
         <div
-          ref={toolbarRowRef}
+          ref={(el) => { toolbarRowRef.current = el; editorToolbarRoving.ref.current = el }}
           className={styles.toolbarRow}
           role="toolbar"
           aria-label="Editor toolbar"
+          onKeyDown={editorToolbarRoving.onKeyDown}
+          onFocus={editorToolbarRoving.onFocus}
           data-tour="note-toolbar"
           data-export-exclude
           data-format-open={formatOpen ? 'true' : undefined}

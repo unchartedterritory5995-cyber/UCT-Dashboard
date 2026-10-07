@@ -25,16 +25,37 @@ const CONTROLS = 'button, a[href], select'
 
 export function toolbarControls(root) {
   if (!root) return []
-  return [...root.querySelectorAll(CONTROLS)].filter((el) => !el.disabled)
+  const all = [...root.querySelectorAll(CONTROLS)].filter((el) => !el.disabled)
+  // Only controls that are on screen: a row can hold controls a stylesheet hides at this width
+  // (the editor's phone-only buttons), and a stop on a hidden control would take the whole
+  // row out of the Tab order. A control with no box is hidden. Where NOTHING has a box (a
+  // test environment with no layout) every control counts.
+  const shown = all.filter((el) => el.getClientRects().length > 0)
+  return shown.length ? shown : all
 }
 
-export default function useToolbarRoving({ prefer } = {}) {
+export default function useToolbarRoving({ prefer, enabled = true } = {}) {
   const ref = useRef(null)
   const stopRef = useRef(null)
 
   const apply = useCallback(() => {
     const root = ref.current
+    if (!root) return
+    if (!enabled) {
+      // Switched off (the row is being used as something else for now): give back every
+      // tabindex this hook set, so each control is an ordinary Tab stop again.
+      for (const el of root.querySelectorAll('[data-roving-item^="tb-"]')) {
+        el.removeAttribute('tabindex')
+        el.removeAttribute('data-roving-item')
+      }
+      stopRef.current = null
+      return
+    }
+    // A control that is hidden now keeps no stop and no marker.
     const items = toolbarControls(root)
+    for (const el of root.querySelectorAll('[data-roving-item^="tb-"]')) {
+      if (!items.includes(el)) { el.tabIndex = -1 }
+    }
     if (!items.length) return
     let stop = stopRef.current
     if (!stop || !items.includes(stop)) {
@@ -47,7 +68,15 @@ export default function useToolbarRoving({ prefer } = {}) {
       if (el.tabIndex !== want) el.tabIndex = want
       if (!el.hasAttribute('data-roving-item')) el.setAttribute('data-roving-item', `tb-${i}`)
     })
-  }, [prefer])
+  }, [prefer, enabled])
+
+  // A resize can hide the control that holds the stop (a phone-only button on a wide window).
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const again = () => apply()
+    window.addEventListener('resize', again)
+    return () => window.removeEventListener('resize', again)
+  }, [apply])
 
   // Every render, before paint: a control that appeared or left is accounted for at once, so
   // the row is never seen with two stops or with none.
@@ -63,6 +92,7 @@ export default function useToolbarRoving({ prefer } = {}) {
   })
 
   const onKeyDown = useCallback((e) => {
+    if (!enabled) return
     if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const items = toolbarControls(ref.current)
@@ -78,14 +108,15 @@ export default function useToolbarRoving({ prefer } = {}) {
     stopRef.current = items[next]
     apply()
     items[next].focus()
-  }, [apply])
+  }, [apply, enabled])
 
   const onFocus = useCallback((e) => {
+    if (!enabled) return
     const items = toolbarControls(ref.current)
     if (!items.includes(e.target) || stopRef.current === e.target) return
     stopRef.current = e.target
     apply()
-  }, [apply])
+  }, [apply, enabled])
 
   return { ref, onKeyDown, onFocus }
 }
