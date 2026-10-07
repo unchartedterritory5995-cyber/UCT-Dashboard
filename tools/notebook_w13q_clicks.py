@@ -221,6 +221,20 @@ ROVING_PLAN_JS = """h => {
   return null; }"""
 
 
+# A control inside a row of a tree (role="tree", one Tab stop: lane KEYS round 4). Reports the
+# tree's current stop, and where the control's row is among the rows showing.
+TREE_PLAN_JS = """h => {
+  const row = h && h.closest ? h.closest('[role="treeitem"]') : null;
+  const tree = row ? row.closest('[role="tree"]') : null;
+  if (!tree) return null;
+  const rows = Array.from(tree.querySelectorAll('[role="treeitem"]'));
+  const stop = rows.find(e => e.getAttribute('tabindex') === '0');
+  if (!stop) return null;
+  window.__w13qRovingStop = stop;
+  window.__w13qTreeRow = row;
+  return {from: rows.indexOf(stop), to: rows.indexOf(row), n: rows.length}; }"""
+
+
 class Meter:
     """Counts one flow in one mode. Every counted action goes through here, and is recorded
     in `steps` with what it acted on -- the raw path the reading cites."""
@@ -262,6 +276,23 @@ class Meter:
         the group's stop, then the group's own Arrow key (or Home / End when that is one press).
         Every key is pressed for real and counted; the arrival is checked, never assumed."""
         handle = loc.element_handle(timeout=20000)
+        tree = self.pg.evaluate(TREE_PLAN_JS, handle)
+        if tree:
+            # A row of a tree: Tab to the tree's one stop, then Down / Up (or Home / End) to the
+            # row. Focus ends ON THE ROW; its Enter presses the row's own control.
+            self.tab_to("el === window.__w13qRovingStop", f"the tree holding {label}")
+            a, b, n = tree["from"], tree["to"], tree["n"]
+            if b == 0 and abs(b - a) > 1:
+                self.key("Home", f"first row of the tree: {label}")
+            elif b == n - 1 and abs(b - a) > 1:
+                self.key("End", f"last row of the tree: {label}")
+            else:
+                for _ in range(abs(b - a)):
+                    self.key("ArrowDown" if b > a else "ArrowUp", f"move in the tree towards {label}")
+            if not self.pg.evaluate("() => document.activeElement === window.__w13qTreeRow"):
+                raise Inconclusive(f"the tree's arrow keys did not bring focus to the row of {label} "
+                                   f"({n} rows, stop at {a}, row at {b})")
+            return
         plan = self.pg.evaluate(ROVING_PLAN_JS, handle)
         if not plan:
             self.tab_to_locator(loc, label)
@@ -1092,7 +1123,9 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # 13Q-3: "Templates" lives in the pane's own list header -- the SAME region "Skip to notes
     # list" (NotebookTab.jsx) lands at, right past whatever remains of the sidebar after
     # go_all_notes' own click (the Keys path there still leaves focus on the "All notes" row).
-    if not use_skip_link_back(m, r"Skip to notes? list", "Skip to notes list"):
+    # Lane KEYS round 4: the folder panel is one Tab stop now, so the list's header is a few
+    # Tabs FORWARD of "All notes". No skip link is needed on a keyboard.
+    if m.mode != "keys":
         use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
     dlg = pg.get_by_role("dialog", name="New note")
@@ -1457,7 +1490,7 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
     go_all_notes(m)
     # 13Q-3: the bulk-select checkboxes are in the pane's own grid -- "Skip to notes list"
     # lands right before it, same reasoning as Q2.
-    if not use_skip_link_back(m, r"Skip to notes? list", "Skip to notes list"):
+    if m.mode != "keys":            # as in Q2: forward of the folder panel on a keyboard
         use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     try:
         pg.get_by_role("checkbox", name=f"Select Bulk {tag} 0").filter(visible=True).first.wait_for(
