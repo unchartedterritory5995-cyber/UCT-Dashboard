@@ -8,6 +8,7 @@
 // shortcuts listen at the document and would otherwise eat "B", "W", Delete…).
 
 import { useEffect, useRef, useState } from 'react'
+import { Link, useInRouterContext } from 'react-router-dom'
 import useAgent from './useAgent'
 import { agentConversations } from './agentClient'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
@@ -25,6 +26,30 @@ function Paragraphs({ text }) {
   ))
 }
 
+// A feature's structured result (e.g. Screener rows): exactly the rows it returned.
+function ResultTable({ table }) {
+  return (
+    <div className={styles.resultWrap} data-testid="agent-result-table">
+      <table className={styles.resultTable}>
+        <thead><tr>{table.columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
+        <tbody>
+          {table.rows.map((r, i) => (
+            <tr key={r[table.columns[0].key] ?? i}>{table.columns.map(c => <td key={c.key}>{r[c.key] ?? '—'}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// Where the result lives in UCT (an in-app route); a plain link outside a router.
+function OpenLink({ link }) {
+  const inRouter = useInRouterContext()
+  return inRouter
+    ? <Link className={styles.openLink} to={link.href} data-testid="agent-open-link">{link.label}</Link>
+    : <a className={styles.openLink} href={link.href} data-testid="agent-open-link">{link.label}</a>
+}
+
 function Item({ it, agent }) {
   switch (it.role) {
     case 'member':
@@ -33,6 +58,8 @@ function Item({ it, agent }) {
       return (
         <div className={styles.agent}>
           <Paragraphs text={it.text} />
+          {it.table && <ResultTable table={it.table} />}
+          {it.link && <OpenLink link={it.link} />}
           {it.sources?.length > 0 && (
             <div className={styles.sources}>
               {it.sources.slice(0, 5).map((s, i) => (

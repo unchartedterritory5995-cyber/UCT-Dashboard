@@ -20,7 +20,7 @@ import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
-import { buildContext, manifestFor, getCapability, getTargetKind } from './capabilities'
+import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, readLocal, writeLocal } from './agentFlag'
@@ -86,6 +86,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return () => { alive = false }
   }, [setConversationId])
 
+  // Features warm their data (catalogs) once the Agent is open.
+  useEffect(() => { runWarmups(host) }, [host])
+
   const record = useCallback(async (body) => {
     const res = await agentRecord({ conversationId: conversationRef.current, ...body })
     if (res.ok && res.data?.conversationId && res.data.conversationId !== conversationRef.current) {
@@ -100,8 +103,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // plan that also changes something answers its queries and plans the rest.
     const queries = allOps.filter(o => getCapability(o?.action)?.query)
     if (queries.length) {
-      const text = queries.map(o => getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {})).join('\n\n')
-      push({ role: 'agent', text })
+      // An answer is a string, or { text, table, link } for structured results (rows
+      // the feature returned — never written by the model). It may be async.
+      const answers = []
+      for (const o of queries) {
+        let a
+        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
+        answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
+      }
+      for (const a of answers) push({ role: 'agent', text: a.text, table: a.table || null, link: a.link || null })
+      const text = answers.map(a => a.text).join('\n\n')
       record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
