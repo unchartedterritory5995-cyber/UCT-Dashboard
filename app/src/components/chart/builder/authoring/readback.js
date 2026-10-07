@@ -19,6 +19,7 @@
 // `outputs[i].sentence`, and is the line whenever `conditionWords` declines.
 
 import { sentenceFor } from '../../engine/ast/sentence'
+import { TABLE } from '../../engine/ast/parse'
 import { declaredInputs, lintRepaint } from '../../engine/ast/lint'
 import { outputTreeOf } from '../../engine/outputType'
 import { STATUS } from '../../engine/evaluability'
@@ -56,8 +57,15 @@ export function colourWords(v) {
   return COLOUR_NAMES[hex] || v
 }
 
-const UPPER_FNS = new Set(['rsi', 'ema', 'sma', 'wma', 'hma', 'vwma', 'dema', 'tema', 'rma', 'atr', 'adx', 'macd',
-  'vwap', 'roc', 'cci', 'mfi', 'obv', 'dmi', 'tsi', 'cmo'])
+/** A function name is capitalised exactly when the manifest's own read-back
+ *  phrase spells it that way ("the {1}-bar RSI of {0}") — derived from the
+ *  table, never a hand list of indicators. */
+function fnWord(w) {
+  const fns = (TABLE && TABLE.functions) || {}
+  const spec = Object.prototype.hasOwnProperty.call(fns, w) ? fns[w] : null
+  const up = w.toUpperCase()
+  return spec && typeof spec.sentence === 'string' && spec.sentence.split(/[^A-Za-z]+/).includes(up) ? up : w
+}
 const CONSTANT_WORDS = Object.freeze({ '*': 'multiplier', '/': 'divisor', '+': 'offset', '-': 'offset' })
 
 /** An engine slot label (`rsi period`, `threshold of >`, `constant in *`) in a
@@ -68,7 +76,7 @@ export function slotWords(label) {
   if (s.endsWith(' (negated)')) { tail = ' (negated)'; s = s.slice(0, -tail.length) }
   if (s.startsWith('threshold of ')) s = 'threshold'
   else if (s.startsWith('constant in ')) s = CONSTANT_WORDS[s.slice('constant in '.length)] || 'number'
-  else s = s.replace(/^([a-z]+)(?= )/, (w) => (UPPER_FNS.has(w) ? w.toUpperCase() : w))
+  else s = s.replace(/^([a-z]+)(?= )/, fnWord)
   return s + tail
 }
 
