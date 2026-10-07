@@ -131,26 +131,23 @@ describe('the prep note body', () => {
     expect(line).toContain('Win')
   })
 
-  // ⛔ KNOWN DEFECT D2 (docs/notebook/fin-tests.md), kept failing on purpose: `it.fails` passes
-  // only while the defect is present. A REAL CLIENT/SERVER MISMATCH, found by this conversion.
-  //
-  //   server sends  myTrades.value[].pnlPercent = 0.123   a FRACTION: the journal stores
-  //                 (exit - entry) / entry (api/services/journal_two/calculations.py:36-39) and
-  //                 earnings_prep.py:471 passes it through unchanged
-  //   client prints fmtPct(t.pnlPercent) = "+0.1%"        lib/earningsPrepShared.js:284, whose
-  //                 fmtPct (:114-119) appends "%" WITHOUT multiplying by 100
-  //
-  // So a trade that made 12.3% is written into the member's Earnings Prep note as "+0.1%".
-  // Both unit suites were green because both typed the value as a percent by hand: the old FULL
-  // here had `pnlPercent: 12.3`, and tests/test_notebook_earnings_prep.py seeds pnl_percent = 12.3.
-  // The fixture and the component are left exactly as they are. When the unit is settled on one
-  // side, this turns red: change `it.fails` to `it`.
-  it.fails('D2: a closed trade that made 12.3% is written as +12.3%', () => {
+  // D2 (docs/notebook/fin-tests.md), found by the contract conversion and fixed: the server sends
+  // `pnlPercent` as a FRACTION (0.123), and the note used to append "%" without multiplying, so
+  // a 12.3% trade read "+0.1%". Both old suites had typed 12.3 by hand.
+  it('D2: a closed trade that made 12.3% is written as +12.3%', () => {
     const [t] = FULL.myTrades.value
     expect(t.pnlPercent).toBe(0.123)                           // what the server really sends
     const text = flat(buildPrepDoc(FULL))
     expect(text).not.toContain('+0.1%')
     expect(text).toContain('+12.3%')
+  })
+
+  it('a losing trade keeps its sign, and a flat one has none', () => {
+    const [t] = FULL.myTrades.value
+    const withResult = (pnlPercent) => flat(buildPrepDoc({ ...FULL, myTrades: { ...FULL.myTrades, value: [{ ...t, pnlPercent }] } }))
+    expect(withResult(-0.0456)).toContain('-4.6%')
+    expect(withResult(0)).toContain('0.0%')
+    expect(withResult(0)).not.toContain('+0.0%')
   })
 
   it('a broker placeholder stop (stop == entry) is never written as a stop', () => {

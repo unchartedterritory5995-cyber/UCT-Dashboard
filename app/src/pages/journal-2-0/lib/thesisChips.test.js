@@ -158,15 +158,13 @@ describe('chipLabel: what the chip itself says', () => {
     expect(chipLabel(undefined, undefined)).toBe('Thesis')
   })
 
-  // ⛔ KNOWN DEFECT D3 (docs/notebook/fin-tests.md), kept failing on purpose: `it.fails` passes
-  // only while the defect is present. STATUS_META is a plain object, so a status named after an
-  // inherited key (`constructor`, `toString`) is "found", has no label, and the chip's text is
-  // `undefined`: the empty button the module's own comment says can never happen. Not reachable
-  // through the product's write door today (the server refuses a status that is not one of the
-  // four options), so MINOR. When lib/thesisChips.js looks the status up safely, this turns red:
-  // change `it.fails` to `it`.
-  it.fails('D3: does not read an inherited object key as a status', () => {
+  // D3 (docs/notebook/fin-tests.md), fixed: the status is looked up as an OWN key, so a status
+  // named after something on Object.prototype is unknown like any other, never an empty chip.
+  it('D3: does not read an inherited object key as a status', () => {
     expect(chipLabel({ thesisStatus: 'constructor' }, null)).toBe('Thesis')
     expect(chipLabel({ thesisStatus: 'toString' }, null)).toBe('Thesis')
+    expect(chipLabel({ thesisStatus: '__proto__' }, null)).toBe('Thesis')
+    expect(chipLabel({ thesisStatus: 'hasOwnProperty' }, null)).toBe('Thesis')
+    expect(chipLabel({ thesisStatus: 7 }, null)).toBe('Thesis')
   })
 })

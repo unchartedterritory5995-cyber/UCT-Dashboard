@@ -5,7 +5,7 @@
 // ⛔ Feedback is asserted by RENDERED TEXT (the sentence in the alert, the sentence handed up
 // for the status line), never by a state setter having been called.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import GalleryPublishForm from './GalleryPublishForm'
@@ -254,42 +254,35 @@ describe('when the server refuses', () => {
     expect(screen.queryByText(/Submitted/)).not.toBeInTheDocument()
   })
 
-  it('a gateway error page is still a visible failure, never a silent one', async () => {
+  // D4 (docs/notebook/fin-tests.md), fixed: a failure with no sentence from the server used to
+  // show the client's own technical string. It now shows the plain sentence.
+  const PLAIN = "Couldn't submit that template. Nothing was shared."
+
+  it.each([
+    ['a gateway error page (not JSON)', () => nonJsonResponse(502)],
+    ['an error with a JSON body and no detail', () => ({ ok: false, status: 500, json: async () => ({}) })],
+    ['an error whose detail is not a sentence', () => ({ ok: false, status: 422, json: async () => ({ detail: [{ msg: 'x' }] }) })],
+    ['a dropped connection', () => { throw new TypeError('Failed to fetch') }],
+    ['a failure with no message at all', () => { throw new Error('') }],
+  ])('says the plain sentence for %s, never a technical string', async (_label, respond) => {
     const user = userEvent.setup()
-    server = () => nonJsonResponse(502)
+    server = respond
     renderForm()
     await fill(user)
     await user.click(submit())
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent.trim().length).toBeGreaterThan(0)
-    expect(alert).toHaveTextContent('502')
+    expect(alert.textContent).toBe(PLAIN)
+    expect(alert.textContent).not.toMatch(/request failed|Failed to fetch|502|object Object/)
     expect(submit()).toBeEnabled()
     expect(onDone).not.toHaveBeenCalled()
   })
 
-  it('a dropped connection is a visible failure too', async () => {
-    const user = userEvent.setup()
-    server = () => { throw new TypeError('Failed to fetch') }
-    renderForm()
-    await fill(user)
-    await user.click(submit())
-    expect((await screen.findByRole('alert')).textContent.trim().length).toBeGreaterThan(0)
-    expect(submit()).toBeEnabled()
-    expect(onDone).not.toHaveBeenCalled()
-  })
-
-  // ⛔ KNOWN DEFECT D4 (docs/notebook/fin-tests.md), kept failing on purpose: `it.fails` passes
-  // only while the defect is present. The form has a plain fallback sentence for a failure with
-  // no message (GalleryPublishForm.jsx:30), but `lib/templateGallery.js:74` always attaches one
-  // ("request failed (502)"), and a dropped connection carries the browser's ("Failed to
-  // fetch"). So the member is shown a technical string and the friendly sentence can never
-  // render. MINOR (copy). When it renders, this turns red: change `it.fails` to `it`.
-  it.fails('D4: says "Couldn\'t submit that template. Nothing was shared." when the failure has no sentence', async () => {
-    const user = userEvent.setup()
-    server = () => nonJsonResponse(502)
-    renderForm()
-    await fill(user)
-    await user.click(submit())
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't submit that template. Nothing was shared.")
+  it('still prefers the server sentence whenever there is one, whatever the status', async () => {
+    for (const name of ['template-gallery.publish.bad-category', 'template-gallery.publish.free-plan']) {
+      const alert = await refusedWith(name)
+      expect(alert.textContent).toBe(contractBody(name).detail)
+      expect(alert.textContent).not.toBe(PLAIN)
+      cleanup()
+    }
   })
 })
