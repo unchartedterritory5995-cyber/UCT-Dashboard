@@ -1492,7 +1492,7 @@
       "method": "GET",
       "path": "/api/j2/chart-plan/benchmarks",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1600,7 +1600,7 @@
       "method": "GET",
       "path": "/api/j2/my-playbook",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1654,7 +1654,7 @@
       "method": "GET",
       "path": "/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1906,19 +1906,19 @@
       "method": "GET",
       "path": "/api/j2/plan-grades/discipline",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/plan-grades/status",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/plan-grades/trades/{trade_id}",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1978,19 +1978,19 @@
       "method": "GET",
       "path": "/api/j2/review-drafts/daily",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/review-drafts/monthly",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/review-drafts/weekly",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -2014,7 +2014,7 @@
       "method": "GET",
       "path": "/api/j2/setups-board",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -2050,13 +2050,13 @@
       "method": "GET",
       "path": "/api/j2/template-gallery",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/template-gallery/{gallery_id}",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
