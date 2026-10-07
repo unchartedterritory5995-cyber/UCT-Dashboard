@@ -41,7 +41,7 @@ const mount = (tag, deleteNode = vi.fn()) => render(
   <EmbedBlockActions editor={editor} getPos={() => posOf(tag)} deleteNode={deleteNode} />,
 )
 const openMenu = () => fireEvent.click(screen.getByRole('button', { name: BLOCK_ACTIONS_LABEL }))
-const item = (name) => within(screen.getByRole('menu')).getByRole('button', { name })
+const item = (name) => within(screen.getByRole('menu')).getByRole('menuitem', { name })
 
 describe('the block actions button on a chart block', () => {
   it('has a real name, says it opens a menu, and offers Move up, Move down and Remove block', () => {
@@ -52,7 +52,7 @@ describe('the block actions button on a chart block', () => {
     expect(btn).toHaveAttribute('aria-expanded', 'false')
     openMenu()
     expect(btn).toHaveAttribute('aria-expanded', 'true')
-    expect(within(screen.getByRole('menu')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Move up', 'Move down', 'Remove block'])
+    expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Move up', 'Move down', 'Remove block'])
   })
 
   it('Move up and Move down move THIS block one step, without it having been selected first', () => {

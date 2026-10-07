@@ -8,20 +8,21 @@
 // jsdom, where the block toolbar's 1024 px rule never applies and the button's chunk is fetched
 // on demand, so no other recipe is known to render it.
 //
-// ONE state: the button at rest, with its menu proved to open (so the button is live, not a
-// stub). ⛔ The OPEN MENU is deliberately not an axe surface here, and that is a finding, not a
-// pass: the menu is the app-wide shared `components/mobile/ContextPopover.jsx`, whose anchored
+// TWO states since the finish program's lane KEYS: the button at rest, and the open menu (the
+// last test). What follows is the history: until that lane the open menu was NOT an axe surface
+// here, and that was a finding, not a pass: the menu is the app-wide shared `components/mobile/ContextPopover.jsx`, whose anchored
 // form is `role="menu"` (line 168) with plain <button> children. axe reports
 // `aria-required-children` (critical) on it. That file is identical to master's and is used
 // across the app; fixing it belongs to its owner and to a pass of its own, not to a landing.
 // Measured 2026-10-07 with this harness. No Notebook recipe opens that popover today.
-import { describe, afterEach, vi } from 'vitest'
+import { describe, afterEach, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Editor, Node } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
 import { axeSurface } from './surface'
+import { expectNoAxeViolations } from './axeHarness'
 import EmbedBlockActions, { BLOCK_ACTIONS_LABEL } from '../components/notebook/EmbedBlockActions'
 
 const Block = Node.create({
@@ -54,10 +55,22 @@ describe('the chart block\'s "Block actions" button', () => {
     const btn = screen.getByRole('button', { name: BLOCK_ACTIONS_LABEL })
     // Non-vacuity: it opens its three actions, then closes again, before axe reads the button.
     fireEvent.click(btn)
-    const names = within(screen.getByRole('menu')).getAllByRole('button').map((b) => b.textContent)
+    const names = within(screen.getByRole('menu')).getAllByRole('menuitem').map((b) => b.textContent)
     if (names.join('|') !== 'Move up|Move down|Remove block') throw new Error(`menu items: ${names.join('|')}`)
     fireEvent.click(btn)
     if (btn.getAttribute('aria-expanded') !== 'false') throw new Error('the menu did not close')
     return { root: container }
   })
+
+  // Finish program, lane KEYS: the OPEN menu is an axe surface now. The shared ContextPopover's
+  // anchored menu holds role="menuitem" rows (it held plain buttons: aria-required-children,
+  // critical). The run is scoped to the menu itself (the bare editor this file mounts as a
+  // fixture has no name of its own, which is the fixture's, not the product's).
+  it('the open menu: axe finds 0 violations', async () => {
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: BLOCK_ACTIONS_LABEL }))
+    const items = within(screen.getByRole('menu')).getAllByRole('menuitem')
+    expect(items.length).toBe(3)
+    await expectNoAxeViolations(screen.getByRole('menu'), { level: 'component' })
+  }, 30000)
 })
