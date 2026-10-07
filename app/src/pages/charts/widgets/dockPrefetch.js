@@ -24,8 +24,14 @@
 import { preload } from 'swr'
 
 import { feedQuery } from './newsFeedModel'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const json = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
+// TERM-033: the preload fetcher THROWS on a failed read, like the panels' own fetchers. It
+// used to resolve a 502 to `null`, and SWR hands a preloaded result to the panel as its
+// first answer, so a failed PREFETCH put "No earnings history" / "Ownership data is not
+// available" on screen even though the panel itself had moved onto a throwing fetcher.
+// A 402 stays an absent answer.
+const json = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const enc = encodeURIComponent
 
@@ -68,7 +74,9 @@ export function prefetchPanel(sym, { fetcher = json } = {}) {
   if (!s) return
   for (const key of panelKeys(s)) {
     try {
-      preload(key, fetcher)
+      // The panel that mounts awaits this same promise and sees its rejection; the
+      // no-op handler only stops an UNTAKEN failed head start being reported as unhandled.
+      preload(key, fetcher)?.catch?.(() => {})
     } catch {
       // A preload failure must never break the panel that is already rendering.
     }
@@ -78,6 +86,9 @@ export function prefetchPanel(sym, { fetcher = json } = {}) {
     try {
       // Kept as the RAW response promise: DockNews needs the status code to
       // tell a membership gate (402) from an outage, which a parsed body loses.
+      // TERM-033, SOFT ON PURPOSE: `null` here is a sentinel meaning "the head start did
+      // not arrive", never an answer. DockNews treats it by issuing its own request, whose
+      // failure renders "News is temporarily unavailable" with a Retry.
       const p = fetch(nk).catch(() => null)
       newsInflight.set(nk, p)
     } catch {
