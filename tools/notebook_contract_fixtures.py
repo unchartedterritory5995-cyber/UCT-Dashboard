@@ -181,6 +181,14 @@ def _no_network(p: _Patches) -> None:
 
     p.setattr(socket.socket, "connect", connect)
     p.setattr(socket.socket, "connect_ex", connect_ex)
+    # yfinance can go out through libcurl, where a socket guard never sees it: close that door too.
+    import yfinance
+
+    def no_yahoo(*args: Any, **kwargs: Any) -> Any:
+        NETWORK_ATTEMPTS.append(f"yfinance:{args[0] if args else '?'}")
+        raise OSError("notebook_contract_fixtures: outbound connection refused (yfinance)")
+    p.setattr(yfinance, "Ticker", no_yahoo)
+    p.setattr(yfinance, "download", no_yahoo)
 
 
 def _freeze(p: _Patches) -> None:

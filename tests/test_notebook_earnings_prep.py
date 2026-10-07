@@ -86,6 +86,74 @@ def db_path(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_vendor_lookup(monkeypatch):
+    """The draft resolves the name's display identity through `ticker_meta.get_ticker_meta`
+    (`ticker_research.py:48-49`: Yahoo, then FMP, then Finnhub). Nothing here replaced it, so on
+    a cold cache this suite made live vendor requests. It is a fixed stand-in now, and every
+    outbound connection is refused and recorded, so a NEW unreplaced source fails the test that
+    reached it instead of quietly going to the network. Loopback stays open (the event loop's own
+    wake-up pair uses it on Windows).
+
+    Two doors are closed, because one is not enough: Python sockets (requests, httpx, urllib), and
+    yfinance itself, which can go out through libcurl where a socket guard never sees it."""
+    import socket
+    from api.services import ticker_meta
+    looked_up: list[str] = []
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta",
+                        lambda symbol: looked_up.append(symbol) or {"name": f"{symbol} Corp"})
+    attempts: list[str] = []
+    real_connect, real_connect_ex = socket.socket.connect, socket.socket.connect_ex
+
+    def _guard(real):
+        def connect(self, address):
+            host = str(address[0]) if isinstance(address, tuple) and address else str(address)
+            if not host.startswith(("127.", "::1", "localhost", "0.0.0.0")):
+                attempts.append(host)
+                raise OSError(f"test_notebook_earnings_prep: outbound connection refused ({host})")
+            return real(self, address)
+        return connect
+
+    monkeypatch.setattr(socket.socket, "connect", _guard(real_connect))
+    monkeypatch.setattr(socket.socket, "connect_ex", _guard(real_connect_ex))
+    import yfinance
+
+    def _no_yahoo(*args, **kwargs):
+        attempts.append(f"yfinance:{args[0] if args else '?'}")
+        raise OSError("test_notebook_earnings_prep: outbound connection refused (yfinance)")
+    monkeypatch.setattr(yfinance, "Ticker", _no_yahoo)
+    monkeypatch.setattr(yfinance, "download", _no_yahoo)
+    yield {"looked_up": looked_up, "attempts": attempts}
+    assert attempts == [], f"this test tried to reach the network: {sorted(set(attempts))}"
+
+
+def test_CONTROL_the_network_refusal_can_fire(_no_vendor_lookup):
+    """The guard above is only worth having if it fires. TEST-NET-3 is never a real host."""
+    import socket
+    s = socket.socket()
+    try:
+        with pytest.raises(OSError, match="outbound connection refused"):
+            s.connect(("203.0.113.7", 9))
+    finally:
+        s.close()
+    import yfinance
+    with pytest.raises(OSError, match="yfinance"):
+        yfinance.Ticker("NVDA")
+    assert _no_vendor_lookup["attempts"] == ["203.0.113.7", "yfinance:NVDA"]
+    _no_vendor_lookup["attempts"].clear()          # the control's own attempts are not a leak
+
+
+def test_the_draft_asks_for_the_names_identity_through_the_stand_in(client, app, gate_on, monkeypatch, stores,
+                                                                    _no_vendor_lookup):
+    """Non-vacuity for the stand-in: the draft path really does reach `get_ticker_meta`, so
+    replacing it is what keeps this suite off the network."""
+    _today(monkeypatch)
+    _full_market(monkeypatch, stores)
+    as_user(app, A)
+    assert client.post("/api/j2/earnings-prep/NVDA/draft").status_code == 200
+    assert "NVDA" in _no_vendor_lookup["looked_up"]
+
+
+@pytest.fixture(autouse=True)
 def _clean_cache():
     from api.services.cache import cache
     for prefix in ("notebook_earnings_prep_window", "calendar_week", "calendar_enrichment_"):
