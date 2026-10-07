@@ -41,6 +41,63 @@ def real_app():
     return app
 
 
+# ── the two shapes the app boots in ──────────────────────────────────────────
+#
+# `api/main.py` mounts the page catch-all (`/{full_path:path}`, GET and HEAD) only when a built
+# bundle (`app/dist`) exists. That changes what an UNKNOWN write path answers: 404 with no
+# bundle, 405 with one (the catch-all matches the path and refuses the method). Three tests
+# below compare a dark route with an unknown one, and they used to pass in CI (no bundle) and
+# fail on a developer's box after `npm run build`. A test must not depend on that. So each
+# shape is BUILT here from the real app, whatever this checkout happens to have on disk, and
+# both facts are asserted by name in every environment.
+SPA_CATCH_ALL = "/{full_path:path}"
+
+
+def _shape(app, *, bundle: bool):
+    """The real app with the page catch-all present (`bundle=True`) or absent. Same routes,
+    same order, same middleware; only that one route differs. The app itself is not touched."""
+    import copy
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    routes = [r for r in app.router.routes if getattr(r, "path", None) != SPA_CATCH_ALL]
+    if bundle:
+        mounted = [r for r in app.router.routes if getattr(r, "path", None) == SPA_CATCH_ALL]
+        routes = list(app.router.routes) if mounted else routes + [
+            Route(SPA_CATCH_ALL, lambda request: PlainTextResponse("page"), methods=["GET", "HEAD"])]
+    shaped = copy.copy(app)
+    shaped.router = copy.copy(app.router)
+    shaped.router.routes = routes
+    # Both layers cache a bound callable of the ORIGINAL object; without these two lines the
+    # copy would quietly dispatch through the real app's route table and the shapes would be
+    # one shape (the test below is what caught that).
+    if hasattr(shaped.router, "middleware_stack"):
+        assert not getattr(app.router, "middleware", None), "the router carries middleware: rebuild it here"
+        shaped.router.middleware_stack = shaped.router.app
+    shaped.middleware_stack = None        # rebuilt on first call, around THIS router
+    return shaped
+
+
+@pytest.fixture(scope="module")
+def no_bundle_app(real_app):
+    return _shape(real_app, bundle=False)
+
+
+@pytest.fixture(scope="module")
+def bundle_app(real_app):
+    return _shape(real_app, bundle=True)
+
+
+def test_the_two_shapes_differ_by_the_page_catch_all_and_nothing_else(real_app, no_bundle_app, bundle_app):
+    paths = lambda a: [getattr(r, "path", None) for r in a.router.routes]
+    assert SPA_CATCH_ALL not in paths(no_bundle_app)
+    assert paths(bundle_app).count(SPA_CATCH_ALL) == 1
+    assert [x for x in paths(bundle_app) if x != SPA_CATCH_ALL] == paths(no_bundle_app)
+    assert len(paths(no_bundle_app)) > 500                       # the real route table, not a stub
+    # and the shapes behave as named: an unknown READ is a page with a bundle, a 404 without
+    assert TestClient(bundle_app).get("/no-such-page-9f3a").status_code == 200
+    assert TestClient(no_bundle_app).get("/no-such-page-9f3a").status_code == 404
+
+
 # ── every GATED route: gate, then session, then a bounded body ───────────────
 
 def _gated_rows(real_app) -> list[bc.Row]:
@@ -342,20 +399,43 @@ def test_an_anonymous_request_to_a_dark_route_answers_one_thing_whatever_its_bod
     assert not different, "a dark route can be told apart by what it is sent:\n  " + "\n  ".join(different)
 
 
-def test_a_dark_route_answers_the_status_an_unknown_route_answers(real_app):
-    """An unknown path under the same prefix, sent the same malformed and
-    oversized bodies. The status is the same and neither reads the body."""
+def test_a_dark_route_answers_the_status_an_unknown_route_answers(real_app, no_bundle_app):
+    """With NO bundle mounted: an unknown path under the same prefix, sent the same malformed
+    and oversized bodies. The status is the same and neither reads the body."""
     different = []
     for method, path in _dark_body_routes(real_app):
         url, unknown = _concrete(path), _unknown_sibling(_concrete(path))
         for label, make in (("malformed", lambda: iter([b"{"])),
                             ("oversized", lambda: _chunks(8 * 1024 * 1024, chunk=256 * 1024))):
-            dark = _drive(real_app, url, make(), method=method)
-            miss = _drive(real_app, unknown, make(), method=method)
+            dark = _drive(no_bundle_app, url, make(), method=method)
+            miss = _drive(no_bundle_app, unknown, make(), method=method)
             if dark.status != miss.status or dark.pulled != 0 or miss.pulled != 0:
                 different.append(f"{method} {path} [{label}]: dark {dark.status} pulled={dark.pulled}; "
                                  f"unknown {miss.status} pulled={miss.pulled}")
     assert not different, "\n  ".join(different)
+
+
+def test_KNOWN_LIMITATION_with_a_bundle_mounted_an_unknown_write_path_is_405_and_a_dark_route_404(
+        real_app, bundle_app):
+    """ACCEPTED AND RECORDED, NOT A PASS: docs/notebook/LANDING-12-15.md section 10, "A finding".
+    With a built bundle the page catch-all (GET and HEAD only) matches every unknown path, so an
+    unknown POST, PUT, PATCH or DELETE answers 405 while a dark route answers 404. On a
+    production-shaped app a dark write route can therefore be told from a path that does not
+    exist. The catch-all is master's and predates the landing; the controller accepted it as a
+    known limitation on 2026-10-07. This pins the ACTUAL behaviour, so the day somebody closes
+    the difference this test fails and the comparison above can cover both shapes.
+    What still holds with a bundle, and is asserted: neither answer reads a body byte."""
+    rows = _dark_body_routes(real_app)
+    assert len(rows) >= 10
+    wrong = []
+    for method, path in rows:
+        url, unknown = _concrete(path), _unknown_sibling(_concrete(path))
+        dark = _drive(bundle_app, url, iter([b"{"]), method=method)
+        miss = _drive(bundle_app, unknown, iter([b"{"]), method=method)
+        if (dark.status, miss.status) != (404, 405) or dark.pulled != 0 or miss.pulled != 0:
+            wrong.append(f"{method} {path}: dark {dark.status} pulled={dark.pulled}; "
+                         f"unknown {miss.status} pulled={miss.pulled}")
+    assert not wrong, "the recorded limitation no longer describes the app:\n  " + "\n  ".join(wrong)
 
 
 def test_with_its_flag_on_the_onboarding_tour_door_still_refuses_before_reading(real_app, monkeypatch):
@@ -376,10 +456,13 @@ def _gate_of(route):
     return next(fn for fn in bc.solve_order(route) if bc._name(fn) == bc.GATE_QUALNAME)
 
 
-def test_the_onboarding_gates_404_is_byte_identical_to_an_unknown_routes(real_app, monkeypatch):
+def test_the_onboarding_gates_404_is_byte_identical_to_an_unknown_routes(no_bundle_app, bundle_app, monkeypatch):
     """`notebook_onboarding.py` words its own gate 404 (`NOT_FOUND`). With the gate
     off, a malformed and an oversized anonymous request to the tours door answer
-    the exact bytes an unknown path under the same prefix answers."""
+    the exact bytes an unknown path under the same prefix answers. That comparison is made
+    with NO bundle mounted; with one, the unknown path is the catch-all's 405 (the known
+    limitation above) and the door's own bytes are asserted alone."""
+    real_app = no_bundle_app
     from api.routers import notebook_onboarding
     monkeypatch.setattr(notebook_onboarding, "onboarding_enabled", lambda: False)
     door = "/api/j2/onboarding/tours/first-note"
@@ -388,10 +471,14 @@ def test_the_onboarding_gates_404_is_byte_identical_to_an_unknown_routes(real_ap
         miss = _drive(real_app, _unknown_sibling(door), make(), method="PUT")
         assert (dark.status, dark.payload) == (miss.status, miss.payload) == (404, b'{"detail":"Not Found"}')
         assert dark.pulled == 0
+        with_bundle = _drive(bundle_app, door, make(), method="PUT")
+        assert (with_bundle.status, with_bundle.payload, with_bundle.pulled) == (404, b'{"detail":"Not Found"}', 0)
 
 
-def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_shared_public_helper(real_app):
-    """KNOWN, AND NOT THIS FILE'S TO CHANGE. Most Notebook gates raise
+def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_shared_public_helper(real_app, no_bundle_app):
+    """Compared with NO bundle mounted, where an unknown path is FastAPI's own 404 (with a
+    bundle it is the catch-all's 405: the known limitation above).
+    KNOWN, AND NOT THIS FILE'S TO CHANGE. Most Notebook gates raise
     `public_note_payload.not_found()`, whose body is `{"detail":"Not found"}`:
     one letter's case away from FastAPI's `{"detail":"Not Found"}`. This pins
     WHERE the difference comes from, so a router that words its own different
@@ -402,8 +489,9 @@ def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_share
     by_key = {(m, r.path): r for r in real_app.routes if isinstance(r, APIRoute) for m in r.methods}
     for method, path in _dark_body_routes(real_app):
         url = _concrete(path)
-        dark = _drive(real_app, url, iter([b"{"]), method=method)
-        miss = _drive(real_app, _unknown_sibling(url), iter([b"{"]), method=method)
+        dark = _drive(no_bundle_app, url, iter([b"{"]), method=method)
+        miss = _drive(no_bundle_app, _unknown_sibling(url), iter([b"{"]), method=method)
+        assert miss.status == 404, (method, path, miss.status)
         module = by_key[(method, path)].endpoint.__module__.rsplit(".", 1)[-1]
         if dark.payload == miss.payload:
             identical.add(module)
