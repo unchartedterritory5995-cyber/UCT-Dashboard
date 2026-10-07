@@ -184,6 +184,26 @@ describe('UCT Agent panel', () => {
     expect(host.commits).toHaveLength(0)
   })
 
+  it('"do it" with NO pending proposal never reaches the model (no regenerated plan)', async () => {
+    const host = makeHost([{ ref: 'w1' }])
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('do it')
+    await screen.findByText(/no proposal waiting/)
+    expect(turnBodies).toHaveLength(0)
+    expect(host.commits).toHaveLength(0)
+  })
+
+  it('a failed model turn changes nothing and the conversation continues', async () => {
+    const host = makeHost([{ ref: 'w1' }])
+    globalThis.fetch.mockImplementationOnce(async () => new Response('boom', { status: 500 }))
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('make the chart look cleaner')
+    await screen.findByText(/couldn't complete that request. No changes were made/)
+    expect(host.commits).toHaveLength(0)
+    type('bars')
+    await screen.findByText(/Changed chart to Bars/)
+  })
+
   it('keys typed in the panel never reach chart shortcuts', () => {
     const host = makeHost([{ ref: 'w1' }])
     const seen = vi.fn()

@@ -266,7 +266,7 @@ def test_research_has_a_hard_ceiling_of_one(monkeypatch):
 
 
 def test_history_alternates_and_carries_what_uct_actually_did():
-    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars"},
+    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars", "data": {"kind": "applied"}},
             {"role": "member", "text": "why?"}, {"role": "agent", "text": "Because."}]
     msgs = turn.history_messages(rows)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
@@ -363,3 +363,12 @@ def test_a_store_failure_is_a_sentence_and_gives_the_charge_back(make_client, mo
     r = make_client(ADMIN).post("/api/agent/turn", json={"message": "hi", "context": CTX})
     assert r.status_code == 500 and r.json()["detail"] == rx.FAILED
     assert daily_counters.value("2026-10-07", rx.SCOPE, ADMIN["id"]) == 0
+
+
+def test_a_proposal_in_history_never_reads_as_executed():
+    rows = [{"role": "member", "text": "make it cleaner"},
+            {"role": "outcome", "text": "Proposed: Hid Volume", "data": {"kind": "proposed"}},
+            {"role": "member", "text": "why?"}, {"role": "agent", "text": "Less clutter."}]
+    msgs = turn.history_messages(rows)
+    assert "executed" not in msgs[1]["content"].replace("NOT executed", "")
+    assert msgs[1]["content"].startswith("[UCT proposed -- NOT executed")

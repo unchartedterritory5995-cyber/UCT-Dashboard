@@ -228,6 +228,14 @@ def _block(tag: str, obj: Any) -> str:
     return f"<{tag}>{_esc(body)}</{tag}>"
 
 
+_OUTCOME_LABEL = {
+    "applied": "[UCT executed]",
+    "undo": "[UCT executed]",
+    "proposed": "[UCT proposed -- NOT executed, awaiting approval]",
+    "dismissed": "[UCT]",
+}
+
+
 def history_messages(turns: list[dict]) -> list[dict]:
     """Rebuild alternating user/assistant messages from stored rows. An
     `outcome` row (what UCT actually did) is appended to the agent side, so
@@ -235,7 +243,14 @@ def history_messages(turns: list[dict]) -> list[dict]:
     msgs: list[dict] = []
     for t in turns[-HISTORY_TURNS * 3:]:
         role = "user" if t["role"] == "member" else "assistant"
-        text = t["text"] if t["role"] != "outcome" else f"[UCT executed] {t['text']}"
+        if t["role"] == "outcome":
+            # Label what UCT ACTUALLY did. A proposal was never executed, so it
+            # must not read as "[UCT executed]" in the model's memory.
+            kind = (t.get("data") or {}).get("kind") if isinstance(t.get("data"), dict) else None
+            label = _OUTCOME_LABEL.get(kind, "[UCT]")
+            text = f"{label} {t['text']}"
+        else:
+            text = t["text"]
         if not text:
             continue
         if msgs and msgs[-1]["role"] == role:

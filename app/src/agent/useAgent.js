@@ -194,6 +194,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
       if (fast?.kind === 'dismiss' && pendingRef.current) return dismiss({ member: text })
+      // "do it" / "just the first two" with NOTHING pending never goes to the
+      // model: after a reload or a chat switch the history still shows the old
+      // proposal, and the model would REGENERATE and apply it. Approval only ever
+      // executes a stored, re-validated plan.
+      if (fast?.kind === 'confirm' || fast?.kind === 'subset' || fast?.kind === 'dismiss') {
+        const t = fast.kind === 'dismiss' ? 'Nothing is waiting — nothing changed.'
+          : "There is no proposal waiting to apply. Tell me what you'd like to change."
+        push({ role: 'agent', text: t })
+        record({ member: text, outcome: t, telemetry: { path: 'fast', voice } })
+        return
+      }
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length === 1) {
         const kind = getTargetKind(kindsOf(fast.ops)[0])
         const charts = kind ? kind.list(host) : []
