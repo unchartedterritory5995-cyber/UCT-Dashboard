@@ -36,10 +36,16 @@
 }
 
 .toneNone .dot { background: var(--text-muted); }
-.tone_blue .dot { background: var(--color-info, #60a5fa); }
+.tone_blue .dot { background: var(--info); }
 .tone_green .dot { background: var(--color-success, #4ade80); }
 .tone_red .dot { background: var(--color-danger, #f87171); }
 .tone_gray .dot { background: var(--text-muted); }
+
+/* M-9: the status word beside the distance (the dot's colour is never the only cue). */
+.status {
+  color: var(--text-muted);
+  font-weight: 700;
+}
 
 .label {
   max-width: 140px;
@@ -47,21 +53,44 @@
   text-overflow: ellipsis;
 }
 
+/* Desktop only. `position: fixed` and top/left come from ThesisChip.jsx (measured from
+   the chip's rect), so a scrolling table wrapper cannot clip it. */
 .popover {
-  position: absolute;
   z-index: 20;
-  top: calc(100% + 6px);
-  left: 0;
   min-width: 200px;
   max-width: 260px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  background: var(--bg-surface-2, #17171a);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* The gap between the chip and its preview: a mouse crossing it must not leave both. */
+.popover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -8px;
+  height: 8px;
+}
+
+/* Touch: the same details inside the shared Sheet. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sheetBody .popLevels { font-size: 14px; }
+.sheetBody .popLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  font-size: 14px;
 }
 
 .popTitle {
@@ -82,7 +111,7 @@
   background: var(--bg-surface);
 }
 .popStatus.tone_blue { color: var(--info); }
-.popStatus.tone_green { color: var(--color-success, #4ade80); }
+.popStatus.tone_green { color: var(--success-ink); }
 .popStatus.tone_red { color: var(--danger-ink); }
 .popStatus.tone_gray { color: var(--text-muted); }
 

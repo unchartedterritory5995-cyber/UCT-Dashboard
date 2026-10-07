@@ -177,29 +177,15 @@ function EquityRow({ row, spark, thesisChip }) {
     ? styles.pillFlat
     : row.changePct >= 0 ? styles.pillUp : styles.pillDown
   const flashCls = flash === 'up' ? styles.flashUp : flash === 'down' ? styles.flashDown : ''
-  // Mirrors PositionsTable's actionsCellRef guard: the chip is its own
-  // interactive control nested inside the row's navigation Link, so a click
-  // (or Enter/Space on the chip button) must not also follow the row link.
-  const chipWrapRef = useRef(null)
-  const handleRowClick = (e) => {
-    if (chipWrapRef.current?.contains(e.target)) e.preventDefault()
-  }
-  return (
-    <li>
-      <Link
-        className={`${styles.row} ${styles.rowLink}`}
-        to={`/journal-2-0/position/${encodeURIComponent(row.symbol)}`}
-        aria-label={`${row.symbol} position detail`}
-        onClick={handleRowClick}
-        /* Joystick hub carrier (§3.4). Carries this row's key so the hub can paint
-           `data-hub-cursor` on it and read the RENDERED order; nothing else. */
-        data-hub-pos={row.key}
-      >
+  const to = `/journal-2-0/position/${encodeURIComponent(row.symbol)}`
+  const label = `${row.symbol} position detail`
+  const cells = (
+    <>
         <CompanyLogo sym={row.symbol} size={28} tile />
         <div className={styles.ident}>
           <span className={styles.sym} data-testid="holding-sym">{row.symbol}</span>
           {thesisChip && (
-            <span ref={chipWrapRef}>
+            <span className={styles.chipSlot}>
               <ThesisChip chip={thesisChip} currentPrice={row.price} />
             </span>
           )}
@@ -220,6 +206,42 @@ function EquityRow({ row, spark, thesisChip }) {
               : percent(row.changePct, { dp: 2, signed: true, isRatio: false })}
           </span>
         </div>
+    </>
+  )
+  // ⛔ Lane FIN-A11Y (review R4, I-3): a thesis chip is a <button> (and its preview holds
+  // an <a>), and interactive content inside a link is invalid -- VoiceOver reads the row
+  // link as ONE element and the chip cannot be reached. So a row WITH a chip is a plain
+  // container: the link covers the row as a SIBLING of the content (a "stretched link")
+  // and the chip sits above it. A click anywhere else on the row still lands on the
+  // link, so the row's click behaviour is unchanged.
+  // A row with NO chip keeps the original link-wraps-the-row markup (flags-off parity).
+  if (thesisChip) {
+    return (
+      <li>
+        <div className={`${styles.row} ${styles.rowShell}`}>
+          <Link
+            className={`${styles.rowLink} ${styles.rowCover}`}
+            to={to}
+            aria-label={label}
+            /* Joystick hub carrier (§3.4): stays on the link (see below). */
+            data-hub-pos={row.key}
+          />
+          {cells}
+        </div>
+      </li>
+    )
+  }
+  return (
+    <li>
+      <Link
+        className={`${styles.row} ${styles.rowLink}`}
+        to={to}
+        aria-label={label}
+        /* Joystick hub carrier (§3.4). Carries this row's key so the hub can paint
+           `data-hub-cursor` on it and read the RENDERED order; nothing else. */
+        data-hub-pos={row.key}
+      >
+        {cells}
       </Link>
     </li>
   )
