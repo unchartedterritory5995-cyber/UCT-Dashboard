@@ -80,6 +80,17 @@ def test_period_change_counts_every_common_stock_once(period):
                    "EEE": "no close on the end date"}
 
 
+def test_period_change_keeps_the_old_order_for_a_tie(period):
+    """Dark must be byte-identical: two names with the SAME % change keep the
+    order `start_closes` gave them (the pre-receipt loop's order), never an
+    alphabetical one the receipt's universe walk would otherwise impose."""
+    from datetime import date
+    start = {"BBB": 10.0, "AAA": 10.0}
+    end = {"BBB": 11.0, "AAA": 11.0}
+    out = period._assemble(start, end, date(2026, 1, 2), date(2026, 3, 2), False, 20260102)
+    assert [r["sym"] for r in out["results"]] == ["BBB", "AAA"]
+
+
 def test_period_change_partial_path_counts_a_recycled_ticker_as_dropped(period, monkeypatch):
     from datetime import date
     monkeypatch.setattr(period, "_reuse_map", lambda: {"BBB": 20260201})

@@ -73,6 +73,10 @@ def test_a_withheld_fire_is_never_reminded(store):
     _fire(channels={"routing": "suspended"})
     _fire(user="u2", channels={"queue": "capped"})
     _fire(user="u3", channels={"in_app": "failed"})
+    # A withheld marker beside an `ok` (a shape no writer produces today) is
+    # still withheld: the marker, not the absence of `ok`, is what decides.
+    _fire(user="u4", channels={"queue": "capped", "in_app": "ok"})
+    _fire(user="u5", channels={"routing": "suspended", "in_app": "ok"})
     assert _run(store, T0 + 3600)["sent"] == 0
 
 
