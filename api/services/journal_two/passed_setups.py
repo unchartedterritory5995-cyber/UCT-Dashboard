@@ -271,17 +271,41 @@ def _watchlist_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]
     return out
 
 
+def _parse_body(body_json: Any) -> Any:
+    """A stored note body as a document, or None when it cannot be read. A body nested too
+    deeply for the JSON parser raises RecursionError, which is not a ValueError; it reads as a
+    note with no scan capture, never as an error (mirrors `chart_blocks.parse_body`)."""
+    try:
+        return json.loads(body_json or "{}")
+    except (TypeError, ValueError, RecursionError):
+        return None
+
+
 def _walk_scan_embeds(node: Any, found: list[dict]) -> None:
-    if isinstance(node, dict):
-        if node.get("type") == "widgetEmbed":
-            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    """Append the attrs of every scanner or Screener `widgetEmbed` under `node`, in document
+    order.
+
+    ⛔ A LOOP, NEVER A RECURSION (security review M-4). The walk used to call itself once per
+    level of nesting, so a very deeply nested body raised RecursionError and this member's
+    passed-setups page answered 500. The same fix, in the same shape, as lane SEC's
+    `chart_blocks.iter_chart_attrs` (that helper reads chart embeds only and lives in that
+    lane's file, so it is mirrored here, not shared): children are pushed in reverse so they
+    come off the stack in document order."""
+    stack: list[Any] = [node]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, list):
+            stack.extend(reversed(cur))
+            continue
+        if not isinstance(cur, dict):
+            continue
+        if cur.get("type") == "widgetEmbed":
+            attrs = cur.get("attrs") if isinstance(cur.get("attrs"), dict) else {}
             if attrs.get("widgetId") in SCAN_WIDGETS:
                 found.append(attrs)
-        for child in node.get("content") or []:
-            _walk_scan_embeds(child, found)
-    elif isinstance(node, list):
-        for child in node:
-            _walk_scan_embeds(child, found)
+        children = cur.get("content")
+        if isinstance(children, list):
+            stack.extend(reversed(children))
 
 
 def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
@@ -298,9 +322,8 @@ def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
         return []
     out = []
     for n in notes:
-        try:
-            body = json.loads(n["body_json"] or "{}")
-        except (TypeError, ValueError):
+        body = _parse_body(n["body_json"])
+        if body is None:
             continue
         embeds: list[dict] = []
         _walk_scan_embeds(body, embeds)

@@ -464,3 +464,37 @@ def test_nothing_is_fetched_over_the_network(db_path, bars, monkeypatch):
     _manual(A, "NVDA", BASE_DAY, NOW)
     _refresh(A, NOW)
     assert tripped == []
+
+
+# ── fin-security M-4 (this file's half): the scan-embed walk is a loop ───────────────────────
+#
+# `_walk_scan_embeds` called itself once per level of nesting, so a very deeply nested note
+# body raised RecursionError and the member's passed-setups page answered 500. Lane SEC fixed
+# the chart walkers the same way (`chart_blocks.iter_chart_attrs`); this mirrors that fix.
+
+from api.services.journal_two import passed_setups as ps  # noqa: E402
+
+
+def _scan_embed(sym):
+    return {"type": "widgetEmbed", "attrs": {"widgetId": "scanner", "capturedAt": NOW.isoformat(),
+                                             "params": {"rows": [{"sym": sym}]}}}
+
+
+def test_the_scan_walk_reads_a_very_deep_body_without_recursing():
+    node = _scan_embed("DEEP")
+    for _ in range(5000):
+        node = {"type": "blockquote", "content": [node]}
+    doc = {"type": "doc", "content": [_scan_embed("FIRST"), node, _scan_embed("LAST")]}
+    found = []
+    ps._walk_scan_embeds(doc, found)
+    assert [a["params"]["rows"][0]["sym"] for a in found] == ["FIRST", "DEEP", "LAST"]   # document order
+
+
+def test_a_body_too_deep_to_parse_is_a_note_with_no_scan_never_an_error():
+    depth = 60_000
+    too_deep = '{"type":"doc","content":[' + '{"type":"blockquote","content":[' * depth + "]}" * depth + "]}"
+    with pytest.raises(RecursionError):
+        json.loads(too_deep)                         # the control: it really is too deep
+    assert ps._parse_body(too_deep) is None
+    assert ps._parse_body("{not json") is None
+    assert ps._parse_body('{"type":"doc"}') == {"type": "doc"}
