@@ -36,12 +36,27 @@ function classify(t, value) {
   return null
 }
 
+/** What a recently viewed ticker adds to its frecency: the newest gets RECENT_TICKER_WEIGHT,
+ *  the oldest a little over half of it. Tickers never reach the server's command counts
+ *  (telemetry stores codes only), so this is how TICKER ranking learns from use: from the
+ *  board's own channel history, in the browser. Like frecency it only breaks ties INSIDE a
+ *  class, so an exact match still outranks a habit. */
+export const RECENT_TICKER_WEIGHT = 3
+export function recentWeights(recent = []) {
+  const list = (Array.isArray(recent) ? recent : []).map((s) => String(s || '').toUpperCase()).filter(Boolean)
+  const out = new Map()
+  list.forEach((s, i) => { if (!out.has(s)) out.set(s, RECENT_TICKER_WEIGHT * (1 - i / (2 * list.length))) })
+  return out
+}
+
 /**
  * Rank completions for one token. `tickers` = rows from the ticker search
  * (`[{value,label}]`), `aliases` = `{NAME: expansion}`, `stats` = `{KEY: {n,last}}`.
  * Returns `[{kind, value, label, rank}]`, where `rank` names the class it won.
  */
-export function rankCandidates(token, { aliases = {}, tickers = [], stats = {}, nowSec, limit = 10, codes: wantCodes = true } = {}) {
+export function rankCandidates(token, {
+  aliases = {}, tickers = [], stats = {}, nowSec, limit = 10, codes: wantCodes = true, recent = [],
+} = {}) {
   // A `$` token is a ticker by the member's own say-so: it never completes to a function code
   // or an alias (`$CF` + Tab used to become the CF *function*).
   const forced = String(token || '').startsWith('$')
@@ -50,12 +65,14 @@ export function rankCandidates(token, { aliases = {}, tickers = [], stats = {}, 
   const t = String(token || '').toUpperCase().replace(/^\$/, '')
   if (!t) return []
   const rows = []
+  const recentRank = recentWeights(recent)
   const add = (kind, value, label, exactClass) => {
     const c = classify(t, value)
     if (!c) return
     const cls = c === 'exact' ? exactClass : c
     const _p = kind === 'ticker' && POPULAR_RANK.has(value) ? POPULAR_RANK.get(value) : NOT_POPULAR
-    rows.push({ kind, value, label, rank: cls, _c: CLASS[cls], _f: frecency(stats[value], nowSec), _p })
+    const _f = frecency(stats[value], nowSec) + (kind === 'ticker' ? recentRank.get(value) || 0 : 0)
+    rows.push({ kind, value, label, rank: cls, _c: CLASS[cls], _f, _p })
   }
   for (const [name, expansion] of Object.entries(aliases)) add('alias', name, `→ ${expansion}`, 'alias')
   if (codes) for (const f of FUNCTIONS) add('function', f.code, f.label, 'verb')

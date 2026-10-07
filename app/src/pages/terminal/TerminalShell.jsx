@@ -39,7 +39,7 @@ import useDoorParam from '../../hooks/useDoorParam'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
-import HelpPanel from './panels/HelpPanel'
+import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
@@ -48,7 +48,8 @@ import useTerminalLayout from './useTerminalLayout'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel,
-  isLinkable, markOpened, openBoard, panelChannel, panelSym, popoutHref, presetFor, saveBoard, setCount as countTo,
+  isLinkable, markOpened, movePanel, nextLinkChannel, openBoard, panelChannel, panelSym, popoutHref, presetFor,
+  recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
 import { BoardsMenu, RecentsMenu } from './BoardsMenu'
@@ -184,7 +185,7 @@ function channelOf(layout, id) {
 export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
-  density = 'comfortable',
+  density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -215,6 +216,7 @@ export function Panel({
       onMouseDown={onFocus}
       onFocusCapture={onFocus}
       aria-label={`Panel ${index + 1}: ${title || 'empty'}`}
+      id={domId}
       data-testid={`terminal-panel-${index}`}
       data-code={panel.code}
       data-channel={panelChannel(panel) || ''}
@@ -229,7 +231,8 @@ export function Panel({
             style={{ '--dot': dot }}
             onClick={(e) => { e.stopPropagation(); onChannelMenu(e) }}
             aria-label={channel ? `Linked to ${channel.name} — change` : 'Not linked — link to a group'}
-            title={channel ? channel.name : 'Not linked'}
+            aria-keyshortcuts="Alt+L"
+            title={`${channel ? channel.name : 'Not linked'} (Alt+L: next group)`}
             data-testid={`terminal-group-${index}`}
           >
             <span aria-hidden="true">{channel ? channel.id : ''}</span>
@@ -250,9 +253,17 @@ export function Panel({
         {full && <Link className={styles.panelLink} to={full}>Full page</Link>}
         {!standalone && (
           <span className={styles.panelActions}>
+            {canMaximise && (
+              <button type="button" className={styles.panelAct} onClick={onMaximise}
+                aria-pressed={maximised} aria-keyshortcuts="Alt+M"
+                aria-label={`${maximised ? 'Restore' : 'Maximise'} panel ${index + 1}`}
+                title={`${maximised ? 'Restore the board' : 'Maximise'} (Alt+M)`} data-testid={`terminal-max-${index}`}>
+                <UIcon name={maximised ? 'collapse' : 'expand'} size={14} gold={false} />
+              </button>
+            )}
             {!isPhone && (
-              <button type="button" className={styles.panelAct} onClick={onDuplicate}
-                aria-label={`Duplicate panel ${index + 1}`} title="Duplicate" data-testid={`terminal-dup-${index}`}>
+              <button type="button" className={styles.panelAct} onClick={onDuplicate} aria-keyshortcuts="Alt+C"
+                aria-label={`Duplicate panel ${index + 1}`} title="Duplicate (Alt+C)" data-testid={`terminal-dup-${index}`}>
                 <UIcon name="copy" size={14} gold={false} />
               </button>
             )}
@@ -263,8 +274,8 @@ export function Panel({
               </button>
             )}
             {canClose && (
-              <button type="button" className={styles.panelAct} onClick={onClose}
-                aria-label={`Close panel ${index + 1}`} title="Close" data-testid={`terminal-close-${index}`}>
+              <button type="button" className={styles.panelAct} onClick={onClose} aria-keyshortcuts="Alt+X"
+                aria-label={`Close panel ${index + 1}`} title="Close (Alt+X)" data-testid={`terminal-close-${index}`}>
                 <UIcon name="x" size={14} gold={false} />
               </button>
             )}
@@ -337,6 +348,9 @@ export default function TerminalShell() {
   // instead of silently relinking whatever panel now sits at the old index.
   const [channelMenu, setChannelMenu] = useState(null) // { panelId, anchor }
   const [functionRecents, setFunctionRecents] = useState(() => readFunctionRecents())
+  // Maximise is a VIEW state, never saved to the board: the focused panel fills the grid and
+  // the others stay mounted and hidden (as on a phone), so restoring reloads nothing.
+  const [zoomed, setZoomed] = useState(false)
   const inputRef = useRef(null)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
@@ -694,12 +708,43 @@ export default function TerminalShell() {
   // Round 3: the ref holds the panel text the typed command PUT on screen (null when it opened
   // nothing). It used to be a bare `true` that a refused command left set, so the member's next
   // panel click or count change became a Back-button entry.
-  const runTyped = useCallback((text) => {
+  /** Shift+Enter on a bare ticker: load it into the focused panel's group and KEEP every
+   *  panel's function (a plain Enter turns the focused panel into DES). Anything that is not a
+   *  bare ticker runs exactly as Enter would. */
+  const loadSecurity = useCallback((text) => {
+    const raw = normalizeInput(text)
+    const cmd = parseCommand(raw, { aliases: aliasesRef.current })
+    if (!isBareTicker(raw, cmd)) return run(text)
+    setNotice(null)
+    runSeqRef.current += 1
+    const cur = layoutRef.current
+    const at = Math.min(cur.focus, cur.count - 1)
+    const p = cur.panels[at]
+    const sym = cmd.sym
+    if (isLinkable(p) && !panelChannel(p)) {
+      const panels = cur.panels.slice()
+      panels[at] = { ...p, sym }
+      save({ ...cur, panels })
+      setNotice({ kind: 'info', text: `Loaded ${sym} in panel ${at + 1}, which is not linked; it stays on ${p.code}.` })
+      return null
+    }
+    const ch = isLinkable(p) ? panelChannel(p) : activeChannelOf(cur)
+    save(commitChannelSym(cur, ch, sym))
+    const following = cur.panels.slice(0, cur.count)
+      .map((q, i) => (isLinkable(q) && panelChannel(q) === ch ? i + 1 : null)).filter(Boolean)
+    const name = channelOf(cur, ch)?.name || `group ${ch}`
+    setNotice({ kind: 'info', text: following.length
+      ? `Loaded ${sym} into ${name}: panel${following.length > 1 ? 's' : ''} ${following.join(', ')} kept ${following.length > 1 ? 'their functions' : 'its function'}.`
+      : `Loaded ${sym} into ${name}; no panel on screen follows that group yet.` })
+    return null
+  }, [run, save, commitChannelSym])
+
+  const runTyped = useCallback((text, opts) => {
     userRunRef.current = null
-    const out = run(text)
+    const out = opts?.keepFunction ? loadSecurity(text) : run(text)
     userRunRef.current = out || null
     return out
-  }, [run])
+  }, [run, loadSecurity])
 
   // ── V6d: EVERY COMMAND IS A URL ──────────────────────────────────────────────
   // `?cmd=` reflects the focused panel. An arriving `?cmd=` (a link, a palette pick, back/
@@ -1036,6 +1081,31 @@ export default function TerminalShell() {
     'terminal.panelNext': (e) => { e.preventDefault(); stepFocusRef.current?.(1) },
   }), [])
 
+  // Daily-use keys (2026-10-06): every panel action and both sheets, one keystroke each. The
+  // handlers live in a ref so the ONE registration always calls today's closures. A panel
+  // action never fires under an open sheet (it would change the board behind a modal), and a
+  // pop-out window has no board to change.
+  const keyActionsRef = useRef({})
+  useEffect(() => {
+    const act = (name) => (e) => {
+      e.preventDefault()
+      keyActionsRef.current[name]?.()
+    }
+    return registerShortcuts({
+      'terminal.panelMoveLeft': act('moveLeft'),
+      'terminal.panelMoveRight': act('moveRight'),
+      'terminal.panelMaximise': act('maximise'),
+      'terminal.panelClose': act('close'),
+      'terminal.panelUndoClose': act('undoClose'),
+      'terminal.panelDuplicate': act('duplicate'),
+      'terminal.panelLink': act('link'),
+      'terminal.boards': act('boards'),
+      'terminal.recents': act('recents'),
+      'terminal.keys': act('keys'),
+    })
+  }, [])
+  useEffect(() => { if (count <= 1) setZoomed(false) }, [count])
+
   // ── pop-outs (audit #23): the board learns when a member closes the window THEMSELVES,
   // and a pop-out's HELP / MOVE rows run in THIS shell (one BroadcastChannel, same origin).
   const runTypedRef = useRef(runTyped)
@@ -1083,10 +1153,66 @@ export default function TerminalShell() {
     }
   }, [popoutToken])
 
+  const toggleSheet = (name) => {
+    setBoardsOpenToVersions(false)
+    setSheet((cur) => (cur === name ? null : name))
+  }
+  const panelKey = (fn) => () => { if (!popoutToken && !sheet) fn() }
+  const focusedName = layout.panels[focus]?.code || 'This panel'
+  const onMovePanel = (d) => {
+    const res = movePanel(layout, focus, d)
+    if (!res.ok) {
+      setNotice({ kind: 'info', text: count < 2 ? 'This board shows one panel: there is nowhere to move it.'
+        : `${focusedName} is already the ${d < 0 ? 'first' : 'last'} panel.` })
+      return
+    }
+    save(res.layout)
+    setNotice({ kind: 'info', text: `Moved ${focusedName} to panel ${res.to + 1}.` })
+  }
+  const onMaximise = (i = focus) => {
+    if (isPhone) return
+    if (count < 2) { setNotice({ kind: 'info', text: 'This board shows one panel, so it is already full size.' }); return }
+    if (zoomed && i === focus) { setZoomed(false); return }
+    if (i !== focus) setFocus(i)
+    setZoomed(true)
+  }
+  const onLinkNext = () => {
+    const next = nextLinkChannel(layout, focus)
+    if (next === undefined) {
+      setNotice({ kind: 'info', text: `${focusedName} does not follow a security, so it has no group to change.` })
+      return
+    }
+    const shown = panelSym(layout.panels[focus], syms)
+    save(setPanelChannel(layout, focus, next, syms))
+    const ch = next ? channelOf(layout, next) : null
+    setNotice({ kind: 'info', text: ch
+      ? `Panel ${focus + 1} now follows ${ch.name}${syms[next] ? ` (${syms[next]})` : ''}.`
+      : `Panel ${focus + 1} is not linked now${shown ? `; it keeps ${shown}` : ''}.` })
+  }
+  keyActionsRef.current = {
+    moveLeft: panelKey(() => onMovePanel(-1)),
+    moveRight: panelKey(() => onMovePanel(1)),
+    maximise: panelKey(() => onMaximise()),
+    close: panelKey(() => {
+      if (count <= 1) { setNotice({ kind: 'info', text: 'The last panel on a board cannot close.' }); return }
+      onClose(focus)
+    }),
+    undoClose: panelKey(() => {
+      if (!layout.closed.length) { setNotice({ kind: 'info', text: 'Nothing to re-open: no panel has been closed on this board.' }); return }
+      onUndoClose()
+    }),
+    duplicate: panelKey(() => onDuplicate(focus)),
+    link: panelKey(onLinkNext),
+    boards: () => { if (!popoutToken) toggleSheet('boards') },
+    recents: () => { if (!popoutToken) toggleSheet('recents') },
+    keys: () => { if (!popoutToken) toggleSheet('keys') },
+  }
+
   const railGroups = useMemo(() => FUNCTION_GROUPS.map((g) => ({
     g, fns: FUNCTIONS.filter((f) => f.group === g),
   })), [])
   const focusedCode = layout.panels[focus]?.code
+  const recentTickers = useMemo(() => recentSecurities(layout, 8), [layout])
   const helpProps = { onResetRanking: resetRanking, hasStats: Object.keys(stats).length > 0 }
   const guarded = layoutStatus === 'unreadable' || layoutStatus === 'newer'
 
@@ -1109,6 +1235,18 @@ export default function TerminalShell() {
   }
 
   const visible = layout.panels.slice(0, count)
+  const zoom = zoomed && !isPhone && count > 1
+  const panelDomId = (p) => `terminal-panel-body-${p.id}`
+  // ARIA tabs: ←/→ (and Home/End) move between panel tabs, with ONE Tab stop (roving tabindex).
+  const onSwitcherKey = (e) => {
+    const n = visible.length
+    if (n < 2) return
+    const to = { ArrowRight: (focus + 1) % n, ArrowLeft: (focus - 1 + n) % n, Home: 0, End: n - 1 }[e.key]
+    if (to === undefined) return
+    e.preventDefault()
+    setFocus(to)
+    e.currentTarget.querySelectorAll('[role="tab"]')[to]?.focus()
+  }
   const menuPanelId = channelMenu?.panelId
   const menuPanel = menuPanelId != null ? layout.panels.find((p) => p.id === menuPanelId) || null : null
   const activeId = activeChannelOf(layout)
@@ -1142,21 +1280,30 @@ export default function TerminalShell() {
       data-testid="terminal-shell">
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
-        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards} />
+        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards}
+          recentTickers={recentTickers} />
         {isPhone && (
           <button type="button" className={styles.barBtn} onClick={() => setSheet('functions')} data-testid="terminal-fn-button">
             Functions
           </button>
         )}
-        <button type="button" className={styles.barBtn} onClick={() => setSheet('recents')} data-testid="terminal-recents-button">
+        <button type="button" className={styles.barBtn} onClick={() => setSheet('recents')} data-testid="terminal-recents-button"
+          aria-keyshortcuts="Alt+R" title="Recents (Alt+R)">
           Recents
         </button>
-        <button type="button" className={styles.barBtn} onClick={() => setSheet('boards')} data-testid="terminal-boards-button">
+        <button type="button" className={styles.barBtn} onClick={() => setSheet('boards')} data-testid="terminal-boards-button"
+          aria-keyshortcuts="Alt+O" title="Boards (Alt+O)">
           {currentBoard ? `Board: ${currentBoard}` : 'Boards'}
         </button>
         {!isPhone && layout.closed.length > 0 && (
           <button type="button" className={styles.barBtn} onClick={onUndoClose} data-testid="terminal-undo-close"
-            title={`Re-open ${layout.closed[0].panel.code}`}>Undo close</button>
+            aria-keyshortcuts="Alt+Z" title={`Re-open ${layout.closed[0].panel.code} (Alt+Z)`}>Undo close</button>
+        )}
+        {zoom && (
+          <button type="button" className={styles.barBtn} onClick={() => { setZoomed(false); inputRef.current?.focus() }}
+            data-testid="terminal-restore-board" aria-keyshortcuts="Alt+M" title="Show every panel again (Alt+M)">
+            Show all {count} panels
+          </button>
         )}
         {hasRevert && (
           <button type="button" className={styles.barBtn} onClick={() => { revertLayout(); if (!isPhone) inputRef.current?.focus() }}
@@ -1192,7 +1339,8 @@ export default function TerminalShell() {
       </div>
       {isPhone && (
         <div className={styles.phoneBar}>
-          <div className={styles.phoneSwitcher} role="tablist" aria-label="Panels" data-testid="terminal-phone-switcher">
+          <div className={styles.phoneSwitcher} role="tablist" aria-label="Panels" data-testid="terminal-phone-switcher"
+            onKeyDown={onSwitcherKey}>
             {visible.map((p, i) => (
               <button
                 key={p.id}
@@ -1200,6 +1348,8 @@ export default function TerminalShell() {
                 role="tab"
                 className={`${styles.barBtn} ${i === focus ? styles.barBtnOn : ''}`}
                 aria-selected={i === focus}
+                aria-controls={panelDomId(p)}
+                tabIndex={i === focus ? 0 : -1}
                 onClick={() => setFocus(i)}
                 data-testid={`terminal-phone-switch-${i}`}
               >{panelCommandText(p, syms) || p.code}</button>
@@ -1270,13 +1420,18 @@ export default function TerminalShell() {
             ))}
           </nav>
         )}
-        <div className={styles.grid} data-count={isPhone ? 1 : count} data-testid="terminal-grid">
+        <div className={styles.grid} data-count={isPhone || zoom ? 1 : count} data-maximised={zoom ? 'true' : 'false'}
+          data-testid="terminal-grid">
           {/* Phone shows one panel at a time, but the others stay MOUNTED and hidden, so
               switching back does not refetch or reset them. Their SWR polling keeps running. */}
           {visible.map((p, i) => (
               <Panel
                 key={p.id}
-                hidden={isPhone && i !== focus}
+                hidden={(isPhone || zoom) && i !== focus}
+                domId={panelDomId(p)}
+                canMaximise={!isPhone && count > 1}
+                maximised={zoom && i === focus}
+                onMaximise={() => onMaximise(i)}
                 index={i}
                 panel={p}
                 focused={i === focus}
@@ -1340,6 +1495,13 @@ export default function TerminalShell() {
           onShareCurrent={() => `${window.location.origin}${shareHref(encodeShare(currentBoard || 'My terminal board', layout, syms))}`}
           onRestored={() => setNotice({ kind: 'info', text: 'Restored an earlier version of your terminal.' })}
         />
+      </Sheet>
+      <Sheet open={sheet === 'keys'} onClose={() => setSheet(null)} title="Keyboard">
+        {sheet === 'keys' && (
+          <div className={styles.help} data-testid="terminal-keys-sheet">
+            <KeysTable />
+          </div>
+        )}
       </Sheet>
       <Sheet open={sheet === 'recents'} onClose={() => setSheet(null)} title="Recents">
         {noticeEl}

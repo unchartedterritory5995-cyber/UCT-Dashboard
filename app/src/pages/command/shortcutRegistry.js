@@ -197,6 +197,40 @@ export const SHORTCUTS = Object.freeze([
     why: `Alt+${code === 'BracketLeft' ? '[' : ']'} focuses the ${word} terminal panel, wrapping `
       + 'around (physical key). The companion to Alt+1..4 for boards a member steps through.',
   })),
+  // Daily-use panel and board keys (2026-10-06). All Alt + a PHYSICAL key with Ctrl/Cmd
+  // forbidden, so AltGr (Ctrl+Alt on Windows) still types Polish/German characters. Letters
+  // avoid the browser's own Alt keys (D address bar, E/F Chrome menu, F/E/V/S/B/T/H Firefox
+  // menus) and StockChart's Alt chords (U, I, G, Q, N, S, Comma; Shift+A/I/W).
+  ...[['MoveLeft', 'BracketLeft', '[', 'left'], ['MoveRight', 'BracketRight', ']', 'right']].map(([name, code, ch, word]) => decl({
+    id: `terminal.panel${name}`,
+    chord: { code, alt: true, shift: true, ctrl: false, meta: false },
+    target: 'window', capture: false, inEditable: true, repeat: false,
+    why: `Alt+Shift+${ch} moves the focused terminal panel one place ${word}; focus moves with it. `
+      + 'Shift is what separates it from the panel-step key on the same bracket.',
+  })),
+  ...[
+    ['panelMaximise', 'KeyM', 'M', 'maximises the focused terminal panel, or restores the board',
+      'The other panels stay mounted; Alt+1..4 flips between them full size.'],
+    ['panelClose', 'KeyX', 'X', 'closes the focused terminal panel',
+      'Alt+Z brings it back. The last panel on a board cannot close.'],
+    ['panelUndoClose', 'KeyZ', 'Z', 're-opens the last closed terminal panel',
+      'Not Ctrl+Z, which is the text field\'s own undo.'],
+    ['panelDuplicate', 'KeyC', 'C', 'duplicates the focused terminal panel beside it',
+      'Refused, and said, on a board already showing four.'],
+    ['panelLink', 'KeyL', 'L', 'links the focused terminal panel to the next group',
+      'It steps A, B, C, D, any group the board added, then not linked, and says which.'],
+    ['boards', 'KeyO', 'O', 'opens the terminal Boards sheet',
+      'Not Alt+B, which opens the Bookmarks menu in Firefox.'],
+    ['recents', 'KeyR', 'R', 'opens the terminal Recents sheet',
+      'Recent functions, securities by group, and boards.'],
+    ['keys', 'Slash', '/', 'shows the terminal keyboard sheet',
+      'The same list HELP prints, over the board.'],
+  ].map(([id, code, ch, does, more]) => decl({
+    id: `terminal.${id}`,
+    chord: { code, alt: true, shift: false, ctrl: false, meta: false },
+    target: 'window', capture: false, inEditable: true, repeat: false,
+    why: `Alt+${ch} ${does}. ${more} Physical key, and it fires from the command line.`,
+  })),
 
   // ── push-to-talk (hooks/usePushToTalkHotkey.js, mounted by GlobalVoiceLayer) ──
   decl({

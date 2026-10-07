@@ -389,6 +389,50 @@ export function duplicatePanel(layout, i) {
   return { ok: true, layout: withCompat({ ...layout, count: layout.count + 1, focus: i + 1, panels: panels.slice(0, MAX_PANELS) }) }
 }
 
+/** The securities this board looked at lately, newest first, one list: the active channel's
+ *  history leads, the other channels' histories are interleaved by recency position (a
+ *  channel history carries no timestamps, so position is the only order there is). */
+export function recentSecurities(layout, n = 8) {
+  const active = layout?.activeChannel
+  const chans = [...(layout?.channels || [])].sort((a, b) => (b.id === active) - (a.id === active))
+  const out = []
+  const seen = new Set()
+  const depth = Math.max(0, ...chans.map((c) => (c.history || []).length))
+  for (let i = 0; i < depth && out.length < n; i += 1) {
+    for (const c of chans) {
+      const s = c.history?.[i]
+      if (!s || seen.has(symKey(s))) continue
+      seen.add(symKey(s))
+      out.push(upperSym(s))
+      if (out.length >= n) break
+    }
+  }
+  return out
+}
+
+/** Move visible panel `i` one place left (`d = -1`) or right (`d = 1`); focus follows it.
+ *  `{ layout, ok, to? }` — refused at either edge of the visible board, never wrapped (a
+ *  wrap would send the first panel to the far end, which reads as a jump, not a move). */
+export function movePanel(layout, i, d) {
+  const to = i + d
+  if (i < 0 || i >= layout.count || to < 0 || to >= layout.count || (d !== 1 && d !== -1)) {
+    return { layout, ok: false }
+  }
+  const panels = layout.panels.slice()
+  ;[panels[i], panels[to]] = [panels[to], panels[i]]
+  return { ok: true, to, layout: { ...layout, focus: to, panels } }
+}
+
+/** The channel a one-key re-link moves panel `i` to: the board's channels in order, then
+ *  "not linked" (null), then round again. `undefined` when the panel follows no security. */
+export function nextLinkChannel(layout, i) {
+  const p = layout.panels[i]
+  if (!isLinkable(p)) return undefined
+  const ring = [...layout.channels.map((c) => c.id), null]
+  const at = ring.indexOf(panelChannel(p))
+  return ring[(at + 1) % ring.length]
+}
+
 /** Mark panel `i` popped out (IA §15 rule 8: pop-out state is a field of the document). */
 export function setPopout(layout, i, on) {
   const panels = layout.panels.slice()
