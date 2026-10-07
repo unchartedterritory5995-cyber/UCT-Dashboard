@@ -1,0 +1,67 @@
+/* Scan-to-board control. App tokens only; size and gaps follow the board density through the
+ * --panel-* variables, and every control reaches the 44px floor on touch (phone AND tablet). */
+
+.wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.select {
+  font: inherit;
+  min-height: var(--panel-row-h, 24px);
+  padding: 1px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.btn {
+  font: inherit;
+  min-height: var(--panel-row-h, 24px);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover, var(--bg-surface));
+}
+
+.btn:disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.btn:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1024px) {
+  .select,
+  .btn {
+    min-height: var(--tap-min);
+  }
+}
+
+@media (max-width: 640px) {
+  .select,
+  .btn {
+    min-height: var(--tap-min);
+  }
+}

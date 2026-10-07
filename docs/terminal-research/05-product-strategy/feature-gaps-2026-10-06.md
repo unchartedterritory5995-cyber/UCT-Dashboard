@@ -48,7 +48,7 @@ in the panel, no new route".
 | 6 | **Short-interest history** | Bloomberg `SI`; UW short interest + FTD (UW dossier) | Current value only, single-sourced to Finviz (ledger D8). `FTD` panel exists | 3 | 3 | 9 | **Owned by the backlog** (`FB-A7-02`, FINRA bi-monthly floor) — not built here |
 | 7 | **Movers lenses in the terminal** (`MOST`/`LVI`/`OVI`/`HILO`: one tape, several hypotheses) | Bloomberg 06 §movers | Movers sidebar (single gap threshold), `/api/volume-scan`, NH/NL. No terminal code opens a movers list | 3 | 4 | 12 | **BUILT: `MOST`** (fn2-movers, §5) |
 | 8 | **Price alert from a chart level** | TradingView `Alt+click` (best-of-breed A2) | **Exists** on the chart (ledger I3: price, line and trendline alerts with five delivery channels) | – | – | – | Not a gap. The chart panel (`GP`) embeds the same chart |
-| 9 | **Scan-to-board** (screen results → a board of panels) | Bloomberg launchpad monitors | Screener + boards exist separately | 3 | 3 | 9 | Board work is the `fn-daily` lane; not built here |
+| 9 | **Scan-to-board** (screen results → a board of panels) | Bloomberg launchpad monitors | Screener + boards exist separately | 3 | 3 | 9 | **BUILT: `BOARD`** (`terminal/fn3-scanboard`, §6) |
 
 ## 3. What was built (this branch)
 
@@ -80,7 +80,7 @@ variant is a one-line change. The shell already refuses a flagged code whose key
   built on n≈0. Revisit then. `ERX` is the natural home (a block inside it, not a new code).
 * **#6 short-interest history**: `FB-A7-02`, the backlog lane.
 * **#7 movers lenses**: built as `MOST` (§5).
-* **#9 scan-to-board**: the `fn-daily` lane (boards).
+* **#9 scan-to-board**: built as `BOARD` (§6).
 
 ## 5. `MOST` — the movers lenses (#7, branch `terminal/fn2-movers`)
 
@@ -115,3 +115,30 @@ Last session (not a live list) otherwise.
 the whole tape by shares traded; the Volume column sorts what the three lists hold, which is
 labelled as what it is rather than presented as the market's most active. `MOV`-style index
 contribution stays deferred for the reason in #4.
+
+## 6. `BOARD` — scan-to-board (#9, branch `terminal/fn3-scanboard`)
+
+A list becomes a board of panels in one action, one security per panel.
+
+| Typed | Opens |
+|---|---|
+| `BOARD GP` | the focused panel's list (MOST's rows, the screener's loaded results, RRG's table) as price charts |
+| `BOARD DES NVDA AMD MSFT TSLA` | those names, as overviews (any code with a per-security panel works) |
+| `BOARD GP W:3` · `BOARD GP FLAGGED` | a watchlist (its address-space id) · the flagged list |
+
+Also: a **Board of** control (function picker + "Open 4 of N") on MOST and on the embedded
+screener (`components/terminal/BoardFromList.jsx`, one shared control), and a pasted ticker list
+offers "Open them as a board of charts".
+
+* **The panel limit is boardModel's** (`MAX_VISIBLE`, 4). A longer list opens its first 4; **Next /
+  Previous** page through the rest, and the notice names every name not on screen. Repeats and
+  non-tickers are counted and said, never dropped silently.
+* **It never replaces the member's board without a way back.** The board opens through the same path
+  as a saved board (`openSnapshot`): **Back to my layout** returns the member's OWN board (kept across
+  every page and a tab reload), plus Version history wherever the store is armed. Nothing reaches the
+  library until **Save to my boards** (`saveBoard` → `terminal_boards`). **No new preference key.**
+* Refused, with the reason: a market-wide code (MOST), a door (CMP), a URL-owning panel (ERN), a code
+  the member's flags hide, and `BOARD` arriving in a URL. `BOARD` is a reserved word (no alias).
+* Wiring: `scanBoard.js` (pure), `parseCommand.js` (`type: 'board'`), `grammar.js` (`BOARD_RULE`,
+  the echo), `TerminalShell.jsx`. An embedded page reports its list with `usePanelList`
+  (`components/terminal/terminalPanel.js`), the same opt-in shape as `usePanelFreshness`.
