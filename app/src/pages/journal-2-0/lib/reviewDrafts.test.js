@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   buildDraftBlocks, reviewDraftsEnabled, fetchDailyDraft, fetchWeeklyDraft, fetchMonthlyDraft,
-  draftWeeklyReview, draftMonthlyReview, draftDailyReview, mondayOfIso,
+  draftWeeklyReview, draftMonthlyReview, draftDailyReview, mondayOfIso, todayDayIso, thisMonthIso,
 } from './reviewDrafts'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
 
@@ -317,5 +317,78 @@ describe('draftDailyReview — appends to the member’s OWN daily note, never a
     const recapIdx = texts.findIndex((t) => t.includes("Today's recap"))
     expect(morningIdx).toBeGreaterThanOrEqual(0)
     expect(recapIdx).toBeGreaterThan(morningIdx)
+  })
+})
+
+// ── fin-data I1: the period is the EASTERN trading day, week and month ────────────────────
+//
+// A member reviews in the evening. At 8:30 PM Eastern the UTC date is already tomorrow, so a
+// UTC "today" asks the server for a day with no trades and writes an empty recap. Every
+// instant below is written as its UTC stamp with the Eastern wall time beside it. The winter
+// cases matter: a hand-rolled "UTC minus 4 hours" passes every summer case and fails them.
+describe('the review period is the Eastern day, week and month (I1)', () => {
+  const CASES = [
+    // [label, UTC instant, ET day, Monday of the ET week, ET month]
+    ['8:30 PM ET on an ordinary Tuesday', '2026-10-07T00:30:00Z', '2026-10-06', '2026-10-05', '2026-10'],
+    ['8:30 PM ET on a Sunday', '2026-10-05T00:30:00Z', '2026-10-04', '2026-09-28', '2026-10'],
+    ['8:30 PM ET on the last evening of a month', '2026-10-01T00:30:00Z', '2026-09-30', '2026-09-28', '2026-09'],
+    ['8:30 PM ET on the last evening of a year', '2027-01-01T01:30:00Z', '2026-12-31', '2026-12-28', '2026-12'],
+    ['11:30 PM EST in winter (UTC minus 5)', '2026-01-16T04:30:00Z', '2026-01-15', '2026-01-12', '2026-01'],
+    ['8:30 PM the Saturday before clocks go forward', '2026-03-08T01:30:00Z', '2026-03-07', '2026-03-02', '2026-03'],
+    ['8:30 PM the Sunday clocks went forward', '2026-03-09T00:30:00Z', '2026-03-08', '2026-03-02', '2026-03'],
+    ['11:30 PM the Saturday before clocks go back', '2026-11-01T03:30:00Z', '2026-10-31', '2026-10-26', '2026-10'],
+    ['11:30 PM the Sunday clocks went back', '2026-11-02T04:30:00Z', '2026-11-01', '2026-10-26', '2026-11'],
+    ['midday, where UTC and Eastern agree', '2026-10-06T16:00:00Z', '2026-10-06', '2026-10-05', '2026-10'],
+  ]
+
+  it.each(CASES)('%s', (_label, utc, day, monday, month) => {
+    const now = new Date(utc)
+    expect(todayDayIso(now)).toBe(day)
+    expect(mondayOfIso(now)).toBe(monday)
+    expect(thisMonthIso(now)).toBe(month)
+  })
+
+  it('control: the evening cases really do sit on a different UTC date', () => {
+    // If this stops holding, the table above can no longer tell UTC from Eastern.
+    const differing = CASES.filter(([, utc, day]) => utc.slice(0, 10) !== day)
+    expect(differing.length).toBeGreaterThanOrEqual(8)
+  })
+
+  describe('with no argument, the helpers read the clock in Eastern time', () => {
+    let urls = []
+    beforeEach(() => {
+      urls = []
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-10-01T00:30:00Z')) // Wed Sep 30, 8:30 PM ET
+      global.fetch = vi.fn((url, opts) => {
+        urls.push(url)
+        if (url === '/api/j2/notes/daily') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'd1', updatedAt: 'x', bodyJson: { type: 'doc', content: [] } } }) })
+        }
+        if (opts?.method === 'PUT') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'd1', updatedAt: 'y' } }) })
+        }
+        if (opts?.method === 'POST') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'n1', title: 't' } }) })
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(fixturePayload()) })
+      })
+    })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('the three helpers', () => {
+      expect(todayDayIso()).toBe('2026-09-30')
+      expect(mondayOfIso()).toBe('2026-09-28')
+      expect(thisMonthIso()).toBe('2026-09')
+    })
+
+    it('a draft asked for with no period asks the server for the Eastern one', async () => {
+      await draftDailyReview()
+      await draftWeeklyReview()
+      await draftMonthlyReview()
+      expect(urls).toContain('/api/j2/review-drafts/daily?day=2026-09-30')
+      expect(urls).toContain('/api/j2/review-drafts/weekly?weekStart=2026-09-28')
+      expect(urls).toContain('/api/j2/review-drafts/monthly?month=2026-09')
+    })
   })
 })

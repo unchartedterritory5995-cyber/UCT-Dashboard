@@ -93,8 +93,10 @@ export function dowLabels() {
   return DOW_SHORT
 }
 
-/** Returns YYYY-MM-DD for "today" in America/New_York (consistent with backend). */
-export function todayET() {
+/** Returns YYYY-MM-DD for "today" in America/New_York (consistent with backend).
+ *  `now` is the instant to read (default: the clock), so a caller that already
+ *  holds an instant gets its Eastern day from this ONE place. */
+export function todayET(now = new Date()) {
   // Use Intl to get the current ET date robustly across DST
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/New_York',
@@ -102,7 +104,7 @@ export function todayET() {
     month: '2-digit',
     day: '2-digit',
   })
-  return fmt.format(new Date()) // en-CA gives YYYY-MM-DD
+  return fmt.format(now) // en-CA gives YYYY-MM-DD
 }
 
 export function monthOffset(year, month, delta) {

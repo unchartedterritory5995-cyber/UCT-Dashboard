@@ -26,6 +26,7 @@ import { callout, table, toggle } from './templateBlocks'
 import { getTemplate } from './notebookTemplates'
 import { createNoteViaApi } from './noteCreation'
 import { openDailyNote } from './dailyNote'
+import { todayET } from './calendar'
 import { buildAskInsertNode } from './askInsert'
 import { widgetSlotNode } from './widgetEmbedCore'
 import { settleNoteWrite } from './offline/settleNoteWrite'
@@ -71,25 +72,31 @@ export function fetchMonthlyDraft({ month, accountId }) {
   return getJson(`${BASE}/monthly${qs({ month, accountId })}`)
 }
 
-// ── date helpers (ET-day spine; mirrors CompassTab's own local helpers) ────────────
+// ── date helpers (the EASTERN day, week and month) ─────────────────────────────────
+//
+// ⛔ The period a member means is the Eastern trading day. `now.toISOString()` is the UTC
+// date, which is already tomorrow from 8 PM Eastern (7 PM in winter): an evening review then
+// asked the server for a day, week or month that has no trades yet and wrote an empty recap.
+// All three read `todayET` (lib/calendar.js, Intl-based, right across daylight-saving
+// changes) -- the same authority the daily note itself is opened with. Never a typed offset.
 
 export function todayDayIso(now = new Date()) {
-  return now.toISOString().slice(0, 10)
+  return todayET(now)
 }
 
-/** The Monday of the week containing `now` (ISO date, UTC-midnight spine — matches
- *  `coach_data_assembler.assemble_week`'s own boundary, which this draft must agree
- *  with byte for byte). */
+/** The Monday of the Eastern week containing `now`, as an ISO date. Calendar arithmetic
+ *  on the Eastern day's own year, month and day; the `Date.UTC` below is only a container
+ *  for that arithmetic, never a reading of the clock. */
 export function mondayOfIso(now = new Date()) {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const day = d.getUTCDay() // 0=Sun..6=Sat
-  const shift = day === 0 ? -6 : 1 - day
-  d.setUTCDate(d.getUTCDate() + shift)
-  return d.toISOString().slice(0, 10)
+  const [y, m, d] = todayET(now).split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const dow = date.getUTCDay() // 0=Sun..6=Sat
+  date.setUTCDate(date.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
+  return date.toISOString().slice(0, 10)
 }
 
 export function thisMonthIso(now = new Date()) {
-  return now.toISOString().slice(0, 7)
+  return todayET(now).slice(0, 7)
 }
 
 // ── formatting (R3 wording lives on the server; this only RENDERS it) ──────────────
