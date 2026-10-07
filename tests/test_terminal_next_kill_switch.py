@@ -148,9 +148,20 @@ def people(data_dir):
     return roster
 
 
+def _switches(monkeypatch, value):
+    """Set (or, with None, unset) EVERY registered cohort's own switch. The master
+    rail was written when Terminal-Next was the only cohort; Create Indicator
+    joined the registry 2026-10-07 with its own variable."""
+    for env in rg.COHORT_FLAG_ENVS.values():
+        if value is None:
+            monkeypatch.delenv(env, raising=False)
+        else:
+            monkeypatch.setenv(env, value)
+
+
 @pytest.fixture(autouse=True)
 def _flag_unset(monkeypatch):
-    monkeypatch.delenv(rg.TERMINAL_NEXT_FLAG_ENV, raising=False)
+    _switches(monkeypatch, None)
 
 
 @pytest.fixture(scope="module")
@@ -272,7 +283,7 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
     # routes also sit behind their OWN dark flag; it stays ON throughout, so the only
     # variable this test moves is the master switch.
     monkeypatch.setenv("TERMINAL_GRAMMAR_ENABLED", "1")
-    monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "1")
+    _switches(monkeypatch, "1")
     for person in tagged:
         assert _alive_violations(client, state, routes, person) == [], (
             "a surface was not reachable with the switch ON — the kill below "
@@ -281,9 +292,9 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
     # 2. THROW IT — no reimport, no restart, and the store is fingerprinted first.
     before = _fingerprint(data_dir)
     if thrown is None:
-        monkeypatch.delenv(rg.TERMINAL_NEXT_FLAG_ENV, raising=False)
+        _switches(monkeypatch, None)
     else:
-        monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, thrown)
+        _switches(monkeypatch, thrown)
     violations = _killed_violations(client, state, routes, people)
     after = _fingerprint(data_dir)
 
@@ -302,7 +313,7 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
             f"the {cohort!r} cohort lost members while the switch was thrown")
 
     # 4. BACK ON — the cohort returns with NOBODY re-tagging anyone.
-    monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "1")
+    _switches(monkeypatch, "1")
     for person in tagged:
         assert _alive_violations(client, state, routes, person) == [], (
             "the switch came back on and a tagged person did not get the surface "
@@ -402,10 +413,10 @@ def test_CONTROL_the_checker_names_a_surface_that_IGNORES_the_switch(
         f"the census did not find the probe routes on the real app: {routes}")
 
     tagged_member = next(p for p in people if p["id"] == TAGGED_MEMBER)
-    monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "1")
+    _switches(monkeypatch, "1")
     assert _alive_violations(client, state, [honours, ignores], tagged_member) == []
 
-    monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "0")
+    _switches(monkeypatch, "0")
     violations = _killed_violations(client, state, routes, people)
     named = {v.split(" as ")[0] for v in violations}
     assert named == {"GET " + ignores[1]}, (
@@ -600,6 +611,11 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/pages/terminal/terminalGate.js":
         "THE TERMINAL-NEXT GATE: admits a member only when `cohorts` on the auth payload names "
         "the cohort, so the master switch (which empties `cohorts`) closes it",
+    "app/src/components/chart/builder/studio/createIndicatorFlag.js":
+        "THE CREATE INDICATOR GATE (2026-10-07): admits a MEMBER only when `cohorts` names "
+        "`create-indicator`, which its own switch (CREATE_INDICATOR_COHORT_ENABLED) empties",
+    "app/src/components/chart/builder/studio/createIndicatorAccess.test.js":
+        "TEST: fakes `cohorts` to drive the Create Indicator gate",
     # Test files: each builds a fake auth payload with or without the cohort to drive the gate.
     "app/src/pages/terminal/TerminalShell.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalBoards.test.jsx": "TEST: fakes `cohorts` to drive the gate",

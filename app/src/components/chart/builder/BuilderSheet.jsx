@@ -75,7 +75,7 @@
 
 import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
-import { useCreateIndicatorFlag } from './studio/createIndicatorFlag'
+import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
@@ -904,9 +904,10 @@ export default function BuilderSheet({
    *  UNGATED here once and reached every paid member's New Formula sheet; it is
    *  now behind the same two keys as Create Indicator — the per-browser opt-in
    *  AND the server-provided admin role. A member sees exactly the old sheet. */
-  const conversationFlag = useCreateIndicatorFlag()
-  const conversationAdmin = useContext(AuthContext)?.user?.role === 'admin'
-  const conversationOn = !!(conversationFlag && conversationAdmin)
+  // ⭐ ROLLOUT — an admin with this browser's opt-in, or a member the server's
+  // effective `cohorts` list releases it to (`createIndicatorAccess`). The server
+  // (`require_create_indicator_access`) enforces the same rule on `/converse`.
+  const conversationOn = useCreateIndicatorAccess(useContext(AuthContext))
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
    *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */

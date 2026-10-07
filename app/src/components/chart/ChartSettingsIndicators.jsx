@@ -56,7 +56,7 @@ import {
 // is there room for two columns. A `matchMedia` of its own here would be a
 // second breakpoint authority beside `useMediaQuery`.
 import useMediaQuery from '../../hooks/useMediaQuery'
-import { useCreateIndicatorFlag } from './builder/studio/createIndicatorFlag'
+import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import { AuthContext } from '../../context/AuthContext'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
@@ -314,9 +314,10 @@ export default function ChartSettingsIndicators({
   // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
   // AND the server-provided admin role. A member flipping localStorage from
   // DevTools still sees exactly the old "+ New Formula".
-  const createIndicatorOn = useCreateIndicatorFlag()
-  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
-  const showCreateIndicator = !!(createIndicatorOn && isAdmin && onCreateIndicator)
+  // ⭐ ROLLOUT — the same one rule as the sheet (`createIndicatorAccess`): an admin
+  // with this browser's opt-in, or a member the server's `cohorts` list releases.
+  const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
+  const showCreateIndicator = !!(createIndicatorOn && onCreateIndicator)
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
