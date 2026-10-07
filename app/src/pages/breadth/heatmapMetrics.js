@@ -77,11 +77,7 @@ export const TIER_LABELS = {
   3: 'Caution', 2: 'Mild Bearish', 1: 'Bearish', 0: 'Extreme Bearish',
 }
 
-// ⚠️ TIER_TIP_COLORS / TIER_CELL_COLORS are the /charts BREADTH WIDGET's dark-canvas tile
-// palette ONLY (BreadthWidget picks them, LIGHT_TIER_* or the member's own up/down hues by the
-// member-chosen canvas). The Breadth page's treemap no longer reads them: its tiles follow the
-// app theme through the --heat-* ladder (breadth/heatTiles.js, owner ruling 2026-10-06).
-// Bright value inks for the widget's dark tiles, keyed by TIER_SCORES
+// Bright colors for tooltip text readability
 export const TIER_TIP_COLORS = {
   6: '#4ade80', 5: '#22c55e', 4: '#86efac',
   3: '#f59e0b', 2: '#fca5a5', 1: '#f87171', 0: '#ef4444',
@@ -309,7 +305,7 @@ export const PCTILE_KEYS = new Set([
   'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
 ])
 
-// Opaque dark tile fills per tier (the /charts Breadth widget on a dark canvas — see above)
+// Solid tile fill colors per tier (used in treemap cells)
 export const TIER_CELL_COLORS = {
   g3: '#0a3216',
   g2: '#166030',
@@ -340,7 +336,7 @@ for (const [up, down] of PAIRS) {
 // Treemap layout definition: groups → weighted metric tiles
 export const TREEMAP_DEF = [
   { key: 'main', label: '', weight: 100,
-    bgColor: 'transparent', borderColor: 'transparent', labelColor: 'transparent',
+    bgColor: 'transparent', borderColor: '#0a0f1a', labelColor: 'transparent',
     items: [
       { metricKey: 'breadth_score',      weight: 14 },
       { metricKey: 'uct_exposure',       weight: 10 },

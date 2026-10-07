@@ -62,7 +62,7 @@
       "why": "MA-breadth extreme-line and tone data inks; BreadthChartsV2 passes them through readable() (extremeInks) per theme."
     },
     "pages/breadth/heatmapMetrics.js": {
-      "count": 15,
+      "count": 16,
       "why": "TIER_CELL_COLORS / TIER_TIP_COLORS are now ONLY the /charts Breadth widget's dark-canvas tile palette (BreadthWidget picks them, LIGHT_TIER_* or the member's up/down hues by the member-chosen canvas). The Breadth treemap follows the theme through --heat-* (breadth/heatTiles.js, 21-theme contrast rail)."
     },
     "pages/breadth/v2/BreadthChartsV2.jsx": {

@@ -314,7 +314,7 @@
       "why": "the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
     },
     "pages/charts/ChartsWorkspace.module.css": {
-      "count": 25,
+      "count": 23,
       "inks": [
         "#0a5c22",
         "#12202c",
@@ -342,7 +342,7 @@
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
     },
     "pages/charts/widgets/AiSearchWidget.module.css": {
-      "count": 17,
+      "count": 6,
       "inks": [
         "#5c460f",
         "#cbb46a",
@@ -357,7 +357,7 @@
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme"
     },
     "pages/charts/widgets/AlertsWidget.module.css": {
-      "count": 8,
+      "count": 6,
       "inks": [
         "--alerts-below",
         "--alerts-chrome",
@@ -375,7 +375,7 @@
       "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
     },
     "pages/charts/widgets/BreadthWidget.module.css": {
-      "count": 12,
+      "count": 11,
       "inks": [
         "--bg",
         "--bw-text-dim",
@@ -387,7 +387,7 @@
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
     },
     "pages/charts/widgets/CalendarWidget.module.css": {
-      "count": 5,
+      "count": 3,
       "inks": [
         "#6f8dbf",
         "#e0a53c",
@@ -435,7 +435,7 @@
       "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
     },
     "pages/charts/widgets/FundamentalsWidget.module.css": {
-      "count": 7,
+      "count": 6,
       "inks": [
         "#55606e",
         "--fw-down",
@@ -520,7 +520,7 @@
       "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
     },
     "pages/charts/widgets/OptionsFlowWidget.module.css": {
-      "count": 6,
+      "count": 2,
       "inks": [
         "#6db6ff",
         "#ffb54d",
@@ -530,7 +530,7 @@
       "why": "a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
     },
     "pages/charts/widgets/ProfileWidget.module.css": {
-      "count": 3,
+      "count": 2,
       "inks": [
         "--prof-chrome-strong",
         "--prof-down",
@@ -547,7 +547,7 @@
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
     },
     "pages/charts/widgets/ScatterWidget.module.css": {
-      "count": 11,
+      "count": 10,
       "inks": [
         "#fff",
         "--menu-accent",
