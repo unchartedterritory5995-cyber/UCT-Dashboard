@@ -226,7 +226,6 @@ describe('ThesisChip -- the desktop popover (I-1, I-2)', () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
-        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
         <div onClick={onRow} onKeyDown={onRow}><ThesisChip chip={CHIP} currentPrice={105} /></div>
       </MemoryRouter>,
     )

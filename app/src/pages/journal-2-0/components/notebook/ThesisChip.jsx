@@ -56,38 +56,19 @@ const touchNow = () => typeof window !== 'undefined'
 const GAP = 6
 const EDGE = 8
 
-export default function ThesisChip({ chip, currentPrice }) {
-  // null (closed) | 'pop' (desktop popover) | 'sheet' (touch)
-  const [mode, setMode] = useState(null)
+/**
+ * The desktop preview. Mounted only while open, so its placement starts from nothing every
+ * time: fixed, placed from the chip's rect (below it; above when it would run off the
+ * bottom; pulled back inside the right edge), and hidden for the one frame before it is
+ * measured so it never flashes at the wrong spot.
+ */
+function ChipPopover({ id, anchorRef, children }) {
+  const ref = useRef(null)
   const [pos, setPos] = useState(null)
-  const wrapRef = useRef(null)
-  const btnRef = useRef(null)
-  const popRef = useRef(null)
-  // Returning focus to the chip must not read as "the member focused it": the focus
-  // handler opens the popover, so a close that focuses the chip would reopen it.
-  const quietFocusRef = useRef(false)
-  const popId = useId()
-  const pop = mode === 'pop'
-
-  useEffect(() => {
-    if (!pop) return undefined
-    const onDocDown = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setMode(null)
-    }
-    document.addEventListener('pointerdown', onDocDown)
-    return () => document.removeEventListener('pointerdown', onDocDown)
-  }, [pop])
-
-  // Place the popover from the chip's rect: below it, flipped above when it would run
-  // off the bottom, and pulled back inside the viewport's right edge.
   useLayoutEffect(() => {
-    if (!pop) {
-      setPos(null)
-      return undefined
-    }
     const place = () => {
-      const btn = btnRef.current
-      const el = popRef.current
+      const btn = anchorRef.current
+      const el = ref.current
       if (!btn || !el) return
       const r = btn.getBoundingClientRect()
       const w = el.offsetWidth
@@ -108,6 +89,43 @@ export default function ThesisChip({ chip, currentPrice }) {
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
     }
+  }, [anchorRef])
+  return (
+    <div
+      id={id}
+      ref={ref}
+      className={styles.popover}
+      data-thesis-popover=""
+      style={{
+        position: 'fixed',
+        top: pos ? pos.top : 0,
+        left: pos ? pos.left : 0,
+        visibility: pos ? 'visible' : 'hidden',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+export default function ThesisChip({ chip, currentPrice }) {
+  // null (closed) | 'pop' (desktop popover) | 'sheet' (touch)
+  const [mode, setMode] = useState(null)
+  const wrapRef = useRef(null)
+  const btnRef = useRef(null)
+  // Returning focus to the chip must not read as "the member focused it": the focus
+  // handler opens the popover, so a close that focuses the chip would reopen it.
+  const quietFocusRef = useRef(false)
+  const popId = useId()
+  const pop = mode === 'pop'
+
+  useEffect(() => {
+    if (!pop) return undefined
+    const onDocDown = (e) => {
+      if (!wrapRef.current?.contains(e.target)) setMode(null)
+    }
+    document.addEventListener('pointerdown', onDocDown)
+    return () => document.removeEventListener('pointerdown', onDocDown)
   }, [pop])
 
   if (!chip) return null
@@ -152,7 +170,6 @@ export default function ThesisChip({ chip, currentPrice }) {
   return (
     /* The handlers on this span are event FENCES, not controls: the button inside is the
        control. They keep the chip's own clicks and keys from reaching a host row. */
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <span
       className={styles.wrap}
       ref={wrapRef}
@@ -199,23 +216,10 @@ export default function ThesisChip({ chip, currentPrice }) {
         <span className={styles.label}>{label}</span>
       </button>
       {pop && (
-        <div
-          id={popId}
-          ref={popRef}
-          className={styles.popover}
-          data-thesis-popover=""
-          /* Fixed and placed from the chip's rect (see the layout effect). Hidden for the
-             one frame before it is measured, so it never flashes at the wrong spot. */
-          style={{
-            position: 'fixed',
-            top: pos ? pos.top : 0,
-            left: pos ? pos.left : 0,
-            visibility: pos ? 'visible' : 'hidden',
-          }}
-        >
+        <ChipPopover id={popId} anchorRef={btnRef}>
           <div className={styles.popTitle}>{title}</div>
           {details}
-        </div>
+        </ChipPopover>
       )}
       <Sheet
         open={mode === 'sheet'}

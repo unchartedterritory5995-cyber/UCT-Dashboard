@@ -26,11 +26,11 @@ import { PRICE_ROLES } from '../../lib/planLevels'
 import { levelStep, roundToStep } from '../../lib/chartPlan'
 import styles from './ChartPlanPanel.module.css'
 
-export const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
+const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
 const ROLE_VALUES = ['', ...PRICE_ROLES]
 
 /** A price as the number field shows it (two places from a dollar up). */
-export const fieldPrice = (p) => (Number.isFinite(p) ? (p >= 1 ? p.toFixed(2) : String(p)) : '')
+const fieldPrice = (p) => (Number.isFinite(p) ? (p >= 1 ? p.toFixed(2) : String(p)) : '')
 
 const validPrice = (raw) => {
   if (raw === '' || raw == null) return null
@@ -61,7 +61,6 @@ export function RoleRadios({ role, label, onChange }) {
   }
   return (
     // The key handler serves the radio buttons inside (the radiogroup pattern).
-    // eslint-disable-next-line jsx-a11y/interactive-supports-focus
     <div className={styles.roles} role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
       {ROLE_VALUES.map((r, i) => (
         <button
