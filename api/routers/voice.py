@@ -682,9 +682,22 @@ def hallucinations_audit_one(
 
 @router.get("/cost")
 def cost_summary(user: dict = Depends(requires_voice_access)):
-    """Estimated voice cost for the current calendar month + projection."""
-    from api.services.voice_cost_service import get_monthly_cost_summary
-    return get_monthly_cost_summary(user["id"])
+    """Estimated voice cost for the current calendar month + projection.
+
+    Fails soft. If usage cannot be read the answer is still a 200, marked
+    `available: false`, with every figure null (never zero: a zero would read as
+    "you have used nothing") and a sentence. The cause goes to the log."""
+    from api.services import voice_cost_service
+    try:
+        return {"available": True, **voice_cost_service.get_monthly_cost_summary(user["id"])}
+    except Exception:
+        _log.exception("voice cost summary could not be read")
+        return {
+            "available": False,
+            "message": "Voice usage is not available right now.",
+            "month_to_date_usd": None, "projected_month_usd": None, "days_elapsed": None,
+            "days_in_month": None, "daily_rate_usd": None, "breakdown": None,
+        }
 
 
 @router.get("/reward/scoreboard")
