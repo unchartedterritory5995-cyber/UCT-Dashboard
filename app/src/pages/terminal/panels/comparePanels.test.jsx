@@ -10,7 +10,7 @@ import RrgPanel, { SECTOR_ETFS, rrgUniverse } from './RrgPanel'
 import RelPanel, { relSymbols, ratioVerdict, axisDecimals } from './RelPanel'
 import CorrPanel, { corrSymbols, corrTint } from './CorrPanel'
 import { clearClosesCache, settleLimited, MAX_IN_FLIGHT } from './useCloses'
-import { fakeBarsFetch, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
+import { fakeBarsFetch, fridays, series, weekdays, wiggle } from './__fixtures__/compareFixtures'
 
 const realFetch = globalThis.fetch
 let fetchSpy
@@ -24,7 +24,7 @@ afterEach(() => { globalThis.fetch = realFetch })
 const requested = () => fetchSpy.mock.calls.map(([u]) => decodeURIComponent(String(u).match(/\/api\/bars\/([^?]+)/)[1]))
 
 describe('RRG', () => {
-  const dates = weekdays(60)
+  const dates = fridays(60)   // weekly bars: one per week (closesFromBars re-keys W bars to the ISO Friday)
   const bench = series(dates, () => 0.001)
   const shaped = (rel) => series(dates, (i) => (1.001 * (1 + rel(i))) - 1)
 
