@@ -52,7 +52,7 @@ describe('capability registry', () => {
   it('chart capabilities are registered through the seam, none indicator-owned', () => {
     const names = allCapabilityNames()
     expect(names).toEqual(expect.arrayContaining(['chart.setType', 'chart.setTimeframe', 'chart.setSymbol', 'chart.setSession',
-      'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState']))
+      'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'chart.setScale']))
     for (const n of names) expect(n).not.toMatch(/^(indicator|pane)\./)
   })
   it('the manifest is metadata only, gated by surface', () => {
@@ -148,6 +148,28 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
     expect(p.plans[0].after.cs.extendedHoursShading).toBe(false)
     expect(p.plans[0].after.cs.sessionView).toBe(p.plans[0].before.cs.sessionView)
   })
+  it('chart.setScale writes exactly the keys the A/L/% toggle writes, with receipt + undo', async () => {
+    const host = makeHost([{ ref: 'c1' }])
+    const p = plan(host, [op('chart.setScale', { scale: 'log' })])
+    expect(p.ok).toBe(true)
+    expect(p.lines).toEqual(['Changed scale to Logarithmic'])
+    expect(p.plans[0].after.cs.logScale).toBe(true)
+    expect(p.plans[0].after.cs.percentScale).toBe(false)
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(true)
+    expect(plan(host, [op('chart.setScale', { scale: 'log' })]).noops).toEqual(['Already on a logarithmic scale'])
+    const pct = plan(host, [op('chart.setScale', { scale: 'percent' })])
+    expect(pct.plans[0].after.cs).toMatchObject({ percentScale: true, logScale: false })
+    expect((await undoEntry(host, res.undo)).ok).toBe(true)
+    expect(host.raw('c1').stored).toBeNull()
+  })
+  it('chart.setScale refuses a non-percent scale while Compare forces percent (no false receipt)', () => {
+    const host = makeHost([{ ref: 'c1', stored: { comparisonSymbols: [{ sym: 'QQQ', enabled: true }] } }])
+    const p = plan(host, [op('chart.setScale', { scale: 'log' })])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/Compare overlays/)
+    expect(plan(host, [op('chart.setScale', { scale: 'percent' })]).ok).toBe(true)
+  })
   it('symbol change carries the linked-widget count into the receipt', () => {
     const p = plan(makeHost([{ ref: 'c1', linkedCount: 2 }]), [op('chart.setSymbol', { symbol: 'nvda' })])
     expect(p.lines).toEqual(['Changed symbol to NVDA (and 2 linked widgets)'])
@@ -223,6 +245,9 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('put NVDA on the left')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setSymbol', args: { symbol: 'NVDA' } }], target: { position: 'left' } })
     expect(fastParse('change symbol to tsla').ops[0]).toEqual({ action: 'chart.setSymbol', args: { symbol: 'TSLA' } })
     expect(fastParse('top-left chart daily').target).toEqual({ position: 'top-left' })
+    expect(fastParse('log scale').ops[0]).toEqual({ action: 'chart.setScale', args: { scale: 'log' } })
+    expect(fastParse('make the left chart linear')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setScale', args: { scale: 'linear' } }], target: { position: 'left' } })
+    expect(fastParse('percent scale').ops[0].args).toEqual({ scale: 'percent' })
     expect(fastParse('weekly').target).toBeNull()
   })
   it('all-or-nothing: any unrecognised clause goes to the model', () => {
