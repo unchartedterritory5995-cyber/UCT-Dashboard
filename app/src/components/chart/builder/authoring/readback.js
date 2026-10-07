@@ -26,6 +26,7 @@ import { STATUS } from '../../engine/evaluability'
 import { policyLabel } from '../../engine/triggerPolicy'
 import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
+import { untruncatedLabel } from '../../engine/labelText'
 
 /** Rule A of `definitionSemantics.js`, said as what the member sees, for the
  *  semantics the store's rule gives this save (`stampSemantics` mirrors
@@ -91,11 +92,17 @@ function resolveRef(def, v) {
  *  when two outputs share that label. */
 export function outputNamer(def) {
   const plots = (def && Array.isArray(def.plots) ? def.plots : []).filter((p) => p && p.style !== 'hlines')
+  // ⭐ P3S — in a ONE-output definition the label is the definition's name cut to
+  // a 12-character chip ("TC2000" of "TC2000 XAVGC21"); it reads back as the whole
+  // name, exactly as the legend shows it. With several outputs the first label
+  // names that output, not the definition, so it is shown as stored. Display
+  // only: no stored label is touched.
+  const shown = (p) => (plots.length === 1 ? untruncatedLabel(def, p.label) : p.label) || p.key
   const counts = new Map()
-  for (const p of plots) { const l = p.label || p.key; counts.set(l, (counts.get(l) || 0) + 1) }
+  for (const p of plots) { const l = shown(p); counts.set(l, (counts.get(l) || 0) + 1) }
   return (key) => {
     const p = plots.find((x) => x.key === key)
-    const label = (p && p.label) || key
+    const label = p ? shown(p) : key
     return counts.get(label) > 1 ? `${label} (${key})` : label
   }
 }
