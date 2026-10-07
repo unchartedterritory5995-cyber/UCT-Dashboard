@@ -40,7 +40,8 @@ import { storeConversation, attachConversation, armConversationAlerts } from './
 import PreviewPane from './editor/PreviewPane'
 import { CONVERSE_PREVIEW_DEF_ID } from './editor/previewDefinition'
 import { stampSemantics } from '../engine/definitionSemantics'
-import { memberError, memberSaveError, conversationEditability } from './authoring/memberWords'
+import { memberError, memberSaveError, conversationEditability, memberRefusal } from './authoring/memberWords'
+import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
 
 const S = {
@@ -196,6 +197,7 @@ export default function ConverseBox({
       return
     }
     const disclosed = (result.changes || []).map(changeLine).filter(Boolean)
+    logStudioAction(out.state.lineage, 'preview', { surface: 'sheet' })
     say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
@@ -227,8 +229,10 @@ export default function ConverseBox({
         return
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED || turn.outcome === OUTCOMES.REFUSED) {
+        const failure = clientFailureOf(turn.gate)
+        if (failure) logStudioAction(stateRef.current.lineage, 'turn_failed', { surface: 'sheet', failure })
         say({ role: 'uct', kind: turn.outcome === OUTCOMES.UNSUPPORTED ? 'unsupported' : 'refusal',
-          lines: ['Nothing was changed.', turn.reply || turn.reason, ...gaps], gate: turn.gate || null })
+          lines: ['Nothing was changed.', turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps], gate: turn.gate || null })
         setPartial(null)
         return
       }
@@ -278,10 +282,13 @@ export default function ConverseBox({
     try {
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
+        logStudioAction(cur.lineage, 'save_failed', { surface: 'sheet' })
         const m = memberSaveError(stored)
         say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', m.text], errors: [{ code: m.code, message: m.detail }] })
         return
       }
+      logStudioAction(cur.lineage, 'saved', { surface: 'sheet', created: !!stored.created,
+        origin: cur.defId ? undefined : 'native', kinds: definitionKinds(stored.storedDoc, stored.requests) })
       const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings })
       if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
       const alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })

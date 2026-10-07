@@ -91,3 +91,26 @@ describe('4. a condition that drives a paint is not drawn as a flat 0/1 line', (
     expect(ob.hidden).not.toBe(true)
   })
 })
+
+// ═══ 5. ROLLOUT — a LONE painted condition on the PRICE chart ═════════════════
+
+describe('5. a lone yes/no that only paints the price chart is not a 0/1 line off the price scale', () => {
+  const lone = (placement, extra = []) => turn(newAuthoringState(), [
+    { op: 'create', name: 'x', placement, outputs: [{ key: 'value', tree: parseFormula('close > ema(close, 20)').ast }] },
+    { op: 'set_paint', output: 'value', channel: 'barcolor', color: '#FFD700' }, ...extra])
+  it('on the price chart: hidden (still calculated), the paint kept, truth untouched', () => {
+    const s = lone('price')
+    expect(s.working.plots.find((p) => p.key === 'value').hidden).toBe(true)
+    expect(s.working.paints).toEqual([expect.objectContaining({ kind: 'barcolor', colorMode: 'column:value' })])
+    expect(s.working.compute.ast || s.working.compute.trees.value).toBeTruthy()
+  })
+  it('in its own pane: the line stays, as P2 accepted (hiding would empty the pane)', () => {
+    const s = lone('pane')
+    expect(s.working.plots.find((p) => p.key === 'value').hidden).not.toBe(true)
+  })
+  it('an explicit "show the line" still wins on the price chart', () => {
+    const s = lone('price', [{ op: 'set_style', output: 'value', hidden: false }])
+    expect(s.working.plots.find((p) => p.key === 'value').hidden).not.toBe(true)
+  })
+})
+

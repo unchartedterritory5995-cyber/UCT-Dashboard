@@ -136,8 +136,8 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
       <div className={styles.cardGrid}>
       <section className={styles.card}>
         <div className={styles.ct}>Latest report{row?.label ? ` · ${row.label}` : ''}</div>
-        <table className={styles.tbl}>
-          <thead><tr><th>Metric</th><th>Est</th><th>Actual</th><th>Surp</th></tr></thead>
+        <table className={styles.tbl} aria-label="Latest report">
+          <thead><tr><th scope="col">Metric</th><th scope="col">Est</th><th scope="col">Actual</th><th scope="col">Surp</th></tr></thead>
           <tbody>
             <tr>
               <td>EPS</td>

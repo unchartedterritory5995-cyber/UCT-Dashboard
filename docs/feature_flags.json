@@ -2192,6 +2192,17 @@
       ],
       "note": ""
     },
+    "CREATE_INDICATOR_COHORT_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-07",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "PENDING SINCE 2026-10-07 -- the controlled member rollout of Create Indicator (UCT Intelligence conversational authoring). ENABLEMENT gate, default OFF, read per call FIRST in api/services/rollout_gate.py::create_indicator_cohort_enabled (cohort 'create-indicator', a rollout: user_tags row written only by tools/rollout_cohort.py). /converse (api/routers/user_definitions.py::require_create_indicator_access) admits an admin OR a member this flag + cohort release; the dock and BuilderSheet read the EFFECTIVE cohorts list off _access_payload (createIndicatorFlag.js). Admins keep their dark-review access regardless of this flag. Set on NO service and the cohort is empty: nobody outside the admins can reach it. Owner decision left: set CREATE_INDICATOR_COHORT_ENABLED=1 on web and tag the cohort. Rollback: unset the flag (new conversations stop on the next request / auth refresh; saved indicators are untouched ordinary user definitions), or remove one member's tag with tools/rollout_cohort.py (no redeploy)."
+    },
     "TERMINAL_NEXT_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

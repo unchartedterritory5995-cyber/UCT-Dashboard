@@ -105,10 +105,10 @@ function Screen() {
             {int(data.matched)} contracts matched · showing {int(data.shown)} · session {data.session} (end-of-day snapshot)
           </p>
           <div className={styles.scroll}>
-            <table className={styles.grid}>
+            <table className={styles.grid} aria-label="Option screener results">
               <thead><tr>
-                <th>Session</th><th>Contract</th><th>Und</th><th>Type</th><th>Strike</th><th>Exp</th><th>DTE</th>
-                <th>OTM %</th><th>Δ</th><th>IV</th><th>Bid</th><th>Ask</th><th>Spread %</th><th>OI</th><th>Vol</th>
+                <th scope="col">Session</th><th scope="col">Contract</th><th scope="col">Und</th><th scope="col">Type</th><th scope="col">Strike</th><th scope="col">Exp</th><th scope="col">DTE</th>
+                <th scope="col">OTM %</th><th scope="col">Δ</th><th scope="col">IV</th><th scope="col">Bid</th><th scope="col">Ask</th><th scope="col">Spread %</th><th scope="col">OI</th><th scope="col">Vol</th>
               </tr></thead>
               <tbody>
                 {data.rows.map((r) => (
@@ -151,8 +151,8 @@ function Volume() {
         {data.volume_rule}{data.fallback_note ? ` ${data.fallback_note}` : ''}
       </p>
       <div className={styles.scroll}>
-        <table className={styles.grid}>
-          <thead><tr><th>Session</th><th>Underlying</th><th>Volume</th><th>Calls</th><th>Puts</th><th>Own average</th><th>Ratio</th></tr></thead>
+        <table className={styles.grid} aria-label="Option volume ranking">
+          <thead><tr><th scope="col">Session</th><th scope="col">Underlying</th><th scope="col">Volume</th><th scope="col">Calls</th><th scope="col">Puts</th><th scope="col">Own average</th><th scope="col">Ratio</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.underlying}>
@@ -188,8 +188,8 @@ function Iv() {
       {data.note && <p className={styles.note} data-testid="opts-iv-note">{data.note}</p>}
       {data.ranked.length > 0 && (
         <div className={styles.scroll}>
-          <table className={styles.grid}>
-            <thead><tr><th>Session</th><th>Underlying</th><th>ATM IV</th><th>Percentile</th><th>Bucket</th><th>Sessions</th></tr></thead>
+          <table className={styles.grid} aria-label="IV percentile ranking">
+            <thead><tr><th scope="col">Session</th><th scope="col">Underlying</th><th scope="col">ATM IV</th><th scope="col">Percentile</th><th scope="col">Bucket</th><th scope="col">Sessions</th></tr></thead>
             <tbody>
               {data.ranked.map((r) => (
                 <tr key={r.underlying}>

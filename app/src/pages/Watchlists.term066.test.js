@@ -3,6 +3,7 @@
 // verbatim, run in process against the exported formatters over a sampled range.
 import { describe, it, expect } from 'vitest'
 import { fmtVol, fmtDolVol } from './Watchlists'
+import { withPromotion } from '../lib/presentation/__fixtures__/compactBoundary'
 
 // ── the pre-migration bodies (verbatim) ──────────────────────────────────
 function oldFmtDolVol(v) {
@@ -33,13 +34,25 @@ const positives = (() => {
 const negatives = positives.filter((v) => v > 0).map((v) => -v)
 const junk = [null, undefined, NaN, Infinity, -Infinity, '2500']
 
+// The ONE deliberate move since TERM-066 (accuracy audit 2026-10-06, design note 2): a value
+// that rounds up to the next tier prints in it ("1.0M", not "1000K"); every other input is
+// still the frozen body verbatim.
+const pFmtVol = withPromotion(oldFmtVol, [1e3, 1e6, 1e9])
+const pFmtDolVol = withPromotion(oldFmtDolVol, [1e3, 1e6, 1e9, 1e12])
+
 describe('watchlist volume columns: byte-identical where they must be (TERM-066)', () => {
   it('fmtVol, every value', () => {
-    for (const v of [...positives, ...negatives, ...junk]) expect([v, fmtVol(v)]).toEqual([v, oldFmtVol(v)])
+    for (const v of [...positives, ...negatives, ...junk]) expect([v, fmtVol(v)]).toEqual([v, pFmtVol(v)])
   })
   it('fmtDolVol, every non-negative value and the sub-$1K negatives', () => {
     const values = [...positives, ...negatives.filter((v) => v > -1e3), ...junk]
-    for (const v of values) expect([v, fmtDolVol(v)]).toEqual([v, oldFmtDolVol(v)])
+    for (const v of values) expect([v, fmtDolVol(v)]).toEqual([v, pFmtDolVol(v)])
+  })
+  it('the boundary values that moved (accuracy follow-up 4), typed', () => {
+    expect(oldFmtVol(999_999)).toBe('1000K')
+    expect(fmtVol(999_999)).toBe('1.0M')
+    expect(oldFmtDolVol(999_999)).toBe('$1000K')
+    expect(fmtDolVol(999_999)).toBe('$1.0M')
   })
 })
 

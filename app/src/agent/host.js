@@ -13,6 +13,7 @@
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
+import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -128,10 +129,44 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps }) {
+/**
+ * Named layouts, read through the Layout Dock's own catalog and active pointer and
+ * changed only through its handlers (see ChartsWorkspace's agentLayoutsRef). The
+ * Agent never writes a layout record itself.
+ */
+export function buildLayoutSource(getLayouts) {
+  const kindWord = (scope, id) => (id === UCT_DEFAULT_ID ? 'built-in' : scope === 'global' ? 'prebuilt' : 'yours')
+  return {
+    snapshot() {
+      const L = getLayouts() || { entries: [], active: null }
+      return {
+        entries: (L.entries || []).map(e => ({ id: e.id, name: e.name, scope: e.scope || 'user', kind: kindWord(e.scope, e.id) })),
+        active: L.active || null,
+        unsaved: !!L.unsaved,
+        arrangement: L.arrangement || '',
+      }
+    },
+    open: (entry) => getLayouts()?.open(entry),
+    rename: (id, name) => getLayouts()?.rename(id, name),
+    saveAs: (name) => getLayouts()?.saveAs(name),
+    refresh: () => getLayouts()?.refresh?.(),
+  }
+}
+
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts }) {
+  const layoutSource = layouts ? buildLayoutSource(layouts) : null
   return {
     charts: buildChartSource({ chartApiById, getWidgets }),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
+    ...(layoutSource ? {
+      layouts: layoutSource,
+      // WHICH board this is: the open layout's identity. A plan proposed on one board
+      // must never be applied to another, and an undo never reaches across a switch.
+      epoch: () => {
+        const a = layoutSource.snapshot().active
+        return a ? `${a.scope}:${a.id}` : 'unsaved'
+      },
+    } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
   }
 }

@@ -13,6 +13,12 @@ import { fmtVol as liVol } from './LeverageInverseControl'
 import { fmt as flowFmt } from './OptionsFlowWidget'
 import { abbrev } from './ScatterWidget'
 import { fmtDollar } from './VolumeScanWidget'
+import { withPromotion } from '../../../lib/presentation/__fixtures__/compactBoundary'
+
+// The ONE deliberate move since TERM-066 (accuracy audit 2026-10-06, design note 2): a value
+// that rounds up to the next tier prints in it. `withPromotion(old, ladder)` expects the next
+// tier ONLY for those boundary values; everything else is the frozen body verbatim.
+const P = withPromotion
 
 // ── the pre-migration bodies (verbatim) ──────────────────────────────────
 function oldCsMoney(v) {
@@ -85,21 +91,32 @@ const negatives = positives.filter((v) => v > 0).map((v) => -v)
 
 describe('chart-board widget formatters: byte-identical where they must be (TERM-066)', () => {
   it.each([
-    ['CompanySearch.fmtMoney', csMoney, oldCsMoney, [...positives, ...negatives, null, undefined]],
-    ['CompanySearch.fmtShares', csShares, oldCsShares, [...positives, ...negatives, null, undefined, 'abc', '2500000000']],
-    ['BusinessTrend.fmtMoney', btMoney, oldBtMoney, [...positives, ...negatives, null]],
+    ['CompanySearch.fmtMoney', csMoney, P(oldCsMoney, [1e3, 1e6, 1e9, 1e12]), [...positives, ...negatives, null, undefined]],
+    ['CompanySearch.fmtShares', csShares, P(oldCsShares, [1e6, 1e9]), [...positives, ...negatives, null, undefined, 'abc', '2500000000']],
+    ['BusinessTrend.fmtMoney', btMoney, P(oldBtMoney, [1e6, 1e9, 1e12]), [...positives, ...negatives, null]],
     // a sales/revenue figure below the M tier keeps its raw "$<v>" body, both signs
-    ['FundamentalsWidget.fmtSales', fmtSales, oldFmtSales, [...positives, ...negatives.filter((v) => v > -1e6), null, undefined]],
+    ['FundamentalsWidget.fmtSales', fmtSales, P(oldFmtSales, [1e6, 1e9, 1e12]), [...positives, ...negatives.filter((v) => v > -1e6), null, undefined]],
     ['DockProfile.compactInt', compactInt, oldCompactInt, [...positives, ...negatives, null, undefined, '2500', 'abc']],
     // revenue in MILLIONS: the B tier starts at 1,000 of them
     ['CalendarWidget.fmtRev', fmtRev, oldFmtRev, [...positives, ...positives.map((v) => v / 1e3), ...negatives, null, undefined, '', 'abc', '2500', Infinity]],
     // avg dollar volume is never below $1K/day on a listed fund; below it the old K was "$0K"
-    ['LeverageInverseControl.fmtVol', liVol, oldLiVol, [...positives.filter((v) => v >= 1e3), null, undefined, '2500000']],
-    ['OptionsFlowWidget.fmt', flowFmt, oldFlowFmt, [...positives, ...negatives.filter((v) => v > -1e3), null, undefined, NaN, '2500000']],
-    ['ScatterWidget.abbrev', abbrev, oldAbbrev, [...positives, ...negatives, NaN]],
-    ['VolumeScanWidget.fmtDollar', fmtDollar, oldFmtDollar, [...positives, ...negatives, null, undefined, '2500']],
+    ['LeverageInverseControl.fmtVol', liVol, P(oldLiVol, [1e3, 1e6, 1e9]), [...positives.filter((v) => v >= 1e3), null, undefined, '2500000']],
+    ['OptionsFlowWidget.fmt', flowFmt, P(oldFlowFmt, [1e3, 1e6]), [...positives, ...negatives.filter((v) => v > -1e3), null, undefined, NaN, '2500000']],
+    ['ScatterWidget.abbrev', abbrev, P(oldAbbrev, [1e3, 1e6, 1e9, 1e12]), [...positives, ...negatives, NaN]],
+    ['VolumeScanWidget.fmtDollar', fmtDollar, P(oldFmtDollar, [1e3, 1e6]), [...positives, ...negatives, null, undefined, '2500']],
   ])('%s', (_name, now, before, values) => {
     for (const v of values) expect([v, now(v)]).toEqual([v, before(v)])
+  })
+
+  it('the boundary values that moved (accuracy follow-up 4), typed', () => {
+    expect(oldCsMoney(999_950)).toBe('$1000.0K')
+    expect(csMoney(999_950)).toBe('$1.0M')
+    expect(oldBtMoney(999_999_999)).toBe('$1000M')
+    expect(btMoney(999_999_999)).toBe('$1.0B')
+    expect(flowFmt(999_999)).toBe('$1.0M')          // was "$1000K"
+    expect(abbrev(999_999)).toBe('1.0M')            // was "1000K"
+    expect(fmtDollar(999_600)).toBe('$1.0M')        // was "$1000K"
+    expect(liVol(999_999_999)).toBe('$1.0B/d')      // was "$1000.0M/d"
   })
 })
 

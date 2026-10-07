@@ -245,6 +245,13 @@ def _firms(sym: str, stored: Optional[dict] = None) -> dict:
     return {"state": "ok" if named else "empty", "source": FIRMS_SOURCE, "actions": named[:20]}
 
 
+def _iso(epoch: Optional[float]) -> Optional[str]:
+    if epoch is None:
+        return None
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(float(epoch), timezone.utc).isoformat(timespec="seconds")
+
+
 def view(sym: str, today: Optional[str] = None) -> dict:
     sym = (sym or "").upper().strip()
     now = time.time()
@@ -263,6 +270,8 @@ def view(sym: str, today: Optional[str] = None) -> dict:
             return {**base, "state": "pending", "queued": queued,
                     "reason": "the consensus is being read; this panel fills in by itself"}
     read_at = hit[0]
+    # TERM-019: the instant this consensus was READ from FMP (the cache fill), never "now".
+    base["as_of"] = _iso(read_at)
     if payload is None:
         return {**base, "state": "unavailable", "read_at": read_at,
                 "reason": "the consensus estimates could not be read"}

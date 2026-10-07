@@ -153,17 +153,18 @@ def fiscal_relabel(quarterly: list[dict], annual_rows: Any) -> list[dict]:
     (accuracy audit 2026-10-06). The fiscal year ends come from FMP's own ANNUAL estimate rows
     (their `date` IS the fiscal year end), placed by `fiscal_calendar.FiscalCalendar`. A
     December filer keeps its label byte-for-byte; with no annual anchors nothing changes."""
-    from api.services.fiscal_calendar import FiscalCalendar
+    from api.services.fiscal_calendar import FiscalCalendar, display_label
     ends = [str(r.get("date") or "")[:10] for r in (annual_rows or []) if isinstance(r, dict)]
     cal = FiscalCalendar([e for e in ends if len(e) == 10])
     if not cal.anchors:
         return quarterly
     for row in quarterly:
         info = cal.resolve(row.get("period_end"))
-        fy, q = info.get("fiscal_year"), info.get("fiscal_quarter")
-        if not fy or not q or row.get("label") == f"Q{q} {fy}":
-            continue
-        row["label"] = f"Q{q} FY{fy}"
+        # `display_label` is the one authority the ERN modal's history rows
+        # also go through (earnings_history_fmp), so EE and ERN cannot drift.
+        text = display_label(info.get("fiscal_year"), info.get("fiscal_quarter"), row.get("period_end"))
+        if text:
+            row["label"] = text
     return quarterly
 
 

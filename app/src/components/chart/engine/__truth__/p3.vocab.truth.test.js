@@ -249,7 +249,7 @@ describe('P3 vocab 3 — fill between two outputs', () => {
     expect(stableJson(r.definition)).toBe(stableJson(twoEmaDoc({ fill: { with: 'slow' }, fillColor: '#26a69a', fillOpacity: 0.2 })))
     expect(JSON.stringify(r.definition.compute)).toBe(JSON.stringify(d.compute))
     expect(validateUserDefinitions([r.definition]).errors).toEqual([])
-    expect(readback(r.definition).lines).toContain('Look: area between Two EMAs and slow shaded, colour #26a69a, 20% opaque')
+    expect(readback(r.definition).lines).toContain('Look: area between Two EMAs and slow shaded, colour teal, 20% opaque')
     expect(compactView(r.definition, { revision: 1 }).definition.outputs[0].presentation.fill)
       .toEqual({ with: 'slow', color: '#26a69a', opacity: 0.2 })
   })

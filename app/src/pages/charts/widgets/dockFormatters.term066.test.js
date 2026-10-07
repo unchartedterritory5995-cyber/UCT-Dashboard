@@ -5,6 +5,13 @@ import { describe, it, expect } from 'vitest'
 import { fmtSales, fmtPct } from './earningsRows'
 import { fmtShares, fmtMoney } from './ownershipModel'
 import { stripSales } from './chartEarningsStripModel'
+import { withPromotion } from '../../../lib/presentation/__fixtures__/compactBoundary'
+
+// The ONE deliberate move since TERM-066 (accuracy audit 2026-10-06, design note 2): a value
+// that rounds up to the next tier prints in it ("$1M", not "$1000K"). `withPromotion` expects
+// the next tier ONLY for those boundary values; everything else is the frozen body verbatim.
+const KMBT = [1e3, 1e6, 1e9, 1e12]
+const KMB = [1e3, 1e6, 1e9]
 
 // ── the pre-migration bodies (verbatim) ──────────────────────────────────
 function oldFmtSales(v) {
@@ -75,13 +82,21 @@ const values = (() => {
 
 describe('chart dock formatters: byte-identical to the hand-rolled versions (TERM-066)', () => {
   it.each([
-    ['earningsRows.fmtSales', fmtSales, oldFmtSales],
+    ['earningsRows.fmtSales', fmtSales, withPromotion(oldFmtSales, KMBT)],
     ['earningsRows.fmtPct', fmtPct, oldFmtPct],
-    ['ownershipModel.fmtShares', fmtShares, oldFmtShares],
-    ['ownershipModel.fmtMoney', fmtMoney, oldFmtMoney],
-    ['chartEarningsStripModel.stripSales', stripSales, oldStripSales],
+    ['ownershipModel.fmtShares', fmtShares, withPromotion(oldFmtShares, KMB)],
+    ['ownershipModel.fmtMoney', fmtMoney, withPromotion(oldFmtMoney, KMBT)],
+    ['chartEarningsStripModel.stripSales', stripSales, withPromotion(oldStripSales, KMBT)],
   ])('%s', (_name, now, before) => {
     for (const v of values) expect([v, now(v)]).toEqual([v, before(v)])
+  })
+
+  it('the boundary values that moved (accuracy follow-up 4), typed', () => {
+    expect(fmtSales(999_500)).toBe('$1M')            // was "$1000K"
+    expect(fmtSales(-999_999)).toBe('-$1M')
+    expect(fmtShares(999_999)).toBe('1.0M')          // was "1000K"
+    expect(fmtMoney(999_999)).toBe('$1.0M')          // was "$1000K"
+    expect(stripSales(999_500)).toBe('$1M')          // was "$1000K"
   })
 
   it('fmtPct keeps its decimals argument below the K tier', () => {

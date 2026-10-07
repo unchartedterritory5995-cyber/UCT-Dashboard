@@ -12,6 +12,18 @@ export function scriptedTurn(body) {
   const names = new Set((body.capabilities || []).map(c => c.name))
   const first = charts[0]?.ref
 
+  // Layout names the fast path could not resolve (as the production model does, measured
+  // 2026-10-07): several real matches → clarify with them; none → say so, invent nothing.
+  const lib = body.context?.layouts?.[0]
+  const lm = /^(?:open|switch to|take me to|go to) (?:my |the )?(.+?)(?: layout)?$/.exec(m.replace(/[.!?]+$/, ''))
+  if (lib && lm) {
+    const want = lm[1].trim()
+    const hits = lib.layouts.filter(l => l.name.toLowerCase().includes(want))
+    if (hits.length === 1) return env('apply', [{ action: 'layout.open', target: lib.ref, args: { layout: hits[0].id } }])
+    if (hits.length > 1) return env('clarify', [], '', { text: 'Which layout?', choices: hits.map(h => h.name) })
+    return env('answer', [], `You don't have a layout called ${want}. Your layouts: ${lib.layouts.map(l => l.name).join(', ')}.`)
+  }
+
   // "Add 4 charts. Make them all 5-minute. Put SPY, QQQ, NVDA and TSLA in them."
   const nm = /add (\d+|two|three|four|five|six) charts?/.exec(m)
   const ws = body.context?.workspace?.[0]?.ref

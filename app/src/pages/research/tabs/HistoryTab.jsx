@@ -3,7 +3,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { isFailedSynthesis, FAILED_SYNTHESIS_NOTE } from '../../../utils/highlightThesis'
 import { withDeadline } from '../../../utils/withDeadline'
-import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -84,7 +84,8 @@ export default function HistoryTab({ sym }) {
     { refreshInterval: historyRefreshMs })
   // TERM-019: the history is read from several UCT records and every row names its own source and
   // date, so the terminal panel header says exactly that (a no-op outside the terminal).
-  usePanelFreshness(data && data.ok ? { source: 'several UCT records; each row names its own' } : null)
+  // `as_of` is the oldest lane read this answer was assembled from (never "now").
+  usePanelFreshness(data && data.ok ? panelAsOf('several UCT records; each row names its own', data.body?.as_of) : null)
   const body = data && data.ok ? data.body : null
   const pendingLanes = useMemo(() => pendingLanesOf(body), [body])
   const unavailableLanes = useMemo(() => {

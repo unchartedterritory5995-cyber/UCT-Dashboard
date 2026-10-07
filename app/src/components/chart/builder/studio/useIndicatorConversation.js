@@ -38,7 +38,8 @@ import { storeConversation, attachConversation, armConversationAlerts } from '..
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from './chartPreview'
-import { memberError, memberSaveError } from '../authoring/memberWords'
+import { memberError, memberSaveError, memberRefusal } from '../authoring/memberWords'
+import { logStudioAction, definitionKinds, clientFailureOf } from '../authoring/studioTelemetry'
 import { outputNamer, slotWords } from '../authoring/readback'
 
 /** The member-facing type word for an output, keyed by the P1 type authority's own values. */
@@ -125,6 +126,10 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     })
   }, [])
 
+  // ⭐ ROLLOUT FUNNEL — the dock was opened on this conversation (once; de-duplicated
+  // server-side per lineage).
+  useEffect(() => { logStudioAction(stateRef.current.lineage, 'opened', { surface: 'studio' }) }, [])
+
   const rb = useMemo(() => readback(state.working, state, gateCtx), [state, gateCtx])
 
   const send = useCallback(async (text) => {
@@ -160,12 +165,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED) {
         say({ role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
-          lines: [turn.reply || turn.reason, ...gaps, NOTHING_CHANGED] })
+          lines: [turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
         return false
       }
       if (turn.outcome === OUTCOMES.REFUSED) {
+        const failure = clientFailureOf(turn.gate)
+        if (failure) logStudioAction(before.lineage, 'turn_failed', { surface: 'studio', failure })
         say({ role: 'uct', kind: 'refusal', gate: turn.gate,
-          lines: [turn.reason, ...gaps, NOTHING_CHANGED] })
+          lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
         return false
       }
       // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
@@ -188,6 +195,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       commit(out.state)
       setAcked(false)
       setChangeSeq((n) => n + 1)
+      logStudioAction(out.state.lineage, 'preview', { surface: 'studio' })
       // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the
       // model wrote. Its prose is not the authority on applied state (P3R, real model:
       // "Its name still says 'EMA 20'" beside a readback of EMA 50), so it is not shown
@@ -228,10 +236,13 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
+        logStudioAction(cur.lineage, 'save_failed', { surface: 'studio' })
         const m = memberSaveError(stored)
         say({ role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] })
         return { ok: false, error: stored.error }
       }
+      logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
+        kinds: definitionKinds(stored.storedDoc, stored.requests) })
       if (typeof beforeAttach === 'function') beforeAttach()
       const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings })
       if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
@@ -250,6 +261,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   /** Discard: the member threw this draft away on purpose. */
   const discard = useCallback(() => {
+    if (stateRef.current.working) logStudioAction(stateRef.current.lineage, 'discarded', { surface: 'studio' })
     ended.current = true
     clearSession(sessionKey)
   }, [sessionKey])

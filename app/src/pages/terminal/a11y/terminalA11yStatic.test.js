@@ -10,12 +10,21 @@
 //   3. no aria-label sits on a bare <span>/<div> (generic role: screen readers drop the name);
 //   4. every class a stylesheet makes clickable (cursor: pointer) is a 44px finger target at
 //      phone AND tablet width (<=1024px is touch in this repo — styles/tapFloor.test.js).
+//   5. MOUNTED SURFACES (2026-10-06, lane fn5-tables): every table in a module the terminal
+//      reaches by IMPORT — the research tabs, options analytics, the screener and the whole
+//      pages the shell embeds — is named, every header cell is a <th scope>, and a header that
+//      sorts says which way with aria-sort. The set is derived each run by following imports
+//      (static, re-export and lazy import()) from the two roots above, read by an acorn AST so a
+//      comment that says "<table>" is not a table. Partner/forbidden surfaces are a shrink-only
+//      BASELINE with a reason each, never a skip.
 //
 // ⛔ Necessary, not sufficient: this reads source, not the accessibility tree. The behavioural
 // rails (TerminalShell.*.test.jsx, the panel tests) and a real screen reader remain the truth.
-import { describe, it, expect } from 'vitest'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { dirname, join, relative, resolve, sep } from 'node:path'
+import { Parser } from 'acorn'
+import acornJsx from 'acorn-jsx'
 
 const SRC = join(process.cwd(), 'src')
 const ROOTS = [join(SRC, 'pages', 'terminal'), join(SRC, 'components', 'terminal')]
@@ -189,5 +198,176 @@ describe('terminal stylesheets — every clickable class is a finger target on t
     expect(clickableWithoutFloor(css)).toEqual(['.a@820'])
     const ok = '.a { cursor: pointer; }\n@media (max-width: 1024px) { .a { min-height: var(--tap-min); } }'
     expect(clickableWithoutFloor(ok)).toEqual([])
+  })
+})
+
+// ── 5. Mounted surfaces: every table the terminal reaches by import ────────────────────────
+//
+// The shell embeds ~50 existing pages and tabs as panels (panels.jsx / surfacePanels.js), so a
+// table on, say, the research People tab is a terminal table the moment a member opens that
+// panel. The audit (§5) found 46 of 52 such tables unnamed; this is the rail that keeps the
+// fix. ⭐ The module set is DERIVED from the import graph, never typed: a tab the shell starts
+// mounting tomorrow is covered the day it lands, and one it stops mounting drops out.
+
+const JSXParser = Parser.extend(acornJsx())
+const parseModule = (src) => JSXParser.parse(src, {
+  ecmaVersion: 'latest', sourceType: 'module', allowHashBang: true, locations: true,
+})
+
+function walkAst(node, fn) {
+  if (!node || typeof node.type !== 'string') return
+  fn(node)
+  for (const k of Object.keys(node)) {
+    if (k === 'loc') continue
+    const v = node[k]
+    if (Array.isArray(v)) v.forEach((c) => c && typeof c.type === 'string' && walkAst(c, fn))
+    else if (v && typeof v.type === 'string') walkAst(v, fn)
+  }
+}
+
+const RESOLVE_EXT = ['', '.jsx', '.js', '/index.jsx', '/index.js']
+function resolveImport(from, spec) {
+  if (typeof spec !== 'string' || !spec.startsWith('.')) return null
+  const base = resolve(dirname(from), spec)
+  for (const ext of RESOLVE_EXT) {
+    const p = base + ext
+    if (existsSync(p) && statSync(p).isFile()) return p
+  }
+  return null
+}
+const isSourceModule = (f) => /\.jsx?$/.test(f) && !/\.test\.|__tests__|__fixtures__/.test(f)
+
+/** Every source module reachable from `roots` by static import, re-export or lazy import(). */
+export function importClosure(roots) {
+  const modules = new Map()
+  const unparsed = []
+  const queue = [...roots]
+  while (queue.length) {
+    const f = queue.pop()
+    if (modules.has(f)) continue
+    let ast = null
+    const src = readFileSync(f, 'utf8')
+    try { ast = parseModule(src) } catch (e) { unparsed.push(`${posix(f)}: ${e.message}`) }
+    modules.set(f, { ast, src })
+    if (!ast) continue
+    walkAst(ast, (n) => {
+      let spec = null
+      if (n.type === 'ImportDeclaration' || n.type === 'ExportNamedDeclaration' || n.type === 'ExportAllDeclaration') spec = n.source?.value
+      else if (n.type === 'ImportExpression' && n.source?.type === 'Literal') spec = n.source.value
+      const r = resolveImport(f, spec)
+      if (r && isSourceModule(r)) queue.push(r)
+    })
+  }
+  return { modules, unparsed }
+}
+
+const jsxName = (el) => (el.openingElement?.name?.type === 'JSXIdentifier' ? el.openingElement.name.name : null)
+const jsxAttr = (el, name) => el.openingElement.attributes.some((a) => a.type === 'JSXAttribute' && a.name?.name === name)
+const meaningful = (children) => children.filter((c) => !(c.type === 'JSXText' && !c.value.trim())
+  && !(c.type === 'JSXExpressionContainer' && c.expression.type === 'JSXEmptyExpression'))
+
+/**
+ * The three table defects in one module, each as `file:line`:
+ *   unnamed  — a <table> with no aria-label / aria-labelledby and no leading <caption>;
+ *   unscoped — a <th> with no scope (an empty corner cell should be a <td>: it names nothing);
+ *   unsorted — a <th> whose cell sorts (an onClick naming a sort) but carries no aria-sort.
+ */
+export function tableFindings(file, src, ast = parseModule(src)) {
+  const out = { unnamed: [], unscoped: [], unsorted: [], tables: 0 }
+  walkAst(ast, (n) => {
+    if (n.type !== 'JSXElement') return
+    const name = jsxName(n)
+    const at = `${file}:${n.loc.start.line}`
+    if (name === 'table') {
+      out.tables += 1
+      const first = meaningful(n.children)[0]
+      const caption = first?.type === 'JSXElement' && jsxName(first) === 'caption'
+      if (!jsxAttr(n, 'aria-label') && !jsxAttr(n, 'aria-labelledby') && !caption) out.unnamed.push(at)
+    } else if (name === 'th') {
+      if (!jsxAttr(n, 'scope')) out.unscoped.push(at)
+      let sorts = false
+      walkAst(n, (m) => {
+        if (m.type === 'JSXAttribute' && m.name?.name === 'onClick' && /sort/i.test(src.slice(m.start, m.end))) sorts = true
+      })
+      if (sorts && !jsxAttr(n, 'aria-sort')) out.unsorted.push(at)
+    }
+  })
+  return out
+}
+
+// ⛔ SHRINK-ONLY. A file here may carry AT MOST the stated count of each defect; fewer fails too
+// ("lower the baseline"), so a fix has to say so here and the list can only get shorter. Every
+// entry is a surface this lane may not edit, by name, with the reason.
+const CHART_OWNER = 'owner-blocked: app/src/components/chart/** belongs to the chart workstream (forbidden to this lane)'
+// ⚠️ Not visible to this rail, stated: a shared component that forwards a name prop reads as named
+// here whatever its caller passes. components/mobile/ResponsiveTable.jsx takes `label`; its one
+// caller, journal-2-0's NotesTableView (Notebook-owned, forbidden to this lane), does not pass it yet.
+export const MOUNTED_BASELINE = new Map([
+  // The bars-adjustment popover (reached through the Chart panel's StockChart).
+  ['components/chart/AdjustmentLabel.jsx', { unnamed: 1, unscoped: 4, unsorted: 0, why: CHART_OWNER }],
+  // The builder's Evidence tab (reached through the chart's builder sheet).
+  ['components/chart/builder/EvidenceTab.jsx', { unnamed: 1, unscoped: 6, unsorted: 0, why: CHART_OWNER }],
+])
+
+const DEFECTS = ['unnamed', 'unscoped', 'unsorted']
+
+describe('mounted surfaces — every table the terminal reaches by import', () => {
+  let closure
+  let findings
+  beforeAll(() => {
+    closure = importClosure(ROOTS.flatMap((r) => walk(r)).filter(isSourceModule))
+    findings = new Map()
+    for (const [abs, { ast, src }] of closure.modules) {
+      if (!ast || !src.includes('<t')) continue
+      const f = tableFindings(posix(abs), src, ast)
+      if (f.tables || f.unscoped.length) findings.set(posix(abs), f)
+    }
+  }, 120_000)
+
+  it('follows real imports past the terminal (non-vacuity) and parses every module', () => {
+    const files = [...closure.modules.keys()].map(posix)
+    expect(files).toContain('pages/research/tabs/PeopleTab.jsx')
+    expect(files).toContain('pages/optionsAnalytics/StrategyScreensPanel.jsx')
+    expect(files).toContain('pages/FlowScoreboard.jsx')
+    expect(closure.unparsed).toEqual([])
+    const tables = [...findings.values()].reduce((s, f) => s + f.tables, 0)
+    expect(tables).toBeGreaterThanOrEqual(60)
+  })
+
+  it('every mounted table is named, every header cell scoped, every sorting header says which way', () => {
+    const problems = []
+    for (const [file, f] of findings) {
+      const allowed = MOUNTED_BASELINE.get(file)
+      for (const d of DEFECTS) {
+        const cap = allowed?.[d] ?? 0
+        if (f[d].length > cap) problems.push(`${d}: ${f[d].join(', ')}${cap ? ` (baseline allows ${cap})` : ''}`)
+        else if (f[d].length < cap) problems.push(`${file} ${d}: ${f[d].length} < baseline ${cap} — lower MOUNTED_BASELINE (shrink-only)`)
+      }
+    }
+    expect(problems, problems.join('\n')).toEqual([])
+  })
+
+  it('every baseline entry is still mounted and still has a reason', () => {
+    const stale = [...MOUNTED_BASELINE].filter(([file, b]) => !findings.has(file) || !b.why)
+      .map(([file]) => `${file}: no longer in the terminal's import closure (or has no reason) — drop it`)
+    expect(stale).toEqual([])
+  })
+
+  it('CONTROL: each defect is SEEN, a caption or label clears it, and a comment is not a table', () => {
+    const f = tableFindings('x', [
+      'export const A = () => (<div>',
+      '  {/* a <table> in a comment is not one */}',
+      '  <table className={s}><thead><tr><th>Name</th><th onClick={() => onSort(1)}>Px</th></tr></thead></table>',
+      '  <table aria-label="Named"><tbody><tr><th scope="row" /></tr></tbody></table>',
+      '  <table>',
+      '    <caption>Captioned</caption>',
+      '    <thead><tr><th scope="col" aria-sort="none" onClick={() => toggleSort(2)}>Sorted</th></tr></thead>',
+      '  </table>',
+      '</div>)',
+    ].join('\n'))
+    expect(f.tables).toBe(3)
+    expect(f.unnamed).toEqual(['x:3'])
+    expect(f.unscoped).toEqual(['x:3', 'x:3'])
+    expect(f.unsorted).toEqual(['x:3'])
   })
 })

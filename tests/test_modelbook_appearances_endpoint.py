@@ -71,10 +71,28 @@ def test_paid_user_gets_real_appearances_newest_first(client_as):
     assert body["appearances"][0]["thesis"] == "AI leader"
 
 
+def test_the_as_of_is_when_the_record_was_last_written(client_as):
+    """TERM-019: the newest curation edit or stats fill across the ticker's appearances."""
+    a = svc.create_stock(_stock(2023, "NVDA"))
+    b = svc.create_stock(_stock(2025, "NVDA"))
+    ids = [x["id"] if isinstance(x, dict) else x for x in (a, b)]
+    import contextlib
+    import sqlite3
+    with contextlib.closing(sqlite3.connect(svc._DB_PATH)) as c:
+        c.execute("UPDATE modelbook_stocks SET created_at=1700000000, updated_at=NULL, stats_at=NULL "
+                  "WHERE id=?", (ids[0],))
+        c.execute("UPDATE modelbook_stocks SET created_at=1700000000, updated_at=1750000000, "
+                  "stats_at=1760000000 WHERE id=?", (ids[1],))
+        c.commit()
+    body = client_as(PAID_USER).get("/api/modelbook/appearances/NVDA").json()
+    assert body["as_of"] == "2025-10-09T08:53:20+00:00"            # 1760000000, the stats fill
+
+
 def test_paid_user_never_curated_symbol_gets_honest_empty_list(client_as):
     resp = client_as(PAID_USER).get("/api/modelbook/appearances/ZZZZ")
     assert resp.status_code == 200
-    assert resp.json() == {"symbol": "ZZZZ", "appearances": []}
+    # TERM-019: a ticker never curated has no record, so no age -- never stamped "now".
+    assert resp.json() == {"symbol": "ZZZZ", "appearances": [], "as_of": None}
 
 
 def test_lowercase_symbol_is_normalized(client_as):

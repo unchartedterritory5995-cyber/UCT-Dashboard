@@ -54,14 +54,30 @@ def test_hv_needs_n_plus_one_closes():
 
 # ── ERX: realized vol, reaction rows, summary stats (earnings_reaction_panel) ────────────────
 
-def test_erx_realized_vol_is_population_std_of_20_log_returns(fx):
+def test_erx_realized_vol_is_sample_std_of_20_log_returns(fx):
+    """Accuracy follow-up 6: ERX used the POPULATION std (ddof=0) while VOL used the SAMPLE
+    one (ddof=1); both now go through `realized_vol.annualized_hv` (sample)."""
     from api.services import earnings_reaction_panel as erp
     bars = _bars(fx, "NVDA")
     closes = np.array([b["c"] for b in bars[-21:]])
-    ref = float(np.std(np.diff(np.log(closes)), ddof=0) * math.sqrt(252) * 100)
+    ref = float(np.std(np.diff(np.log(closes)), ddof=1) * math.sqrt(252) * 100)
     got = erp.realized_vol(bars)
     assert got["annualized_pct"] == round(ref, 1)
     assert got["through"] == "2026-10-02"
+    assert "sample standard deviation" in got["method"]
+    # the population figure it used to print is a DIFFERENT number (sqrt(20/19) apart)
+    pop = float(np.std(np.diff(np.log(closes)), ddof=0) * math.sqrt(252) * 100)
+    assert round(pop, 1) != got["annualized_pct"]
+
+
+def test_vol_and_erx_print_the_same_20_session_vol(fx):
+    """One definition: VOL's HV20 and ERX's realized vol agree on the same closes."""
+    from api.services import earnings_reaction_panel as erp
+    from api.services.options_analytics import vol
+    bars = _bars(fx, "NVDA")
+    closes = [b["c"] for b in bars]
+    assert erp.realized_vol(bars)["annualized_pct"] == round(vol.hv(closes, 20) * 100, 1)
+    assert "sample standard deviation" in vol.HV_METHOD
 
 
 # NVDA reports after the close; these are its report dates in the fixture window.

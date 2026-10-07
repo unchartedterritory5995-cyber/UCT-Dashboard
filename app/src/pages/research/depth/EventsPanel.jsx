@@ -59,7 +59,7 @@ export default function EventsPanel({ sym }) {
           </p>
           : (
             <div className={styles.scroll}>
-              <table className={styles.grid}>
+              <table className={styles.grid} aria-label="Events around the print">
                 <thead><tr><th scope="col">Date</th><th scope="col">Stage</th><th scope="col">Event</th><th scope="col">Source</th></tr></thead>
                 <tbody>
                   {events.map((e, i) => (

@@ -19,7 +19,7 @@ import os
 import re
 import threading
 import time
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
@@ -1918,6 +1918,8 @@ def _get_or_build_range_week(monday: date) -> dict | None:
         except Exception as exc:
             _logger.warning("Calendar: range week build failed for %s: %s", monday, exc)
             return None
+        # TERM-019: this week's build time, cached with it (never "now" on a hit).
+        payload["as_of"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         # 2026-09-03 range_empty follow-up: "range_error" is the honest
         # failure signal now (both primary providers unreachable) — a plain
         # "range_empty" means they were BOTH reached and genuinely found
@@ -2330,6 +2332,13 @@ def _build_current_week() -> dict:
         # nothing and is the half that stops the next reader.
         "is_current_week": True,
     }
+    # TERM-019: the instant this week was BUILT from the providers. It rides the cached payload
+    # (and the stale slot), so a cache hit answers with the build time, never "now". A week
+    # served from the morning wire is only as new as that wire, so it carries the wire's date.
+    if str(source).startswith("wire"):
+        result["as_of"] = str((wire or {}).get("date") or "")[:10] or None
+    else:
+        result["as_of"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     # `_WEEKLY_STALE.serve()` checks the raw TTL cache (`fresh()`) BEFORE ever
     # consulting the last-known-good stale slot -- so an unconditional write
     # here let a poisoned empty-week rebuild win over a real prior week for
@@ -3584,9 +3593,11 @@ def _build_enrichment_for_date(target: str) -> dict:
         # say WHICH symbols were shed -- and the modal states its answer per
         # symbol, so the signal has to travel per symbol too.
         history_unresolved = False
+        next_fiscal = None
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None
+            next_fiscal = intel.get("next_report_fiscal") if intel else None
             # `intel is None` = all three legs failed; `history_answered` False
             # = the history leg specifically did not reply. Either way we do
             # not know this ticker's history, which is NOT the same as knowing
@@ -3605,7 +3616,9 @@ def _build_enrichment_for_date(target: str) -> dict:
                      "expected_move_outcome": em_outcome,
                      "beat_history": hist,
                      "hist_stats": hist_stats,
-                     "history_unresolved": history_unresolved}
+                     "history_unresolved": history_unresolved,
+                     # fiscal identity of the next report (ERN upcoming row)
+                     "next_report_fiscal": next_fiscal}
 
     # Bounded WAIT for a compute slot — a request that can't get one returns
     # empty (uncached) instead of parking an anyio thread for the duration of

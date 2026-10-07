@@ -64,3 +64,18 @@ def test_debug_flag_passes_through(monkeypatch):
     r = c.get("/api/fundamentals/earnings-table?sym=AAPL&debug=1")
     assert r.status_code == 200
     assert seen["debug"] is True
+
+
+def test_reporting_currency_is_stamped_on_a_copy(monkeypatch):
+    """Accuracy follow-up 7: the Fundamentals widget printed TSM's TWD sales as "$".
+    The endpoint carries the SAME reporting currency EE/FA use, on a copy, so the
+    cached payload's shape is untouched; unknown stays None (renders "$" as before)."""
+    from api.services.research import reporting_currency
+    cached = {"ticker": "TSM", "annual": [], "quarterly": [{"label": "2026 Q2"}]}
+    monkeypatch.setattr(fr, "get_earnings_table", lambda sym, debug=False: cached)
+    monkeypatch.setattr(reporting_currency, "read", lambda sym, timeout=10: ("ok", "TWD"))
+    c = _client(monkeypatch)
+    assert c.get("/api/fundamentals/earnings-table?sym=TSM").json()["currency"] == "TWD"
+    assert "currency" not in cached, "the cached payload must not be mutated"
+    monkeypatch.setattr(reporting_currency, "read", lambda sym, timeout=10: ("error", None))
+    assert c.get("/api/fundamentals/earnings-table?sym=TSM").json()["currency"] is None

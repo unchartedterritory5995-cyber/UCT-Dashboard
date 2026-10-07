@@ -95,6 +95,37 @@ export function usePanelFreshness(freshness = null) {
   }, [setFreshness, JSON.stringify(freshness)])
 }
 
+const _DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * TERM-019 as-of dates — the `usePanelFreshness` report for a source whose server answer carries
+ * its own as-of. `at` is what the server sent: an ISO instant (`2026-10-06T19:42:00+00:00`),
+ * epoch SECONDS, or a calendar date (`2026-10-05`). An instant becomes `observedAt` (the source
+ * disclosure's time) plus an ET age clause; a calendar date is rendered as given, never parsed
+ * into a time it never had (`FreshnessBadge`'s `AgeClause`). No `at` reports the source alone,
+ * which the header reads as "undated" — never a stand-in "now".
+ *
+ *   usePanelFreshness(data ? panelAsOf('UCT Model Book', data.as_of) : null)
+ */
+export function panelAsOf(source, at, { dataClass = null } = {}) {
+  const report = { source }
+  let iso = null
+  let label = null
+  if (typeof at === 'string' && _DATE_ONLY.test(at)) {
+    label = at
+  } else if (at != null && at !== '') {
+    const d = typeof at === 'number' ? new Date(at * 1000) : new Date(at)
+    if (!Number.isNaN(d.getTime())) {
+      iso = d.toISOString()
+      label = `${d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET`
+    }
+  }
+  if (!label) return report
+  if (iso) report.observedAt = iso
+  report.age = dataClass ? { dataClass, asOfDate: label } : { asOfDate: label }
+  return report
+}
+
 /**
  * TERM-019 — ONE reporter per panel. A panel that EMBEDS other panels (the options chain renders
  * the IV history, positioning and options-history panels inside itself) wraps them in this so

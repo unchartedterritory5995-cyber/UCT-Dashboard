@@ -156,6 +156,8 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/flow/data"): "flow_user",
     ("GET", "/api/flow/indexes-data"): "flow_user",
     ("GET", "/api/flow/ticker/{symbol}"): "flow_user",
+    ("GET", "/api/flow/ticker/{symbol}/day-counts"): "flow_user",
+    ("GET", "/api/flow/tape-span"): "flow_user",
     ("GET", "/api/flow/stats"): "flow_user",
     ("GET", "/api/flow/version"): "flow_user",
     ("GET", "/api/flow/dates"): "flow_user",

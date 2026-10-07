@@ -93,11 +93,11 @@ export default function FlowTab({ sym }) {
           <section className={styles.card} data-testid="flow-contracts">
             <div className={styles.ct}>Top Contracts by Premium</div>
             <div className={styles.gridScroll}>
-              <table className={styles.fgrid}>
+              <table className={styles.fgrid} aria-label="Top contracts by premium">
                 <thead>
                   <tr>
-                    <th>Contract</th><th>DTE</th><th>Premium</th><th>Volume</th>
-                    <th>OI</th><th>V/OI</th><th>Dir</th><th>Perf</th>
+                    <th scope="col">Contract</th><th scope="col">DTE</th><th scope="col">Premium</th><th scope="col">Volume</th>
+                    <th scope="col">OI</th><th scope="col">V/OI</th><th scope="col">Dir</th><th scope="col">Perf</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -88,7 +88,7 @@ export default function FilingsFeedTab({ sym }) {
       <>
         {(data.reason || data.partial) && <div className={styles.gap} data-testid="feed-partial">{[data.reason, data.partial].filter(Boolean).join('. ')}.</div>}
         <div className={styles.scroll}>
-          <table className={styles.grid} data-testid="feed">
+          <table className={styles.grid} data-testid="feed" aria-label={`Filings feed: ${label}`}>
             <thead><tr>
               <th scope="col">Form</th>{scope === 'market' && <th scope="col">Company</th>}
               <th scope="col">8-K items</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>

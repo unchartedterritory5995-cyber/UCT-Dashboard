@@ -43,6 +43,9 @@ class LayoutIn(BaseModel):
     layout: dict
     groups: Optional[dict] = None
     scope: str = "user"  # 'user' | 'global'
+    # Opt-in: refuse (409) instead of replacing an existing layout of the same name.
+    # The default stays the name-keyed upsert every existing caller relies on.
+    create_only: bool = False
 
 
 @router.get("")
@@ -73,6 +76,11 @@ def save_layout(body: LayoutIn, user: dict = Depends(get_current_user)):
     if not isinstance(body.layout, dict) or not isinstance(body.layout.get("widgets"), list):
         raise HTTPException(status_code=400, detail="Invalid layout")
     created_by = user.get("display_name") or user.get("email")
+    if body.create_only:
+        row = svc.create(scope, user["id"], name, body.layout, body.groups, created_by)
+        if row is None:
+            raise HTTPException(status_code=409, detail="You already have a layout with that name")
+        return row
     return svc.upsert(scope, user["id"], name, body.layout, body.groups, created_by)
 
 

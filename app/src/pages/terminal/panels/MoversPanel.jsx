@@ -175,7 +175,7 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}>
+                  <th scope="col" key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}>
                     <button type="button" className={styles.sortBtn} onClick={() => toggleSort(c.key)}
                       data-testid={`terminal-movers-sort-${c.key}`}>
                       {c.label}
@@ -184,7 +184,7 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
                     </button>
                   </th>
                 ))}
-                <th>Why</th>
+                <th scope="col">Why</th>
               </tr>
             </thead>
             <tbody>

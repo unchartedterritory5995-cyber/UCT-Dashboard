@@ -88,6 +88,16 @@ class TestView:
         be._cache["AAPL"] = (time.time(), 600, None)
         assert be.view("AAPL")["state"] == "unavailable"
 
+    def test_the_as_of_is_the_cache_fill_time_never_now(self, monkeypatch):
+        """TERM-019: the panel header dates the consensus by when it was READ from FMP."""
+        be._cache["AAPL"] = (1790000000.0, 10 ** 9, None)
+        out = be.view("AAPL")
+        assert out["read_at"] == 1790000000.0
+        assert out["as_of"] == "2026-09-21T14:13:20+00:00"
+        del be._cache["AAPL"]
+        monkeypatch.setattr(be, "_schedule", lambda sym: False)
+        assert "as_of" not in be.view("AAPL", today="2026-06-01")      # pending: undated
+
     def test_named_firms_come_from_the_cached_ratings_read_only(self, monkeypatch):
         from api.services import cache as cache_mod
         store = {"analyst_grades_AAPL": {"recent_actions": {"items": [

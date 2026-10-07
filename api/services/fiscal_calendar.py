@@ -364,6 +364,25 @@ class FiscalCalendar:
         }
 
 
+def display_label(fiscal_year: int | None, quarter: int | None, period_end) -> str | None:
+    """The quarter label EE and the ERN modal both print -- ONE authority.
+
+    'Q3 2026' when the company's fiscal quarter is the calendar quarter the
+    shared period-end mapper assigns (`earnings_estimates._fiscal_q_from_period_end`,
+    i.e. every December filer, byte for byte), else 'Q3 FY2027' -- the company's
+    own numbering, marked FY so it cannot be read as a calendar quarter (NVIDIA's
+    October quarter is Q3 FY2027; Apple's December quarter is Q1 FY2027).
+    None when the fiscal identity is unknown: the caller keeps its own fallback
+    rather than printing a guess."""
+    if not fiscal_year or not quarter:
+        return None
+    from api.services.earnings_estimates import _fiscal_q_from_period_end
+    cq, cy = _fiscal_q_from_period_end(str(period_end or "")[:10])
+    if cq == quarter and cy == fiscal_year:
+        return f"Q{quarter} {fiscal_year}"
+    return f"Q{quarter} FY{fiscal_year}"
+
+
 def label(fiscal_year: int | None, quarter: int | None) -> str | None:
     """The one place a fiscal period is turned into display text."""
     if not fiscal_year or not quarter:

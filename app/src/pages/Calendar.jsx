@@ -10,7 +10,7 @@ import IndexEventsBand from './calendar/depth/IndexEventsBand'
 import OrderExplain, { useBoostOff } from './calendar/depth/OrderExplain'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import ErrorBoundary from '../components/ErrorBoundary'
-import { usePanelFreshness } from '../components/terminal/terminalPanel'
+import { usePanelFreshness, panelAsOf } from '../components/terminal/terminalPanel'
 import EarningsResearchModal from '../components/research/EarningsResearchModal'
 import useEarningsModalRoute, { resolveFeedEntry, normalizeSym } from './calendar/useEarningsModalRoute'
 import useSettledSym from '../hooks/useSettledSym'
@@ -117,7 +117,7 @@ export default function Calendar() {
   // TERM-019: in a terminal panel the header names where the week's dates come from (a no-op on
   // the page). The server's own `source` here is a pipeline code ('live', 'wire', …), not words.
   usePanelFreshness(data && !error && data.source !== 'error' && data.source !== 'range_error'
-    ? { source: 'EarningsWhispers, Finviz and Finnhub (earnings dates)' }
+    ? panelAsOf('EarningsWhispers, Finviz and Finnhub (earnings dates)', data.as_of)
     : null)
   const { data: mySets } = useCalendarMySets()
   // Calendar depth (Lane R): each surface behind its own server flag, read `=== true`

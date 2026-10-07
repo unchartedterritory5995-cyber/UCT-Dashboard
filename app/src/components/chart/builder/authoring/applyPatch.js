@@ -560,10 +560,13 @@ function hidePaintedConditionLines(st) {
     if (!st.newPaints.has(row.key) || st.hiddenSet.has(row.key)) continue
     if (row.hidden === true || row.marker || row.style !== 'line' || !row.ast) continue
     if (treeOutputType(row.ast).type !== OUTPUT_TYPES.CONDITION) continue
-    // ⛔ ONLY BESIDE ANOTHER DRAWN OUTPUT (the P3R shape: an RSI line + its yes/no).
-    // A definition whose ONLY output is the painted condition keeps its line, as P2
-    // accepted it: hiding it would leave its pane empty.
-    if (!st.model.rows.some((o) => o !== row && o.hidden !== true)) continue
+    // ⛔ ONLY WHERE NOTHING IS LEFT EMPTY: beside another drawn output (the P3R
+    // shape: an RSI line + its yes/no), or ON THE PRICE CHART, where a lone 0/1 line
+    // sits far off the price scale and the candles themselves carry the answer
+    // (rollout polish). A lone painted condition IN ITS OWN PANE keeps its line, as
+    // P2 accepted it: hiding it there would leave the pane empty.
+    const onPrice = !!(st.model.placement && st.model.placement.target === 'price')
+    if (!onPrice && !st.model.rows.some((o) => o !== row && o.hidden !== true)) continue
     row.hidden = true
     st.changes.push({ op: null, kind: 'line-hidden', output: row.key, reason: 'paint' })
     st.engineAssumptions.push({ output: row.key, source: 'engine',

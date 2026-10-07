@@ -718,7 +718,9 @@ def get_detections(
         # exposes what the judge said about a setup it turned down.
         return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts,
                 "count": len(verdicts),
-                "evaluated": pv_store.count_evaluated(sym, tf)}
+                "evaluated": pv_store.count_evaluated(sym, tf),
+                # TERM-019: when the judge last ran on this ticker's window (epoch s), or None.
+                "as_of": pv_store.last_judged_at(sym, tf)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
     rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)
     return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}

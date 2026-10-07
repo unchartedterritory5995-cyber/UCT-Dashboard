@@ -81,6 +81,8 @@ def test_massive_prefix_is_proxied_but_bare_live_is_not(proxy_app):
     "/api/flow-backup", "/api/flow-reconcile", "/api/flow-reconcile/run",
     "/api/dealer-positioning", "/api/notable-flow", "/api/oi-snapshot/x",
     "/api/liveflow/consumer-state", "/api/live/massive/status",
+    # HIS's per-ticker count + tape-span routes (2026-10-06): served by flow-worker only.
+    "/api/flow/ticker/NVDA/day-counts", "/api/flow/tape-span",
 ])
 def test_all_flow_prefixes_route_to_worker(proxy_app, path):
     client, fake = proxy_app
