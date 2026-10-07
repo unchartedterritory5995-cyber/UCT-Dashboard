@@ -124,6 +124,13 @@ Two things would be lost. Both are measured in `tests/test_notebook_rollback_nev
    clears. A revert leaves the tables and their rows in the database. A reverted list would
    leave those rows behind when a member deletes their account.
 
+One thing a revert leaves behind that needs nothing done: the column
+`j2_template_gallery.preview_json`. The security lane added it with `ALTER TABLE` so the gallery
+list can show a preview without parsing a template body. It is nullable. The reverted code has
+no gallery at all (the module arrives with this landing), so nothing reads or writes the table and
+the column is ignored. There is nothing to revert and nothing to drop. Rolling forward again
+finds it already there.
+
 ### The keep-list
 
 | Kept exactly as the landing has it | Why |
