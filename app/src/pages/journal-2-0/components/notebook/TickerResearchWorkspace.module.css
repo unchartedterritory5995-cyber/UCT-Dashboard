@@ -49,10 +49,15 @@
   color: var(--ut-gold);
   margin-top: 6px;
 }
+/* The buttons WRAP (lane FIN-A11Y round 3). This was a no-wrap row that could not shrink, and
+   each capability adds a button to it: measured at 390 px it ran to 763 px and the whole page
+   scrolled sideways. */
 .headerActions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 .empty {
   padding: 32px 4px;
@@ -207,6 +212,7 @@
   }
   .headerActions {
     align-self: stretch;
+    justify-content: flex-start;
   }
   .row {
     flex-wrap: wrap;
