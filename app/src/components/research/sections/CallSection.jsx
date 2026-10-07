@@ -17,6 +17,7 @@ import { EmptyState } from '../../research-kit'
 import useCallRecap from '../../../hooks/useCallRecap'
 import useEarningsAudio from '../../../hooks/useEarningsAudio'
 import { normalizeCallRecap, recapEmptyState } from '../callRecap'
+import { FETCH_FAILED } from './sectionFetch'
 import styles from './CallSection.module.css'
 
 // §12 / review r1 I3: `SentimentGauge` (an AI score + rationale + drivers,
@@ -42,7 +43,7 @@ export default function CallSection({ sym, lifecycle }) {
   const jumpToSegment = useCallback(
     segment => setFocus(f => ({ segment, nonce: (f?.nonce || 0) + 1 })), [])
 
-  const { data: payload } = useCallRecap(sym, quarter)
+  const { data: payload, error: recapError, mutate: retryRecap } = useCallRecap(sym, quarter)
   const { data: audio } = useEarningsAudio(sym)
   const recap = normalizeCallRecap(payload)
   // Read off the payload, not re-derived: the server owns this reason.
@@ -65,7 +66,11 @@ export default function CallSection({ sym, lifecycle }) {
             common case is `generating` — the request path never synthesises
             inline — and calling that "No call recap yet" reported a failure
             for work that was in progress. */}
-        <EmptyState icon="chat" {...recapEmptyState(recapStatus, quarter)} />
+        {/* TERM-033: a failed read is not "no recap". `payload` is undefined only when no
+            answer has ever landed for this key; a failed refresh keeps the last good one. */}
+        {recapError && payload === undefined
+          ? <EmptyState {...FETCH_FAILED} onRetry={() => retryRecap()} />
+          : <EmptyState icon="chat" {...recapEmptyState(recapStatus, quarter)} />}
         {/* Independent of the recap above: FMP publishes the verbatim
             transcript with no LLM in the path, so it must stay reachable
             when synthesis has not run, has failed, or is capped. */}

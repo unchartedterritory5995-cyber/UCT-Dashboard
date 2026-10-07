@@ -5,8 +5,12 @@
 // audio proxy. Most symbols are not covered and answer {available:false} — the
 // caller renders the plain transcript in that case, so this is purely additive.
 import useSWR from 'swr'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = url => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (SWR `error`) instead of a `null` indistinguishable from "not
+// covered". SOFT AT THE RENDER, ON PURPOSE: the timing layer is purely additive, and on either
+// answer the caller renders the plain transcript, which is the honest fallback.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 export default function useTimedTranscript(ticker) {
   return useSWR(

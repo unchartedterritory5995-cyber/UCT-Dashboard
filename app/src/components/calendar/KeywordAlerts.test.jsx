@@ -86,9 +86,32 @@ describe('KeywordAlerts', () => {
     expect(screen.getByText('buyback')).toBeTruthy()
   })
 
-  it('renders nothing at all if the list never loads', async () => {
+  // TERM-033: this used to assert the panel rendered NOTHING when the list never loaded, which
+  // is the swallowed failure itself: the feature vanished and nobody could tell why.
+  it('says the list could not be loaded, with a Retry, when the read fails', async () => {
     global.fetch = vi.fn(() => Promise.reject(new Error('offline')))
-    const { container } = await mount()
-    expect(container.firstChild).toBeNull()
+    await mount()
+    expect(screen.getByRole('alert').textContent).toMatch(/could not be loaded/i)
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => listed(['tariff']) }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })) })
+    expect(screen.getByText('tariff')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('a non-2xx list read is a failure, not an empty list', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 502, json: async () => ({}) }))
+    await mount({ suggestion: 'tariff' })
+    expect(screen.getByRole('alert').textContent).toMatch(/could not be loaded/i)
+    expect(screen.queryByRole('button', { name: /alert me on/i })).toBeNull()
+  })
+
+  it('a failed remove says so instead of doing nothing', async () => {
+    global.fetch = vi.fn((url, opts) => (opts?.method === 'DELETE'
+      ? Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
+      : Promise.resolve({ ok: true, json: async () => listed(['tariff']) })))
+    await mount()
+    await act(async () => { fireEvent.click(screen.getByLabelText('Remove tariff')) })
+    expect(screen.getByRole('alert').textContent).toMatch(/could not remove/i)
+    expect(screen.getByText('tariff')).toBeTruthy()
   })
 })

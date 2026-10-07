@@ -169,6 +169,39 @@ describe('AlertBell — undelivered alerts have a surface', () => {
     expect(screen.queryByText('AMD')).toBeNull()
   })
 
+  it('TERM-033: a FAILED delivery check says so, with a Retry, instead of "nothing to report"', async () => {
+    // The old fetcher answered a 500 with null, which rendered exactly like
+    // "every alert landed". The feed itself must still render.
+    feed = [{ id: 1, title: 'Feed row', message: '', read: true, timestamp: Date.now() / 1000 }]
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith(DELIVERY_URL)) return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
+      if (u.startsWith('/api/alerts')) return Promise.resolve({ ok: true, json: () => Promise.resolve(feed) })
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    renderAs('u_fail') // own identity => own SWR cache entry, no earlier answer
+    await openBell()
+    expect(await screen.findByText(/could not check whether your alerts were delivered/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.getByText('Feed row')).toBeInTheDocument()
+
+    // Retry re-asks; when the server answers, the notice goes away.
+    global.fetch.mockImplementation((url) => {
+      const u = String(url)
+      if (u.startsWith(DELIVERY_URL)) return Promise.resolve({ ok: true, json: () => Promise.resolve(delivery) })
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(feed) })
+    })
+    await act(async () => { screen.getByRole('button', { name: 'Retry' }).click() })
+    await waitFor(() => expect(screen.queryByText(/could not check whether/i)).toBeNull())
+  })
+
+  it('TERM-033 control: a successful empty check shows no failure notice', async () => {
+    renderAs('u_a')
+    await openBell()
+    await act(() => new Promise(r => setTimeout(r, 20)))
+    expect(screen.queryByText(/could not check whether/i)).toBeNull()
+  })
+
   it('is REACHABLE — the bell is mounted by the nav that still ships it', () => {
     // The thirteenth-instance guard. Derived from the nav sources, so deleting
     // the mount fails here even though every test above would stay green.
