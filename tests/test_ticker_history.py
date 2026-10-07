@@ -135,6 +135,9 @@ def stores(tmp_path, monkeypatch):
 
     monkeypatch.delenv("ENTITY_MASTER_MEMBER_ENABLED", raising=False)
     monkeypatch.setenv(th.LANES2_ENV, "1")
+    # The flow lane's wait budget is a production latency knob; on a loaded test box the
+    # in-process tape can take longer than it, and these rails are about the ANSWER.
+    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 60.0)
     FLOW_REQUESTS[:] = []
     seen[:] = []
     FLOW_REQUESTS.append(seen)        # one list per test, read by the projection rail
@@ -545,6 +548,90 @@ def test_a_failed_flow_read_is_not_waited_out_twice(monkeypatch):
             th._flow_counts("ZZFL", "stocks")
     assert calls == ["stocks"]
     th._FLOW_MEMO.clear()
+
+
+# ── first open of HIS was 5-6 s: the flow lane must not hold the other lanes hostage ──
+
+def _fast_lanes_slow_tape(monkeypatch, gate, tape_calls):
+    """Every local lane answers at once; the tape blocks until `gate` is set."""
+    import threading as _th
+    monkeypatch.setattr(th, "_entity_eras", lambda s: ({"status": "unresolved"}, [(s, None, None)]))
+    fns = {n: (lambda *a: []) for n in th.LANES}
+    fns["flow"] = th.flow_lane
+    monkeypatch.setattr(th, "_LANE_FNS", fns)
+    cov = {n: (lambda *a: (None, None)) for n in th.LANES}
+    cov["flow"] = lambda *a: ("2026-01-02", "2026-01-05")
+    monkeypatch.setattr(th, "_COVERAGE_FNS", cov)
+    monkeypatch.setenv(th.LANES2_ENV, "1")
+
+    class _R:
+        status_code = 200
+        text = "CreatedDate\n1/5/2026\n1/5/2026\n"
+
+    lock = _th.Lock()
+
+    def _req(path, params):
+        with lock:
+            tape_calls.append((path, params.get("source")))
+        assert gate.wait(10), "test gate never opened"
+        return _R()
+    th._FLOW_MEMO.clear()
+    monkeypatch.setattr(th, "_flow_request", _req)
+
+
+def test_a_slow_tape_answers_pending_and_the_next_ask_has_the_counts(monkeypatch):
+    import threading as _th
+    import time as _t
+    gate, calls = _th.Event(), []
+    _fast_lanes_slow_tape(monkeypatch, gate, calls)
+    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 0.2)
+    t0 = _t.monotonic()
+    out = th.history("ZZPD", days=3650)
+    took = _t.monotonic() - t0
+    assert took < 2.0, f"the response waited on the tape ({took:.2f}s)"
+    assert out["lanes"]["flow"]["status"] == "pending"
+    assert out["lanes"]["flow"]["count"] is None          # never a count of zero
+    assert not [r for r in out["timeline"] if r["lane"] == "flow"]
+    assert out["lanes"]["wire"]["status"] == "ok"           # the other lanes answered
+    gate.set()                                              # the tape answers ...
+    deadline = _t.monotonic() + 5
+    while ("ZZPD", "stocks") not in th._FLOW_MEMO and _t.monotonic() < deadline:
+        _t.sleep(0.02)
+    again = th.history("ZZPD", days=3650)                   # ... and the re-ask has it
+    assert again["lanes"]["flow"]["status"] == "ok"
+    assert [(r["date"], r["prints"]) for r in again["timeline"] if r["lane"] == "flow"] == [("2026-01-05", 2)]
+    assert [c for c in calls if c[0].startswith("/api/flow/ticker/")] == [("/api/flow/ticker/ZZPD", "stocks")]
+    th._FLOW_MEMO.clear()
+
+
+def test_asks_during_a_running_read_join_it_instead_of_reading_again(monkeypatch):
+    import threading as _th
+    gate, calls = _th.Event(), []
+    _fast_lanes_slow_tape(monkeypatch, gate, calls)
+    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 0.05)
+    for _ in range(3):                                      # the panel re-asking while it reads
+        assert th.history("ZZJN", days=3650)["lanes"]["flow"]["status"] == "pending"
+    gate.set()
+    monkeypatch.setattr(th, "SLOW_LANE_WAIT_S", 10.0)
+    assert th.history("ZZJN", days=3650)["lanes"]["flow"]["status"] == "ok"
+    tape = [c for c in calls if c[0].startswith("/api/flow/ticker/")]
+    assert tape == [("/api/flow/ticker/ZZJN", "stocks")], tape
+    th._FLOW_MEMO.clear()
+
+
+def test_a_fast_tape_is_answered_in_the_same_response(stores):
+    """The budget only bites when the tape is slow: a quick tape is never `pending`."""
+    lane = th.history("NVDA", days=30)["lanes"]["flow"]
+    assert lane["status"] == "ok" and lane["count"] == 2
+
+
+def test_the_tape_span_is_read_once_for_every_ticker(stores):
+    """`/api/flow/dates` is the same answer for every ticker; HIS asks for it once, not per open."""
+    th.history("NVDA", days=30)
+    th.history("AMD", days=30)
+    th.history("SPY", days=30)
+    dates = [p for p, q in FLOW_REQUESTS[0] if p == "/api/flow/dates"]
+    assert dates == ["/api/flow/dates", "/api/flow/dates"]   # stocks + indexes, once
 
 
 # ── dual-class names: each lane asks its store in the spelling that store's WRITER holds ──

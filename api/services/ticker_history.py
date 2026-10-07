@@ -83,6 +83,13 @@ LANES = ("wire", "book", "catalysts", "room", "flow", "setups", "journal")
 #: thousands of prints; one narrow column keeps it to a few MB. Past this the lane is
 #: `unavailable` -- a timeout is not a quiet tape.
 FLOW_TIMEOUT_S = 12.0
+#: How long one HIS request waits for a lane in ``SLOW_LANES`` before answering without it.
+#: First open of HIS took 5-6 s, all of it the flow lane's cross-service tape read; every
+#: other lane is a local store. Past this budget the lane answers ``pending`` (said, never
+#: shown as "no prints"), the read keeps going in the background, and the panel asks again.
+SLOW_LANE_WAIT_S = float(os.environ.get("HIS_SLOW_LANE_WAIT_S", "1.0") or 1.0)
+#: Lanes that live behind another service. Only these may answer ``pending``.
+SLOW_LANES = ("flow",)
 
 
 #: The slice-2 lanes ride their OWN gate. `TICKER_HISTORY_ENABLED` is armed in production, so
@@ -342,20 +349,41 @@ _FLOW_OK_TTL_S = 600.0
 _FLOW_FAIL_TTL_S = 120.0
 _FLOW_MEMO: dict = {}
 _FLOW_MEMO_LOCK = threading.Lock()
+#: key -> Event for a tape read already running. A panel that asks again while the first
+#: read is still going (the ``pending`` re-ask) JOINS it instead of starting a second
+#: multi-MB read of the same ticker on the worker.
+_FLOW_INFLIGHT: dict = {}
 
 
-def _flow_counts(sym: str, source: str) -> dict[str, int]:
-    key = (sym, source)
-    now = time.monotonic()
-    reader = _flow_request          # a swapped reader (tests, a re-pointed tape) never reuses
+def _flow_memo_hit(key, reader, now):
     with _FLOW_MEMO_LOCK:
         hit = _FLOW_MEMO.get(key)
     if hit is not None and hit[3] is reader:
         at, value, err, _r = hit
         if now - at < (_FLOW_FAIL_TTL_S if err is not None else _FLOW_OK_TTL_S):
-            if err is not None:
-                raise err
-            return dict(value)
+            return hit
+    return None
+
+
+def _flow_counts(sym: str, source: str) -> dict[str, int]:
+    key = (sym, source)
+    reader = _flow_request          # a swapped reader (tests, a re-pointed tape) never reuses
+    while True:
+        hit = _flow_memo_hit(key, reader, time.monotonic())
+        if hit is not None:
+            if hit[2] is not None:
+                raise hit[2]
+            return dict(hit[1])
+        with _FLOW_MEMO_LOCK:
+            running = _FLOW_INFLIGHT.get(key)
+            if running is None:
+                mine = _FLOW_INFLIGHT[key] = threading.Event()
+        if running is None:
+            break
+        if not running.wait(FLOW_TIMEOUT_S + 1.0):
+            raise LaneUnreadable(f"flow tape {source} read for {sym} did not finish")
+        # The joined read finished: its answer (or failure) is in the memo now.
+    now = time.monotonic()
     try:
         value = _flow_counts_read(sym, source)
     except Exception as e:  # noqa: BLE001 -- remembered briefly, then re-raised as before
@@ -364,9 +392,14 @@ def _flow_counts(sym: str, source: str) -> dict[str, int]:
             if len(_FLOW_MEMO) > 512:
                 _FLOW_MEMO.clear()
         raise
-    with _FLOW_MEMO_LOCK:
-        _FLOW_MEMO[key] = (now, dict(value), None, reader)
-    return value
+    else:
+        with _FLOW_MEMO_LOCK:
+            _FLOW_MEMO[key] = (now, dict(value), None, reader)
+        return value
+    finally:
+        with _FLOW_MEMO_LOCK:
+            _FLOW_INFLIGHT.pop(key, None)
+        mine.set()
 
 
 def _flow_counts_read(sym: str, source: str) -> dict[str, int]:
@@ -588,11 +621,26 @@ def _flow_dates(source: str) -> list[str]:
     return [iso for iso in (_mdy_to_iso(d) for d in (r.json() or {}).get("dates") or []) if iso]
 
 
+#: The tape's span is the same for every ticker and only ever gains a session, so one answer
+#: serves every HIS open for this long (two cross-service reads saved per open; a cold
+#: `/api/flow/dates` is ~3 s on the worker, flow_db.get_available_dates). At worst the
+#: last-session date is this far behind on the morning a new session's first prints land.
+_FLOW_COVERAGE_TTL_S = 300.0
+_FLOW_COVERAGE_MEMO: dict = {}
+
+
 def _flow_coverage() -> tuple[Optional[str], Optional[str]]:
     """The sessions the tape holds, across both partitions. Retention is a product setting
-    (`FLOW_RETAIN_TRADE_DAYS`, prune unarmed today), so the start is MEASURED, never assumed."""
+    (`FLOW_RETAIN_TRADE_DAYS`, prune unarmed today), so the start is MEASURED, never assumed.
+    A failed read is not remembered: it raises, and the lane says `unavailable`."""
+    reader = _flow_request          # a swapped reader (tests) never reuses another's answer
+    hit = _FLOW_COVERAGE_MEMO.get("span")
+    if hit is not None and hit[2] is reader and time.monotonic() - hit[0] < _FLOW_COVERAGE_TTL_S:
+        return hit[1]
     held = sorted(set(_flow_dates("stocks")) | set(_flow_dates("indexes")))
-    return (held[0], held[-1]) if held else (None, None)
+    span = (held[0], held[-1]) if held else (None, None)
+    _FLOW_COVERAGE_MEMO["span"] = (time.monotonic(), span, reader)
+    return span
 
 
 def _setups_coverage() -> tuple[Optional[str], Optional[str]]:
@@ -648,6 +696,7 @@ def _in_era(d: str, valid_from: Optional[str], valid_to: Optional[str]) -> bool:
 
 #: One small pool for the lanes (seven at most per request), off the shared anyio threadpool.
 from concurrent.futures import ThreadPoolExecutor as _TPE
+from concurrent.futures import TimeoutError as FutureTimeout
 _LANE_POOL = _TPE(max_workers=14, thread_name_prefix="his-lane")
 
 
@@ -704,9 +753,23 @@ def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -
             return name, {"status": "unavailable", "count": None}, []
 
     wanted = [n for n in LANES if not (n in LANES2 and not armed2)]
-    futures = [_LANE_POOL.submit(_one, n) for n in wanted]
-    for f in futures:
-        name, status, rows = f.result()
+    futures = [(n, _LANE_POOL.submit(_one, n)) for n in wanted]
+    t0 = time.monotonic()
+    for n, f in futures:
+        if n in SLOW_LANES:
+            # The budget is counted from when the lanes started, so the local lanes'
+            # time is not added on top of it.
+            budget = max(0.0, SLOW_LANE_WAIT_S - (time.monotonic() - t0))
+            try:
+                name, status, rows = f.result(timeout=budget)
+            except FutureTimeout:
+                # Still reading. The read keeps going and fills the memo, so the panel's
+                # next ask is answered at once. Not "no prints" and not "unavailable":
+                # the lane has not answered YET, and says so.
+                lanes[n] = {"status": "pending", "count": None, "retry_after_s": 2}
+                continue
+        else:
+            name, status, rows = f.result()
         lanes[name] = status
         timeline.extend(rows)
     timeline.sort(key=lambda r: (r["date"], LANES.index(r["lane"])), reverse=True)
