@@ -171,7 +171,7 @@ the constant that governs the door.
 |---|---|---|---|
 | `journal_two` | every JSON door but two | 2.25 MB | `2 * notes.MAX_BODY_JSON_BYTES + 256 KiB`. The largest thing an editor sends is a note save. The service holds a note body to 1 MB, and a save can carry it twice (the document and its text) |
 | `journal_two` | `POST /trades/import/confirm` | 40 MiB | `4 * csv_import.MAX_BYTES`. The rows the preview parsed out of a CSV the preview door held to 10 MiB. As JSON a row is a few times its CSV line |
-| `journal_two` | `POST /notes/import/confirm` | 32 MiB | **a new number, see open decisions**. A batch of whole notes (the client sends 200, the service refuses more than 500) |
+| `journal_two` | `POST /notes/import/confirm` | about 533 MB | `notes.IMPORT_CONFIRM_MAX_NOTES * (notes.MAX_BODY_JSON_BYTES + 64 KiB) + 64 KiB`. Owner ruling in round 2: the largest batch the service takes must fit. The client sends 200 notes a batch |
 | `voice` | most doors | 64 KiB | a sentence or a setting |
 | `voice` | `/tts`, `/tts/prepare` | 259 KiB | `4 * MAX_TTS_CHARS + 64 KiB` |
 | `voice` | `/vision/describe` | 6.7 MiB | `VISION_MAX_BYTES * 4 / 3 + 64 KiB`, a base64 image the upload door holds to 5 MiB |
@@ -468,8 +468,8 @@ For each capped door, the client caller and what a member sees when the door ans
 | `POST /voice-notes/jobs` | `lib/voiceNote.js:63` | the server's sentence | fine |
 | `PUT /notes/{id}` and the other JSON doors | `hooks/useJ2Notes.js:228` | the server's sentence, through `friendlySaveError` | fine |
 | `POST /trades/{id}/attachments` | `TradeScreenshots.jsx:54` | the server's sentence | fine |
-| `POST /calendar/day/{date}/attachments` | `DayAttachments.jsx:82` | "Couldn't upload this image. Nothing was added, try again." The reason (5 MB) is read and thrown away, and "try again" is the wrong advice | gap, Journal, listed |
-| `POST /trades/import/preview`, `/preview-mapped`, `/confirm` | `ImportCsvModal.jsx:64`, `:92`, `:143` | "Couldn't read this file. Nothing was imported, try again." The reason (10 MB) is thrown away | gap, Journal, listed |
+| `POST /calendar/day/{date}/attachments` | `DayAttachments.jsx:82` | **was** "Couldn't upload this image. Nothing was added, try again." **Now** "Image must be < 5 MB. Nothing was added." | **fixed in round 2** |
+| `POST /trades/import/preview`, `/preview-mapped`, `/confirm` | `ImportCsvModal.jsx:64`, `:92`, `:143` | **was** "Couldn't read this file. Nothing was imported, try again." **Now** "File exceeds 10 MB limit. Nothing was imported." | **fixed in round 2** |
 | `POST /notes/{id}/hero` from a new position | `GlobalAddPositionProvider.jsx:174` | nothing. The failure goes to the console and the note opens with no image | gap, silent by design, listed |
 | `POST /notes/{id}/images` for a widget snapshot | `WidgetEmbedView.jsx:491` through `embedArchive.js:74` | nothing. A background save, retried in the next session | gap, silent by design, listed |
 | `POST /api/voice/vision/upload` | `VisionAttachButton.jsx:48` | **was** the raw reply as text: `{"detail":"image too large (max 5MB)"}`. **Now** the sentence | **fixed here** |
@@ -553,15 +553,102 @@ parking note past its own expiry date, which is a date check and not this branch
 
 The full vitest suite and the six-shard gate were not run. The brief said not to.
 
+Round 2, after the helper fix, the import cap and the two Journal clients:
+
+- the four rail files (`test_voice_client_request_shapes.py`, `test_notebook_body_order.py`,
+  `test_notebook_body_census.py`, `test_voice_cost_summary.py`): `81 passed`.
+- the differential, on the committed tree: `93 routes, 2811 requests: 2640 same, 171 intended,
+  0 REGRESSIONS`.
+- 44 named backend files in 3 chunks (the upload cap suites, the gate and route census rails, the
+  importer suites, the direct-call journal suites, broker and note sync, the skill whitelist and
+  doc gate): `375 passed`, `397 passed`, `608 passed`. No failures.
+- vitest, named files: `ImportCsvModal.test.jsx` and `DayAttachments.test.jsx`, `21 passed`.
+
+## Round 2: proof that the conversion changed nothing a client can see
+
+The conversion is always on for every Journal and Notebook write door, so it was proved against
+the old code before landing.
+
+### The differential
+
+`python tests/support/run_body_differential.py --work <scratch dir>`. Table and raw answers:
+`docs/notebook/evidence/fin-voice/differential/` (`README.md`, `cases.json`, `old.json`, `new.json`).
+
+- The route list is derived from the census: every route that takes its body through
+  `capped_json`. 93 routes.
+- The old side is `72715e8001`, extracted with `git archive` into the scratch directory. Nothing
+  was checked out.
+- Both sides get the same 2,811 requests, with the same kind of signed-in paid session, each on a
+  temporary database its own conftest pins. The requests are built from each route's own
+  annotation: a valid body (full and minimal), each required field missing, each field `null`, a
+  wrong type for each field, each optional field omitted and `null`, each key renamed between
+  camelCase and snake_case, the field name in place of an alias, an empty nested model, an unknown
+  extra field, an empty body (with and without a Content-Type, and whitespace), five non-object
+  JSON bodies, five malformed bodies (one not UTF-8), and eight Content-Types.
+- Each handler is replaced by one that answers the parsed body. So no model, broker or database
+  call happens, and what is compared is the layer that changed. For an accepted body the parsed
+  value itself is compared: for a model, its fields after defaults and which fields were set.
+- Compared: the status, the 422 error list (`type`, `loc`, `msg`, `ctx`), and the parsed value.
+
+**Result: 2,640 identical, 171 intended, 0 regressions.**
+
+It found one real regression first, and it is fixed (`65665ba837`). On the 21 routes whose body is
+a pydantic model, a JSON array, string, number or boolean, or a body with a non-JSON Content-Type,
+answered 422 with error type `model_type` where the old code answered `model_attributes_type`
+(the `msg` differed too). 168 requests. FastAPI validates a body field with `from_attributes`;
+`capped_json` now does the same. The helper's side-by-side test gained those six request shapes
+and now compares `msg` as well.
+
+The 171 intended differences, all of two kinds:
+
+| kind | requests | old | new |
+|---|---|---|---|
+| no session, malformed body | 78 | 422 | 401 (answered before the body is read) |
+| a declared length over the cap | 93 | the route's usual answer | 413 |
+
+The other 108 anonymous requests are identical on both sides (a valid body with no session was
+always 401; the nine doors with no session answer the same either way).
+
+Defaults, aliases, optional fields and nested models: the model routes are the 21 in `voice.py`,
+`broker_sync.py`, `note_sync.py` and `notebook_onboarding.py`. None of their models declares an
+alias or a nested model, so those two groups ran on key renames only (57 requests, identical).
+Defaults and optional fields: 76 requests, identical, including which fields count as set.
+
+### OpenAPI and the skill doc
+
+- `app.openapi()` described a request body for all 93 routes before and for **none of the 93**
+  now. A dependency does not appear in the schema as a body. The routes themselves are all still
+  listed.
+- Who reads it: only the admin-only doc pages (`/openapi.json`, `/docs`, `/redoc`, served by
+  `api/open_reads_gate.py`). The app is built with `openapi_url=None`.
+- `docs/api/skill.md` and `docs/api/member-api-whitelist.json` are generated by
+  `api/services/skill_whitelist.py`, which does not read request bodies.
+  `tests/test_skill_whitelist.py` and `tests/test_open_reads_gate.py`: `49 passed`. No drift.
+- Not restored. It can be, with one call that sets each route's `openapi_extra` from its
+  annotation, but the place to call it is `api/main.py` or the doc door, and neither is this
+  lane's file. See open decisions.
+
+### The dark 404's bytes
+
+- `notebook_onboarding.py` words its own gate 404, and it is already byte-identical to FastAPI's.
+  Pinned: with the gate off, the tours door answers the exact bytes an unknown path answers.
+- `notebook_thesis_chips.py` and `notebook_research_capture.py` raise
+  `public_note_payload.not_found()`. So do 9 other routers (11 files call it). Its body is
+  `{"detail":"Not found"}` against FastAPI's `{"detail":"Not Found"}`, and it adds its own
+  headers. That is only in `public_note_payload.py`. A test pins that every dark 404 that differs
+  comes from that helper, so a router that words its own different 404 fails by name.
+
 ## Open decisions
 
-1. **`NOTE_IMPORT_JSON_MAX_BYTES = 32 MiB`** is the one limit with no service constant behind it.
-   A batch of 200 notes averaging more than 160 KB of JSON each would now be refused with a
-   sentence, where it used to be accepted. If that is too tight, raise the number or make the
-   client batch by bytes.
-2. The Journal gaps in section 3 (day attachments, the CSV import's three steps) are each a
-   one-line change. They were listed, not fixed, because the brief limited fixes to Notebook callers.
-3. `POST /api/voice/oneshot` has no caller. Keep or remove.
-4. A dark gate's 404 body is `{"detail":"Not found"}` with its own headers. An unknown path
-   answers `{"detail":"Not Found"}`. The status is the same and the body differs by one letter's
-   case. That is in `public_note_payload.py`, which this lane was told not to edit.
+1. **Settled in round 2.** The note import cap is the importer's own limits multiplied. It bounds
+   a request at about 533 MB, which is a bound and not a small one. Making the client batch by
+   bytes would let it come down.
+2. **Settled in round 2.** The two Journal clients show the server's reason.
+3. **Settled in round 2.** `POST /api/voice/oneshot` stays.
+4. **For the controller to route.** The dark 404's wording and headers are in
+   `api/services/journal_two/public_note_payload.py` (`NOT_FOUND_DETAIL`, `PUBLIC_HEADERS`). Making
+   it byte-identical to FastAPI's is a one-word change there, plus dropping the headers on that
+   one answer. The test to widen is named in `tests/test_notebook_body_order.py`.
+5. **New.** The 93 routes no longer show a request body in the admin API docs. Restore or accept.
+6. `GlobalAddPositionProvider.jsx:174` and `WidgetEmbedView.jsx:491` still fail silently on a
+   refused image, by design.
