@@ -224,13 +224,21 @@ LANDING_TABLES = (
 )
 
 
+GALLERY_CHILD_TABLES = ("j2_template_gallery_reports", "j2_template_gallery_uses")
+
+
 def _db_with_the_landing_tables() -> sqlite3.Connection:
     """The database a rollback leaves behind: the twelve tables exist and hold rows, whatever
     the code that created them looks like now. Minimal DDL on purpose -- the purge keys on
-    `user_id` and nothing else, and this file must not import the landing's modules."""
+    `user_id`, and this file must not import the landing's modules. The one other column it
+    reads is `gallery_id` on the two gallery child tables: the security lane's M-7 also removes
+    what OTHER members recorded about the leaving member's templates, by that column
+    (account_purge.py, "about_their_templates"). Left NULL here, so that pass matches nothing
+    and every count below is still the direct `user_id` pass."""
     conn = sqlite3.connect(":memory:")
     for table in LANDING_TABLES:
-        conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT)')
+        extra = ", gallery_id TEXT" if table in GALLERY_CHILD_TABLES else ""
+        conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT{extra})')
         conn.executemany(f'INSERT INTO "{table}" (user_id, v) VALUES (?, ?)',
                          [("member-leaving", "theirs"), ("member-staying", "not theirs")])
     conn.commit()

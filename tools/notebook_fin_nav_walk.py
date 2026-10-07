@@ -410,7 +410,7 @@ def main(argv=None) -> int:
         # Written for the sandboxed server (Popen inherits it): the gate's one parse lives in
         # the app. OFF is the variable ABSENT, which is what production has today.
         if phase == "on":
-            os.environ[BOARD_ENV] = "1"
+            os.environ.update({BOARD_ENV: "1"})   # a write for the child, never a read: the one parse is the app's
         else:
             os.environ.pop(BOARD_ENV, None)
         print(f"== boot {phase.upper()} ({BOARD_ENV}={'1' if phase == 'on' else 'unset'}) ==", flush=True)
