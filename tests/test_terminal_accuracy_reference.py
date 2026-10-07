@@ -294,3 +294,59 @@ def test_calendar_enrichment_hands_amc_timing_to_the_straddle(monkeypatch):
     cal._inhouse_move("NVDA", "2026-10-07", timing="amc")
     cal._inhouse_move("JPM", "2026-10-07")
     assert got == {"NVDA": "amc", "JPM": None}
+
+
+# ── EE: a quarter carries the company's FISCAL label, not a calendar one ─────────────────────
+
+def test_fiscal_calendar_absorbs_a_drifting_quarter_end():
+    from api.services.fiscal_calendar import FiscalCalendar
+    # FMP's recorded AAPL rows: year end normalised to 09-27, fiscal Q2 2026 ending 03-28.
+    cal = FiscalCalendar(["2024-09-27", "2025-09-27", "2026-09-27", "2027-09-27"])
+    got = [cal.resolve(p)["fiscal_quarter"] for p in ("2025-12-27", "2026-03-28", "2026-06-27", "2026-09-27")]
+    assert got == [1, 2, 3, 4], "two quarters must never share one label"
+
+
+def test_ee_quarterly_rows_carry_the_companys_fiscal_label():
+    from api.services.research import estimates_consensus as ec
+    fx = Path(__file__).parent / "fixtures"
+    q = json.loads((fx / "broker_estimates" / "fmp_analyst_estimates_quarter_AAPL.json").read_text(encoding="utf-8"))
+    a = json.loads((fx / "fmp_depth" / "analyst_estimates_annual_AAPL.json").read_text(encoding="utf-8"))
+    rows = ec.fiscal_relabel(ec.shape_rows(q, "quarterly", today=date(2026, 10, 3)), a)
+    by_end = {r["period_end"]: r["label"] for r in rows}
+    # Apple's own labels: the December quarter opens its fiscal year
+    assert by_end["2026-12-27"] == "Q1 FY2027"
+    assert by_end["2027-03-27"] == "Q2 FY2027"
+    assert by_end["2027-09-27"] == "Q4 FY2027"
+    assert len(set(by_end.values())) == len(by_end)
+
+
+def test_ee_relabel_leaves_a_december_filer_and_an_unanchored_payload_alone():
+    from api.services.research import estimates_consensus as ec
+    rows = [{"period_end": "2026-12-31", "label": "Q4 2026"}, {"period_end": "2027-03-31", "label": "Q1 2027"}]
+    dec = ec.fiscal_relabel([dict(r) for r in rows], [{"date": "2025-12-31"}, {"date": "2026-12-31"}])
+    assert [r["label"] for r in dec] == ["Q4 2026", "Q1 2027"]
+    assert [r["label"] for r in ec.fiscal_relabel([dict(r) for r in rows], [])] == ["Q4 2026", "Q1 2027"]
+    # NVIDIA: January year end. The October 2026 quarter is its Q3 of FY2027.
+    nv = ec.fiscal_relabel([{"period_end": "2026-10-31", "label": "Q3 2026"}],
+                           [{"date": "2026-01-31"}, {"date": "2027-01-31"}])
+    assert nv[0]["label"] == "Q3 FY2027"
+
+
+def test_get_consensus_serves_the_fiscal_labels(monkeypatch):
+    """The wire: get_consensus must hand its quarterly rows through fiscal_relabel."""
+    from api.services.research import estimates_consensus as ec
+    fx = Path(__file__).parent / "fixtures"
+    q = json.loads((fx / "broker_estimates" / "fmp_analyst_estimates_quarter_AAPL.json").read_text(encoding="utf-8"))
+    a = json.loads((fx / "fmp_depth" / "analyst_estimates_annual_AAPL.json").read_text(encoding="utf-8"))
+
+    class _C(dict):
+        def set(self, k, v, ttl=None):
+            self[k] = v
+
+    monkeypatch.setattr(ec, "_cache", lambda c=_C(): c)
+    monkeypatch.setattr(ec, "_read", lambda sym, period, limit: ("ok", a if period == "annual" else q))
+    monkeypatch.setattr(ec, "read_last_report", lambda sym, timeout=10: ("ok", "2026-07-30"))
+    monkeypatch.setattr(ec.reporting_currency, "read", lambda sym, timeout=10: ("ok", "USD"))
+    out = ec.get_consensus("AAPLX", today=date(2026, 10, 3))
+    labels = {r["period_end"]: r["label"] for r in out["quarterly"]}
+    assert labels["2026-12-27"] == "Q1 FY2027"
