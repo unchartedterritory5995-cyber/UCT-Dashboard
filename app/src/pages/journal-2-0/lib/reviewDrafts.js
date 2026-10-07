@@ -350,6 +350,11 @@ function monthlyTitle(month) {
   return tpl ? tpl.defaultTitle({ dateShort: label }) : `Monthly Review — ${label}`
 }
 
+/** The recap's heading inside a daily note. "Today's" only when it IS today (Eastern). */
+export function recapHeading(day) {
+  return `${day === todayDayIso() ? "Today's recap" : 'Recap'} — ${fmtShort(day)}`
+}
+
 // ── orchestration: fetch, build, land through the create door ──────────────────────
 
 /** Weekly draft: a new standalone note, tagged like the catalog's own weekly-review
@@ -393,7 +398,11 @@ export async function draftMonthlyReview({ accountId, month } = {}) {
  */
 export async function draftDailyReview({ accountId, day } = {}) {
   const d = day || todayDayIso()
-  const { note: daily } = await openDailyNote()
+  // ⛔ THE NOTE IS THE NOTE OF THE DAY BEING DRAFTED (fin-data M1). `d` is handed to the daily
+  // note door as its day, so the numbers and the note they are written into cannot be two
+  // different days. ⚰️ This opened TODAY's note whatever `day` was: an older recap card on
+  // the Compass tab wrote a past day's numbers into today's note under "Today's recap".
+  const { note: daily } = await openDailyNote({ today: () => d })
   const verdict = await noteHasUnsentWork(daily.id, { connect: openNotebookDb })
   if (verdict.unsent) {
     const err = new Error(STILL_SYNCING_MESSAGE)
@@ -403,7 +412,7 @@ export async function draftDailyReview({ accountId, day } = {}) {
   }
   const payload = await fetchDailyDraft({ day: d, accountId })
   const existing = (daily.bodyJson && Array.isArray(daily.bodyJson.content)) ? daily.bodyJson.content : []
-  const appended = [...existing, hr(), h(2, `Today's recap — ${fmtShort(d)}`), ...buildDraftBlocks(payload)]
+  const appended = [...existing, hr(), h(2, recapHeading(d)), ...buildDraftBlocks(payload)]
   const res = await fetch(`/api/j2/notes/${encodeURIComponent(daily.id)}`, {
     method: 'PUT',
     credentials: 'include',

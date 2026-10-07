@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
-import { reviewDraftsEnabled, draftDailyReview } from '../lib/reviewDrafts'
+import { reviewDraftsEnabled, draftDailyReview, todayDayIso } from '../lib/reviewDrafts'
 import { compassScope } from '../hooks/compassScope'
 
 export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, accountId }) {
@@ -35,7 +35,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
-      setDraftError(e?.memberMessage || 'Could not draft today’s recap into your daily note — try again.')
+      setDraftError(e?.memberMessage || 'Could not draft this recap into your daily note — try again.')
     } finally {
       setDrafting(false)
     }
@@ -89,7 +89,8 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
               disabled={drafting}
               style={ghost()}
             >
-              {drafting ? 'Drafting…' : 'Draft in today’s note'}
+              {/* The draft lands in the daily note OF THE RECAP'S OWN DAY (fin-data M1). */}
+              {drafting ? 'Drafting…' : (day === todayDayIso() ? 'Draft in today’s note' : 'Draft in that day’s note')}
             </button>
           )}
         </div>

@@ -327,7 +327,7 @@ describe('draftDailyReview — appends to the member’s OWN daily note, never a
     await draftDailyReview({ day: '2026-10-02' })
     const texts = flattenText(putBody.bodyJson)
     const morningIdx = texts.findIndex((t) => t.includes('Morning plan'))
-    const recapIdx = texts.findIndex((t) => t.includes("Today's recap"))
+    const recapIdx = texts.findIndex((t) => t.includes('ecap — Oct 2'))
     expect(morningIdx).toBeGreaterThanOrEqual(0)
     expect(recapIdx).toBeGreaterThan(morningIdx)
   })
@@ -490,5 +490,57 @@ describe('draftDailyReview — refuses while the daily note has unsent work', ()
     noteHasUnsentWork.mockImplementationOnce(async () => { order.push('guard'); return { unsent: false, why: 'clean' } })
     await draftDailyReview({ day: '2026-10-02' })
     expect(order).toEqual(['guard', 'put'])
+  })
+})
+
+// ── fin-data M1: a recap for a PAST day goes into THAT day's note ──────────────────────────
+//
+// The older recap cards on the Compass tab pass their own day. The door fetched that day's
+// numbers and then appended them to TODAY's daily note under "Today's recap".
+describe('draftDailyReview — the note it writes is the note of the day it drafts', () => {
+  let dailyBodies = []
+  let putBody = null
+  beforeEach(() => {
+    dailyBodies = []
+    putBody = null
+    guard.answer = { unsent: false, why: 'clean' }
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-06T18:00:00Z')) // Tue Oct 6, 2 PM ET
+    global.fetch = vi.fn((url, opts) => {
+      if (url === '/api/j2/notes/daily') {
+        const body = JSON.parse(opts.body)
+        dailyBodies.push(body)
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: `daily-${body.date}`, updatedAt: 'u1', bodyJson: { type: 'doc', content: [] } } }) })
+      }
+      if (opts?.method === 'PUT') {
+        putBody = { url, ...JSON.parse(opts.body) }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: url.split('/').pop(), updatedAt: 'u2' } }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(fixturePayload({ period: 'daily' })) })
+    })
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('a past day opens that day’s daily note and is not called "Today"', async () => {
+    const { note } = await draftDailyReview({ day: '2026-10-02' })
+    expect(dailyBodies).toEqual([{ date: '2026-10-02' }])
+    expect(putBody.url).toBe('/api/j2/notes/daily-2026-10-02')
+    expect(note.id).toBe('daily-2026-10-02')
+    const texts = flattenText(putBody.bodyJson)
+    expect(texts.some((t) => t.startsWith('Recap — Oct 2'))).toBe(true)
+    expect(texts.some((t) => t.includes('Today'))).toBe(false)
+  })
+
+  it('today’s draft opens today’s note and keeps the "Today’s recap" heading', async () => {
+    await draftDailyReview({ day: '2026-10-06' })
+    expect(dailyBodies).toEqual([{ date: '2026-10-06' }])
+    expect(flattenText(putBody.bodyJson).some((t) => t.startsWith("Today's recap — Oct 6"))).toBe(true)
+  })
+
+  it('with no day it is today in Eastern time, for the data AND the note', async () => {
+    vi.setSystemTime(new Date('2026-10-07T00:30:00Z')) // still Tue Oct 6, 8:30 PM ET
+    await draftDailyReview()
+    expect(dailyBodies).toEqual([{ date: '2026-10-06' }])
+    expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/review-drafts/daily?day=2026-10-06')).toBe(true)
   })
 })
