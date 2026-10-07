@@ -323,3 +323,79 @@ def outside_markdown() -> str:
     for (module, kind), n in sorted(counts.items()):
         lines.append(f"| `{module}` | {kind} | {n} |")
     return "\n".join(lines) + "\n"
+
+
+# ── the note import's cap comes from the importer's own limits ───────────────
+
+def test_the_note_import_cap_is_the_services_batch_limit_times_its_note_limit():
+    """Owner ruling: the cap must not refuse an import the product accepted
+    before. It is derived, per request, from the two limits the service already
+    enforces. Neither number is restated in the router."""
+    from api.routers import journal_two
+    from api.services.journal_two import notes
+    assert notes.IMPORT_CONFIRM_MAX_NOTES == 500
+    cap = journal_two._note_import_json_max()
+    assert cap >= notes.IMPORT_CONFIRM_MAX_NOTES * notes.MAX_BODY_JSON_BYTES
+    assert cap == notes.IMPORT_CONFIRM_MAX_NOTES * (notes.MAX_BODY_JSON_BYTES + journal_two.IMPORT_NOTE_FIELDS_ALLOWANCE) \
+        + journal_two.IMPORT_NOTE_FIELDS_ALLOWANCE
+
+
+def _note_at_the_body_limit(key: str) -> dict:
+    """A note whose body the service measures at exactly MAX_BODY_JSON_BYTES."""
+    import json as _json
+    from api.services.journal_two import notes
+
+    def doc(n):
+        return {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * n}]}]}
+
+    n = notes.MAX_BODY_JSON_BYTES - len(_json.dumps(doc(0)))
+    body = doc(n)
+    assert len(_json.dumps(body).encode("utf-8")) == notes.MAX_BODY_JSON_BYTES
+    return {"importKey": key, "title": "T" * notes.MAX_TITLE_CHARS, "bodyJson": body,
+            "tags": ["t" * notes.MAX_TAG_LENGTH] * notes.MAX_TAGS, "folderPath": []}
+
+
+def test_the_largest_legal_import_batch_is_accepted_and_one_more_note_is_the_services_refusal(monkeypatch):
+    """The largest batch the service takes: its maximum number of notes, each
+    with a body at the service's per-note limit and a full title and tag list.
+    Run with the batch limit moved to 3 (the router reads it per request), so
+    the test sends 3 MB, not 500 MB. Every note must be created, and nothing
+    about the request may be a 413."""
+    import importlib
+    import tempfile
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware import auth_middleware as authmw
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    from api.routers import journal_two
+    from api.services.journal_two import notes
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash, display_name, role)"
+                     " VALUES ('imp-cap', 'imp-cap@test.local', 'x', 'T', 'member')")
+        conn.commit()
+    finally:
+        conn.close()
+    monkeypatch.setattr(notes, "IMPORT_CONFIRM_MAX_NOTES", 3)
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "imp-cap", "role": "member"}
+    client = TestClient(app)
+
+    batch = [_note_at_the_body_limit(f"file:{i}.md") for i in range(3)]
+    r = client.post("/api/j2/notes/import/confirm", json={"source": "file", "destFolderId": None, "notes": batch})
+    assert r.status_code == 200, r.text[:300]
+    assert len(r.json()["created"]) == 3 and r.json()["failed"] == [], r.json()
+
+    small = {"importKey": "file:3.md", "title": "one more", "tags": [], "folderPath": [],
+             "bodyJson": {"type": "doc", "content": []}}
+    over = [_note_at_the_body_limit(f"file:{i}.md") for i in range(2)] + [small, dict(small, importKey="file:4.md")]
+    r = client.post("/api/j2/notes/import/confirm", json={"source": "file", "destFolderId": None, "notes": over})
+    # one note too many: the SERVICE's own answer, in the service's own words
+    assert r.status_code == 400 and "too many notes in one batch (max 3)" in r.json()["detail"], r.text[:300]

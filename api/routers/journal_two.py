@@ -109,12 +109,16 @@ _CSV_MAPPED_UPLOAD = body_cap.capped_multipart(
 #   * the trade import's confirm step sends back the rows the preview parsed out
 #     of a CSV the preview door already held to its own cap; as JSON a row is a
 #     few times its CSV line.
-#   * the note import's confirm step sends a batch of whole notes (the client
-#     batches 200; the service refuses more than 500).
+#   * the note import's confirm step sends a batch of whole notes. Its cap is
+#     the importer's own two limits multiplied (owner ruling, 2026-10-07: the cap
+#     must not refuse an import the product accepted before): the most notes the
+#     service takes in a batch, times the largest body it takes per note plus
+#     room for that note's title, tags and path. About 533 MB with today's
+#     constants; the client sends 200 notes a batch.
 JSON_TOO_LARGE_SENTENCE = "That is too large to send. Shorten it and try again."
 IMPORT_TOO_LARGE_SENTENCE = (
     "That import is too large to send in one piece. Split it into smaller files and try again.")
-NOTE_IMPORT_JSON_MAX_BYTES = 32 * 1024 * 1024
+IMPORT_NOTE_FIELDS_ALLOWANCE = 64 * 1024     # one note's fields other than its body
 
 
 def _json_body_max() -> int:
@@ -126,7 +130,9 @@ def _trade_import_json_max() -> int:
 
 
 def _note_import_json_max() -> int:
-    return NOTE_IMPORT_JSON_MAX_BYTES
+    return (notes_service.IMPORT_CONFIRM_MAX_NOTES
+            * (notes_service.MAX_BODY_JSON_BYTES + IMPORT_NOTE_FIELDS_ALLOWANCE)
+            + IMPORT_NOTE_FIELDS_ALLOWANCE)
 
 
 def _json_too_large() -> str:
