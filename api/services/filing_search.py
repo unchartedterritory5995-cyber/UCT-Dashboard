@@ -597,7 +597,9 @@ def search(q: str, sym: Optional[str] = None, form: Optional[str] = None,
                      "section_label": SECTION_LABELS.get(sec, sec), "para_no": para_no, "snippet": snip})
     truncated = len(hits) > limit
     hits = hits[:limit]
-    as_of = max((d[5] for d in docs.values()), default=None)
+    # TERM-019: the newest index fill (epoch seconds) of the documents this search covered: the
+    # ticker's own filings when scoped to one, else the whole corpus. Never "now".
+    as_of = max((d[5] for d in docs.values() if not sym or d[0] == sym), default=None)
     base.update(index_state="indexed" if sym else "corpus", hits=hits, count=len(hits),
                 truncated=truncated, corpus_documents=n_docs, as_of=as_of,
                 snippet_marks=[SNIP_OPEN, SNIP_CLOSE])

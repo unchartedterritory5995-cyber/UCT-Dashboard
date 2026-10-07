@@ -161,6 +161,8 @@ def term_structure(sym: str) -> dict:
         raise RuntimeError(s["error"])
     pts = [p for p in (s.get("term") or {}).get("points") or []]
     return {"symbol": sym, "label": "vendor", "iv_source_text": s.get("iv_source_text"),
+            # TERM-019: when this surface was BUILT (vol_surface's cache fill), never "now".
+            "as_of": s.get("served_at"),
             "basis": s.get("basis"), "spot": s.get("spot"),
             "points": [{"expiration": p["expiration"], "dte": p["dte"], "atm_iv": p["atm_iv"],
                         "atm_strike": p.get("atm_strike"), "t": p.get("t"), "reason": p.get("reason")}
@@ -189,7 +191,7 @@ def interpolate_iv(points: list, days: int) -> dict:
 def interpolated_iv(sym: str, days: int = 30) -> dict:
     ts = term_structure(sym)
     got = interpolate_iv(ts["points"], days)
-    return {"symbol": sym, "days": days, "label": "computed",
+    return {"symbol": sym, "days": days, "label": "computed", "as_of": ts.get("as_of"),
             "inputs": "vendor ATM IV by expiration (today's chain)",
             "method": ("Constant-maturity IV: total variance (IV^2 x days) interpolated linearly "
                        "between the two listed expirations that bracket the target, then "
@@ -201,6 +203,7 @@ def vrp(sym: str) -> dict:
     rv = realized(sym)
     hv30 = (rv.get("hv") or {}).get("hv30")
     out = {"symbol": sym, "label": "computed", "iv30": iv.get("iv"), "hv30": hv30,
+           "as_of": iv.get("as_of"), "hv_through": rv.get("through"),
            "method": ("Variance risk premium = 30-day constant-maturity implied volatility minus "
                       "30-session historical volatility (vol points), and the same in variance "
                       "(IV^2 - HV^2)."),

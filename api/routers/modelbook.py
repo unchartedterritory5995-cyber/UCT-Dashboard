@@ -295,7 +295,20 @@ def get_appearances(symbol: str, _user: dict = Depends(require_paid)):
     """Every curated Model Book appearance for one symbol, across all years
     (Packet H CP1) -- the per-ticker research page's "has this ever been in
     the Model Book" tab. An empty list is a genuine, honest answer."""
-    return {"symbol": symbol.upper(), "appearances": svc.get_stock_appearances(symbol.upper())}
+    rows = svc.get_stock_appearances(symbol.upper())
+    return {"symbol": symbol.upper(), "appearances": rows, "as_of": _appearances_as_of(rows)}
+
+
+def _appearances_as_of(rows: list) -> str | None:
+    """TERM-019: when this ticker's Model Book record was last WRITTEN -- the newest curation
+    edit (updated_at, else created_at) or stats fill (stats_at) across its appearances. None for
+    a ticker never curated (an empty list has no age, and is never stamped "now")."""
+    import datetime as _dt
+    stamps = [v for r in rows for v in ((r.get("updated_at") or r.get("created_at")), r.get("stats_at"))
+              if isinstance(v, (int, float)) and v > 0]
+    if not stamps:
+        return None
+    return _dt.datetime.fromtimestamp(max(stamps), _dt.timezone.utc).isoformat(timespec="seconds")
 
 
 @router.get("/stock/{stock_id}")

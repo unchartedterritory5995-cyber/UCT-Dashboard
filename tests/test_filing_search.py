@@ -137,6 +137,17 @@ class TestSearch:
         assert fs.SNIP_OPEN in h["snippet"] and fs.SNIP_CLOSE in h["snippet"]
         assert r["source"].startswith("SEC EDGAR")
 
+    def test_the_as_of_is_the_ticker_documents_index_fill_never_now(self, indexed):
+        """TERM-019: a ticker-scoped search is dated by when THAT ticker's filings were indexed."""
+        with fs._conn() as c:
+            c.execute("UPDATE fs_doc SET indexed_at = 1700000000 WHERE sym = 'AAPL'")
+            c.execute("INSERT INTO fs_doc (sym, form, accession, cik, filed, report_date, url, "
+                      "indexed_at, sections_json) VALUES ('ZZZZ','10-K','x','1','2026-01-01',"
+                      "'2025-12-31','u',1800000000,'[]')")
+            c.commit()
+        assert fs.search("tariff", sym="AAPL")["as_of"] == 1700000000
+        assert fs.search("tariff")["as_of"] == 1800000000                # corpus: newest fill
+
     def test_section_scope_restricts_to_that_section(self, indexed):
         everywhere = fs.search("=litigation", sym="AAPL", limit=200)
         risk_only = fs.search("=litigation section:risk", sym="AAPL", limit=200)

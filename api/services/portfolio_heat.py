@@ -8,6 +8,7 @@ from the confident heat number and surfaced, because counting them as 0-risk
 under-reports heat and would green-light an over-cap add. Never raises."""
 from __future__ import annotations
 
+import datetime as _dt
 import logging
 from api.services.placeholder_stop import is_placeholder_stop
 
@@ -209,6 +210,9 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         # The words a member reads — the authority's published display (TERM-041),
         # never the raw id and never a local restatement.
         "regime_label": _regime_label(regime.get("regime")),
+        # TERM-019: computed per request from the member's journal rows as they stand now
+        # (nothing here is cached), so the computation instant IS the as-of.
+        "as_of": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "sources": [f"open positions ({len(positions)})",
                     "risk-heat vs 10% Desjardins cap",
                     f"regime {regime.get('regime')}"],

@@ -4,7 +4,7 @@ import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
-import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 
@@ -51,7 +51,8 @@ export default function FilingSearchPanel({ sym }) {
   const { data, error, mutate } = useSWR(key, depthFetcher, { revalidateOnFocus: false })
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
   // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
-  usePanelFreshness(chrome.alone && data && !data.paywalled && !error && data.source ? { source: memberText(data.source) } : null)
+  // The index's own fill time (`as_of`, epoch s) for the filings searched; absent until indexed.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error && data.source ? panelAsOf(memberText(data.source), data.as_of) : null)
 
   const onSubmit = (e) => {
     e.preventDefault()

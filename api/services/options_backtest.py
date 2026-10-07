@@ -47,7 +47,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
@@ -666,7 +666,11 @@ def job_status(job_id: str, user_id: str) -> dict:
         key = rec["key"]
         res = _cached(key)
         if res is not None:
-            return {"job": job_id, "state": "done", "result": res}
+            # TERM-019: the instant this run FINISHED (the result cache fill), never "now" --
+            # a cached identical run answers with the time it was actually simulated.
+            done_at = _cache[key][0]
+            return {"job": job_id, "state": "done", "result": res,
+                    "as_of": datetime.fromtimestamp(done_at, timezone.utc).isoformat(timespec="seconds")}
         if key in _inflight:
             return {"job": job_id, "state": _inflight[key]["state"], "params": rec["params"],
                     "budget_text": f"At most {MAX_VENDOR_REQUESTS} vendor requests per run."}
