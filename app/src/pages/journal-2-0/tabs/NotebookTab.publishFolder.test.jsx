@@ -106,21 +106,25 @@ describe('selecting it opens the confirmation, never a publish (ruling D-9D1)', 
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Publish Theses' }))
   })
 
-  it('keyboard only: Tab reaches the action, Enter opens it, Escape closes it and returns focus there', async () => {
+  // Lane KEYS round 4: the folder panel is a tree (one Tab stop), so the keyboard reaches a
+  // folder's actions through the row's menu, not by tabbing along the row.
+  it('keyboard only: Shift+F10 on the folder, Publish in its menu, Escape closes it and returns focus to the folder', async () => {
     const user = userEvent.setup()
     latchWave8Flags(true)
     await renderTab()
-    const action = screen.getByRole('button', { name: 'Publish Theses' })
-    // the control just before it in the row; one Tab lands on the action itself
-    screen.getByRole('button', { name: 'Delete Theses' }).focus()
-    await user.tab()
-    expect(document.activeElement).toBe(action)
+    const folder = screen.getByRole('treeitem', { name: 'Theses' })
+    folder.focus()
+    await user.keyboard('{Shift>}{F10}{/Shift}')
+    const menu = await screen.findByRole('menu', { name: 'Theses' })
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true))
+    await user.keyboard('{End}')
+    expect(document.activeElement).toHaveAccessibleName('Publish')
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: 'Publish folder "Theses"' })
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Publish' })).toBeInTheDocument())
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(document.activeElement).toBe(action)
+    expect(document.activeElement).toBe(folder)
     expect(publishCalls()).toEqual([])
   })
 

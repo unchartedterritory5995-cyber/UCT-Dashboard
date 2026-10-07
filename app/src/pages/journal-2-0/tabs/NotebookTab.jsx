@@ -258,8 +258,15 @@ export default function NotebookTab() {
     id: 'publish',
     label: PUBLISH_FOLDER_ACTION,
     icon: 'globe',
+    // Where focus goes back to when the sheet closes: the row's Publish button for a member
+    // who pressed it, the folder's own row for one who chose Publish from the row's keyboard
+    // menu (lane KEYS round 4: the menu is gone by then, and the row is where they were).
     onSelect: (folder) => setPublishFolder({
-      id: folder.id, name: folder.name, opener: folderActionButton(PUBLISH_FOLDER_ACTION, folder), open: true,
+      id: folder.id, name: folder.name, open: true,
+      opener: (document.activeElement?.closest?.('[role="menu"]')
+        && [...document.querySelectorAll('[data-tree-folder]')]
+          .find((el) => el.getAttribute('data-tree-folder') === String(folder.id)))
+        || folderActionButton(PUBLISH_FOLDER_ACTION, folder),
     }),
   }] : NO_FOLDER_ACTIONS), [publishOn])
   // Closing keeps the folder (and its button) until the sheet has handed focus back.

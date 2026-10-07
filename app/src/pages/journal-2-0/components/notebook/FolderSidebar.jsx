@@ -31,6 +31,8 @@ import {
 import styles from './FolderSidebar.module.css'
 import { useSearchUsedTelemetry } from '../../lib/searchTelemetry'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
+import ContextPopover from '../../../../components/mobile/ContextPopover'
+import useTreeRoving from '../../lib/useTreeRoving'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -640,12 +642,20 @@ function FolderNode({
   const isEditing = editingId === node.id
   const isAddingHere = addForm.parentId === node.id && addForm.active
 
+  // Lane KEYS round 4: this folder is a ROW OF THE TREE (lib/useTreeRoving.js). The row is the
+  // one focus target; nothing inside it is a Tab stop (tabIndex -1), though every control is
+  // still a real button for the pointer. Its children sit in a group inside it.
   return (
-    <div className={styles.folderItem}>
+    <div className={styles.folderItem} role="treeitem" aria-level={depth + 1} aria-label={node.name}
+      aria-expanded={hasChildren ? isExpanded : undefined}
+      aria-selected={activeFolderId === node.id ? 'true' : undefined}
+      data-tree-folder={node.id}>
       <div className={`${styles.rowWrap} ${styles.folderRow}`} style={{ paddingLeft: depth * 14 }}>
         {hasChildren ? (
           <button
             type="button"
+            tabIndex={-1}
+            data-tree-toggle=""
             className={styles.disclosureBtn}
             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.name}`}
             aria-expanded={isExpanded}
@@ -683,6 +693,8 @@ function FolderNode({
           */}
           <button
             type="button"
+            tabIndex={-1}
+            data-tree-primary=""
             className={`${styles.row} ${activeFolderId === node.id ? styles.rowActive : ''}`}
             // Wave 8 (8A): the selected folder is said, not only painted (tag
             // rows already carried this; folders and All notes did not).
@@ -704,6 +716,7 @@ function FolderNode({
             */}
             <button
               type="button"
+              tabIndex={-1}
               className={styles.iconBtn}
               onClick={() => { setEditingId(node.id); setEditName(node.name) }}
               title="Rename folder"
@@ -711,6 +724,7 @@ function FolderNode({
             ><UIcon name="edit" size={11} gold={false} /></button>
             <button
               type="button"
+              tabIndex={-1}
               className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
               onClick={() => onStartAddChild(node.id)}
               title="Add subfolder"
@@ -718,6 +732,7 @@ function FolderNode({
             >+</button>
             <button
               type="button"
+              tabIndex={-1}
               className={styles.iconBtn}
               onClick={() => onDelete(node.id, node.name)}
               title="Delete folder"
@@ -732,6 +747,7 @@ function FolderNode({
               <button
                 key={action.id}
                 type="button"
+                tabIndex={-1}
                 className={styles.iconBtn}
                 onClick={() => action.onSelect(node)}
                 title={action.label}
@@ -742,7 +758,7 @@ function FolderNode({
         </>)}
       </div>
       {isExpanded && (
-        <div className={styles.childrenList} style={{ '--guide-x': `${depth * 14 + 10}px` }}>
+        <div className={styles.childrenList} role="group" style={{ '--guide-x': `${depth * 14 + 10}px` }}>
           {node.children.map((child) => (
             <FolderNode
               key={child.id}
@@ -774,10 +790,14 @@ function FolderNode({
               key={note.id}
               className={styles.rowWrap}
               style={{ paddingLeft: (depth + 1) * 14 }}
+              role="treeitem" aria-level={depth + 2} aria-label={note.title?.trim() || 'Untitled'}
+              aria-selected={activeNoteId === note.id ? 'true' : undefined}
             >
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
                 onClick={(e) => openRow(note, e)}
                 title={note.title?.trim() || 'Untitled'}
@@ -941,6 +961,18 @@ export default function FolderSidebar({
   }, [trimmedQuery])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
+  // Lane KEYS round 4: the folder tree's keyboard model, and the one key that opens a
+  // folder's actions (Shift+F10 or the context-menu key). The menu lists the SAME actions the
+  // row shows as icon buttons and calls the same handlers.
+  const [rowMenu, setRowMenu] = useState(null)
+  const openRowMenu = (rowEl) => {
+    const id = rowEl.getAttribute('data-tree-folder')
+    const folder = id ? folders.find((f) => String(f.id) === id) : null
+    if (!folder) return                       // a standing row or a note: no actions
+    const box = (rowEl.firstElementChild || rowEl).getBoundingClientRect()
+    setRowMenu({ folder, anchor: { x: box.left + 24, y: box.bottom } })
+  }
+  const folderTree = useTreeRoving({ onMenu: openRowMenu })
 
   // P0-2 fix: the TRUE whole-library per-folder count, never derived from
   // the one capped page of `notes` below — see useJ2NoteFolderCounts's own
@@ -1793,10 +1825,20 @@ export default function FolderSidebar({
             onAddStarterViews={onAddStarterViews}
           />
           <div className={styles.section}>
-            <div className={styles.rowWrap}>
+            {/* Lane KEYS round 4: ONE Tab stop for the whole folder tree. Down and Up between
+                rows, Right and Left to open, close and move in and out, Home and End, letters
+                to search by name, Enter or Space to select, Shift+F10 (or the context-menu
+                key) for a folder's actions. "+ New folder" below is outside it on purpose. */}
+            <div role="tree" aria-label="Folders" ref={folderTree.ref}
+              onKeyDown={folderTree.onKeyDown} onFocus={folderTree.onFocus}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={`All notes, ${notesTotal ?? notes.length}`}
+              aria-selected={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
                 aria-current={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
@@ -1812,10 +1854,14 @@ export default function FolderSidebar({
                 <span className={styles.count}>{notesTotal ?? notes.length}</span>
               </button>
             </div>
-            <div className={styles.rowWrap}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={`Unfiled, ${unfiledCount}`}
+              aria-selected={activeFolderId === '__unfiled__' ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
                 onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
               >
@@ -1823,12 +1869,16 @@ export default function FolderSidebar({
                 <span className={styles.count}>{unfiledCount}</span>
               </button>
             </div>
-            <div className={styles.rowWrap}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={archivedTotalFromServer !== undefined ? `Archived, ${archivedTotalFromServer}` : 'Archived'}
+              aria-selected={activeFolderId === '__archived__' ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               {/* Wave 6: archived notes leave every default list but are never
                   deleted — this is where they are, each still in its folder. */}
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId === '__archived__' ? styles.rowActive : ''}`}
                 onClick={() => { onSelectFolder('__archived__'); onSelectTag(null) }}
               >
@@ -1838,10 +1888,14 @@ export default function FolderSidebar({
                 )}
               </button>
             </div>
-            <div className={styles.rowWrap}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={trashTotalFromServer !== undefined ? `Trash, ${trashTotalFromServer}` : 'Trash'}
+              aria-selected={activeFolderId === '__trash__' ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId === '__trash__' ? styles.rowActive : ''}`}
                 onClick={() => { onSelectFolder('__trash__'); onSelectTag(null) }}
               >
@@ -1881,6 +1935,7 @@ export default function FolderSidebar({
                 extraFolderActions={extraFolderActions}
               />
             ))}
+            </div>
             {adding && parentForNew == null ? (
               <form onSubmit={submitNew} className={styles.addForm}>
                 <input
@@ -2010,6 +2065,17 @@ export default function FolderSidebar({
             </div>
           )}
         </>
+      )}
+      {rowMenu && (
+        <ContextPopover open onClose={() => setRowMenu(null)} anchor={rowMenu.anchor} title={rowMenu.folder.name}
+          items={[
+            { key: 'rename', label: 'Rename', onClick: () => { setEditingId(rowMenu.folder.id); setEditName(rowMenu.folder.name) } },
+            { key: 'add', label: 'Add subfolder', onClick: () => startAddChild(rowMenu.folder.id) },
+            { key: 'delete', label: 'Delete', danger: true, onClick: () => onDeleteRequest(rowMenu.folder.id, rowMenu.folder.name) },
+            ...extraFolderActions.map((action) => ({
+              key: action.id, label: action.label, onClick: () => action.onSelect(rowMenu.folder),
+            })),
+          ]} />
       )}
       {deleteTarget && (
         <ConfirmModal
