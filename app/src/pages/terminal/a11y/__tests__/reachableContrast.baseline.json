@@ -624,12 +624,13 @@
       "why": "unreadable by the rail (not a colour: 12px) - a widget-local token set at runtime or a non-colour value"
     },
     "pages/screener/shell/ScannerShell.module.css": {
-      "count": 3,
+      "count": 4,
       "inks": [
+        "--text-bright",
         "--text-muted",
         "--ut-gold-bright"
       ],
-      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane. The fourth rule (2026-10-07, Notebook landing) is .skipLink, the 'Skip to save results' link: its rest state is opacity 0 on purpose (invisible and pointer-transparent until :focus-visible, which sets opacity 1; pinned by ScannerShell.skipToSave.test.jsx), so the rail composites its ink at alpha 0 and reads 1.00. Shown, it is --text-bright on --bg-elevated, the app shell's own skip-link pair"
     },
     "pages/theme-tracker/ThemeTrackerSettingsPanel.module.css": {
       "count": 12,

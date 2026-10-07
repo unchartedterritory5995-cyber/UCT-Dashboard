@@ -53,8 +53,13 @@ export default function VisionAttachButton() {
       if (!r.ok) {
         // The server's own sentence when it sends one ({detail: "image too large
         // (max 5MB)"}). This used to show the reply's raw text, JSON and all.
-        const refusal = await r.json().catch(() => null)
-        const said = typeof refusal?.detail === 'string' ? refusal.detail : null
+        // The request has already failed here, and the member is told so either way: a
+        // body that is not JSON only means there is no sentence to quote.
+        let said = null
+        try {
+          const refusal = await r.json()
+          if (typeof refusal?.detail === 'string') said = refusal.detail
+        } catch { /* not JSON: the sentence below is all there is */ }
         throw new Error(said || 'Could not read that image. Try again.')
       }
       const data = await r.json()
