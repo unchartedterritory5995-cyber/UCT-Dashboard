@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/reports/nope",
+    "path": "/api/j2/template-gallery/admin/reports/nope",
+    "requestBody": {
+      "action": "dismiss"
+    },
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

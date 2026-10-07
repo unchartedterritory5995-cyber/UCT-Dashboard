@@ -1,0 +1,58 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "note": "A chart with no plan lines drawn yet.",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": [],
+      "symbol": "CPNV"
+    },
+    "status": 200
+  },
+  "body": {
+    "account": {
+      "accountId": "acct-chart",
+      "accountSize": 100000.0,
+      "riskPct": 1.0
+    },
+    "compass": {
+      "ok": false,
+      "reason": "Compass sizes longs only"
+    },
+    "plan": {
+      "entry": null,
+      "roles": {
+        "entry": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "shares": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "stop": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "target": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": null,
+      "side": null,
+      "stop": null,
+      "target": null
+    }
+  }
+}

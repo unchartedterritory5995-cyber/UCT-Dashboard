@@ -1,0 +1,99 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-fingerprint/compute",
+    "path": "/api/j2/notebook-fingerprint/compute?symbol=VPNV",
+    "status": 200
+  },
+  "body": {
+    "fingerprint": {
+      "as_of": "2026-09-30",
+      "fields": {
+        "adr_pct": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "base_depth_pct": {
+          "missing": null,
+          "source": "screener_row",
+          "value": 14.0
+        },
+        "base_length_bars": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "close_cv_pct": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "ema_stack_intact": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "ma_stack": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "patterns": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "pct_vs_sma10": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "pct_vs_sma20": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "pct_vs_sma200": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "pct_vs_sma50": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "pole_pct": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "pullback_depth_pct": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "rs_line_trend": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        },
+        "rs_rank": {
+          "missing": null,
+          "source": "screener_row",
+          "value": 88
+        },
+        "vol_nweek_low": {
+          "missing": "not_in_screener_row",
+          "source": "screener_row",
+          "value": null
+        }
+      },
+      "mode": "nightly",
+      "requested_as_of": "2026-09-30",
+      "symbol": "X",
+      "v": 1
+    }
+  }
+}

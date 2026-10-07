@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/earnings-prep/soon",
+    "path": "/api/j2/earnings-prep/soon",
+    "status": 402
+  },
+  "body": {
+    "detail": "Earnings prep requires a paid plan"
+  }
+}

@@ -6,8 +6,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WhyPrompt from './WhyPrompt'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
+import { contract, contractBody, contractResponse } from '../__fixtures__/contract'
 
-const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
+// CONTRACT: the save's answer and its refusals are the REAL server's (PUT /api/j2/entry-context/why,
+// `__fixtures__/contract`, written by tools/notebook_contract_fixtures.py).
+const SAVED = contract('entry-context.why.saved')
+const SENT = SAVED._contract.requestBody            // { symbol, entryDay, text }
 const HINT_KEY = 'voice.dictation.hintSeen'
 
 // Same capability stub VoiceInputButton.test.jsx installs: both MediaRecorder AND
@@ -71,45 +75,62 @@ describe('reading and saving the note', () => {
     // instant the PUT resolves, one render before the parent's `why` prop (via onSaved -> retry)
     // catches up -- so this render happens with `why` STILL null. The component used to read
     // `why.text` unconditionally there and crashed outright.
-    global.fetch = vi.fn(async () => json({ context: { symbol: 'NVDA', entryDay: '2026-10-02', why: null } }))
+    global.fetch = vi.fn(async () => contractResponse('entry-context.why.saved'))
     const onSaved = vi.fn()
-    render(<WhyPrompt symbol="NVDA" entryDay="2026-10-02" why={null} whyMaxChars={500} onSaved={onSaved} />)
-    await userEvent.type(screen.getByLabelText('Why did you take it?'), 'Tight flag at the 21EMA')
+    render(<WhyPrompt symbol={SENT.symbol} entryDay={SENT.entryDay} why={null} whyMaxChars={500} onSaved={onSaved} />)
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), SENT.text)
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(screen.getByTestId('why-prompt-saved')).toBeTruthy()
-    expect(screen.getByText('Tight flag at the 21EMA')).toBeTruthy()
+    expect(screen.getByText(SENT.text)).toBeTruthy()
+    // what the server stored is what was typed
+    expect(SAVED.body.context.why.text).toBe(SENT.text)
   })
 
   it('opens editing pre-filled, and Save PUTs the key and text then calls onSaved', async () => {
     const calls = []
     global.fetch = vi.fn(async (url, init) => {
-      calls.push({ url: String(url), body: JSON.parse(init.body) })
-      return json({ context: { symbol: 'NVDA', entryDay: '2026-10-02', why: { text: 'Updated reason', updatedAt: 'now' } } })
+      calls.push({ url: String(url), method: init.method, body: JSON.parse(init.body) })
+      return contractResponse('entry-context.why.saved')
     })
     const onSaved = vi.fn()
-    render(<WhyPrompt symbol="NVDA" entryDay="2026-10-02"
+    render(<WhyPrompt symbol={SENT.symbol} entryDay={SENT.entryDay}
       why={{ text: 'Old reason', updatedAt: 'x' }} whyMaxChars={500} onSaved={onSaved} />)
     await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
     const textarea = screen.getByLabelText('Why did you take it?')
     expect(textarea.value).toBe('Old reason')
     await userEvent.clear(textarea)
-    await userEvent.type(textarea, 'Updated reason')
+    await userEvent.type(textarea, SENT.text)
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(calls).toHaveLength(1)
-    expect(calls[0].url).toBe('/api/j2/entry-context/why')
-    expect(calls[0].body).toEqual({ symbol: 'NVDA', entryDay: '2026-10-02', text: 'Updated reason', baseUpdatedAt: 'x' })
+    expect(calls[0].url).toBe(SAVED._contract.path)
+    expect(calls[0].method).toBe('PUT')
+    // The request the answer was recorded for, plus the version the typed words were based on
+    // (fin-data I5: the save is a compare-and-set; 'x' is the `updatedAt` this card was given).
+    expect(calls[0].body).toEqual({ ...SENT, baseUpdatedAt: 'x' })
   })
 
-  it('shows the server sentence on a failed save and stays editing', async () => {
-    global.fetch = vi.fn(async () => json({ detail: 'The note is at most 500 characters.' }, 422))
-    render(<WhyPrompt symbol="NVDA" entryDay="2026-10-02" why={null} whyMaxChars={500} onSaved={() => {}} />)
+  it.each([
+    ['a note that is too long', 'entry-context.why.too-long'],
+    ['an entry with no captured context to attach it to', 'entry-context.why.no-context'],
+  ])('shows the server sentence on a failed save and stays editing: %s', async (_label, name) => {
+    const sentence = contractBody(name).detail
+    expect(sentence.length).toBeGreaterThan(20)
+    global.fetch = vi.fn(async () => contractResponse(name))
+    const onSaved = vi.fn()
+    render(<WhyPrompt symbol="NVDA" entryDay="2026-10-02" why={null} whyMaxChars={500} onSaved={onSaved} />)
     await userEvent.type(screen.getByLabelText('Why did you take it?'), 'x')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await screen.findByRole('alert')
-    expect(screen.getByRole('alert').textContent).toMatch(/500 characters/)
+    expect(screen.getByRole('alert').textContent).toContain(sentence)
     expect(screen.getByTestId('why-prompt-editing')).toBeTruthy()
+    expect(screen.getByLabelText('Why did you take it?').value).toBe('x')     // what was typed is kept
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('the server limit the card is given is the one the server enforces', () => {
+    expect(contractBody('entry-context.why.too-long').detail).toContain(String(contractBody('entry-context.meta').whyMaxChars))
   })
 
   it('the textarea is capped at the server-reported whyMaxChars, never a hardcoded guess', () => {

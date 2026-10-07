@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/notebook-fingerprint/meta",
+    "path": "/api/j2/notebook-fingerprint/meta",
+    "status": 402
+  },
+  "body": {
+    "detail": "The technical fingerprint requires a paid plan"
+  }
+}

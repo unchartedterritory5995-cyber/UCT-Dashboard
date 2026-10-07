@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/similar-names/nope/nope",
+    "path": "/api/j2/similar-names/nope/nope",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

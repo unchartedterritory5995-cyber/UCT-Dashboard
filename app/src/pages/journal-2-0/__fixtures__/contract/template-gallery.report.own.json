@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/report",
+    "note": "A member cannot report their own template.",
+    "path": "/api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/report",
+    "requestBody": {
+      "reason": "spam"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "You can't report your own template. Unpublish it instead."
+  }
+}

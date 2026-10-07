@@ -20,59 +20,20 @@ import {
 import { settleNoteWrite } from './offline/settleNoteWrite'
 import { editorSchema } from './tiptap'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
+import { contract, contractBody } from '../__fixtures__/contract'
 
-const cell = (value, source, asOf = '2026-10-01T21:00:00Z') => ({ value, source, asOf, missing: null })
-const miss = (source, missing) => ({ value: null, source, asOf: null, missing })
+// CONTRACT: both drafts are the REAL server's answers to POST /api/j2/earnings-prep/{symbol}/draft
+// (`__fixtures__/contract`, written by tools/notebook_contract_fixtures.py and held current by
+// tests/test_notebook_contract_fixtures.py): one with every source answering, one for a name no
+// source knows. Nothing here types a draft, a cell or a "missing" sentence by hand.
+const FULL = contractBody('earnings-prep.draft')
+const EMPTY = contractBody('earnings-prep.draft.sources-missing')
 
-const FULL = {
-  symbol: 'NVDA',
-  frozenAt: '2026-10-02T14:00:00Z',
-  report: { date: cell('2026-10-05', 'UCT earnings calendar'), timing: cell('amc', 'UCT earnings calendar') },
-  expectedMove: cell({ pct: 6.5, dollar: 12.4 }, 'Options-implied move, captured by UCT before the report'),
-  street: {
-    quarter: 'FY2027 Q3',
-    eps: cell(1.31, 'UCT earnings data (consensus estimates and reported results)'),
-    revenue: cell(54_000_000_000, 'UCT earnings data (consensus estimates and reported results)'),
-    epsYearAgo: cell(0.81, 'UCT earnings data (consensus estimates and reported results)'),
-    revenueYearAgo: cell(35_100_000_000, 'UCT earnings data (consensus estimates and reported results)'),
-    epsGrowthPct: 61.7, revenueGrowthPct: 53.8,
-  },
-  reactions: cell([
-    { quarter: 'FY2027 Q2', reportDate: '2026-08-26', epsBeat: true, epsSurprisePct: 4.2, revenueBeat: true, revenueSurprisePct: 1.1, reactionPct: -3.1, impliedPct: 6.9 },
-    { quarter: 'FY2027 Q1', reportDate: '2026-05-27', epsBeat: false, epsSurprisePct: -1.3, revenueBeat: null, revenueSurprisePct: null, reactionPct: 2.4, impliedPct: null },
-  ], 'UCT earnings data, reactions from UCT daily bars'),
-  recap: cell({ quarter: 'Q2 2027', headline: 'Data center carried it', sentiment: 'positive',
-    bullets: ['Blackwell ramp ahead of plan', 'Gross margin guided flat'], guidance: 'Raised' }, 'UCT call recap (stored)'),
-  myNotes: cell([{ id: 'note-a', title: 'NVDA thesis', updatedAt: '2026-09-30T10:00:00Z' }], 'Your Notebook'),
-  myTrades: cell([{ id: 'trade-1', side: 'Long', entryDate: '2026-08-01', exitDate: '2026-08-20', pnlPercent: 12.3, rMultiple: 2.1, result: 'Win' }], 'Your trade journal'),
-  myPosition: cell([{ id: 'p1', symbol: 'NVDA', side: 'Long', shares: 100, entryPrice: 180, stopPrice: 170, entryDate: '2026-09-15' }], 'Your open positions'),
-}
-
-const MISSING_SENTENCES = {
-  date: 'No report date on the UCT calendar or in UCT\'s earnings data.',
-  timing: 'The calendar has not said before or after the bell yet.',
-  move: 'Not captured yet. UCT records the options-implied move the evening before the report.',
-  est: 'No consensus estimate for the coming quarter in UCT\'s earnings data.',
-  ago: 'No reported result for the same quarter a year ago in UCT\'s earnings data.',
-  reactions: 'No reported quarters with an earnings-day reaction in UCT\'s earnings data.',
-  recap: 'No stored call recap for NVDA.',
-  notes: 'You have no notes on NVDA yet.',
-  trades: 'You have no closed trades in NVDA in your journal.',
-  position: 'You hold no open position in NVDA.',
-}
-
-const EMPTY = {
-  symbol: 'NVDA',
-  frozenAt: '2026-10-02T14:00:00Z',
-  report: { date: miss('UCT earnings calendar', MISSING_SENTENCES.date), timing: miss('UCT earnings calendar', MISSING_SENTENCES.timing) },
-  expectedMove: miss('Options-implied move, captured by UCT before the report', MISSING_SENTENCES.move),
-  street: { quarter: null, eps: miss('UCT earnings data', MISSING_SENTENCES.est), revenue: miss('UCT earnings data', MISSING_SENTENCES.est),
-    epsYearAgo: miss('UCT earnings data', MISSING_SENTENCES.ago), revenueYearAgo: miss('UCT earnings data', MISSING_SENTENCES.ago) },
-  reactions: miss('UCT earnings data, reactions from UCT daily bars', MISSING_SENTENCES.reactions),
-  recap: miss('UCT call recap (stored)', MISSING_SENTENCES.recap),
-  myNotes: miss('Your Notebook', MISSING_SENTENCES.notes),
-  myTrades: miss('Your trade journal', MISSING_SENTENCES.trades),
-  myPosition: miss('Your open positions', MISSING_SENTENCES.position),
+/** Every cell of a draft: `{value, source, asOf, missing}`. */
+function cells(draft) {
+  return [draft.report.date, draft.report.timing, draft.expectedMove, draft.street.eps, draft.street.revenue,
+    draft.street.epsYearAgo, draft.street.revenueYearAgo, draft.reactions, draft.recap, draft.myNotes,
+    draft.myTrades, draft.myPosition]
 }
 
 /** Every text node, plus a token per noteLink, in document order. */
@@ -105,16 +66,39 @@ describe('the prep note body', () => {
     expect(() => schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }] })).toThrow()
   })
 
+  it('the recorded drafts are a full one and an all-missing one (non-vacuity)', () => {
+    for (const c of cells(FULL)) {
+      expect(Object.keys(c).sort()).toEqual(['asOf', 'missing', 'source', 'value'])
+      expect(c.value).not.toBeNull()
+      expect(c.missing).toBeNull()
+    }
+    for (const c of cells(EMPTY)) {
+      expect(c.value).toBeNull()
+      expect(c.missing.length).toBeGreaterThan(20)
+    }
+    expect([FULL.symbol, EMPTY.symbol]).toEqual(['EPNV', 'EPZZ'])
+  })
+
   it('every value the server sent arrives with its source and as-of', () => {
     const text = flat(buildPrepDoc(FULL))
-    for (const src of ['UCT earnings calendar', 'Options-implied move, captured by UCT before the report',
-      'UCT earnings data (consensus estimates and reported results)', 'UCT earnings data, reactions from UCT daily bars',
-      'UCT call recap (stored)', 'Your Notebook', 'Your trade journal', 'Your open positions']) {
+    const sources = [...new Set(cells(FULL).map((c) => c.source))]
+    expect(sources.length).toBe(8)
+    for (const src of sources) {
       expect(text).toMatch(new RegExp(`Source: ${src.replace(/[()]/g, '\\$&')}, as of `))
     }
-    expect(text).toContain('Mon, Oct 5, 2026')
+    expect(text).toContain('Wed, Oct 7, 2026')
     expect(text).toContain('after the close')
     expect(text).toContain('±6.5% ($12.40)')
+    // UNITS, read off the real draft: the move, the growth and the reactions arrive as PERCENTS
+    // and are printed as they are; only a trade's own result is a fraction (the D2 case below).
+    expect(FULL.expectedMove.value.pct).toBe(6.5)
+    expect([FULL.street.epsGrowthPct, FULL.street.revenueGrowthPct]).toEqual([61.7, 53.8])
+    expect(text).toContain('+61.7%')
+    expect(text).toContain('+53.8%')
+    expect(FULL.reactions.value[0]).toMatchObject({ reactionPct: -3.1, impliedPct: 6.9, epsSurprisePct: 4.2 })
+    expect(text).toContain('−3.1%')
+    expect(text).toContain('±6.9%')
+    expect(text).not.toMatch(/6170|5380|±650|±0\.1%/)
     expect(text).toContain('$1.31')
     expect(text).toContain('$54.00B')
     expect(text).toContain('Beat +4.2%')
@@ -125,7 +109,9 @@ describe('the prep note body', () => {
 
   it('a source with nothing reads as a labelled dash, and no number is invented', () => {
     const text = flat(buildPrepDoc(EMPTY))
-    for (const sentence of Object.values(MISSING_SENTENCES)) {
+    const sentences = [...new Set(cells(EMPTY).map((c) => c.missing))]
+    expect(sentences.length).toBe(10)                          // the server's own ten reasons
+    for (const sentence of sentences) {
       expect(text).toContain(`${MISSING_DASH} not available: ${sentence}`)
     }
     // nothing numeric beyond the frozen-at stamp and the window's own prompts
@@ -136,21 +122,56 @@ describe('the prep note body', () => {
   it('the member\'s own notes are cited by id; trades link to the trade page', () => {
     const d = buildPrepDoc(FULL)
     const links = find(d, (n) => n.type === 'noteLink').map((n) => n.attrs.noteId)
-    expect(links).toEqual(['note-a'])
+    expect(links).toEqual(FULL.myNotes.value.map((n) => n.id))
     const hrefs = find(d, (n) => n.type === 'text' && n.marks?.some((m) => m.type === 'link')).map((n) => n.marks[0].attrs.href)
-    expect(hrefs).toEqual(['/journal-2-0/trade/trade-1'])
+    expect(hrefs).toEqual(FULL.myTrades.value.map((t) => `/journal-2-0/trade/${t.id}`))
+  })
+
+  it('the open position is written with its real stop', () => {
+    const [pos] = FULL.myPosition.value
+    expect(pos).toMatchObject({ side: 'Long', shares: 100, entryPrice: 180, stopPrice: 170 })
+    expect(flat(buildPrepDoc(FULL))).toContain('Long 100 shares, at $180.00, stop $170.00')
+  })
+
+  it('the trade line carries the R multiple and the result the server sent', () => {
+    const [t] = FULL.myTrades.value
+    expect(t).toMatchObject({ side: 'Long', rMultiple: 2.46, result: 'Win' })
+    const line = flat(buildPrepDoc(FULL)).split('\n').find((l) => l.includes('2.5R'))
+    expect(line).toContain('Long')
+    expect(line).toContain('Win')
+  })
+
+  // D2 (docs/notebook/fin-tests.md), found by the contract conversion and fixed: the server sends
+  // `pnlPercent` as a FRACTION (0.123), and the note used to append "%" without multiplying, so
+  // a 12.3% trade read "+0.1%". Both old suites had typed 12.3 by hand.
+  it('D2: a closed trade that made 12.3% is written as +12.3%', () => {
+    const [t] = FULL.myTrades.value
+    expect(t.pnlPercent).toBe(0.123)                           // what the server really sends
+    const text = flat(buildPrepDoc(FULL))
+    expect(text).not.toContain('+0.1%')
+    expect(text).toContain('+12.3%')
+  })
+
+  it('a losing trade keeps its sign, and a flat one has none', () => {
+    const [t] = FULL.myTrades.value
+    const withResult = (pnlPercent) => flat(buildPrepDoc({ ...FULL, myTrades: { ...FULL.myTrades, value: [{ ...t, pnlPercent }] } }))
+    expect(withResult(-0.0456)).toContain('-4.6%')
+    expect(withResult(0)).toContain('0.0%')
+    expect(withResult(0)).not.toContain('+0.0%')
   })
 
   it('a broker placeholder stop (stop == entry) is never written as a stop', () => {
-    const d = buildPrepDoc({ ...FULL, myPosition: cell([{ id: 'p', side: 'Long', shares: 5, entryPrice: 50, stopPrice: 50 }], 'Your open positions') })
+    // One row overridden on the real draft: a broker import whose stored stop equals its entry.
+    const [pos] = FULL.myPosition.value
+    const d = buildPrepDoc({ ...FULL, myPosition: { ...FULL.myPosition, value: [{ ...pos, shares: 5, entryPrice: 50, stopPrice: 50 }] } })
     const text = flat(d)
     expect(text).toContain('Long 5 shares, at $50.00')
     expect(text).not.toContain('stop $50.00')
   })
 
   it('titles the note with the symbol and the report day', () => {
-    expect(prepTitle(FULL)).toBe('Earnings Prep — NVDA (Mon, Oct 5)')
-    expect(prepTitle(EMPTY)).toBe('Earnings Prep — NVDA')
+    expect(prepTitle(FULL)).toBe('Earnings Prep — EPNV (Wed, Oct 7)')
+    expect(prepTitle(EMPTY)).toBe('Earnings Prep — EPZZ')
   })
 })
 
@@ -163,25 +184,27 @@ describe('createEarningsPrepNote -- the click', () => {
     const calls = []
     global.fetch = vi.fn((url, init = {}) => {
       calls.push([url, init.method || 'GET', init.body ? JSON.parse(init.body) : null])
-      if (url === '/api/j2/earnings-prep/NVDA/draft') return respond(200, FULL)
+      if (url === '/api/j2/earnings-prep/EPNV/draft') return respond(200, FULL)
       if (url === '/api/j2/notes') return respond(200, { note: { id: 'new-note', updatedAt: 'r1' } })
       return respond(404, {})
     })
-    const note = await createEarningsPrepNote({ symbol: 'NVDA' })
+    const note = await createEarningsPrepNote({ symbol: 'EPNV' })
     expect(note.id).toBe('new-note')
-    expect(calls.map(([u, m]) => `${m} ${u}`)).toEqual(['POST /api/j2/earnings-prep/NVDA/draft', 'POST /api/j2/notes'])
+    expect(calls.map(([u, m]) => `${m} ${u}`)).toEqual(['POST /api/j2/earnings-prep/EPNV/draft', 'POST /api/j2/notes'])
     const body = calls[1][2]
     expect(body.tags).toEqual([...PREP_TAGS])
-    expect(body.ticker).toBe('NVDA')
-    expect(body.title).toBe('Earnings Prep — NVDA (Mon, Oct 5)')
+    expect(body.ticker).toBe('EPNV')
+    expect(body.title).toBe('Earnings Prep — EPNV (Wed, Oct 7)')
     expect(body.bodyJson.type).toBe('doc')
     expect(settleNoteWrite).toHaveBeenCalledWith('new-note', expect.objectContaining({ id: 'new-note' }))
   })
 
   it('a refused draft (the daily cap) creates NOTHING and carries the server sentence', async () => {
-    const sentence = "You've drafted 20 earnings prep notes today, the daily limit. It resets at midnight Eastern."
-    global.fetch = vi.fn((url) => (url.endsWith('/draft') ? respond(429, { detail: sentence }) : respond(200, { note: { id: 'x' } })))
-    await expect(createEarningsPrepNote({ symbol: 'NVDA' })).rejects.toMatchObject({ status: 429, message: sentence })
+    const refusal = contract('earnings-prep.draft.daily-cap')
+    const sentence = refusal.body.detail
+    expect(sentence).toBe("You've drafted 20 earnings prep notes today, the daily limit. It resets at midnight Eastern.")
+    global.fetch = vi.fn((url) => (url.endsWith('/draft') ? respond(refusal._contract.status, refusal.body) : respond(200, { note: { id: 'x' } })))
+    await expect(createEarningsPrepNote({ symbol: 'EPNV' })).rejects.toMatchObject({ status: 429, message: sentence })
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(settleNoteWrite).not.toHaveBeenCalled()
   })

@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/earnings-prep/EPNV/draft",
+    "note": "The member has used today's drafts.",
+    "path": "/api/j2/earnings-prep/EPNV/draft",
+    "status": 429
+  },
+  "body": {
+    "detail": "You've drafted 20 earnings prep notes today, the daily limit. It resets at midnight Eastern."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery",
+    "path": "/api/j2/template-gallery",
+    "requestBody": {
+      "category": "trade_plan",
+      "description": "What I check before a breakout.",
+      "templateId": "tg-template",
+      "title": "   "
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "A gallery template needs a title."
+  }
+}

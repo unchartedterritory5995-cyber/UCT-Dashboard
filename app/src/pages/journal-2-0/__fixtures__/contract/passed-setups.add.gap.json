@@ -1,0 +1,68 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "note": "ONE session is missing in the middle of the stored bars. See docs/notebook/fin-tests.md, defect D5: the horizons after the hole are read one session late, with no label.",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2026-08-31",
+      "symbol": "PSGP"
+    },
+    "status": 200
+  },
+  "body": {
+    "deduped": false,
+    "item": {
+      "baseClose": 200.0,
+      "baseDate": "2026-08-31",
+      "id": "6d25f95fa29244429679cca2713a42f5",
+      "noBarsLabel": null,
+      "outcomes": [
+        {
+          "key": "r1",
+          "label": null,
+          "missing": null,
+          "pct": 0.5,
+          "sessions": 1
+        },
+        {
+          "key": "r5",
+          "label": null,
+          "missing": null,
+          "pct": 3.0,
+          "sessions": 5
+        },
+        {
+          "key": "r10",
+          "label": null,
+          "missing": null,
+          "pct": 5.5,
+          "sessions": 10
+        },
+        {
+          "key": "r20",
+          "label": null,
+          "missing": null,
+          "pct": 10.5,
+          "sessions": 20
+        },
+        {
+          "best": true,
+          "key": "best20",
+          "label": null,
+          "missing": null,
+          "pct": 10.75,
+          "sessions": 20
+        }
+      ],
+      "savedAt": "2026-08-31T20:00:00+00:00",
+      "savedDay": "2026-08-31",
+      "sessionsStored": 20,
+      "source": "manual",
+      "sourceRef": null,
+      "status": "scored",
+      "symbol": "PSGP",
+      "tradedOn": null
+    }
+  }
+}

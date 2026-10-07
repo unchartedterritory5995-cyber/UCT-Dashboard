@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/research-capture/transcripts/TRNV/soon",
+    "path": "/api/j2/research-capture/transcripts/TRNV/soon",
+    "status": 400
+  },
+  "body": {
+    "detail": "That is not a quarter (expected e.g. 2026Q2)."
+  }
+}

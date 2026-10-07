@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/similar-names/templates",
+    "path": "/api/j2/similar-names/templates",
+    "status": 402
+  },
+  "body": {
+    "detail": "Find more like this requires a paid plan"
+  }
+}

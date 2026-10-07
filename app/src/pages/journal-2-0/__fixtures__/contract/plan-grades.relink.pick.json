@@ -1,0 +1,193 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/plan-grades/trades/pg-pick/relink",
+    "note": "The tie resolved by the member's pick.",
+    "path": "/api/j2/plan-grades/trades/pg-pick/relink",
+    "requestBody": {
+      "noteId": "pg-note-other"
+    },
+    "status": 200
+  },
+  "body": {
+    "candidates": [
+      {
+        "editedAfterEntry": false,
+        "id": "pg-note-a",
+        "kind": "note",
+        "plan": {
+          "entry": 100.0,
+          "primaryShape": "text",
+          "roles": {
+            "entry": {
+              "shape": "text",
+              "state": "ok",
+              "value": 100.0,
+              "values": []
+            },
+            "shares": {
+              "shape": "text",
+              "state": "ok",
+              "value": 100.0,
+              "values": []
+            },
+            "stop": {
+              "shape": "text",
+              "state": "ok",
+              "value": 96.0,
+              "values": []
+            },
+            "target": {
+              "shape": "text",
+              "state": "ok",
+              "value": 120.0,
+              "values": []
+            }
+          },
+          "setup": null,
+          "shares": 100.0,
+          "side": null,
+          "stop": 96.0,
+          "target": 120.0
+        },
+        "planAsOf": "2026-09-05T12:00:00+00:00",
+        "tier": "window",
+        "title": "First plan"
+      },
+      {
+        "editedAfterEntry": false,
+        "id": "pg-note-other",
+        "kind": "note",
+        "plan": {
+          "entry": 101.0,
+          "primaryShape": "text",
+          "roles": {
+            "entry": {
+              "shape": "text",
+              "state": "ok",
+              "value": 101.0,
+              "values": []
+            },
+            "shares": {
+              "shape": "text",
+              "state": "ok",
+              "value": 80.0,
+              "values": []
+            },
+            "stop": {
+              "shape": "text",
+              "state": "ok",
+              "value": 97.0,
+              "values": []
+            },
+            "target": {
+              "shape": "text",
+              "state": "ok",
+              "value": 118.0,
+              "values": []
+            }
+          },
+          "setup": null,
+          "shares": 80.0,
+          "side": null,
+          "stop": 97.0,
+          "target": 118.0
+        },
+        "planAsOf": "2026-09-07T12:00:00+00:00",
+        "tier": "window",
+        "title": "Other plan"
+      }
+    ],
+    "checks": {
+      "entry": {
+        "actual": 101.0,
+        "chaseR": 0.0,
+        "deltaPct": 0.0,
+        "planned": 101.0,
+        "state": "kept",
+        "tolerance": 1.0
+      },
+      "followedPlan": true,
+      "r": 4.0,
+      "sideMismatch": false,
+      "size": {
+        "actual": 80.0,
+        "deltaPct": 0.0,
+        "planned": 80.0,
+        "state": "kept"
+      },
+      "stop": {
+        "exit": 110.0,
+        "exitVsStopR": 3.25,
+        "limit": 96.0,
+        "planned": 97.0,
+        "state": "kept"
+      },
+      "target": {
+        "exit": 110.0,
+        "hitLine": 117.0,
+        "mfePrice": null,
+        "planned": 118.0,
+        "state": "unknown"
+      }
+    },
+    "closes": 1,
+    "dateOnly": false,
+    "enteredShares": 80.0,
+    "entryDay": "2026-09-10",
+    "labels": [],
+    "plan": {
+      "entry": 101.0,
+      "matchTier": "member",
+      "matchedAt": "2026-10-05T14:30:00+00:00",
+      "noteId": "pg-note-other",
+      "noteTitle": "Other plan",
+      "planAsOf": "2026-09-07T12:00:00+00:00",
+      "primaryShape": "text",
+      "relinkCount": 0,
+      "relinkedAt": "2026-10-05T14:30:00+00:00",
+      "roles": {
+        "entry": {
+          "shape": "text",
+          "state": "ok",
+          "value": 101.0,
+          "values": []
+        },
+        "shares": {
+          "shape": "text",
+          "state": "ok",
+          "value": 80.0,
+          "values": []
+        },
+        "stop": {
+          "shape": "text",
+          "state": "ok",
+          "value": 97.0,
+          "values": []
+        },
+        "target": {
+          "shape": "text",
+          "state": "ok",
+          "value": 118.0,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": 80.0,
+      "side": null,
+      "source": "text",
+      "sourceKind": "note",
+      "sourceLabel": "Plan note",
+      "stop": 97.0,
+      "target": 118.0,
+      "verdictId": null,
+      "versionId": "current@2026-09-07T12:00:00+00:00"
+    },
+    "setupChip": null,
+    "side": "Long",
+    "status": "planned",
+    "symbol": "PGPK",
+    "tradeId": "pg-pick",
+    "tradeRef": "id:pg-pick"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/research-capture/passed-setups",
+    "path": "/api/j2/research-capture/passed-setups",
+    "requestBody": {
+      "savedOn": "2026-08-31",
+      "symbol": "PSNV"
+    },
+    "status": 200
+  },
+  "body": {
+    "deduped": false,
+    "item": {
+      "baseClose": 100.0,
+      "baseDate": "2026-08-31",
+      "id": "be3b59ca8d5645408dc775937de2dee3",
+      "noBarsLabel": null,
+      "outcomes": [
+        {
+          "key": "r1",
+          "label": null,
+          "missing": null,
+          "pct": 1.0,
+          "sessions": 1
+        },
+        {
+          "key": "r5",
+          "label": null,
+          "missing": null,
+          "pct": 5.0,
+          "sessions": 5
+        },
+        {
+          "key": "r10",
+          "label": null,
+          "missing": null,
+          "pct": 10.0,
+          "sessions": 10
+        },
+        {
+          "key": "r20",
+          "label": null,
+          "missing": null,
+          "pct": 20.0,
+          "sessions": 20
+        },
+        {
+          "best": true,
+          "key": "best20",
+          "label": null,
+          "missing": null,
+          "pct": 20.5,
+          "sessions": 20
+        }
+      ],
+      "savedAt": "2026-08-31T20:00:00+00:00",
+      "savedDay": "2026-08-31",
+      "sessionsStored": 20,
+      "source": "manual",
+      "sourceRef": null,
+      "status": "scored",
+      "symbol": "PSNV",
+      "tradedOn": null
+    }
+  }
+}

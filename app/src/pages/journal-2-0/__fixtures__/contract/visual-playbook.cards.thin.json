@@ -1,0 +1,747 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/cards",
+    "note": "Twelve trades behind the slice: a thin sample, shown with its ranges.",
+    "path": "/api/j2/notebook-visual-playbook/cards",
+    "status": 200
+  },
+  "body": {
+    "cards": [
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-05",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-05.png",
+          "w": 800
+        },
+        "noteId": "06e4b8b2bf1c45b7846774c15c1cd213",
+        "noteTitle": "VT05 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT05",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT05",
+            "tradeId": "vt-05",
+            "tradeRef": "id:vt-05"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 85,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-01",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-01.png",
+          "w": 800
+        },
+        "noteId": "1b0d44d05e8b48e79f1e579cf2b959e8",
+        "noteTitle": "VT01 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT01",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT01",
+            "tradeId": "vt-01",
+            "tradeRef": "id:vt-01"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 81,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-11",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-11.png",
+          "w": 800
+        },
+        "noteId": "4aa5395b2b734db1acf3d5507f631a66",
+        "noteTitle": "VT11 plan",
+        "outcome": "loss",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT11",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "loss",
+            "pnlDollar": -400.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT11",
+            "tradeId": "vt-11",
+            "tradeRef": "id:vt-11"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 91,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-09",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-09.png",
+          "w": 800
+        },
+        "noteId": "533b5d8a0a8b4ef4bd7412e308566b58",
+        "noteTitle": "VT09 plan",
+        "outcome": "loss",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT09",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "loss",
+            "pnlDollar": -400.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT09",
+            "tradeId": "vt-09",
+            "tradeRef": "id:vt-09"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 89,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-03",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-03.png",
+          "w": 800
+        },
+        "noteId": "53504210680946a3aeee936dc7baf983",
+        "noteTitle": "VT03 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT03",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT03",
+            "tradeId": "vt-03",
+            "tradeRef": "id:vt-03"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 83,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-07",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-07.png",
+          "w": 800
+        },
+        "noteId": "5fe669ae283e48eda1ce9df7074c1f0a",
+        "noteTitle": "VT07 plan",
+        "outcome": "loss",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT07",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "loss",
+            "pnlDollar": -400.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT07",
+            "tradeId": "vt-07",
+            "tradeRef": "id:vt-07"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 87,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-06",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-06.png",
+          "w": 800
+        },
+        "noteId": "6da0735b5d7e43d4901a7c53c720df80",
+        "noteTitle": "VT06 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT06",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT06",
+            "tradeId": "vt-06",
+            "tradeRef": "id:vt-06"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 86,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-10",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-10.png",
+          "w": 800
+        },
+        "noteId": "6e7d8600625546019a60f0ab47713cfa",
+        "noteTitle": "VT10 plan",
+        "outcome": "loss",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT10",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "loss",
+            "pnlDollar": -400.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT10",
+            "tradeId": "vt-10",
+            "tradeRef": "id:vt-10"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 90,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-02",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-02.png",
+          "w": 800
+        },
+        "noteId": "7ad5bf65031645c9b5630bdecbd5aedd",
+        "noteTitle": "VT02 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT02",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT02",
+            "tradeId": "vt-02",
+            "tradeRef": "id:vt-02"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 82,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-00",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-00.png",
+          "w": 800
+        },
+        "noteId": "9b6113765e8a437d9dbff2b578eb354f",
+        "noteTitle": "VT00 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT00",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT00",
+            "tradeId": "vt-00",
+            "tradeRef": "id:vt-00"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 80,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-04",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-04.png",
+          "w": 800
+        },
+        "noteId": "bf66f96560fa4f42af65a8e008aaf51b",
+        "noteTitle": "VT04 plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT04",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT04",
+            "tradeId": "vt-04",
+            "tradeRef": "id:vt-04"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 84,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vt-08",
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vt-08.png",
+          "w": 800
+        },
+        "noteId": "c86caf268fea466995097eea869a6191",
+        "noteTitle": "VT08 plan",
+        "outcome": "loss",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VT08",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "loss",
+            "pnlDollar": -400.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VT08",
+            "tradeId": "vt-08",
+            "tradeRef": "id:vt-08"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 88,
+          "vol_nweek_low": null
+        }
+      }
+    ],
+    "count": 12,
+    "excludedMissing": {},
+    "facets": {
+      "setups": {
+        "VCP": 12
+      },
+      "timeframes": {
+        "D": 12
+      }
+    },
+    "pending": 0,
+    "rangeFields": [
+      "adr_pct",
+      "pct_vs_sma10",
+      "pct_vs_sma20",
+      "pct_vs_sma50",
+      "pct_vs_sma200",
+      "rs_rank",
+      "base_length_bars",
+      "base_depth_pct",
+      "pullback_depth_pct",
+      "vol_nweek_low",
+      "close_cv_pct",
+      "pole_pct"
+    ],
+    "regime": {
+      "available": true,
+      "excludedUnknown": 0,
+      "facets": {
+        "amber": 0,
+        "green": 0,
+        "orange": 0,
+        "red": 0
+      },
+      "selected": null,
+      "source": "entry_context (13E, at_entry rows only)",
+      "unknown": 12,
+      "unknownReasons": {
+        "captured_late": "the context was frozen after the entry day, so it is not the market at the fill",
+        "no_trade": "no trade is linked to this chart, so there is no entry day",
+        "not_captured": "no market context was frozen on this trade's entry day",
+        "regime_missing": "the frozen context has no regime value"
+      },
+      "values": [
+        "green",
+        "amber",
+        "orange",
+        "red"
+      ]
+    },
+    "sampleSizeSource": "adapter:plan_grading (swap for 13B sample_size.py)",
+    "stats": {
+      "avgR": 0.75,
+      "avgRRange": [
+        -0.2315,
+        1.7315
+      ],
+      "band": "thin",
+      "breakeven": 0,
+      "charts": 12,
+      "losses": 5,
+      "n": 12,
+      "rTrades": 12,
+      "totalPnlDollar": 3600.0,
+      "trades": 12,
+      "unlinkedCharts": 0,
+      "winRate": 0.5833333333333334,
+      "winRateRange": [
+        0.32,
+        0.807
+      ],
+      "wins": 7,
+      "wording": "thin sample"
+    }
+  }
+}
