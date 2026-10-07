@@ -114,6 +114,14 @@ describe('watchlist.add', () => {
     expect(fastParse('add RKLB to my watchlist', { host: two.host })).toBeNull()
     expect(fastParse('add RKLB to Banana', { host })).toBeNull()                        // missing → model, never guessed
   })
+  it('a list NAMED "… Watchlist" resolves on the fast path (show / add / remove / rename), with or without the word', () => {
+    const { host } = lib([...LISTS, { id: 'a1', name: 'Agent Test Watchlist', symbols: ['NVDA'] }])
+    expect(fastOps(host, "What's in Agent Test Watchlist?")).toEqual([{ action: 'watchlist.show', target: 'a1', args: {} }])
+    expect(fastOps(host, 'Add AMD to Agent Test Watchlist')[0].target).toBe('a1')
+    expect(fastOps(host, 'Remove NVDA from Agent Test Watchlist')[0].target).toBe('a1')
+    expect(fastOps(host, 'Rename Agent Test Watchlist to Scratch')[0]).toMatchObject({ target: 'a1', args: { name: 'Scratch' } })
+    expect(fastOps(host, "what's in my momentum watchlist")[0].target).toBe('m1')
+  })
   it('a big batch is proposed first; a linked list is read-only', async () => {
     const { host } = lib()
     const many = ['RKLB', 'PLTR', 'ASTS', 'AMD', 'AVGO', 'TSM', 'MSFT', 'AAPL', 'META', 'NVDA', 'TSLA']

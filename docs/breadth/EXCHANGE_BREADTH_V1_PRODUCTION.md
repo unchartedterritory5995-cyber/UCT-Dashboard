@@ -1,7 +1,8 @@
 # NYSE + NASDAQ Breadth V1 — production architecture, cutover and rollback
 
-Status: **dark**. Every switch below defaults OFF; with none set, web, worker and runner are byte-identical
-to master except the US V2 producer's prune guard (§3), which is unconditional by design.
+Status: **LIVE for members since 2026-10-07 13:25Z** (Gate B; `BREADTH_AUTHORITY_EXCH=v1`). Every switch below
+defaults OFF in code; with none set, web, worker and runner are byte-identical to master except the US V2
+producer's prune guard (§3), which is unconditional by design.
 
 ## 1. One authority
 

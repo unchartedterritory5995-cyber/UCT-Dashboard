@@ -49,7 +49,7 @@
    badge or a fill would make the forecast read as a separate widget, and the
    EST chip already names it. */
 .cellFirstEst {
-  border-left-color: rgba(201, 168, 76, 0.34) !important;
+  border-left-color: color-mix(in srgb, var(--ut-gold) 34%, transparent) !important;
 }
 .cell + .cell {
   border-left: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.06));
@@ -97,7 +97,7 @@
   font-weight: 640;
   letter-spacing: 0.4px;
   color: var(--accent, #c9a84c);
-  border: 1px solid rgba(201, 168, 76, 0.42);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 42%, transparent);
   border-radius: 2px;
   padding: 0 3px;
 }

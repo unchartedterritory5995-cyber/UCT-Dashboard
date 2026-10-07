@@ -108,7 +108,7 @@ function TileSpark({ values, mode }) {
   if (!shape) return null
   // One ink colour — black lines, not green/red (owner). Adaptive: dark ink on a
   // light canvas (--bw-spark, emitted by breadthWidgetStyleVars) / light on dark.
-  const stroke = 'var(--bw-spark, rgba(255, 255, 255, 0.82))'
+  const stroke = 'var(--bw-spark, color-mix(in srgb, var(--text) 82%, transparent))'
   const backdrop = mode !== 'spark'
   return (
     <svg
@@ -168,7 +168,7 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
                     ><UIcon name="x" size={9} gold={false} /></span>
                     )}
                     <span className={styles.hmTileLabel}>{m.label}</span>
-                    <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)') }}>
+                    <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, var(--text-muted))') }}>
                       {m.getFmt(currentRow)}
                     </span>
                     {tileStyle === 'spark' && spark}

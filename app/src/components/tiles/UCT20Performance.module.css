@@ -119,7 +119,7 @@
 }
 .openStop {
   font-family: var(--font-sans);
-  font-size: 10px; color: var(--loss); opacity: 0.75; flex: 1;
+  font-size: 10px; color: var(--danger-ink); opacity: 0.75; flex: 1;
 }
 /* Takes the same slot the bare stop price used to occupy, so the row keeps its
    column rhythm. Colour comes from .gain/.loss on the element -- the Book's
@@ -191,8 +191,8 @@
 .alignRight { text-align: right; }
 
 /* ── Utilities ── */
-.gain   { color: var(--gain); }
-.loss   { color: var(--loss); }
+.gain   { color: var(--success-ink); }
+.loss   { color: var(--danger-ink); }
 .muted  { color: var(--text-muted); }
 
 /* ── Tooltip ── */
@@ -291,7 +291,7 @@
   border: 1px solid var(--border);
 }
 .bookLive {
-  color: var(--gain);
+  color: var(--success-ink);
   border: 1px solid var(--gain);
 }
 .bookNote {

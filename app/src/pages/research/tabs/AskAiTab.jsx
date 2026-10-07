@@ -203,6 +203,13 @@ export default function AskAiTab({ sym }) {
         return
       }
       const data = await r.json()
+      // The explain route answers a model OUTAGE as a 200 refusal carrying `error`
+      // (api/routers/research.py). Drawn as a refusal it read as "not enough evidence"
+      // with no way to ask again; it is a failed read, so it is the error turn.
+      if (data?.error) {
+        setTurns(prev => prev.map(t => (t.id === id ? { ...t, status: 'error' } : t)))
+        return
+      }
       if (data.turn_state) {
         historyRef.current = [...historyRef.current, data.turn_state].slice(-3)
       }

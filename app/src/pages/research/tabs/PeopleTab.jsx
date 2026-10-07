@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
-import { ABSENT, formatCompactTerminal } from '../../../lib/presentation/presentationPrimitives'
+import { ABSENT, formatCompactTerminal, relabelDollarText } from '../../../lib/presentation/presentationPrimitives'
 import { memberText } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { usePendingReask } from '../depth/depthFetch'
@@ -17,10 +17,12 @@ import PendingGaveUp from '../depth/PendingGaveUp'
 // ⛔ A section that could not be read says so; it is never an empty table that
 //    reads as "this company has no officers".
 
+// Through the shared primitives (completeness audit 2026-10-07): the hand-made version compared
+// the code case-sensitively ("usd" printed as a foreign "usd 16.8M") and put the "$" before the
+// sign. The proxy table's figures are SEC filings, in US dollars.
 const money = (v, cur) => {
   if (v == null) return null
-  const s = formatCompactTerminal(Number(v))
-  return `${cur && cur !== 'USD' ? `${cur} ` : '$'}${s}`
+  return relabelDollarText(formatCompactTerminal(Number(v), { money: true }), cur)
 }
 
 // The shared missing-value glyph, read aloud as "unavailable" (plus the source's

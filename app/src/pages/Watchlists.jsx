@@ -302,9 +302,9 @@ function earnSortValue(iso) {
 // UCT rating (1–99) → tier color: high = green, mid = gold, low = red.
 function ratingColor(r) {
   if (r == null || !Number.isFinite(r)) return undefined
-  if (r >= 70) return 'var(--gain)'
+  if (r >= 70) return 'var(--success-ink)'
   if (r >= 40) return 'var(--warn)'
-  return 'var(--loss)'
+  return 'var(--danger-ink)'
 }
 // WL_COLS_LS is imported from ./watchlist/watchlistTemplates (single source of truth,
 // shared with the create-from-template flow in the picker).

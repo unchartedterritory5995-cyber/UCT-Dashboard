@@ -1,0 +1,653 @@
+{
+  "_doc": [
+    "Terminal-REACHABLE contrast baseline - read by pages/terminal/a11y/terminalReachableContrast.test.js.",
+    "Scope: every stylesheet the terminal import walk (pages/terminal/__tests__/themeScope.js) reaches outside pages/terminal and components/terminal.",
+    "count = text RULES (rule + prop, worst theme/surface) under WCAG AA in any of the 21 themes, incl. rules the rail cannot read.",
+    "SHRINK-ONLY: a file may never gain a failing rule, and a file not listed must have none. When a rule is fixed, lower its count here in the same commit (the rail reds until you do).",
+    "Gain/loss text (var(--loss)/var(--gain) as color or SVG text fill) is NOT baselineable: the rail requires zero. Fix it with --danger-ink / --success-ink."
+  ],
+  "files": {
+    "components/AlertBell.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/NavBar.module.css": {
+      "count": 3,
+      "inks": [
+        "#67db44",
+        "--text-muted",
+        "--ut-gold"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme"
+    },
+    "components/TickerActions.module.css": {
+      "count": 1,
+      "inks": [
+        "--danger-ink"
+      ],
+      "why": "the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
+    },
+    "components/TickerPopup.module.css": {
+      "count": 11,
+      "inks": [
+        "--text-bright",
+        "--text-muted",
+        "--ut-red"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/calendar/CallRecapSection.module.css": {
+      "count": 2,
+      "inks": [
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/calendar/KeywordAlerts.module.css": {
+      "count": 2,
+      "inks": [
+        "--ut-red"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/calendar/SentimentGauge.module.css": {
+      "count": 3,
+      "inks": [
+        "--score-poor",
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/community/ShareToFloor.module.css": {
+      "count": 1,
+      "inks": [
+        "--ut-red"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/fundamentals/AnalystPanel.module.css": {
+      "count": 1,
+      "inks": [
+        "--ut-red-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/fundamentals/OwnershipPanel.module.css": {
+      "count": 1,
+      "inks": [
+        "--ut-red-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/provenance/CoverageLine.module.css": {
+      "count": 1,
+      "inks": [
+        "--border-accent"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/quote/SaveQuoteButton.module.css": {
+      "count": 1,
+      "inks": [
+        "--ut-gold"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research-kit/ConsensusBar.module.css": {
+      "count": 1,
+      "inks": [
+        "--bg"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research-kit/RatingCrown.module.css": {
+      "count": 2,
+      "inks": [
+        "--score-elite",
+        "--score-poor"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research-kit/StatTile.module.css": {
+      "count": 2,
+      "inks": [
+        "--score-elite",
+        "--score-poor"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research-kit/charts/HeatGrid.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research-kit/shell/SectionRail.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-heading"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research/EarningsResearchModal.module.css": {
+      "count": 7,
+      "inks": [
+        "--menu-text",
+        "--menu-text-dim",
+        "--menu-text-faint"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "components/research/SectionTabs.module.css": {
+      "count": 3,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "components/research/sections/CatalystsSection.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/research/sections/StatementPanels.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/tiles/CatalystTable.module.css": {
+      "count": 5,
+      "inks": [
+        "--text-muted",
+        "--ut-red-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/tiles/FuturesStrip.module.css": {
+      "count": 2,
+      "inks": [
+        "--ut-gold"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "components/tiles/MarketBreadth.module.css": {
+      "count": 2,
+      "inks": [
+        "--text-muted",
+        "gold"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | unreadable by the rail (not a colour: gold) - a widget-local token set at runtime or a non-colour value"
+    },
+    "components/tiles/UCT20Performance.module.css": {
+      "count": 4,
+      "inks": [
+        "--danger-ink",
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
+    },
+    "pages/Breadth.module.css": {
+      "count": 4,
+      "inks": [
+        "--bg",
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/CatalystsHistory.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/CotData.module.css": {
+      "count": 5,
+      "inks": [
+        "--bg",
+        "--text-bright",
+        "--ut-gold"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/FlowScoreboard.module.css": {
+      "count": 4,
+      "inks": [
+        "--text-muted",
+        "--ut-gold"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/MorningWire.module.css": {
+      "count": 4,
+      "inks": [
+        "--border-accent",
+        "--text-muted",
+        "--warn"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/ThemeTrackerPage.module.css": {
+      "count": 12,
+      "inks": [
+        "--bg",
+        "--danger-ink",
+        "--text-muted",
+        "--tt-accent",
+        "--tt-down",
+        "--tt-text",
+        "--tt-up"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/UCT20.module.css": {
+      "count": 6,
+      "inks": [
+        "--text-bright",
+        "--text-muted",
+        "--warn"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/Watchlists.module.css": {
+      "count": 19,
+      "inks": [
+        "#0a5c22",
+        "#7d1620",
+        "--danger-ink",
+        "--success-ink",
+        "--text-muted",
+        "--ut-gold",
+        "--wl-down",
+        "--wl-up"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/breadth/BreadthDateNav.module.css": {
+      "count": 14,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-faint"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/breadth/BreadthViewSwitcher.module.css": {
+      "count": 1,
+      "inks": [
+        "--accent"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/breadth/views/hoverReadout.module.css": {
+      "count": 1,
+      "inks": [
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/calendar/Calendar.module.css": {
+      "count": 13,
+      "inks": [
+        "--bg",
+        "--border-accent",
+        "--text-bright",
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/calendar/WireView.module.css": {
+      "count": 1,
+      "inks": [
+        "--success-ink"
+      ],
+      "why": "the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
+    },
+    "pages/charts/ChartsWorkspace.module.css": {
+      "count": 23,
+      "inks": [
+        "#0a5c22",
+        "#12202c",
+        "#223243",
+        "#45515f",
+        "#566577",
+        "#7d1620",
+        "--bg",
+        "--danger",
+        "--menu-accent",
+        "--menu-text",
+        "--text-bright",
+        "--text-muted",
+        "--widget-text",
+        "--widget-text-strong"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/PeriodSortPanel.module.css": {
+      "count": 2,
+      "inks": [
+        "--text-muted",
+        "--ut-red-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/charts/widgets/AiSearchWidget.module.css": {
+      "count": 6,
+      "inks": [
+        "#5c460f",
+        "#cbb46a",
+        "#dcbb5e",
+        "#e3c877",
+        "#e88",
+        "#f0d888",
+        "#f2a9a9",
+        "--danger",
+        "--text-muted"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme"
+    },
+    "pages/charts/widgets/AlertsWidget.module.css": {
+      "count": 6,
+      "inks": [
+        "--alerts-below",
+        "--alerts-chrome",
+        "--alerts-gold-strong"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/BreadthSettingsPanel.module.css": {
+      "count": 12,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/charts/widgets/BreadthWidget.module.css": {
+      "count": 11,
+      "inks": [
+        "--bg",
+        "--bw-text-dim",
+        "--bw-value",
+        "--menu-accent",
+        "--menu-text",
+        "--text-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/CalendarWidget.module.css": {
+      "count": 3,
+      "inks": [
+        "#6f8dbf",
+        "#e0a53c",
+        "--cal-chrome",
+        "--cal-neg",
+        "--cal-symbol"
+      ],
+      "why": "a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/ChartDateNav.module.css": {
+      "count": 16,
+      "inks": [
+        "#12202c",
+        "#45515f",
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-faint"
+      ],
+      "why": "a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/charts/widgets/ChartEarningsStrip.module.css": {
+      "count": 3,
+      "inks": [
+        "--dock-down-text",
+        "--dock-up-text",
+        "--t-dim"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/CompanySearch.module.css": {
+      "count": 2,
+      "inks": [
+        "--dock-down-text",
+        "--dock-up-text"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/FundamentalsSettingsPanel.module.css": {
+      "count": 12,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/charts/widgets/FundamentalsWidget.module.css": {
+      "count": 6,
+      "inks": [
+        "#55606e",
+        "--fw-down",
+        "--fw-text-dim",
+        "--fw-up"
+      ],
+      "why": "a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/LeverageInverseControl.module.css": {
+      "count": 10,
+      "inks": [
+        "--li-down",
+        "--li-up",
+        "--menu-accent",
+        "--menu-text"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/NewHighsLowsWidget.module.css": {
+      "count": 10,
+      "inks": [
+        "#fff",
+        "--nh-down",
+        "--nh-text",
+        "--nh-text-strong",
+        "--text-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/NewsSettingsPanel.module.css": {
+      "count": 12,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/charts/widgets/NewsWidget.module.css": {
+      "count": 5,
+      "inks": [
+        "--news-accent",
+        "--news-chrome",
+        "--news-down"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/NhnlDropdown.module.css": {
+      "count": 10,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim",
+        "--menu-text-faint",
+        "--nh-text-strong"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/NhnlPulseWidget.module.css": {
+      "count": 2,
+      "inks": [
+        "--nh-down",
+        "--nh-text"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/NhnlSettingsPanel.module.css": {
+      "count": 10,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/charts/widgets/NotebookWidget.module.css": {
+      "count": 2,
+      "inks": [
+        "--nb-accent",
+        "--nb-chrome"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/OptionsFlowWidget.module.css": {
+      "count": 2,
+      "inks": [
+        "#6db6ff",
+        "#ffb54d",
+        "--flow-down",
+        "--flow-up"
+      ],
+      "why": "a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/ProfileWidget.module.css": {
+      "count": 2,
+      "inks": [
+        "--prof-chrome-strong",
+        "--prof-down",
+        "--prof-surp-down"
+      ],
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/ScannerResults.module.css": {
+      "count": 2,
+      "inks": [
+        "--text-muted",
+        "--wl-down"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/ScatterWidget.module.css": {
+      "count": 10,
+      "inks": [
+        "#fff",
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim",
+        "--menu-text-faint",
+        "--nh-sym",
+        "--nh-text"
+      ],
+      "why": "a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/VolumeScanWidget.module.css": {
+      "count": 9,
+      "inks": [
+        "#1c1400",
+        "#ffffff",
+        "--nh-text",
+        "--text-bright",
+        "--ut-red-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/WatchlistPicker.module.css": {
+      "count": 13,
+      "inks": [
+        "#1c2836",
+        "#243040",
+        "#5a6674",
+        "#7a5e1e",
+        "#8a94a2",
+        "#dc2626",
+        "--text-muted",
+        "--wl-accent",
+        "--wl-text"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane | a fixed literal ink (tracked as literal debt by themeColours.rail) under AA on some theme | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/charts/widgets/dockPanels.module.css": {
+      "count": 29,
+      "inks": [
+        "--dock-down-text",
+        "--dock-up-text",
+        "--t-body",
+        "--t-dim",
+        "--t-gold-hi",
+        "--t-group",
+        "--t-label",
+        "--t-meta",
+        "--t-name",
+        "--t-value"
+      ],
+      "why": "unreadable by the rail (unresolvable token --t-value) - a widget-local token set at runtime or a non-colour value | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
+    },
+    "pages/research/ResearchPage.module.css": {
+      "count": 2,
+      "inks": [
+        "--score-elite",
+        "--score-weak"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/screener/ScannerPro.module.css": {
+      "count": 1,
+      "inks": [
+        "--danger-ink"
+      ],
+      "why": "the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
+    },
+    "pages/screener/shell/CriteriaBox.module.css": {
+      "count": 2,
+      "inks": [
+        "--text-base"
+      ],
+      "why": "unreadable by the rail (not a colour: 12px) - a widget-local token set at runtime or a non-colour value"
+    },
+    "pages/screener/shell/ScannerShell.module.css": {
+      "count": 3,
+      "inks": [
+        "--text-muted",
+        "--ut-gold-bright"
+      ],
+      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
+    },
+    "pages/theme-tracker/ThemeTrackerSettingsPanel.module.css": {
+      "count": 12,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    },
+    "pages/watchlist/WatchlistSettingsPanel.module.css": {
+      "count": 22,
+      "inks": [
+        "--menu-accent",
+        "--menu-text",
+        "--menu-text-dim"
+      ],
+      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
+    }
+  }
+}

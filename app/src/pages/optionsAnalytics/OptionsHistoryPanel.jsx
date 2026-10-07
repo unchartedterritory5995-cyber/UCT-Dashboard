@@ -1,6 +1,8 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
-import { num, fracPct } from './optionsFormat'
+import FailedRead from './FailedRead'
+import { num, fracPct, pctNum, signedPct } from './optionsFormat'
+import { formatCurrency } from '../../lib/presentation/presentationPrimitives'
 import styles from './optionsAnalytics.module.css'
 import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
@@ -27,7 +29,7 @@ function Coverage({ data }) {
 }
 
 function Straddle({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/straddle`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/research/options-history/${enc(sym)}/straddle`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.points))) return null
   const pts = data?.points || []
   const ys = pts.map((p) => p.straddle_pct)
@@ -38,7 +40,7 @@ function Straddle({ sym }) {
   return (
     <section className={styles.panel} data-testid="straddle-history">
       <div className={styles.head}><span className={styles.title}>ATM straddle history</span><span className={styles.badge}>our log</span></div>
-      {failed ? <p className={styles.note}>The straddle history is unavailable right now.</p> : (
+      {failed ? <FailedRead retry={retry} title="The straddle history is unavailable right now." /> : (
         <>
           {pts.length > 1 && (
             <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Front straddle as a percent of the underlying, by session">
@@ -47,7 +49,7 @@ function Straddle({ sym }) {
           )}
           <ul className={styles.list}>
             {pts.slice(-10).reverse().map((p) => (
-              <li key={p.date}>{p.date}: ${num(p.straddle)} = {num(p.straddle_pct)}% of {num(p.underlying_price)} · expires {p.front_expiration} ({p.front_dte}d)</li>
+              <li key={p.date}>{p.date}: {formatCurrency(p.straddle == null ? NaN : Number(p.straddle))} = {pctNum(p.straddle_pct)} of {num(p.underlying_price)} · expires {p.front_expiration} ({p.front_dte}d)</li>
             ))}
           </ul>
           {pts.length === 0 && <p className={styles.note}>No logged session has a two-sided front straddle for {sym}.</p>}
@@ -60,23 +62,23 @@ function Straddle({ sym }) {
 }
 
 function DailyMove({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/daily-move`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/research/options-history/${enc(sym)}/daily-move`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.pairs))) return null
   return (
     <section className={styles.panel} data-testid="daily-move">
       <div className={styles.head}><span className={styles.title}>Implied 1-day move vs actual</span><span className={styles.badge}>computed</span></div>
-      {failed ? <p className={styles.note}>The daily move history is unavailable right now.</p> : (
+      {failed ? <FailedRead retry={retry} title="The daily move history is unavailable right now." /> : (
         <>
           <ul className={styles.list}>
             {data.pairs.slice(-20).reverse().map((p) => (
-              <li key={p.date}>{p.date} → {p.next}: implied ±{num(p.implied_move_pct)}%, actual{' '}
-                <b className={p.inside ? styles.gain : styles.loss}>{p.actual_move_pct > 0 ? '+' : ''}{num(p.actual_move_pct)}%</b>
+              <li key={p.date}>{p.date} → {p.next}: implied ±{pctNum(p.implied_move_pct)}, actual{' '}
+                <b className={p.inside ? styles.gain : styles.loss}>{signedPct(p.actual_move_pct)}</b>
                 <span className={styles.muted}> ({num(p.ratio)}× implied)</span></li>
             ))}
           </ul>
           <p className={styles.facts} data-testid="daily-move-summary">
             {data.summary
-              ? `Across ${data.summary.pairs} sessions the next day's move stayed inside the implied move ${num(data.summary.inside_share, 0)}% of the time (mean ${num(data.summary.mean_ratio)}× implied).`
+              ? `Across ${data.summary.pairs} sessions the next day's move stayed inside the implied move ${pctNum(data.summary.inside_share, 0)} of the time (mean ${num(data.summary.mean_ratio)}× implied).`
               : data.summary_note}
           </p>
           <Coverage data={data} />
@@ -88,14 +90,14 @@ function DailyMove({ sym }) {
 }
 
 function IvCrush({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/iv-crush`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/research/options-history/${enc(sym)}/iv-crush`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.prints))) return null
   const offs = data?.offsets || []
   const cell = (v) => (v == null ? '' : fracPct(v))
   return (
     <section className={styles.panel} data-testid="iv-crush">
       <div className={styles.head}><span className={styles.title}>IV around earnings</span><span className={styles.badge}>our log</span></div>
-      {failed ? <p className={styles.note}>The IV-crush table is unavailable right now.</p> : (
+      {failed ? <FailedRead retry={retry} title="The IV-crush table is unavailable right now." /> : (
         <>
           {data.prints.length > 0 && (
             <div className={styles.scroll}>
@@ -104,7 +106,7 @@ function IvCrush({ sym }) {
                 <tbody>
                   {data.prints.map((p) => (
                     <tr key={p.report_date}><th scope="row">{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
-                      <td>{p.crush_pct == null ? '' : `${num(p.crush_pct, 1)}%`}</td></tr>
+                      <td>{p.crush_pct == null ? '' : pctNum(p.crush_pct, 1)}</td></tr>
                   ))}
                   {data.summary && ['average', 'max', 'min'].map((s) => (
                     <tr key={s}><th scope="row">{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>

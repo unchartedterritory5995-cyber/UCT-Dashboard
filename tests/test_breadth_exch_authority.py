@@ -317,7 +317,12 @@ def test_library_registry_and_search_follow_the_authority(world, monkeypatch):
     assert bu.published_universe_ids() == ["uct", "us", "nasdaq", "nyse"]
     for sym in ("NYSE:A50", "NASDAQ:A50", "NYSE:ADV", "NYSE:DEC", "NASDAQ:NH", "NYSE:NL"):
         assert bs.resolve(sym) is not None, sym
-    assert bs.resolve("US:ADV") is None                                          # US keeps exactly the V1 set
+    # ⭐ V1.1 (finishing pass, 2026-10-07): US gains its stored ADV/DEC; the V2-withheld volume metrics stay dark
+    assert bs.resolve("US:ADV") is not None and bs.resolve("US:HVC") is None and bs.resolve("US:UV") is None
+    # ⭐ the exchange DERIVED ratios follow the authority exactly as NYMO does
+    for sid in ("NYSE:ADR", "NYSE:ADP", "NYSE:UNCH", "NYSE:RHP", "NYSE:HLI", "NASDAQ:ADR", "NASDAQ:UNCH"):
+        r = reg.resolve(sid)
+        assert r is not None and r.status == reg.ST_PUBLISHED, sid
     for alias, sid in (("NYMO", "NYSE:MCO"), ("$NYSI", "NYSE:MCS"), ("NYAD", "NYSE:AD"), ("NAMO", "NASDAQ:MCO"),
                        ("$NASI", "NASDAQ:MCS"), ("NAAD", "NASDAQ:AD"), ("nyse:mco", "NYSE:MCO")):
         r = reg.resolve(alias)
@@ -331,8 +336,17 @@ def test_library_registry_and_search_follow_the_authority(world, monkeypatch):
     producers._cache.clear() if hasattr(producers, "_cache") else None
     ds = producers.build("NYSE:MCO")
     assert ds is not None and dict(zip(ds.dates, ds.values)) == ea.derived("NYSE:MCO")
+    # ⭐ a derived ratio is arithmetic over the authority's OWN counts, recomputed independently here
+    from api.services import breadth_daily_ohlc as store
+    adv, dec = store.history("advancing", universe="nyse"), store.history("declining", universe="nyse")
+    ratio = producers.build("NYSE:ADR")
+    assert ratio is not None and ratio.dates
+    for d, v in zip(ratio.dates, ratio.values):
+        a, b = adv[d]["c"], dec[d]["c"]
+        assert (v is None and not b) or abs(v - a / b) < 1e-12, d
     monkeypatch.setenv("BREADTH_AUTHORITY_EXCH", "off")                          # kill switch: unpublished at once
     assert bu.published_universe_ids() == ["uct", "us"] and reg.resolve("NYMO") is None
+    assert reg.resolve("NYSE:ADR") is None
 
 
 def test_status_is_machine_readable(world):

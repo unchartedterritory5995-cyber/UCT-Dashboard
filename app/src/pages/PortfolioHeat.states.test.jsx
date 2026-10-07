@@ -19,6 +19,16 @@ describe('Portfolio Risk states', () => {
     cleanup()
   })
 
+  it('a computation the server could not finish (ok:false) says why and offers Retry', () => {
+    mutate.mockClear()
+    state = { data: { ok: false, reason: 'no account size on file' }, error: undefined }
+    render(<PortfolioHeat />)
+    expect(screen.getByRole('status').textContent).toMatch(/could not be computed: no account size on file/)
+    screen.getByRole('button', { name: 'Retry' }).click()
+    expect(mutate).toHaveBeenCalled()
+    cleanup()
+  })
+
   it('null percentages render a dash, and a long reads "Long"', () => {
     state = { data: { ok: true, risk_heat_pct: null, notional_exposure_pct: null, room_to_add_pct: null,
       per_position: [{ symbol: 'NVDA', side: 'long', dist_to_stop_pct: 4, risk_pct: 1, placeholder_stop: false }],

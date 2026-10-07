@@ -964,7 +964,7 @@
 }
 
 .reportMeta { color: var(--text-muted); font-size: var(--text-xs); }
-.reportError { color: var(--color-danger); font-size: var(--text-xs); }
+.reportError { color: var(--danger-ink); font-size: var(--text-xs); }
 
 .reportActions { display: flex; gap: 8px; justify-content: flex-end; }
 

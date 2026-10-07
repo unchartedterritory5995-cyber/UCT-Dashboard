@@ -60,9 +60,16 @@ silently.
 
 | Code | Shows | Typed as | Method (stated in the panel) |
 |---|---|---|---|
-| `RRG` | The 11 SPDR sector ETFs, or any ticker list, plotted as RS-Ratio × RS-Momentum against SPY, with an 8-period tail per symbol and a quadrant table (Leading / Weakening / Lagging / Improving, periods in quadrant, period relative return). Row number + Enter opens that symbol's chart | `RRG` · `RRG D` · `RRG SMH IGV XBI` · `NVDA RRG AMD AVGO` | Weekly closes (daily with `D`). RS = 100·sym/bench. RS-Ratio = 100·RS / SMA(RS, 10). RS-Momentum = 100·RS-Ratio / SMA(RS-Ratio, 5). Labelled as **UCT's published approximation**; the JdK formula itself is proprietary (NG-17: no claim we cannot back) |
+| `RRG` | The 11 SPDR sector ETFs, or any ticker list, plotted as RS-Ratio × RS-Momentum against SPY, with an 8-period tail per symbol and a quadrant table (Leading / Weakening / Lagging / Improving, periods in quadrant, period relative return). Clicking a row, or its number + Enter, opens that symbol's chart **beside** the graph (the next panel), so the graph stays on screen | `RRG` · `RRG D` · `RRG SMH IGV XBI` · `NVDA RRG AMD AVGO` | Weekly closes (daily with `D`). RS = 100·sym/bench. RS-Ratio = 100·RS / SMA(RS, 10). RS-Momentum = 100·RS-Ratio / SMA(RS-Ratio, 5). Labelled as **UCT's published approximation**; the JdK formula itself is proprietary (NG-17: no claim we cannot back) |
 | `REL` | Up to 6 symbols rebased to 0 % over 1M/3M/6M/1Y/2Y/YTD (default 6M); a table of return, max drawdown and excess return over the first symbol; and the A÷B ratio of the first two with its 50-session average and a plain-language verdict | `NVDA REL` (vs SPY) · `NVDA REL AMD SMH 1Y` · `REL XLK XLU` | Daily closes, aligned on common sessions only. The overlap count is printed |
-| `CORR` | A correlation matrix of daily returns for 2–10 symbols over 1M/3M/6M/1Y (default 3M), the most and least correlated pairs, and each name's average correlation to the rest | `NVDA CORR AMD MSFT TSLA` · `CORR XLK XLE XLU 6M` · `NVDA CORR` (vs SPY, QQQ) | Pearson on daily simple returns over common sessions; a pair with fewer than 20 common sessions reads "too few sessions", not a number |
+| `CORR` | A correlation matrix of daily returns for 2–10 symbols over 1M/3M/6M/1Y/2Y/YTD (default 3M), the most and least correlated pairs, and each name's average correlation to the rest | `NVDA CORR AMD MSFT TSLA` · `CORR XLK XLE XLU 6M` · `NVDA CORR` (vs SPY, QQQ) | Pearson on daily simple returns over common sessions; a pair with fewer than 20 common sessions reads "too few sessions", not a number |
+
+**Windows (terminal/fn7-ux).** Every window the command line accepts is one the panel draws:
+`REL` and `CORR` both draw every `lookback` window (`args.js` `LOOKBACK_WINDOWS`: 1M, 3M, 6M, 1Y,
+2Y, YTD) and `RRG` draws both cadences (`CADENCES`: D, W). A window a panel cannot draw (a stored
+or hand-built panel, since the command line itself refuses it with the not-applied echo) is **said
+on screen with one line, the same in all three**: "Window 5Y is not available here; showing 6M."
+It is never silently replaced. Railed by `panels/comparePanels.windows.test.jsx`.
 
 **Flags.** None of the three is behind a flag: each is read-only arithmetic over bars every paid
 member already loads on the chart, adds no server load beyond the chart's own reads, and changes no
@@ -95,7 +102,9 @@ Bloomberg 06 §5 warns against copying the rack (thirteen mover codes nobody vis
 | `MOST RVOL` | unusual volume: the names the Volume Surge scanner has lit right now |
 
 Columns: symbol, last, % change, volume, volume vs average, and a **Why** link that opens the
-catalyst board's story inline (with `SYM MOVE` one click further). Sortable on every column
+catalyst board's story inline (with `SYM MOVE` one click further, opened **beside** the list: in a
+new panel after MOST when the board has room, else in the next panel, so the movers list is never
+replaced; a second story reuses that panel). Sortable on every column
 (through the DataGrid seed), filterable by lens, minimum price and minimum volume. Clicking a
 row, or typing its number, **loads that name into the linked group** and keeps every panel's
 function (the shell's Shift+Enter path), so a chart following the group switches to it.
@@ -125,6 +134,8 @@ contribution stays deferred for the reason in #4.
 | `IMOV 1W` · `1M` · `3M` | the same over that window (`1D` is the default) |
 | `NVDA IMOV` | the UCT theme(s) holding NVDA, NVDA's own contribution and its rank |
 | `SPY IMOV` · `XLK IMOV` · `SMH IMOV` | refused, with the reason; a theme-proxy ETF offers that UCT theme by name instead |
+| `IMOV semiconductors` · `IMOV "AI / GPU Chips"` · `NVDA IMOV semis` | a theme **by name** (terminal/fn7-ux): case, spacing and punctuation do not matter, a theme id or ticker works, and a **unique** prefix opens it. A name that fits several themes, or none, gets a visible "did you mean" with one button per theme; a word only found inside a name (`gpu`) is offered, never guessed |
+| `IMOV THEME SEMIS` | the form the panel writes back. One ticker-shaped word alone is still a ticker (`IMOV SMH`, `IMOV NVDA 1W`); two or more free words, or the `THEME` marker, read as a theme. When no theme holds a one-word "ticker" but a theme is called that, the panel offers the theme |
 
 **Method, stated in the panel, labelled "Equal-weighted".** A UCT theme is an equal-weight basket,
 so each name contributes its return over the window ÷ N, where N is the members with a return for
@@ -142,6 +153,11 @@ and why. Only the plain mean is decomposable into per-name contributions that ad
 
 **Source:** `/api/theme-performance`, the cached, live-overlaid payload the Theme Tracker tile
 already polls (same SWR key). No new route, no vendor call, no `api/**` change.
+
+**A hand-picked theme survives.** Choosing a theme (the picker, a membership chip, a proxy or "did
+you mean" button) writes it into the panel's own command (`IMOV THEME <KEY>`, plus a non-default
+window and the panel's security), so it is in the panel's args, the `?cmd=` URL, history and a reload.
+The pick lands in the panel it was made in, not whichever panel is focused.
 
 **Linking:** a row click, or its number + Enter, loads that name into the linked group and keeps
 every panel's function. A panel following the group reopens on the theme it was showing when that
@@ -162,7 +178,9 @@ A list becomes a board of panels in one action, one security per panel.
 
 Also: a **Board of** control (function picker + "Open 4 of N") on MOST and on the embedded
 screener (`components/terminal/BoardFromList.jsx`, one shared control), and a pasted ticker list
-offers "Open them as a board of charts".
+offers "Open them as a board of charts" (this replaced the older "…or open a board with B:<name>"
+wording; no test or doc asserts the old text). HELP's BOARD entry lists the codes the "Board of"
+menu offers, read from the same `scanBoard.boardableCodes` the menu uses.
 
 * **The panel limit is boardModel's** (`MAX_VISIBLE`, 4). A longer list opens its first 4; **Next /
   Previous** page through the rest, and the notice names every name not on screen. Repeats and

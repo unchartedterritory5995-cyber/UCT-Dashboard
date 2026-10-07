@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
+import FailedRead from './FailedRead'
 import CoverageLine from '../../components/provenance/CoverageLine'
 import { sideWords, callPutWords } from './flowWords'
-import { num, fracPct } from './optionsFormat'
+import { count, dollars, num, fracPct, pctNum } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
@@ -24,28 +25,28 @@ const leg = (l) => `${l.type} ${num(l.strike)}`
 // Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
 // They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
 // backtester all print -- and every header says so.
-export const perContract = (v) => (v == null || Number.isNaN(Number(v)) ? '—' : `$${Math.round(Number(v) * 100).toLocaleString()}`)
+export const perContract = (v) => (v == null || Number.isNaN(Number(v)) ? '—' : dollars(Number(v) * 100))
 
 // The server reads at most `candidate_cap` contracts, highest open interest first. Reading exactly
 // the cap means the list was cut, and what it cut is the LOW-OI tail.
 export function capNote(d) {
   if (!d || d.candidate_cap == null || d.candidates_read == null) return null
   if (Number(d.candidates_read) < Number(d.candidate_cap)) return null
-  return `Capped at ${Number(d.candidate_cap).toLocaleString()} contracts by open interest — higher-yield low-OI contracts may be missing.`
+  return `Capped at ${count(d.candidate_cap)} contracts by open interest — higher-yield low-OI contracts may be missing.`
 }
 
 function Row({ kind, r }) {
   if (kind === 'covered_calls') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.premium_yield_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.if_called_pct)}%</td></tr>
+    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.premium_yield_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{pctNum(r.if_called_pct)}</td></tr>
   }
   if (kind === 'cash_secured_puts') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.yield_on_cash_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.breakeven)} ({num(r.cushion_pct)}%)</td></tr>
+    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.yield_on_cash_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{num(r.breakeven)} ({pctNum(r.cushion_pct)})</td></tr>
   }
   const credit = r.credit != null
   return (
     <tr><th scope="row">{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
       <td>{credit ? `+${perContract(r.credit)}` : `-${perContract(r.debit)}`}</td><td>{perContract(r.max_profit)}</td><td>{perContract(r.max_loss)}</td>
-      <td>{credit ? `${num(r.return_on_risk_pct, 1)}%` : `${num(r.reward_to_risk)} : 1`}</td></tr>
+      <td>{credit ? pctNum(r.return_on_risk_pct, 1) : `${num(r.reward_to_risk)} : 1`}</td></tr>
   )
 }
 
@@ -66,7 +67,7 @@ function FirstScreens() {
     if (cat.loading) return null
     if (cat.failed) return (
       <section className={styles.panel} data-testid="strategy-screens">
-        <p className={styles.note} data-testid="strategy-catalog-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>
+        <FailedRead testId="strategy-catalog-unavailable" retry={cat.retry} title={'The strategy screen is unavailable right now. That is not "nothing matched".'} />
       </section>
     )
     return null
@@ -82,7 +83,9 @@ function FirstScreens() {
         </Select>
         <Input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
-      {res.failed && <p className={styles.note} data-testid="strategy-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>}
+      {res.failed && <FailedRead testId="strategy-unavailable" retry={res.retry} title={'The strategy screen is unavailable right now. That is not "nothing matched".'} />}
+      {/* the results read for each strategy / ticker change: a header over nothing until now */}
+      {res.loading && <p className={styles.note} data-testid="strategy-loading">Loading the screen…</p>}
       {res.data && Array.isArray(res.data.rows) && (
         <>
           <p className={styles.muted} data-testid="strategy-basis">
@@ -111,12 +114,12 @@ function MoreRow({ kind, r }) {
       <td>-{perContract(r.debit)}</td><td>{perContract(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
   }
   if (kind === 'by_expiration') {
-    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
-      <td>{Number(r.open_interest).toLocaleString()}</td><td>{r.call_share_pct == null ? '—' : `${num(r.call_share_pct, 1)}%`}</td>
+    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{count(r.volume)}</td>
+      <td>{count(r.open_interest)}</td><td>{pctNum(r.call_share_pct, 1)}</td>
       <td>{fracPct(r.atm_iv)}</td></tr>
   }
   return <tr><th scope="row">{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
-    <td>${Math.round(r.premium).toLocaleString()}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
+    <td>{dollars(r.premium)}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
 }
 
 const MORE_HEADS = {
@@ -136,7 +139,7 @@ export function MoreStrategyScreens() {
     if (cat.loading) return null
     if (cat.failed) return (
       <section className={styles.panel} data-testid="more-strategy-screens">
-        <p className={styles.note} data-testid="more-catalog-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>
+        <FailedRead testId="more-catalog-unavailable" retry={cat.retry} title={'This screen is unavailable right now. That is not "nothing matched".'} />
       </section>
     )
     return null
@@ -152,7 +155,8 @@ export function MoreStrategyScreens() {
         </Select>
         <Input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
-      {res.failed && <p className={styles.note} data-testid="more-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>}
+      {res.failed && <FailedRead testId="more-unavailable" retry={res.retry} title={'This screen is unavailable right now. That is not "nothing matched".'} />}
+      {res.loading && <p className={styles.note} data-testid="more-loading">Loading the screen…</p>}
       {d && Array.isArray(d.rows) && (
         <>
           <p className={styles.muted} data-testid="more-basis">
@@ -179,7 +183,7 @@ export function MoreStrategyScreens() {
 // ── FT-075 Sizzle ──────────────────────────────────────────────────────────────
 
 export function SizzlePanel() {
-  const { data, hidden, failed } = useDarkSection('/api/options-screener/sizzle')
+  const { data, hidden, failed, retry } = useDarkSection('/api/options-screener/sizzle')
   if (hidden || (!data && !failed) || (data && !('method' in data))) return null
   return (
     <section className={styles.panel} data-testid="sizzle">
@@ -187,7 +191,7 @@ export function SizzlePanel() {
         <span className={styles.title}>Sizzle, 5-day</span>
         <span className={styles.badge}>computed</span>
       </div>
-      {failed ? <p className={styles.note}>Sizzle is unavailable right now. That is not "no unusual volume".</p> : (
+      {failed ? <FailedRead retry={retry} title={'Sizzle is unavailable right now. That is not "no unusual volume".'} /> : (
         <>
           <p className={styles.facts} data-testid="sizzle-history">
             {data.session ? `Session ${data.session}` : 'No session logged yet'} · {data.prior_sessions ?? 0} prior session{data.prior_sessions === 1 ? '' : 's'} held
@@ -200,7 +204,7 @@ export function SizzlePanel() {
                 <thead><tr><th scope="col">Ticker</th><th scope="col">Sizzle</th><th scope="col">Volume</th><th scope="col">5-session mean</th></tr></thead>
                 <tbody>
                   {data.ranked.map((r) => (
-                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{Number(r.volume).toLocaleString()}</td><td>{Number(r.average).toLocaleString()}</td></tr>
+                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{count(r.volume)}</td><td>{count(r.average)}</td></tr>
                   ))}
                 </tbody>
               </table>

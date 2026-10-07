@@ -830,7 +830,7 @@ import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
-import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
+import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
 import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
 import { withPrimaryProduct } from './chart/engine/primaryProduct'
 // ⭐ ECONOMIC PRIMARY CHART (`ECON:<SYMBOL>`) + economic overlays (`econ:`). Every
@@ -1240,6 +1240,25 @@ function computeEMA(bars, period, fromStart = false) {
 // value at the same index (mirrors the toolbar's `parseInt(v) || old`), falling back
 // to 20 only when there's no prior. Returns the same object reference when nothing
 // needed fixing, so it never churns identity on the common path.
+/**
+ * ⭐ A PERCENT CHANGE ONLY WHERE ONE MEANS SOMETHING (Breadth finishing pass, 2026-10-07).
+ *
+ * `change ÷ reference × 100` is a price idea. It was applied to every primary series, so a
+ * Net New Highs-Lows bar going −125 → −144 read "−129.03%" (the reference was the OPEN of a
+ * close-to-close body, and negative). Two rules:
+ *   • the reference must be POSITIVE — a ratio over zero or a negative is not a percent move;
+ *   • a SIGNED series (catalogue domain `signed`: Net H-L, McClellan, A/D line, net advances)
+ *     has no percent change at all — its point change IS the reading.
+ * Returns `null` when there is none; the legend then prints the point change alone.
+ */
+export function signSafeChangePct(change, reference, signed) {
+  if (signed) return null
+  const ref = Number(reference)
+  const chg = Number(change)
+  if (!Number.isFinite(ref) || !Number.isFinite(chg) || ref <= 0) return null
+  return (chg / ref) * 100
+}
+
 export function sanitizeOverlayPeriods(next, prev) {
   if (!next || !Array.isArray(next.overlays)) return next
   const okPeriod = (p) => { const n = Math.floor(Number(p)); return Number.isFinite(n) && n >= 1 && n <= 500 ? n : null }
@@ -4855,7 +4874,7 @@ export default function StockChart({
       change = feedChg != null ? feedChg : (prevClose != null ? c - prevClose : c - o)
     } else {
       change = prevClose != null ? c - prevClose : c - o
-      changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
+      changePct = signSafeChangePct(change, prevClose != null ? prevClose : o, canonicalDomain(symRef.current) === 'signed')
     }
     const ovData = overlayDataRef.current || []
     const rovs = resolvedOverlaysRef.current || []
@@ -4867,7 +4886,7 @@ export default function StockChart({
     const vma = volMaDataRef.current
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
-      change: change.toFixed(2), changePct: changePct.toFixed(2),
+      change: change.toFixed(2), changePct: changePct == null ? '' : changePct.toFixed(2),
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
       // ⭐ THE CHIPS THE OFF-CURSOR LEGEND NOW PRINTS. This line read
@@ -15289,7 +15308,7 @@ export default function StockChart({
         } catch { /* first bar / out of range */ }
       }
       const change = (prevClose != null) ? (c - prevClose) : (c - o)
-      const changePct = (prevClose != null && prevClose) ? ((change / prevClose) * 100) : (o ? ((change / o) * 100) : 0)
+      const changePct = signSafeChangePct(change, prevClose != null ? prevClose : o, canonicalDomain(symRef.current) === 'signed')
 
       // ── THE INDICATOR CHIPS — ONE PIPELINE, ONE LANE (B5 Task 6) ──────────
       //
@@ -15361,7 +15380,7 @@ export default function StockChart({
         open: o, high: h, low: l, close: c,
         volume: vol,
         change: change.toFixed(2),
-        changePct: changePct.toFixed(2),
+        changePct: changePct == null ? '' : changePct.toFixed(2),
         volAvg,
         volMaPeriod: volMaPeriodEff || null,
         overlays: ovValues,
@@ -19258,7 +19277,7 @@ export default function StockChart({
                     {legUp ? '+' : '−'}{String(crosshairData.change).replace(/^-/, '')}
                   </span>
                 )}
-                {barShows('changePct') && (
+                {barShows('changePct') && crosshairData.changePct !== '' && (
                   <span className={styles.barChg} style={{ color: legChgColor }}>
                     {legUp ? '+' : '−'}{String(crosshairData.changePct).replace(/^-/, '')}%
                   </span>
@@ -19474,7 +19493,7 @@ export default function StockChart({
               return c ? { color: c } : undefined
             })()}
           >
-            {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
+            {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change}{crosshairData.changePct !== '' ? ` (${crosshairData.changePct}%)` : ''}
           </span>
           {liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
             <LegendRow

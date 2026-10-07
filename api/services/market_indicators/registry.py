@@ -331,6 +331,93 @@ def _exchange_row(universe: str, kind: str) -> "Series":
                              f"in one forward pass, starting at 0 on {EXCHANGE_START[universe]}.")
 
 
+# ── Derived breadth ratios (Breadth finishing pass, 2026-10-07) ──────────────
+#
+# ⭐⭐ ARITHMETIC OVER COUNTS THE AUTHORITIES ALREADY PUBLISH, AND NOTHING ELSE. Every input
+# below is a stored, accepted breadth metric (`advancing`, `declining`, `unchanged`,
+# `new_52w_highs`, `new_52w_lows`) read through `breadth_daily_ohlc.history()` — the same
+# one-directional door US:ZBT and US:AD use. No new data, no new grind, no methodology
+# beyond the textbook formula stated on each row.
+#
+# ⛔ A ZERO DENOMINATOR IS A HOLE, NEVER A ZERO. A session with no declining issues has no
+# A/D ratio; a session with no new highs AND no new lows has no Record High Percent. The
+# producer emits None and the chart draws a gap, because a 0 would read as "everything
+# declined" / "no highs" — the opposite of what happened.
+#
+# ⚠️ US HAS NO UNCHANGED SERIES: US Breadth V2 does not store `unchanged`, and the
+# directional count is not `universe_count` (some constituents have no prior close), so it
+# cannot be derived either. NYSE / NASDAQ store it directly.
+
+#: kind → (metric_name, metric_short, unit, domain, presentation, centerline, reference_lines,
+#:         synonyms, methodology)
+_RATIO_KINDS = {
+    "ADR": ("Advance/Decline Ratio", "A/D Ratio", UNIT_RATIO, DOMAIN_RATIO, PRES_LINE, None, (1.0,),
+            ("ADVANCE DECLINE RATIO", "AD RATIO", "A/D RATIO", "ADVANCE DECLINE", "ADVANCES DECLINES"),
+            "Advancing issues ÷ declining issues for the session. 1.0 = as many advancers as "
+            "decliners. No value on a session with zero decliners (undefined, drawn as a gap)."),
+    "ADP": ("Advance/Decline Percent", "A/D %", UNIT_PERCENT, DOMAIN_SIGNED, PRES_HISTOGRAM, 0.0,
+            (-70.0, 70.0),
+            ("ADVANCE DECLINE PERCENT", "AD PERCENT", "A/D PERCENT", "NET ADVANCES PERCENT",
+             "ADVANCE DECLINE"),
+            "(Advancing − Declining) ÷ (Advancing + Declining) × 100, from −100 to +100. Unchanged "
+            "issues are excluded from the denominator, matching the McClellan and Zweig rows in "
+            "this catalogue (StockCharts' AD Percent divides by all issues, so values differ "
+            "slightly). Readings beyond ±70 are broad-participation sessions."),
+    "UNCH": ("Unchanged Issues", "Unchanged", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, None, (),
+             ("UNCHANGED", "UNCHANGED ISSUES", "UNCH"),
+             "Constituents whose close equalled the prior session's close. Stored by the exchange "
+             "authority beside advancing and declining; advancing + declining + unchanged is the "
+             "session's directional count."),
+    "RHP": ("Record High Percent", "Record High %", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, None, (50.0,),
+            ("RECORD HIGH PERCENT", "HIGH LOW PERCENT", "NEW HIGHS PERCENT", "HIGHS LOWS RATIO"),
+            "New 52-week highs ÷ (new 52-week highs + new 52-week lows) × 100. Above 50 = highs "
+            "outnumber lows. No value on a session with neither (undefined, drawn as a gap)."),
+    "HLI": ("High-Low Index", "High-Low Idx", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, None, (30.0, 50.0, 70.0),
+            ("HIGH LOW INDEX", "HILO", "HIGH LOW", "NEW HIGHS NEW LOWS"),
+            "10-session simple moving average of Record High Percent. Needs ten consecutive defined "
+            "Record High Percent sessions; above 50 = highs dominating, above 70 a strong uptrend, "
+            "below 30 a strong downtrend."),
+}
+RATIO_KINDS = tuple(_RATIO_KINDS)
+#: Which universes carry which derived kinds. ⛔ US has no UNCH (see above).
+RATIO_UNIVERSES = {"us": ("ADR", "ADP", "RHP", "HLI"),
+                   "nyse": ("ADR", "ADP", "UNCH", "RHP", "HLI"),
+                   "nasdaq": ("ADR", "ADP", "UNCH", "RHP", "HLI")}
+_RATIO_INPUTS = {"ADR": "advancing / declining", "ADP": "advancing / declining",
+                 "UNCH": "unchanged", "RHP": "new_52w_highs / new_52w_lows",
+                 "HLI": "new_52w_highs / new_52w_lows"}
+_EXCH_POP_SHORT = ("UCT calculation over point-in-time %s-listed operating equity (Exchange Breadth V1); "
+                   "not the vendor's all-issues %s composite, so values differ by design.")
+
+
+def _ratio_row(universe: str, kind: str) -> "Series":
+    name, short, unit, domain, pres, centre, refs, syn, method = _RATIO_KINDS[kind]
+    X = "US" if universe == "us" else ("NYSE" if universe == "nyse" else "NASDAQ")
+    exch = universe in ("nyse", "nasdaq")
+    label = {"us": "US", "nyse": "NYSE", "nasdaq": "Nasdaq"}[universe]
+    pop = (_EXCH_POP_SHORT % (label, label)) if exch else (
+        "Computed over UCT's US common-stock universe (US Breadth V2, point-in-time).")
+    return Series(
+        id=f"{X}:{kind}", family=FAM_BREADTH, source_type=SRC_BREADTH_DERIVED,
+        # ⛔ Exchange rows follow the exchange authority exactly as NYSE:MCO does: dormant in the
+        # table, published only while `breadth_exchange_authority` serves their universe.
+        status=ST_DORMANT if exch else ST_PUBLISHED,
+        frequency=FREQ_DAILY, unit=unit, domain=domain, universe=universe,
+        metric_name=name, metric_short=short,
+        synonyms=tuple(syn) + (f"{label.upper()} {name.upper()}",),
+        presentation=pres, centerline=centre, reference_lines=refs,
+        methodology=method + " " + pop,
+        methodology_version=f"breadth-ratio-v1/{kind.lower()}",
+        history_start=EXCHANGE_START[universe] if exch else "2008-01-02",
+        observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
+        provenance=f"Derived from breadth_daily_ohlc `{_RATIO_INPUTS[kind]}` for universe "
+                   f"`{universe}` (read-only, recomputed from full history on every build).",
+        source_owner="UCT", licensing="Own data.",
+        blocked_on=("Published only while `breadth_exchange_authority` serves this universe "
+                    "(BREADTH_AUTHORITY_EXCH=v1).") if exch else "",
+    )
+
+
 # ── The catalogue ────────────────────────────────────────────────────────────
 
 _ROWS: list[Series] = [
@@ -467,6 +554,9 @@ _ROWS: list[Series] = [
         provenance="Derived from breadth_daily_ohlc `advancing`/`declining` for `us`.",
         source_owner="UCT", licensing="Own data.",
     ),
+
+    # ⭐ Derived ratios over published counts — see `_RATIO_KINDS`. 14 rows: US ×4, NYSE ×5, NASDAQ ×5.
+    *[_ratio_row(u, k) for u in ("us", "nyse", "nasdaq") for k in RATIO_UNIVERSES[u]],
 
     # ── Sentiment & Positioning ─────────────────────────────────────────────
     Series(
@@ -910,7 +1000,9 @@ SERIES_IDS = [s.id for s in _ROWS]
 #: Exchange Breadth V1 rows: DORMANT in the table, PUBLISHED exactly while the exchange authority serves
 #: their universe (`breadth_exchange_authority.serves`). One predicate, read by every accessor below, so
 #: the catalogue, search, `/api/bars` and the metadata route can never disagree.
-EXCHANGE_SERIES_IDS = frozenset(f"{x}:{k}" for x in ("NYSE", "NASDAQ") for k in ("MCO", "MCS", "AD"))
+EXCHANGE_SERIES_IDS = frozenset(
+    [f"{x}:{k}" for x in ("NYSE", "NASDAQ") for k in ("MCO", "MCS", "AD")]
+    + [f"{u.upper()}:{k}" for u in ("nyse", "nasdaq") for k in RATIO_UNIVERSES[u]])
 _LIVE_ROW: dict = {}
 
 

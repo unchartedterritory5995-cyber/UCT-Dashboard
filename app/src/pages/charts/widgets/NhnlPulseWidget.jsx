@@ -22,6 +22,7 @@ import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './NhnlPulseWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { useThemeInk, CHROME_INK, withAlpha } from '../../../lib/theme'
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
 // widget drew as an empty pulse reading "New Highs 0 / New Lows 0". Now SWR keeps the last good answer through a failed poll, and a
@@ -29,8 +30,14 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
-const GREEN = '#34d17c'   // default new-high line (matches --ut-green-bright); overridden
-const RED = '#f24b42'     // default new-low line — both follow the widget's Highs/Lows theme
+// Chart inks from the member's app theme (lib/theme): the up/down defaults are the theme's
+// bright candle green/red (a member's own pick in ⚙ still wins), and the axis/tooltip chrome
+// is the theme's text and surface, so the chart reads on a light page as on a dark one.
+const CHART_INK = {
+  up: ['--ut-green-bright', '#34d17c'], down: ['--ut-red-bright', '#f24b42'],
+  text: CHROME_INK.text, muted: CHROME_INK.muted, bright: CHROME_INK.bright,
+  elevated: CHROME_INK.elevated, bg: CHROME_INK.bg,
+}
 
 function fmtClock(v) {
   try {
@@ -40,10 +47,10 @@ function fmtClock(v) {
   } catch { return '' }
 }
 
-function makeOption(series, green, red) {
+function makeOption(series, green, red, ink) {
   const highs = series.map(p => [new Date(p.t).getTime(), p.hi])
   const lows = series.map(p => [new Date(p.t).getTime(), p.lo])
-  const axisText = { color: '#a9a9b2', fontSize: 10, fontFamily: CHART_FONT_FAMILY }
+  const axisText = { color: ink.muted, fontSize: 10, fontFamily: CHART_FONT_FAMILY }
   const lastIdx = series.length - 1
   // Reserve a little whitespace to the right of the live point so its glowing dot
   // sits just inside the border instead of being clipped at the edge.
@@ -58,7 +65,7 @@ function makeOption(series, green, red) {
     showSymbol: true, symbol: 'circle',
     symbolSize: (_v, p) => (p.dataIndex === lastIdx ? 6 : 0),
     lineStyle: { color, width: 2 },
-    itemStyle: { color, borderColor: '#0c0c0f', borderWidth: 1.5 },   // no glow
+    itemStyle: { color, borderColor: ink.bg, borderWidth: 1.5 },   // no glow
   })
   return {
     // No update animation: the line + its live dot update together each tick (dot
@@ -70,19 +77,19 @@ function makeOption(series, green, red) {
     legend: {
       data: ['New Highs', 'New Lows'],
       right: 6, top: 2, itemWidth: 16, itemHeight: 8, itemGap: 14,
-      textStyle: { color: '#ededf2', fontSize: 11, fontWeight: 600, fontFamily: CHART_FONT_FAMILY },
+      textStyle: { color: ink.text, fontSize: 11, fontWeight: 600, fontFamily: CHART_FONT_FAMILY },
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(18,18,22,0.96)',
-      borderColor: 'rgba(255,255,255,0.12)',
-      textStyle: { color: '#f2f2f5', fontSize: 11.5, fontFamily: CHART_FONT_FAMILY },
-      axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.28)' } },
+      backgroundColor: withAlpha(ink.elevated, 0.96),
+      borderColor: withAlpha(ink.text, 0.12),
+      textStyle: { color: ink.bright, fontSize: 11.5, fontFamily: CHART_FONT_FAMILY },
+      axisPointer: { type: 'line', lineStyle: { color: withAlpha(ink.text, 0.28) } },
       valueFormatter: (v) => (Math.round(v * 10) / 10).toFixed(1),
     },
     xAxis: {
       type: 'time', max: xMax,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.18)' } },
+      axisLine: { lineStyle: { color: withAlpha(ink.text, 0.18) } },
       axisTick: { show: false },
       axisLabel: { ...axisText, hideOverlap: true, formatter: fmtClock },
       splitLine: { show: false },
@@ -90,9 +97,9 @@ function makeOption(series, green, red) {
     yAxis: {
       type: 'value', min: 0,
       name: 'alerts / sec', nameGap: 8, nameLocation: 'end',
-      nameTextStyle: { color: '#c7c7cf', fontSize: 10, fontFamily: CHART_FONT_FAMILY, align: 'left' },
+      nameTextStyle: { color: ink.muted, fontSize: 10, fontFamily: CHART_FONT_FAMILY, align: 'left' },
       axisLabel: axisText,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
+      splitLine: { lineStyle: { color: withAlpha(ink.text, 0.07) } },
     },
     series: [
       liveLine('New Highs', highs, green, 3),
@@ -106,8 +113,9 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
   const settings = useMemo(() => mergeNhnlSettings(opts?.settings || null), [opts?.settings])
   const styleVars = useMemo(() => nhnlWidgetStyleVars(settings), [settings])
   // Chart lines follow the widget's Highs/Lows theme colors (fall back to the defaults).
-  const green = settings.upColor || GREEN
-  const red = settings.downColor || RED
+  const ink = useThemeInk(CHART_INK)
+  const green = settings.upColor || ink.up
+  const red = settings.downColor || ink.down
 
   const rootRef = useRef(null)
   const gearRef = useRef(null)
@@ -133,7 +141,7 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
   const series = data?.series || []
-  const option = useMemo(() => makeOption(series, green, red), [series, green, red])
+  const option = useMemo(() => makeOption(series, green, red, ink), [series, green, red, ink])
 
   // Live readout (alerts/sec): average the last few points so the numbers don't jitter.
   const round1 = (n) => Math.round(n * 10) / 10

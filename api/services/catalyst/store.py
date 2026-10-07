@@ -956,6 +956,25 @@ def try_record_alert(user_id: str, ticker: str, market_date: str) -> bool:
             return False
 
 
+def spend_by_ticker(market_date: str) -> list:
+    """``[(ticker, usd)]`` for one market date -- the raw split `cost_guard`
+    classifies into interactive / background. READ-ONLY."""
+    with contextlib.closing(_connect()) as c:
+        return [(r[0], float(r[1] or 0.0)) for r in c.execute(
+            "SELECT ticker, COALESCE(SUM(cost_usd), 0.0) FROM catalyst_cost_log"
+            " WHERE market_date = ? GROUP BY ticker", (market_date,)).fetchall()]
+
+
+def spend_for_ticker(market_date: str, ticker: str) -> float:
+    """What one ledger ``ticker`` (e.g. ``concierge:<user>``) spent on one market
+    date -- the PERSISTENT per-member allowance reading. READ-ONLY."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM catalyst_cost_log"
+            " WHERE market_date = ? AND ticker = ?", (market_date, ticker)).fetchone()
+    return float(row[0] or 0.0)
+
+
 def cost_stats_mtd(year_month: str) -> dict:
     """year_month format: 'YYYY-MM'. Returns aggregate for that month."""
     with contextlib.closing(_connect()) as c:

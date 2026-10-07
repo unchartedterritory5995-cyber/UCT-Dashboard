@@ -32,6 +32,10 @@ export default function OverviewPanel({ sym }) {
       retryReport={report.retry}
       error={data.error}
       mutate={data.mutate}
+      statsState={data.statsState}
+      retryStats={data.retryStats}
+      loading={data.loading}
+      aiLoading={data.aiLoading}
     />
   )
 }

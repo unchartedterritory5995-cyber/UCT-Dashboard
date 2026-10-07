@@ -24,7 +24,7 @@
   height: 34px;
   padding: 0 8px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  border-bottom: 1px solid var(--cal-divider, var(--divider, color-mix(in srgb, var(--text) 8%, transparent)));
   flex: 0 0 auto;
 }
 .navBtn {
@@ -42,7 +42,7 @@
   line-height: 1;
   flex: 0 0 auto;
 }
-.navBtn:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.06)); }
+.navBtn:hover { background: var(--cal-row-hover, color-mix(in srgb, var(--text) 6%, transparent)); }
 .dateWrap { display: inline-flex; flex-direction: column; align-items: center; min-width: 0; line-height: 1.15; }
 .dateMain {
   font-weight: 700;
@@ -80,7 +80,7 @@
 }
 .gearBtn:hover, .gearBtnActive {
   color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
-  background: var(--cal-row-hover, rgba(255, 255, 255, 0.06));
+  background: var(--cal-row-hover, color-mix(in srgb, var(--text) 6%, transparent));
 }
 /* Body */
 .list { flex: 1; min-height: 0; overflow-y: auto; }
@@ -89,7 +89,7 @@
    gold, bolder header on an opaque band so one section never blends into the next
    (and you always see which section you're scrolling through). */
 .section { padding-bottom: 4px; }
-.section + .section { margin-top: 8px; border-top: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.1))); }
+.section + .section { margin-top: 8px; border-top: 1px solid var(--cal-divider, var(--divider, color-mix(in srgb, var(--text) 10%, transparent))); }
 .sectionHead {
   position: sticky;
   top: 0;
@@ -108,13 +108,13 @@
      chrome tone, bright fallback on the default dark themes. */
   color: var(--cal-chrome-strong, var(--cal-text, var(--text, #f0efea)));
   background: var(--cal-bg-solid, var(--widget-canvas, var(--bg, #0e0f0d)));
-  border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  border-bottom: 1px solid var(--cal-divider, var(--divider, color-mix(in srgb, var(--text) 8%, transparent)));
   /* Gold leading-edge accent (inset so it never shifts the header content). */
   box-shadow: inset 2px 0 0 var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
 }
 .sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); display: inline-flex; }
-.sectionHead.pre .headIcon { color: #e0a53c; }
-.sectionHead.post .headIcon { color: #6f8dbf; }
+.sectionHead.pre .headIcon { color: var(--warn); }
+.sectionHead.post .headIcon { color: var(--info); }
 /* Clickable title (→ sort by market cap) + clickable EPS/REV column labels
    (→ sort by that surprise; click again reverses). */
 .headTitle {
@@ -152,7 +152,7 @@
   padding: 6px 10px 6px 12px;
   border-left: 2px solid transparent;
 }
-.econRow.key { border-left-color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); background: var(--cal-tint, rgba(255, 255, 255, 0.03)); }
+.econRow.key { border-left-color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); background: var(--cal-tint, color-mix(in srgb, var(--text) 3%, transparent)); }
 .econTime {
   font-family: var(--font-mono, monospace);
   font-size: 0.74em;
@@ -176,7 +176,7 @@
   padding: 0 4px;
   border-radius: var(--radius-sm);
   color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
-  border: 1px solid color-mix(in srgb, var(--cal-gold-strong, #dcbb5e) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cal-gold-strong, var(--ut-gold)) 45%, transparent);
   vertical-align: 1px;
 }
 .econStats {
@@ -194,8 +194,8 @@
    that file emits the CSS vars ONLY when the user picks a non-default color, so the
    default look comes from these fallbacks. */
 .timeBox {
-  background: var(--cal-highbox, #ce000a);
-  color: var(--cal-highbox-text, #ffffff);
+  background: var(--cal-highbox, var(--loss));
+  color: var(--cal-highbox-text, var(--bg));
   padding: 1px 5px;
   border-radius: var(--radius-sm);
   font-weight: 700;
@@ -221,11 +221,11 @@
   padding: 6px 10px;
   cursor: pointer;
 }
-.earnRow:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.03)); }
+.earnRow:hover { background: var(--cal-row-hover, color-mix(in srgb, var(--text) 3%, transparent)); }
 /* Clicked/selected row — stays highlighted with the SAME grey as hover; ↑/↓ moves
    the selection through the list. */
 .earnRowSelected, .earnRowSelected:hover {
-  background: var(--cal-row-hover, rgba(255, 255, 255, 0.03));
+  background: var(--cal-row-hover, color-mix(in srgb, var(--text) 3%, transparent));
 }
 .earnSym {
   font-family: var(--font-mono, monospace);
@@ -234,7 +234,7 @@
   letter-spacing: 0.3px;
   /* Bright white by default (the symbolColor setting is emitted only when the user
      picks a non-default color); light theme emits its own dark symbol color. */
-  color: var(--cal-symbol, #f8f7f3);
+  color: var(--cal-symbol, var(--text));
   flex: 0 0 auto;
 }
 /* Company name in parens — dims + ellipsizes, and hides entirely when the widget
@@ -348,7 +348,7 @@
   letter-spacing: 0.5px;
   cursor: pointer;
 }
-.showAll:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.04)); }
+.showAll:hover { background: var(--cal-row-hover, color-mix(in srgb, var(--text) 4%, transparent)); }
 .showAll .chev { margin-left: auto; display: inline-flex; transition: transform 140ms ease; }
 .showAll.open .chev { transform: rotate(90deg); }
 

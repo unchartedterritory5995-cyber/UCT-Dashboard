@@ -106,8 +106,8 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
-.pos { color: var(--gain); }
-.neg { color: var(--loss); }
+.pos { color: var(--success-ink); }
+.neg { color: var(--danger-ink); }
 
 .tileX {
   position: absolute;

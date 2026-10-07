@@ -1,8 +1,8 @@
 // BRK-01 increment 4 (roadmap RM-L01): the words and numbers of the options strategy backtester.
 // Pure; no React. The server (api/services/options_backtest.py) does every computation; this file
 // only says what came back, and never fills a gap the server left open.
-import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import { num } from '../../optionsAnalytics/optionsFormat'
+import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { dollars, num } from '../../optionsAnalytics/optionsFormat'
 
 export const ENTRY_DTES = [7, 14, 30, 45]
 export const EXIT_PCTS = [25, 50, 75, 100]
@@ -15,10 +15,11 @@ export const offsetLabel = (k) => {
   return `${n} strike${n === 1 ? '' : 's'} ${k > 0 ? 'above' : 'below'} the money`
 }
 
+// Whole dollars, grouped, the "$" from the shared primitive (was a hand-made `-$`): "$1,234",
+// "-$560". A loss that rounds to nothing reads "$0", never "-$0".
 export function money(v) {
   if (v === null || v === undefined || !Number.isFinite(Number(v))) return '—'
-  const n = Number(v)
-  return `${n < 0 ? '-' : ''}$${formatNumber(Math.round(Math.abs(n)))}`
+  return dollars(Number(v))
 }
 
 const strikeTxt = (k) => (Number.isInteger(k) ? String(k) : num(k))

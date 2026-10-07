@@ -69,6 +69,37 @@ export function usePanelList(list = null) {
 }
 
 /**
+ * A list panel's NUMBERED ROWS, reported up to the shell — the embedded-component twin of the
+ * `onRows` prop the shell hands its own command panels (MOST, RRG, IMOV). `rows` is the command
+ * each visible row runs, in display order: `$SYM` loads that name into the linked group (row
+ * <GO> = clicking the name), `SYM CODE` runs a function. Typing `3` + Enter while the panel is
+ * focused runs row 3. Only the FOCUSED panel's rows are addressable: the shell hands
+ * `publishRows` to the focused panel alone (it is undefined otherwise), so focusing a panel
+ * re-publishes its rows. A harmless no-op outside a terminal panel.
+ */
+export function usePanelRows(rows = null) {
+  const api = useContext(PanelListContext)
+  const publishRows = api?.publishRows
+  useEffect(() => {
+    publishRows?.(Array.isArray(rows) ? rows : [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publishRows, JSON.stringify(rows)])
+}
+
+/**
+ * The common case: a list whose rows each name ONE security. Publishes `$SYM` per visible row
+ * (duplicates kept — row N is the Nth row on screen) and the de-duplicated names as the panel's
+ * list for `BOARD <FUNC>` / the "Board of" control. Returns the de-duplicated names.
+ */
+export function usePanelSymbolRows(syms, label, { total = null } = {}) {
+  const shown = (Array.isArray(syms) ? syms : []).map((s) => String(s || '').trim().toUpperCase()).filter(Boolean)
+  const unique = [...new Set(shown)]
+  usePanelRows(shown.map((s) => `$${s}`))
+  usePanelList(unique.length ? { syms: unique, label, ...(total != null ? { total } : {}) } : null)
+  return unique
+}
+
+/**
  * A panel body reports its own freshness up to the terminal panel header.
  *
  * `freshness` is the exact prop shape `<FreshnessBadge>` consumes — any subset of

@@ -44,13 +44,13 @@ import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
-import { COMMAND_PANELS, FLUSH_PANELS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
+import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel,
-  isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelChannel, panelSym, popoutHref, presetFor,
+  isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
   recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
@@ -259,6 +259,13 @@ export function Panel({
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
   const frame = useMemo(() => ({ code: panel.code, density, inset: !flush }), [panel.code, density, flush])
   const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
+  // A panel's links say WHERE they act from: `next` opens beside this panel, `here` re-runs a
+  // command in this panel's own slot. Everything else reaches the shell untouched.
+  const runHere = useCallback((text, o) => {
+    if (o?.next) return onRun?.(text, { ...o, from: index })
+    if (o?.here) return onRun?.(text, { ...o, slot: index + 1 })
+    return onRun?.(text, o)
+  }, [onRun, index])
   // Scan-to-board: a list panel reports the names it shows, and its "Board of" control opens
   // them as a board (components/terminal/BoardFromList). Keyed by the same owner as the rows,
   // so a list from a panel since closed or replaced is never the one `BOARD` reads.
@@ -267,7 +274,10 @@ export function Panel({
     openBoard: (req) => onBoard?.(req),
     codes: boardCodes || [],
     pageSize: BOARD_PAGE,
-  } : null), [onList, onBoard, owner, boardCodes])
+    // An embedded list's numbered rows (`usePanelRows`): the same focused-only `onRows` the
+    // command panels get as a prop, so row <GO> reaches page/tab lists that are never forked.
+    publishRows: rowsProp,
+  } : null), [onList, onBoard, owner, boardCodes, rowsProp])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
@@ -386,9 +396,9 @@ export function Panel({
                 <Suspense fallback={<PanelSkeleton label={`Loading ${panel.code}`} shape={flush ? 'chart' : 'rows'}
                   testId={`terminal-loading-${index}`} />}>
                   {r.name === 'Help'
-                    ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} auth={auth} />
+                    ? <Comp {...r.props} onRun={runHere} onRows={rowsProp} {...helpProps} auth={auth} />
                     : COMMAND_PANELS.has(r.name)
-                      ? <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} onRun={onRun} onRows={rowsProp} />
+                      ? <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} onRun={runHere} onRows={rowsProp} />
                       : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
                 </Suspense>
               </TerminalPanelContext.Provider>
@@ -616,7 +626,7 @@ export default function TerminalShell() {
 
   /** Run one command line. Returns the panel text it put in a panel, or null. A board
    *  address (`B:<slug>`) opens that board; everything else goes through the ONE parser. */
-  const run = useCallback((text, { fromUrl = false, slot = null } = {}) => {
+  const run = useCallback((text, { fromUrl = false, slot = null, next: beside = false, from = null } = {}) => {
     const raw = normalizeInput(text)
     setNotice(null)
     const seq = ++runSeqRef.current
@@ -729,6 +739,10 @@ export default function TerminalShell() {
       // A `$SYM` row (MOST's list) LOADS the name into the linked group and keeps every
       // panel's function, exactly as clicking that row does — it never turns the list into DES.
       if (!fromUrl && isLoadRow(target) && loadSecurityRef.current) return loadSecurityRef.current(target)
+      // A row of a list that opens BESIDE itself (RRG's `SYM GP`) does the same typed as clicked.
+      const focusIdx = Math.min(lay.focus, lay.count - 1)
+      const listName = resolvePanel(lay.panels[focusIdx], symsRef.current, auth).name
+      if (!fromUrl && ROWS_OPEN_BESIDE.has(listName)) return run(target, { next: true, from: focusIdx })
       return run(target, { fromUrl })
     }
     countCommand(cmd)
@@ -757,12 +771,25 @@ export default function TerminalShell() {
       if (board) { openNamed(board, { sym: cmd.sym }); return null }
     }
 
-    const cur = layoutRef.current
+    let cur = layoutRef.current
     let at = Math.min(cur.focus, cur.count - 1)
     // A URL command names the panel SLOT it was showing in (`&p=N`): back/forward puts the
     // command back where it was, not into whichever panel is focused now. A slot this board
     // no longer shows falls back to the focused panel.
     if (!cmd.channel && Number.isInteger(slot) && slot >= 1 && slot <= cur.count) at = slot - 1
+    // An "Open SYM CODE" link inside a LIST panel (MOST's catalyst story, an RRG row) opens
+    // BESIDE the list, never over it: a fresh panel when the board has room, else the next one
+    // (boardModel.panelBeside). The provisional layout is only saved if the command opens.
+    let besideOf = null
+    if (beside && !cmd.channel && !fromUrl) {
+      const src = Number.isInteger(from) && from >= 0 && from < cur.count ? from : at
+      const placed = panelBeside(cur, src, cmd.code)
+      if (placed.index !== src) {
+        besideOf = { src, code: cur.panels[src]?.code, added: placed.added }
+        cur = placed.layout
+        at = placed.index
+      }
+    }
     if (cmd.channel) {
       const t = channelTarget(cmd.channel, cur)
       if (t.error) { setNotice({ kind: 'error', text: t.error }); return null }
@@ -883,6 +910,7 @@ export default function TerminalShell() {
       ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
       // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
       redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
+      besideOf && target !== besideOf.src && `Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
       echo,
     ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
@@ -931,7 +959,10 @@ export default function TerminalShell() {
 
   const runTyped = useCallback((text, opts) => {
     userRunRef.current = null
-    const out = opts?.keepFunction ? loadSecurity(text) : run(text)
+    // `next` (+ `from`, the panel the link was clicked in) opens beside a list; `slot` re-runs a
+    // panel's own command in that panel (IMOV writing a hand-picked theme into its args).
+    const out = opts?.keepFunction ? loadSecurity(text)
+      : run(text, { next: !!opts?.next, from: opts?.from ?? null, slot: opts?.slot ?? null })
     userRunRef.current = out || null
     return out
   }, [run, loadSecurity])

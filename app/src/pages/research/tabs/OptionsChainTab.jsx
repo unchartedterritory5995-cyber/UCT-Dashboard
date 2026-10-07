@@ -106,7 +106,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
 
   if (chain.error) {
     return <div className={styles.note} data-testid="chain-unavailable">
-      The option chain is unavailable right now. That does not mean no options trade on {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => exps.mutate()}>Retry</button>
+      The option chain is unavailable right now. That does not mean no options trade on {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => { chain.mutate(); exps.mutate() }}>Retry</button>
     </div>
   }
   if (!chain.data) return <div className={styles.note}>Loading the option chain…</div>

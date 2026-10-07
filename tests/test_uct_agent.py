@@ -476,3 +476,9 @@ def test_an_EMPTY_answer_is_never_shown_as_a_blank_reply():
     rogue = {"action": "account.delete", "target": "c1", "args": {}}
     with pytest.raises(turn.TurnError):
         turn.run_turn(message="x", context=CTX, history=[], capabilities=CAPS, caller=caller_of(_resp(env("apply", ops=[rogue]))))
+
+
+def test_capability_hints_are_kept_whole_up_to_the_cap():
+    long = dict(CAPS[0], name="example.long", hints="rule " * 180)          # ~900 chars
+    out = turn.validate_manifest([long])
+    assert out[0]["hints"] == long["hints"][:turn.MAX_HINTS] and len(out[0]["hints"]) > 400

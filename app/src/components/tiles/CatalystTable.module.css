@@ -241,8 +241,8 @@
   letter-spacing: 0.5px;
   cursor: pointer;
 }
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+.gain { color: var(--success-ink); }
+.loss { color: var(--danger-ink); }
 
 /* Inline day picker (rail): browse past snapshots without leaving the page. */
 .dateNav {
@@ -281,7 +281,7 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--gain);
+  color: var(--success-ink);
   padding: 0 4px;
 }
 .dateLiveBtn {
@@ -385,7 +385,7 @@
   letter-spacing: 0.5px;
 }
 .tagCatalyst { background: color-mix(in srgb, var(--info) 12%, transparent); color: var(--info); }
-.tagEarnings { background: color-mix(in srgb, var(--gain) 12%, transparent); color: var(--gain); }
+.tagEarnings { background: color-mix(in srgb, var(--gain) 12%, transparent); color: var(--success-ink); }
 .tagGapper   { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); }
 .tagNews     { background: color-mix(in srgb, var(--text-muted) 12%, transparent); color: var(--text-bright); }
 .tagDefault  { background: color-mix(in srgb, var(--text-heading) 6%, transparent); color: var(--text-muted); }
@@ -590,7 +590,7 @@
   font-size: 10px;
   line-height: 1;
 }
-.leadGradeA { color: var(--gain); }
+.leadGradeA { color: var(--success-ink); }
 .leadGradeB { color: var(--warn); }
 .leadGradeC { color: var(--text); }
 

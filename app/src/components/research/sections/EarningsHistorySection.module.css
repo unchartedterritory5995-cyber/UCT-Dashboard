@@ -59,8 +59,8 @@
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .table th { text-align: left; font-size: var(--text-xs); letter-spacing: var(--ls-label); color: var(--text-muted); font-weight: 600; padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--glass-border-neutral); white-space: nowrap; }
 .table td { padding: var(--space-xs) var(--space-sm); color: var(--text); border-bottom: 1px solid var(--glass-border-neutral); white-space: nowrap; }
-.pos { color: var(--gain); }
-.neg { color: var(--loss); }
+.pos { color: var(--success-ink); }
+.neg { color: var(--danger-ink); }
 .basis { font-size: var(--text-xs); color: var(--text-muted); }
 
 @media (max-width: 640px) {

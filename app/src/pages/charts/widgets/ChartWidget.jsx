@@ -28,6 +28,7 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 import { nextGroup, isSuspendedGroup } from '../colorGroups'
+import { resolveThemeColor } from '../../../lib/theme'
 import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
@@ -659,7 +660,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
           startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
           highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : undefined,
-          highlightColor: startMarker && startMarkerStyle === 'candle' ? '#c9a84c' : undefined,
+          highlightColor: startMarker && startMarkerStyle === 'candle' ? resolveThemeColor('--ut-gold', '#c9a84c') : undefined,
           // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
           highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}

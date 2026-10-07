@@ -57,7 +57,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-md);
   font-weight: 700;
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 .errorBody {
   margin: 0;

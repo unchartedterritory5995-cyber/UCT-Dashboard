@@ -19,6 +19,9 @@ function scoreColor(s) {
   if (s >= 31)  return 'var(--score-weak)'
   return 'var(--loss)'
 }
+// The same tier as TEXT: the up/down hues swap to their text inks (WCAG AA on every theme);
+// the bar keeps the hue itself.
+const scoreInk = (c) => (c === 'var(--gain)' ? 'var(--success-ink)' : c === 'var(--loss)' ? 'var(--danger-ink)' : c)
 
 // ─── Horizontal Exposure Bar ─────────────────────────────────────────────────
 function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus = false }) {
@@ -29,14 +32,14 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
   return (
     <div className={styles.expWrap}>
       <div className={styles.expScoreRow}>
-        <span className={styles.expScore} style={{ color: value == null ? 'var(--text-muted)' : color }}>
+        <span className={styles.expScore} style={{ color: value == null ? 'var(--text-muted)' : scoreInk(color) }}>
           {value == null ? '—' : Math.round(value)}
           {(bonus || isLeveraged) && value != null && <span className={styles.expBonus}><UIcon name="star-fill" size={12} /></span>}
         </span>
         {/* A zero change is no change: no arrow (it printed "100 ↑0" in the
             2026-09-29 letter). Only a real move earns ↑ / ↓. */}
         {delta != null && Number(delta) !== 0 && Number.isFinite(Number(delta)) && (
-          <span className={styles.expDelta} style={{ color: delta > 0 ? 'var(--gain)' : 'var(--loss)' }}>
+          <span className={styles.expDelta} style={{ color: delta > 0 ? 'var(--success-ink)' : 'var(--danger-ink)' }}>
             {delta > 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
           </span>
         )}

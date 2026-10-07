@@ -12,6 +12,7 @@ import styles from './Depth.module.css'
 import { DepthStackContext } from './depthChrome'
 import HowToChecklist from '../../../components/howTo/HowToChecklist'
 import { DEPTH_HOW_TO_SURFACES } from '../../../components/howTo/howToChecklists'
+import PanelState from '../../../components/terminal/PanelState'
 
 // Research > Depth (lane gaps-research). A container only: each panel is its own
 // surface behind its own server flag (researchDepthFlags.js), and a panel whose
@@ -41,6 +42,21 @@ export default function DepthTab({ sym, flags, focus = null }) {
   useEffect(() => {
     if (focused && focusRef.current?.scrollIntoView) focusRef.current.scrollIntoView({ block: 'start' })
   }, [focused])
+  // Completeness audit 2026-10-07: with no depth panel switched on, DPTH opened as an empty box.
+  // Say why in plain words instead -- nothing failed; nothing is switched on.
+  const anyOn = on.length > 0 || NEWS_DESK_KEYS.some(k => f[k] === true) || f.call_replay_enabled === true
+  if (!anyOn) {
+    return (
+      <div className={styles.depth} data-testid="research-depth">
+        <PanelState kind="locked" testId="depth-none-on" title="No depth panel is switched on yet.">
+          Depth stacks the deeper research panels (earnings reactions, events, broker estimates,
+          fails-to-deliver, mentions, filing search, the news desk and call replay). Each one is
+          switched on separately, and none is on for this account yet, so there is nothing to show
+          for {String(sym || '').toUpperCase() || 'this ticker'}. That is not a failed read.
+        </PanelState>
+      </div>
+    )
+  }
   return (
     <DepthStackContext.Provider value={true}>
     <div className={styles.depth} data-testid="research-depth">
