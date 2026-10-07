@@ -90,7 +90,7 @@ function toRatingChangeRows(actions) {
 }
 
 export default function AnalystRatingsTab({ sym }) {
-  const { data, isLoading, error, mutate } = useAnalystRatings(sym)
+  const { data, isLoading, error, paywalled, mutate } = useAnalystRatings(sym)
   const session = useMarketOpen()
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
 
@@ -101,6 +101,9 @@ export default function AnalystRatingsTab({ sym }) {
   // TERM-088 -- a failed read is not a genuinely empty analyst record.
   // Render the error distinctly so a backend hiccup never reads as "no
   // analyst data exists".
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="analyst-ratings-paywalled">Analyst ratings require a paid plan.</div>
+  }
   if (error) {
     return (
       <div className={styles.fnote} data-testid="analyst-ratings-error">

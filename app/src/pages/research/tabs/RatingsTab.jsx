@@ -44,7 +44,7 @@ function checkTier(s) {
 }
 
 export default function RatingsTab({ sym }) {
-  const { data, isLoading, error, mutate } = useRatings(sym)
+  const { data, isLoading, error, paywalled, mutate } = useRatings(sym)
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
   // UCT computes the composite itself; its one concrete as-of is the price leg's last bar.
   usePanelFreshness(data && !error && !data.not_applicable
@@ -57,6 +57,9 @@ export default function RatingsTab({ sym }) {
 
   // TERM-088 -- a failed read is not a genuinely empty rating. Render the
   // error distinctly so a backend hiccup never reads as "no ratings exist".
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="ratings-paywalled">The UCT rating requires a paid plan.</div>
+  }
   if (error) {
     return (
       <div className={styles.fnote} data-testid="ratings-error">
