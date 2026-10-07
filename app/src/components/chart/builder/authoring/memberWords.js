@@ -139,6 +139,8 @@ const REFUSAL_BY_GATE = Object.freeze({
   'cost:user': "You've used today's UCT Intelligence allowance. It renews each day — your indicators are unaffected, and you can still edit them in the Formula tab.",
   'cost:global': 'UCT Intelligence is at capacity right now. Your indicators are unaffected — please try again later.',
   'http:429': "You're sending requests faster than UCT Intelligence can take them. Wait a minute, then try again.",
+  // ⭐ one interactive AI call in flight per member: the same accepted sentence as 429
+  'rate:busy': "You're sending requests faster than UCT Intelligence can take them. Wait a minute, then try again.",
   'http:402': 'Custom indicators require a paid plan.',
   'http:403': "UCT Intelligence isn't available on your account yet.",
   'http:401': 'Your session has ended. Sign in again to continue.',

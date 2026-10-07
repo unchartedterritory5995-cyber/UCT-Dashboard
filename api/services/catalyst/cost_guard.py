@@ -72,15 +72,129 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int,
             + output_tokens * rates["output"] / 1_000_000.0)
 
 
-def may_synthesize(market_date: str) -> bool:
-    """Returns False if hard cap exceeded for the day. Logs warning if soft
-    cap exceeded but still returns True."""
-    global _SOFT_CAP_LOGGED_FOR_DATE, _HARD_CAP_TRIPPED
-    soft = float(os.environ.get("CATALYST_COST_CAP_DAILY", "8.00"))
-    hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
+#: ─── ⭐ BUDGET ISOLATION (owner decision, 2026-10-07) ──────────────────────────
+#:
+#: The $15/day hard ceiling is split by KIND OF LANE, not by who spends first:
+#:
+#:   INTERACTIVE  ``concierge:<user>`` (/propose + /converse) and
+#:                ``indicator-vision:<user>`` -- a person is waiting on the answer.
+#:                May spend up to the $4 interactive reservation.
+#:   BACKGROUND   everything else on this ledger: catalyst synthesis (bare tickers),
+#:                ``_CURATOR``, ``__hunter__``, ``_RULE_LEARNER``, call recaps (bare
+#:                tickers), ``sector:<name>`` reads -- nobody is waiting on them.
+#:                May spend up to hard - reservation = $11.
+#:
+#: ⛔⛔ MEASURED, NOT FEARED (read-only ledger query, 2026-10-07): since catalyst
+#: synthesis moved to Opus 5 on 2026-09-24, a full trading day's BACKGROUND spend
+#: was $9.6-11.3 -- by itself more than the old `hard - $6 reserve` = $9 member
+#: ceiling, which counted TOTAL spend. Members were therefore locked out of AI every
+#: trading afternoon by work nobody asked for. The old design reserved a floor for
+#: the scheduled lanes and nothing for the interactive ones; this one reserves both.
+#:
+#: ⭐ THE TOTAL DOES NOT MOVE. $4 + $11 = $15, the ceiling the product already chose.
+#: Each side is checked BEFORE a call against its OWN spend, so each may overshoot
+#: by the one call it admitted -- the same bound the old gate had -- and `hard`
+#: stays an absolute check on both gates.
+#:
+#: ⛔ NO BORROWING, deliberately. Interactive lanes do not use idle background
+#: dollars and background lanes never touch the reservation. Simple and safe beat
+#: utilisation for the rollout (owner, 2026-10-07).
+#:
+#: ⭐ FAIL SAFE FOR NEW LANES: a ticker is INTERACTIVE only if it carries one of the
+#: two prefixes below. Anything else -- including a lane added tomorrow -- is
+#: BACKGROUND and therefore capped at $11; a new lane cannot reach the reservation.
+INTERACTIVE_LANE_PREFIXES = ("concierge:", "indicator-vision:")
+#: The old name for the same tuple; existing readers keep working.
+MEMBER_LANE_PREFIXES = INTERACTIVE_LANE_PREFIXES
 
-    stats = store.cost_stats_for_date(market_date)
-    spent = stats.get("total_cost_usd", 0.0)
+INTERACTIVE = "interactive"
+BACKGROUND = "background"
+
+#: The scheduled support jobs, named for the owner's report (all BACKGROUND).
+_SUPPORT_JOBS = frozenset({"_CURATOR", "__hunter__", "_RULE_LEARNER"})
+
+_BACKGROUND_LIMIT_LOGGED_FOR_DATE: str | None = None
+
+
+def lane_kind(ticker: str) -> str:
+    """INTERACTIVE or BACKGROUND for one ledger ``ticker`` -- the ONE classifier."""
+    return INTERACTIVE if str(ticker or "").startswith(INTERACTIVE_LANE_PREFIXES) else BACKGROUND
+
+
+def lane_name(ticker: str) -> str:
+    """The report bucket for one ledger ``ticker`` (no user ids)."""
+    t = str(ticker or "")
+    if t.startswith("concierge:"):
+        return "concierge"
+    if t.startswith("indicator-vision:"):
+        return "vision"
+    if t in _SUPPORT_JOBS:
+        return "scheduled_support"
+    if ":" in t or t.startswith("_"):
+        return "other_background"
+    return "synthesis"
+
+
+def hard_cap_usd() -> float:
+    return float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
+
+
+def interactive_limit_usd() -> float:
+    """The reservation interactive lanes may spend: $4 of the $15."""
+    return max(0.0, min(float(os.environ.get("INTERACTIVE_AI_RESERVE_USD", "4.00")),
+                        hard_cap_usd()))
+
+
+def background_limit_usd() -> float:
+    """What background lanes may spend: the ceiling minus the reservation ($11)."""
+    return max(0.0, hard_cap_usd() - interactive_limit_usd())
+
+
+def spend_by_kind(market_date: str) -> dict:
+    """Today's ledger split by kind (and by report bucket). READ-ONLY."""
+    out = {"total": 0.0, INTERACTIVE: 0.0, BACKGROUND: 0.0, "lanes": {
+        "concierge": 0.0, "vision": 0.0, "synthesis": 0.0,
+        "scheduled_support": 0.0, "other_background": 0.0}}
+    for ticker, usd in store.spend_by_ticker(market_date):
+        usd = float(usd or 0.0)
+        out["total"] += usd
+        out[lane_kind(ticker)] += usd
+        out["lanes"][lane_name(ticker)] += usd
+    return out
+
+
+def budget_state(market_date: str) -> dict:
+    """The owner-facing budget numbers for one ET day -- aggregates only."""
+    s = spend_by_kind(market_date)
+    hard, i_lim, b_lim = hard_cap_usd(), interactive_limit_usd(), background_limit_usd()
+    r = lambda v: round(v, 4)                                   # noqa: E731
+    return {
+        "market_date": market_date,
+        "total_spend": r(s["total"]),
+        "interactive_spend": r(s[INTERACTIVE]),
+        "background_spend": r(s[BACKGROUND]),
+        "total_limit": hard,
+        "interactive_limit": i_lim,
+        "background_limit": b_lim,
+        "total_remaining": r(max(0.0, hard - s["total"])),
+        "interactive_remaining": r(max(0.0, i_lim - s[INTERACTIVE])),
+        "background_remaining": r(max(0.0, b_lim - s[BACKGROUND])),
+        "lanes": {k: r(v) for k, v in s["lanes"].items()},
+    }
+
+
+def may_synthesize(market_date: str) -> bool:
+    """THE BACKGROUND GATE. False once background spend reaches its limit ($11) or
+    the day's total reaches the hard ceiling ($15). Callers already treat False as
+    "skip this AI call" -- nothing here raises or charges.
+
+    The soft cap ($8, total) still only logs."""
+    global _SOFT_CAP_LOGGED_FOR_DATE, _HARD_CAP_TRIPPED, _BACKGROUND_LIMIT_LOGGED_FOR_DATE
+    soft = float(os.environ.get("CATALYST_COST_CAP_DAILY", "8.00"))
+    hard = hard_cap_usd()
+
+    s = spend_by_kind(market_date)
+    spent = s["total"]
 
     if spent >= hard:
         if not _HARD_CAP_TRIPPED:
@@ -88,6 +202,17 @@ def may_synthesize(market_date: str) -> bool:
                          "Synthesis disabled for remainder of day.",
                          market_date, spent, hard)
             _HARD_CAP_TRIPPED = True
+        return False
+
+    limit = background_limit_usd()
+    if s[BACKGROUND] >= limit:
+        if _BACKGROUND_LIMIT_LOGGED_FOR_DATE != market_date:
+            logger.warning(
+                "[cost_guard] background AI limit reached for %s: $%.2f >= $%.2f "
+                "(the $%.2f interactive reservation is kept for members). "
+                "Background AI is paused for the rest of the day.",
+                market_date, s[BACKGROUND], limit, interactive_limit_usd())
+            _BACKGROUND_LIMIT_LOGGED_FOR_DATE = market_date
         return False
 
     if spent >= soft and _SOFT_CAP_LOGGED_FOR_DATE != market_date:
@@ -99,72 +224,24 @@ def may_synthesize(market_date: str) -> bool:
     return True
 
 
-#: The lanes a MEMBER triggers, by the `ticker` prefix each one records under.
-#: ⛔ SIX LANES SHARE ONE DAILY BUDGET and two of them are member-triggered:
-#: `definition_concierge` (English → a scan, SHIPPED AND UNFLAGGED) and
-#: `indicator_from_image` (a screenshot → a formula). The other four — synthesis,
-#: hunter, curator, rule_learner — are SCHEDULED: they run on a cron, nobody asks
-#: for them, and if they do not run the member-facing product silently loses its
-#: morning catalyst table.
-MEMBER_LANE_PREFIXES = ("concierge:", "indicator-vision:")
-
-
-def scheduled_reserve_usd() -> float:
-    """The slice of the daily cap that member-triggered lanes may NOT consume."""
-    return float(os.environ.get("SCHEDULED_LANE_RESERVE_USD", "6.00"))
-
-
 def may_member_spend(market_date: str) -> bool:
-    """The gate a MEMBER-TRIGGERED lane asks. Tighter than `may_synthesize`.
+    """THE INTERACTIVE GATE (/propose, /converse, indicator-vision). False once
+    interactive spend reaches the reservation ($4) or the day's total reaches the
+    hard ceiling ($15). Background spend does NOT count against it -- that is the
+    whole point -- and admin calls to these lanes DO (owner, 2026-10-07).
 
-    ⛔⛔ MEASURED, NOT FEARED: with the concierge's own per-user cap at $0.75/day,
-    **20 members** using their allowance take the shared spend from $0 to the
-    $15 hard cap, at which point `may_synthesize` returns False and the SCHEDULED
-    catalyst lanes stop for the rest of the day. Fewer than 20 in practice, since
-    the catalyst engine itself spends $2-4. The morning catalyst table then does
-    not get built, for a reason with nothing to do with catalysts, and nothing
-    anywhere connects the two.
-
-    ⭐ A PER-USER CAP DOES NOT BOUND A POPULATION. The concierge already caps ONE
-    member at $0.75; what was missing is any bound on N members together. This is
-    that bound, and it is expressed as a FLOOR FOR THE SCHEDULED LANES rather than
-    a ceiling for members, because the floor is the property actually wanted:
-    stopping member lanes once total spend reaches ``hard - reserve`` leaves
-    ``reserve`` for the lanes nobody asked for, whatever order the spending
-    arrives in.
-
-    ⚠️ THE FLOOR IS ``reserve`` MINUS ONE IN-FLIGHT CALL, and saying "by
-    construction" would be an overclaim — a rail written for this caught it. The
-    gate is asked BEFORE a call and the call then spends, so the last admitted
-    member crosses the line by their own call's cost: measured, a $4 scheduled day
-    plus members at $0.75 each leaves $5.75 against a $6 reserve. That is why the
-    reserve is set well above any single call rather than trimmed to the expected
-    catalyst spend — the overshoot is bounded by one call, and $6 against a $0.75
-    member call absorbs it with room to spare. Checking after the spend would
-    close the gap and would mean billing for a call in order to discover it was
-    not allowed.
-
-    ⭐ AND THE TOTAL CEILING DOES NOT MOVE. The product already chose $15/day as
-    its AI ceiling; this changes who may spend the last $6 of it, not how much
-    exists. Giving member lanes their own separate budget would have been the
-    other obvious design and it doubles worst-case spend — a money decision, not
-    a correctness one, so it is not taken here.
-
-    ⚠️ IT COUNTS TOTAL SPEND, NOT MEMBER SPEND, and that is deliberate: the
-    guarantee is about what REMAINS for the scheduled lanes, which only a total
-    can answer. The cost is that a heavy catalyst day leaves members less room —
-    acceptable, because the catalyst engine's measured $2-4 sits well inside the
-    reserve and the member lanes still have the rest.
-    """
-    hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
-    ceiling = max(0.0, hard - scheduled_reserve_usd())
-    spent = store.cost_stats_for_date(market_date).get("total_cost_usd", 0.0)
-    if spent >= ceiling:
+    ⚠️ Checked BEFORE a call, so the last admitted call may overshoot the
+    reservation by its own cost; the per-member allowance and the per-user
+    in-flight guard (`definition_concierge.interactive_slot`) bound that to one call
+    per member."""
+    s = spend_by_kind(market_date)
+    hard, limit = hard_cap_usd(), interactive_limit_usd()
+    if s["total"] >= hard or s[INTERACTIVE] >= limit:
         logger.warning(
-            "[cost_guard] member-lane ceiling reached for %s: $%.2f >= $%.2f "
-            "(hard $%.2f minus a $%.2f reserve the scheduled lanes keep). "
-            "Member-triggered AI is paused; scheduled jobs continue.",
-            market_date, spent, ceiling, hard, scheduled_reserve_usd())
+            "[cost_guard] interactive AI limit reached for %s: interactive $%.2f "
+            "(limit $%.2f), total $%.2f (ceiling $%.2f). Member AI is paused; "
+            "background jobs are unaffected.",
+            market_date, s[INTERACTIVE], limit, s["total"], hard)
         return False
     return True
 

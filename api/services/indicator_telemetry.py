@@ -450,18 +450,13 @@ def _cohort_state() -> dict:
 
 
 def _pool_state() -> dict:
-    """Today's TOTAL AI spend against the shared member ceiling (hard cap minus the
-    scheduled reserve) -- READ-ONLY, the numbers `cost_guard.may_member_spend` compares."""
+    """Today's AI budget split by kind -- READ-ONLY, the same numbers
+    `cost_guard.may_member_spend` (interactive) and `may_synthesize` (background)
+    compare. Aggregates only: no user ids, no tickers."""
     try:
-        import os
-        from api.services.catalyst import cost_guard, store
+        from api.services.catalyst import cost_guard
         from api.services import definition_concierge as dc
-        hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
-        ceiling = max(0.0, hard - cost_guard.scheduled_reserve_usd())
-        spent = float(store.cost_stats_for_date(dc._market_date()).get("total_cost_usd", 0.0))
-        return {"spent_usd": round(spent, 4), "member_ceiling_usd": ceiling, "hard_cap_usd": hard,
-                "headroom_usd": round(max(0.0, ceiling - spent), 4),
-                "used_fraction": round(spent / ceiling, 3) if ceiling else None}
+        return cost_guard.budget_state(dc._market_date())
     except Exception:  # noqa: BLE001
         log.exception("[indicator-telemetry] pool state unavailable")
         return {}
