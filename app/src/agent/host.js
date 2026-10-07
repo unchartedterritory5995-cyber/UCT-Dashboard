@@ -10,7 +10,7 @@
 // A chart's ref is its persisted widget id (+ "~tabId" for an extra chart tab).
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 
-import { planPlacement } from '../pages/charts/placement/place'
+import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 
@@ -87,7 +87,14 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
       // planPlacement is pure: simulate a SEQUENCE of adds exactly as the product
       // would place them one after another, and say whether every one lands in
       // empty space (no `mutations` = nothing else resized or moved).
+      // Several new widgets of ONE type are planned as a group (equal cells in one
+      // empty region, nothing else touched); only when no such region exists does
+      // the one-after-another simulation decide.
+      const groupPlan = (type, n) => {
+        try { return planGroupPlacement(all, type, n) } catch { return null }
+      }
       const fitsSequence = (types) => {
+        if (types.length > 1 && types.every(t => t === types[0]) && groupPlan(types[0], types.length)) return true
         let board = all.map(w => ({ ...w }))
         for (let i = 0; i < types.length; i++) {
           let plan
@@ -111,10 +118,10 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
           optsSig: JSON.stringify(w.opts ?? null),
         })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
-        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity,
+        count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
       }
     },
-    add: (type) => widgetOps.add(type),
+    add: (type, place) => widgetOps.add(type, place),
     remove: (id) => widgetOps.remove(id),
     color: (id, color) => widgetOps.color?.(id, color),
     cancelPending: () => widgetOps.cancelPending?.(),

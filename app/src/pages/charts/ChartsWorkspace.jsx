@@ -1624,8 +1624,18 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false } = {}) => {
+  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false, place: slot = null } = {}) => {
     if (refuseIfBoardFull()) return
+    // `place` = an exact slot a caller already planned in EMPTY space (e.g. one cell of
+    // planGroupPlacement, so a group of new widgets comes out equal). Honoured only if it
+    // is inside the board and overlaps nothing right now; otherwise ignored, and the
+    // normal placement below decides — a stale slot can never overlap or move anything.
+    const freeSlot = (board) => {
+      if (!slot || float || ![slot.x, slot.y, slot.w, slot.h].every(Number.isInteger)) return null
+      if (slot.x < 0 || slot.y < 0 || slot.w < 1 || slot.h < 1 || slot.x + slot.w > COLS.lg || slot.y + slot.h > FIXED_ROWS) return null
+      const hit = (board || []).some(w => w.x < slot.x + slot.w && slot.x < w.x + w.w && w.y < slot.y + slot.h && slot.y < w.y + w.h)
+      return hit ? null : { x: slot.x, y: slot.y, w: slot.w, h: slot.h }
+    }
     // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
@@ -1635,7 +1645,7 @@ export default function ChartsWorkspace() {
     // space, fall through and place it immediately — no confirm step. (Float-on-create
     // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
     // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
-    if (!float && !instant && SMART_PLACEMENT) {
+    if (!float && !instant && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)) {
       const base = layoutRef.current?.widgets || []
       const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
       if (plan.mutations && plan.mutations.length > 0) {
@@ -1649,7 +1659,10 @@ export default function ChartsWorkspace() {
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
-      if (float) {
+      const planned = freeSlot(prev.widgets)
+      if (planned) {
+        place = planned
+      } else if (float) {
         // Float-on-create: it renders on TOP of the board, so it must NOT reshuffle
         // the grid (no findPlacement / reserveBottomStrip — those shrink the existing
         // charts to make room, which a floating overlay must never do). Its grid slot
@@ -2807,14 +2820,14 @@ export default function ChartsWorkspace() {
   // widget.add / its undo go through the SAME handlers the Widgets menu and a
   // widget's ✕ use — read through a ref so the host never holds a stale closure.
   const agentWidgetOpsRef = useRef(null)
-  agentWidgetOpsRef.current = { add: (t) => handleAddWidget(t), remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd }
+  agentWidgetOpsRef.current = { add: (t, place) => handleAddWidget(t, undefined, { place }), remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd }
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
     widgetLabel: (t) => WIDGET_LABELS[t] || t,
     widgetOps: {
       layout: () => layoutRef.current,
-      add: (t) => agentWidgetOpsRef.current.add(t),
+      add: (t, place) => agentWidgetOpsRef.current.add(t, place),
       remove: (id) => agentWidgetOpsRef.current.remove(id),
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),

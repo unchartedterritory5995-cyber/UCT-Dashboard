@@ -73,9 +73,37 @@ describe('compound creation: several charts, each configured, one transaction', 
     expect(made.every(w => w.opts.tf === '5' && w.color === 'N')).toBe(true)
     expect(state.groupSyms.A).toBe('AAPL')
     expect(res.lines).toEqual(p.lines)
+    // EQUAL 2×2: the group is placed at once (planGroupPlacement), not one default-
+    // sized chart after another (which gave 12-row charts above 8-row ones).
+    expect(made.map(({ x, y, w, h }) => ({ x, y, w, h }))).toEqual([
+      { x: 0, y: 0, w: 12, h: 10 }, { x: 12, y: 0, w: 12, h: 10 },
+      { x: 0, y: 10, w: 12, h: 10 }, { x: 12, y: 10, w: 12, h: 10 },
+    ])
     const u = await undoEntry(host, res.undo)
     expect(u.ok).toBe(true)
     expect(state.widgets).toEqual([])
+  })
+  it('EQUAL 2×2 beside an existing rail: the rail is not moved or resized; Undo removes only the four', async () => {
+    const rail = { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20 }
+    const { host, state } = makeBoard([rail])
+    const res = await commitPlan(host, wsPlan(host, build(['SPY', 'QQQ', 'NVDA', 'TSLA'])))
+    expect(res.ok).toBe(true)
+    const made = state.widgets.filter(w => w.id !== 'wl')
+    expect(made.map(({ x, y, w, h }) => ({ x, y, w, h }))).toEqual([
+      { x: 0, y: 0, w: 9, h: 10 }, { x: 9, y: 0, w: 9, h: 10 },
+      { x: 0, y: 10, w: 9, h: 10 }, { x: 9, y: 10, w: 9, h: 10 },
+    ])
+    expect(state.widgets.find(w => w.id === 'wl')).toMatchObject({ x: 18, y: 0, w: 6, h: 20 })
+    expect((await undoEntry(host, res.undo)).ok).toBe(true)
+    expect(state.widgets).toEqual([{ ...rail, color: 'A', opts: {} }])
+  })
+  it('the empty half of a board takes four EQUAL charts; the existing chart is untouched', async () => {
+    const { host, state } = BASE()
+    const res = await commitPlan(host, wsPlan(host, build(['SPY', 'QQQ', 'NVDA', 'TSLA'])))
+    expect(res.ok).toBe(true)
+    const sizes = newCharts(state).map(w => `${w.w}x${w.h}`)
+    expect(new Set(sizes)).toEqual(new Set(['6x10']))
+    expect(state.widgets[0]).toMatchObject({ id: 'c', x: 0, y: 0, w: 12, h: 20 })
   })
   it('the count is not special: 2 charts works the same way', async () => {
     const { host, state } = BASE()
@@ -112,14 +140,32 @@ describe('compound creation: several charts, each configured, one transaction', 
     expect(state.widgets).toHaveLength(14)
   })
   it('not enough open space → refused before mutation; nothing moved or resized', () => {
-    // Half the board is empty: the product places TWO charts there; a third
-    // would shrink the existing chart — so four is refused, with the real room.
-    const { host, state } = BASE()
+    // Only a 6-column strip is free (chart left, rail right): three min-size charts
+    // stack there; a fourth would mean rearranging the member's widgets — refused.
+    const { host, state } = makeBoard([
+      { id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 },
+      { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20 },
+    ])
     const before = JSON.stringify(state.widgets)
     const p = wsPlan(host, build(['SPY', 'QQQ', 'NVDA', 'TSLA']))
     expect(p.ok).toBe(false)
-    expect(p.refusals[0].reason).toBe("There isn't enough open space to add 4 widgets without rearranging your current workspace (room for 2 more Charts).")
+    expect(p.refusals[0].reason).toBe("There isn't enough open space to add 4 widgets without rearranging your current workspace (room for 3 more Charts).")
     expect(JSON.stringify(state.widgets)).toBe(before)
+  })
+  it('fragmented space with no group region falls back to normal one-at-a-time placement, moving nothing', async () => {
+    // Two free 6-wide strips that no single rectangle joins: no equal group region,
+    // so each chart is placed by the product's own planPlacement, in empty space.
+    const { host, state } = makeBoard([
+      { id: 'a', type: 'chart', x: 0, y: 0, w: 9, h: 20 },
+      { id: 'b', type: 'chart', x: 15, y: 0, w: 9, h: 20 },
+      { id: 'm', type: 'news', x: 9, y: 0, w: 6, h: 14 },
+    ])
+    const before = state.widgets.map(({ id, x, y, w, h }) => ({ id, x, y, w, h }))
+    expect(host.widgets.snapshot().groupPlan('chart', 2)).toBeNull()
+    const p = wsPlan(host, build(['SPY']))
+    expect(p.ok).toBe(true)
+    expect((await commitPlan(host, p)).ok).toBe(true)
+    expect(state.widgets.slice(0, 3).map(({ id, x, y, w, h }) => ({ id, x, y, w, h }))).toEqual(before)
   })
   it('a failure after the first write is COMPENSATED: no half-built board, honest failure', async () => {
     const { host, state } = makeBoard([], { A: 'AAPL' }, { failAddAt: 3 })
