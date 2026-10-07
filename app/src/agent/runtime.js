@@ -136,13 +136,21 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     const done = { ...it, after: cur || it.after }
     return { ...done, afterFp: fpOf(kind, host, cur || it.after, done) }
   })
-  const undo = items.length ? { id: `u${Date.now().toString(36)}${(_seq++).toString(36)}`, at: Date.now(), lines, items } : null
+  // A kind may say a change has no Undo (undoPatch → null): then the receipt offers none.
+  const undoable = items.length && items.every(it => getTargetKind(it.kind).undoPatch(it) != null)
+  const epoch = typeof host.epoch === 'function' ? host.epoch() : null
+  const undo = undoable ? { id: `u${Date.now().toString(36)}${(_seq++).toString(36)}`, at: Date.now(), lines, items, epoch } : null
   return { ok: true, lines, failed: [], undo }
 }
 
 /** All-or-nothing: if ANY target changed since the Agent wrote it, nothing is restored. */
 export async function undoEntry(host, entry) {
   if (!entry) return { ok: false, lines: [], reason: 'There is nothing of mine to undo.' }
+  // Never across a board change: after a layout switch the same refs can name
+  // widgets on a DIFFERENT board.
+  if (entry.epoch != null && typeof host.epoch === 'function' && host.epoch() !== entry.epoch) {
+    return { ok: false, lines: [], reason: 'A different layout is open now, so undoing that could change the wrong board. Nothing was undone.' }
+  }
   for (const it of entry.items) {
     const kind = getTargetKind(it.kind)
     const cur = kind.read(host, it.ref)

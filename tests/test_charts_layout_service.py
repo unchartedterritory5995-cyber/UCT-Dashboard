@@ -178,3 +178,16 @@ def test_deleting_the_layout_makes_its_share_token_resolve_to_none():
     out = svc.share(UUID_USER, row["id"])
     svc.delete(row["id"])
     assert svc.resolve_share(out["token"]) is None
+
+
+def test_create_inserts_a_new_layout_and_never_replaces_one():
+    row = svc.create("user", UUID_USER, "Momentum", {"widgets": [{"id": "a"}], "cols": 24}, None, "T")
+    assert row["name"] == "Momentum"
+    # Same name again: refused (None), and the stored layout is untouched.
+    assert svc.create("user", UUID_USER, "Momentum", {"widgets": [], "cols": 24}, None, "T") is None
+    mine = svc.list_for_user(UUID_USER)["mine"]
+    assert len(mine) == 1 and mine[0]["layout"]["widgets"] == [{"id": "a"}]
+    # Another member may use the name; the default upsert still replaces as before.
+    assert svc.create("user", str(uuid.uuid4()), "Momentum", {"widgets": []}, None, "T") is not None
+    svc.upsert("user", UUID_USER, "Momentum", {"widgets": [], "cols": 24}, None, "T")
+    assert svc.list_for_user(UUID_USER)["mine"][0]["layout"]["widgets"] == []

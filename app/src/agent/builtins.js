@@ -3,6 +3,7 @@
 // runtime, prompt or server changes. See agent/README.md.
 import { registerChartCapabilities } from './capabilities/chart'
 import { registerWorkspaceCapabilities } from './capabilities/workspace'
+import { registerLayoutCapabilities } from './capabilities/layout'
 
 let done = false
 export function registerBuiltins() {
@@ -10,4 +11,5 @@ export function registerBuiltins() {
   done = true
   registerChartCapabilities()
   registerWorkspaceCapabilities()
+  registerLayoutCapabilities()
 }
