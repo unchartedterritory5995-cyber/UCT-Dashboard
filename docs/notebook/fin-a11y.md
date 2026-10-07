@@ -158,6 +158,76 @@ included) and asked for the four items below.
   refreshes and the row goes, focus can still be lost.
 - **`board-title` and `vp-regime-why`** are still fixed ids (one instance per page).
 
+## 5b. Round 3: sideways scrolling on a phone, measured in a real browser
+
+A browser walk found five screens scrolling sideways at 390 px and one control under the 44 px
+floor. Overflow is a layout fact, so this round was measured in Chromium, before and after, on
+a sandbox built from this branch (`npm run build`, `scripts/hub_sandbox_boot.py`, port 8135,
+data dir `C:/data-fin-a11y`, a paid sandbox member).
+
+Tool: `tools/notebook_fin_a11y_overflow_walk.py`. Raw rows:
+`docs/notebook/evidence/fin-a11y/before/walk.json` and `.../after/walk.json`. Each run boots
+twice: OFF (no capability variable set) and ON (transcript capture, plus entry context so the
+card is on screen, plus earnings prep and the trade canvas so the research header is at its
+fullest). Widths 390, 820, 1280. 30 measurements a run.
+
+**How the page width is read.** This app does not scroll the document. The shell is
+`overflow: hidden` and an inner `<main>` scrolls. So `document.documentElement.scrollWidth`
+equals the window width whatever the page does. The number that says "the page scrolls
+sideways" is the page scroller's own `scrollWidth` against its `clientWidth`. Both are
+recorded. The tool's first run read only the document and reported no overflow anywhere; its
+raw output is kept in `evidence/fin-a11y/first-run-document-only/` for that reason.
+
+| Screen at 390 px | Before (page scroller) | Widest element | After |
+|---|---|---|---|
+| Research workspace, flags off | 390 / 390 | none | 390 / 390 |
+| Research workspace, ON | **763** / 390 | the "Save from a transcript" button, ending at 763 ("Earnings prep" ended at 582, "Plan this trade" at 450) | 390 / 390 |
+| Closed trades | **534** / 390 (both boots) | `.toolbarRight`, a no-wrap row of four buttons | 390 / 390 |
+| Trade page | **470** / 390 (both boots) | the header's action group, an inline-styled no-wrap span, ending at the Research button | 390 / 390 |
+| Help | **406** / 390 (both boots) | the page header, from -16 to 406 | 390 / 390 |
+| Position page (entry context card) | 390 / 390 | none | 390 / 390 |
+
+At 820 and 1280 every screen fit, before and after. After the fixes: 0 of 30 measurements
+wider than the window.
+
+**The research workspace with flags off read 390 in this sandbox, not the 450 the walk
+reported.** With every switch off its header holds Ask, New note and New thesis, and that fit.
+The walk's 450 is exactly where "Plan this trade" ended in the ON boot here, so its "flags
+off" state most likely had the trade canvas on. The fix does not depend on which buttons are
+present: the row wraps.
+
+**The saved "why" Edit control:** 21.8 x 44 px at 390 and 820 before, **44 x 44** at both
+after. At 1280 it is 21.8 x 19.2, unchanged (the floor is for the touch tier).
+
+What changed (CSS only, except one class name):
+
+| Screen | Change | File |
+|---|---|---|
+| Research workspace | `.headerActions` wraps and may shrink (it was `flex-shrink: 0`, no wrap). On a phone it starts from the left. | `TickerResearchWorkspace.module.css` |
+| Closed trades | `.toolbarRight` wraps at 640 px and under. | `TradeJournalTab.module.css` |
+| Trade page | The header's action group was `style={{ display: 'inline-flex' }}` on a span. It is a class now (`.headActions`) that wraps, and takes its own row at 640 px and under. | `TradeDetailPage.jsx`, `TradeDetailPage.module.css` |
+| Help | The header's negative margin comes from `--page-pad-x`. The phone rule changed the page padding to 12 px and left the variable at 28 px, so the header was 16 px wider than the page on each side. The phone rule now sets both variables. One declaration, additive. | `Support.module.css` |
+| Why prompt | `.linkBtn` has `min-width: var(--tap-min)` beside its `min-height` at 1024 px and under. | `WhyPrompt.module.css` |
+
+All media queries are the canonical 640 and 1024. No layout is decided by a JavaScript media
+hook.
+
+Regression rail: `app/src/pages/journal-2-0/a11y/phoneOverflow.test.js` (11 tests). jsdom
+cannot see overflow, so it holds the rule that fixed each screen: the row wraps, the Help
+variables equal the padding (with a desktop control), the floor has both dimensions.
+
+Sandbox record: three walks ran. Integrity (the shared data root, 62 database files hashed
+at each checkpoint) was CLEAN at every checkpoint that was taken. In the second walk's OFF
+boot the launcher did not exit gracefully within 120 s and was force-stopped, so that boot has
+no shutdown checkpoint and the tool marked it INCOMPLETE (its pre-boot, +15 s and +120 s
+checkpoints were CLEAN). Every other boot stopped gracefully. The port was confirmed free
+after each run. The sandbox data dir `C:/data-fin-a11y` was left in place.
+
+A person or the device walk must confirm: on a real phone, the four screens no longer scroll
+sideways; the wrapped rows look intended (research header buttons on two or three lines,
+closed trades buttons on two lines, trade page actions on their own row under the symbol);
+and the Help header still spans the full width with no gap at either edge.
+
 ## 6. Decisions
 
 Ruled by the controller: I-5 keeps buttons with `aria-activedescendant`. I-4's bottom-sheet
@@ -185,6 +255,9 @@ These are the round 2 totals (the final state of the branch).
 - Touched components, part 1 (includes the Positions tests): 34 files, 376 tests, all passed.
 - Touched components, base tour and the a11y surface suites, part 2: 53 files, 454 tests, all
   passed.
+- Round 3 unit run (the overflow rail, tap floor, tokens, contrast, target floors, and the
+  tests of the five files touched): 17 files, 232 tests passed, 1 skipped.
+- Round 3 browser walk: before, 7 of 30 measurements wider than the window; after, 0 of 30.
 - `tools/notebook_w14_flagsoff_parity.py`: 36 identical, 4 differ (see section 5).
 
 New test files: `ThesisChip.test.jsx` (extended), `HoldingsList.thesisChip.test.jsx`,
@@ -225,4 +298,7 @@ Positions phone tests that asserted `role="button"` on the card.
 | `65393413b9` | Passive explainer Tab order | round 2, item 4 |
 | `7a7d75f229` | Transcript count test | round 2, item 4 |
 
-A last commit carries the round 2 update of this file.
+| `21db9ae95f` | Round 2 docs | |
+
+Round 3's commits follow those: the walk tool and the "before" evidence, one commit per
+screen, then the rail, the "after" evidence and this file.
