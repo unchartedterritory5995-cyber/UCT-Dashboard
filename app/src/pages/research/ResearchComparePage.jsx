@@ -166,7 +166,7 @@ export default function ResearchComparePage() {
   const isPhone = useIsPhone()
   const sym = (rawSym || '').toUpperCase()
   const comparator = (rawComparator || '').toUpperCase()
-  const { data, isLoading } = useComparison(sym, comparator)
+  const { data, isLoading, error: loadError, retry } = useComparison(sym, comparator)
   const sessionContext = sessionModel(useMarketOpen())
   const [searchParams] = useSearchParams()
   // Seam 22. All THREE writers already send this page a return marker --
@@ -192,6 +192,24 @@ export default function ResearchComparePage() {
 
   if (isLoading) {
     return <div className={styles.page}><div className={styles.loading}>Loading comparison…</div></div>
+  }
+
+  // TERM-033: a failed request is said as one, never drawn as two empty columns.
+  if (loadError && !data) {
+    return (
+      <div className={styles.page}>
+        {returnLink}
+        <div className={styles.errorBox} role="alert" data-testid="compare-load-failed">
+          The comparison of {sym} and {comparator} couldn&apos;t be loaded. The request failed;
+          this is not a statement about either company.
+          {' '}
+          <button type="button" className={styles.hdrBtn} onClick={() => retry?.()}>Retry</button>
+        </div>
+        <button className={styles.backLink} onClick={() => navigate(`/research/${sym}`)}>
+          &larr; Back to {sym} Research
+        </button>
+      </div>
+    )
   }
 
   if (data?.error) {
