@@ -24,6 +24,7 @@
       "n": 0
     },
     "bestTrade": null,
+    "compassOmitted": null,
     "compassText": null,
     "discipline": {
       "entry": {
@@ -69,6 +70,16 @@
         "wording": "too few to judge"
       },
       "unplannedCount": 0
+    },
+    "gradingCap": {
+      "graded": 0,
+      "limit": 300,
+      "ungraded": 0
+    },
+    "leakCoverage": {
+      "trades": 0,
+      "withR": 0,
+      "withoutR": 0
     },
     "leaks": [],
     "links": {

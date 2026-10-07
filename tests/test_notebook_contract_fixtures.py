@@ -14,7 +14,8 @@ This file is what keeps the two halves tied:
   * a CONTROL changes one server shape and proves the comparison names the fixture;
   * every route on those routers has a pinned answer, read from the routers, never from a list.
 
-One defect found while building it is pinned at the bottom as a strict xfail (D1).
+Two defects found while building it (D1, D5) are pinned at the bottom. Both were strict xfails;
+both are fixed on the landing branch and are ordinary tests now.
 """
 from __future__ import annotations
 
@@ -207,11 +208,9 @@ def test_the_generator_runs_on_a_temporary_database_and_refuses_the_network():
 
 # ── D1: a defect this work found, kept visible ────────────────────────────────────────────────
 
-@pytest.mark.xfail(strict=True, reason=(
-    "DEFECT D1 (docs/notebook/fin-tests.md): POST /api/j2/thesis-chips answers 500 "
-    "(sqlite3.OperationalError: no such table: j2_note_levels) until the resurfacing lane has "
-    "projected a note. api/services/journal_two/thesis_chips.py:108 reads a table only "
-    "note_levels.ensure_schema creates. Remove this marker when the route answers {}."))
+# FIXED by the security lane (ce23ddf5f1): a database with no level index answers {}. This was
+# a strict xfail (POST /api/j2/thesis-chips answered 500, "no such table: j2_note_levels") until
+# the two branches met on the landing; it is an ordinary regression test now.
 def test_D1_thesis_chips_answer_before_the_level_table_exists(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
@@ -244,12 +243,10 @@ def test_D1_thesis_chips_answer_before_the_level_table_exists(monkeypatch):
 
 # ── D5: a second defect this work found, kept visible ───────────────────────────────────────────
 
-@pytest.mark.xfail(strict=True, reason=(
-    "DEFECT D5 (docs/notebook/fin-tests.md): a stored-bar hole in the MIDDLE of a passed setup's "
-    "window shifts every later horizon by a session, unlabelled. passed_setups.score() "
-    "(api/services/journal_two/passed_setups.py:221-246) reads forward[h-1] off the name's own "
-    "bars and only labels a gap when the name has FEWER than h bars. Remove this marker when the "
-    "+5 day cell reads the fifth session (2.5%) or is labelled missing."))
+# FIXED by the data lane (b6e7952586, then b00ec816e6: horizons are the market calendar's Nth
+# session, never the Nth stored row). This was a strict xfail: a stored-bar hole in the middle
+# of the window shifted every later horizon by a session, unlabelled (the "+5 days" cell read
+# the sixth session, 3.0%). The cell is now labelled missing. An ordinary regression test.
 def test_D5_a_missing_session_in_the_middle_never_shifts_a_horizon():
     """The fixture name PSGP closes at 200 on the reference day and one point higher each
     session; the store is missing the fifth session after it. The market's fifth session is

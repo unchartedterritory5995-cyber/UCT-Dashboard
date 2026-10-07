@@ -8,6 +8,10 @@ import WhyPrompt from './WhyPrompt'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { contract, contractBody, contractResponse } from '../__fixtures__/contract'
 
+// For the compare-and-set tests below (data lane I5), which script a sequence of answers the
+// recorded fixtures do not hold (a 409 with another tab's version, then a second save).
+const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
+
 // CONTRACT: the save's answer and its refusals are the REAL server's (PUT /api/j2/entry-context/why,
 // `__fixtures__/contract`, written by tools/notebook_contract_fixtures.py).
 const SAVED = contract('entry-context.why.saved')

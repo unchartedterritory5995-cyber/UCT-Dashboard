@@ -248,7 +248,15 @@ describe('VisualPlaybookBody', () => {
 describe('VisualPlaybookBody — sample cards', () => {
   beforeEach(() => { __resetNotebookFlags(); latchNotebookFlags({ notebook_visual_playbook_enabled: true }) })
   afterEach(() => { __resetNotebookFlags() })
-  const example = () => card({ noteId: 'ex', noteTitle: 'Trade plan: example', symbol: 'AAPL', example: true, trades: [], outcome: 'none' })
+  // The tests lane replaced this file's hand-typed cards with the server's recorded answer. No
+  // recorded member has added the sample, so an example card is the recorded card with the
+  // fields the server sets on one (`example: true`, no trades), and the counts it reports.
+  const RECORDED = () => contractBody('visual-playbook.cards')
+  const card = () => RECORDED().cards[0]
+  const example = () => ({ ...card(), noteId: 'ex', noteTitle: 'Trade plan: example', symbol: 'AAPL', example: true, trades: [], outcome: 'none' })
+  const stats = (over) => ({ ...RECORDED().stats, ...over })
+  const payload = (over) => ({ ...RECORDED(), ...over })
+  const respond = (status, body) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
 
   it('a member whose only card is the sample sees it labelled, zero counts, and the "tag a chart" guidance', async () => {
     global.fetch = vi.fn(() => respond(200, payload({

@@ -11,6 +11,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vp-b",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -61,6 +62,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vp-f",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -97,6 +99,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vp-a",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -146,6 +149,7 @@
       }
     ],
     "count": 3,
+    "exampleCount": 0,
     "excludedMissing": {},
     "facets": {
       "setups": {

@@ -81,40 +81,40 @@
           },
           {
             "key": "r5",
-            "label": null,
-            "missing": null,
-            "pct": 3.0,
+            "label": "Bars missing from the store",
+            "missing": "missing",
+            "pct": null,
             "sessions": 5
           },
           {
             "key": "r10",
             "label": null,
             "missing": null,
-            "pct": 5.5,
+            "pct": 5.0,
             "sessions": 10
           },
           {
             "key": "r20",
             "label": null,
             "missing": null,
-            "pct": 10.5,
+            "pct": 10.0,
             "sessions": 20
           },
           {
             "best": true,
             "key": "best20",
-            "label": null,
-            "missing": null,
-            "pct": 10.75,
+            "label": "Bars missing from the store",
+            "missing": "missing",
+            "pct": null,
             "sessions": 20
           }
         ],
         "savedAt": "2026-08-31T20:00:00+00:00",
         "savedDay": "2026-08-31",
-        "sessionsStored": 20,
+        "sessionsStored": 19,
         "source": "manual",
         "sourceRef": null,
-        "status": "scored",
+        "status": "pending",
         "symbol": "PSGP",
         "tradedOn": null
       },
@@ -276,6 +276,7 @@
       }
     ],
     "lookbackDays": 60,
+    "refreshQueued": false,
     "tradedCount": 1,
     "tradedWithin": 10
   }

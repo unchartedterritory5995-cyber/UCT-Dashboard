@@ -11,6 +11,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-05",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -66,6 +67,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-01",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -121,6 +123,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-11",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -176,6 +179,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-09",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -231,6 +235,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-03",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -286,6 +291,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-07",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -341,6 +347,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-06",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -396,6 +403,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-10",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -451,6 +459,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-02",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -506,6 +515,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-00",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -561,6 +571,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-04",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -616,6 +627,7 @@
       {
         "asOf": "2026-09-30",
         "embedKey": "vt-08",
+        "example": false,
         "fingerprintAsOf": "2026-09-30",
         "fingerprintSource": "note",
         "image": {
@@ -670,6 +682,7 @@
       }
     ],
     "count": 12,
+    "exampleCount": 0,
     "excludedMissing": {},
     "facets": {
       "setups": {

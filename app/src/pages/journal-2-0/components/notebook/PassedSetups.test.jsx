@@ -47,7 +47,9 @@ const cellsOf = (li) => [...li.querySelectorAll('[data-outcome]')].map((c) => [c
 describe('the recorded list holds one name in each state (non-vacuity)', () => {
   it('scored, pending, a short store, and no bars; one traded name counted', () => {
     expect(Object.fromEntries(LIST.items.map((i) => [i.symbol, i.status]))).toEqual({
-      PSNV: 'scored', PSGP: 'scored', PSPD: 'pending', PSSH: 'pending', PSZZ: 'no_bars',
+      // PSGP was 'scored' until the data lane counted horizons on the market calendar
+      // (b6e7952586, b00ec816e6): a name with a session missing from the store is not scored yet.
+      PSNV: 'scored', PSGP: 'pending', PSPD: 'pending', PSSH: 'pending', PSZZ: 'no_bars',
     })
     expect(LIST).toMatchObject({ horizons: [1, 5, 10, 20], bestWindow: 20, tradedWithin: 10, tradedCount: 1, lookbackDays: 60 })
     expect(new Set(row('PSSH').outcomes.map((o) => o.missing))).toEqual(new Set([null, 'missing']))
@@ -199,7 +201,7 @@ describe('PassedSetups — the follow-up read after a queued refresh', () => {
       return [200, { ...LIST, refreshQueued: n === 1 }]
     })
     wrap()
-    await screen.findByText('$NVDA')
+    await screen.findByText(`$${LIST.items[0].symbol}`)   // a recorded name, whichever is first
     await waitFor(() => expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2), { timeout: 5000 })
     await new Promise((r) => setTimeout(r, 2800))
     expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2)
@@ -208,7 +210,7 @@ describe('PassedSetups — the follow-up read after a queued refresh', () => {
   it('reads once when no refresh was queued', async () => {
     const calls = installFetch(() => [200, { ...LIST, refreshQueued: false }])
     wrap()
-    await screen.findByText('$NVDA')
+    await screen.findByText(`$${LIST.items[0].symbol}`)   // a recorded name, whichever is first
     await new Promise((r) => setTimeout(r, 2800))
     expect(calls.filter((c) => c.method === 'GET')).toHaveLength(1)
   }, 8000)

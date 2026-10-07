@@ -9,6 +9,7 @@
     "capped": false,
     "cards": [],
     "count": 0,
+    "exampleCount": 0,
     "pageSize": 16,
     "scanned": 0,
     "today": "2026-10-05"

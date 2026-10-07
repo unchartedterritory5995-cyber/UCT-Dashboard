@@ -60,8 +60,11 @@ const BARS = [
   { t: '2026-03-18', o: 112.5, h: 113, l: 96, c: 97 },     // then the stop
 ]
 
-// The server's answer for a member Compass does not size (a free plan): the starter formulas run.
-const STARTER = () => contractBody('chart-plan.size.free-plan')
+// The server's answer for a member Compass does not size: the starter formulas run. It WAS the
+// free-plan answer; the security lane made the route paid (I-7), so a free member now answers
+// 402 and that fixture is a refusal. The same reading for a paid member is the Compass-silent
+// answer (the brain pack not installed, which is production's state while its flags are off).
+const STARTER = () => contractBody('chart-plan.size.compass-unavailable')
 const PLAN = STARTER().plan
 const ACCOUNT = STARTER().account
 // The drawings above carry the same three levels the answers were recorded for.

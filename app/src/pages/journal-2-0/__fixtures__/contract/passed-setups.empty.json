@@ -15,6 +15,7 @@
     ],
     "items": [],
     "lookbackDays": 60,
+    "refreshQueued": true,
     "tradedCount": 0,
     "tradedWithin": 10
   }

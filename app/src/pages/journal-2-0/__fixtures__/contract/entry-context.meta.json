@@ -28,6 +28,7 @@
       "no_screens_swept": "none of the member's saved screens had a nightly sweep",
       "rs_cache_cold": "the RS rankings cache was cold (the background warmer had not run)",
       "rs_not_ranked": "the symbol is not in the RS-ranked universe",
+      "source_busy": "the source was busy when the context was frozen, so it was not asked",
       "source_error": "the source could not be read when the context was frozen",
       "wire_unavailable": "the morning wire's exposure block was not available"
     },

@@ -195,7 +195,7 @@ describe('useEntryContextFor: one position\'s or trade\'s frozen context', () =>
 describe('putWhy: the "why did you take it" note', () => {
   const sent = () => contract('entry-context.why.saved')._contract.requestBody
 
-  it('sends the three fields the server reads, and returns its answer', async () => {
+  it('sends the fields the server reads (the key, the text and the base version), and returns its answer', async () => {
     server = () => contractResponse('entry-context.why.saved')
     const { symbol, entryDay, text } = sent()
     const out = await putWhy(symbol, entryDay, text)
@@ -211,7 +211,8 @@ describe('putWhy: the "why did you take it" note', () => {
   it('an empty string is sent as an empty string, which clears the note', async () => {
     server = () => contractResponse('entry-context.why.saved')
     await putWhy('ECNV', '2026-10-05', '')
-    expect(calls[0].body).toEqual({ symbol: 'ECNV', entryDay: '2026-10-05', text: '' })
+    // `baseUpdatedAt: null` = "I read no saved note" (data lane I5: the save is a compare-and-set).
+    expect(calls[0].body).toEqual({ symbol: 'ECNV', entryDay: '2026-10-05', text: '', baseUpdatedAt: null })
   })
 
   it('throws the server\'s sentence when there is no context to attach the note to', async () => {

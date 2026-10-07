@@ -35,6 +35,7 @@
       "symbol": "RDWN",
       "tradeRef": "id:rd-win"
     },
+    "compassOmitted": null,
     "compassText": null,
     "discipline": {
       "entry": {
@@ -84,6 +85,16 @@
       },
       "unplannedCount": 16
     },
+    "gradingCap": {
+      "graded": 17,
+      "limit": 300,
+      "ungraded": 0
+    },
+    "leakCoverage": {
+      "trades": 17,
+      "withR": 17,
+      "withoutR": 0
+    },
     "leaks": [
       {
         "detail": {
@@ -107,6 +118,8 @@
           "baselineAvgR": -0.2647,
           "netPnl": -201.0
         },
+        "excludedNetPnl": 0,
+        "excludedNoR": 0,
         "kind": "revenge_reentry",
         "label": "Revenge re-entries",
         "sample": {
@@ -125,7 +138,8 @@
             "symbol": "RDLS",
             "tradeRef": "id:rd-reentry"
           }
-        ]
+        ],
+        "vsBaseline": "worse"
       },
       {
         "detail": {
@@ -138,6 +152,8 @@
           "baselineAvgR": -0.2647,
           "netPnl": 398.0
         },
+        "excludedNetPnl": 0,
+        "excludedNoR": 0,
         "kind": "size_up_after_loss",
         "label": "Sizing up after a loss",
         "sample": {
@@ -164,7 +180,8 @@
             "symbol": "RDWN",
             "tradeRef": "id:rd-win"
           }
-        ]
+        ],
+        "vsBaseline": "not_worse"
       },
       {
         "detail": {
@@ -177,8 +194,10 @@
           "baselineAvgR": -0.2647,
           "netPnl": -702.0
         },
+        "excludedNetPnl": 0,
+        "excludedNoR": 0,
         "kind": "weak_time_window",
-        "label": "A weak time window",
+        "label": "A weak time window (by exit time)",
         "sample": {
           "band": "too_few",
           "mean": -0.75,
@@ -203,7 +222,8 @@
             "symbol": "RDLS",
             "tradeRef": "id:rd-reentry"
           }
-        ]
+        ],
+        "vsBaseline": "worse"
       },
       {
         "detail": {},
@@ -213,6 +233,8 @@
           "baselineAvgR": -0.2647,
           "netPnl": -1216.0
         },
+        "excludedNetPnl": 0,
+        "excludedNoR": 0,
         "kind": "unplanned_trades",
         "label": "Unplanned trades",
         "sample": {
@@ -354,7 +376,8 @@
             "symbol": "RDLS",
             "tradeRef": "id:rd-reentry"
           }
-        ]
+        ],
+        "vsBaseline": "worse"
       }
     ],
     "links": {

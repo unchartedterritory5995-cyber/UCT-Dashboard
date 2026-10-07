@@ -9,6 +9,7 @@
   "body": {
     "cards": [],
     "count": 0,
+    "exampleCount": 0,
     "excludedMissing": {},
     "facets": {
       "setups": {

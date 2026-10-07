@@ -4,6 +4,7 @@
     "endpoint": "PUT /api/j2/entry-context/why",
     "path": "/api/j2/entry-context/why",
     "requestBody": {
+      "baseUpdatedAt": null,
       "entryDay": "2026-10-05",
       "symbol": "ECNV",
       "text": "VCP through the pivot on volume"

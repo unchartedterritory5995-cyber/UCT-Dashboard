@@ -311,6 +311,13 @@ class World:
             importlib.import_module(name)
         from api.limiter import limiter
         limiter.reset()          # the hourly limits are per process; a second run must start clean
+        # So are the data lane's memos (landing 12-15): "one refresh on view per member per 15
+        # minutes" made the SECOND run in a process answer `refreshQueued: false` where the first
+        # answered true, so two runs were not byte-identical. Each module's own reset is used.
+        from api.services.journal_two import entry_context as _ectx, passed_setups as _passed
+        _passed._reset_refresh_clock()
+        _ectx._reset_vendor_state()
+        _ectx._reset_capture_queue()
         from api.services.cache import cache
         for prefix in ("notebook_earnings_prep_window", "calendar_week", "calendar_enrichment_"):
             cache.delete_prefix(prefix)
@@ -1105,8 +1112,11 @@ def entry_context(w: World) -> None:
     w.record("entry-context.by-key.not-captured", "GET", f"{base}?symbol=ECAM&entryDay=2026-10-01", case="empty",
              expect=200)
     w.record("entry-context.by-key.bad-day", "GET", f"{base}?symbol=ECNV&entryDay=yesterday", case="error", expect=422)
+    # `baseUpdatedAt` (data lane I5, ac9305c742): the save is a compare-and-set, and the client
+    # always names the version it read (null for a first save). Recorded as the client sends it.
     w.record("entry-context.why.saved", "PUT", f"{base}/why", case="success", expect=200,
-             json_body={"symbol": "ECNV", "entryDay": TODAY, "text": "VCP through the pivot on volume"})
+             json_body={"symbol": "ECNV", "entryDay": TODAY, "text": "VCP through the pivot on volume",
+                        "baseUpdatedAt": None})
     w.record("entry-context.why.no-context", "PUT", f"{base}/why", case="error", expect=409,
              json_body={"symbol": "ECAM", "entryDay": "2026-10-01", "text": "late"})
     w.record("entry-context.why.too-long", "PUT", f"{base}/why", case="error", expect=422,
@@ -1155,10 +1165,23 @@ def chart_plan(w: World) -> None:
     w.record("chart-plan.size.bad-body", "POST", f"{base}/size", case="error", expect=422,
              json_body={"annotations": "x"})
     w.as_user(uid, FREE)
-    w.record("chart-plan.size.free-plan", "POST", f"{base}/size", case="success", expect=200,
+    # Landing 12-15: this answered 200 with the starter formulas until the security lane made
+    # every new Notebook member route paid (I-7, 6c694e3527). A free member is now refused.
+    w.record("chart-plan.size.free-plan", "POST", f"{base}/size", case="error", expect=402,
              json_body={"annotations": anns, "symbol": "CPNV"},
-             note="A free member is sized with the starter formulas: Compass is not asked.")
+             note="A free member is refused: chart plans take a paid plan (security review I-7).")
     w.as_user(uid)
+    # The starter formulas' answer now that a free member is refused: a PAID member Compass did
+    # not size. This is production's state while the brain pack is not installed (its flags are
+    # off by default): the facade answers "not available" and the client sizes with the starter
+    # formulas. Recorded with the facade's own refusal, then the stand-in is put back.
+    w.p.setattr(brain_service, "size_a_trade", lambda e, s, a, risk_pct=1.0: {
+        "ok": False, "error": "brain not available"})
+    w.record("chart-plan.size.compass-unavailable", "POST", f"{base}/size", case="success", expect=200,
+             json_body={"annotations": anns, "symbol": "CPNV"},
+             note="Compass did not answer (the brain pack is not installed): the starter formulas size it.")
+    w.p.setattr(brain_service, "size_a_trade", lambda e, s, a, risk_pct=1.0: {
+        "ok": True, "shares": 235, "regime": "GREEN", "risk_pct": risk_pct})
     w.record("chart-plan.benchmarks", "GET", f"{base}/benchmarks?symbol=cpnv", case="success", expect=200)
     w.record("chart-plan.benchmarks.bad-symbol", "GET", f"{base}/benchmarks?symbol=", case="error", expect=422)
     alert = {"noteId": note["id"], "embedId": "cp-emb", "drawingId": "d-CPNV-stop", "direction": "below",
@@ -1312,10 +1335,16 @@ def template_gallery(w: World) -> None:
     w.record("template-gallery.item.pending-hidden", "GET", f"{base}/{gid}", case="error", expect=404,
              note="A submission waiting for review is the one 404 to everyone but its author and an admin.")
     w.as_user(ADMIN)
-    w.record("template-gallery.admin.queue", "GET", f"{base}/admin/queue", case="success", expect=200,
-             note="Four submissions waiting, nothing reported or hidden yet.")
+    first_queue = w.record("template-gallery.admin.queue", "GET", f"{base}/admin/queue", case="success",
+                           expect=200, note="Four submissions waiting, nothing reported or hidden yet.")
+    # Landing 12-15: an approval names the version the reviewer saw (security review I-6,
+    # 0cee0950c4). The value is read off the queue answer just recorded, as the review panel does.
+    seen = next(row["updatedAt"] for row in first_queue["pending"] if row["id"] == gid)
     w.record("template-gallery.admin.approve", "PATCH", f"{base}/admin/items/{gid}", case="success", expect=200,
-             json_body={"action": "approve"})
+             json_body={"action": "approve", "reviewedUpdatedAt": seen})
+    w.record("template-gallery.admin.approve.stale", "PATCH", f"{base}/admin/items/{third}", case="error",
+             expect=409, json_body={"action": "approve"},
+             note="An approval that does not name the version the reviewer saw is refused.")
     w.record("template-gallery.admin.reject", "PATCH", f"{base}/admin/items/{second}", case="success", expect=200,
              json_body={"action": "reject", "note": "Too thin to be useful yet."})
     w.record("template-gallery.admin.bad-action", "PATCH", f"{base}/admin/items/{gid}", case="error", expect=400,
@@ -1343,7 +1372,13 @@ def template_gallery(w: World) -> None:
              json_body={"reason": "spam"}, note="A member cannot report their own template.")
     w.as_user(ADMIN)
     # A fourth submission approved and then hidden, so the queue holds one of each kind at once.
-    w.client.patch(f"{base}/admin/items/{fourth}", json={"action": "approve"})
+    # ⛔ A setup call that is CHECKED. It used to be an unchecked PATCH; once approvals had to name
+    # the reviewed version (security I-6) it answered 409 silently, the template stayed pending,
+    # and every fixture below recorded a hidden-but-never-approved template without a word.
+    seen_fourth = next(row["updatedAt"] for row in first_queue["pending"] if row["id"] == fourth)
+    approved = w.client.patch(f"{base}/admin/items/{fourth}",
+                              json={"action": "approve", "reviewedUpdatedAt": seen_fourth})
+    assert approved.status_code == 200, f"setup: approving the fourth template answered {approved.status_code}"
     w.record("template-gallery.admin.hide", "PATCH", f"{base}/admin/items/{fourth}", case="success", expect=200,
              json_body={"action": "hide"})
     queue = w.record("template-gallery.admin.queue.full", "GET", f"{base}/admin/queue", case="success", expect=200,
