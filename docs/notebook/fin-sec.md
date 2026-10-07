@@ -24,7 +24,14 @@ Nothing here turns a feature on. Every route named is still dark behind its flag
 | M-5 exception text returned to the client | Verified, fixed | `98c8b149e7` | same file |
 | M-6 gallery list parses every body | Verified, fixed | `87e72f7df5` | `tests/test_notebook_fin_sec_gallery_minors.py` |
 | M-7 purge leaves orphan reports | Verified, fixed | `87e72f7df5` | same file |
-| M-1 dark routes can be told apart | Verified, NOT fixed: reported | none | measured, see below |
+| M-1 dark routes can be told apart | Verified, NOT fixed: reported and accepted as is | none | measured, see below |
+| Round 2: a takedown is never paywalled | Ruling applied | `26124b23f5` | `tests/test_paywall_gate_free_tier.py`, `test_a_TAKEDOWN_is_never_paywalled_but_still_needs_a_session` |
+| Round 2: share links and published pages kept every attribute | Verified on the rendered page, fixed | `4b8a5a68cd` | `tests/test_notebook_fin_sec_public_attrs.py`, `public/ReadOnlyNote.hostile.test.jsx` |
+| Round 2: the editor rendered a stored font value as CSS | Verified, fixed | `756484b787` | `lib/tiptap.textStyleGuard.test.js` |
+
+Round 2 (2026-10-07) is at the end of this file. It reverses one decision of round 1
+(unpublish is session-only again) and closes two items round 1 left open (the public pages
+and the editor).
 
 Not assigned to this lane and not touched: I-1, I-2, I-5, M-2, and the third part of I-3
 (`passed_setups.refresh`).
@@ -134,21 +141,12 @@ templates sanitize to exactly what they did before.
 attribute, so in gallery mode that mark now styles nothing and is dropped. The fixture now
 uses a value the toolbar writes.
 
-**Not changed, and why.**
+**Left open in round 1, closed in round 2** (see the end of this file): the client guard,
+and the same pass-through on share links and published pages.
 
-- The client. A guard there is not one line: it means replacing TipTap's `FontFamily` and
-  `FontSize` with narrowed copies in the Notebook's extension list, which touches every note
-  a member opens. Recommended follow-up: narrow both in `renderHTML` the way
-  `lib/textColor.js` does, and drop `class` from the Link mark. Until then the server filter
-  is the only guard, which is why it runs at use time as well as at publish time.
-- Share links and published pages. They use the same reducer in `share` and `publish` mode,
-  and those modes still keep every attribute. They predate the reviewed diff and the review
-  did not cover them. A published page is rendered read-only, not copied into another
-  member's editor, but the same inline style would reach a stranger's browser. This is an
-  open item for an owner decision.
-- No rail derives the attribute list from the client schema. An attribute the table does not
-  name is dropped, so a new attribute fails closed: it does not travel until someone adds a
-  row.
+**Still true.** No rail derives the attribute list from the client schema. An attribute the
+table does not name is dropped, so a new attribute fails closed: it does not travel until
+someone adds a row.
 
 ## I-6. An approved template could be swapped for unreviewed content
 
@@ -172,7 +170,7 @@ Client: the admin review panel remembers the version of each template the admin 
 **Ruling applied** (owner, 2026-10-02: no free tier, everything is paywall). Each now takes
 its own router's `require_paid`, the same gate its paid siblings use:
 
-- gallery: browse, preview, use, report, unpublish
+- gallery: browse, preview, use, report (unpublish too in round 1; reversed in round 2)
 - plan grades: the trade read, re-link, status, discipline
 - my playbook
 - review drafts: daily, weekly, monthly
@@ -229,12 +227,9 @@ error screen. None sends the member to the upgrade page on its own either:
 
 Worth a follow-up: these could send a lapsed member to `/subscribe` the way the page guard does.
 
-**Open decision: unpublish.** The ruling was applied as written, so taking a template down is
-now paid too. A member whose plan lapsed can no longer withdraw their own published template
-themselves. An admin can hide it, and deleting the account removes it. The gallery's original
-rule said the opposite on purpose ("a member whose plan lapsed can always take their template
-down"). If the owner wants that back, it is one line: give `unpublish_endpoint` the session
-dependency and add the route to `NOTEBOOK_NOT_PAID` with the reason.
+**Unpublish.** Round 1 applied the ruling as written, which made taking a template down
+paid. The owner ruled on 2026-10-07 that a member can always take their own content down.
+Round 2 reversed it; see the end of this file.
 
 ## The MINOR findings
 
@@ -254,7 +249,7 @@ loop (`chart_blocks.iter_chart_attrs`), shared by `extract_blocks` and the visua
 the two cannot disagree on document order. A body too deep for the JSON parser itself (about
 50,000 levels on this Python: it raises RecursionError, which is not a ValueError) reads as a
 note with no charts. **Left:** `passed_setups._walk_scan_embeds` has the same recursion and is
-another lane's file. The note save path caps depth at create and import but not on the PUT
+another lane's file (lane DATA has it). The note save path caps depth at create and import but not on the PUT
 save, so such a body can be stored.
 
 **M-6, verified, fixed.** The gallery list parsed every row's full body on every request. The
@@ -343,3 +338,167 @@ While reading a test log I ran `git stash` by mistake, which the lane rules forb
 the uncommitted paywall work off the tree. I restored it from the stash's own commit, checked
 the working tree against that commit (no difference), and removed only that entry, so the
 shared stash list is as it was before. Nothing was lost and no other entry was touched.
+
+# Round 2 (2026-10-07)
+
+Three items from the controller after round 1. Same method: test first, one commit each.
+
+## A member can always take their own content down
+
+**Ruling** (owner, 2026-10-07): a member must always be able to take their own content down,
+whatever their plan. Publishing, browsing and using stay paid.
+
+Each of the nineteen routes the paywall change closed was checked against it:
+
+| Route | What it does | Verdict |
+|---|---|---|
+| `DELETE /api/j2/template-gallery/{gallery_id}` | removes the caller's own published copy, nothing else | **session-only again** |
+| gallery browse, preview | reads other members' templates | stays paid |
+| gallery use | copies a template into the caller's templates | stays paid |
+| gallery report | writes a report about someone else's template | stays paid |
+| plan grades: trade read, status, discipline | computed grades over the caller's trades | stays paid |
+| plan grades: re-link | writes a plan link | stays paid |
+| my playbook, the three review drafts, the setups board, before and after | computed features | stays paid |
+| chart plan: size, benchmarks, alerts | sizing, market reads, arming an alert | stays paid |
+| tour-state write | stores a preference | stays paid |
+
+None of the other eighteen removes or hides the caller's content, and none is an export or
+deletion read of data they created. The member's own notes, trades and export routes are
+older than this diff and were never made paid by it.
+
+`tests/test_paywall_gate_free_tier.py` pins unpublish in `NOTEBOOK_NOT_PAID` with the takedown
+reason. A new test asserts a takedown is never paywalled, still needs a session, and answers a
+member with no paid plan. `tests/test_notebook_template_gallery.py` drives it: an author with
+a free plan is refused the gallery list (402) and can still unpublish (200).
+
+## Share links and published pages
+
+**Established first, on the rendered page.** A share link and a published page are public and
+served from our own domain. The page is the app shell; the browser fetches the reduced note
+as JSON (`GET /api/j2/shared/{token}`, `GET /api/j2/published/{slug}`) and renders it with the
+real editor extensions, read-only (`public/ReadOnlyNote.jsx`). There is no server-rendered
+HTML of the note; the HTML a visitor's browser ends up with is what that component builds.
+
+A note was stored with hostile values, put through both reducers, and the result rendered on
+that component (jsdom). Before the fix, for both modes:
+
+| Stored | Served by the reducer | HTML in the visitor's browser |
+|---|---|---|
+| `fontFamily: "x; position:fixed; inset:0; opacity:0.01; background-image:url(https://evil.example/p)"` | unchanged | `<span style="font-family: x; position: fixed; inset: 0px; opacity: 0.01; background-image: url(&quot;https://evil.example/p&quot;);">` |
+| `fontSize: "12px; position:fixed; top:0"` | unchanged | `<span style="font-size: 12px; position: fixed; top: 0px;">` |
+| `textColor.color: "red; position:fixed"` | unchanged | `<span>`. The editor already drops a colour that is not a palette name. |
+| `highlight.color` with a quote break | unchanged | `<mark class="uct-hl">`. Already narrowed. |
+| link with `class: "uct-overlay modal-backdrop"`, `target: "_self"`, `rel: "opener"`, `title` | unchanged | `<a target="_self" rel="opener" class="uct-overlay modal-backdrop" href="https://evil.example/go" title="t">` |
+| link with `href: "javascript:alert(1)"` | the link is removed, the words stay | plain text |
+
+So an author could put an invisible full-screen box over their own public page and make every
+visitor's browser fetch an address of the author's choosing, and could give a link any class
+the app's stylesheet defines, with `rel="opener"`. Script injection was not possible by this
+path: `javascript:` links were already refused, and a style attribute cannot run script.
+
+**What changed.** The gallery's attribute table now applies to share and publish too, through
+`PUBLIC_ATTR_POLICY`. It differs from the gallery's only where a member's own page carries
+more:
+
+- a checked task stays checked;
+- an image keeps its address (already checked by the reducer), alt, title, width, height and
+  alignment, and nothing else;
+- a link may be `http`, `https` or `mailto`; its `target` and `rel` are set to `_blank` and
+  `noreferrer`, never copied; no class and no title;
+- colours: a palette name or a hex colour. The editor stores and renders palette names only,
+  so a hex value passes the server and is then dropped by the editor's own narrowing;
+- fonts and sizes: every value the Font picker offers, or any value of a strict shape that
+  cannot hold a second CSS declaration (none of `; : ( ) { } \ / < > ! @` can match). Sizes
+  are `px`, `pt`, `em`, `rem` or `%` within bounds, or a CSS size keyword. The shape rule is
+  there so a font or size that arrived by paste or import (Word's `Calibri`, `11pt`), which
+  the member sees in their own editor, is not stripped from their public page. The gallery
+  keeps the stricter fixed list, because a template is copied into other members' notebooks.
+
+After the fix the same note renders as plain spans, plus a link with `target="_blank"` and
+`rel="noreferrer"` and no class.
+
+**Tests on the final rendered output.** `tests/fixtures/notebook_public_hostile.json` holds a
+hostile note and the reducer's current share and publish output for it. A Python test
+rewrites the file and fails when it is out of date. `public/ReadOnlyNote.hostile.test.jsx`
+renders that file on the real public page component and asserts that the only inline style
+left is the author's legitimate `font-family: Georgia, serif` and `font-size: 18px`. The
+Python side also drives twelve hostile values through both reducers and six through the real
+public routes.
+
+**The public page's Content-Security-Policy.** There is none. Checked in the code:
+
+- The page itself is `index.html` from `spa_index_response` in `api/main.py`. On a public
+  note path it adds `X-Robots-Tag: noindex, nofollow` and `Referrer-Policy: no-referrer`, plus
+  `Cache-Control`. No `Content-Security-Policy`, and none in `app/index.html`.
+- The two JSON routes carry `Cache-Control: no-store, private`, `X-Robots-Tag`,
+  `Referrer-Policy` and `X-Content-Type-Options: nosniff`. No CSP.
+- Only the public image routes carry one: `default-src 'none'`.
+- A search of `api/` finds no other place that sets the header. Whether Cloudflare adds one
+  at the edge was not checked.
+
+So nothing at the browser level limits inline styles, outside images or outside frames on a
+public note page. Everything rests on the reducer and the editor guard. A policy for the two
+public paths (for example `style-src` without `unsafe-inline` is not possible while TipTap
+writes inline styles, but `img-src`, `frame-src`, `connect-src` and `base-uri` could be
+narrowed) is recommended as its own task. It needs a real browser pass, because the app shell
+is shared with every other page.
+
+## The editor's own guard
+
+**Verified** (round 1 measured it; round 2 fixed it). TipTap's stock FontFamily and FontSize
+render the stored value into an inline style with no check, and content loaded as JSON never
+passes `parseHTML`.
+
+**What changed, in `lib/tiptap.js` only.** The Notebook's extension setup registers guarded
+copies of the two extensions (`FontFamily.extend`, `FontSize.extend`, so the names, options
+and commands are unchanged). A value is checked on the way in (`parseHTML`) and again on the
+way out (`renderHTML`), the way `lib/textColor.js` does for colours. The stored value is never
+rewritten; only what reaches the DOM is checked.
+
+The rule is the public reducer's: every value the Font picker offers (`FONT_OPTIONS`), or the
+strict shape described above. Both guards are tested against one case table,
+`tests/fixtures/notebook_text_style_cases.json`, so the server's and the editor's cannot drift.
+
+**No existing formatting is stripped.** `lib/tiptap.textStyleGuard.test.js` runs on the real
+extension list and derives the legitimate values rather than retyping them:
+
+- all 22 Font picker values, from `utils/fontFamilies.js` `FONT_OPTIONS`;
+- all 17 Size picker values, read out of `NoteEditorPage.jsx`'s own `FONT_SIZES` array (a
+  private const, so the test reads the source and also checks the picker still writes
+  `${s}px` from it);
+- pasted and imported forms from the shared case table.
+
+Each renders exactly as before. Each hostile case renders no style at all.
+
+**Paste and import.** Both call the same guard:
+
+- Paste goes through the editor's `parseHTML`, which is the guarded one.
+- The file importer builds its JSON with `generateJSON(html, buildExtensions())`
+  (`lib/importer/convert.js`), the same extension list. Tested.
+- One import path does not parse HTML: a note from our own JSON export is taken as its stored
+  body (`heldBody`). That body is still checked when it is rendered.
+
+**Limits, stated plainly.**
+- A font name with non-Latin letters (for example a Japanese font name) does not match the
+  shape and is not rendered as a font. The text itself is untouched.
+- The Link mark still renders any `class` and `title` a stored link carries. The public
+  reducers and the gallery now remove both before they are served, so this only affects a
+  member's own notes in their own editor. Narrowing it means reconfiguring the Link
+  extension; not done here.
+- The Notebook's first-open byte budget was not measured. This adds about 3 KB of source to
+  `lib/tiptap.js` and no new dependency. A build was not run (disk space). The byte check is a
+  promotion gate, so it needs one run before this lands.
+
+## Round 2 tests
+
+| Command | Totals line |
+|---|---|
+| `python -m pytest` on the share, publish, public-payload, gallery, paywall, route-census and capture-auth-boundary suites, by name (16 files) | 963 passed, 1 skipped |
+| `npx vitest run lib/tiptap.textStyleGuard.test.js public/ReadOnlyNote.hostile.test.jsx` | 130 passed |
+| `npx vitest run` on the 58 Notebook test files that use the extension config, plus the two public page tests and the gallery test (61 files) | 1342 passed |
+
+Mutation checks, all red: 1 for the takedown, 7 for the public reducers, 6 for the editor guard.
+
+One round 1 test was replaced: the gallery attribute test's control read share mode to show
+the hostile fixture really carried the value. Share mode now filters it, so the control counts
+the value in the fixture itself.
