@@ -43,16 +43,22 @@ let _seq = 0
 /** Reverse already-landed items, newest first. Returns true if all reversed. */
 async function compensate(host, landed) {
   let ok = true
+  // A kind may take back a step differently from a member's Undo (`compensatePatch`):
+  // a list this transaction CREATED is removed again, though Undo never deletes one.
+  const backOf = (kind, it) => (kind.compensatePatch ? kind.compensatePatch(it) : kind.undoPatch(it))
   for (const it of [...landed].reverse()) {
     const kind = getTargetKind(it.kind)
+    const back = backOf(kind, it)
+    if (!back) { ok = false; continue }
     try {
-      await kind.commit(host, it.ref, kind.undoPatch(it))
+      await kind.commit(host, it.ref, back)
     } catch { ok = false }
   }
   await nextFrame()
   for (const it of landed) {
     const kind = getTargetKind(it.kind)
-    if (!kind.landed(kind.read(host, it.ref), kind.undoPatch(it))) ok = false
+    const back = backOf(kind, it)
+    if (back && !kind.landed(kind.read(host, it.ref), back)) ok = false
   }
   return ok
 }
@@ -126,7 +132,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   }
 
   // One logical receipt from what actually landed.
-  const lines = summarize([...landed.map(it => ({ virtual: false, lines: it.lines, snap: { label: it.label } })), ...vlanded])
+  const lines = summarize([...landed.map(it => ({ virtual: false, kind: it.kind, lines: it.lines, snap: { label: it.label } })), ...vlanded])
 
   // Stale-undo fingerprints are taken at the END of the whole transaction, so the
   // Agent's own configuration of a new target never reads as a later edit.
@@ -138,7 +144,10 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   })
   // A kind may say a change has no Undo (undoPatch → null): then the receipt offers none.
   const undoable = items.length && items.every(it => getTargetKind(it.kind).undoPatch(it) != null)
-  const epoch = typeof host.epoch === 'function' ? host.epoch() : null
+  // Board identity matters only for targets that live ON the board (a saved watchlist
+  // is the same list whichever layout is open).
+  const boardBound = items.some(it => getTargetKind(it.kind).boardScoped !== false)
+  const epoch = boardBound && typeof host.epoch === 'function' ? host.epoch() : null
   const undo = undoable ? { id: `u${Date.now().toString(36)}${(_seq++).toString(36)}`, at: Date.now(), lines, items, epoch } : null
   return { ok: true, lines, failed: [], undo }
 }

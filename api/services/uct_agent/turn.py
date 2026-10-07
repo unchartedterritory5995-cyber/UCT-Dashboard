@@ -163,6 +163,8 @@ def _value_ok(spec: dict, v: Any) -> bool:
         return False
     if "enum" in spec and v not in spec["enum"]:
         return False
+    if isinstance(v, list) and isinstance(spec.get("items"), dict):
+        return all(_value_ok(spec["items"], x) for x in v)
     return True
 
 
@@ -395,6 +397,9 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
             known.add(alias)
     if disp in MUTATING and not ops:
         disp = "answer"               # a plan with nothing in it is just a reply
+    if disp == "answer" and not bad_targets and not str(env.get("reply") or "").strip():
+        # An answer with nothing in it would show the member a blank reply.
+        raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
     if bad_targets:
         # A target the browser never offered: ask, don't guess.
         return {"disposition": "clarify", "reply": "",

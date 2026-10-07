@@ -251,6 +251,30 @@ describe('UCT Agent panel', () => {
     expect(host.raw('w1').stored).toBeNull()
   })
 
+  it('a message sent WHILE the conversation is restoring is kept (and answered) when the history lands', async () => {
+    localStorage.setItem('uct.agent.conversation', 'ac_9')
+    let release
+    const gate = new Promise(r => { release = r })
+    const base = globalThis.fetch.getMockImplementation()
+    globalThis.fetch.mockImplementation(async (url, init) => {
+      if (url === '/api/agent/conversations/ac_9') {
+        await gate
+        return new Response(JSON.stringify({ id: 'ac_9', turns: [{ id: 1, role: 'member', text: 'earlier question' }, { id: 2, role: 'agent', text: 'earlier answer' }] }), { status: 200 })
+      }
+      return base(url, init)
+    })
+    render(<AgentPanel host={makeHost([{ ref: 'c1' }])} onClose={() => {}} />)
+    expect(screen.getByTestId('agent-restoring').textContent).toMatch(/Loading this conversation/)
+    type('undo')                                                      // answered locally, before history lands
+    await screen.findByText('There is nothing of mine to undo in this session.')
+    await act(async () => { release() })
+    await screen.findByText('earlier answer')
+    expect(screen.getByText('undo')).toBeTruthy()
+    expect(screen.getByText('There is nothing of mine to undo in this session.')).toBeTruthy()
+    expect(screen.queryByTestId('agent-restoring')).toBeNull()
+    const text = screen.getByTestId('agent-transcript').textContent
+    expect(text.indexOf('earlier answer')).toBeLessThan(text.indexOf('There is nothing of mine'))   // history first
+  })
   it('MULTI-CREATE: proposal first, "never mind" cancels, "do it" runs the STORED plan, one Undo', async () => {
     const { host, state } = makeBoard([])
     const plan = [

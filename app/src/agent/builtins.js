@@ -4,6 +4,7 @@
 import { registerChartCapabilities } from './capabilities/chart'
 import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
+import { registerWatchlistCapabilities } from './capabilities/watchlist'
 
 let done = false
 export function registerBuiltins() {
@@ -12,4 +13,5 @@ export function registerBuiltins() {
   registerChartCapabilities()
   registerWorkspaceCapabilities()
   registerLayoutCapabilities()
+  registerWatchlistCapabilities()
 }
