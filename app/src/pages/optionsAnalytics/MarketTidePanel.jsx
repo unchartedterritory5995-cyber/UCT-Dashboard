@@ -3,7 +3,8 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useDarkSection from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
-import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { signedPremium } from './optionsFormat'
 import OffNotice from './OffNotice'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 import Select from '../../components/ui/Select'
@@ -28,12 +29,10 @@ import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 const SCOPES = [['all', 'All'], ['stocks', 'Stocks'], ['etfs', 'ETFs']]
 
+// The signed premium ("+$40K", "-$1.3M", "$0"), on the shared terminal ladder with its "$" from
+// the primitive (POS / TIDE / the chain tools all read it). Was a hand-made `±$`.
 export function money(v) {
-  if (v == null || Number.isNaN(Number(v))) return '—'
-  const n = Number(v)
-  const a = Math.abs(n)
-  const s = formatCompactTerminal(a)
-  return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
+  return signedPremium(v)
 }
 
 /** A stale tide says WHEN it was last computed, not a bare "Refreshing." that reads as live.

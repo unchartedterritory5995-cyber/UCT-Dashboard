@@ -1,7 +1,7 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import { money } from './MarketTidePanel'
-import { num, fracPct } from './optionsFormat'
+import { count, num, fracPct, pctNum, signedPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
@@ -108,8 +108,8 @@ function MaxPain({ sym }) {
           <ul className={styles.list}>
             {data.expirations.map((e) => (
               <li key={e.expiration}>{e.expiration}: <b>{num(e.max_pain)}</b>
-                {e.distance_pct != null ? ` (${e.distance_pct > 0 ? '+' : ''}${num(e.distance_pct)}% from spot)` : ''}
-                <span className={styles.muted}> · call OI {e.call_oi.toLocaleString()} · put OI {e.put_oi.toLocaleString()}</span>
+                {e.distance_pct != null ? ` (${signedPct(e.distance_pct)} from spot)` : ''}
+                <span className={styles.muted}> · call OI {count(e.call_oi)} · put OI {count(e.put_oi)}</span>
               </li>
             ))}
           </ul>
@@ -129,8 +129,8 @@ function Nope({ sym }) {
         <>
           <p className={styles.facts}>
             {data.nope != null
-              ? <>NOPE <b className={data.nope >= 0 ? styles.gain : styles.loss}>{data.nope > 0 ? '+' : ''}{num(data.nope)}%</b>{' '}
-                ({Number(data.net_option_delta_shares).toLocaleString()} delta-shares on {Number(data.share_volume).toLocaleString()} shares traded)</>
+              ? <>NOPE <b className={data.nope >= 0 ? styles.gain : styles.loss}>{signedPct(data.nope)}</b>{' '}
+                ({count(data.net_option_delta_shares)} delta-shares on {count(data.share_volume)} shares traded)</>
               : data.nope_note}
           </p>
           <p className={styles.muted}>{data.method}</p>
@@ -155,7 +155,7 @@ function Impact({ sym }) {
         <>
           <p className={styles.facts} data-testid="posn-impact-read">
             {data.impact_ratio != null
-              ? <>{num(data.impact_ratio * 100)}% of daily dollar volume · {BAND_WORDS[data.band]}</>
+              ? <>{pctNum(data.impact_ratio * 100)} of daily dollar volume · {BAND_WORDS[data.band]}</>
               : data.impact_note}
           </p>
           <p className={styles.muted}>{data.method}</p>
@@ -176,7 +176,7 @@ function DealerShort({ sym }) {
           <p className={styles.muted}>{data.explanation}</p>
           <ul className={styles.list}>
             {data.dealer_short.slice(0, 10).map((r) => (
-              <li key={r.contract_key}>{r.expiration} {num(r.strike)} {r.cp === 'C' ? 'call' : 'put'}: dealers {Number(r.est_dealer_net).toLocaleString()} contracts
+              <li key={r.contract_key}>{r.expiration} {num(r.strike)} {r.cp === 'C' ? 'call' : 'put'}: dealers {count(r.est_dealer_net)} contracts
                 {r.flow_confidence != null ? <span className={styles.muted}> (confidence {num(r.flow_confidence)})</span> : null}
               </li>
             ))}

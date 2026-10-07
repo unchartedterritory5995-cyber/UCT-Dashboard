@@ -5,7 +5,7 @@ import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
-import { formatCurrency, formatNumber, formatPercent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
+import { formatCurrency, formatNumber, formatPercent, formatPercentAsSent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
@@ -92,12 +92,12 @@ export default function EarningsReactionPanel({ sym }) {
         <p className={styles.lede} data-testid="earnings-reaction-summary">
           {SUMS.map(([k, l]) => {
             const st = sum[k] || {}
-            return `${l}: avg ${pct(st.avg)}, avg size ${formatPercent(st.avg_abs == null ? NaN : st.avg_abs, { decimals: 2 })}, up ${st.pct_up ?? '—'}% (n=${st.n ?? 0})`
+            return `${l}: avg ${pct(st.avg)}, avg size ${formatPercent(st.avg_abs == null ? NaN : st.avg_abs, { decimals: 2 })}, up ${formatPercentAsSent(st.pct_up)} (n=${st.n ?? 0})`
           }).join(' · ')}
         </p>
         {data.realized_vol && (
           <p className={styles.muted} data-testid="realized-vol">
-            Realized volatility, last {data.realized_vol.sessions} sessions through {data.realized_vol.through}: {data.realized_vol.annualized_pct}% annualized.
+            Realized volatility, last {data.realized_vol.sessions} sessions through {data.realized_vol.through}: {formatPercentAsSent(data.realized_vol.annualized_pct)} annualized.
             {data.realized_vol.method ? ` ${data.realized_vol.method}` : ''}
           </p>
         )}

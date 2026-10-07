@@ -15,7 +15,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
-import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
+import { formatPercent, formatPercentAsSent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
 import { useThemeInk, SEMANTIC_INK } from '../lib/theme'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
@@ -177,8 +177,8 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
 
   const chartPriceLines = useMemo(() => {
     const lines = []
-    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry $${posData.entry_price.toFixed(2)}` })
-    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop $${posData.stop_price.toFixed(2)}` })
+    if (posData?.entry_price) lines.push({ price: posData.entry_price, color: ink.gain, lineStyle: 2, title: `Entry ${formatCurrency(posData.entry_price)}` })
+    if (posData?.stop_price)  lines.push({ price: posData.stop_price,  color: ink.loss, lineStyle: 2, title: `Stop ${formatCurrency(posData.stop_price)}` })
     return lines
   }, [posData, ink])
 
@@ -632,7 +632,7 @@ export default function UCT20() {
                   className={`${styles.ctxItem} ${exposure.score >= 70 ? styles.gain : exposure.score >= 50 ? styles.ctxAmber : styles.loss}`}
                   title={exposure.note || 'Recommended market exposure from the UCT regime model'}
                 >
-                  UCT EXPOSURE {exposure.score}%
+                  UCT EXPOSURE {formatPercentAsSent(exposure.score)}
                 </span>
               )}
               {sectorMix.length > 0 && (

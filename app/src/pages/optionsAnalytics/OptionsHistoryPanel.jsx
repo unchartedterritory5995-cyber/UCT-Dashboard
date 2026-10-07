@@ -1,6 +1,7 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
-import { num, fracPct } from './optionsFormat'
+import { num, fracPct, pctNum, signedPct } from './optionsFormat'
+import { formatCurrency } from '../../lib/presentation/presentationPrimitives'
 import styles from './optionsAnalytics.module.css'
 import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
 
@@ -47,7 +48,7 @@ function Straddle({ sym }) {
           )}
           <ul className={styles.list}>
             {pts.slice(-10).reverse().map((p) => (
-              <li key={p.date}>{p.date}: ${num(p.straddle)} = {num(p.straddle_pct)}% of {num(p.underlying_price)} · expires {p.front_expiration} ({p.front_dte}d)</li>
+              <li key={p.date}>{p.date}: {formatCurrency(p.straddle == null ? NaN : Number(p.straddle))} = {pctNum(p.straddle_pct)} of {num(p.underlying_price)} · expires {p.front_expiration} ({p.front_dte}d)</li>
             ))}
           </ul>
           {pts.length === 0 && <p className={styles.note}>No logged session has a two-sided front straddle for {sym}.</p>}
@@ -69,14 +70,14 @@ function DailyMove({ sym }) {
         <>
           <ul className={styles.list}>
             {data.pairs.slice(-20).reverse().map((p) => (
-              <li key={p.date}>{p.date} → {p.next}: implied ±{num(p.implied_move_pct)}%, actual{' '}
-                <b className={p.inside ? styles.gain : styles.loss}>{p.actual_move_pct > 0 ? '+' : ''}{num(p.actual_move_pct)}%</b>
+              <li key={p.date}>{p.date} → {p.next}: implied ±{pctNum(p.implied_move_pct)}, actual{' '}
+                <b className={p.inside ? styles.gain : styles.loss}>{signedPct(p.actual_move_pct)}</b>
                 <span className={styles.muted}> ({num(p.ratio)}× implied)</span></li>
             ))}
           </ul>
           <p className={styles.facts} data-testid="daily-move-summary">
             {data.summary
-              ? `Across ${data.summary.pairs} sessions the next day's move stayed inside the implied move ${num(data.summary.inside_share, 0)}% of the time (mean ${num(data.summary.mean_ratio)}× implied).`
+              ? `Across ${data.summary.pairs} sessions the next day's move stayed inside the implied move ${pctNum(data.summary.inside_share, 0)} of the time (mean ${num(data.summary.mean_ratio)}× implied).`
               : data.summary_note}
           </p>
           <Coverage data={data} />
@@ -104,7 +105,7 @@ function IvCrush({ sym }) {
                 <tbody>
                   {data.prints.map((p) => (
                     <tr key={p.report_date}><th scope="row">{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
-                      <td>{p.crush_pct == null ? '' : `${num(p.crush_pct, 1)}%`}</td></tr>
+                      <td>{p.crush_pct == null ? '' : pctNum(p.crush_pct, 1)}</td></tr>
                   ))}
                   {data.summary && ['average', 'max', 'min'].map((s) => (
                     <tr key={s}><th scope="row">{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>

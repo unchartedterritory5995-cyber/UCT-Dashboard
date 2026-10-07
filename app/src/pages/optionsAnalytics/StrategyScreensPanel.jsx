@@ -3,7 +3,7 @@ import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import CoverageLine from '../../components/provenance/CoverageLine'
 import { sideWords, callPutWords } from './flowWords'
-import { num, fracPct } from './optionsFormat'
+import { count, dollars, num, fracPct, pctNum } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
@@ -24,28 +24,28 @@ const leg = (l) => `${l.type} ${num(l.strike)}`
 // Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
 // They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
 // backtester all print -- and every header says so.
-export const perContract = (v) => (v == null || Number.isNaN(Number(v)) ? '—' : `$${Math.round(Number(v) * 100).toLocaleString()}`)
+export const perContract = (v) => (v == null || Number.isNaN(Number(v)) ? '—' : dollars(Number(v) * 100))
 
 // The server reads at most `candidate_cap` contracts, highest open interest first. Reading exactly
 // the cap means the list was cut, and what it cut is the LOW-OI tail.
 export function capNote(d) {
   if (!d || d.candidate_cap == null || d.candidates_read == null) return null
   if (Number(d.candidates_read) < Number(d.candidate_cap)) return null
-  return `Capped at ${Number(d.candidate_cap).toLocaleString()} contracts by open interest — higher-yield low-OI contracts may be missing.`
+  return `Capped at ${count(d.candidate_cap)} contracts by open interest — higher-yield low-OI contracts may be missing.`
 }
 
 function Row({ kind, r }) {
   if (kind === 'covered_calls') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.premium_yield_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.if_called_pct)}%</td></tr>
+    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.premium_yield_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{pctNum(r.if_called_pct)}</td></tr>
   }
   if (kind === 'cash_secured_puts') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{num(r.yield_on_cash_pct)}%</td><td>{num(r.annualized_pct, 1)}%</td><td>{num(r.breakeven)} ({num(r.cushion_pct)}%)</td></tr>
+    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.yield_on_cash_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{num(r.breakeven)} ({pctNum(r.cushion_pct)})</td></tr>
   }
   const credit = r.credit != null
   return (
     <tr><th scope="row">{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
       <td>{credit ? `+${perContract(r.credit)}` : `-${perContract(r.debit)}`}</td><td>{perContract(r.max_profit)}</td><td>{perContract(r.max_loss)}</td>
-      <td>{credit ? `${num(r.return_on_risk_pct, 1)}%` : `${num(r.reward_to_risk)} : 1`}</td></tr>
+      <td>{credit ? pctNum(r.return_on_risk_pct, 1) : `${num(r.reward_to_risk)} : 1`}</td></tr>
   )
 }
 
@@ -113,12 +113,12 @@ function MoreRow({ kind, r }) {
       <td>-{perContract(r.debit)}</td><td>{perContract(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
   }
   if (kind === 'by_expiration') {
-    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
-      <td>{Number(r.open_interest).toLocaleString()}</td><td>{r.call_share_pct == null ? '—' : `${num(r.call_share_pct, 1)}%`}</td>
+    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{count(r.volume)}</td>
+      <td>{count(r.open_interest)}</td><td>{pctNum(r.call_share_pct, 1)}</td>
       <td>{fracPct(r.atm_iv)}</td></tr>
   }
   return <tr><th scope="row">{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
-    <td>${Math.round(r.premium).toLocaleString()}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
+    <td>{dollars(r.premium)}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
 }
 
 const MORE_HEADS = {
@@ -203,7 +203,7 @@ export function SizzlePanel() {
                 <thead><tr><th scope="col">Ticker</th><th scope="col">Sizzle</th><th scope="col">Volume</th><th scope="col">5-session mean</th></tr></thead>
                 <tbody>
                   {data.ranked.map((r) => (
-                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{Number(r.volume).toLocaleString()}</td><td>{Number(r.average).toLocaleString()}</td></tr>
+                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{count(r.volume)}</td><td>{count(r.average)}</td></tr>
                   ))}
                 </tbody>
               </table>

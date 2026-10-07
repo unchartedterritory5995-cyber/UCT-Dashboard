@@ -6,7 +6,7 @@
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
 import { BoardFromList, useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../components/terminal'
-import { ABSENT, formatNumber, formatPercent } from '../lib/presentation/presentationPrimitives'
+import { formatPercent, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` -- a 402 answers JSON too. See
@@ -18,13 +18,9 @@ import fetcher from '../utils/jsonFetcher'
 export const pctText = (v) => formatPercent(v, { decimals: 1 })
 
 // A percent the server already rounded (portfolio_heat.py rounds every per-position percent to
-// two places, and the regime ceiling is a whole number), printed as sent: "3.27%", "3%", "100%".
-// Ungrouped, at most three decimals, so every value the server sends reads exactly as the old
-// `${v}%` did; a missing or non-numeric value is the em dash, never "NaN%".
-export const pctAsSent = (v) => {
-  const n = v == null || v === '' ? NaN : Number(v)
-  return Number.isFinite(n) ? `${formatNumber(n, { grouping: false })}%` : ABSENT
-}
+// two places, and the regime ceiling is a whole number), printed as sent: "3.27%", "3%", "100%"
+// — exactly as the old `${v}%` did; a missing or non-numeric value is the em dash, never "NaN%".
+export const pctAsSent = (v) => formatPercentAsSent(v)
 
 function CapBar({ label, valuePct, capPct }) {
   if (!Number.isFinite(valuePct)) {

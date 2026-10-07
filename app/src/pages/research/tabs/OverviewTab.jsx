@@ -3,7 +3,7 @@ import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import DeskCoverage from '../DeskCoverage'
 import LeadershipBadge from '../LeadershipBadge'
 import ConfidenceBadge from '../ConfidenceBadge'
-import { ABSENT, formatCurrency } from '../../../lib/presentation/presentationPrimitives'
+import { ABSENT, formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../ResearchPage.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -21,6 +21,20 @@ export function consensusText(ct) {
     return n(strong) ? `${label} ${total} (incl. ${n(strong)} strong)` : `${label} ${total}`
   }
   return [side('Buy', ct.buy, ct.strongBuy), `Hold ${n(ct.hold)}`, side('Sell', ct.sell, ct.strongSell)].join(' · ')
+}
+
+// Key stats through the shared formatter (completeness audit 2026-10-07, column f). P/E and beta
+// arrive rounded to two places and now always print two ("28.50"); the 52-week range arrives as
+// the vendor's raw float ("164.23000000000002" was possible) and prints as a two-place level; the
+// dividend yield is already in percent units. A missing value is the em dash, as before.
+const num2 = (v) => formatNumber(v == null || v === '' ? NaN : Number(v), { decimals: 2 })
+export function keyStatsText(stats) {
+  return {
+    forwardPe: num2(stats?.forward_pe),
+    beta: num2(stats?.beta),
+    divYield: formatPercent(stats?.div_yield == null ? NaN : Number(stats.div_yield), { decimals: 2 }),
+    range: `${num2(stats?.week52_low)} — ${num2(stats?.week52_high)}`,
+  }
 }
 
 // The middle of the target range: the mean when the source carries one, else
@@ -162,10 +176,10 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
       <section className={styles.card}>
         <div className={styles.ct}>Key stats</div>
         <div className={styles.kv}><span>Mkt cap</span><b>{stats?.market_cap ?? '—'}</b></div>
-        <div className={styles.kv}><span>Fwd P/E</span><b>{stats?.forward_pe ?? '—'}</b></div>
-        <div className={styles.kv}><span>Beta</span><b>{stats?.beta ?? '—'}</b></div>
-        <div className={styles.kv}><span>Div yield</span><b>{stats?.div_yield != null ? `${stats.div_yield}%` : '—'}</b></div>
-        <div className={styles.kv}><span>52-wk range</span><b>{stats?.week52_low ?? '—'} — {stats?.week52_high ?? '—'}</b></div>
+        <div className={styles.kv}><span>Fwd P/E</span><b>{keyStatsText(stats).forwardPe}</b></div>
+        <div className={styles.kv}><span>Beta</span><b>{keyStatsText(stats).beta}</b></div>
+        <div className={styles.kv}><span>Div yield</span><b>{keyStatsText(stats).divYield}</b></div>
+        <div className={styles.kv}><span>52-wk range</span><b>{keyStatsText(stats).range}</b></div>
       </section>
 
       <section className={styles.card}>
