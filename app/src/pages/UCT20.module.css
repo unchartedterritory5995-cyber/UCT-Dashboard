@@ -4,31 +4,31 @@
 /* ── Methodology ("How it's built") ──────────────────────────────────────── */
 .methodBtn {
   font-family: var(--font-mono);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.5px;
   color: var(--text-muted); background: transparent;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 5px 10px;
   cursor: pointer; white-space: nowrap; min-height: 30px;
 }
 .methodBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
 .methodBody { padding: 4px 18px 22px; max-width: 640px; }
-.methodLede { font-size: 13px; line-height: 1.65; color: var(--text); margin: 10px 0 4px; }
+.methodLede { font-size: var(--text-md); line-height: 1.65; color: var(--text); margin: 10px 0 4px; }
 .methodH {
-  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  font-family: var(--font-display); font-size: var(--text-base); font-weight: 700;
   letter-spacing: 1.5px; text-transform: uppercase; color: var(--ut-gold);
   margin: 18px 0 6px;
 }
-.methodP { font-size: 12.5px; line-height: 1.65; color: var(--text-muted); margin: 0; }
+.methodP { font-size: var(--text-md); line-height: 1.65; color: var(--text-muted); margin: 0; }
 .methodDisclaimer {
-  font-size: 11px; line-height: 1.55; color: var(--text-muted);
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  font-size: var(--text-sm); line-height: 1.55; color: var(--text-muted);
+  border-top: 1px solid var(--border);
   margin-top: 20px; padding-top: 12px; font-style: italic;
 }
 /* ── Context strip: exposure · sector mix · today's changes ──────────────── */
 .contextStrip {
   display: flex; flex-wrap: wrap; gap: 6px 16px;
   padding: 2px 2px 10px;
-  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.5px;
+  font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: 0.5px;
   color: var(--text-muted);
 }
 .ctxItem { white-space: nowrap; }
@@ -40,7 +40,7 @@
 .sortActive { color: var(--ut-gold); }
 
 .tableFootnote {
-  font-size: 10.5px; line-height: 1.5; color: var(--text-muted);
+  font-size: var(--text-sm); line-height: 1.5; color: var(--text-muted);
   font-style: italic; margin: 10px 2px 0; opacity: 0.85;
 }
 /* The row's own expand/collapse control is a <button> (A2R-05 nesting fix,
@@ -51,7 +51,7 @@
   outline-offset: -1px;
   border-radius: var(--radius-sm);
 }
-.heading { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--text-heading); letter-spacing: 0.2px; text-transform: none; }
+.heading { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 700; color: var(--text-heading); letter-spacing: 0.2px; text-transform: none; }
 
 /* ── Table (shared grid across header + rows) ─────────────────────────────── */
 .table {
@@ -72,7 +72,7 @@
   padding: 4px 6px 8px;
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--text-muted);
@@ -85,7 +85,7 @@
 /* ── Card / row ───────────────────────────────────────────────────────────── */
 .card { border-bottom: 1px solid var(--border); }
 .card:last-child { border-bottom: none; }
-.cardOpen { background: rgba(255, 255, 255, 0.015); }
+.cardOpen { background: color-mix(in srgb, var(--text-heading) 1.5%, transparent); }
 
 .row {
   padding: 11px 6px;
@@ -94,9 +94,9 @@
   transition: background 0.1s;
   font-variant-numeric: tabular-nums;
 }
-.row:hover { background: rgba(255, 255, 255, 0.025); }
+.row:hover { background: color-mix(in srgb, var(--text-heading) 2.5%, transparent); }
 
-.rank { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.rank { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; color: var(--text-muted); }
 
 /* ── Trend / posture tag ──────────────────────────────────────────────────── */
 .tagCell { display: flex; }
@@ -108,7 +108,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 1.3px;
   text-transform: uppercase;
@@ -127,20 +127,20 @@
   box-shadow: 0 0 5px currentColor;
   flex: 0 0 auto;
 }
-.tagLeader   { color: #6fc795; }            /* muted leaf green */
+.tagLeader   { color: var(--gain); }            /* muted leaf green */
 .tagExtended { color: var(--ut-gold); }     /* brand gold */
-.tagPullback { color: #7bb6d4; }            /* muted slate blue */
-.tagLaggard  { color: #cf8c8c; }            /* muted clay red */
+.tagPullback { color: var(--info); }            /* muted slate blue */
+.tagLaggard  { color: var(--loss); }            /* muted clay red */
 .tagTrending { color: var(--text-muted); }  /* dot reads as a soft grey mark */
 
 /* ── Ticker cell ──────────────────────────────────────────────────────────── */
 .tickerCell { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .tickerInner { flex-shrink: 0; }
-.sym { font-family: var(--font-mono); font-size: 16px; font-weight: 800; color: var(--ut-cream); cursor: pointer; }
+.sym { font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 800; color: var(--ut-cream); cursor: pointer; }
 .sym:hover { color: var(--ut-green-bright); }
 .companyName {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--text-base);
   color: var(--text-muted);
   min-width: 0;
   overflow: hidden;
@@ -150,39 +150,39 @@
 
 .newBadge {
   font-family: var(--font-mono);
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 1px;
   color: var(--text-bright); background: var(--ut-green);
   border-radius: 3px; padding: 1px 5px; flex-shrink: 0;
 }
 .insiderBadge {
   font-family: var(--font-mono);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
-  color: var(--text-bright); background: #16a34a;
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.5px;
+  color: var(--text-bright); background: var(--gain);
   border-radius: 3px; padding: 1px 5px; flex-shrink: 0;
 }
 .erBadge {
   font-family: var(--font-mono);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
-  color: var(--warn); background: rgba(180, 130, 20, 0.22);
-  border: 1px solid rgba(251, 191, 36, 0.35);
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.5px;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
   border-radius: 3px; padding: 0 5px; flex-shrink: 0;
 }
 .erBadgeSoon {
-  color: var(--loss); background: rgba(160, 25, 25, 0.30);
-  border-color: rgba(252, 165, 165, 0.4);
+  color: var(--loss); background: var(--loss-bg);
+  border-color: color-mix(in srgb, var(--loss) 40%, transparent);
 }
 
 /* ── Numeric columns ──────────────────────────────────────────────────────── */
-.price  { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
-.chg    { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-align: right; }
-.days   { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-align: right; }
-.since  { font-family: var(--font-mono); font-size: 13px; font-weight: 700; text-align: right; }
-.rating { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--ut-green-bright); text-align: right; }
+.price  { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 600; color: var(--text); text-align: right; }
+.chg    { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; text-align: right; }
+.days   { font-family: var(--font-mono); font-size: var(--text-base); color: var(--text-muted); text-align: right; }
+.since  { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700; text-align: right; }
+.rating { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700; color: var(--ut-green-bright); text-align: right; }
 /* A2R-05 nesting fix: `.caret` is now a real <button>, so the usual browser
    button chrome (border/background/padding/font) is reset to keep it looking
    exactly like the plain span it replaces. */
 .caret  {
-  font-size: 12px; color: var(--text-muted); text-align: center;
+  font-size: var(--text-base); color: var(--text-muted); text-align: center;
   display: block; width: 100%;
   background: none; border: none; margin: 0; padding: 0;
   font-family: inherit; line-height: inherit;
@@ -193,13 +193,13 @@
 .rsCell { text-align: center; }
 .rsBadge {
   font-family: var(--font-mono);
-  font-size: 11px; font-weight: 700;
+  font-size: var(--text-sm); font-weight: 700;
   padding: 1px 7px; border-radius: var(--radius-sm);
   display: inline-block; min-width: 30px;
 }
-.rsHigh { color: var(--text-bright); background: var(--ut-green, #22c55e); border: 1px solid var(--ut-green-bright, #4ade80); }
-.rsMid  { color: var(--text-bright); background: rgba(220, 187, 94, 0.4);  border: 1px solid rgba(220, 187, 94, 0.55); }
-.rsLow  { color: var(--loss); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
+.rsHigh { color: var(--text-bright); background: var(--ut-green); border: 1px solid var(--ut-green-bright); }
+.rsMid  { color: var(--text-bright); background: color-mix(in srgb, var(--ut-gold) 40%, transparent);  border: 1px solid color-mix(in srgb, var(--ut-gold) 55%, transparent); }
+.rsLow  { color: var(--loss); background: color-mix(in srgb, var(--loss) 15%, transparent); border: 1px solid color-mix(in srgb, var(--loss) 30%, transparent); }
 
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }
@@ -214,46 +214,46 @@
 .expandedMain { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .expandedSide { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
-.companyDesc { font-family: var(--font-sans); font-size: 14px; color: var(--text); line-height: 1.6; margin: 0; }
+.companyDesc { font-family: var(--font-sans); font-size: var(--text-lg); color: var(--text); line-height: 1.6; margin: 0; }
 .section { display: flex; flex-direction: column; gap: 4px; }
-.sectionLabel { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-muted); }
-.sectionText { font-family: var(--font-sans); font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0; }
-.legacyThesis { font-family: var(--font-sans); font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0; }
+.sectionLabel { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; letter-spacing: 1.5px; color: var(--text-muted); }
+.sectionText { font-family: var(--font-sans); font-size: var(--text-md); color: var(--text-muted); line-height: 1.6; margin: 0; }
+.legacyThesis { font-family: var(--font-sans); font-size: var(--text-md); color: var(--text-muted); line-height: 1.6; margin: 0; }
 
 /* Trade plan card */
 .tradePlan {
   display: flex; flex-direction: column; gap: 8px;
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.025));
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
 }
-.tradePlanTitle { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-bright); text-transform: uppercase; }
+.tradePlanTitle { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700; letter-spacing: 1px; color: var(--text-bright); text-transform: uppercase; }
 .tradeRow { display: flex; flex-direction: column; gap: 2px; }
-.tradeLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
-.tradeText { font-family: var(--font-sans); font-size: 12px; color: var(--text); line-height: 1.5; }
+.tradeLabel { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
+.tradeText { font-family: var(--font-sans); font-size: var(--text-base); color: var(--text); line-height: 1.5; }
 
 /* Stat grid */
 .statGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
 .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-.statLabel { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-muted); text-transform: uppercase; }
-.statVal { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text); }
+.statLabel { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.5px; color: var(--text-muted); text-transform: uppercase; }
+.statVal { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; color: var(--text); }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 .emptyState {
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
   padding: 28px 16px;
   border: 1px dashed var(--border); border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.015); margin: 8px 0;
+  background: color-mix(in srgb, var(--text-heading) 1.5%, transparent); margin: 8px 0;
 }
-.emptyStateTitle { font-family: var(--font-mono); font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--text-bright); text-transform: uppercase; margin: 0; }
-.emptyStateBody { font-family: var(--font-sans); font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0; }
+.emptyStateTitle { font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700; letter-spacing: 1px; color: var(--text-bright); text-transform: uppercase; margin: 0; }
+.emptyStateBody { font-family: var(--font-sans); font-size: var(--text-md); color: var(--text-muted); line-height: 1.5; margin: 0; }
 
 /* ── Stale banner ─────────────────────────────────────────────────────────── */
 .staleBanner {
-  font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
-  color: var(--ut-gold); background: rgba(220, 187, 94, 0.08);
-  border: 1px solid rgba(220, 187, 94, 0.35); border-radius: var(--radius-md);
+  font-family: var(--font-mono); font-size: var(--text-base); font-weight: 600; letter-spacing: 0.3px;
+  color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent); border-radius: var(--radius-md);
   padding: 8px 12px; margin-bottom: 10px;
 }
 
@@ -270,18 +270,18 @@
 /* ── Phone: essentials only ────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .page { padding: 12px 10px; }
-  .heading { font-size: 18px; letter-spacing: 2px; }
+  .heading { font-size: var(--text-2xl); letter-spacing: 2px; }
   /* Slimmer fixed columns + tighter gap: 242px fixed + 36px gaps leaves the
      ticker cell real room on 360px phones (badges were colliding with PRICE,
      RATING and the caret were clipped — review-panel finding) */
   .table { --cols: 20px minmax(0, 1fr) 58px 50px 56px 44px 14px; gap: 6px; }
   .headerRow, .row { gap: 6px; }
-  .row { padding: 13px 2px; min-height: var(--tap-min, 44px); box-sizing: border-box; }
-  .headerRow { padding: 4px 2px 8px; font-size: 10px; }
+  .row { padding: 13px 2px; min-height: var(--tap-min); box-sizing: border-box; }
+  .headerRow { padding: 4px 2px 8px; font-size: var(--text-xs); }
   .cTag, .cRs, .cDays, .companyName { display: none; }
-  .sym { font-size: 15px; }
-  .price { font-size: 12px; }
-  .since, .rating { font-size: 12px; }
+  .sym { font-size: var(--text-xl); }
+  .price { font-size: var(--text-base); }
+  .since, .rating { font-size: var(--text-base); }
   .expanded { padding: 6px 2px 16px 6px; }
   .expandedSide { flex-direction: column; }
 }
@@ -300,6 +300,10 @@
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
   .row {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
   }
 }
+
+/* Inside a UCT Terminal panel the shell insets the body (--panel-inset); the page's own
+   padding and centring step aside. */
+.page.pageInPanel { padding: 0; max-width: none; margin: 0; --page-pad-top: 0px; --page-pad-x: 0px; }

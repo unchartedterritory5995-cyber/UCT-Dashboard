@@ -3,8 +3,12 @@
 // Returns { headline, sentiment, bullets[], quotes[], guidance, qa_highlights[],
 //           webcast_url, rating_changes[] } or null.
 import useSWR from 'swr'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher), so SWR keeps the last good recap through a
+// failed refresh and populates `error` on a failed first read. The old `null` rendered as "no
+// recap" (and in MyStocksHub as an endless "Loading recap"). A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 export const FAST_POLL_MS = 5000
 export const SLOW_POLL_MS = 30 * 60 * 1000

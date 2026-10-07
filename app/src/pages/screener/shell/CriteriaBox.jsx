@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { grammarAvailable, parseCriteria, compileAvailable, compileEnglish } from './criteriaApi'
 import styles from './CriteriaBox.module.css'
+import Input from '../../../components/ui/Input'
 
 // CriteriaBox — type criteria as text (FT-029) and get grouped logic (FT-026):
 //
@@ -85,7 +86,7 @@ export default function CriteriaBox({ logic, onApply, fetcher }) {
       {canCompile && (
         <>
           <label className={styles.label} htmlFor="screener-english">Describe it</label>
-          <input id="screener-english" className={styles.input} value={english}
+          <Input id="screener-english" className={styles.input} value={english}
             placeholder="liquid tech leaders up 20% this quarter, no utilities"
             onChange={e => setEnglish(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); write() } }} />

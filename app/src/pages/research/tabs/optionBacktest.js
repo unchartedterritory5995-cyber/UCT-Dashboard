@@ -1,6 +1,8 @@
 // BRK-01 increment 4 (roadmap RM-L01): the words and numbers of the options strategy backtester.
 // Pure; no React. The server (api/services/options_backtest.py) does every computation; this file
 // only says what came back, and never fills a gap the server left open.
+import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { num } from '../../optionsAnalytics/optionsFormat'
 
 export const ENTRY_DTES = [7, 14, 30, 45]
 export const EXIT_PCTS = [25, 50, 75, 100]
@@ -16,10 +18,10 @@ export const offsetLabel = (k) => {
 export function money(v) {
   if (v === null || v === undefined || !Number.isFinite(Number(v))) return '—'
   const n = Number(v)
-  return `${n < 0 ? '-' : ''}$${Math.round(Math.abs(n)).toLocaleString()}`
+  return `${n < 0 ? '-' : ''}$${formatNumber(Math.round(Math.abs(n)))}`
 }
 
-const strikeTxt = (k) => (Number.isInteger(k) ? String(k) : Number(k).toFixed(2))
+const strikeTxt = (k) => (Number.isInteger(k) ? String(k) : num(k))
 
 /** "560 call" or "Long 560 call / short 570 call". */
 export function legsLabel(legs) {
@@ -39,7 +41,7 @@ export function summaryFacts(s) {
   if (!s) return null
   return [
     `${s.n} trades`,
-    `Win rate ${(s.win_rate * 100).toFixed(0)}%`,
+    `Win rate ${formatPercent(s.win_rate * 100, { decimals: 0 })}`,
     `Avg ${money(s.avg_pnl)}`,
     `Median ${money(s.median_pnl)}`,
     `Worst ${money(s.worst)}`,
@@ -62,4 +64,4 @@ export function notRunText(result) {
   return `${n} expiration${n === 1 ? ' was' : 's were'} not run — ${parts.join('; ')}.`
 }
 
-export const ivText = (v) => (v === null || v === undefined ? 'n/a' : `${(v * 100).toFixed(1)}%`)
+export const ivText = (v) => (v === null || v === undefined ? 'n/a' : formatPercent(Number(v) * 100, { decimals: 1 }))

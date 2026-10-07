@@ -603,6 +603,12 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     # Test files: each builds a fake auth payload with or without the cohort to drive the gate.
     "app/src/pages/terminal/TerminalShell.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalBoards.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalRoutes.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.audit2.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.audit3.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.deleteOpenBoard.test.jsx":
+        "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/phoneSwitcher.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }

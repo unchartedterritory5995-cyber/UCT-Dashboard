@@ -54,7 +54,7 @@ describe('FinancialsTab -- S3 continuation (owner authorization, 2026-09-03)', (
     }))
     const { default: FreshFinancialsTab } = await import('./FinancialsTab')
     render(<FreshFinancialsTab sym="ZZZ" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
   })
 
   it('never renders Provenance/FreshnessBadge on this tab -- no D1-sourced value exists here yet', async () => {
@@ -96,5 +96,21 @@ describe('FinancialsTab -- failed read vs genuine empty state', () => {
     await renderWith({ data: null, isLoading: false, error: true, mutate })
     screen.getByText('Retry').click()
     expect(mutate).toHaveBeenCalled()
+  })
+})
+
+// tq-panels: the route marks a fund (e910f8ff6); the tab says so, not "unavailable".
+describe('FinancialsTab -- a fund', () => {
+  it('says not applicable to funds with the route reason', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useFinancials', () => ({
+      default: () => ({ data: { sym: 'SPY', annual: [], quarterly: [], balance: {}, metrics: {}, not_applicable: 'fund',
+        reason: 'SPY is a fund; funds report no company income statement, balance sheet or cash flow' }, isLoading: false }),
+    }))
+    const { default: Fresh } = await import('./FinancialsTab')
+    render(<Fresh sym="SPY" />)
+    expect(screen.getByTestId('financials-na').textContent)
+      .toBe('Not applicable to funds — SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
+    expect(screen.queryByText('Statement history is unavailable for this ticker.')).toBeNull()
   })
 })

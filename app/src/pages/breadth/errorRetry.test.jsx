@@ -52,8 +52,11 @@ beforeEach(() => { mutateSpy.mockClear() })
 describe('the breadth-monitor error banner offers a manual retry, not just the 5-minute auto one', () => {
   it('shows the retry control alongside the existing message', () => {
     mount()
-    expect(screen.getByText(/Could not load breadth data/)).toBeInTheDocument()
-    expect(screen.getByText(/Retrying in 5m\./)).toBeInTheDocument()
+    expect(screen.getByText(/Breadth data could not be read right now/)).toBeInTheDocument()
+    // quality pass 2026-10-05: SWR stops polling a key holding an error, so "Retrying in 5m"
+    // was a false promise; the raw error text is not member copy either.
+    expect(screen.queryByText(/Retrying in 5m/)).toBeNull()
+    expect(screen.getByRole('alert').textContent).not.toMatch(/502/)
     expect(screen.getByRole('button', { name: 'Retry now' })).toBeInTheDocument()
   })
 
@@ -71,6 +74,6 @@ describe('the breadth-monitor error banner offers a manual retry, not just the 5
 
   it('the banner is announced as an alert, so it reaches assistive tech immediately', () => {
     mount()
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not load breadth data')
+    expect(screen.getByRole('alert')).toHaveTextContent('Breadth data could not be read right now')
   })
 })

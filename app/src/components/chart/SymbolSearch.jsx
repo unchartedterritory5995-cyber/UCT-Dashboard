@@ -307,6 +307,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                 onChange={e => setQuery(e.target.value.toUpperCase())}
                 onKeyDown={handleInputKey}
                 placeholder="Search symbol or company…"
+                aria-label="Search symbol or company"
                 spellCheck={false}
                 maxLength={48}
               />

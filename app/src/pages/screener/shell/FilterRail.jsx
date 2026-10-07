@@ -3,6 +3,7 @@ import UIcon from '../../../components/ui/UIcon'
 import FilterControl from './FilterControl'
 import TypeFilterControl from './TypeFilterControl'
 import styles from './ScannerShell.module.css'
+import Input from '../../../components/ui/Input'
 
 // A glyph per filter category — makes the collapsed rail scannable at a glance.
 // Keys are the category keys from filters.py::CATEGORIES; anything unmapped falls
@@ -178,7 +179,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
     <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail">
       <div className={styles.railSearchRow}>
         <UIcon name="search" size={12} />
-        <input ref={searchRef} className={styles.railSearch}
+        <Input ref={searchRef} className={styles.railSearch}
           placeholder={variant === 'rail' ? 'Find a filter…  ( / )' : 'Find a filter…'} value={q}
           aria-label="Find a filter" onChange={e => setQ(e.target.value)}
           onKeyDown={onSearchKeyDown} />

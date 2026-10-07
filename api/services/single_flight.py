@@ -65,13 +65,56 @@ def wait_seconds() -> float:
 
 
 class _Call:
-    __slots__ = ("done", "value", "error", "followers")
+    __slots__ = ("done", "value", "error", "followers", "background")
 
-    def __init__(self) -> None:
+    def __init__(self, background: bool = False) -> None:
         self.done = threading.Event()
         self.value: Any = None
         self.error: BaseException | None = None
         self.followers = 0
+        self.background = background
+
+
+# ── Background (warmer) flights: a member never queues behind a warmer ────────
+#
+# ⛔ MEASURED 2026-10-06 (web boot 17:46 UTC): three opens of `TSM EE` that started at
+# 17:48:41, 17:49:36 and 17:50:18 all answered within 7 ms of each other at 17:50:23 (102 s,
+# 47 s and 5 s), identical bodies, while unrelated sync routes on the same pod answered in
+# 0.3 s. That is the shape of followers released by ONE in-flight computation. A follower's
+# wait is bounded only by `wait_seconds()` (180 s), so whoever LEADS a key decides how long
+# every member on that key waits, and at boot the leader is often a warmer running on a
+# pod that is busy with every other warmer.
+#
+# So a thread doing BACKGROUND work (a boot warmer) marks itself with `background()`. Its
+# flights are still shared with OTHER background callers, but a FOREGROUND caller (a
+# member's request) that finds a background-led flight does not wait on it: it takes the
+# key over and computes on its own thread, exactly as if no warmer existed. Later
+# foreground callers then follow the MEMBER's flight, so a cold symbol is still built at
+# most once for members. The cost is at most one duplicated read per key, and only when a
+# member and a warmer collide on the same cold key.
+_bg_local = threading.local()
+
+
+class background:
+    """Context manager: flights this thread leads inside the block are BACKGROUND flights.
+
+        with single_flight.background():
+            warm_research_panels()
+
+    Re-entrant; restores the previous mode on exit."""
+
+    def __enter__(self) -> "background":
+        self._prev = getattr(_bg_local, "on", False)
+        _bg_local.on = True
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        _bg_local.on = self._prev
+
+
+def in_background() -> bool:
+    """True while the calling thread is inside `background()`."""
+    return bool(getattr(_bg_local, "on", False))
 
 
 _lock = threading.Lock()
@@ -80,6 +123,9 @@ _inflight: Dict[str, _Call] = {}
 #: Counters, for the health endpoint and for tests. `collapsed` is the whole
 #: point of the module: it is the number of expensive reads that did NOT happen.
 _counts = {"leaders": 0, "collapsed": 0, "timeouts": 0}
+#: Member flights that took a key over from a background (warmer) flight. Kept OUT of
+#: `_counts` so `stats()` keeps its shape for the breadth callers that read it.
+_preempted = [0]
 
 
 def run(key: str, fn: Callable[[], Any], wait: float | None = None,
@@ -102,10 +148,16 @@ def run(key: str, fn: Callable[[], Any], wait: float | None = None,
     and the report are the same critical section. It is fully optional, and it is
     wrapped so an observer that raises can never break the flight it is watching.
     """
+    bg = in_background()
     with _lock:
         call = _inflight.get(key)
-        if call is None:
-            call = _Call()
+        if call is None or (call.background and not bg):
+            # No flight, or only a WARMER's flight and this caller is a member: lead a new
+            # flight. Replacing the entry makes later members follow this one; the warmer's
+            # own `finally` only removes the entry if it is still its own (see below).
+            if call is not None:
+                _preempted[0] += 1
+            call = _Call(background=bg)
             _inflight[key] = call
             _counts["leaders"] += 1
             leader = True
@@ -172,9 +224,16 @@ def stats() -> dict:
         return {**_counts, "inflight": len(_inflight)}
 
 
+def preempted() -> int:
+    """How many member flights took a key over from a warmer's flight since start."""
+    with _lock:
+        return _preempted[0]
+
+
 def reset_for_tests() -> None:
     """Clear counters and occupancy. Tests only — never called by product code."""
     with _lock:
         _inflight.clear()
         for k in _counts:
             _counts[k] = 0
+        _preempted[0] = 0

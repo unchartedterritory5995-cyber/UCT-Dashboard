@@ -15,7 +15,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  border-bottom: 1px solid var(--widget-divider, var(--border));
   flex-shrink: 0;
 }
 
@@ -34,10 +34,10 @@
   gap: 6px;
   padding: 4px 8px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted, #8f8b83);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
-.count { color: var(--text, #e0e0e0); }
+.count { color: var(--text); }
 
 /* Failed load — deliberately NOT the empty state. A member must be able to tell
    "we couldn't fetch this" from "the market was quiet", because they are
@@ -55,29 +55,29 @@
 }
 .errorTitle {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
-  color: var(--loss, #df4646);
+  color: var(--loss);
 }
 .errorBody {
   margin: 0;
   max-width: 30ch;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--text-base);
   line-height: 1.5;
-  color: var(--text-muted, #8f8b83);
+  color: var(--text-muted);
 }
 .retryBtn {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-base);
   background: transparent;
-  border: 1px solid rgba(220, 187, 94, 0.4);
-  color: var(--ut-gold, #dcbb5e);
-  border-radius: var(--radius-sm, 4px);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 40%, transparent);
+  color: var(--ut-gold);
+  border-radius: var(--radius-sm);
   padding: 6px 16px;
-  min-height: var(--tap-min, 44px);
+  min-height: var(--tap-min);
   cursor: pointer;
   transition: background 0.15s;
 }
-.retryBtn:hover { background: rgba(220, 187, 94, 0.12); }
-.when { color: var(--text-muted, #8f8b83); }
+.retryBtn:hover { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.when { color: var(--text-muted); }

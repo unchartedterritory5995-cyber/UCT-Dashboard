@@ -11,11 +11,18 @@ import {
   ROW_RULE, TICKER_COLLISIONS,
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
+import { COMMAND_LINE_KEYS } from '../CommandLine'
 import styles from '../TerminalShell.module.css'
 
 /** The bindings a terminal user has, read from the declarations (never retyped). */
-export const HELP_SHORTCUT_IDS = ['terminal.focus', 'terminal.panel1', 'terminal.panel2',
-  'terminal.panel3', 'terminal.panel4', 'palette.toggle']
+export const HELP_SHORTCUT_IDS = ['terminal.focus', 'palette.toggle', 'terminal.panel1', 'terminal.panel2',
+  'terminal.panel3', 'terminal.panel4', 'terminal.panelPrev', 'terminal.panelNext',
+  'terminal.count1', 'terminal.count2', 'terminal.count3', 'terminal.count4',
+  'terminal.panelMoveLeft', 'terminal.panelMoveRight', 'terminal.panelMaximise', 'terminal.panelClose',
+  'terminal.panelUndoClose', 'terminal.panelDuplicate', 'terminal.panelLink', 'terminal.boards',
+  'terminal.recents', 'terminal.keys']
+
+const CODE_LABEL = { BracketLeft: '[', BracketRight: ']', Slash: '/' }
 
 /** Pure: a declaration's chord as the keys a member presses. */
 export function chordLabel(d) {
@@ -27,7 +34,7 @@ export function chordLabel(d) {
   if (c.meta) mods.push('Cmd')
   if (c.alt) mods.push('Alt')
   if (c.shift) mods.push('Shift')
-  const key = c.code ? c.code.replace(/^Key|^Digit/, '') : String(c.keys[0]).toUpperCase()
+  const key = c.code ? (CODE_LABEL[c.code] || c.code.replace(/^Key|^Digit/, '')) : String(c.keys[0]).toUpperCase()
   return [...mods, key].join('+')
 }
 
@@ -43,6 +50,31 @@ function flagFor(f) {
   return f.market?.flag || f.ticker?.flag || null
 }
 
+/** The keyboard sheet: every terminal binding (from the registry's own declarations) and the
+ *  command line's keys. HELP prints it; Alt+/ shows the same element over the board. */
+export function KeysTable() {
+  const keys = HELP_SHORTCUT_IDS.map((id) => SHORTCUTS.find((d) => d.id === id)).filter(Boolean)
+  return (
+    <>
+      <table className={styles.helpTable} data-testid="terminal-help-keys">
+        <tbody>
+          {keys.map((d) => (
+            <tr key={d.id}><td><kbd>{chordLabel(d)}</kbd></td><td>{d.why.split('. ')[0]}.</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 className={styles.helpGroup}>In the command line</h3>
+      <table className={styles.helpTable} data-testid="terminal-help-cmdkeys">
+        <tbody>
+          {COMMAND_LINE_KEYS.map((k) => (
+            <tr key={k.keys}><td><kbd>{k.keys}</kbd></td><td>{k.does}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )
+}
+
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
   const focus = focusCode && BY_CODE[focusCode] ? focusCode : null
@@ -50,7 +82,10 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
   // The numbered order = the order rendered (grouped), so "3" opens the row labelled 3.
   const ordered = useMemo(() => FUNCTION_GROUPS.flatMap((g) => rows.filter((f) => f.group === g)), [rows])
   useEffect(() => { onRows?.(ordered.map((f) => f.code)) }, [onRows, ordered])
-  const keys = HELP_SHORTCUT_IDS.map((id) => SHORTCUTS.find((d) => d.id === id)).filter(Boolean)
+  // Quality pass 2026-10-05: until the sign-in payload has ARRIVED every flag reads false, so
+  // every gated code flashed "not enabled" for a moment on open. While it is still loading (or
+  // the first read failed transiently) HELP shows no marker at all, never a guess.
+  const flagsKnown = !(auth?.loading || auth?.authTransient)
   let n = 0
   return (
     <div className={styles.help} data-testid="terminal-help">
@@ -72,19 +107,13 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           <ol className={styles.helpRule} data-testid="terminal-help-ranking">
             {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
           </ol>
-          <button type="button" className={styles.helpRow} onClick={() => onResetRanking?.()}
+          <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
             disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
             <span>Reset my ranking</span>
             <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
           </button>
           <h3 className={styles.helpGroup}>Keys</h3>
-          <table className={styles.helpTable} data-testid="terminal-help-keys">
-            <tbody>
-              {keys.map((d) => (
-                <tr key={d.id}><td><kbd>{chordLabel(d)}</kbd></td><td>{d.why.split('. ')[0]}.</td></tr>
-              ))}
-            </tbody>
-          </table>
+          <KeysTable />
           <h3 className={styles.helpGroup}>Addresses</h3>
           <table className={styles.helpTable} data-testid="terminal-help-addresses">
             <tbody>
@@ -109,10 +138,10 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                 // has one is gated by the EXACT same helper + auth source `resolvePanel` uses
                 // (functions.js::flagOn over AuthContext), so HELP never disagrees with the
                 // real gate a member hits when they run the code.
-                const enabled = flag ? flagOn(auth, flag) : null
+                const enabled = flag && flagsKnown ? flagOn(auth, flag) : null
                 return (
                   <li key={f.code}>
-                    <button type="button" className={styles.helpRow} onClick={() => onRun?.(f.code)}>
+                    <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpFnRow}`} onClick={() => onRun?.(f.code)}>
                       <span className={styles.rowNum} aria-hidden="true">{n}</span>
                       <span className={styles.code}>{f.code}</span>
                       <span>{f.label}</span>

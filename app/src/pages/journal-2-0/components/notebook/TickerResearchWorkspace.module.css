@@ -26,6 +26,10 @@
 }
 .header {
   display: flex;
+  /* Wraps instead of squeezing: in a narrow container (a UCT Terminal panel on a desktop
+     screen, which the 640px phone rule below never sees) the actions pushed the name into a
+     one-word column and "Plan this trade" ran off the edge. Nothing wraps when it fits. */
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -51,8 +55,10 @@
 }
 .headerActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
+  max-width: 100%;
 }
 .empty {
   padding: 32px 4px;

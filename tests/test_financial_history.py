@@ -150,3 +150,100 @@ class TestCaching:
         q = fh.get_history("AAPL", period="quarter")
         a = fh.get_history("AAPL", period="annual")
         assert q["period"] == "quarter" and a["period"] == "annual"
+
+
+class TestFiscalLabels:
+    """R1: the label's year is FMP's fiscalYear, not the calendar year of date."""
+
+    def test_AAPL_december_quarter_is_fiscal_Q1_of_the_NEXT_year(self, fh, monkeypatch):
+        _stub(fh, monkeypatch, [
+            {"date": "2025-12-27", "period": "Q1", "fiscalYear": "2026", "revenue": 1},
+            {"date": "2025-09-27", "period": "Q4", "fiscalYear": "2025", "revenue": 1},
+        ])
+        out = fh.get_history("AAPL")
+        assert out["periods"] == ["Q4 2025", "Q1 2026"]
+
+    def test_NVDA_columns_read_in_fiscal_order(self, fh, monkeypatch):
+        _stub(fh, monkeypatch, [
+            {"date": "2025-01-26", "period": "Q4", "fiscalYear": "2025", "revenue": 1},
+            {"date": "2025-04-27", "period": "Q1", "fiscalYear": "2026", "revenue": 1},
+            {"date": "2025-07-27", "period": "Q2", "fiscalYear": "2026", "revenue": 1},
+        ])
+        out = fh.get_history("NVDA")
+        assert out["periods"] == ["Q4 2025", "Q1 2026", "Q2 2026"]
+
+    def test_annual_label_is_the_fiscal_year(self, fh, monkeypatch):
+        _stub(fh, monkeypatch, [{"date": "2025-01-26", "period": "FY",
+                                 "fiscalYear": "2025", "revenue": 1}])
+        assert fh.get_history("NVDA", period="annual")["periods"] == ["2025"]
+
+    def test_without_fiscalYear_the_calendar_year_is_the_fallback(self, fh):
+        assert fh._label("2026-06-27", "Q3", "quarter") == "Q3 2026"
+        assert fh._label("2026-06-27", "Q3", "quarter", "") == "Q3 2026"
+        assert fh._label("2026-06-27", "Q3", "quarter", 2027) == "Q3 2027"
+
+
+class TestTransientFailuresAreNotCached:
+    """R11: a failed read is not cached as "this company has no financials"."""
+
+    def test_a_raising_income_leg_is_an_error_and_is_NOT_cached(self, fh, monkeypatch):
+        calls = []
+
+        def boom(path, sym, period, limit):
+            calls.append(path)
+            raise RuntimeError("timeout")
+        monkeypatch.setattr(fh, "_fmp", boom)
+        out = fh.get_history("AAPL")
+        assert out["periods"] == [] and out["state"] == "error"
+        n = len(calls)
+        fh.get_history("AAPL")
+        assert len(calls) > n, "a transient failure was served from cache"
+
+    def test_a_genuinely_empty_statement_IS_cached_briefly(self, fh, monkeypatch):
+        calls = []
+
+        def nf(path, sym, period, limit):
+            calls.append(path)
+            raise fh.fmp_client.FMPNotFound("no statement", vendor="fmp")
+        monkeypatch.setattr(fh, "_fmp", nf)
+        out = fh.get_history("ZZZZ")
+        assert out["periods"] == [] and "state" not in out
+        n = len(calls)
+        fh.get_history("ZZZZ")
+        assert len(calls) == n
+
+    def test_a_failed_cash_leg_is_served_but_marked_partial(self, fh, monkeypatch):
+        ttls = []
+        real_cache = fh._cache()
+        orig_set = real_cache.set
+
+        def spy(k, v, ttl=None):
+            ttls.append(ttl)
+            orig_set(k, v, ttl)
+        monkeypatch.setattr(real_cache, "set", spy)
+
+        def _fmp(path, sym, period, limit):
+            if "income" in path:
+                return _income(["2026-01-01"])
+            if "cash" in path:
+                raise RuntimeError("503")
+            return []
+        monkeypatch.setattr(fh, "_fmp", _fmp)
+        out = fh.get_history("AAPL")
+        assert out["count"] == 1 and out["partial"] == ["cash"]
+        assert ttls == [fh._TTL_FAIL]
+
+
+class TestReportedCurrency:
+    """R13: the statement currency is passed through, never converted."""
+
+    def test_currency_is_read_from_the_newest_row(self, fh, monkeypatch):
+        _stub(fh, monkeypatch, [
+            {"date": "2026-03-31", "period": "Q1", "revenue": 1, "reportedCurrency": "twd"},
+            {"date": "2025-12-31", "period": "Q4", "revenue": 1, "reportedCurrency": "TWD"},
+        ])
+        assert fh.get_history("TSM")["currency"] == "TWD"
+
+    def test_no_currency_field_is_None_not_USD(self, fh, monkeypatch):
+        _stub(fh, monkeypatch, _income(["2026-01-01"]))
+        assert fh.get_history("AAPL")["currency"] is None

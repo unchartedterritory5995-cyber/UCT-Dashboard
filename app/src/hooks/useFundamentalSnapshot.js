@@ -1,6 +1,9 @@
 import useMobileSWR from './useMobileSWR'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher), so a failed 5-min refresh keeps the card
+// on screen instead of replacing it with `null`. 402 stays absent, as before.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 // Consolidated ratings + key fundamentals for the glanceable snapshot card.
 // Only fetches when `enabled` (e.g. the Fundamentals tab is actually open).

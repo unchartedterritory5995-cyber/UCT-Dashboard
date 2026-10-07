@@ -1534,7 +1534,9 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     (e.g. a renamed/relisted symbol whose Massive history ends months ago). A
     split inside a fresh payload never trips it, adjusted or not -- measured in
     tests/test_intraday_split_is_not_staleness.py (TERM-055). Split detection is
-    `bars_sanitize.unadjusted_splits`, D/W/M only; intraday has none today.
+    `bars_sanitize.unadjusted_splits` (D/W/M), asked of an intraday series' per-session
+    closes by `bars_sanitize.intraday_unadjusted_splits` (TERM-055) -- which DETECTS an
+    intraday cliff for the adjustment-basis label; nothing heals one on the serve path.
     5-day window handles 3-day holiday weekends (Thu close → Mon = ~4 days).
     """
     if not bars:

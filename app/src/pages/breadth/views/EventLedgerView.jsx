@@ -3,7 +3,8 @@
  * happened. Every threshold is sourced (tier / formula / percentile) and shown,
  * so a reader can check the claim rather than trust it.
  */
-import { fillsRow, resolveViewColors } from './breadthViewShared'
+import { fillsRow } from './breadthViewShared'
+import useViewColors from './useViewColors'
 import SeekDate from './SeekDate'
 import { scanEvents } from './breadthEvents'
 // The neutral fired accent, and the ruling behind it, live in a pure module so
@@ -53,7 +54,7 @@ function byFamily(events) {
 export default function EventLedgerView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   const accent = firedAccent(colors)
   // `win`, not `window`: a local named `window` shadows the global for the whole
   // function body, so any later `window.matchMedia` / `window.addEventListener`
@@ -74,12 +75,12 @@ export default function EventLedgerView({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10,
                     flex: '0 0 auto' }}>
         <span data-testid="events-headline"
-              style={{ font: '800 15px \'Instrument Sans\', sans-serif',
-                       color: firedCount ? accent : '#94a3b8' }}>
+              style={{ font: '800 15px var(--font-sans)',
+                       color: firedCount ? accent : 'var(--text-muted)' }}>
           {firedCount ? `${firedCount} event${firedCount > 1 ? 's' : ''} today` : 'No named event today'}
         </span>
         <span data-testid="events-basis"
-              style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
+              style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
           {win.length} sessions · since {win[win.length - 1].date}
         </span>
       </div>
@@ -134,13 +135,13 @@ export default function EventLedgerView({
                           display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
                         flex: '0 0 auto' }}>
-            <span style={{ font: '800 9px \'Instrument Sans\', sans-serif', letterSpacing: '1px',
-                           textTransform: 'uppercase', color: '#64748b', whiteSpace: 'nowrap' }}>
+            <span style={{ font: '800 var(--text-xs) var(--font-sans)', letterSpacing: '1px',
+                           textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {optionLabel('events', 'families', family)}
             </span>
-            <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-            <span style={{ font: '700 9px \'Instrument Sans\', sans-serif',
-                           color: firedHere ? accent : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ flex: 1, height: 1, background: 'color-mix(in srgb, var(--text-heading) 6%, transparent)' }} />
+            <span style={{ font: '700 var(--text-xs) var(--font-sans)',
+                           color: firedHere ? accent : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {firedHere ? `${firedHere} today` : `${list.length}`}
             </span>
           </div>
@@ -171,32 +172,32 @@ export default function EventLedgerView({
                  style={{ ...fillsRow(ROW_MIN_H, ROW_MAX_H),
                           padding: '0 8px 0 6px',
                           borderLeft: `2px solid ${e.firedToday ? accent : 'transparent'}`,
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: e.firedToday ? 'rgba(255,255,255,0.025)' : 'transparent',
+                          borderBottom: '1px solid color-mix(in srgb, var(--text-heading) 4%, transparent)',
+                          background: e.firedToday ? 'color-mix(in srgb, var(--text-heading) 2.5%, transparent)' : 'transparent',
                           opacity: e.unavailable ? 0.55 : 1 }}>
               <span style={{ width: 7, height: 7, borderRadius: 4,
                              opacity: e.firedToday ? colors.fillOpacity : 1,
-                             background: e.firedToday ? accent : '#334155' }} />
-              <span style={{ font: '700 11px \'Instrument Sans\', sans-serif', color: '#e2e8f0',
+                             background: e.firedToday ? accent : 'var(--border-accent)' }} />
+              <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', color: 'var(--text-bright)',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.label}
               </span>
-              <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', minWidth: 0,
-                             color: e.firedToday ? accent : '#94a3b8' }}>
+              <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', minWidth: 0,
+                             color: e.firedToday ? accent : 'var(--text-muted)' }}>
                 {status}
               </span>
               {/* The basis gets a column of its own rather than a tail on the
                   note, because it is the claim's provenance and the note is only
                   its wording — and a column cannot be ellipsised away. */}
-              <span style={{ font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
-                             color: '#64748b', textAlign: 'center',
-                             border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3,
+              <span style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.6px',
+                             color: 'var(--text-muted)', textAlign: 'center',
+                             border: '1px solid color-mix(in srgb, var(--text-heading) 7%, transparent)', borderRadius: 3,
                              padding: '2px 0' }}>
                 {BASIS_CHIP[e.basis]}
               </span>
               <span className={styles.note}
-                    style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                    style={{ font: '500 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.note}

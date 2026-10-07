@@ -59,6 +59,7 @@ vi.mock('./panels', async (importOriginal) => {
 })
 
 import TerminalShell from './TerminalShell'
+import { saveTiming } from './useTerminalLayout'
 import { TerminalRoute } from './TerminalRoutes'
 
 function setViewport(width) {
@@ -88,6 +89,8 @@ function renderAt(url, auth = OPEN) {
 }
 
 beforeEach(() => {
+  saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
+  try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
   store.prefs = {}
   store.writes = []
   setViewport(390)
@@ -111,15 +114,15 @@ describe('phone panel switcher (P14a)', () => {
     expect(screen.getByTestId('terminal-phone-switch-3')).toHaveTextContent('FA')
   })
 
-  it('the active tab reflects layout.focus, and only the focused panel renders', () => {
+  it('the active tab reflects layout.focus, and only the focused panel is shown (the rest stay mounted, hidden)', () => {
     store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 4, focus: 1, panels: [
       { code: 'GP', group: 'A' }, { code: 'DES', group: 'A', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' }, { code: 'FA', group: 'A' },
     ] }) }
     renderAt('/terminal')
     expect(screen.getByTestId('terminal-phone-switch-1').getAttribute('aria-selected')).toBe('true')
     expect(screen.getByTestId('terminal-phone-switch-0').getAttribute('aria-selected')).toBe('false')
-    expect(screen.getByTestId('terminal-panel-1')).toBeTruthy()
-    expect(screen.queryByTestId('terminal-panel-0')).toBeNull()
+    expect(screen.getByTestId('terminal-panel-1').hidden).toBe(false)
+    expect(screen.getByTestId('terminal-panel-0').hidden).toBe(true)
   })
 
   it('tapping a tab calls setFocus: the UI moves focus to that panel and persists it', async () => {
@@ -127,15 +130,19 @@ describe('phone panel switcher (P14a)', () => {
       { code: 'GP', group: 'A' }, { code: 'DES', group: 'A', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' }, { code: 'FA', group: 'A' },
     ] }) }
     renderAt('/terminal')
-    expect(screen.getByTestId('terminal-panel-0')).toBeTruthy()
-    expect(screen.queryByTestId('terminal-panel-2')).toBeNull()
+    expect(screen.getByTestId('terminal-panel-0').hidden).toBe(false)
+    expect(screen.getByTestId('terminal-panel-2').hidden).toBe(true)
 
     await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-switch-2')) })
 
     expect(screen.getByTestId('terminal-panel-2')).toHaveTextContent('News:AMD')
-    expect(screen.queryByTestId('terminal-panel-0')).toBeNull()
+    expect(screen.getByTestId('terminal-panel-2').hidden).toBe(false)
+    expect(screen.getByTestId('terminal-panel-0').hidden).toBe(true)
     expect(screen.getByTestId('terminal-phone-switch-2').getAttribute('aria-selected')).toBe('true')
-    expect(JSON.parse(store.prefs.terminal_layout).focus).toBe(2)
+    // Focus is a per-viewer convenience (audit #19): remembered on this device by panel id, and
+    // NOT posted — a focus click must not mint a board version.
+    expect(window.localStorage.getItem('uct.terminal.focusPanel')).toBe('p3')   // the v1 migration's slot ids
+    expect(store.writes.filter(([k]) => k === 'terminal_layout')).toHaveLength(0)
   })
 
   it('the phone count control changes the active panel count and tab count, via the same setCount handler', async () => {
@@ -147,13 +154,64 @@ describe('phone panel switcher (P14a)', () => {
 
     expect(screen.getByTestId('terminal-phone-switcher').querySelectorAll('[role="tab"]')).toHaveLength(2)
     expect(JSON.parse(store.prefs.terminal_layout).count).toBe(2)
-    // the phone grid still renders exactly one panel (the focused one) even though 2 are active
-    expect(screen.getAllByTestId(/^terminal-panel-/)).toHaveLength(1)
+    // the phone grid still SHOWS exactly one panel (the focused one) even though 2 are active;
+    // the other is mounted and hidden so switching back does not refetch or reset it
+    const panels = screen.getAllByTestId(/^terminal-panel-\d+$/)
+    expect(panels).toHaveLength(2)
+    expect(panels.filter((el) => !el.hidden)).toHaveLength(1)
   })
 
   it('the desktop panel-count control is absent on phone; only the phone one is present', () => {
     renderAt('/terminal')
     expect(screen.queryByTestId('terminal-count-2')).toBeNull()
     expect(screen.getByTestId('terminal-phone-count-2')).toBeTruthy()
+  })
+  it('switching away and back keeps the panel mounted: its content is the same element, not a remount', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 2, focus: 0, panels: [
+      { code: 'DES', group: 'N', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' },
+    ] }) }
+    renderAt('/terminal')
+    await screen.findByText('Overview:AAPL')
+    const before = screen.getByTestId('terminal-panel-0').querySelector('[data-testid^="stub-"]')
+    expect(before).toBeTruthy()
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-switch-1')) })
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-switch-0')) })
+    const after = screen.getByTestId('terminal-panel-0').querySelector('[data-testid^="stub-"]')
+    expect(after).toBe(before)
+  })
+})
+
+describe('phone: closing a panel can be undone after its notice is gone (visual pass 2)', () => {
+  const two = () => JSON.stringify({ v: 1, count: 2, focus: 1, panels: [
+    { code: 'DES', group: 'N', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' },
+  ] })
+
+  it('the phone bar carries Undo while the undo stack is not empty, and it re-opens the panel', async () => {
+    store.prefs = { terminal_layout: two() }
+    renderAt('/terminal')
+    expect(screen.queryByTestId('terminal-phone-undo-close')).toBeNull()
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-close-1')) })
+    // dismiss the close notice: the notice's own Undo is gone, the bar's is not
+    await act(async () => { fireEvent.click(screen.getByLabelText('Dismiss')) })
+    expect(screen.queryByTestId('terminal-notice-undo-close')).toBeNull()
+    const undo = screen.getByTestId('terminal-phone-undo-close')
+    expect(undo).toHaveAccessibleName('Undo close: re-open CN')
+    await act(async () => { fireEvent.click(undo) })
+    expect(screen.getByTestId('terminal-phone-switch-1')).toHaveTextContent('CN')
+    expect(screen.queryByTestId('terminal-phone-undo-close')).toBeNull()
+  })
+
+  it('while a sheet is open the notice shows inside that sheet, not under it — and only once', async () => {
+    store.prefs = { terminal_layout: two() }
+    renderAt('/terminal')
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-close-1')) })
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Closed CN.')
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-recents-button')) })
+    const notices = screen.getAllByTestId('terminal-notice')
+    expect(notices).toHaveLength(1)
+    expect(screen.getByRole('dialog').contains(notices[0])).toBe(true)
+    // its action still works from inside the sheet
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-notice-undo-close')) })
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Re-opened CN')
   })
 })

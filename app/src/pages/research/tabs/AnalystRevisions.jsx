@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from '../ResearchPage.module.css'
+import { formatCurrency, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-073 (FB-A4-01) — what changed in the nightly analyst pass, per ticker.
 //
@@ -12,8 +13,8 @@ import styles from '../ResearchPage.module.css'
 
 function fmtValue(field, v) {
   if (v == null || v === '') return '—'
-  if (field === 'pt_target') return `$${Number(v).toFixed(2)}`
-  if (field === 'eps_next_y_growth') return `${Number(v).toFixed(1)}%`  // backend already returns a percent
+  if (field === 'pt_target') return formatCurrency(Number(v))
+  if (field === 'eps_next_y_growth') return formatPercent(Number(v), { decimals: 1 })  // backend already returns a percent
   return String(v)
 }
 
@@ -36,7 +37,7 @@ export default function AnalystRevisions({ sym }) {
 
   return (
     <section className={styles.card} data-testid="analyst-revisions">
-      <div className={styles.muted} style={{ marginBottom: 6 }}>Analyst revisions</div>
+      <div className={styles.ct}>Analyst revisions</div>
       {status === 'no_history' && (
         <div data-testid="revisions-status">
           Not enough history yet — {observations} nightly snapshot{observations === 1 ? '' : 's'} retained

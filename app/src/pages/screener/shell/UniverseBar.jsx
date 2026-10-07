@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
+import Checkbox from '../../../components/ui/Checkbox'
 
 // ── What each pool actually IS ──────────────────────────────────────────────
 // The rules here MIRROR the server. All Market = the screener's OWN universe
@@ -168,7 +169,7 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
                 <div className={styles.uMenuHd}>Combine lists <span className={styles.uMenuSub}>any of</span></div>
                 {options.map(o => (
                   <label key={o.value} className={styles.uMenuCheck}>
-                    <input type="checkbox" checked={comboSel.includes(o.value)}
+                    <Checkbox checked={comboSel.includes(o.value)}
                       onChange={() => toggleCombo(o.value)} />
                     <span>{o.label}</span>
                   </label>

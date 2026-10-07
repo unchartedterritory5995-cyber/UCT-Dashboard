@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import Provenance from '../../../components/provenance/Provenance'
 import styles from '../ResearchPage.module.css'
 import Textarea from '../../../components/ui/Textarea'
+import { withDeadline } from '../../../utils/withDeadline'
+
+export const ASK_TIMEOUT_MS = 90000
 
 // AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2 + 3
 // (I1 Intelligence Layer, owner-authorized, 2026-09-04). "Explain", not "ask
@@ -98,8 +101,8 @@ function AskAiTurnResult({ data }) {
       {isAnswer && (
         <div data-testid="ask-ai-answer">
           {data.entity && data.entity.status !== 'resolved' && (
-            <div className={styles.muted} style={{ fontSize: 11, marginBottom: 6 }} data-testid="entity-unresolved-note">
-              Symbol not yet linked to a canonical identity ({data.entity.status}).
+            <div className={`${styles.entityNote} ${styles.entityNoteGap}`} data-testid="entity-unresolved-note">
+              This symbol is not yet linked to a company record, so some sources below may not match it.
             </div>
           )}
 
@@ -188,11 +191,13 @@ export default function AskAiTab({ sym }) {
     setTurns(prev => [...prev, { id, question: text, status: 'loading', data: null }])
     setQuestion('')
     try {
-      const r = await fetch(`/api/research/explain/${encodeURIComponent(sym)}`, {
+      // A POST that never answers used to leave the turn on "Reading ..." and Ask disabled
+      // forever (busy). The model call can be slow, so the deadline is longer than a read's.
+      const r = await withDeadline(fetch(`/api/research/explain/${encodeURIComponent(sym)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: text, history: historyRef.current }),
-      })
+      }), 'explain', ASK_TIMEOUT_MS)
       if (!r.ok) {
         setTurns(prev => prev.map(t => (t.id === id ? { ...t, status: 'error' } : t)))
         return
@@ -202,8 +207,8 @@ export default function AskAiTab({ sym }) {
         historyRef.current = [...historyRef.current, data.turn_state].slice(-3)
       }
       setTurns(prev => prev.map(t => (t.id === id ? { ...t, status: 'done', data } : t)))
-    } catch {
-      setTurns(prev => prev.map(t => (t.id === id ? { ...t, status: 'error' } : t)))
+    } catch (e) {
+      setTurns(prev => prev.map(t => (t.id === id ? { ...t, status: 'error', timedOut: Boolean(e?.timedOut) } : t)))
     }
   }
 
@@ -272,7 +277,12 @@ export default function AskAiTab({ sym }) {
                 <div className={styles.fnote} data-testid="ask-ai-loading">Reading UCT's canonical research data…</div>
               )}
               {t.status === 'error' && (
-                <div className={styles.fnote} data-testid="ask-ai-error">The AI assistant is temporarily unavailable. Try again shortly.</div>
+                <div className={styles.fnote} data-testid="ask-ai-error">
+                  {t.timedOut
+                    ? 'The answer took too long, so this request was stopped.'
+                    : 'The AI assistant could not answer right now.'}{' '}
+                  <button type="button" className={styles.basisBtn} disabled={busy} onClick={() => ask(t.question)}>Ask again</button>
+                </div>
               )}
               {t.status === 'done' && <AskAiTurnResult data={t.data} />}
             </div>

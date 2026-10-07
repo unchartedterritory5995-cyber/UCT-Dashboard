@@ -25,6 +25,7 @@ import {
   ACTUALS_POLL_MS, computeLifecycle, countdownText, shouldPollActuals, windowStart,
 } from '../../pages/calendar/earningsLifecycle'
 import { normalizeSection } from './railSections'
+import { formatCurrency, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import SectionTabs, { panelIdFor, panelLabelledBy } from './SectionTabs'
 import SetupSection from './sections/SetupSection'
 import EarningsHistorySection from './sections/EarningsHistorySection'
@@ -64,7 +65,7 @@ export const PANELS = {
   ai: AskAiSection,
 }
 
-const fmtEps = (v) => (v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`)
+const fmtEps = (v) => (v == null ? null : formatCurrency(v))
 
 /** The PRINTED/POST result line — pure data, never a claim (§4.2). */
 function resultLine(row) {
@@ -81,10 +82,16 @@ function resultLine(row) {
  *  bitten this branch six times already. */
 function fmtLivePrice(live) {
   if (!live || live.price == null) return null
-  const price = `$${live.price.toFixed(2)}`
-  if (live.change_pct == null) return price
-  const arrow = live.change_pct >= 0 ? '▲' : '▼'
-  return `${price} ${arrow}${Math.abs(live.change_pct).toFixed(1)}%`
+  const price = formatCurrency(live.price)
+  // The % beside the price is worked out FROM that price when the previous close is known.
+  // The quote's own change_pct comes from a different reading (the minute bar's close, not
+  // the last trade), so the two disagreed on screen: $239.59 against a $233.95 close is
+  // +2.4%, and the banner said +2.5%. The server figure is the fallback.
+  const prev = Number(live.prev_close)
+  const pct = Number.isFinite(prev) && prev > 0 ? (live.price / prev - 1) * 100 : live.change_pct
+  if (pct == null || !Number.isFinite(pct)) return price
+  const arrow = pct >= 0 ? '▲' : '▼'
+  return `${price} ${arrow}${formatPercent(Math.abs(pct), { decimals: 1 })}`
 }
 
 /** A grade input's weight as a percent, or an em dash when the weight itself
@@ -141,7 +148,7 @@ export default function EarningsResearchModal({
   section = null, onSectionChange,
   onClose,
   onStepPrev = null, onStepNext = null, stepping = false,
-  onPollActuals = null, isTodayReporter = false, enrichReady = true,
+  onPollActuals = null, isTodayReporter = false, enrichReady = true, enrichFailed = false,
   nowMs,
 }) {
   // Click-triggered conditional rendering — the sanctioned useIsPhone case: the
@@ -331,7 +338,7 @@ export default function EarningsResearchModal({
           data-testid="entity-unresolved-note"
           style={{ fontSize: 11, color: 'var(--text-muted)', padding: '0 16px' }}
         >
-          Symbol not yet linked to a canonical identity ({row.entity.status}).
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       {/* ONE sub-head band, not two. The session line and the chart action used
@@ -405,6 +412,7 @@ export default function EarningsResearchModal({
           livePrice={liveQuote}
           stepping={stepping}
           enrichReady={enrichReady}
+          enrichFailed={enrichFailed}
         />
       </div>
 
@@ -441,7 +449,7 @@ export default function EarningsResearchModal({
         aria-label={`${sym} earnings report`}
         tabIndex={-1}
       >
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Close">×</button>
+        <button type="button" className={styles.close} onClick={onClose} aria-label="Close"><UIcon name="x" size={16} gold={false} aria-hidden="true" /></button>
         {body}
       </div>
     </div>

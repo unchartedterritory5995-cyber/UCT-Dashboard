@@ -25,22 +25,34 @@
 // endpoints never 402 are unaffected by carrying the branch.
 
 export class SectionFetchError extends Error {
-  constructor(message, { status = null, url = null } = {}) {
+  constructor(message, { status = null, url = null, network = false } = {}) {
     super(message)
     this.name = 'SectionFetchError'
     this.status = status
     this.url = url
+    this.network = network
   }
 }
 
-/** SWR fetcher: resolves with the payload, or THROWS so `error` is populated. */
-export async function sectionFetcher(url) {
+// The deadline lives in utils/withDeadline.js (one owner; raw-fetch hooks share it).
+export { SECTION_TIMEOUT_MS, SectionTimeoutError, withDeadline } from '../../../utils/withDeadline'
+import { withDeadline } from '../../../utils/withDeadline'
+import { withWarmRetry } from '../../../utils/warmRetry'
+
+/** SWR fetcher: resolves with the payload, or THROWS so `error` is populated.
+ *  A transient first failure (deadline, network, 408/429/502/503/504) is asked again once
+ *  before it throws (utils/warmRetry.js: a cold pod after a deploy is not a failed read). */
+export function sectionFetcher(url) {
+  return withWarmRetry(() => withDeadline(sectionFetchOnce(url), url), url)
+}
+
+async function sectionFetchOnce(url) {
   let res
   try {
     res = await fetch(url)
   } catch (cause) {
     // Network-level: offline, DNS, connection reset, pod mid-restart.
-    throw new SectionFetchError(`Network request failed: ${cause?.message || cause}`, { url })
+    throw new SectionFetchError(`Network request failed: ${cause?.message || cause}`, { url, network: true })
   }
   // Paid gate — a state the section renders, not an error it retries.
   if (res.status === 402) return { paywalled: true }

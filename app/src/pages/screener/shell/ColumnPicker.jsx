@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
+import Input from '../../../components/ui/Input'
+import Checkbox from '../../../components/ui/Checkbox'
 
 export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset,
   presets = [], onApplyPreset, onDeletePreset, layouts = [], onApplyLayout }) {
@@ -38,7 +40,7 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
   return (
     <div className={styles.pickerPop} role="dialog" aria-label="Choose columns">
       <div className={styles.pickerHead}>
-        <input className={styles.railSearch} placeholder="Find a column…" value={q}
+        <Input className={styles.railSearch} placeholder="Find a column…" value={q}
           aria-label="Find a column" onChange={e => setQ(e.target.value)} />
         <button type="button" className={styles.pickerReset} onClick={onReset}>Reset to view</button>
         <button type="button" className={styles.pickerClose} aria-label="Close column picker" onClick={onClose}>
@@ -86,7 +88,7 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
         {shown.map(c => (
           <div key={c.key} className={styles.pickerRow}>
             <label className={styles.pickerLabel}>
-              <input type="checkbox" checked={isOn(c.key)} disabled={c.key === 'ticker'}
+              <Checkbox checked={isOn(c.key)} disabled={c.key === 'ticker'}
                 onChange={() => toggleCol(c.key)} />
               <span>{c.label}</span>
               <span className={styles.pickerKey}>{c.key}</span>
@@ -106,7 +108,7 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
       </div>
       {onSavePreset && (
         <div className={styles.pickerSave}>
-          <input className={styles.railSearch} placeholder="Save these columns as a view…"
+          <Input className={styles.railSearch} placeholder="Save these columns as a view…"
             aria-label="Preset name" value={presetName}
             onChange={e => setPresetName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') doSave() }} />

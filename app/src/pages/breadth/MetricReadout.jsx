@@ -4,6 +4,7 @@ import { LABEL_MAP, resolveColors, staleAllowance } from './chartMetrics'
 import { percentileOf, latestPoint, comparableCount } from './percentile'
 import { shortSessionDate } from './sessionDates'
 import styles from './MetricReadout.module.css'
+import { formatNumber } from '../../lib/presentation/presentationPrimitives'
 
 const ORDINAL = n => {
   const tens = n % 100
@@ -11,7 +12,7 @@ const ORDINAL = n => {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
 }
 
-const format = v => (v == null ? '—' : v % 1 === 0 ? String(v) : v.toFixed(2))
+const format = v => (v == null ? '—' : v % 1 === 0 ? String(v) : formatNumber(v, { decimals: 2, grouping: false }))
 
 /**
  * Replaces the ECharts legend: the same swatch and label, plus the latest value

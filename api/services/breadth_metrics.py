@@ -350,6 +350,13 @@ def published_metric_keys() -> list[str]:
     return [k for k in METRIC_KEYS if k in want]
 
 
+#: ⭐ NYSE / NASDAQ (Exchange Breadth V1, owner-accepted) ALSO publish the two raw issue counts their
+#: AD / MCO / MCS are built from, so a member can chart the inputs beside the derived lines. Exchange
+#: universes only: US keeps exactly the V1 set. (`unchanged` lives in the exchange authority but is not a
+#: registered member metric — not exposed.)
+EXCHANGE_EXTRA_METRICS = ("advancing", "declining")
+
+
 def is_published_metric(metric: str, universe: str) -> bool:
     """May a member discover and chart `universe × metric`?
 
@@ -361,5 +368,7 @@ def is_published_metric(metric: str, universe: str) -> bool:
     if metric not in METRICS:
         return False
     if bu.normalize(universe) == bu.DEFAULT_UNIVERSE:
+        return True
+    if bu.normalize(universe) in bu.EXCHANGE_UNIVERSE_IDS and metric in EXCHANGE_EXTRA_METRICS:
         return True
     return metric in set(published_metric_keys())

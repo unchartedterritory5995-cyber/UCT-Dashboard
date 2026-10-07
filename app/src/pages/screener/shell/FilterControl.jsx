@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import ColumnDesc from './ColumnDesc'
 import styles from './ScannerShell.module.css'
+import Input from '../../../components/ui/Input'
+import Select from '../../../components/ui/Select'
 
 const currentLabel = (filter, value, customOpen) => {
   if (customOpen) return 'Custom…'
@@ -66,20 +68,20 @@ export default function FilterControl({ filter, value, onChange }) {
         <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
         <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
       </span>
-      <select id={`fc_${filter.key}`} aria-label={filter.label}
+      <Select id={`fc_${filter.key}`} aria-label={filter.label}
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}
         value={currentLabel(filter, value, customOpen)}
         onChange={e => onSelect(e.target.value)}>
         {options.map(o => <option key={o}>{o}</option>)}
-      </select>
+      </Select>
       {/* The per-control "Typical Range" percentile band was removed by owner
           request — the dropdown + custom min/max is the whole control now. */}
       {customOpen && (
         <div className={styles.customRange}>
-          <input type="number" placeholder="min" aria-label={`${filter.label} min`}
+          <Input type="number" placeholder="min" aria-label={`${filter.label} min`}
             value={minV} onChange={e => setMinV(e.target.value)}
             onKeyDown={onKey} onBlur={() => commit()} />
-          <input type="number" placeholder="max" aria-label={`${filter.label} max`}
+          <Input type="number" placeholder="max" aria-label={`${filter.label} max`}
             value={maxV} onChange={e => setMaxV(e.target.value)}
             onKeyDown={onKey} onBlur={() => commit()} />
         </div>

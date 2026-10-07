@@ -34,6 +34,8 @@ import {
   formatCurrency,
   formatCompact,
   COMPACT_TIERS,
+  TERMINAL_COMPACT_TIERS,
+  formatCompactTerminal,
   formatTimeEt,
   formatDateTimeEt,
   formatFreshnessAsOf,
@@ -297,6 +299,45 @@ describe('formatNumber decimals', () => {
     expect(formatNumber(1.5, { decimals: 2 })).toBe('1.50')
     expect(formatNumber(1234.5, { decimals: 2 })).toBe('1,234.50')
     expect(formatNumber(1234.567, { decimals: 0 })).toBe('1,235')
+  })
+
+  it('grouping: false drops the thousands separator and nothing else', () => {
+    expect(formatNumber(1234.5, { decimals: 2, grouping: false })).toBe('1234.50')
+    expect(formatNumber(-1234567.891, { decimals: 1, grouping: false })).toBe('-1234567.9')
+    expect(formatNumber(1234567, { grouping: false })).toBe('1234567')
+    expect(formatNumber(NaN, { grouping: false })).toBe(ABSENT)
+    // byte-identical to the toFixed grammar it replaces in the options panels
+    for (const v of [0, 0.005, 1.005, 2.5, -2.5, 12.345, 999.995, 1234.5678, -0.4]) {
+      for (const d of [0, 1, 2, 3]) {
+        expect(formatNumber(v, { decimals: d, grouping: false })).toBe(v.toFixed(d))
+      }
+    }
+  })
+})
+
+describe('formatCompactTerminal — the ONE large-number rule every terminal panel uses', () => {
+  it('T and B at two decimals, M at one, K whole, below 1,000 a whole number', () => {
+    expect(formatCompactTerminal(2.912e12)).toBe('2.91T')
+    expect(formatCompactTerminal(391.035e9)).toBe('391.04B')
+    expect(formatCompactTerminal(45_340_000)).toBe('45.3M')
+    expect(formatCompactTerminal(950_400)).toBe('950K')
+    expect(formatCompactTerminal(812.4)).toBe('812')
+    expect(formatCompactTerminal(0)).toBe('0')
+    expect(TERMINAL_COMPACT_TIERS.map((t) => `${t.suffix}${t.decimals}`)).toEqual(['T2', 'B2', 'M1', 'K0'])
+    expect(Object.isFrozen(TERMINAL_COMPACT_TIERS)).toBe(true)
+  })
+
+  it('money: true adds the dollar sign INSIDE the minus', () => {
+    expect(formatCompactTerminal(94.93e9, { money: true })).toBe('$94.93B')
+    expect(formatCompactTerminal(-48.8e6, { money: true })).toBe('-$48.8M')
+    expect(formatCompactTerminal(-1.25e9, { money: true })).toBe('-$1.25B')
+    expect(formatCompactTerminal(500_000, { money: true })).toBe('$500K')
+  })
+
+  it('a missing value is the caller’s absent, the shared em dash by default', () => {
+    expect(formatCompactTerminal(null)).toBe(ABSENT)
+    expect(formatCompactTerminal(NaN, { money: true })).toBe(ABSENT)
+    expect(formatCompactTerminal(undefined, { money: true, absent: '' })).toBe('')
   })
 })
 

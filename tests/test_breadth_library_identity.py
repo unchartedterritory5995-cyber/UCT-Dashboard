@@ -12,6 +12,16 @@ from api.services import breadth_symbols as bs
 from api.services import breadth_universes as bu
 
 
+@pytest.fixture(autouse=True)
+def _exchange_authority_serving(monkeypatch):
+    """NYSE / NASDAQ are publishable ONLY while the Exchange Breadth V1 authority serves them
+    (`breadth_universes.published_universe_ids`). These tests predate that gate and exercise the
+    library mechanics for every universe, so they stand the authority up as serving; the gate itself
+    is railed in tests/test_breadth_exch_authority.py."""
+    from api.services import breadth_exchange_authority as _ea
+    monkeypatch.setattr(_ea, "serves", lambda u: (u or "").strip().lower() in _ea.UNIVERSES)
+
+
 @pytest.fixture()
 def published_all(monkeypatch):
     """Publish every universe — what a future deploy flips, with no code change."""

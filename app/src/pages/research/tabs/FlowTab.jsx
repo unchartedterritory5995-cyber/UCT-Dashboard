@@ -1,5 +1,8 @@
 import useResearchFlow from '../hooks/useResearchFlow'
 import Provenance from '../../../components/provenance/Provenance'
+import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // Research "Flow" tab (A13 Wave B). The roadmap's original directive asked for
@@ -18,16 +21,8 @@ import styles from '../ResearchPage.module.css'
 // already use), and let "My Research"/"Technical" keep owning thesis/setup as
 // they already do. Deterministic only — no AI here.
 
-function fmtMoney(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`
-  return `$${Math.round(v)}`
-}
-function fmtNum(v) { return v == null ? '—' : Math.round(v).toLocaleString() }
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v}%` }
+const fmtMoney = (v) => formatCompactTerminal(v, { money: true })
+const fmtNum = (v) => formatNumber(v == null ? null : Math.round(v))
 
 function contractLabel(c) {
   const cp = (c.cp || '').toUpperCase().startsWith('C') ? 'C' : 'P'
@@ -37,10 +32,10 @@ function contractLabel(c) {
 
 function DirectionPill({ dir }) {
   const d = (dir || '').toUpperCase()
-  const color = d === 'BULL' ? 'var(--ut-green, #4ade80)'
-    : d === 'BEAR' ? 'var(--ut-red, #f87171)'
-      : 'var(--text-muted)'
-  return <span style={{ color, fontWeight: 600 }}>{d || '—'}</span>
+  // Direction reads in the app's own gain/loss inks, so a light or catalog theme
+  // carries it like every other up/down figure.
+  const cls = d === 'BULL' ? styles.up : d === 'BEAR' ? styles.down : styles.muted
+  return <span className={`${cls} ${styles.dirPill}`}>{d || '—'}</span>
 }
 
 export default function FlowTab({ sym }) {
@@ -53,14 +48,14 @@ export default function FlowTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
-      {isLoading && !data && <div className={styles.fnote}>Loading options-flow evidence…</div>}
+      {isLoading && !data && <ResearchLoading label="Loading options-flow evidence" />}
 
       {/* A failed read is said as a failure, with a retry -- never as "no qualifying flow". */}
       {!isLoading && error && (
         <div className={styles.fnote} data-testid="flow-unavailable">
-          Options flow for {sym} is unavailable right now{error.httpStatus ? ` (the request answered ${error.httpStatus})` : ' (the request did not complete)'}.
+          Options flow for {sym} is unavailable right now{error.httpStatus ? ` (the request answered ${error.httpStatus})` : error.timedOut ? ' (the flow service gave no answer within 30 seconds)' : ' (the request did not complete)'}.
           {' '}That is a failed read, not a quiet tape.{' '}
-          <button type="button" onClick={retry} data-testid="flow-retry">Retry</button>
+          <button type="button" className={styles.basisBtn} onClick={retry} data-testid="flow-retry">Retry</button>
         </div>
       )}
 
@@ -85,9 +80,9 @@ export default function FlowTab({ sym }) {
               <div className={styles.kv}><span>Unclassified premium</span><b>{fmtMoney(net.unclassified)}</b></div>
             )}
             {data.spot != null && (
-              <div className={styles.kv}><span>Spot</span><b>${Number(data.spot).toFixed(2)}</b></div>
+              <div className={styles.kv}><span>Spot</span><b>{formatCurrency(Number(data.spot))}</b></div>
             )}
-            <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>
+            <div className={styles.srcNote}>
               {win?.start && win?.end
                 ? `Window: ${win.start} – ${win.end} (${win.active_days} active day${win.active_days === 1 ? '' : 's'})`
                 : 'Window: —'}
@@ -115,7 +110,7 @@ export default function FlowTab({ sym }) {
                       <td>{fmtNum(c.oi)}</td>
                       <td>{c.voi != null ? `${c.voi}x` : '—'}</td>
                       <td><DirectionPill dir={c.direction} /></td>
-                      <td>{fmtPct(c.perf)}</td>
+                      <td>{signedPct(c.perf)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -126,7 +121,7 @@ export default function FlowTab({ sym }) {
                 payload carries date-only window bounds and a `query_date`,
                 never an observed instant, and the window is already stated in
                 the Net Flow card above. */}
-            <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }} data-testid="flow-source">
+            <div className={styles.srcNote} data-testid="flow-source">
               Source:{' '}
               <Provenance
                 value="live options-flow tape (same aggregation as Options Flow → Search)"

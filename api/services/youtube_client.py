@@ -15,6 +15,8 @@ _BROADCASTS_URL = "https://www.googleapis.com/youtube/v3/liveBroadcasts"
 _THUMBNAIL_URL = "https://www.googleapis.com/upload/youtube/v3/thumbnails/set"
 _UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 _VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+_PLAYLIST_ITEMS_URL = "https://www.googleapis.com/youtube/v3/playlistItems"
+_COMMENT_THREADS_URL = "https://www.googleapis.com/youtube/v3/commentThreads"
 
 # The privacyStatus values the Data API accepts. Used to reject a typo at the
 # call site instead of letting YouTube silently apply its own default.
@@ -156,6 +158,34 @@ class YouTubeClient:
             json={"id": video_id, "snippet": snippet}, timeout=20)
         if resp.status_code not in (200, 201):
             raise YouTubeApiError(f"videos.update {resp.status_code}: {resp.text[:200]}")
+
+    def add_to_playlist(self, video_id: str, playlist_id: str) -> str:
+        """Append a video to a playlist (`playlistItems.insert`). Needs
+        youtube.force-ssl (or youtube); returns the new playlistItem id. Raises
+        on a non-2xx like every other call here; callers decide fail-softness."""
+        token = self._ensure_token()
+        resp = httpx.post(_PLAYLIST_ITEMS_URL, params={"part": "snippet"},
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"snippet": {"playlistId": playlist_id,
+                              "resourceId": {"kind": "youtube#video", "videoId": video_id}}},
+            timeout=20)
+        if resp.status_code not in (200, 201):
+            raise YouTubeApiError(f"playlistItems.insert {resp.status_code}: {resp.text[:200]}")
+        return str((resp.json() or {}).get("id") or "")
+
+    def post_comment(self, video_id: str, text: str) -> str:
+        """Post a top-level comment as the channel (`commentThreads.insert`).
+        Needs youtube.force-ssl; returns the new commentThread id. The Data API
+        has NO pin operation, so pinning stays a manual step in Studio."""
+        token = self._ensure_token()
+        resp = httpx.post(_COMMENT_THREADS_URL, params={"part": "snippet"},
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"snippet": {"videoId": video_id,
+                              "topLevelComment": {"snippet": {"textOriginal": text}}}},
+            timeout=20)
+        if resp.status_code not in (200, 201):
+            raise YouTubeApiError(f"commentThreads.insert {resp.status_code}: {resp.text[:200]}")
+        return str((resp.json() or {}).get("id") or "")
 
     def list_completed_broadcasts(self, max_results: int = 10) -> list[dict]:
         token = self._ensure_token()

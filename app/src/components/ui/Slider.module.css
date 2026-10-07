@@ -1,0 +1,106 @@
+/* Slider (components/ui/Slider.jsx) — a themed native range input.
+   Track: --bg-hover with a --border hairline; filled part and thumb: --accent; a
+   --focus-ring on keyboard focus. Every colour is a theme token, so the control
+   follows the member's app theme. The 4px track sits centred in a 20px hit area on
+   desktop and a --tap-min one on touch. */
+.slider {
+  --slider-track: 4px;
+  --slider-thumb: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.slider:focus-visible {
+  outline: none;
+}
+
+/* ── WebKit / Blink ── */
+.slider::-webkit-slider-runnable-track {
+  height: var(--slider-track);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) var(--slider-fill, 0%),
+    var(--bg-hover) var(--slider-fill, 0%),
+    var(--bg-hover) 100%
+  );
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--slider-thumb);
+  height: var(--slider-thumb);
+  /* centre the thumb on the track (the track's 1px border counts) */
+  margin-top: calc((var(--slider-track) - var(--slider-thumb)) / 2 - 1px);
+  border: 2px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.slider:not(:disabled):hover::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Firefox ── */
+.slider::-moz-range-track {
+  height: var(--slider-track);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+}
+
+.slider::-moz-range-progress {
+  height: var(--slider-track);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.slider::-moz-range-thumb {
+  width: var(--slider-thumb);
+  height: var(--slider-thumb);
+  border: 2px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slider::-webkit-slider-thumb {
+    transition: none;
+  }
+}
+
+/* TOUCH TIER (<=1024px): the 44px floor, and a thumb a finger can land on. */
+@media (max-width: 1024px) {
+  .slider {
+    --slider-thumb: 22px;
+    height: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}

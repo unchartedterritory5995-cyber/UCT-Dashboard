@@ -117,3 +117,48 @@ class TestRoute:
         assert auth._seasonality_enabled() is True
         monkeypatch.setenv("SEASONALITY_ENABLED", "0")
         assert auth._seasonality_enabled() is False
+
+
+class TestPartialColdRead:
+    """L8: a cold read handed back the store's shallow tail (covered_from 2024-09-16,
+    n=2) while the warm call covers 2021+. That partial read is never computed."""
+
+    def _serve(self, monkeypatch, n):
+        import json as _json
+        from api.routers import bars as bars_router
+
+        class _Resp:
+            status_code = 200
+            body = _json.dumps({"bars": _bars(_month_ends(2024, n, [100 + i for i in range(n)]))}).encode()
+        monkeypatch.setattr(bars_router, "serve_bars", lambda *a, **k: _Resp())
+
+    def test_a_partial_read_without_the_complete_marker_is_pending(self, monkeypatch):
+        from api.routers import seasonality as route
+        from api.services import bars_fetch
+        self._serve(monkeypatch, 12)
+        monkeypatch.setattr(bars_fetch, "_history_complete", lambda t, tf: False)
+        with pytest.raises(route.HistoryPending):
+            route._daily_bars("NVDA")
+
+    def test_a_short_listing_whose_full_history_is_read_is_served(self, monkeypatch):
+        from api.routers import seasonality as route
+        from api.services import bars_fetch
+        self._serve(monkeypatch, 12)
+        monkeypatch.setattr(bars_fetch, "_history_complete", lambda t, tf: (t, tf) == ("NVDA", "D"))
+        assert len(route._daily_bars("NVDA")) == 24          # two bars a month
+
+    def test_the_route_answers_503_with_retry_after_and_says_why(self, monkeypatch):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from api.routers import seasonality as route
+        app = FastAPI()
+        app.include_router(route.router)
+        app.dependency_overrides[route.require_paid] = lambda: {"id": "u1"}
+        monkeypatch.setenv("SEASONALITY_ENABLED", "1")
+
+        def pending(s):
+            raise route.HistoryPending(s)
+        monkeypatch.setattr(route, "_daily_bars", pending)
+        r = TestClient(app).get("/api/research/seasonality/NVDA")
+        assert r.status_code == 503 and r.headers.get("retry-after") == "15"
+        assert "still being read" in r.json()["detail"]

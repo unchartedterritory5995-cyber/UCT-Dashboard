@@ -48,7 +48,7 @@ describe('BrokerEstimatesPanel', () => {
   })
 
   it('a pending read says so', async () => {
-    body = { ...OK, state: 'pending', reason: 'the consensus is being read; reopen in a minute', periods: undefined }
+    body = { ...OK, state: 'pending', reason: 'the consensus is being read; this panel fills in by itself', periods: undefined }
     renderTab()
     expect((await screen.findByTestId('broker-state')).textContent).toMatch(/being read/)
   })

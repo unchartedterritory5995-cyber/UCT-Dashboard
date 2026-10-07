@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
+import time
 
+from api.services import boot_probe
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.yfinance_pool import run_in_pool
@@ -29,6 +32,10 @@ _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 43_200  # 12h -- only when both legs resolved
 _FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
+
+#: A build (or a follower's wait) slower than this logs one `[ee-stage]` line with the
+#: duration of every stage it went through.
+_SLOW_STAGE_S = 3.0
 
 _PERIOD_LABEL = {"0q": "Current Qtr", "+1q": "Next Qtr", "0y": "Current Yr", "+1y": "Next Yr"}
 _PERIOD_ORDER = ["0q", "+1q", "0y", "+1y"]
@@ -92,11 +99,24 @@ def _revisions(trend_df, rev_df):
     return rows
 
 
+#: Per-calling-thread timings of the most recent `_fetch` (`pool_wait`: submit -> the pool
+#: worker starting; `yf_import`: the in-worker `import yfinance`). A side channel rather
+#: than a parameter so `_fetch(sym)` keeps the one-argument shape tests stub it with.
+_fetch_timing = threading.local()
+
+
 def _fetch(sym):
     """Returns {} ONLY on a genuine pool-call exception -- see
     research/ownership.py's `_fetch_yf` docstring for the same contract."""
+    stages: dict = {}
+    _fetch_timing.stages = stages
+    t_submit = time.monotonic()
+
     def _do():
+        t_run = time.monotonic()
+        stages["pool_wait"] = t_run - t_submit
         import yfinance as yf
+        stages["yf_import"] = time.monotonic() - t_run
         t = yf.Ticker(sym)
         return {
             "eps_est": getattr(t, "earnings_estimate", None),
@@ -112,21 +132,63 @@ def _fetch(sym):
 
 
 def get_estimates(sym):
+    """S6 (terminal backend fixes, 2026-10-05): a cold symbol is composed ONCE however
+    many members open it at the same moment. The cache answers first; on a miss the
+    first caller builds and the rest wait for its result (`single_flight`), so N cold
+    opens cost one vendor walk instead of N on the shared threadpool. A follower that
+    waits past the single-flight bound raises, and the route answers that as a failed
+    read rather than an empty record."""
+    s = (sym or "").upper().strip()
+    if not s:
+        return {}
+    cached = cache.get(f"research_est::{s}")
+    if cached is not None:
+        return cached
+    from api.services import single_flight
+    t0 = time.monotonic()
+    role = {}
+    try:
+        return single_flight.run(f"research_est::{s}", lambda: _build_estimates(s),
+                                 on_role=lambda r: role.__setitem__("r", r))
+    finally:
+        waited = time.monotonic() - t0
+        if role.get("r") == "follower" and waited >= _SLOW_STAGE_S:
+            _logger.warning("[ee-stage] %s follower waited %.1fs on the in-flight build",
+                            s, waited)
+
+
+def _build_estimates(sym):
     sym = (sym or "").upper().strip()
     if not sym:
         return {}
 
+    # Stage timings (2026-10-06 boot stall: a leader's Yahoo leg took 147.7 s while its only
+    # vendor call is bounded at 15 s and logged nothing -- so the time went to a stage no
+    # instrument named). Each stage is timed; a slow build logs one `[ee-stage]` line.
+    stages: dict = {}
+    t0 = t = time.monotonic()
     ck = f"research_est::{sym}"
+    boot_probe.note("est-cache")
     cached = cache.get(ck)
+    stages["cache"] = time.monotonic() - t
     if cached is not None:
         return cached
 
     # No vendor= -- nothing here is FMP-routed since the 2026-09-03 narrowing
     # (analyst-grade content, the one FMP-backed leg this module used to
     # carry, now lives in analyst_ratings.py).
+    boot_probe.note("est-entity")
+    t = time.monotonic()
     entity, _ = resolve_entity(sym)
+    stages["entity"] = time.monotonic() - t
 
+    boot_probe.note("est-fetch")
+    t = time.monotonic()
+    _fetch_timing.stages = None
     raw = _fetch(sym)
+    stages["fetch"] = time.monotonic() - t
+    stages.update(dict(getattr(_fetch_timing, "stages", None) or {}))
+    boot_probe.note("est-shape")
     fetch_ok = bool(raw)   # {} means _fetch's exception path fired
     raw = raw or {}
     out = {
@@ -136,5 +198,12 @@ def get_estimates(sym):
         "revisions": _revisions(raw.get("eps_trend"), raw.get("eps_rev")),
     }
 
+    t = time.monotonic()
     set_by_completeness(ck, out, complete=fetch_ok, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
+    stages["set"] = time.monotonic() - t
+    total = time.monotonic() - t0
+    if total >= _SLOW_STAGE_S:
+        _logger.warning("[ee-stage] %s build %.1fs: %s ok=%s boot+%.0fs", sym, total,
+                        " ".join(f"{k}={v:.2f}" for k, v in stages.items()), fetch_ok,
+                        boot_probe.boot_age())
     return out

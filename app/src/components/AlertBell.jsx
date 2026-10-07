@@ -19,6 +19,7 @@ import { timeAgoShort as timeAgo } from '../utils/timeAgo'
 import { AuthContext } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
 import styles from './AlertBell.module.css'
+import { sectionFetcher } from './research/sections/sectionFetch'
 
 // `credentials: 'same-origin'` is the browser default, stated explicitly
 // because the session cookie is now load-bearing: without it every request is
@@ -32,16 +33,16 @@ const fetcher = url =>
 // consumer. It is rendered HERE, in the bell, because the bell is where a member
 // looks for what they were told, and a missing alert is a fact about that list.
 //
-// ⚠️ A FAILED FETCH RESOLVES TO "NOTHING TO REPORT", NOT TO AN ERROR. The bell's
-// job is the feed; a 500 on this secondary read may not take the notification
-// list down with it. The cost of that choice is that "no failures" and "could not
-// ask" render identically — acceptable only because the SERVER-side record is
-// durable and the route can be read again.
+// ⚠️ A FAILED FETCH IS AN ERROR, NOT "NOTHING TO REPORT" (TERM-033). The fetcher
+// THROWS (sectionFetcher: non-2xx, network, deadline, one warm retry), so SWR keeps
+// the last good answer through a failed refresh and populates `error` on a failed
+// first read. The bell's job is still the feed: this secondary read never takes the
+// notification list down. It renders one line saying the delivery check could not
+// be made, with a Retry, so "no failures" and "could not ask" no longer look alike.
+// (`credentials: 'same-origin'` is the fetch default, so the session cookie still
+// travels.) A 402 reads as an absent answer.
 const deliveryFetcher = url =>
-  fetch(url, { credentials: 'same-origin' })
-    .then(r => (r.ok ? r.json() : null))
-    .then(b => (b && typeof b === 'object' ? b : null))
-    .catch(() => null)
+  sectionFetcher(url).then(b => (b && typeof b === 'object' && !b.paywalled ? b : null))
 
 /** Which channels a fire FAILED on — from the server's own per-channel map.
  *
@@ -99,7 +100,7 @@ export default function AlertBell() {
   )
   // Same identity key discipline as the feed above: no poll while signed out,
   // and one member's delivery failures never sit in another's cache entry.
-  const { data: delivery } = useSWR(
+  const { data: delivery, error: deliveryError, mutate: retryDelivery } = useSWR(
     userId ? ['/api/indicator-alerts/delivery-health?limit=10', userId] : null,
     ([url]) => deliveryFetcher(url),
     { refreshInterval: 120000 },
@@ -122,6 +123,9 @@ export default function AlertBell() {
   // list built from the rows would be two answers to one question, and the
   // header would say "2" over one row the first time the limit clipped it.
   const failures = userId && Array.isArray(delivery?.failures) ? delivery.failures : []
+  // A failed delivery check with no earlier answer to stand on. Once an answer has
+  // landed, SWR keeps it through a failed refresh and this stays false.
+  const deliveryUnknown = Boolean(userId && deliveryError && delivery === undefined)
 
   // A change of signed-in identity resets the "already seen" bookkeeping, so
   // the next member's first poll is treated as a first load (silent) instead of
@@ -260,6 +264,14 @@ export default function AlertBell() {
             </div>
           )}
 
+          {deliveryUnknown && (
+            <div className={styles.deliveryUnknown} role="status">
+              <UIcon name="warning" size={13} gold={false} />
+              <span>Could not check whether your alerts were delivered.</span>
+              <button type="button" className={styles.markAll} onClick={() => retryDelivery()}>Retry</button>
+            </div>
+          )}
+
           {items.length === 0 && failures.length === 0 && (
             <div className={styles.empty}>No alerts yet</div>
           )}
@@ -268,6 +280,7 @@ export default function AlertBell() {
             {items.map(a => (
               <div
                 key={a.id}
+                data-panel-row
                 className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''} ${a.data?.research_url ? styles.itemLinked : ''}`}
                 onClick={() => handleItemClick(a)}
                 // Seam 5: a bare `<div onClick>` was keyboard-inaccessible —

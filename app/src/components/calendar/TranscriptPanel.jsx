@@ -89,7 +89,7 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
   const { data: transcript, isLoading, error: transcriptError } = useTranscript(sym, {
     enabled: open, quarter: activeQuarter,
   })
-  const { quarters } = useTranscriptQuarters(sym, { enabled: open })
+  const { quarters, error: quartersError, retry: retryQuarters } = useTranscriptQuarters(sym, { enabled: open })
 
   // A different call is a different set of speakers — a stale filter would hide
   // every turn of the quarter just opened.
@@ -293,6 +293,15 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
                 ) : transcript.quarter ? (
                   <span className={styles.transcriptQuarter}>{transcript.quarter}</span>
                 ) : null}
+
+                {/* TERM-033: the list of earlier calls failed to load. Without this the
+                    newest call reads as the only one there is. */}
+                {quartersError && (
+                  <span className={styles.transcriptQuarter} role="status">
+                    Earlier quarters could not be listed.{' '}
+                    <button type="button" className={search.quarterRetry} onClick={retryQuarters}>Retry</button>
+                  </span>
+                )}
 
                 {/* Which provider actually served this document — FMP primary,
                     AlphaVantage fallback (2026-09-03 A6/A7 pass; previously

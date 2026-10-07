@@ -3,6 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import StockChart from '../../../components/StockChart'
 import useTechnical from '../hooks/useTechnical'
 import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
+import UIcon from '../../../components/ui/UIcon'
+import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
+import { ABSENT } from '../../../lib/presentation/presentationPrimitives'
+import { themeInk, useThemeVersion } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // Chart/Technical Intelligence Convergence (owner authorization, Phase B).
@@ -18,10 +23,19 @@ import styles from '../ResearchPage.module.css'
 // ones Model Book already uses in production) is the smallest way to add
 // one without building a second charting engine.
 
-const KEY_LEVEL_COLOR = '#c9a84c' // ut-gold, matches this app's technical-level convention elsewhere
+// The key level is drawn in the app's gold (--ut-gold), resolved for the canvas so a
+// catalog or light theme recolours it like every other accent.
+const keyLevelInk = () => themeInk('--ut-gold', CHART_INK.gold)
 
-function setupLabel(setup) {
-  return (setup || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+// Acronyms the fallback title-casing would mangle ("Macd", "Vsa", "Avwap").
+const ACRONYMS = { macd: 'MACD', vsa: 'VSA', avwap: 'AVWAP', vwap: 'VWAP', rsi: 'RSI', sma: 'SMA', ema: 'EMA', atr: 'ATR', htf: 'HTF', ep: 'EP' }
+
+/** The server's `setup_name` (the pattern engine's own name) when it sent one; otherwise the id,
+ *  title-cased with acronyms kept (quality pass 2026-10-05: "Macd Bullish Cross"). */
+export function setupLabel(setup, name = null) {
+  if (name) return name
+  return (setup || '').split('_').filter(Boolean)
+    .map((w) => ACRONYMS[w.toLowerCase()] || (w[0].toUpperCase() + w.slice(1))).join(' ')
 }
 
 // Whole ET calendar days since `asof_date` (a market date). It used to round
@@ -39,24 +53,24 @@ function VerdictCard({ v, selected, onSelect }) {
   return (
     <button
       type="button"
-      className={styles.card}
       onClick={onSelect}
       data-testid="technical-verdict-card"
-      style={{
-        textAlign: 'left', width: '100%', cursor: 'pointer', marginBottom: 8,
-        borderColor: selected ? 'var(--ut-gold)' : undefined,
-      }}
+      className={`${styles.card} ${styles.verdictCard} ${selected ? styles.verdictOn : ''}`}
     >
-      <div className={styles.ct}>{setupLabel(v.setup)}</div>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>
-        Confirmed as of {v.asof_date || '—'}{ageLabel && ` (${ageLabel})`}
+      <div className={styles.ct}>{setupLabel(v.setup, v.setup_name)}</div>
+      <div className={styles.verdictLine}>
+        Confirmed as of {v.asof_date || ABSENT}{ageLabel && ` (${ageLabel})`}
         {typeof v.vision_confidence === 'number' && ` · ${Math.round(v.vision_confidence)}% confidence`}
       </div>
-      {v.rationale && <div style={{ fontSize: 12, marginBottom: 4 }}>{v.rationale}</div>}
+      {v.rationale && <div className={styles.verdictLine}>{v.rationale}</div>}
       {Array.isArray(v.checks) && v.checks.length > 0 && (
-        <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 11 }} className={styles.muted}>
+        <ul className={styles.checkList}>
           {v.checks.map((c, i) => (
-            <li key={i}>{c.passed ? '✓' : '✗'} {c.criterion}</li>
+            <li key={i} className={styles.checkItem}>
+              <UIcon name={c.passed ? 'check' : 'x'} size={12} gold={false}
+                className={c.passed ? styles.up : styles.down} title={c.passed ? 'Passed' : 'Failed'} />
+              {c.criterion}
+            </li>
           ))}
         </ul>
       )}
@@ -65,7 +79,7 @@ function VerdictCard({ v, selected, onSelect }) {
 }
 
 export default function TechnicalTab({ sym }) {
-  const { data, isLoading, error, mutate } = useTechnical(sym, 'D')
+  const { data, isLoading, error, paywalled, mutate } = useTechnical(sym, 'D')
   const [searchParams] = useSearchParams()
   const scannerHint = (searchParams.get('setup') || '').trim()
 
@@ -109,33 +123,36 @@ export default function TechnicalTab({ sym }) {
     return verdicts[0]
   }, [verdicts, selectedKey])
 
+  // Re-resolve the key-level ink when the member switches theme.
+  const themeVersion = useThemeVersion()
   const priceLines = useMemo(() => {
     if (!selected || selected.key_level == null) return []
     return [{
-      price: selected.key_level, color: KEY_LEVEL_COLOR, lineStyle: 2,
-      title: `${setupLabel(selected.setup)} key level`,
+      price: selected.key_level, color: keyLevelInk(), lineStyle: 2,
+      title: `${setupLabel(selected.setup, selected.setup_name)} key level`,
     }]
-  }, [selected])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, themeVersion])
 
   const callouts = useMemo(() => {
     if (!selected || !selected.asof_date) return null
-    return [{ time: selected.asof_date, text: setupLabel(selected.setup) }]
+    return [{ time: selected.asof_date, text: setupLabel(selected.setup, selected.setup_name) }]
   }, [selected])
 
   const highlightBarTime = selected?.asof_date || null
 
   return (
     <div className={styles.finWrap}>
-      {isLoading && !verdicts.length && <div className={styles.fnote}>Loading technical evidence…</div>}
+      {isLoading && !verdicts.length && <ResearchLoading label="Loading technical evidence" />}
 
       {scannerHint && hintMatched === false && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="scanner-hint-stale">
+        <div className={styles.entityNote} data-testid="scanner-hint-stale">
           Detected from Scanner: {setupLabel(scannerHint)} — this setup is no longer
           confirmed as active for {sym}.
         </div>
       )}
       {scannerHint && hintMatched && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="scanner-hint-current">
+        <div className={styles.entityNote} data-testid="scanner-hint-current">
           Detected from Scanner: {setupLabel(scannerHint)}
         </div>
       )}
@@ -145,6 +162,9 @@ export default function TechnicalTab({ sym }) {
           as "none confirmed" -- collapsing the confirmed/rejected signal
           this tab exists to preserve into a false "nothing confirmed"
           bucket. */}
+      {!isLoading && paywalled && (
+        <div className={styles.fnote} data-testid="technical-paywalled">Technical setups require a paid plan.</div>
+      )}
       {!isLoading && error && (
         <div className={styles.fnote} data-testid="technical-error">
           Couldn't load technical setups for {sym}.
@@ -153,7 +173,7 @@ export default function TechnicalTab({ sym }) {
         </div>
       )}
 
-      {!isLoading && !error && !verdicts.length && (
+      {!isLoading && !error && !paywalled && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
           {evaluated > 0 ? (
             <>
@@ -172,7 +192,7 @@ export default function TechnicalTab({ sym }) {
 
       {!!verdicts.length && (
         <>
-          <section style={{ marginBottom: 12 }}>
+          <section className={styles.verdictList}>
             {verdicts.map(v => {
               const key = `${v.setup}|${v.asof_date}`
               return (
@@ -188,7 +208,7 @@ export default function TechnicalTab({ sym }) {
 
           <section className={styles.card} data-testid="technical-chart">
             <div className={styles.ct}>View on Chart</div>
-            <div style={{ height: 420 }}>
+            <div className={styles.techChart}>
               <StockChart
                 sym={sym}
                 tf="D"
@@ -196,7 +216,7 @@ export default function TechnicalTab({ sym }) {
                 priceLines={priceLines}
                 callouts={callouts}
                 highlightBarTime={highlightBarTime}
-                highlightColor={KEY_LEVEL_COLOR}
+                highlightColor={keyLevelInk()}
               />
             </div>
           </section>

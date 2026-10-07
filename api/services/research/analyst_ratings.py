@@ -30,6 +30,10 @@ from api.services.research.entity_resolution import resolve_entity
 _EMPTY_ACTIONS = {"items": [], "_meta": None}
 
 
+class AnalystRatingsUnavailable(RuntimeError):
+    """Every analyst leg failed or was refused: an outage, never "no coverage"."""
+
+
 def get_analyst_ratings(sym: str, *, outage_out: Optional[dict] = None) -> dict:
     """Always a dict, never None -- `entity` is resolved independently of
     whether analyst data exists so a genuinely-uncovered ticker (a real,
@@ -39,7 +43,11 @@ def get_analyst_ratings(sym: str, *, outage_out: Optional[dict] = None) -> dict:
     `get_analyst_grades()` -- see its docstring. This wrapper's own return
     shape is unchanged either way (no new key is added to the returned
     dict); a caller that needs the outage signal must read it back from
-    the same `outage_out` dict it supplied."""
+    the same `outage_out` dict it supplied.
+
+    tq-panels (2026-10-05): superseded in part -- the record now carries
+    `outage` (bool), and a miss during an outage RAISES
+    `AnalystRatingsUnavailable` instead of returning the no-coverage shape."""
     sym = (sym or "").upper().strip()
     if not sym:
         if outage_out is not None:
@@ -49,10 +57,18 @@ def get_analyst_ratings(sym: str, *, outage_out: Optional[dict] = None) -> dict:
 
     entity, _fmp_symbol = resolve_entity(sym)
 
-    grades = get_analyst_grades(sym, outage_out=outage_out)
+    # tq-panels (ANR): the route never passed `outage_out`, so an outage and "no
+    # analyst coverage" came back as the same 200 with null sections. Read the
+    # signal always; a TOTAL outage raises (the route answers 503 "could not be
+    # read"), a PARTIAL one is stamped `outage: True` on the record.
+    sig: dict = outage_out if outage_out is not None else {}
+    grades = get_analyst_grades(sym, outage_out=sig)
+    outage = bool(sig.get("outage"))
     if not grades:
+        if outage:
+            raise AnalystRatingsUnavailable(f"analyst data provider did not answer for {sym}")
         return {"sym": sym, "entity": entity, "consensus": None,
-                "price_target": None, "recent_actions": dict(_EMPTY_ACTIONS)}
+                "price_target": None, "recent_actions": dict(_EMPTY_ACTIONS), "outage": False}
 
     return {
         "sym":            sym,
@@ -63,4 +79,5 @@ def get_analyst_ratings(sym: str, *, outage_out: Optional[dict] = None) -> dict:
         "consensus":      grades.get("consensus"),
         "price_target":   grades.get("price_target"),
         "recent_actions": grades.get("recent_actions") or dict(_EMPTY_ACTIONS),
+        "outage":         outage,
     }

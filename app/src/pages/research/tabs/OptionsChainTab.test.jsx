@@ -135,3 +135,74 @@ describe('OptionsChainTab', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 })
+
+// Phone: Strike leads the row and a Calls / Puts switch shows one side at a time, because a
+// twelve-column-a-side chain cannot fit a 375px screen.
+describe('OptionsChainTab on a phone', () => {
+  let realMM
+  beforeEach(() => {
+    realMM = window.matchMedia
+    window.matchMedia = (q) => ({ matches: q === '(max-width: 640px)', media: q, onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false } })
+  })
+  afterEach(() => { window.matchMedia = realMM })
+
+  it('puts Strike first and shows calls only, then puts only after the switch', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    renderTab()
+    await screen.findByTestId('options-chain')
+    const heads = [...screen.getByTestId('options-chain').querySelectorAll('thead tr:nth-child(2) th')].map((t) => t.textContent)
+    expect(heads[0]).toBe('Strike')
+    expect(heads.filter((h) => h === 'Strike')).toHaveLength(1)
+    let atm = screen.getByTestId('atm-row')
+    expect(atm.firstChild.textContent).toBe('760.00')
+    expect(atm.textContent).toContain('0.584')        // call delta shown
+    expect(atm.textContent).not.toContain('-0.417')   // put delta hidden
+    fireEvent.click(screen.getByRole('button', { name: 'Puts' }))
+    atm = screen.getByTestId('atm-row')
+    expect(atm.textContent).toContain('-0.417')
+    expect(atm.textContent).not.toContain('0.584')
+    expect(screen.getByRole('button', { name: 'Puts' }).getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+// The header tooltips (Mid, IV, the greeks, OI) were hover-only; the same text is in a tappable key.
+describe('OptionsChainTab column key', () => {
+  it('lists every column definition the headers carry, reachable without hover', async () => {
+    renderTab()
+    const key = await screen.findByTestId('chain-column-key')
+    expect(key.tagName).toBe('DETAILS')
+    expect(key.textContent).toMatch(/What the columns mean/)
+    expect(key.textContent).toMatch(/Midpoint of bid and ask/)
+    expect(key.textContent).toMatch(/Theta: \$ per share per calendar day/)
+    expect(key.textContent).toMatch(/ATM IV.*strike nearest spot/)
+  })
+})
+
+describe('OptionsChainTab -- the states that used to say nothing (quality pass 2026-10-05)', () => {
+  it('an empty chain says so in a sentence instead of a header over no rows', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/expirations')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ expirations: ['2026-10-23'] }) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...CHAIN, calls: [], puts: [] }) })
+    })
+    renderTab()
+    expect((await screen.findByTestId('chain-empty')).textContent)
+      .toBe('No option contracts came back for SPY at the 2026-10-23 expiration.')
+    expect(screen.queryByTestId('atm-row')).toBeNull()
+  })
+
+  it('a failed expirations read is said, not silently ignored', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/expirations')) {
+        return Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(CHAIN) })
+    })
+    renderTab()
+    expect((await screen.findByTestId('chain-expirations-unavailable')).textContent)
+      .toBe("The list of expirations couldn't be loaded, so only 2026-10-23 can be picked right now.")
+    expect(screen.getByTestId('atm-row')).toBeTruthy()
+  })
+})

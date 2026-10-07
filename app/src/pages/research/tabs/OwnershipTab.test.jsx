@@ -25,7 +25,8 @@ describe('OwnershipTab', () => {
     expect(screen.getByText('0.73%')).toBeInTheDocument()       // short % float
     expect(screen.getByText('6.80B')).toBeInTheDocument()       // float shares, from share_counts
     expect(screen.getByText('Tim Cook · CEO')).toBeInTheDocument()
-    expect(screen.getByText('sell')).toBeInTheDocument()
+    expect(screen.getByText('Sell')).toBeInTheDocument()     // tq-panels: a word, not the lowercase enum
+    expect(screen.queryByText('sell')).toBeNull()
     // A resolved entity shows no unresolved-identity note.
     expect(screen.queryByTestId('entity-unresolved-note')).toBeNull()
   })
@@ -33,7 +34,9 @@ describe('OwnershipTab', () => {
   it('shows an entity-unresolved note when Entity Master has not linked the symbol', () => {
     data.entity = { status: 'not_found', entityId: null }
     render(<OwnershipTab sym="AAPL" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    // Plain English for members, never the raw status enum (quality pass 2026-10-05).
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record')
+    expect(screen.getByTestId('entity-unresolved-note')).not.toHaveTextContent('not_found')
     data.entity = { status: 'resolved', entityId: 'em_aapl' }
   })
 })

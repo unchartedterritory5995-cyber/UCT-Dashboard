@@ -59,7 +59,10 @@ function TweetExpand({ sym }) {
 // TapeFeed (components/tiles/TapeFeed.jsx) has no route of its own — the
 // Movers rail is its home. Mirrors TapeFeed's own convention: content only,
 // author handles intentionally not shown.
-function TapeList({ items }) {
+function TapeList({ items, failed = false }) {
+  if (!items && failed) {
+    return <p className={styles.tapeEmpty} role="status">The tape couldn&apos;t be read right now. That is not the same as no tweets.</p>
+  }
   if (!items || items.length === 0) {
     return <p className={styles.tapeEmpty}>Nothing on the tape yet</p>
   }
@@ -144,7 +147,7 @@ export default function MoversSidebar({ data: propData }) {
   // (components/tiles/TapeFeed.jsx) has no route of its own — this rail is
   // its home now. useTweetFeed wraps useMobileSWR/useSWR, so its return
   // shape is `{ data, error, ... }`, not `{ tweets }`.
-  const { data: tweets } = useTweetFeed()
+  const { data: tweets, error: tweetsError } = useTweetFeed()
 
   return (
     <div className={styles.tile}>
@@ -169,7 +172,7 @@ export default function MoversSidebar({ data: propData }) {
               {UI_ENABLED && (
                 <div className={styles.tapeSection}>
                   <span className={styles.tapeLabel}>ON THE TAPE</span>
-                  <TapeList items={tweets ?? []} />
+                  <TapeList items={tweets} failed={Boolean(tweetsError)} />
                 </div>
               )}
             </div>

@@ -48,3 +48,23 @@ export function thesisHeadline(text) {
   // ("is gapping…") — recapitalize the first letter so it reads as a headline.
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 }
+
+// The catalyst engine stores its OWN failure sentence as the thesis when the write-up step
+// fails (api/services/catalyst/synthesize.py: "Synthesis temporarily unavailable. …" /
+// "Synthesis returned malformed output. …"). Shown as-is it reads as the catalyst itself;
+// measured 2026-10-05 on AMD for Oct 5, Oct 2 and Sep 28. A surface asks this and says
+// plainly that no write-up exists for that day instead.
+export const FAILED_SYNTHESIS_NOTE = 'No write-up for this day: the summary step failed. The day is still listed.'
+export function isFailedSynthesis(text) {
+  return /^\s*Synthesis (temporarily unavailable|returned malformed output)\b/i.test(String(text || ''))
+}
+
+// Since L5 the engine no longer writes that sentence: a failed write-up is stored as
+// thesis_text = null with thesis_status 'failed' / 'malformed' / 'paused'. This asks both
+// forms (old rows keep the sentence) so a surface can say "no write-up" either way.
+const NO_WRITEUP_STATUSES = new Set(['failed', 'malformed', 'paused'])
+export function hasNoWriteup(entry) {
+  if (!entry) return false
+  if (isFailedSynthesis(entry.thesis_text)) return true
+  return !entry.thesis_text && NO_WRITEUP_STATUSES.has(entry.thesis_status)
+}

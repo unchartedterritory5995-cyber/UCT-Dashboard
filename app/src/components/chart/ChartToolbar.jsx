@@ -47,6 +47,9 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 // actually opens the builder, and keeps it mounted afterwards so a draft survives
 // close-and-reopen exactly as before.
 const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
+// ⭐ P2 Track B — lazy for the same reason: it pulls the authoring engine.
+const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
+import { mintScope, createKey } from './builder/authoring/conversationSessions'
 import PatternToolbarButton from './PatternToolbarButton'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
@@ -1073,6 +1076,17 @@ function ChartToolbar({
   // toolbar to this chart widget so it can't be dragged out into the page. Null →
   // the bar falls back to unconfined positioning (legacy behavior).
   favBoundsRef = null,
+  // ⭐ P2 Track B — Create Indicator. `onStudioPreview(instance|null)` is the
+  // ephemeral preview channel into StockChart's read view; only the PRIMARY
+  // toolbar passes it, so only that one can open the studio. `anchorRef` is the
+  // chart container the panel docks against; `onOpenLibrary` its Library door.
+  onStudioPreview = null,
+  anchorRef = null,
+  // The pane's right-side dock for Create Indicator, and its open/close report
+  // (StockChart's `studioDockHost` / `onStudioDockChange`). Null ⇒ floating panel.
+  studioDockHost = null,
+  onStudioDockChange = null,
+  onOpenLibrary = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
@@ -1107,10 +1121,21 @@ function ChartToolbar({
   // ⭐ ONE-WAY: once a member has opened the builder the sheet stays mounted, so
   // its draft survives a close exactly as it did when the import was static.
   const [builderEverOpened, setBuilderEverOpened] = useState(false)
-  const openBuilder = useCallback(() => {
+  // ⭐ P2 Track B — which door the builder opens on when Create Indicator hands
+  // off to it (Formula / Import / Screenshot). `null` = the builder's own default.
+  const [builderMode, setBuilderMode] = useState(null)
+  const openBuilder = useCallback((mode = null) => {
+    setBuilderMode(typeof mode === 'string' ? mode : null)
     setBuilderEverOpened(true)
     setBuilderOpen(true)
   }, [])
+  // ⭐ P2 Track B — CREATE INDICATOR. Mounted only while open: closing it IS the
+  // end of the conversation, and its unmount is what tears the preview down.
+  const [createOpen, setCreateOpen] = useState(false)
+  // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
+  // (per chart), so closing the dock keeps that chart's draft conversation and a
+  // different chart never sees it. Never derived from a symbol, name or formula.
+  const [studioScope] = useState(mintScope)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1192,6 +1217,16 @@ function ChartToolbar({
       openBuilder()
       return true
     },
+    // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator". Only a
+    // writable toolbar that carries the preview channel can open it (the primary
+    // one); every other mount reports the refusal, like `openFormulaBuilder`.
+    openCreateIndicator: () => {
+      if (!canManageIndicators || typeof onStudioPreview !== 'function') return false
+      setLibraryOpen(false)
+      setBuilderOpen(false)
+      setCreateOpen(true)
+      return true
+    },
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
     // right-click **Add alert on <label>…** row, reach THIS popover rather than
     // mounting a second one. ⚠️ IT RETURNS `false` WHEN THERE IS NO SYMBOL, for
@@ -1204,7 +1239,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym, openBuilder])
+  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1686,7 +1721,32 @@ function ChartToolbar({
             /* W1a hand-back: the preview draws on this chart */
             sym={currentSym}
             tf={tf}
+            initialMode={builderMode}
           />
+          </Suspense>
+        )}
+
+        {/* ⭐ P2 Track B — CREATE INDICATOR (UCT Intelligence). Lazy for the same
+            bundle reason as the builder; a RIGHT WORKSPACE DOCK where the pane
+            hands one over (`studioDockHost`), floating beside the chart where it
+            does not — never modal, so the member watches the preview take shape. Its Formula / Import /
+            Screenshot doors hand off to the ONE builder above. */}
+        {canManageIndicators && createOpen && typeof onStudioPreview === 'function' && (
+          <Suspense fallback={null}>
+            <CreateIndicatorPanel
+              onClose={() => setCreateOpen(false)}
+              settings={cs}
+              onChange={onUpdateSettings}
+              sym={currentSym}
+              tf={tf}
+              anchorRef={anchorRef || favBoundsRef}
+              dockHost={studioDockHost}
+              onDocked={onStudioDockChange}
+              sessionKey={createKey(studioScope)}
+              onPreview={onStudioPreview}
+              onOpenBuilder={(mode) => { setCreateOpen(false); openBuilder(mode) }}
+              onOpenLibrary={onOpenLibrary ? () => { setCreateOpen(false); onOpenLibrary() } : null}
+            />
           </Suspense>
         )}
 

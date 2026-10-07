@@ -439,6 +439,47 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
         _trigger_background_warm(sym)
         return None
 
+    # S2 (terminal backend fixes, 2026-10-05): the web-grounded read is a Perplexity
+    # call PLUS an Opus call. It used to run here, on the request path of a plain
+    # `def` route, with no single-flight -- on every Calls tab of a cold name. It now
+    # runs once per symbol on the same bounded warm pool, and this request answers
+    # `None` at once (the UI renders "no read yet" for None and asks again soon).
+    _kick_web_sentiment(sym, ck, market_date)
+    return None
+
+
+def _kick_web_sentiment(sym: str, ck: str, market_date) -> bool:
+    """Start the web-grounded sentiment read for `sym` unless one is in flight.
+    Returns whether a NEW job was started."""
+    global _WARM_POOL
+    key = f"sentiment:{sym}"
+    with _WARM_MU:
+        if key in _WARM_INFLIGHT:
+            return False
+        if _WARM_POOL is None:
+            from concurrent.futures import ThreadPoolExecutor
+            _WARM_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="recap-warm")
+        _WARM_INFLIGHT.add(key)
+
+    def _run():
+        try:
+            _web_sentiment(sym, ck, market_date)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("[call_sentiment] background read failed for %s: %s", sym, exc)
+        finally:
+            with _WARM_MU:
+                _WARM_INFLIGHT.discard(key)
+
+    _WARM_POOL.submit(_run)
+    return True
+
+
+def _web_sentiment(sym: str, ck: str, market_date) -> Optional[dict[str, Any]]:
+    """The web-grounded sentiment read (Perplexity context + one LLM call). Caches its
+    answer (or a short negative entry) under `ck`; runs off the request path."""
+    guard = _cost_guard()
+    if not guard.may_synthesize(market_date):
+        return None
     try:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:

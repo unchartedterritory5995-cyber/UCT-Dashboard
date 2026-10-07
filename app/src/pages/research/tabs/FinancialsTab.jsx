@@ -1,25 +1,30 @@
 import { useState } from 'react'
 import useFinancials from '../hooks/useFinancials'
 import { MetricTrendChart, SeriesChart } from '../../../components/research-kit'
+import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
+import {
+  formatCompactTerminal, formatCurrencyIn, formatNumber, formatPercent,
+  isForeignCurrency, normalizeCurrencyCode, relabelDollarText, reportingCurrencyNote,
+} from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
+import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
-function fmtBig(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  return `$${v.toFixed(0)}`
-}
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
-function fmtMargin(v) { return v == null ? '—' : `${v.toFixed(1)}%` }
+const fmtBig = (v) => formatCompactTerminal(v, { money: true })
+// yfinance statement frames are in the company's REPORTING currency (Yahoo
+// `financialCurrency`, carried as `currency`): TSM's revenue is Taiwan dollars, and
+// "$" on it was the defect. A non-USD amount carries its ISO code ("TWD 1.06T");
+// USD and unknown render exactly as before. Nothing is converted.
+const fmtBigIn = (v, ccy) => relabelDollarText(fmtBig(v), ccy)
+const fmtMargin = (v) => formatPercent(v, { decimals: 1 })
 function fmtVal(v, suffix = '') { return v == null ? '—' : `${v}${suffix}` }
 
 // yfinance states debt/equity as a PERCENT (150 = 1.5x) -- see
 // api/services/metric_disagreement.py -- so it is shown as the ratio it means.
 export function fmtDebtToEquity(v) {
   const n = Number(v)
-  return v == null || v === '' || !Number.isFinite(n) ? '—' : `${(n / 100).toFixed(2)}×`
+  return v == null || v === '' || !Number.isFinite(n) ? '—' : `${formatNumber(n / 100, { decimals: 2 })}×`
 }
 
 function heat(v) {
@@ -31,7 +36,7 @@ function heat(v) {
   return ''
 }
 
-function GrowthGrid({ title, rows }) {
+function GrowthGrid({ title, rows, ccy }) {
   if (!rows?.length) return null
   return (
     <section className={styles.card}>
@@ -40,7 +45,8 @@ function GrowthGrid({ title, rows }) {
         <table className={styles.fgrid}>
           <thead>
             <tr>
-              <th>Period</th><th>Revenue</th><th>Rev YoY</th><th>EPS</th><th>EPS YoY</th>
+              <th>Period</th><th>Revenue</th><th>Rev YoY</th>
+              <th>{isForeignCurrency(ccy) ? `EPS, ${normalizeCurrencyCode(ccy)}` : 'EPS'}</th><th>EPS YoY</th>
               <th>Gross</th><th>Op</th><th>Net</th>
             </tr>
           </thead>
@@ -48,10 +54,10 @@ function GrowthGrid({ title, rows }) {
             {rows.map(r => (
               <tr key={r.period}>
                 <td className={styles.fperiod}>{r.period}</td>
-                <td>{fmtBig(r.revenue)}</td>
-                <td className={heat(r.revenue_yoy)}>{fmtPct(r.revenue_yoy)}</td>
-                <td>{r.eps != null ? r.eps.toFixed(2) : '—'}</td>
-                <td className={heat(r.eps_yoy)}>{fmtPct(r.eps_yoy)}</td>
+                <td>{fmtBigIn(r.revenue, ccy)}</td>
+                <td className={heat(r.revenue_yoy)}>{signedPct(r.revenue_yoy)}</td>
+                <td>{formatNumber(r.eps, { decimals: 2 })}</td>
+                <td className={heat(r.eps_yoy)}>{signedPct(r.eps_yoy)}</td>
                 <td>{fmtMargin(r.gross_margin)}</td>
                 <td>{fmtMargin(r.operating_margin)}</td>
                 <td>{fmtMargin(r.net_margin)}</td>
@@ -74,7 +80,7 @@ const B = (v) => (v == null ? null : v / 1e9)
  * chart — plotted as given, time runs backwards and every trend reads inverted.
  * Reversed once, here, rather than in each chart.
  */
-function TrendPair({ quarterly, annual }) {
+function TrendPair({ quarterly, annual, ccy }) {
   // Both series are already fetched; only quarterly was ever charted. A
   // quarterly/annual toggle is the TradingView pattern and costs no extra
   // request — quarters show the near-term shape, years show whether the
@@ -120,15 +126,15 @@ function TrendPair({ quarterly, annual }) {
         <MetricTrendChart
           periods={periods}
           values={list.map(r => B(r.revenue))}
-          label="Revenue ($B)"
-          valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(1)}B`)}
+          label={isForeignCurrency(ccy) ? `Revenue (${normalizeCurrencyCode(ccy)} B)` : 'Revenue ($B)'}
+          valueFormatter={(v) => (v == null ? '—' : `${formatCurrencyIn(v, ccy, { decimals: 1 })}B`)}
           ariaLabel="Revenue by period"
         />
         <MetricTrendChart
           periods={periods}
           values={list.map(r => r.eps)}
-          label="EPS"
-          valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+          label={isForeignCurrency(ccy) ? `EPS (${normalizeCurrencyCode(ccy)})` : 'EPS'}
+          valueFormatter={(v) => formatCurrencyIn(v, ccy)}
           ariaLabel="Earnings per share by period"
         />
       </div>
@@ -139,12 +145,14 @@ function TrendPair({ quarterly, annual }) {
         periods={periods}
         mode="line"
         label="Margins"
-        valueFormatter={(v) => (v == null ? '—' : `${v.toFixed(1)}%`)}
+        valueFormatter={fmtMargin}
         ariaLabel="Gross, operating and net margin by period"
         series={[
-          { name: 'Gross', color: 'var(--ut-gold, #c9a84c)', values: list.map(r => r.gross_margin) },
-          { name: 'Operating', color: '#5aa9e6', values: list.map(r => r.operating_margin) },
-          { name: 'Net', color: '#7ed957', values: list.map(r => r.net_margin) },
+          // Canvas inks resolved from the app tokens (themeInk), never hexes, so the
+          // three margins follow the member's theme: gold, info blue, gain green.
+          { name: 'Gross', color: themeInk('--ut-gold', CHART_INK.gold), values: list.map(r => r.gross_margin) },
+          { name: 'Operating', color: themeInk('--info', CHART_INK.text), values: list.map(r => r.operating_margin) },
+          { name: 'Net', color: themeInk('--gain', CHART_INK.gain), values: list.map(r => r.net_margin) },
         ]}
       />
     </section>
@@ -155,7 +163,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const { data, isLoading, error, mutate } = useFinancials(sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading financials…</div></div></div>
+    return <ResearchLoading label="Loading financials" />
   }
 
   // TERM-088 -- a failed read is not an empty statement history. Render the
@@ -175,6 +183,13 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const bal = fin.balance || {}
   const met = fin.metrics || {}
   const hasGrids = (fin.quarterly?.length || fin.annual?.length)
+  const ccy = fin.currency ?? null
+  const ccyNote = reportingCurrencyNote(ccy)
+  // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
+  // say that instead of a generic "unavailable" that reads like a gap.
+  if (!hasGrids && fin.not_applicable) {
+    return <div className={styles.fnote} data-testid="financials-na">Not applicable to funds — {fin.reason || `${sym} is a fund`}.</div>
+  }
 
   return (
     <div className={styles.finWrap}>
@@ -189,8 +204,8 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           badge to a number D1 didn't actually produce would be exactly the
           fabricated-provenance failure S8 exists to prevent. */}
       {fin.entity && fin.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({fin.entity.status}).
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
       {/* ⚠️ These grids are yfinance-derived and label CALENDAR quarters. FMP,
@@ -201,9 +216,12 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           table, so the composite Financials section turns them off; the panels
           supersede them with 24 quarters instead of 5. Standalone callers keep
           them until the label source is fixed. */}
-      {showGrids && <TrendPair quarterly={fin.quarterly} annual={fin.annual} />}
-      {showGrids && <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} />}
-      {showGrids && <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} />}
+      {showGrids && hasGrids && ccyNote && (
+        <div className={styles.fnote} data-testid="financials-currency" data-currency={normalizeCurrencyCode(ccy)}>{ccyNote}</div>
+      )}
+      {showGrids && <TrendPair quarterly={fin.quarterly} annual={fin.annual} ccy={ccy} />}
+      {showGrids && <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} ccy={ccy} />}
+      {showGrids && <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} ccy={ccy} />}
       <div className={styles.grid}>
         <section className={styles.card}>
           <div className={styles.ct}>Balance sheet</div>

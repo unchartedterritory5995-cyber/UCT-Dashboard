@@ -152,10 +152,8 @@ export const STILL_UNCHECKED = [
   'components/tiles/SectorRotation.jsx',
   'components/tiles/ThemeTracker.jsx',
   'components/tiles/UCT20Backtest.jsx',
-  'components/tiles/UCT20Performance.jsx',
   'hooks/useFlagged.js',
   'pages/Admin.jsx',
-  'pages/Breadth.jsx',
   // ⚰️ `pages/BreadthCharts.jsx` LEFT THIS LIST ON 2026-09-13 — it fetches through
   // `utils/jsonFetcher`, and a 401/402/500 now renders its own sentence instead of
   // "No data in selected range." (audit A-01). Deleted, not commented out.
@@ -185,7 +183,6 @@ export const STILL_UNCHECKED = [
   'pages/modelbook/SetupsView.jsx',
   'pages/modelbook/builder/BuilderView.jsx',
   'pages/modelbook/builder/UpbEntryPage.jsx',
-  'pages/screener/hooks/useScreenerMeta.js',
   'utils/prefetchBars.js',
 ]
 

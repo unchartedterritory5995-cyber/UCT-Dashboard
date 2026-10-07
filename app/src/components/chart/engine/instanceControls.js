@@ -72,12 +72,34 @@ import { getDefinition } from './nativeRegistry'
 import {
   isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf,
 } from './displayTarget'
-import { parsePaneOfTarget } from './sourceRef'
+import { parsePaneOfTarget, severReferencesTo } from './sourceRef'
+// ⭐ P1 — a delete SEVERS the header's info values that read the deleted instance
+// (a visible gravestone), so a re-add under the same deterministic id can never
+// silently reconnect them. Identity when none pointed at it. See `infoValues.js`.
+import { severInfoValuesTo } from './infoValues'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
          CANDLE_COLOR_KEYS, LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES,
          DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE } from './presentation'
 import { CALC_TIMEFRAMES, normalizeVisibility } from './instanceTimeframe'
 import { calcTimeframeCapability } from './calcTimeframeCapability'
+
+/**
+ * ⭐⭐ P2X — A DELETE SEVERS EVERY REFERENCE TO THE DELETED INSTANCES: another
+ * indicator's `source` input (`'@<id>::<plot>'`, e.g. a Moving Average over RSI)
+ * AND the header's info values. `legacy:<defId>` is deterministic and
+ * `setIndicatorEnabled(…, true)` rebuilds it under the SAME id, so a reference
+ * left standing silently reconnected to the NEW instance the moment one was
+ * added (P1-info finding 1; the owner's locked "deletion breaks the dependency"
+ * ruling, `sourceRef.severedSource`, had no production caller). The dependent
+ * keeps a visible gravestone ("Source unavailable") until the member re-points
+ * it. Identity for every blob in which nothing pointed at `ids`.
+ */
+function severDependents(cs, ids, registry) {
+  const defOf = resolveRegistry(registry)
+  let out = cs
+  for (const id of ids) out = severReferencesTo(out, id, defOf)
+  return out
+}
 
 function resolveRegistry(registry) {
   if (typeof registry === 'function') return (id) => registry(id)
@@ -262,7 +284,9 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
     // Nothing stored yet, but the legacy toggle may still be projecting one in at
     // read time — the tombstone is what stops the migrator putting it straight back.
     if (!next.some(i => i && i.instanceId === id)) next.push(instanceTombstone(id))
-    return { ...withInstances(cs, next, registry), indicators }
+    const killed = list.filter(i => isLiveInstance(i) && i.defId === defId).map(i => i.instanceId)
+    return severDependents(severInfoValuesTo({ ...withInstances(cs, next, registry), indicators }, [...killed, id]),
+      [...killed, id], registry)
   }
 
   const prev = list.find(i => i && typeof i === 'object' && i.instanceId === id)
@@ -359,7 +383,7 @@ export function removeInstance(cs, instanceId, registry) {
   if (!next.some(i => isLiveInstance(i) && i.defId === defId)) {
     indicators[defId] = { ...(indicators[defId] || {}), enabled: false }
   }
-  return { ...withInstances(cs, next, registry), indicators }
+  return severDependents(severInfoValuesTo({ ...withInstances(cs, next, registry), indicators }, ids), ids, registry)
 }
 
 /**

@@ -7,31 +7,16 @@
    Task 12: week/month/drawer classes (appended)
 */
 
-/* ── Design tokens — mapped onto the app's warm olive/cream/gold system ──── */
-:root {
-  --cal-bg: var(--bg);
-  --cal-panel: var(--bg-surface);
-  --cal-panel2: var(--bg-elevated);
-  --cal-line: var(--border);
-  --cal-line2: var(--border-accent);
-  --cal-txt: var(--text-bright);
-  --cal-dim: var(--text);
-  --cal-muted: var(--text-muted);
-  --cal-gold: var(--ut-gold);
-  --cal-green: var(--gain);
-  --cal-red: var(--loss);
-  --cal-blue: var(--info);
-  /* Uniform text size for everything inside the month grid (weekday header,
-     day number, BMO/AMC labels, icon, empty dash, +N overflow). */
-  --cal-month-fs: 11px;
-}
+/* Colours are the app tokens directly (tokens.css) — the private --cal-* alias
+   palette this file used to declare on :root was retired so every theme, light
+   included, reaches the calendar without a second vocabulary. */
 
 /* ── Task 9: EarningsCard ────────────────────────────────────────────────── */
 
 .card {
   position: relative;
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 12px 14px;
   transition: border-color 0.12s, transform 0.12s;
@@ -40,21 +25,21 @@
 }
 
 .card:hover {
-  border-color: var(--cal-line2);
+  border-color: var(--border-accent);
   transform: translateY(-2px);
 }
 
 .cardMine {
   border-color: var(--ut-gold-glow);
-  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--bg-surface));
 }
 
 .star {
   position: absolute;
   top: 10px;
   right: 11px;
-  color: var(--cal-gold);
-  font-size: 12px;
+  color: var(--ut-gold);
+  font-size: var(--text-base);
 }
 
 .cardTop {
@@ -70,10 +55,10 @@
 }
 
 .sym {
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 800;
   line-height: 1.1;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -81,50 +66,50 @@
 }
 
 .nm {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   line-height: 1.2;
   margin-top: 2px;
 }
 
 /* BMO / AMC timing pills */
 .tpill {
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 5px;
   letter-spacing: 0.4px;
   background: var(--bg-hover);
-  color: var(--cal-dim);
+  color: var(--text);
 }
 
 /* Direction B: timing as a quiet top-right label instead of a pill */
 .session {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.4px;
   align-self: flex-start;
 }
-.sessionBmo { color: var(--cal-gold); }
-.sessionAmc { color: var(--cal-blue); }
+.sessionBmo { color: var(--ut-gold); }
+.sessionAmc { color: var(--info); }
 
 /* BEAT / MISS pill */
 .beatPill {
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 5px;
   background: var(--gain-bg);
-  color: var(--cal-green);
+  color: var(--gain);
 }
 
 /* metric rows */
 .met {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--text-base);
   padding: 3px 0;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   border-bottom: 1px solid var(--header-line);
 }
 
@@ -137,15 +122,15 @@
 }
 
 .dim {
-  color: var(--cal-dim);
+  color: var(--text);
 }
 
 .pos {
-  color: var(--cal-green);
+  color: var(--gain);
 }
 
 .neg {
-  color: var(--cal-red);
+  color: var(--loss);
 }
 
 /* Expected move box */
@@ -160,16 +145,16 @@
 }
 
 .emvLbl {
-  font-size: 9px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
 }
 
 .emvBig {
-  font-size: 16px;
+  font-size: var(--text-xl);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
 }
 
 /* Expected move refused / unavailable — the EXPLICIT treatment. Never a bare
@@ -182,17 +167,17 @@
 }
 
 .emvNa {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.2px;
-  color: var(--cal-muted);
-  border-bottom: 1px dotted var(--cal-line);
+  color: var(--text-muted);
+  border-bottom: 1px dotted var(--border);
   cursor: help;
 }
 
 .beatNote {
-  font-size: 10px;
-  color: var(--cal-green);
+  font-size: var(--text-xs);
+  color: var(--gain);
   font-weight: 600;
   margin-top: 9px;
 }
@@ -204,8 +189,8 @@
   align-items: center;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px dashed var(--cal-line2);
-  font-size: 11px;
+  border-top: 1px dashed var(--border-accent);
+  font-size: var(--text-sm);
 }
 
 /* ── Task 10: MacroBand ─────────────────────────────────────────────────── */
@@ -217,7 +202,7 @@
   margin: 0 0 8px;
   padding: 5px 9px;
   background: transparent;
-  border: 1px solid var(--cal-line);
+  border: 1px solid var(--border);
   border-left: 2px solid var(--info-border);
   border-radius: 9px;
 }
@@ -226,31 +211,31 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
-  color: var(--cal-dim);
+  font-size: var(--text-xs);
+  color: var(--text);
   padding: 1px 4px;
 }
 
 .mtagTm {
-  color: var(--cal-muted);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .mtagKey {
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   font-weight: 700;
 }
 
 .mtagFed {
-  color: var(--cal-blue);
+  color: var(--info);
 }
 
 .gold {
-  color: var(--cal-gold);
+  color: var(--ut-gold);
 }
 
 .blue {
-  color: var(--cal-blue);
+  color: var(--info);
 }
 
 /* ── Task 11: FeedView + DayGroup + @container cards grid ───────────────── */
@@ -268,25 +253,25 @@
 .tileSessionHd {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--cal-muted);
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line2);
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-pill);
   padding: 4px 12px;
   margin-bottom: 12px;
 }
 .tileSessionN {
   margin-left: 8px;
-  color: var(--cal-dim);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 .tileSessionRep {
   margin-left: 6px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
@@ -299,14 +284,14 @@
   align-items: baseline;
   gap: 10px;
   padding: 10px 18px;
-  color: var(--cal-muted);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
   border-bottom: 1px solid var(--header-line);
 }
 .dayFilteredLbl {
   font-weight: 800;
   letter-spacing: 0.6px;
-  color: var(--cal-dim);
+  color: var(--text);
 }
 .dayFilteredMeta { display: inline-flex; align-items: baseline; gap: 2px; }
 .etileGrid {
@@ -344,11 +329,11 @@
   margin-top: 3px;
   max-width: 150px;
   padding: 2px 7px;
-  font-size: 10px;
+  font-size: var(--text-xs);
   line-height: 1.3;
-  color: var(--cal-txt);
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line2);
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
   white-space: nowrap;
   overflow: hidden;
@@ -366,49 +351,49 @@
   height: 54px;
   border-radius: var(--radius-2xl);
   overflow: hidden;
-  border: 1px solid var(--cal-line2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-accent);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.12s, box-shadow 0.12s;
 }
 .etile:hover .etileLogo {
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 .etileMine {
-  border-color: var(--cal-gold);
+  border-color: var(--ut-gold);
   box-shadow: 0 0 0 2px var(--ut-gold-glow);
 }
 .etileStar {
   position: absolute;
   top: -5px;
   right: -5px;
-  background: var(--cal-bg);
+  background: var(--bg);
   border-radius: 50%;
   line-height: 0;
   padding: 1px;
 }
 .etileSym {
-  font-size: 12.5px;
+  font-size: var(--text-md);
   font-weight: 800;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   letter-spacing: 0.3px;
   max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.etileEm { font-size: 10px; font-weight: 700; color: var(--cal-gold); }
+.etileEm { font-size: var(--text-xs); font-weight: 700; color: var(--ut-gold); }
 .etileNa {
-  font-size: 10px; font-weight: 700; color: var(--cal-muted);
-  border-bottom: 1px dotted var(--cal-line); cursor: help;
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-muted);
+  border-bottom: 1px dotted var(--border); cursor: help;
 }
-.etileCap { font-size: 10px; color: var(--cal-muted); font-variant-numeric: tabular-nums; }
+.etileCap { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .etileBeat, .etileMiss {
-  font-size: 8.5px; font-weight: 800; letter-spacing: 0.4px;
+  font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.4px;
   padding: 1px 6px; border-radius: var(--radius-sm);
 }
-.etileBeat { color: var(--bg); background: var(--cal-green, #4ade80); }
-.etileMiss { color: var(--text-bright); background: var(--cal-red, #ef4444); }
+.etileBeat { color: var(--bg); background: var(--gain); }
+.etileMiss { color: var(--text-bright); background: var(--loss); }
 
 /* Macro-only day — collapsed dim line (no earnings, just Fed/econ) */
 .macroOnly { margin-bottom: 8px; }
@@ -422,18 +407,18 @@
   padding: 5px 2px;
   cursor: pointer;
   text-align: left;
-  border-bottom: 1px dashed var(--cal-line);
+  border-bottom: 1px dashed var(--border);
 }
-.macroOnlyToggle:hover .macroOnlyLbl { color: var(--cal-txt); }
+.macroOnlyToggle:hover .macroOnlyLbl { color: var(--text-bright); }
 .macroOnlyLbl {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   transition: color 0.12s;
 }
-.macroOnlyMeta { font-size: 11px; color: var(--cal-muted); opacity: 0.8; }
-.macroOnlyChev { margin-left: auto; font-size: 10px; color: var(--cal-muted); }
+.macroOnlyMeta { font-size: var(--text-sm); color: var(--text-muted); opacity: 0.8; }
+.macroOnlyChev { margin-left: auto; font-size: var(--text-xs); color: var(--text-muted); }
 
 .dayhd {
   display: flex;
@@ -442,32 +427,32 @@
   margin: 0 0 8px;
   position: sticky;
   top: 0;
-  background: var(--cal-bg);
+  background: var(--bg);
   padding: 5px 0;
   z-index: 2;
 }
 
 .d1 {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 800;
-  color: var(--cal-txt);   /* cream — gold is rationed to signals, not headers */
+  color: var(--text-bright);   /* cream — gold is rationed to signals, not headers */
   letter-spacing: 0.4px;
 }
 
 .d2 {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
 .ln {
   flex: 1;
   height: 1px;
-  background: var(--cal-line);
+  background: var(--border);
 }
 
 .mineN {
-  font-size: 10px;
-  color: var(--cal-gold);
+  font-size: var(--text-xs);
+  color: var(--ut-gold);
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   border-radius: 20px;
@@ -508,25 +493,25 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
   margin: 0 0 9px;
   padding-bottom: 5px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
 }
 
 .timedIcon {
-  font-size: 12px;
+  font-size: var(--text-base);
   line-height: 1;
 }
 
 .timedCount {
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-muted);
-  background: var(--cal-line);
+  color: var(--text-muted);
+  background: var(--border);
   border-radius: var(--radius-pill);
   padding: 1px 7px;
   margin-left: 2px;
@@ -540,7 +525,7 @@
 }
 
 .amcHd {
-  color: var(--cal-blue);
+  color: var(--info);
   border-bottom-color: var(--info-border);
 }
 
@@ -553,7 +538,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -572,13 +557,13 @@
 }
 
 .wtcol + .wtcol {
-  border-left: 1px solid var(--cal-line);
+  border-left: 1px solid var(--border);
   padding-left: 10px;
 }
 
 .wtcolEmpty {
-  color: var(--cal-muted);
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: var(--text-base);
   padding: 2px 0;
 }
 
@@ -601,8 +586,8 @@
 }
 
 .wcol {
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 16px;
   min-height: 150px;
@@ -610,33 +595,35 @@
 
 .wcolToday {
   border-color: var(--ut-gold-glow);
-  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--bg-surface));
 }
 
 .wd {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 800;
-  color: var(--cal-txt);   /* cream — gold is rationed to signals, not headers */
+  color: var(--text-bright);   /* cream — gold is rationed to signals, not headers */
   letter-spacing: 0.3px;
   margin-bottom: 8px;
   text-transform: uppercase;
 }
 
 .wdCount {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
+/* Row rhythm follows the terminal board's density (--panel-gap: 12 / 8 / 4px on desktop), and
+   is exactly the old 5px everywhere else (tokens.css gives the comfortable value). */
 .wrow {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 6px;
+  padding: calc(var(--panel-gap) / 2 - 1px) 6px;
   cursor: pointer;
   border-radius: 10px;
   transition: background 0.12s, transform 0.12s;
@@ -657,9 +644,9 @@
 }
 
 .t {
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -667,15 +654,15 @@
 }
 
 .v {
-  font-size: 8px;
-  color: var(--cal-muted);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   font-weight: 700;
   letter-spacing: 0.3px;
 }
 
 .emptyBucket {
-  color: var(--cal-muted);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
   text-align: center;
   padding: 8px 0;
 }
@@ -688,8 +675,8 @@
   justify-content: center;
   gap: 9px;
   min-height: 120px;
-  color: var(--cal-muted);
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: var(--text-base);
   font-weight: 600;
   letter-spacing: 0.4px;
   opacity: 0.7;
@@ -699,7 +686,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 1.5px dashed var(--cal-line);
+  border: 1.5px dashed var(--border);
   position: relative;
 }
 
@@ -710,7 +697,7 @@
   margin: auto;
   width: 11px;
   height: 1.5px;
-  background: var(--cal-muted);
+  background: var(--text-muted);
   opacity: 0.55;
 }
 
@@ -725,10 +712,10 @@
 
 /* Weekday header labels (Mon/Tue/…) — match the cell label tier for uniformity. */
 .scolLbl {
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.6px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -740,8 +727,8 @@
 }
 
 .gcell {
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px;
   min-height: 96px;
@@ -752,12 +739,12 @@
 }
 
 .gcell:hover {
-  border-color: var(--cal-line2);
+  border-color: var(--border-accent);
 }
 
 .gcellToday {
   border-color: var(--ut-gold-glow);
-  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--bg-surface));
 }
 
 /* Filled gold "today" chip — instant where-am-I anchor in a dense month. */
@@ -765,7 +752,7 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  background: var(--cal-gold);
+  background: var(--ut-gold);
   color: var(--bg);
   padding: 1px 9px;
   border-radius: var(--radius-pill);
@@ -782,15 +769,15 @@
 /* Empty in-month days recede (page bg instead of raised panel) so the eye goes
    straight to days that actually have reporters. Date stays fully legible. */
 .gcellEmpty {
-  background: var(--cal-bg);
+  background: var(--bg);
   border-style: dashed;
   opacity: 0.6;
 }
 
 .dn {
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   letter-spacing: 0.3px;
   margin-bottom: 9px;
 }
@@ -823,7 +810,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -867,13 +854,13 @@
   line-height: 0;
   border-radius: 9px;
 }
-.mBeat { box-shadow: 0 0 0 2px var(--cal-green, #4ade80); }
-.mMiss { box-shadow: 0 0 0 2px var(--cal-red, #ef4444); }
+.mBeat { box-shadow: 0 0 0 2px var(--gain); }
+.mMiss { box-shadow: 0 0 0 2px var(--loss); }
 
 .mt {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -887,25 +874,25 @@
   align-items: center;
   justify-content: center;
   height: 40px;
-  border: 1px dashed var(--cal-line2);
+  border: 1px dashed var(--border-accent);
   border-radius: var(--radius-lg);
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   cursor: pointer;
   transition: border-color 0.12s, color 0.12s;
 }
 
 .mmoreChip:hover {
-  border-color: var(--cal-gold);
-  color: var(--cal-gold);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 .mbandEmpty {
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--cal-line2);
+  color: var(--border-accent);
   line-height: 1;
   padding-left: 5px;
 }
@@ -918,8 +905,8 @@
   gap: 8px;
   flex: 1 1 0;
   min-height: 80px;
-  color: var(--cal-muted);
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: var(--text-base);
   font-weight: 600;
   letter-spacing: 0.4px;
   opacity: 0.7;
@@ -940,15 +927,15 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.6px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .gbandIcon {
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   line-height: 1;
   filter: saturate(0.85);
 }
@@ -956,13 +943,13 @@
 .gbandDivider {
   height: 1px;
   margin: 5px -8px;
-  background: var(--cal-line);
+  background: var(--border);
 }
 
 .gbandEmpty {
-  font-size: var(--cal-month-fs);
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--cal-line2);
+  color: var(--border-accent);
   line-height: 1;
 }
 
@@ -976,12 +963,12 @@
 .mineRing {
   display: inline-flex;
   border-radius: 50%;
-  box-shadow: 0 0 0 1.5px var(--cal-gold);
+  box-shadow: 0 0 0 1.5px var(--ut-gold);
 }
 
 .gmore {
-  font-size: var(--cal-month-fs);
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   font-weight: 700;
   padding: 1px 3px;
 }
@@ -998,8 +985,8 @@
 
 .drawer {
   width: min(480px, 92vw);
-  background: var(--cal-bg);
-  border-left: 1px solid var(--cal-line);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
   height: 100%;
   overflow-y: auto;
   display: flex;
@@ -1013,21 +1000,21 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px;
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 800;
-  color: var(--cal-gold);
-  border-bottom: 1px solid var(--cal-line);
+  color: var(--ut-gold);
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: var(--cal-bg);
+  background: var(--bg);
   z-index: 2;
 }
 
 .drawerHd button {
   background: none;
   border: none;
-  color: var(--cal-dim);
-  font-size: 16px;
+  color: var(--text);
+  font-size: var(--text-xl);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--radius-md);
@@ -1036,7 +1023,7 @@
 
 .drawerHd button:hover {
   background: var(--bg-elevated);
-  color: var(--cal-txt);
+  color: var(--text-bright);
 }
 
 /* Page scaffold */
@@ -1044,20 +1031,20 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--cal-bg);
-  color: var(--cal-txt);
+  background: var(--bg);
+  color: var(--text-bright);
   font-family: var(--font-sans);
 }
 
 .error {
   padding: 32px;
-  color: var(--cal-red);
+  color: var(--loss);
   text-align: center;
 }
 
 .loading {
   padding: 32px;
-  color: var(--cal-dim);
+  color: var(--text);
   text-align: center;
 }
 
@@ -1082,40 +1069,40 @@
 }
 
 .ttl {
-  font-size: 19px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   letter-spacing: 0.2px;
 }
 
 .view {
   display: inline-flex;
-  border: 1px solid var(--cal-line2);
+  border: 1px solid var(--border-accent);
   border-radius: 9px;
   overflow: hidden;
 }
 
 .view span {
-  font-size: 11px;
+  font-size: var(--text-sm);
   padding: 5px 13px;
-  color: var(--cal-dim);
+  color: var(--text);
   cursor: pointer;
   user-select: none;
 }
 
 /* .view span.viewOn (not bare .viewOn): the base `.view span` rule sets
-   color:var(--cal-dim) at specificity (0,1,1), which would otherwise beat a bare
+   color:var(--text) at specificity (0,1,1), which would otherwise beat a bare
    .viewOn (0,1,0) and leave the ACTIVE tab with dim text on the accent fill
    (illegible). Matching .chipOn (the UCT20 chip), the active tab is an accent fill
    with near-black text in every theme. */
 .view span.viewOn {
-  background: var(--cal-gold);
+  background: var(--ut-gold);
   color: var(--bg);
   font-weight: 800;
 }
 
 .wk {
-  font-size: 12px;
-  color: var(--cal-dim);
+  font-size: var(--text-base);
+  color: var(--text);
 }
 
 .gearWrap {
@@ -1131,8 +1118,8 @@
   border: 1px solid var(--ut-gold-glow);
   border-radius: var(--radius-lg);
   padding: 6px 11px;
-  font-size: 12px;
-  color: var(--cal-gold);
+  font-size: var(--text-base);
+  color: var(--ut-gold);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -1142,23 +1129,23 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   padding: 12px 14px;
   z-index: 120; /* above the Compass orb/toast — controls must never be covered */
   min-width: 280px;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-popover);
 }
 
 .gearRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: var(--cal-txt);
+  font-size: var(--text-base);
+  color: var(--text-bright);
   padding: 5px 0;
   cursor: pointer;
 }
@@ -1168,7 +1155,7 @@
   align-items: center;
   gap: 7px;
   padding: 11px 18px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   background: var(--bg);
 }
@@ -1177,12 +1164,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 20px;
-  border: 1px solid var(--cal-line2);
-  color: var(--cal-dim);
+  border: 1px solid var(--border-accent);
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
@@ -1190,33 +1177,33 @@
 }
 
 .chipOn {
-  background: var(--cal-gold);
+  background: var(--ut-gold);
   color: var(--bg);
-  border-color: var(--cal-gold);
+  border-color: var(--ut-gold);
   font-weight: 800;
 }
 
 .sep {
   width: 1px;
   height: 18px;
-  background: var(--cal-line2);
+  background: var(--border-accent);
   margin: 0 3px;
   flex-shrink: 0;
 }
 
 .sel {
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
-  color: var(--cal-dim);
-  font-size: 11px;
+  color: var(--text);
+  font-size: var(--text-sm);
   padding: 5px 9px;
   cursor: pointer;
 }
 
 .sel:focus {
   outline: none;
-  border-color: var(--cal-gold);
+  border-color: var(--ut-gold);
 }
 
 /* ── A4: Extended-hours price row on EarningsCard ───────────────────────── */
@@ -1227,15 +1214,15 @@
   gap: 6px;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px dashed var(--cal-line2);
-  font-size: 11px;
+  border-top: 1px dashed var(--border-accent);
+  font-size: var(--text-sm);
 }
 
 .extLbl {
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: var(--cal-blue);
+  color: var(--info);
   background: var(--info-bg);
   border-radius: var(--radius-sm);
   padding: 1px 5px;
@@ -1244,8 +1231,8 @@
 /* ── A5: Countdown + session label on EarningsCard ───────────────────────── */
 
 .countdown {
-  font-size: 10px;
-  color: var(--cal-gold);
+  font-size: var(--text-xs);
+  color: var(--ut-gold);
   margin-top: 5px;
   font-weight: 600;
 }
@@ -1258,11 +1245,11 @@
 }
 
 .filterBtn {
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
-  color: var(--cal-dim);
-  font-size: 11px;
+  color: var(--text);
+  font-size: var(--text-sm);
   padding: 5px 11px;
   cursor: pointer;
   white-space: nowrap;
@@ -1270,13 +1257,13 @@
 }
 
 .filterBtn:hover {
-  border-color: var(--cal-gold);
-  color: var(--cal-txt);
+  border-color: var(--ut-gold);
+  color: var(--text-bright);
 }
 
 .filterBtnActive {
-  border-color: var(--cal-gold);
-  color: var(--cal-gold);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
   font-weight: 700;
 }
 
@@ -1284,21 +1271,21 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   padding: 12px 14px;
   z-index: 50;
   min-width: 220px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-popover);
 }
 
 .filterPopHd {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   margin-bottom: 10px;
 }
 
@@ -1310,17 +1297,17 @@
 }
 
 .filterLbl {
-  font-size: 10px;
-  color: var(--cal-dim);
+  font-size: var(--text-xs);
+  color: var(--text);
   font-weight: 600;
 }
 
 .filterInput {
   background: var(--bg);
-  border: 1px solid var(--cal-line2);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
-  color: var(--cal-txt);
-  font-size: 12px;
+  color: var(--text-bright);
+  font-size: var(--text-base);
   padding: 5px 8px;
   width: 100%;
   box-sizing: border-box;
@@ -1328,7 +1315,7 @@
 
 .filterInput:focus {
   outline: none;
-  border-color: var(--cal-gold);
+  border-color: var(--ut-gold);
 }
 
 .filterClear {
@@ -1337,8 +1324,8 @@
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
   border-radius: 7px;
-  color: var(--cal-red);
-  font-size: 11px;
+  color: var(--loss);
+  font-size: var(--text-sm);
   padding: 5px 0;
   cursor: pointer;
   font-weight: 700;
@@ -1361,10 +1348,10 @@
 /* Shared nav button style (used both in header + MonthView standalone) */
 .monthNavBtn {
   background: var(--bg-elevated);
-  border: 1px solid var(--cal-line2);
+  border: 1px solid var(--border-accent);
   border-radius: 7px;
-  color: var(--cal-dim);
-  font-size: 16px;
+  color: var(--text);
+  font-size: var(--text-xl);
   line-height: 1;
   padding: 4px 10px;
   cursor: pointer;
@@ -1373,13 +1360,13 @@
 
 .monthNavBtn:hover {
   background: var(--bg-hover);
-  color: var(--cal-txt);
+  color: var(--text-bright);
 }
 
 .monthNavLbl {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 800;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   min-width: 120px;
   text-align: center;
   letter-spacing: 0.3px;
@@ -1392,8 +1379,8 @@
 
 /* ── macroStar (month cell star for key macro day) ───────────────────────── */
 .macroStar {
-  color: var(--cal-gold);
-  font-size: 9px;
+  color: var(--ut-gold);
+  font-size: var(--text-xs);
   margin-left: 1px;
 }
 
@@ -1415,8 +1402,8 @@
 }
 
 .agendaDay {
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 10px 12px;
   cursor: pointer;
@@ -1424,13 +1411,13 @@
 }
 
 .agendaDay:hover {
-  border-color: var(--cal-line2);
+  border-color: var(--border-accent);
 }
 
 .agendaDate {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   margin-bottom: 6px;
   letter-spacing: 0.3px;
 }
@@ -1446,11 +1433,11 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   background: var(--bg-hover);
-  border: 1px solid var(--cal-line2);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
   padding: 5px 10px 5px 5px;
 }
@@ -1481,19 +1468,19 @@
 /* IPO — subtle blue tint */
 .evtCardIpo {
   border-color: var(--info-border);
-  background: linear-gradient(180deg, var(--info-bg), var(--cal-panel));
+  background: linear-gradient(180deg, var(--info-bg), var(--bg-surface));
 }
 
 /* Dividend — subtle green tint */
 .evtCardDiv {
   border-color: var(--gain-border);
-  background: linear-gradient(180deg, var(--gain-bg), var(--cal-panel));
+  background: linear-gradient(180deg, var(--gain-bg), var(--bg-surface));
 }
 
 /* Split — subtle gold tint */
 .evtCardSplit {
   border-color: var(--ut-gold-glow);
-  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--bg-surface));
 }
 
 /* Type tag badge (top-right corner) */
@@ -1501,10 +1488,10 @@
   position: absolute;
   top: 8px;
   right: 10px;
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.8px;
-  color: var(--cal-dim);
+  color: var(--text);
   background: var(--bg-elevated);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
@@ -1513,38 +1500,38 @@
 /* IPO status pills */
 .evtStatusPriced {
   background: var(--gain-bg);
-  color: var(--cal-green);
+  color: var(--gain);
   border-color: var(--gain-border);
 }
 
 .evtStatusExpected {
   background: var(--ut-gold-dim);
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   border-color: var(--ut-gold-glow);
 }
 
 .evtStatusFiled {
   background: var(--info-bg);
-  color: var(--cal-blue);
+  color: var(--info);
   border-color: var(--info-border);
 }
 
 .evtStatusDefault {
   background: var(--bg-elevated);
-  color: var(--cal-dim);
-  border-color: var(--cal-line2);
+  color: var(--text);
+  border-color: var(--border-accent);
 }
 
 /* Event-type filter chips (in CalendarHeader fb row) — inherit .chip style */
 .chipEvtIpo:is(.chipOn) {
-  background: var(--cal-blue);
+  background: var(--info);
   color: var(--bg);
-  border-color: var(--cal-blue);
+  border-color: var(--info);
 }
 .chipEvtDiv:is(.chipOn) {
-  background: var(--cal-green);
+  background: var(--gain);
   color: var(--bg);
-  border-color: var(--cal-green);
+  border-color: var(--gain);
 }
 
 /* ── C6: Historical reaction stats row on EarningsCard ─────────────────────── */
@@ -1555,14 +1542,14 @@
   align-items: center;
   margin-top: 5px;
   padding-top: 5px;
-  border-top: 1px dashed var(--cal-line2);
-  font-size: 10px;
+  border-top: 1px dashed var(--border-accent);
+  font-size: var(--text-xs);
 }
 
 .histStatsVal {
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--cal-gold);
+  font-size: var(--text-xs);
+  color: var(--ut-gold);
   font-weight: 600;
 }
 
@@ -1570,15 +1557,15 @@
 /* ── Phone Filters sheet sections ── */
 .sheetSec {
   padding: 12px 0;
-  border-bottom: 1px solid var(--cal-line, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--border);
 }
 .sheetSec:last-child { border-bottom: none; }
 .sheetLbl {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--cal-dim, #8b8678);
+  color: var(--text);
   margin-bottom: 10px;
 }
 .sheetChips {
@@ -1659,10 +1646,10 @@
   }
 
   /* Touch-sized chips + 16px form controls (no iOS focus-zoom) inside the sheet */
-  .sheetChips .chip { padding: 9px 14px; font-size: 13px; }
+  .sheetChips .chip { padding: 9px 14px; font-size: var(--text-md); }
   .sheetRow .sel,
-  .sheetSec .filterInput { font-size: 16px; padding: 9px 10px; }
-  .sheetSec .gearRow { padding: 6px 0; font-size: 14px; }
+  .sheetSec .filterInput { font-size: var(--text-xl); padding: 9px 10px; }
+  .sheetSec .gearRow { padding: 6px 0; font-size: var(--text-lg); }
 
   .weekgrid {
     grid-template-columns: repeat(2, 1fr);
@@ -1677,7 +1664,7 @@
   .wtcol + .wtcol {
     border-left: none;
     padding-left: 0;
-    border-top: 1px solid var(--cal-line);
+    border-top: 1px solid var(--border);
     padding-top: 6px;
   }
 
@@ -1708,24 +1695,24 @@
   /* Phone quick strip: pills + hidden-pill on line 1, search full-width on
      line 2. 16px input font — anything smaller triggers iOS focus-zoom. */
   .capPill {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     display: inline-flex;
     align-items: center;
   }
   .quickBar .searchWrap { flex: 1 1 100%; }
   .quickBar .searchInput,
   .searchInput {
-    font-size: 16px;
-    min-height: var(--tap-min, 44px);
+    font-size: var(--text-xl);
+    min-height: var(--tap-min);
   }
   .quickBar .searchInput { width: 100%; }
   .quickBar .searchInput:focus { width: 100%; }
   .dayTab {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     flex: 0 0 auto;
   }
   .todayPill, .wkBtn {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
@@ -1736,28 +1723,28 @@
   .view span {
     display: inline-flex;
     align-items: center;
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     padding: 0 14px;
-    font-size: 13px;
+    font-size: var(--text-md);
   }
 
   /* Month nav arrows + ⚙ Filters + ⭐ Hub — all reach the 44px tap floor. */
   .monthNavBtn {
-    min-height: var(--tap-min, 44px);
-    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
   .filterBtn {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     padding: 0 14px;
     display: inline-flex;
     align-items: center;
-    font-size: 13px;
+    font-size: var(--text-md);
   }
   .hubLink {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     padding: 0 12px;
     display: inline-flex;
     align-items: center;
@@ -1785,7 +1772,7 @@
   .hubTab {
     flex: 0 0 auto;
     white-space: nowrap;
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
     display: inline-flex;
     align-items: center;
   }
@@ -1801,8 +1788,8 @@
   flex-direction: column;
   min-height: 100%;
   padding: 16px;
-  background: var(--cal-bg);
-  color: var(--cal-txt);
+  background: var(--bg);
+  color: var(--text-bright);
 }
 
 .hubHeader {
@@ -1814,17 +1801,17 @@
 }
 
 .hubBack {
-  color: var(--cal-dim);
+  color: var(--text);
   text-decoration: none;
-  font-size: 13px;
+  font-size: var(--text-md);
   transition: color 0.15s;
 }
-.hubBack:hover { color: var(--cal-gold); }
+.hubBack:hover { color: var(--ut-gold); }
 
 .hubLink {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 600;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   text-decoration: none;
   padding: 4px 10px;
   border: 1px solid var(--ut-gold-glow);
@@ -1834,9 +1821,9 @@
 .hubLink:hover { background: var(--ut-gold-dim); }
 
 .hubTitle {
-  font-size: 18px;
+  font-size: var(--text-2xl);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   flex: 1;
 }
 
@@ -1844,7 +1831,7 @@
 .hubTabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
 }
 
@@ -1853,17 +1840,17 @@
   border: none;
   border-bottom: 2px solid transparent;
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 600;
-  color: var(--cal-dim);
+  color: var(--text);
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
   margin-bottom: -1px;
 }
-.hubTab:hover { color: var(--cal-txt); }
+.hubTab:hover { color: var(--text-bright); }
 .hubTabActive {
-  color: var(--cal-gold);
-  border-bottom-color: var(--cal-gold);
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
 }
 
 .hubPanel {
@@ -1874,8 +1861,8 @@
 .hubEmpty {
   padding: 32px;
   text-align: center;
-  color: var(--cal-muted);
-  font-size: 14px;
+  color: var(--text-muted);
+  font-size: var(--text-lg);
 }
 
 /* Unseen indicator */
@@ -1889,7 +1876,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--cal-blue);
+  background: var(--info);
   display: block;
   pointer-events: none;
 }
@@ -1925,23 +1912,23 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   text-decoration: none;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   position: relative;
   transition: border-color 0.12s;
   flex: 1;
   min-width: 0;
 }
-.hubNewsRow:hover { border-color: var(--cal-line2); }
+.hubNewsRow:hover { border-color: var(--border-accent); }
 .hubResearchLink {
   flex-shrink: 0;
   background: none;
   border: none;
-  color: var(--cal-gold);
-  font-size: 11px;
+  color: var(--ut-gold);
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
   padding: 4px 6px;
@@ -1949,8 +1936,8 @@
 }
 .hubResearchLink:hover { text-decoration: underline; }
 .hubNewsSource {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   overflow: hidden;
@@ -1958,13 +1945,13 @@
   white-space: nowrap;
 }
 .hubNewsHeadline {
-  font-size: 13px;
-  color: var(--cal-txt);
+  font-size: var(--text-md);
+  color: var(--text-bright);
   line-height: 1.3;
 }
 .hubNewsTime {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   text-align: right;
 }
 
@@ -1976,14 +1963,14 @@
 }
 .hubCallRow {
   position: relative;
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px;
   cursor: pointer;
   transition: border-color 0.12s;
 }
-.hubCallRow:hover { border-color: var(--cal-line2); }
+.hubCallRow:hover { border-color: var(--border-accent); }
 .hubCallSymRow {
   display: flex;
   align-items: center;
@@ -1992,20 +1979,20 @@
   margin-bottom: 10px;
 }
 .hubCallSym {
-  font-size: 15px;
+  font-size: var(--text-xl);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
 }
 .hubCallLoading {
-  font-size: 12px;
-  color: var(--cal-muted);
+  font-size: var(--text-base);
+  color: var(--text-muted);
   padding: 8px 0;
 }
 
 /* ── Filings tab ── */
 .hubFilingGroup {
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
 }
@@ -2017,9 +2004,9 @@
   margin-bottom: 8px;
 }
 .hubFilingSym {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
 }
 .hubFilingRow {
   display: grid;
@@ -2027,32 +2014,32 @@
   align-items: center;
   gap: 8px;
   padding: 6px 0;
-  border-top: 1px solid var(--cal-line);
+  border-top: 1px solid var(--border);
   text-decoration: none;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   position: relative;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 .hubFilingRow:first-of-type { border-top: none; }
 .hubFilingForm {
-  color: var(--cal-blue);
-  font-size: 11px;
+  color: var(--info);
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 .hubFilingDate {
-  color: var(--cal-dim);
-  font-size: 12px;
+  color: var(--text);
+  font-size: var(--text-base);
 }
 .hubFilingLink {
-  font-size: 12px;
-  color: var(--cal-gold);
+  font-size: var(--text-base);
+  color: var(--ut-gold);
   text-align: right;
 }
 
 /* ── Insights tab ── */
 .hubInsightRow {
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px;
 }
@@ -2069,9 +2056,9 @@
   cursor: pointer;
 }
 .hubInsightSym {
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   margin-bottom: 10px;
 }
 
@@ -2082,7 +2069,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 18px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
   background: var(--bg);
   /* The folded-in quick filters make this row ~1300px at min-content — it
      MUST wrap on tablets/narrow windows or the page scrolls horizontally
@@ -2098,7 +2085,7 @@
   gap: 8px;
   flex-wrap: wrap;
   padding: 7px 18px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 
@@ -2110,11 +2097,11 @@
 }
 
 .capPill {
-  border: 1px solid var(--cal-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--cal-dim);
-  font-size: 11px;
+  color: var(--text);
+  font-size: var(--text-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   padding: 4px 11px;
@@ -2122,11 +2109,11 @@
   transition: border-color 0.12s, color 0.12s, background 0.12s;
   white-space: nowrap;
 }
-.capPill:hover { border-color: var(--cal-gold); color: var(--cal-txt); }
+.capPill:hover { border-color: var(--ut-gold); color: var(--text-bright); }
 .capPillOn {
-  border-color: var(--cal-gold);
+  border-color: var(--ut-gold);
   background: var(--ut-gold-dim);
-  color: var(--cal-gold);
+  color: var(--ut-gold);
 }
 
 /* ✕ inside the merged search input (.searchWrap is position:relative) */
@@ -2135,16 +2122,16 @@
   right: 6px;
   background: none;
   border: none;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px;
   display: inline-flex;
 }
-.quickClearX:hover { color: var(--cal-txt); }
+.quickClearX:hover { color: var(--text-bright); }
 
 .quickSummary {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
@@ -2152,8 +2139,8 @@
 
 /* Phone-only "filters are biting" pill — replaces the desktop summary */
 .quickSummaryPhone {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -2161,8 +2148,8 @@
 .quickClearAll {
   background: none;
   border: none;
-  color: var(--cal-gold);
-  font-size: 11px;
+  color: var(--ut-gold);
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
   margin-left: 6px;
@@ -2177,7 +2164,7 @@
   align-items: center;
   gap: 12px;
   padding: 7px 18px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 .sectorActivePill {
@@ -2185,10 +2172,10 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 800;
   color: var(--bg);
-  background: var(--cal-gold);
+  background: var(--ut-gold);
   border-radius: var(--radius-pill);
   padding: 3px 6px 3px 11px;
 }
@@ -2196,7 +2183,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.18);
+  background: color-mix(in srgb, var(--bg) 18%, transparent);
   border: none;
   border-radius: 50%;
   width: 16px;
@@ -2205,16 +2192,16 @@
   cursor: pointer;
   padding: 0;
 }
-.sectorClear:hover { background: rgba(0, 0, 0, 0.32); }
+.sectorClear:hover { background: color-mix(in srgb, var(--bg) 32%, transparent); }
 .sectorReadInline {
   display: flex;
   align-items: center;
   gap: 2px;
-  font-size: 12.5px;
+  font-size: var(--text-md);
   line-height: 1.45;
-  color: var(--cal-txt);
+  color: var(--text-bright);
 }
-.sectorReadBusy { color: var(--cal-muted); font-style: italic; }
+.sectorReadBusy { color: var(--text-muted); font-style: italic; }
 /* Collapsed opt-in toggle — small, dim, no visual weight until asked */
 .sectorReadToggle {
   display: inline-flex;
@@ -2222,13 +2209,13 @@
   background: none;
   border: none;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 600;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.12s;
 }
-.sectorReadToggle:hover { color: var(--cal-gold); }
+.sectorReadToggle:hover { color: var(--ut-gold); }
 
 .dayTabs {
   display: inline-flex;
@@ -2244,8 +2231,8 @@
   border-radius: var(--radius-lg);
   padding: 5px 10px;
   cursor: pointer;
-  color: var(--cal-txt);
-  font-size: 12px;
+  color: var(--text-bright);
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.3px;
   transition: background 0.1s, border-color 0.1s;
@@ -2253,27 +2240,27 @@
 
 .dayTab:hover {
   background: var(--bg-hover);
-  border-color: var(--cal-line);
+  border-color: var(--border);
 }
 
 .dayTabToday {
-  border-bottom: 2px solid var(--cal-gold);
+  border-bottom: 2px solid var(--ut-gold);
   border-radius: 8px 8px 2px 2px;
 }
 
 .dayTabLbl { white-space: nowrap; }
 
 .dayTabCount {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .dayTabMine {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
@@ -2283,8 +2270,8 @@
   background: none;
   border: 1px solid var(--ut-gold-glow);
   border-radius: var(--radius-pill);
-  color: var(--cal-gold);
-  font-size: 11px;
+  color: var(--ut-gold);
+  font-size: var(--text-sm);
   font-weight: 700;
   padding: 4px 12px;
   cursor: pointer;
@@ -2300,10 +2287,10 @@
 
 .wkBtn {
   background: none;
-  border: 1px solid var(--cal-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  color: var(--cal-dim);
-  font-size: 12px;
+  color: var(--text);
+  font-size: var(--text-base);
   padding: 5px 11px;
   cursor: pointer;
   white-space: nowrap;
@@ -2311,23 +2298,23 @@
 }
 
 .wkBtn:hover {
-  border-color: var(--cal-line2);
-  color: var(--cal-txt);
+  border-color: var(--border-accent);
+  color: var(--text-bright);
 }
 
 .wkPop {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   padding: 6px;
   z-index: 60;
   min-width: 230px;
   max-height: 320px;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-popover);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2340,8 +2327,8 @@
   gap: 10px;
   background: transparent;
   border: none;
-  color: var(--cal-txt);
-  font-size: 12px;
+  color: var(--text-bright);
+  font-size: var(--text-base);
   padding: 7px 10px;
   text-align: left;
   border-radius: 7px;
@@ -2352,13 +2339,13 @@
 .wkPopItem:hover { background: var(--bg-elevated); }
 
 .wkPopItemActive {
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   font-weight: 700;
 }
 
 .wkPopThis {
-  font-size: 10px;
-  color: var(--cal-gold);
+  font-size: var(--text-xs);
+  color: var(--ut-gold);
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -2373,11 +2360,11 @@
 }
 
 .searchInput {
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
-  color: var(--cal-txt);
-  font-size: 12px;
+  color: var(--text-bright);
+  font-size: var(--text-base);
   padding: 6px 26px 6px 28px;   /* right pad clears the ✕ button */
   width: 200px;
   box-sizing: border-box;
@@ -2386,11 +2373,11 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: var(--cal-gold);
+  border-color: var(--ut-gold);
   width: 240px;
 }
 
-.searchInput::placeholder { color: var(--cal-muted); }
+.searchInput::placeholder { color: var(--text-muted); }
 
 .searchPop {
   position: absolute;
@@ -2398,12 +2385,12 @@
   left: 0;
   right: 0;
   min-width: 260px;
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   padding: 4px;
   z-index: 60;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-popover);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -2421,23 +2408,23 @@
 .searchRowHi { background: var(--bg-elevated); }
 
 .searchRowSym {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   flex-shrink: 0;
 }
 
 .searchRowName {
-  font-size: 11px;
-  color: var(--cal-dim);
+  font-size: var(--text-sm);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .searchNotice {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   padding: 9px 10px;
 }
 
@@ -2445,23 +2432,23 @@
 
 /* Neutral (deliberately neither gold nor blue): the session is UNKNOWN. */
 .tbdHd {
-  color: var(--cal-muted);
-  border-bottom-color: var(--cal-line);
+  color: var(--text-muted);
+  border-bottom-color: var(--border);
 }
 
-.sessionTbd { color: var(--cal-muted); }
+.sessionTbd { color: var(--text-muted); }
 
 .dateEst {
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   letter-spacing: 0.3px;
 }
 
 /* TBD block under the BMO|AMC split in Week view — full width */
 .wtbd {
   margin-top: 8px;
-  border-top: 1px solid var(--cal-line);
+  border-top: 1px solid var(--border);
   padding-top: 6px;
 }
 
@@ -2472,20 +2459,20 @@
 }
 
 @keyframes calCardPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); border-color: var(--cal-line); }
-  50%      { box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.35); border-color: var(--cal-gold); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 0%, transparent); border-color: var(--border); }
+  50%      { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ut-gold) 35%, transparent); border-color: var(--ut-gold); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cardPulse { animation: none; border-color: var(--cal-gold); }
+  .cardPulse { animation: none; border-color: var(--ut-gold); }
 }
 
 .retryBtn {
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   border-radius: 7px;
-  color: var(--cal-gold);
-  font-size: 12px;
+  color: var(--ut-gold);
+  font-size: var(--text-base);
   font-weight: 700;
   padding: 5px 14px;
   cursor: pointer;
@@ -2535,8 +2522,8 @@
 .feedEmpty {
   padding: 40px 0;
   text-align: center;
-  font-size: 12px;
-  color: var(--cal-muted);
+  font-size: var(--text-base);
+  color: var(--text-muted);
 }
 
 /* E2: Export menu */
@@ -2546,11 +2533,11 @@
 }
 
 .exportBtn {
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-lg);
-  color: var(--cal-dim);
-  font-size: 11px;
+  color: var(--text);
+  font-size: var(--text-sm);
   padding: 5px 11px;
   cursor: pointer;
   white-space: nowrap;
@@ -2558,21 +2545,21 @@
 }
 
 .exportBtn:hover {
-  border-color: var(--cal-gold);
-  color: var(--cal-txt);
+  border-color: var(--ut-gold);
+  color: var(--text-bright);
 }
 
 .exportPop {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  background: var(--cal-panel2);
-  border: 1px solid var(--cal-line2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   padding: 6px;
   z-index: 50;
   min-width: 180px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-popover);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2581,8 +2568,8 @@
 .exportItem {
   background: transparent;
   border: none;
-  color: var(--cal-txt);
-  font-size: 12px;
+  color: var(--text-bright);
+  font-size: var(--text-base);
   padding: 8px 12px;
   text-align: left;
   border-radius: 7px;
@@ -2591,7 +2578,7 @@
 }
 
 .exportItem:hover:not(:disabled) {
-  background: var(--cal-line2);
+  background: var(--border-accent);
 }
 
 .exportItem:disabled {
@@ -2614,18 +2601,18 @@
 .cnt {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   border-radius: var(--radius-pill);
   padding: 1px 8px;
   font-variant-numeric: tabular-nums;
 }
 
-.cntH1 { background: rgba(220, 187, 94, 0.10); }
-.cntH2 { background: rgba(220, 187, 94, 0.22); }
-.cntH3 { background: rgba(220, 187, 94, 0.38); color: var(--bg); }
-.cntH4 { background: rgba(220, 187, 94, 0.60); color: var(--bg); }
+.cntH1 { background: color-mix(in srgb, var(--ut-gold) 10%, transparent); }
+.cntH2 { background: color-mix(in srgb, var(--ut-gold) 22%, transparent); }
+.cntH3 { background: color-mix(in srgb, var(--ut-gold) 38%, transparent); color: var(--bg); }
+.cntH4 { background: color-mix(in srgb, var(--ut-gold) 60%, transparent); color: var(--bg); }
 
 /* ── Flagship 1c: zero-data compact cluster ("Also reporting") ───────────── */
 
@@ -2637,10 +2624,10 @@
   width: 100%;
   text-align: left;
   background: none;
-  border: 1px dashed var(--cal-line2);
+  border: 1px dashed var(--border-accent);
   border-radius: 10px;
-  color: var(--cal-dim);
-  font-size: 11px;
+  color: var(--text);
+  font-size: var(--text-sm);
   font-weight: 700;
   padding: 6px 12px;
   cursor: pointer;
@@ -2648,8 +2635,8 @@
 }
 
 .compactToggle:hover {
-  border-color: var(--cal-gold);
-  color: var(--cal-txt);
+  border-color: var(--ut-gold);
+  color: var(--text-bright);
 }
 
 .compactList {
@@ -2673,15 +2660,15 @@
 .compactRow:hover { background: var(--bg-hover); }
 
 .compactSym {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   flex-shrink: 0;
 }
 
 .compactName {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2690,25 +2677,25 @@
 }
 
 .compactGlyph {
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 /* ── Flagship 1c: macro band est/prior/actual ────────────────────────────── */
 
 .mtagMeta {
-  color: var(--cal-muted);
-  font-size: 10px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .mtagActual {
-  color: var(--cal-txt);
+  color: var(--text-bright);
   font-weight: 700;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2731,24 +2718,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.8px;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
 .macroCollide {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.6px;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   border: 1px solid var(--ut-gold-glow);
   border-radius: 5px;
   padding: 0 6px;
 }
 
-.symMain { font-size: 18px; }
+.symMain { font-size: var(--text-2xl); }
 
 .mainRight {
   display: flex;
@@ -2759,24 +2746,24 @@
 }
 
 .capBadge {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-dim);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 .mainLede {
-  font-size: 12px;
-  color: var(--cal-dim);
+  font-size: var(--text-base);
+  color: var(--text);
   line-height: 1.45;
   margin-bottom: 5px;
 }
 
 .mainMetrics {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   padding: 3px 0;
   border-bottom: 1px solid var(--header-line);
 }
@@ -2790,12 +2777,12 @@
 }
 
 .missPill {
-  font-size: 8px;
+  font-size: var(--text-xs);
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 5px;
   background: var(--loss-bg);
-  color: var(--cal-red);
+  color: var(--loss);
 }
 
 .cardMetaRow {
@@ -2819,39 +2806,39 @@
   display: inline-block;
 }
 
-.beatDotUp   { background: var(--cal-gold); }
+.beatDotUp   { background: var(--ut-gold); }
 .beatDotDown { background: var(--loss); }
-.beatDotNone { border: 1px solid var(--cal-line2); }
+.beatDotNone { border: 1px solid var(--border-accent); }
 
 .reactSpark { display: inline-block; }
-.sparkAxis  { stroke: var(--cal-line2); stroke-width: 1; }
-.sparkUp    { fill: var(--cal-green); opacity: 0.85; }
-.sparkDown  { fill: var(--cal-red);  opacity: 0.85; }
+.sparkAxis  { stroke: var(--border-accent); stroke-width: 1; }
+.sparkUp    { fill: var(--gain); opacity: 0.85; }
+.sparkDown  { fill: var(--loss);  opacity: 0.85; }
 
 .emvRich {
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   letter-spacing: 0.5px;
 }
 
 .emvTypical {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--cal-muted);
+  color: var(--text-muted);
 }
 
 .emvBigger {
-  font-size: 18px;
+  font-size: var(--text-2xl);
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   font-variant-numeric: tabular-nums;
 }
 
 /* The 36px day table (the density engine) */
 
 .dayTable {
-  border: 1px solid var(--cal-line);
+  border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 14px;
@@ -2863,31 +2850,31 @@
      tight list, not a spreadsheet stretched thin across the whole width. */
   grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 var(--panel-inset);
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
 }
 
 .dtTh {
   background: none;
   border: none;
   text-align: left;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   padding: 7px 0;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .dtTh:disabled { cursor: default; }
-.dtTh:not(:disabled):hover { color: var(--cal-txt); }
-.dtThActive { color: var(--cal-gold); }
+.dtTh:not(:disabled):hover { color: var(--text-bright); }
+.dtThActive { color: var(--ut-gold); }
 
 .dtSession {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -2895,7 +2882,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border-bottom: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--border);
 }
 
 .dtRow {
@@ -2903,8 +2890,10 @@
   grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
   align-items: center;
-  min-height: 36px;
-  padding: 0 12px;
+  /* 36px outside the terminal; a dense board takes it to 28 (--panel-row-h + 8). The touch
+     tier keeps the comfortable values, so this never undercuts a finger target. */
+  min-height: calc(var(--panel-row-h) + 8px);
+  padding: 0 var(--panel-inset);
   cursor: pointer;
   border-bottom: 1px solid var(--header-line);
   transition: background 0.1s;
@@ -2915,10 +2904,10 @@
 
 /* Session color spine (WSE grammar): gold = pre-market, blue = after-close,
    muted = TBD. A starred "mine" row upgrades its spine to the brighter gold. */
-.dtRowBmo { box-shadow: inset 3px 0 0 rgba(220, 187, 94, 0.55); }
-.dtRowAmc { box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.55); }
-.dtRowTbd { box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.12); }
-.dtRowMine { box-shadow: inset 3px 0 0 var(--cal-gold); }
+.dtRowBmo { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ut-gold) 55%, transparent); }
+.dtRowAmc { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--info) 55%, transparent); }
+.dtRowTbd { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--text-heading) 12%, transparent); }
+.dtRowMine { box-shadow: inset 3px 0 0 var(--ut-gold); }
 
 .dtDot {
   width: 6px;
@@ -2926,18 +2915,18 @@
   border-radius: 50%;
   flex: 0 0 auto;
 }
-.dtDotBmo { background: var(--cal-gold); }
-.dtDotAmc { background: var(--cal-blue); }
-.dtDotTbd { background: var(--cal-muted); }
+.dtDotBmo { background: var(--ut-gold); }
+.dtDotAmc { background: var(--info); }
+.dtDotTbd { background: var(--text-muted); }
 
 .dtRepN {
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
-  color: var(--cal-muted);
+  color: var(--text-muted);
 }
 
-.dtRevEst { color: var(--cal-muted); }
+.dtRevEst { color: var(--text-muted); }
 
 .dtCompany {
   display: flex;
@@ -2947,15 +2936,15 @@
 }
 
 .dtSym {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 700;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   flex-shrink: 0;   /* the TICKER never truncates */
 }
 
 .dtName {
-  font-size: 11px;
-  color: var(--cal-muted);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2963,32 +2952,32 @@
 }
 
 .dtNum {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--cal-txt);
+  color: var(--text-bright);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dtMove { color: var(--cal-gold); }
+.dtMove { color: var(--ut-gold); }
 
 .dtBeats { display: flex; justify-content: flex-end; }
 
 /* Enrichment lifecycle marks: '…' while the fetch is in flight (a blank
    column reads as broken), muted '—' once it resolves genuinely empty. */
-.dtDash { color: var(--cal-muted); opacity: 0.5; }
+.dtDash { color: var(--text-muted); opacity: 0.5; }
 /* Arrived, and the server said WHY there is no number. Distinct from .dtDash
    (nothing to explain) and from .dtLoading (not arrived yet). */
 .dtNa {
-  color: var(--cal-muted);
+  color: var(--text-muted);
   font-weight: 600;
-  border-bottom: 1px dotted var(--cal-line);
+  border-bottom: 1px dotted var(--border);
   cursor: help;
 }
 .dtLoading {
-  color: var(--cal-muted);
+  color: var(--text-muted);
   animation: dtPulse 1.2s ease-in-out infinite;
 }
 @keyframes dtPulse {
@@ -3002,9 +2991,9 @@
 /* Week mosaic rows */
 
 .wSym {
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 600;
-  color: var(--cal-dim);
+  color: var(--text);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -3014,21 +3003,21 @@
 
 .wSymFeat {
   font-weight: 800;
-  color: var(--cal-txt);
+  color: var(--text-bright);
 }
 
 .wDatumEm {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
 .wDatumCap {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--cal-muted);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
@@ -3036,22 +3025,22 @@
 /* Reported beat/miss badge on Week rows (matches the Feed tiles) */
 .wBeat, .wMiss {
   flex-shrink: 0;
-  font-size: 8.5px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.4px;
   padding: 1px 6px;
   border-radius: var(--radius-sm);
 }
-.wBeat { color: var(--bg); background: var(--cal-green, #4ade80); }
-.wMiss { color: var(--text-bright); background: var(--cal-red, #ef4444); }
+.wBeat { color: var(--bg); background: var(--gain); }
+.wMiss { color: var(--text-bright); background: var(--loss); }
 
 .wMore {
   width: 100%;
   background: none;
-  border: 1px dashed var(--cal-line2);
+  border: 1px dashed var(--border-accent);
   border-radius: var(--radius-lg);
-  color: var(--cal-muted);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
   font-weight: 700;
   padding: 5px 0;
   margin-top: 4px;
@@ -3059,7 +3048,7 @@
   transition: border-color 0.12s, color 0.12s;
 }
 
-.wMore:hover { border-color: var(--cal-gold); color: var(--cal-gold); }
+.wMore:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 .wMacro {
   display: flex;
@@ -3069,9 +3058,9 @@
 }
 
 .wMacroChip {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-gold);
+  color: var(--ut-gold);
   border: 1px solid var(--ut-gold-glow);
   border-radius: 5px;
   padding: 1px 6px;
@@ -3079,9 +3068,9 @@
 }
 
 .wMacroChipFed {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--cal-blue);
+  color: var(--info);
   border: 1px solid var(--info-border);
   border-radius: 5px;
   padding: 1px 6px;
@@ -3120,15 +3109,15 @@
   gap: 8px;
   padding: 12px 18px;
   margin: 0 18px 4px;
-  border: 1px solid var(--cal-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: linear-gradient(180deg, var(--ut-gold-dim), transparent);
 }
 .briefCluster { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .briefLbl {
   flex: 0 0 92px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
-  text-transform: uppercase; color: var(--cal-muted);
+  font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--text-muted);
 }
 .briefScroll {
   display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
@@ -3138,52 +3127,52 @@
 .briefCard {
   position: relative;
   display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
-  background: var(--cal-panel); border: 1px solid var(--cal-line2);
+  background: var(--bg-surface); border: 1px solid var(--border-accent);
   border-radius: 10px; padding: 5px 10px 5px 6px; cursor: pointer;
   transition: border-color 0.12s;
 }
-.briefCard:hover { border-color: var(--cal-gold); }
+.briefCard:hover { border-color: var(--ut-gold); }
 /* Unseen dot — a name you haven't opened yet. Gold pip, top-left corner. */
 .briefUnseen {
   position: absolute; top: -3px; left: -3px;
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--cal-gold); box-shadow: 0 0 0 2px var(--cal-bg);
+  background: var(--ut-gold); box-shadow: 0 0 0 2px var(--bg);
 }
-.briefSym { font-size: 13px; font-weight: 800; color: var(--cal-txt); }
-.briefWhen { font-size: 10px; color: var(--cal-muted); white-space: nowrap; }
+.briefSym { font-size: var(--text-md); font-weight: 800; color: var(--text-bright); }
+.briefWhen { font-size: var(--text-xs); color: var(--text-muted); white-space: nowrap; }
 .briefBadge, .briefBadgeGold {
-  font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+  font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.5px;
   border-radius: var(--radius-sm); padding: 1px 5px;
 }
-.briefBadge { color: var(--cal-dim); background: var(--bg-elevated); }
-.briefBadgeGold { color: var(--bg); background: var(--cal-gold); }
+.briefBadge { color: var(--text); background: var(--bg-elevated); }
+.briefBadgeGold { color: var(--bg); background: var(--ut-gold); }
 .briefChip {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
-  background: var(--cal-panel); border: 1px solid var(--cal-line2);
-  border-radius: var(--radius-pill); padding: 4px 11px; font-size: 11px; font-weight: 700;
-  cursor: pointer; color: var(--cal-dim); transition: border-color 0.12s;
+  background: var(--bg-surface); border: 1px solid var(--border-accent);
+  border-radius: var(--radius-pill); padding: 4px 11px; font-size: var(--text-sm); font-weight: 700;
+  cursor: pointer; color: var(--text); transition: border-color 0.12s;
 }
-.briefChip:hover { border-color: var(--cal-line2); }
+.briefChip:hover { border-color: var(--border-accent); }
 .briefChipBeat { border-color: var(--gain-border); }
 .briefChipMiss { border-color: var(--loss-border); }
 .briefMacro {
   display: inline-flex; align-items: center; flex: 0 0 auto;
-  font-size: 11px; color: var(--cal-dim); white-space: nowrap;
+  font-size: var(--text-sm); color: var(--text); white-space: nowrap;
 }
-.briefMacroTm { color: var(--cal-muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
-.briefMacroEst { color: var(--cal-muted); }
+.briefMacroTm { color: var(--text-muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.briefMacroEst { color: var(--text-muted); }
 .briefEmpty {
   display: flex; align-items: center; gap: 10px; padding: 10px 18px;
-  margin: 0 18px 4px; border: 1px dashed var(--cal-line2); border-radius: 10px;
-  font-size: 11px; color: var(--cal-muted);
+  margin: 0 18px 4px; border: 1px dashed var(--border-accent); border-radius: 10px;
+  font-size: var(--text-sm); color: var(--text-muted);
 }
 .briefEmpty > span:first-child { flex: 1; }
-.briefEmptyLink { color: var(--cal-gold); text-decoration: none; font-weight: 700; }
+.briefEmptyLink { color: var(--ut-gold); text-decoration: none; font-weight: 700; }
 .briefDismiss {
-  margin-left: 4px; background: none; border: none; color: var(--cal-muted);
+  margin-left: 4px; background: none; border: none; color: var(--text-muted);
   cursor: pointer; padding: 4px; display: inline-flex;
 }
-.briefDismiss:hover { color: var(--cal-txt); }
+.briefDismiss:hover { color: var(--text-bright); }
 
 /* ── Phase 3 — Print Tape (today's reported scoreboard) ──────────────────── */
 
@@ -3192,12 +3181,12 @@
   background: var(--ut-gold-dim); padding: 12px 14px; margin-bottom: 14px;
 }
 .printTapeHd {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
-  text-transform: uppercase; color: var(--cal-gold); margin-bottom: 10px;
+  font-size: var(--text-sm); font-weight: 800; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--ut-gold); margin-bottom: 10px;
 }
 .printTapeCap {
-  font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
-  text-transform: none; color: var(--cal-muted); margin-left: 6px;
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.2px;
+  text-transform: none; color: var(--text-muted); margin-left: 6px;
 }
 .printTapeRows {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -3209,10 +3198,10 @@
   transition: background 0.1s;
 }
 .printRow:hover { background: var(--bg-hover); }
-.printSym { font-size: 13px; font-weight: 800; color: var(--cal-txt); flex: 0 0 auto; }
-.printBeat, .printMiss { font-size: 10px; font-weight: 800; letter-spacing: 0.3px; flex: 0 0 auto; }
-.printBeat { color: var(--cal-green); }
-.printMiss { color: var(--cal-red); }
+.printSym { font-size: var(--text-md); font-weight: 800; color: var(--text-bright); flex: 0 0 auto; }
+.printBeat, .printMiss { font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.3px; flex: 0 0 auto; }
+.printBeat { color: var(--gain); }
+.printMiss { color: var(--loss); }
 
 @media (max-width: 640px) {
   .brief { margin: 0 12px 4px; padding: 10px 12px; }
@@ -3226,18 +3215,18 @@
 /* ── Phase 4 — lifecycle REPORTING chip (today, in-window, gold pulse) ───── */
 .reportingChip {
   align-self: flex-start;
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.6px;
   color: var(--bg);
-  background: var(--cal-gold);
+  background: var(--ut-gold);
   border-radius: 5px;
   padding: 2px 7px;
   animation: calReporting 1.3s ease-in-out infinite;
 }
 @keyframes calReporting {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
-  50%      { box-shadow: 0 0 0 4px rgba(220, 187, 94, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 50%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ut-gold) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
   .reportingChip { animation: none; }
@@ -3248,7 +3237,7 @@
 .dateMoved {
   display: inline-flex;
   align-items: center;
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.3px;
   color: var(--bg);
@@ -3274,6 +3263,12 @@
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
   .quickBar .searchInput {
-    min-height: var(--tap-min, 44px);
+    min-height: var(--tap-min);
   }
 }
+
+/* Inline chevron icon beside a text label (was a text triangle glyph). */
+.chevInline { display: inline-flex; vertical-align: middle; }
+
+/* Error-boundary fallback under the calendar (was an inline style). */
+.boundaryNote { color: var(--text-muted); font-size: var(--text-sm); padding: var(--space-md); }

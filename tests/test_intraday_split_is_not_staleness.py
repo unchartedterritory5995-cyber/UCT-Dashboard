@@ -68,3 +68,23 @@ def test_control_a_series_that_STOPPED_is_what_the_floor_catches(chain, monkeypa
         "GONE", "30", 60,
         expected_session=bars_fetch._payload_last_session_yyyymmdd(_fresh_series(30, 2.0)))
     assert chain and chain[0] == "fmp"
+
+
+
+@pytest.mark.parametrize("adjusted", [True, False], ids=["vendor-adjusted", "unadjusted-cliff"])
+def test_the_intraday_split_detector_sees_what_the_staleness_floor_cannot(adjusted):
+    """TERM-055 remainder. The same payload shape the chain serves as-is (the cliff passes
+    validation, above): the intraday detector (`bars_sanitize.intraday_unadjusted_splits`)
+    reports the unadjusted cliff at its session and stays silent on the vendor-adjusted copy.
+    Re-anchored so the split bar opens 2026-06-02 ET: deterministic whatever the wall clock."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api.services import bars_sanitize
+    payload = _fresh_series(30, 2.0, adjusted=adjusted)
+    anchor = int(datetime(2026, 6, 2, tzinfo=ZoneInfo("America/New_York")).timestamp())
+    shift = anchor - payload[30]["t"]
+    for b in payload:
+        b["t"] += shift
+    assert [s["t"] for s in bars_sanitize.session_closes(payload)] == ["2026-06-01", "2026-06-02"]
+    got = bars_sanitize.intraday_unadjusted_splits(payload, [("2026-06-02", 2.0)])
+    assert [g[0].isoformat() for g in got] == ([] if adjusted else ["2026-06-02"])

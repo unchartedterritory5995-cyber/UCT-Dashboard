@@ -156,9 +156,14 @@ def catalysts_history(sym: str = Path(...), user=Depends(require_paid)):
     G CP1). An empty `entries` list is a genuine, honest answer, never an
     error: most tickers have never surfaced a catalyst."""
     sym = sym.upper().strip()
-    if not sym or not sym.isalpha() or len(sym) > 6:
+    if not sym or not _EXPLAIN_SYM_RE.match(sym):
         raise HTTPException(400, "invalid ticker")
     entries = store.history_for_ticker(sym)
+    # A dual-class name may have been recorded under the other spelling.
+    alt = sym.replace("-", ".") if "-" in sym else sym.replace(".", "-")
+    if alt != sym:
+        entries = sorted(entries + store.history_for_ticker(alt),
+                         key=lambda r: str(r.get("market_date") or ""), reverse=True)[:50]
     return {"ticker": sym, "entries": entries}
 
 
@@ -212,16 +217,78 @@ EXPLAIN_VERDICTS = (
 )
 
 
+# A ticker, with an optional class suffix: BRK.B / BRK-B / BF.A. The old
+# `isalpha()` check refused every dual-class name with a 400.
+_EXPLAIN_SYM_RE = re.compile(r"^[A-Z]{1,6}(?:[.\-][A-Z]{1,2})?$")
+
+
+def _norm_sym(t) -> str:
+    """One spelling for comparison: upper-case, class separator as '.'. The
+    sources do not agree on BRK.B vs BRK-B, so every match goes through this."""
+    return str(t or "").upper().strip().replace("-", ".")
+
+
 def _todays_list_rank(sym: str, market_date: str):
     """The rank `sym` holds on the list the tile renders (the persisted rows,
     rank IS NOT NULL), or None. The SAME record the member is looking at, so
-    "on the list" is never re-derived from a second pass. Never raises."""
-    try:
-        row = store.get_ticker_for_date(sym, market_date)
-    except Exception:
-        logger.debug("[catalysts] explain: list lookup failed for %s", sym)
-        return None
-    return (row or {}).get("rank")
+    "on the list" is never re-derived from a second pass. Never raises.
+    A dual-class name is looked up under both spellings."""
+    spellings = [sym]
+    for alt in (sym.replace("-", "."), sym.replace(".", "-")):
+        if alt not in spellings:
+            spellings.append(alt)
+    for s in spellings:
+        try:
+            row = store.get_ticker_for_date(s, market_date)
+        except Exception:
+            logger.debug("[catalysts] explain: list lookup failed for %s", s)
+            continue
+        rank = (row or {}).get("rank")
+        if rank is not None:
+            return rank
+    return None
+
+
+# L7: the explain check runs the FULL source pull (eight sources, Perplexity
+# among them) — measured 6-26 s a request. Its answer is cached per
+# (symbol, market date) for EXPLAIN_TTL_SECONDS, and concurrent misses for the
+# same key wait on ONE computation (single-flight) instead of each pulling.
+# Only the live list rank is re-read per request (a cheap store lookup), so a
+# name that joins the list inside the window still reads `on_list` at once.
+EXPLAIN_TTL_SECONDS = 600
+_EXPLAIN_CACHE_MAX = 500
+_explain_lock = threading.Lock()
+_explain_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+_explain_inflight: dict[tuple[str, str], threading.Lock] = {}
+
+
+def _explain_cached(sym: str, md: str) -> dict:
+    key = (sym, md)
+    with _explain_lock:
+        hit = _explain_cache.get(key)
+        if hit is not None and time.time() - hit[0] < EXPLAIN_TTL_SECONDS:
+            return hit[1]
+        flight = _explain_inflight.setdefault(key, threading.Lock())
+    with flight:
+        with _explain_lock:
+            hit = _explain_cache.get(key)
+            if hit is not None and time.time() - hit[0] < EXPLAIN_TTL_SECONDS:
+                return hit[1]
+        try:
+            res = dict(_explain_core(sym, md))    # a raise is not cached
+            res["checked_at"] = int(time.time())
+        finally:
+            with _explain_lock:
+                _explain_inflight.pop(key, None)
+        with _explain_lock:
+            now = time.time()
+            for k in [k for k, (t, _r) in _explain_cache.items()
+                      if k[1] != md or now - t >= EXPLAIN_TTL_SECONDS]:
+                _explain_cache.pop(k, None)
+            if len(_explain_cache) >= _EXPLAIN_CACHE_MAX:
+                _explain_cache.pop(min(_explain_cache, key=lambda k: _explain_cache[k][0]), None)
+            _explain_cache[key] = (now, res)
+        return res
 
 
 @router.get("/catalysts/explain/{sym}")
@@ -237,14 +304,30 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     `list_rank` (the persisted list the tile shows), `pool_size` (candidates
     this check pulled), `gate` + `gate_reason` on a gate exclusion, and `quota`
     ({tag, slots, rank_in_tag, in_tag}) whenever the mechanical selector ran.
+
+    Cached per (symbol, market date) for EXPLAIN_TTL_SECONDS with single-flight;
+    `checked_at` says when the pull behind this answer ran.
     """
     sym = sym.upper().strip()
-    if not sym or not sym.isalpha() or len(sym) > 6:
+    if not sym or not _EXPLAIN_SYM_RE.match(sym):
         raise HTTPException(400, "invalid ticker")
 
     md = _today()
+    out = dict(_explain_cached(_norm_sym(sym), md))
+    out["ticker"] = sym
     list_rank = _todays_list_rank(sym, md)
-    listed = list_rank is not None
+    out["list_rank"] = list_rank
+    if list_rank is not None:
+        out["verdict"] = "on_list"
+    return out
+
+
+def _explain_core(sym: str, md: str) -> dict:
+    """The uncached check for `sym` (already normalised), with the list rank
+    left to the caller: the verdict here is the one for a name NOT on the
+    persisted list, and the route overlays `on_list` from a live lookup."""
+    list_rank = None
+    listed = False
 
     from api.services.catalyst import sources, scoring, tagging, filters
     candidates = sources.collect_all()
@@ -252,7 +335,7 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
 
     # Find our ticker first — so we can report a quality-gate exclusion before
     # scoring (excluded candidates never get tagged/scored in the real engine).
-    me = next((c for c in candidates if c.get("ticker") == sym), None)
+    me = next((c for c in candidates if _norm_sym(c.get("ticker")) == sym), None)
     if me is None:
         return {
             "ticker": sym,
@@ -313,13 +396,16 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     # Where does my score rank among scored candidates?
     scored_sorted = sorted(scored, key=lambda c: c.get("score", 0), reverse=True)
     my_rank = next((i + 1 for i, c in enumerate(scored_sorted)
-                    if c.get("ticker") == sym), None)
+                    if _norm_sym(c.get("ticker")) == sym), None)
 
     # Curator verdict (how the swing-trader/news-desk judgment layer ranked or
     # cut this name in today's run). None when the curator is off or the name
     # wasn't in the last curated pool.
     from api.services.catalyst import curator as _curator
-    curator_verdict = _curator.get_curation(md).get(sym)
+    _curation = _curator.get_curation(md)
+    curator_verdict = _curation.get(me.get("ticker"))
+    if curator_verdict is None:
+        curator_verdict = _curation.get(sym)
 
     # TERM-057: the cause, named. Precedence runs from the list the member sees,
     # to a cut made by name, to the absence of a tag, to the selector itself.
@@ -338,10 +424,10 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     else:
         # The SAME selector the engine falls back to, over the same pool.
         from api.services.catalyst import selection
-        picked = {c.get("ticker") for c in selection.select_top_12(scored)}
+        picked = {_norm_sym(c.get("ticker")) for c in selection.select_top_12(scored)}
         same_tag = [c for c in scored_sorted if c.get("tag") == tag]
         rank_in_tag = next((i + 1 for i, c in enumerate(same_tag)
-                            if c.get("ticker") == sym), None)
+                            if _norm_sym(c.get("ticker")) == sym), None)
         slots = selection.quota_for(tag)
         quota = {"tag": tag, "slots": slots, "rank_in_tag": rank_in_tag,
                  "in_tag": len(same_tag)}

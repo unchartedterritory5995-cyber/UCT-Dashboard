@@ -30,7 +30,7 @@ function renderTweetText(text) {
 }
 
 export default function TapeFeed({ data: propData }) {
-  const { data: fetched } = useTweetFeed({ hours: 12, limit: 50 })
+  const { data: fetched, error: fetchError } = useTweetFeed({ hours: 12, limit: 50 })
 
   // Twitter UI disabled → preserve the original headline news feed.
   if (!UI_ENABLED) return <NewsFeed />
@@ -39,7 +39,9 @@ export default function TapeFeed({ data: propData }) {
 
   return (
     <TileCard icon="wire" title="News">
-      {tweets == null ? (
+      {tweets == null && propData === undefined && fetchError ? (
+        <p className={styles.empty} role="status">The tape couldn&apos;t be read right now. That is not the same as no tweets.</p>
+      ) : tweets == null ? (
         <SkeletonTileContent lines={5} />
       ) : tweets.length === 0 ? (
         <p className={styles.empty}>Nothing on the tape yet</p>

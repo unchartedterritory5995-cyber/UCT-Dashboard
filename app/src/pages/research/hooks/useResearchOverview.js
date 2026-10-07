@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useLivePrices from '../../../hooks/useLivePrices'
+import { fetchWithWarmRetry } from '../../../utils/warmRetry'
 
 // TERM-088 -- the Overview tab (DES) composes four independent reads. A
 // failed read on any of them is not an empty card; see useDecisionRecord.js
@@ -8,7 +9,7 @@ import useLivePrices from '../../../hooks/useLivePrices'
 // non-2xx into null.
 export async function fetchResearchOverviewPart(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await fetchWithWarmRetry(url, { credentials: 'include' })
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {
@@ -57,7 +58,12 @@ export default function useResearchOverview(rawSym, { header = true } = {}) {
     analyst: (analyst && analyst.ok ? analyst.body : null) || {},
     ai: (ai && ai.ok ? ai.body : null) || {},
     live: live || {},
-    error: Boolean((meta && !meta.ok) || (stats && !stats.ok) || (analyst && !analyst.ok) || (ai && !ai.ok)),
+    // tq-panels: `/api/earnings/intel/{sym}` answers 404 when the vendor holds no
+    // consensus/target record for the name. That is "no earnings record", not an
+    // outage -- it must not raise the "couldn't load" banner.
+    analystMissing: Boolean(analyst && !analyst.ok && analyst.httpStatus === 404),
+    error: Boolean((meta && !meta.ok) || (stats && !stats.ok)
+      || (analyst && !analyst.ok && analyst.httpStatus !== 404) || (ai && !ai.ok)),
     mutate,
   }), [sym, meta, stats, analyst, ai, live, mutate])
 }

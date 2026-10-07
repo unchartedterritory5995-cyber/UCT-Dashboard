@@ -41,6 +41,8 @@ import useEconomicCatalog from '../engine/useEconomicCatalog'
 // the diff unreviewable — it moves in Phase C.
 import styles from '../../../pages/charts/ChartsWorkspace.module.css'
 
+import { STUDIO_DOCK_W_MAX, STUDIO_DOCK_W_MIN, STUDIO_DOCK_MIN_CHART_W, studioDockWidth } from './studioDock'
+
 // Letters only, no modifier combos. Period allowed for class-share tickers
 // (BRK.B). Digits are deliberately EXCLUDED — they are timeframe shortcuts,
 // and no US ticker starts with a digit. Once the search box has focus it
@@ -112,6 +114,9 @@ function ChartPane({
   onSymbolChange = null,
   onTfChange = null,
   density = 'full',
+  // Host features for the settings modal's Indicators tab (a ChartWidget's
+  // Earnings Strip / Company Info). Passed straight through; null elsewhere.
+  chartFeatures = null,
   stored = null,
   onStore = null,
   chartId = null,
@@ -362,6 +367,19 @@ function ChartPane({
   // that keeps paneWidth current is wired in an effect further down.)
   const paneRef = useRef(null)
   const [paneWidth, setPaneWidth] = useState(null)
+  // ⭐ P2 Track B — Create Indicator's RIGHT WORKSPACE DOCK (owner review
+  // 2026-10-06). THIS pane is the seam: it owns the whole chart section — identity
+  // row, timeframe/meta bar, drawing toolbar, canvas, both scales, the range bar —
+  // so making room HERE moves all of it together, and nothing above it (the
+  // widget header, the app rail) moves at all. The primary toolbar portals the
+  // panel into `studioDockHost`; the panel reports open/closed (`studioOpen`) from
+  // a layout effect, so the reflow lands in the same paint as the dock.
+  // ⚠️ `paneOuterWidth` is the BORDER box: `paneWidth` is the content box and
+  // shrinks by the dock's width once docked, so judging "room to dock" by it would
+  // dock → shrink → undock → grow, forever.
+  const [paneOuterWidth, setPaneOuterWidth] = useState(null)
+  const [studioDockHost, setStudioDockHost] = useState(null)
+  const [studioOpen, setStudioOpen] = useState(false)
   // Timeframe/info collision measurement. The TF bar and the info row share one
   // flex-wrap row; when they don't fit on one line it WRAPS (info + holdings drop
   // to their own lines, stealing chart height). A width threshold can't see the
@@ -591,6 +609,13 @@ function ChartPane({
     setSettingsOpen(false)
     try { paneToolbarApi.current?.openFormulaBuilder?.() } catch { /* noop */ }
   }, [])
+  /** Chart Settings → Indicators → "+ Create Indicator" (P2 Track B). The modal
+   *  closes first — the studio docks beside the chart, and two surfaces holding
+   *  Escape would be the same hazard `openFormulaBuilder` describes. */
+  const openCreateIndicator = useCallback(() => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
+  }, [])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {
     try {
@@ -630,10 +655,16 @@ function ChartPane({
     const el = paneRef.current
     if (!el || typeof ResizeObserver === 'undefined') return undefined
     const apply = (w) => setPaneWidth((prev) => (prev != null && Math.abs(prev - w) < 2 ? prev : Math.round(w)))
+    const applyOuter = () => {
+      const w = Math.round(el.getBoundingClientRect().width)
+      setPaneOuterWidth((prev) => (prev != null && Math.abs(prev - w) < 2 ? prev : w))
+    }
     apply(el.getBoundingClientRect().width)
+    applyOuter()
     const ro = new ResizeObserver((entries) => {
       const cr = entries[0]?.contentRect
       if (cr) apply(cr.width)
+      applyOuter()
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -735,8 +766,18 @@ function ChartPane({
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
   }), [openSettings, updateChartSettings, handleSymbolChange])
 
+  // Docked = the chart section gives up `studioDockW` on the right. Below
+  // STUDIO_DOCK_W_MIN + STUDIO_DOCK_MIN_CHART_W the chart would be a sliver, so the
+  // dock OVERLAYS the right edge instead (the narrow fallback) — still no backdrop.
+  const studioDockW = studioDockWidth(paneOuterWidth)
+  const studioDocked = studioOpen && (paneOuterWidth == null || paneOuterWidth >= STUDIO_DOCK_W_MIN + STUDIO_DOCK_MIN_CHART_W)
+  const paneClass = styles.chartWidget
+    + (studioOpen ? ` ${styles.studioOpen}` : '')
+    + (studioDocked ? ` ${styles.studioDocked}` : '')
+
   return (
-    <div ref={paneRef} className={styles.chartWidget} onPointerEnter={onActivate} onFocusCapture={onActivate}>
+    <div ref={paneRef} className={paneClass} onPointerEnter={onActivate} onFocusCapture={onActivate}
+      style={studioOpen ? { '--studio-dock-w': `${studioDocked ? studioDockW : STUDIO_DOCK_W_MAX}px` } : undefined}>
       {slots?.top}
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
@@ -852,6 +893,8 @@ function ChartPane({
       >
         <StockChart
           sym={sym}
+          studioDockHost={studioDockHost}
+          onStudioDockChange={setStudioOpen}
           tf={(isBreadth || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
           /* The old drawing-toolbar compare entry is retired — comparisons are
              managed by the /charts Tools → Compare Symbols panel now (rendering via
@@ -1058,7 +1101,14 @@ function ChartPane({
            (absent prop ⇒ absent door), and this is the handler that reaches the
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
+        onCreateIndicator={openCreateIndicator}
+        chartFeatures={chartFeatures}
       />
+      {/* The Create Indicator dock host. Always mounted (so the panel can portal
+          into it the moment it opens) and `display: none` while empty, so a closed
+          pane is exactly what it was. */}
+      <div ref={setStudioDockHost} className={styles.studioDock}
+        data-studio-dock={studioDocked ? 'dock' : (studioOpen ? 'overlay' : 'closed')} />
     </div>
   )
 }

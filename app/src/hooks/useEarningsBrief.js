@@ -11,8 +11,12 @@
 // meanwhile.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import useMobileSWR from './useMobileSWR'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher), so a failed poll keeps the last good answer
+// instead of replacing it with null. A failed first read still reaches BriefSection as
+// `data: null` (below), which it renders as "Brief unavailable" with a Retry. 402 stays null.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 // The poll is a NUMERIC interval flipped from state in an effect (the
 // ProfileWidget pattern). SWR's function-form refreshInterval is read once in

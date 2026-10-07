@@ -172,7 +172,13 @@ describe('compactCap — string pass-through, phantom zero', () => {
 })
 
 describe('compactVol — phantom zero', () => {
-  it('renders 0K for genuine zero volume', () => { expect(compactVol(0)).toBe('0K') })
+  // Terminal compact ladder (round 2): under 1,000 is a whole number, so a
+  // genuine zero reads "0" — still a number, never the em dash.
+  it('renders 0 for genuine zero volume', () => { expect(compactVol(0)).toBe('0') })
+  it('uses the terminal ladder (M one decimal, K none)', () => {
+    expect(compactVol(245_000_000)).toBe('245.0M')
+    expect(compactVol(512_300)).toBe('512K')
+  })
   it('renders an em dash for missing volume', () => { expect(compactVol(null)).toBe('—') })
 })
 

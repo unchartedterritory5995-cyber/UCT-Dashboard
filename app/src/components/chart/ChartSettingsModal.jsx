@@ -268,6 +268,9 @@ const SETTINGS_TARGET_TAB = {
   axis: 'canvas',
   ma: 'indicators',
   volume: 'indicators',
+  // The chart header's "Add to Chart" control: Indicators, already in the add
+  // surface (ChartSettingsIndicators `openAdd`).
+  add: 'indicators',
 }
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
@@ -305,6 +308,9 @@ export default function ChartSettingsModal({
   // The timeframe the chart this modal belongs to is ON — handed to Indicators so
   // it can SAY when a calculation timeframe cannot draw here. Absent on the grid.
   chartTf = null,
+  // Host features (Earnings Strip, Company Info) for the Indicators tab — see
+  // ChartSettingsIndicators' `chartFeatures`. Absent everywhere but /charts.
+  chartFeatures = null,
   onAdjustWatermark = null,
   onResetWatermark = null,
   watermarkCustomized = false,
@@ -328,6 +334,8 @@ export default function ChartSettingsModal({
   // A surface with no way to reach a builder shows no New Formula button rather
   // than one that does nothing.
   onCreateFormula = null,
+  // ⭐ P2 Track B — Create Indicator's door; passed through to the Indicators tab.
+  onCreateIndicator = null,
 }) {
   const panelRef = useRef(null)
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
@@ -1267,6 +1275,7 @@ export default function ChartSettingsModal({
             colorSwatch={colorSwatch}
             volumeRef={volumeRef}
             onCreateFormula={onCreateFormula}
+            onCreateIndicator={onCreateIndicator}
             /* Subscribed up here, for the reason written beside the hooks: this
                component builds `indRows`, so it is the one that has to re-render
                when a member's formulas install. Handing the two results down is
@@ -1279,6 +1288,8 @@ export default function ChartSettingsModal({
                rather than a click plus a hunt down a list. */
             openRowId={indTargetRow(scrollTo)}
             chartTf={chartTf}
+            chartFeatures={chartFeatures}
+            openAdd={scrollTo === 'add'}
           />
           )}
 

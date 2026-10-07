@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import MarketTidePanel, { money, tidePaths } from './MarketTidePanel'
+import MarketTidePanel, { money, tidePaths, todayEt } from './MarketTidePanel'
 
 // The payload is the shape api/services/options_analytics/market_tide.py returns for
 // tests/fixtures/options_analytics/tape_*.csv (tests/test_options_market_tide.py hand-computes it).
@@ -54,6 +54,23 @@ describe('MarketTidePanel (FT-056)', () => {
     expect(screen.getByTestId('market-tide-partial').textContent).toContain('no readable time')
     expect(screen.getByText('computed')).toBeTruthy()
     expect(screen.getByTestId('market-tide-chart')).toBeTruthy()
+    expect(screen.getByTestId('market-tide-legend').textContent).toMatch(/Net call premium.*Net put premium.*Zero/)
+  })
+
+  it('live audit: a past session says plainly it is not today; today\'s session says nothing extra', async () => {
+    vi.stubGlobal('fetch', vi.fn((u) => { calls.push(u); return respond(200, PAYLOAD) }))   // 2026-10-02
+    const { unmount } = mount()
+    expect((await screen.findByTestId('market-tide-old-session')).textContent)
+      .toContain('This is the 2026-10-02 session, not today')
+    unmount()
+    vi.stubGlobal('fetch', vi.fn(() => respond(200, { ...PAYLOAD, session: todayEt() })))
+    mount()
+    await screen.findByTestId('market-tide-totals')
+    expect(screen.queryByTestId('market-tide-old-session')).toBeNull()
+  })
+
+  it('todayEt() is the New York date, not the UTC one', () => {
+    expect(todayEt(new Date('2026-10-06T02:30:00Z'))).toBe('2026-10-05')   // 22:30 ET on the 5th
   })
 
   it('a failed request says so, never an empty tide', async () => {

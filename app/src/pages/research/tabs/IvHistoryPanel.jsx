@@ -1,7 +1,10 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { fractionPct } from '../researchFormat'
 import styles from './OptionsChainTab.module.css'
 import OffNotice from '../../optionsAnalytics/OffNotice'
+import { num as optNum } from '../../optionsAnalytics/optionsFormat'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // RM-L01 (IV-history half) + RM-L02 (BRK-10 first slice): IV history read ONLY from our own
 // options log (api/services/research/iv_history.py). Massive sells no IV history, so this is
@@ -14,8 +17,8 @@ import OffNotice from '../../optionsAnalytics/OffNotice'
 // ⛔ Polling: none. The log grows once a trading day; bare useSWR with no refreshInterval.
 
 const KNOWN = new Set(['ok', 'not_in_log', 'no_log'])
-const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
-const num = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d))
+const pct = (v, d = 1) => fractionPct(v, d)
+const num = (v, d = 1) => optNum(v, d)
 
 function Spark({ points }) {
   const ivs = points.map((p) => p.atm_iv)
@@ -75,6 +78,8 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
   const { data, error } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
 
   if (key && error?.status === 404 && offNotice) return <OffNotice urls={[key]} feature="IV history" />
+  if (offNotice && data?.paywalled) return <div className={styles.note} data-testid="feature-paywalled">IV history requires a paid plan.</div>
+  if (offNotice && key && !data && !error) return <div className={styles.note} data-testid="feature-loading">Loading IV history for {s}…</div>
   if (!key || error?.status === 404 || data?.paywalled) return null
   if (error) {
     return <div className={styles.note} data-testid="iv-history-unavailable">
@@ -115,7 +120,7 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
         {data.partial && (data.partial_reasons || []).length > 0 ? ` Partial: ${data.partial_reasons.join(' ')}` : ''}
       </p>
       {data.status !== 'no_log' && <ImpliedVsRealized sym={s} />}
-      <p className={styles.muted}>{data.method} Source: {data.source}.</p>
+      <p className={styles.muted}>{data.method} Source: {memberText(data.source)}.</p>
     </section>
   )
 }

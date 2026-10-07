@@ -11,6 +11,9 @@ import styles from './CustomizePanel.module.css'
 import UIcon from '../../components/ui/UIcon'
 import { DEFAULT_PRESET, validatePresetName } from './useBreadthViews'
 import { DISMISS_ZONE } from './customizeAnchor'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Checkbox from '../../components/ui/Checkbox'
 
 function groupMetrics(metrics) {
   const seen = new Map()
@@ -120,10 +123,10 @@ export default function BreadthViewsCustomizePanel({
       </div>
 
       <div className={styles.presetRow}>
-        <select className={styles.presetSelect} value={activePreset}
+        <Select className={styles.presetSelect} value={activePreset}
                 onChange={(e) => onSwitchPreset(e.target.value)} aria-label="Active preset">
           {presetNames.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
+        </Select>
         <div className={styles.presetActions}>
           <button className={styles.smallBtn}
                   onClick={() => { setMode('saveAs'); setDraftName(''); setError(null) }}
@@ -140,7 +143,7 @@ export default function BreadthViewsCustomizePanel({
       {mode === 'saveAs' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Save current {viewLabel} as:</div>
-          <input aria-label="New preset name" ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. Tight"
+          <Input aria-label="New preset name" ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. Tight"
                  onChange={(e) => { setDraftName(e.target.value); setError(null) }}
                  onKeyDown={(e) => { if (e.key === 'Enter') submitSaveAs() }} maxLength={60} />
           {error && <div className={styles.errorMsg}>{error}</div>}
@@ -153,7 +156,7 @@ export default function BreadthViewsCustomizePanel({
       {mode === 'rename' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Rename "{activePreset}" to:</div>
-          <input aria-label="New name" ref={inputRef} className={styles.inlineInput} value={draftName}
+          <Input aria-label="New name" ref={inputRef} className={styles.inlineInput} value={draftName}
                  onChange={(e) => { setDraftName(e.target.value); setError(null) }}
                  onKeyDown={(e) => { if (e.key === 'Enter') submitRename() }} maxLength={60} />
           {error && <div className={styles.errorMsg}>{error}</div>}
@@ -175,7 +178,7 @@ export default function BreadthViewsCustomizePanel({
       {mode === 'savePromptFromDefault' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Default cannot be edited. Save changes as a new preset:</div>
-          <input aria-label="New preset name" ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. My View"
+          <Input aria-label="New preset name" ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. My View"
                  onChange={(e) => { setDraftName(e.target.value); setError(null) }}
                  onKeyDown={(e) => { if (e.key === 'Enter') submitSaveFromDefault() }} maxLength={60} />
           {error && <div className={styles.errorMsg}>{error}</div>}
@@ -187,16 +190,16 @@ export default function BreadthViewsCustomizePanel({
       )}
 
       {optionsSchema.length > 0 && (
-        <div className={styles.body} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className={styles.body} style={{ borderBottom: '1px solid color-mix(in srgb, var(--text-heading) 6%, transparent)' }}>
           <div className={styles.section}>
             <div className={styles.sectionHeader}>View options</div>
             {optionsSchema.map(opt => (
               <label key={opt.name} className={styles.checkRow} style={{ justifyContent: 'space-between' }}>
                 <span className={styles.checkLabel}>{opt.label}</span>
-                <select aria-label={opt.label} value={String(options[opt.name])}
+                <Select aria-label={opt.label} value={String(options[opt.name])}
                         onChange={(e) => guardDefault(() => onSetOption(opt.name, coerceOptionValue(opt, e.target.value)))}>
                   {opt.choices.map(c => <option key={String(c.value)} value={String(c.value)}>{c.label}</option>)}
-                </select>
+                </Select>
               </label>
             ))}
           </div>
@@ -210,7 +213,7 @@ export default function BreadthViewsCustomizePanel({
               <div className={styles.sectionHeader}>{group}</div>
               {list.map(col => (
                 <label key={col.key} className={styles.checkRow}>
-                  <input type="checkbox" className={styles.checkbox} checked={visibleKeys.has(col.key)}
+                  <Checkbox className={styles.checkbox} checked={visibleKeys.has(col.key)}
                          onChange={() => guardDefault(() => onToggleVisible(col.key))} />
                   <span className={styles.checkLabel}>{col.label}</span>
                 </label>

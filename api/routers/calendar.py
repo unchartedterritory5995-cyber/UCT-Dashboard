@@ -2024,7 +2024,9 @@ def get_month_calendar(year: int = 0, month: int = 0):
                 days[ds] = bucket
         monday += timedelta(days=7)
 
-    result = {"month": f"{year:04d}-{month:02d}", "days": days}
+    # `degraded` is said to the client (quality pass 2026-10-05): a week a provider failed to
+    # answer contributes no reporters, and a grid with holes in it read as a quiet month.
+    result = {"month": f"{year:04d}-{month:02d}", "days": days, "degraded": degraded}
     # A degraded assembly must self-heal on the WEEK caches' 120s clock — a
     # 30-min empty month while the Week view heals in 2 minutes would be the
     # Month-contradicts-Week bug wearing a new hat.
@@ -2719,11 +2721,19 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> dict | No
 # ── IPO calendar endpoint ──────────────────────────────────────────────────────
 
 from api.services.ipo_calendar import get_ipos as _get_ipos  # noqa: E402
+from api.services.ipo_calendar import read_failed as _ipo_read_failed  # noqa: E402
+
+# Quality pass 2026-10-05: an empty IPO / dividend answer used to be the same bytes whether
+# the providers said "none" or failed to answer, so the calendar's chips vanished silently on
+# a failed read. The body keeps its shape (a list -- every consumer reads it so); the label
+# rides this header: "failed" (nothing could be read) or "partial" (some symbols unread).
+READ_STATUS_HEADER = "X-Calendar-Read"
 from fastapi import Query as _Query  # noqa: E402
 
 
 @router.get("/api/calendar/ipos")
 def get_calendar_ipos(
+    response: Response,
     from_: str | None = _Query(default=None, alias="from"),
     to:    str | None = _Query(default=None, alias="to"),
 ):
@@ -2747,16 +2757,21 @@ def get_calendar_ipos(
     if to_date is None:
         from_dt = date.fromisoformat(from_date)
         to_date = (from_dt + timedelta(days=4)).strftime("%Y-%m-%d")
-    return _get_ipos(from_date, to_date)
+    rows = _get_ipos(from_date, to_date)
+    if not rows and _ipo_read_failed(from_date, to_date):
+        response.headers[READ_STATUS_HEADER] = "failed"
+    return rows
 
 
 # ── Dividends / splits forward calendar endpoint ──────────────────────────────
 
 from api.services.dividends_calendar import get_events as _get_div_events  # noqa: E402
+from api.services.dividends_calendar import read_partial as _div_read_partial  # noqa: E402
 
 
 @router.get("/api/calendar/dividends")
 def get_calendar_dividends(
+    response: Response,
     syms: str | None = None,
     user: dict = Depends(require_paid),
 ):
@@ -2777,7 +2792,10 @@ def get_calendar_dividends(
         sets = _cp.get_user_ticker_sets(user["id"])
         sym_list = sorted(sets.get("all_mine", set()))
 
-    return _get_div_events(sym_list)
+    rows = _get_div_events(sym_list)
+    if _div_read_partial(sym_list):
+        response.headers[READ_STATUS_HEADER] = "failed" if not rows else "partial"
+    return rows
 
 
 @router.post("/api/calendar/refresh")

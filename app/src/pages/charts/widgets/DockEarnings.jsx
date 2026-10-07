@@ -38,8 +38,14 @@ import {
 import Spark from './Spark'
 import EarningsReaction from './EarningsReaction'
 import styles from './dockPanels.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which the
+// table rendered as "No earnings history is available for {sym}": the NVDA-shaped lie, a
+// claim about the company made out of a 502. The earnings read now has its own error state
+// with a Retry. The filing links in a row's expansion are an optional enrichment: on a
+// failure they are simply absent (no claim that none exist). A 402 stays an absent answer.
+const jsonFetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const MODES = [
   { key: 'quarterly', label: 'Quarterly' },
@@ -237,7 +243,7 @@ export default function DockEarnings({ sym }) {
   const bodyRef = useRef(null)
   const moreRef = useRef(null)
 
-  const { data: intel, isLoading } = useSWR(
+  const { data: intel, isLoading, error: intelError, mutate: retryIntel } = useSWR(
     sym ? `/api/earnings-intel/${encodeURIComponent(sym)}` : null,
     jsonFetcher, { revalidateOnFocus: false, dedupingInterval: 300000 })
 
@@ -296,7 +302,9 @@ export default function DockEarnings({ sym }) {
 
   if (!sym) return <div className={styles.emptyState}>No symbol.</div>
 
-  const empty = !isLoading && rows.length === 0
+  // A failed read with no earlier answer. SWR keeps a good answer through a failed refresh.
+  const failed = Boolean(intelError) && !intel
+  const empty = !isLoading && !failed && rows.length === 0
 
   return (
     <div className={styles.earn}>
@@ -336,6 +344,12 @@ export default function DockEarnings({ sym }) {
           {isLoading && !intel ? (
             <div className={styles.finSkeleton} aria-label="Loading earnings">
               {Array.from({ length: 10 }).map((_, i) => <div key={i} className={styles.finSkelRow} />)}
+            </div>
+          ) : failed ? (
+            <div className={styles.emptyState} role="alert">
+              Earnings could not be loaded for {sym}.
+              <button type="button" className={styles.nwRetry}
+                      onClick={() => retryIntel()}>Retry</button>
             </div>
           ) : empty ? (
             <div className={styles.emptyState}>

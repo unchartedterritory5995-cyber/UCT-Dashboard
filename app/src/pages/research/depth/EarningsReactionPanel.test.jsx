@@ -62,7 +62,7 @@ describe('EarningsReactionPanel', () => {
   })
 
   it('a pending earnings history says so', async () => {
-    body = { state: 'pending', reason: 'the earnings history is being read; reopen in a minute' }
+    body = { state: 'pending', reason: 'the earnings history is being read; this panel fills in by itself' }
     renderTab()
     expect((await screen.findByTestId('earnings-reaction-state')).textContent).toMatch(/being read/)
   })

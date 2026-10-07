@@ -19,10 +19,13 @@ import { stickyColour } from './stickyColours'
 import { shouldSample } from './lttb'
 import { spanDays, tickBoundary, formatSessionTick, formatTooltipDate } from '../chartTicks'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
+import { withAlpha } from '../../../lib/theme/resolveThemeColor'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 /**
  * The chart's chrome inks. Canvas cannot read `var(--…)`, so the component resolves
- * the app's tokens at render (`BreadthChartsV2.jsx::readChrome`) and hands them in;
+ * the app's tokens at render (`BreadthChartsV2.jsx`, through `lib/theme`'s
+ * `useThemeInk`, re-resolved on every theme switch) and hands them in;
  * these are the fallbacks for a caller that does not (tests, jsdom), and they are the
  * dark-theme values the chart shipped with.
  */
@@ -34,6 +37,14 @@ export const DEFAULT_CHROME = Object.freeze({
   tooltipBg: 'rgba(24, 22, 18, 0.96)',
   tooltipBorder: 'rgba(139, 133, 120, 0.32)',
   accent: '#dcbb5e',
+  /** Follow-through-day rule — V1's violet, so the mark is recognisable across both. */
+  ftd: '#a78bfa',
+  /** "Reconstructed from bars" coverage tint (the info blue). */
+  info: '#60a5fa',
+  /** Canvas type sizes — the --text-xs / -sm / -base steps (px). */
+  xs: 10, sm: 11, base: 12,
+  /** MA Breadth extreme-rule inks, index-aligned with MA_EXTREME_LINES; null = as declared. */
+  extremeInks: null,
 })
 
 /** The same roles on the light theme (02-design §1 derived chrome: axis text that clears
@@ -46,10 +57,12 @@ export const LIGHT_CHROME = Object.freeze({
   tooltipBg: 'rgba(255, 255, 255, 0.98)',
   tooltipBorder: 'rgba(31, 35, 40, 0.14)',
   accent: '#7a5c16',
+  ftd: '#6d4fd1',
+  info: '#1f5d7a',
+  xs: 10, sm: 11, base: 12,
+  extremeInks: null,
 })
 
-/** Follow-through-day rule ink — V1's violet, so the mark is recognisable across both. */
-const FTD_INK = '#a78bfa'
 
 /** Families where a log axis is ever meaningful (02-design §4, Y axes). A bounded
  *  percentage, a ratio around 1, an oscillator or a signed net is never offered one. */
@@ -68,10 +81,15 @@ export const LOG_UNITS = new Set([UNIT.COUNT, UNIT.INDEX, UNIT.CUM])
 //: plot solid blue (production, 2026-09-19). The band is now drawn once per
 //: PANEL (`coverageMarks`' `withRuns`), so a lighter fill reads the same in every
 //: panel and the edge still carries the boundary.
-const NOT_RECORDED_FILL = 'rgba(139, 133, 120, 0.14)'
-const NOT_RECORDED_BORDER = 'rgba(139, 133, 120, 0.55)'
-const RECONSTRUCTED_FILL = 'rgba(96, 165, 250, 0.09)'
-const RECONSTRUCTED_BORDER = 'rgba(96, 165, 250, 0.55)'
+//: ⭐ Both are DERIVED from the chrome (the axis grey and the info blue) at fixed
+//: alphas, so they follow the member's theme; on the dark default they are exactly
+//: the rgba values first tuned here.
+const coverageInks = (chrome) => ({
+  notRecordedFill: withAlpha(chrome.axis, 0.14),
+  notRecordedBorder: withAlpha(chrome.axis, 0.55),
+  reconFill: withAlpha(chrome.info ?? DEFAULT_CHROME.info, 0.09),
+  reconBorder: withAlpha(chrome.info ?? DEFAULT_CHROME.info, 0.55),
+})
 
 /**
  * Can this panel take a log axis?
@@ -105,8 +123,8 @@ export function logEligibility(panel, valuesByKey) {
 /** Numbers as a reader wants them: thousands separated, two decimals only below 1,000. */
 export function formatValue(v) {
   if (v === null || v === undefined || typeof v !== 'number' || !Number.isFinite(v)) return '—'
-  if (Math.abs(v) >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  return Number.isInteger(v) ? String(v) : v.toFixed(2)
+  if (Math.abs(v) >= 1000) return formatNumber(v, { decimals: 0 })
+  return Number.isInteger(v) ? String(v) : formatNumber(v, { decimals: 2, grouping: false })
 }
 
 const escapeHtml = s => String(s)
@@ -131,11 +149,11 @@ export function tooltipHtml(params, { panels, panelOf, chrome = DEFAULT_CHROME }
     if (!byPanel.has(idx)) byPanel.set(idx, [])
     byPanel.get(idx).push(p)
   }
-  const head = `<div style="font-size:11px;color:${chrome.axis};margin-bottom:6px">`
+  const head = `<div style="font-size:var(--text-sm, 11px);color:${chrome.axis};margin-bottom:6px">`
     + `${escapeHtml(formatTooltipDate(String(date)))}</div>`
   const groups = [...byPanel.keys()].sort((a, b) => a - b).map(idx => {
     const title = panels.length > 1
-      ? `<div style="font-size:10px;color:${chrome.axis};margin:4px 0 2px">${escapeHtml(panels[idx]?.label ?? '')}</div>`
+      ? `<div style="font-size:var(--text-xs, 10px);color:${chrome.axis};margin:4px 0 2px">${escapeHtml(panels[idx]?.label ?? '')}</div>`
       : ''
     const rows = byPanel.get(idx).map(p => {
       const raw = Array.isArray(p.value) ? p.value[1] : p.value
@@ -215,7 +233,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
     // Only the LAST panel carries the date labels: repeating them between panels
     // wastes the vertical space the panels themselves need.
     axisLabel: i === panels.length - 1
-      ? { color: chrome.axis, fontSize: 11, hideOverlap: true, interval: boundary ?? 'auto', formatter: tick }
+      ? { color: chrome.axis, fontSize: chrome.sm ?? 11, hideOverlap: true, interval: boundary ?? 'auto', formatter: tick }
       : { show: false },
     axisPointer: {
       show: true,
@@ -237,8 +255,8 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
     name: UNIT_LABEL[p.unit] ?? p.unit,
     nameLocation: 'end',
     nameGap: 10,
-    nameTextStyle: { color: chrome.axis, fontSize: 10, align: 'right', padding: [0, 6, 0, 0] },
-    axisLabel: { color: chrome.axis, fontSize: 11, formatter: v => formatValue(v) },
+    nameTextStyle: { color: chrome.axis, fontSize: chrome.xs ?? 10, align: 'right', padding: [0, 6, 0, 0] },
+    axisLabel: { color: chrome.axis, fontSize: chrome.sm ?? 11, formatter: v => formatValue(v) },
     splitLine: { lineStyle: { color: chrome.grid } },
     axisLine: { show: false },
     axisTick: { show: false },
@@ -302,7 +320,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
       // Direct label at the series end. ⭐ At the END only, never a number on every
       // point: `dataviz` calls that out, and on 4,530 sessions it is unreadable anyway.
       endLabel: endLabels && last >= 0
-        ? { show: true, formatter: shortOf(key), color: chrome.label, fontSize: 11,
+        ? { show: true, formatter: shortOf(key), color: chrome.label, fontSize: chrome.sm ?? 11,
             distance: 6, valueAnimation: false }
         : { show: false },
       // ⛔⛔ TWO SERIES CONVERGING NEAR THE SAME VALUE STACK THEIR END LABELS ON TOP
@@ -317,7 +335,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
       // panel's coordinate space, not just within one series' own labels.
       labelLayout: { moveOverlap: 'shiftY' },
       emphasis: { focus: 'series' },
-      ...coverageMarks(coverage, key, dates, firstKeyOfPanel[panelIdx] === key),
+      ...coverageMarks(coverage, key, dates, firstKeyOfPanel[panelIdx] === key, chrome),
       ...(lines.length
         ? { markLine: { silent: true, symbol: ['none', 'none'], animation: false, data: lines } }
         : {}),
@@ -350,7 +368,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
       backgroundColor: chrome.tooltipBg,
       borderColor: chrome.tooltipBorder,
       padding: [8, 10],
-      textStyle: { color: chrome.label, fontSize: 12 },
+      textStyle: { color: chrome.label, fontSize: chrome.base ?? 12 },
       extraCssText: 'border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);',
       formatter: params => tooltipHtml(params, { panels, panelOf: indexOf, chrome }),
     },
@@ -361,14 +379,14 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
         type: 'slider', xAxisIndex: 'all', bottom: 12, height: 20,
         borderColor: chrome.grid,
         backgroundColor: 'transparent',
-        fillerColor: 'rgba(139, 133, 120, 0.12)',
+        fillerColor: withAlpha(chrome.axis, 0.12),
         dataBackground: { lineStyle: { color: chrome.axis, opacity: 0.35 }, areaStyle: { opacity: 0 } },
         selectedDataBackground: { lineStyle: { color: chrome.axis, opacity: 0.6 }, areaStyle: { opacity: 0 } },
         // The accent marks the thing you grab, not a band of chrome (02-design §4).
         handleStyle: { color: chrome.accent, borderColor: chrome.accent },
         moveHandleStyle: { color: chrome.grid, opacity: 0.6 },
         emphasis: { handleStyle: { color: chrome.accent } },
-        textStyle: { color: chrome.axis, fontSize: 10 },
+        textStyle: { color: chrome.axis, fontSize: chrome.xs ?? 10 },
         labelFormatter: (_v, str) => (str ? formatSessionTick(String(str), 0, true) : ''),
         brushSelect: false,
       }] : []),
@@ -396,17 +414,18 @@ function panelLines(panel, panelIdx, { refLines, extremes, live, ftd, dates, chr
     out.push({
       yAxis: l.at,
       lineStyle: { color: chrome.axis, type: 'dashed', width: 1, opacity: 0.55 },
-      label: { formatter: l.label, position: 'insideEndTop', color: chrome.axis, fontSize: 10 },
+      label: { formatter: l.label, position: 'insideEndTop', color: chrome.axis, fontSize: chrome.xs ?? 10 },
     })
   }
   if (extremes && panel.unit === UNIT.PCT) {
-    for (const l of MA_EXTREME_LINES) {
+    MA_EXTREME_LINES.forEach((l, i) => {
+      const color = chrome.extremeInks?.[i] ?? l.color
       out.push({
         yAxis: l.yAxis,
-        lineStyle: { color: l.color, width: 1, type: 'dashed', opacity: l.opacity },
-        label: { show: true, position: 'insideEndTop', formatter: String(l.yAxis), color: l.color, fontSize: 10, fontWeight: 600 },
+        lineStyle: { color, width: 1, type: 'dashed', opacity: l.opacity },
+        label: { show: true, position: 'insideEndTop', formatter: String(l.yAxis), color, fontSize: chrome.xs ?? 10, fontWeight: 600 },
       })
-    }
+    })
   }
   // Follow-through days: a dotted rule through EVERY panel (they date the market, not
   // one metric), labelled only on the top panel and only on the first of a cluster —
@@ -414,10 +433,10 @@ function panelLines(panel, panelIdx, { refLines, extremes, live, ftd, dates, chr
   for (const m of ftd ?? []) {
     out.push({
       xAxis: m.date,
-      lineStyle: { color: FTD_INK, type: 'dotted', width: 1, opacity: 0.8 },
+      lineStyle: { color: chrome.ftd ?? DEFAULT_CHROME.ftd, type: 'dotted', width: 1, opacity: 0.8 },
       label: panelIdx === 0 && m.label
         ? { show: true, formatter: 'FTD', position: 'insideEndTop', rotate: 0, align: 'left',
-            color: FTD_INK, fontSize: 10, fontWeight: 600 }
+            color: chrome.ftd ?? DEFAULT_CHROME.ftd, fontSize: chrome.xs ?? 10, fontWeight: 600 }
         : { show: false },
     })
   }
@@ -430,7 +449,7 @@ function panelLines(panel, panelIdx, { refLines, extremes, live, ftd, dates, chr
             show: true, formatter: `LIVE ${live.clock ?? ''}`.trim(), position: 'insideEndTop',
             // A vertical markLine's label follows the line (90°) and clips at the edge.
             rotate: 0, align: 'right', distance: [4, 2], color: chrome.accent,
-            fontSize: 10, fontWeight: 600, backgroundColor: chrome.tooltipBg, padding: [2, 5], borderRadius: 3,
+            fontSize: chrome.xs ?? 10, fontWeight: 600, backgroundColor: chrome.tooltipBg, padding: [2, 5], borderRadius: 3,
           }
         : { show: false },
     })
@@ -452,15 +471,16 @@ function panelLines(panel, panelIdx, { refLines, extremes, live, ftd, dates, chr
  * flat", which is precisely the lie A-10 names: *"Series that begin 2026-01-02 simply
  * start mid-plot."*
  */
-function coverageMarks(coverage, key, dates, withRuns = true) {
+function coverageMarks(coverage, key, dates, withRuns = true, chrome = DEFAULT_CHROME) {
   if (!coverage) return {}
+  const ink = coverageInks(chrome)
   const areas = []
 
   const region = coverage.regions?.[key]
   if (region) {
     areas.push([
       { xAxis: dates[region.fromIndex],
-        itemStyle: { color: NOT_RECORDED_FILL, borderColor: NOT_RECORDED_BORDER, borderWidth: 1 } },
+        itemStyle: { color: ink.notRecordedFill, borderColor: ink.notRecordedBorder, borderWidth: 1 } },
       { xAxis: dates[region.toIndex] },
     ])
   }
@@ -471,7 +491,7 @@ function coverageMarks(coverage, key, dates, withRuns = true) {
   for (const run of withRuns ? (coverage.runs ?? []) : []) {
     areas.push([
       { xAxis: dates[run.fromIndex],
-        itemStyle: { color: RECONSTRUCTED_FILL, borderColor: RECONSTRUCTED_BORDER, borderWidth: 1 } },
+        itemStyle: { color: ink.reconFill, borderColor: ink.reconBorder, borderWidth: 1 } },
       { xAxis: dates[run.toIndex] },
     ])
   }

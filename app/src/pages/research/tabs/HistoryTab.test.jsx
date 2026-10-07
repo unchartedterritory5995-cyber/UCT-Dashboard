@@ -35,6 +35,22 @@ describe('HistoryTab', () => {
     expect(screen.getByText(/Morning Wire archive, as of 2026-09-24/)).toBeTruthy()
   })
 
+  // tq-panels: a row whose text is empty, whitespace or only bold markers drew a blank.
+  it('a row is never blank: empty or marker-only text says what the row is', async () => {
+    const rows = [
+      { date: '2026-09-23', lane: 'catalysts', tag: 'Earnings', text: '', source: 'catalysts', as_of: '2026-09-23', ref: 'x' },
+      { date: '2026-09-22', lane: 'catalysts', tag: null, text: '** **', source: 'catalysts', as_of: '2026-09-22', ref: 'x' },
+      { date: '2026-09-21', lane: 'setups', text: '   ', source: 'setup_triggers', as_of: '2026-09-21', ref: 'x' },
+      { date: '2026-09-20', lane: 'catalysts', tag: 'News', text: 'Synthesis temporarily unavailable. Retry later.', source: 'catalysts', as_of: '2026-09-20', ref: 'x' },
+    ]
+    await renderWith({ ok: true, body: { ...BODY, timeline: rows } })
+    const got = screen.getAllByTestId('history-row').map((li) => li.textContent)
+    expect(got[0]).toMatch(/· Catalysts · On the catalyst list \(Earnings\) —/)
+    expect(got[1]).toMatch(/· Catalysts · On the catalyst list \(untagged\) —/)
+    expect(got[2]).toMatch(/· Setups · Setups entry; no description was recorded —/)
+    expect(got[3]).toMatch(/No write-up for this day: the summary step failed/)
+  })
+
   it('shows the room lane as a count only', async () => {
     await renderWith({ ok: true, body: BODY })
     expect(screen.getByText(/Mentioned 2 times in the community room/)).toBeTruthy()

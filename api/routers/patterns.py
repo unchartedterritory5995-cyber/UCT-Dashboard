@@ -705,6 +705,11 @@ def get_detections(
         # higher bar sees a difference.
         verdicts = [v for v in verdicts
                     if float(v.get("vision_confidence") or 0.0) >= min_conf]
+        # The member-facing name of each setup, from the one metadata table: the TECH tab used
+        # to title-case the raw id ("Macd Bullish Cross", "Avwap Reclaim") (quality pass
+        # 2026-10-05). None when the id has no entry; the client then falls back.
+        verdicts = [{**v, "setup_name": (_PATTERN_METADATA.get(v.get("setup") or "") or {}).get("name")}
+                    for v in verdicts]
         # Seam 24: how many setups were EVALUATED in the same window, confirmed
         # and rejected alike. A member seeing an empty tab cannot otherwise tell
         # "we looked and nothing qualified" from "nothing was ever looked at" --

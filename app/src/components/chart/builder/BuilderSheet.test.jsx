@@ -6,6 +6,7 @@ import path from 'node:path'
 import { Parser } from 'acorn'
 import acornJsx from 'acorn-jsx'
 
+import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet, { BuilderBoundary, buildDefinition, draftDefId } from './BuilderSheet'
 import FormulaField, { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -1107,7 +1108,13 @@ describe('🔴 saving a formula puts it ON THE CHART', () => {
 // perfectly correct — which is the only thing that distinguishes a wiring test
 // from a component test.
 
+// ⭐ P2X OWNER DECISION 4 (2026-10-06, deliberate rail move): the one-shot box is
+// RETIRED from the indicator modes (the conversation is the indicator's AI door)
+// and stays on the CONDITIONS tab, where it drafts a SCREEN. The wiring claims
+// below are unchanged; they now drive the tab the box still lives on.
 describe('the AI door is reachable FROM the builder (Task 13)', () => {
+  const openConditions = () => fireEvent.click(screen.getByRole('tab', { name: /conditions/i }))
+
   // DERIVED: the tree, the read-back and the badge all come from the shipped
   // evaluator, so a renamed function or a reworded sentence can never leave this
   // asserting against a formula the parser would refuse.
@@ -1140,8 +1147,31 @@ describe('the AI door is reachable FROM the builder (Task 13)', () => {
     await flush()
   }
 
+  it('⭐ P2X + release gate — NEVER two AI boxes: dark → the one-shot; conversation on → only the conversation', async () => {
+    // a member (conversation dark): the old sheet, exactly — the one-shot drafts an indicator
+    mount()
+    await flush()
+    expect(screen.queryByTestId('converse')).toBeNull()
+    expect(screen.getByTestId('concierge-box').dataset.kind).toBe('indicator')
+    cleanup()
+    // an admin with the opt-in (conversation on): the conversation, and NO one-shot
+    setCreateIndicatorFlag(true)
+    try {
+      mount({ user: { id: 7, role: 'admin' } })
+      await flush()
+      expect(screen.getByTestId('converse')).toBeTruthy()
+      expect(screen.queryByTestId('concierge-box')).toBeNull()
+      fireEvent.click(screen.getByRole('tab', { name: /formula/i }))
+      await flush()
+      expect(screen.queryByTestId('concierge-box')).toBeNull()
+      expect(screen.queryByRole('button', { name: /draft a formula/i })).toBeNull()
+    } finally { setCreateIndicatorFlag(null) }
+  })
+
   it('⭐ the box is mounted INSIDE the sheet, above the typed field', async () => {
     mount()
+    await flush()
+    openConditions()
     await flush()
     const panel = document.querySelector('[role="dialog"]')
     const box = screen.getByTestId('concierge-box')
@@ -1158,16 +1188,19 @@ describe('the AI door is reachable FROM the builder (Task 13)', () => {
     // every test handed in a fake. The sheet passes no fake, so this observes
     // the request that actually leaves.
     mount()
+    openConditions()
     await draft()
     const propose = H.requests.filter(r => r.url.includes('/api/user-definitions/propose'))
     expect(propose, 'the sheet issued no propose request — the AI door is not wired')
       .toHaveLength(1)
     expect(propose[0].method).toBe('POST')
     expect(JSON.parse(propose[0].body).prompt).toBe('the twenty bar average of the close')
+    expect(JSON.parse(propose[0].body).kind).toBe('scan')
   })
 
   it('⭐⭐ accepting a proposal lands in the SHEET\'S OWN formula state', async () => {
     mount()
+    openConditions()
     await draft()
     expect(screen.getByTestId('concierge-proposal')).toBeTruthy()
 
@@ -1193,6 +1226,7 @@ describe('the AI door is reachable FROM the builder (Task 13)', () => {
     // The reason it is worth mounting at all: `onAccept` fills a text field and
     // the ordinary Save button does the writing, through the one store door.
     mount()
+    openConditions()
     await draft()
     await act(async () => { fireEvent.click(useBtn()) })
     await flush()

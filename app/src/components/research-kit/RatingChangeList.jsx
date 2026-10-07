@@ -68,7 +68,7 @@ export default function RatingChangeList({
 
       <ul className={styles.list}>
         {shown.map((r, i) => (
-          <li key={`${r.date ?? ''}-${r.firm ?? ''}-${i}`} className={styles.row} data-testid="rk-rc-row">
+          <li key={`${r.date ?? ''}-${r.firm ?? ''}-${i}`} className={styles.row} data-testid="rk-rc-row" data-panel-row>
             <span className={`${styles.date} t-num`} data-testid="rk-rc-date">
               {r.date || '—'}
             </span>

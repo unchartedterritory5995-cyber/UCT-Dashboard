@@ -2,7 +2,19 @@
 import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
 
+import { withDeadline } from '../../utils/withDeadline'
+
+// The probe's fetcher maps a failure to `null` on purpose: the view ladder latches its first
+// answer, and `null` reads as "nothing on the Wire" (land elsewhere), never as a stuck probe.
 const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
+
+// The WIRE VIEW's fetcher THROWS (quality pass 2026-10-05): a 502 mapped to `null` rendered
+// "No reporters scheduled" -- a statement about the session made from a read that failed --
+// and a request that never answered sat on that same line forever.
+const wireFetcher = (url) => withDeadline(fetch(url), url).then((r) => {
+  if (!r.ok) throw new Error(`wire ${r.status}`)
+  return r.json()
+})
 
 /**
  * The earnings wire.
@@ -18,7 +30,7 @@ const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 export function useWire(dateStr) {
   return useMobileSWR(
     dateStr ? `/api/calendar/wire?date=${dateStr}` : '/api/calendar/wire',
-    fetcher,
+    wireFetcher,
     // marketHoursOnly: 10x slower only when the market is fully shut (overnight,
     // weekends); pre-market and after-hours keep the 10s cadence.
     { refreshInterval: 10000, revalidateOnFocus: false, marketHoursOnly: true },

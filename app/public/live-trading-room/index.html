@@ -2,7 +2,11 @@
 <!-- Public, server-served landing page for the Uncharted Territory live trading room.
      Served as STATIC HTML by api/main.py (`live_trading_room_response`), NOT by the
      React SPA, so crawlers and link unfurlers read the real title, copy, OG tags and
-     JSON-LD without running any JavaScript. No JS on this page at all.
+     JSON-LD without running any JavaScript. Besides the Whop Pixel (async, in the
+     head), the only script is a small progressive
+     enhancement for the "Talk to the team first" form: without it the form still
+     opens (a details element) and posts natively, and the server redirects back to
+     #call-sent or #call-error, which CSS :target shows.
      Copy is owner-approved verbatim: do not add facts, numbers or prices here. -->
 <html lang="en">
 <head>
@@ -20,15 +24,15 @@
   <meta property="og:url" content="https://uctintelligence.com/live-trading-room" />
   <meta property="og:title" content="A live trading room run by traders who trade, and teach, every single day" />
   <meta property="og:description" content="TSDR and Bracco go live on Zoom every market morning before the open, lay out the plan and the levels, then trade the open on screen share and talk through every decision." />
-  <meta property="og:image" content="https://uctintelligence.com/live-trading-room/og-live-trading-room.jpg" />
+  <meta property="og:image" content="https://uctintelligence.com/live-trading-room/og-live-trading-room-v3.jpg" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="600" />
-  <meta property="og:image:alt" content="The people in the Uncharted Territory trading room: ChartMaster, Manrav, TSDR, Bracco, Jersace and Alex Jones." />
+  <meta property="og:image:alt" content="The people in the Uncharted Territory trading room: TSDR, Bracco, ChartMaster, Manrav, Jersace and Alex Jones." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="A live trading room run by traders who trade, and teach, every single day" />
   <meta name="twitter:description" content="TSDR and Bracco go live on Zoom every market morning before the open and trade it on screen share. Alerts, options flow, workshops and Sunday Scans." />
-  <meta name="twitter:image" content="https://uctintelligence.com/live-trading-room/og-live-trading-room.jpg" />
+  <meta name="twitter:image" content="https://uctintelligence.com/live-trading-room/og-live-trading-room-v3.jpg" />
 
   <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-sans-v4-latin.woff2" crossorigin />
   <link rel="preload" as="image" href="/live-trading-room/room-traders-1600.webp"
@@ -95,14 +99,6 @@
         "acceptedAnswer": {
           "@type": "Answer",
           "text": "A Discord account. After you join on Whop, you connect Discord, land in the room, and we set up a free 1-on-1 call to walk you through it."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Where do I join?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Only through whop.com/uncharted. We don't run other sign-up sites, free-trial pages or DM offers."
         }
       },
       {
@@ -250,6 +246,10 @@
     .gallery { display: grid; gap: 16px; margin-top: 22px; }
     @media (min-width: 900px) { .gallery { grid-template-columns: 1fr 1fr; } }
     .gallery .figure { margin: 0; }
+    /* The room images carry a drawn "See the room" button, so the whole image is the
+       same tracked Whop link the Join buttons use: a tap on it does something. */
+    .figure-link { display: block; border-radius: var(--radius); }
+    .figure-link:focus-visible { outline: 3px solid var(--text-bright); outline-offset: 3px; }
 
     .offer {
       margin-top: 56px; padding: 28px 22px; text-align: center;
@@ -258,6 +258,7 @@
     }
     .offer h2 { margin-bottom: 10px; }
     .offer p { margin: 0 auto 20px; max-width: 52ch; font-size: 18px; color: var(--text-bright); }
+    .offer .offer-deadline { margin-top: -8px; font-size: 16px; color: var(--gold); }
 
     .reviews { display: grid; gap: 12px; margin: 0; }
     @media (min-width: 760px) { .reviews { grid-template-columns: 1fr 1fr; } }
@@ -277,6 +278,63 @@
     .faq details[open] summary::after { content: "\2212"; }
     .faq details p { margin: 0 0 18px; max-width: 70ch; }
 
+    /* Talk to the team first */
+    .talk { flex: 0 1 auto; }
+    .talk[open] { flex-basis: 100%; }
+    .talk-toggle {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 13px 20px; border-radius: 12px; cursor: pointer; list-style: none;
+      border: 1.5px solid var(--green); color: var(--text-bright); background: rgba(63, 212, 110, 0.06);
+      font-weight: 700; font-size: 16px; line-height: 1.3; text-align: center;
+    }
+    .talk-toggle::-webkit-details-marker { display: none; }
+    .talk-toggle:hover { background: rgba(63, 212, 110, 0.14); }
+    .talk-toggle:focus-visible { outline: 3px solid var(--text-bright); outline-offset: 3px; }
+    .talk-panel {
+      margin-top: 14px; padding: 20px 18px; max-width: 560px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .talk-intro { margin: 0 0 14px; color: var(--text-bright); font-size: 16.5px; }
+    .talk-form { display: grid; gap: 14px; margin: 0; }
+    .talk-form[hidden] { display: none; }
+    .talk-field { display: grid; gap: 6px; font-size: 14.5px; font-weight: 600; color: var(--text-bright); }
+    .talk-field .opt { font-weight: 400; color: var(--text-muted); }
+    .talk-field input {
+      width: 100%; min-height: 46px; padding: 10px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text-bright);
+      font: inherit; font-weight: 400; font-size: 16px;
+    }
+    .talk-field input:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; border-color: var(--green); }
+    .talk-set { margin: 0; padding: 0; border: 0; min-width: 0; }
+    .talk-set legend { padding: 0; margin-bottom: 8px; font-size: 14.5px; font-weight: 600; color: var(--text-bright); }
+    .talk-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .talk-choices label { position: relative; }
+    .talk-choices input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .talk-choices span {
+      display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; cursor: pointer;
+    }
+    .talk-choices input:checked + span { border-color: var(--green); color: var(--text-bright); background: rgba(63, 212, 110, 0.14); }
+    .talk-choices input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
+    .talk-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .talk-submit { border: 0; cursor: pointer; font: inherit; font-weight: 700; font-size: 17px; justify-self: start; }
+    .talk-submit[disabled] { opacity: 0.6; cursor: progress; }
+    .talk-fine { margin: 0; font-size: 13.5px; color: var(--text-muted); }
+    .talk-fine a { color: var(--text-muted); }
+    .talk-msg { margin: 0; padding: 12px 14px; border-radius: 10px; font-size: 15.5px; }
+    .talk-msg.ok { border: 1px solid var(--green); color: var(--text-bright); background: rgba(63, 212, 110, 0.1); }
+    .talk-msg.err { border: 1px solid var(--red); color: var(--text-bright); background: rgba(224, 72, 74, 0.1); }
+    .talk-msg[hidden] { display: none; }
+    .talk-target { display: none; margin: 14px 0 0; max-width: 560px; }
+    .talk-target:target { display: block; }
+    .talk-link { display: inline-block; margin-top: 14px; color: var(--text-bright); font-weight: 600; font-size: 16px; }
+    @media (max-width: 420px) {
+      .talk { width: 100%; }
+      .talk-toggle { width: 100%; }
+      .talk-panel { padding: 18px 14px; }
+      .talk-submit { width: 100%; }
+    }
+
     footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text-muted); }
     footer p { margin: 0 0 10px; }
     footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
@@ -290,6 +348,14 @@
     }
     @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
   </style>
+  <!-- Whop Pixel (https://docs.whop.com/developer/ads/pixel), scoped to the
+       Uncharted Territory Whop company. The loader inserts t.whop.tw/s.js with
+       async=1, so it never blocks rendering. This page sends no CSP header. -->
+  <script>
+  !function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");
+  whop.setScope("biz_VFkuhplWXekHZf");
+  whop.track("page");
+  </script>
 </head>
 <body>
   <header class="wrap top">
@@ -308,15 +374,59 @@
       <p class="lede">Every market morning, about 20 minutes before the 9:30 AM ET open, co-founders TSDR (Patrick) and Bracco go live on Zoom. They lay out the plan and the levels, then trade the open on screen share and talk through every decision. Around them: five traders, an options flow team, and a productive, helpful and focused main chat.</p>
       <div class="cta-row">
         <a class="btn" href="https://whop.com/c/uncharted/uct-site" rel="noopener">Join the live trading room <span aria-hidden="true">&rarr;</span></a>
+        <details class="talk" id="talk">
+          <summary class="talk-toggle">Not sure yet? Talk to the team first</summary>
+          <div class="talk-panel">
+            <p class="talk-intro">Leave your number and the Uncharted Territory team will set up a quick call.</p>
+            <form class="talk-form" id="talk-form" action="/api/ltr/call-request" method="post" novalidate>
+              <label class="talk-field">Name
+                <input type="text" name="name" autocomplete="name" maxlength="80" required />
+              </label>
+              <label class="talk-field">Phone
+                <input type="tel" name="phone" autocomplete="tel" inputmode="tel" maxlength="40" required />
+              </label>
+              <label class="talk-field"><span>Email <span class="opt">(optional)</span></span>
+                <input type="email" name="email" autocomplete="email" maxlength="254" />
+              </label>
+              <fieldset class="talk-set">
+                <legend>Best time to call (ET)</legend>
+                <div class="talk-choices">
+                  <label><input type="radio" name="best_time" value="Morning" /><span>Morning</span></label>
+                  <label><input type="radio" name="best_time" value="Afternoon" /><span>Afternoon</span></label>
+                  <label><input type="radio" name="best_time" value="Evening" /><span>Evening</span></label>
+                </div>
+              </fieldset>
+              <fieldset class="talk-set">
+                <legend>What do you trade?</legend>
+                <div class="talk-choices">
+                  <label><input type="radio" name="trades" value="Stocks" /><span>Stocks</span></label>
+                  <label><input type="radio" name="trades" value="Options" /><span>Options</span></label>
+                  <label><input type="radio" name="trades" value="Both" /><span>Both</span></label>
+                  <label><input type="radio" name="trades" value="Just starting" /><span>Just starting</span></label>
+                </div>
+              </fieldset>
+              <div class="talk-hp" aria-hidden="true">
+                <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+              </div>
+              <p class="talk-msg err" id="talk-error" role="alert" hidden></p>
+              <button class="btn talk-submit" type="submit">Request a call</button>
+              <p class="talk-fine">We'll only use this to contact you about the room. <a href="/live-trading-room/privacy">Privacy</a></p>
+            </form>
+            <p class="talk-msg ok" id="talk-done" role="status" hidden>Thanks. The Uncharted Territory team will reach out soon to set up your call.</p>
+          </div>
+        </details>
         <p class="code-note">Use code <span class="code">JOINUCT</span> for a nice discount to join the group.</p>
       </div>
+      <p class="talk-msg ok talk-target" id="call-sent" role="status">Thanks. The Uncharted Territory team will reach out soon to set up your call.</p>
+      <p class="talk-msg err talk-target" id="call-error" role="alert">Sorry, that did not go through. Please check your name and phone number and try again.</p>
+      <p class="talk-msg err talk-target" id="call-unavailable" role="alert">Sorry, we could not send your request just now. Please try again later.</p>
       <p class="rating"><span class="stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>4.9 stars from 173 member reviews on Whop.</p>
       <div class="figure">
-        <img src="/live-trading-room/room-traders-1600.webp"
+        <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-traders-1600.webp"
              srcset="/live-trading-room/room-traders-800.webp 800w, /live-trading-room/room-traders-1600.webp 1600w"
              sizes="(max-width: 1120px) calc(100vw - 32px), 1080px"
              width="1600" height="800" fetchpriority="high"
-             alt="The people in the room: ChartMaster (swing ideas and workshops), Manrav (trade ideas and alerts), co-founders TSDR and Bracco, Jersace (trade ideas and alerts) and Alex Jones (options flow plus a team of three)." />
+             alt="The people in the room: TSDR and Bracco (morning Zoom), ChartMaster (swing trades), Manrav and Jersace (trade ideas) and Alex Jones (options flow). See the room on Whop." /></a>
       </div>
     </div>
 
@@ -337,18 +447,18 @@
       <p class="kicker">Who you trade with</p>
       <h2 id="traders">The traders</h2>
       <ul class="traders">
-        <li class="trader"><h3>TSDR and Bracco</h3><p>Run the morning Zoom, wrote the strategy book, and explain every trade, including the ones they pass on.</p></li>
+        <li class="trader"><h3>TSDR and Bracco</h3><p>Run the morning Zoom and explain every trade, including the ones they pass on.</p></li>
         <li class="trader"><h3>ChartMaster</h3><p>Swing trade ideas, educational workshops, and always easy to reach. Years of his workshops are in the library.</p></li>
         <li class="trader"><h3>Alex Jones and a team of three skilled contributors</h3><p>Run our robust options flow feed.</p></li>
         <li class="trader"><h3>Manrav and Jersace</h3><p>Trade ideas and alerts, each in his own channel.</p></li>
       </ul>
       <p class="note">Every trader, contributor and member is helpful, easy to reach, and happy to teach.</p>
       <div class="figure">
-        <img src="/live-trading-room/room-discord-1600.webp"
+        <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-discord-1600.webp"
              srcset="/live-trading-room/room-discord-800.webp 800w, /live-trading-room/room-discord-1600.webp 1600w"
              sizes="(max-width: 1120px) calc(100vw - 32px), 1080px"
              width="1600" height="800" loading="lazy" decoding="async"
-             alt="Illustration of the Uncharted Territory Discord: zoom-links, main-chat, a channel for each trader, options-flow, workshops and sunday-scans." />
+             alt="Illustration of the Uncharted Territory Discord: zoom-links, main-chat, a channel for each trader, options-flow, workshops and sunday-scans. See the room on Whop." /></a>
       </div>
     </section>
 
@@ -360,25 +470,24 @@
         <li>Live options flow and news all day</li>
         <li>Sunday Scans to prep the week</li>
         <li>Years of recorded workshops</li>
-        <li>The strategy book TSDR and Bracco wrote</li>
         <li>Post your own charts for feedback from the traders</li>
         <li>A productive, helpful and focused main chat</li>
         <li>A free 1-on-1 onboarding call to get you set up</li>
       </ul>
       <div class="gallery">
         <div class="figure">
-          <img src="/live-trading-room/room-chartmaster-1600.webp"
+          <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-chartmaster-1600.webp"
                srcset="/live-trading-room/room-chartmaster-800.webp 800w, /live-trading-room/room-chartmaster-1600.webp 1600w"
                sizes="(max-width: 899px) calc(100vw - 32px), 520px"
                width="1600" height="800" loading="lazy" decoding="async"
-               alt="Learn the craft with ChartMaster: swing trade ideas, educational workshops, and always easy to reach with questions." />
+               alt="Learn the craft with ChartMaster: swing trade ideas, educational workshops, and always easy to reach with questions. See the room on Whop." /></a>
         </div>
         <div class="figure">
-          <img src="/live-trading-room/room-welcome-1600.webp"
+          <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-welcome-1600.webp"
                srcset="/live-trading-room/room-welcome-800.webp 800w, /live-trading-room/room-welcome-1600.webp 1600w"
                sizes="(max-width: 899px) calc(100vw - 32px), 520px"
                width="1600" height="800" loading="lazy" decoding="async"
-               alt="Welcome to the room: a free 1-on-1 onboarding call, pick the traders you click with, and ask anything in main-chat." />
+               alt="Welcome to the room: a free 1-on-1 onboarding call, pick the traders you click with, and ask anything in main-chat. See the room on Whop." /></a>
         </div>
       </div>
     </section>
@@ -386,7 +495,12 @@
     <div class="offer">
       <h2>Join the room</h2>
       <p>Use code <span class="code">JOINUCT</span> for a nice discount to join the group.</p>
+      <!-- NOV1-REMOVE: October offer deadline. Delete this whole comment-to-comment block on Nov 1. -->
+      <p class="offer-deadline">The October offer ends Oct 31, and the price goes up for new members on Nov 1.</p>
+      <!-- /NOV1-REMOVE -->
       <a class="btn" href="https://whop.com/c/uncharted/uct-site" rel="noopener">Join the live trading room <span aria-hidden="true">&rarr;</span></a>
+      <br />
+      <a class="talk-link" href="#talk" data-talk-open>Not sure yet? Talk to the team first</a>
     </div>
 
     <section aria-labelledby="reviews">
@@ -400,11 +514,11 @@
         <figure class="review"><blockquote>&ldquo;A distinguished and unique community.&rdquo;</blockquote><figcaption><strong>MBA</strong>, Whop review</figcaption></figure>
       </div>
       <div class="figure">
-        <img src="/live-trading-room/room-reviews-1600.webp"
+        <a class="figure-link" href="https://whop.com/c/uncharted/uct-site" rel="noopener"><img src="/live-trading-room/room-reviews-1600.webp"
              srcset="/live-trading-room/room-reviews-800.webp 800w, /live-trading-room/room-reviews-1600.webp 1600w"
              sizes="(max-width: 1120px) calc(100vw - 32px), 1080px"
              width="1600" height="800" loading="lazy" decoding="async"
-             alt="Member reviews from Whop, rated 4.9 stars from 173 reviews." />
+             alt="Member reviews from Whop, rated 4.9 stars from 173 reviews. See the room on Whop." /></a>
       </div>
     </section>
 
@@ -436,10 +550,6 @@
         <p>A Discord account. After you join on Whop, you connect Discord, land in the room, and we set up a free 1-on-1 call to walk you through it.</p>
       </details>
       <details>
-        <summary>Where do I join?</summary>
-        <p>Only through whop.com/uncharted. We don't run other sign-up sites, free-trial pages or DM offers.</p>
-      </details>
-      <details>
         <summary>Can I cancel anytime?</summary>
         <p>Yes. Cancel anytime in your Whop account before your next charge and you won't be charged again. You keep access until the end of the period you already paid for.</p>
       </details>
@@ -452,7 +562,12 @@
     <div class="offer">
       <h2>See the room for yourself</h2>
       <p>Use code <span class="code">JOINUCT</span> for a nice discount to join the group.</p>
+      <!-- NOV1-REMOVE: October offer deadline. Delete this whole comment-to-comment block on Nov 1. -->
+      <p class="offer-deadline">The October offer ends Oct 31, and the price goes up for new members on Nov 1.</p>
+      <!-- /NOV1-REMOVE -->
       <a class="btn" href="https://whop.com/c/uncharted/uct-site" rel="noopener">See the room <span aria-hidden="true">&rarr;</span></a>
+      <br />
+      <a class="talk-link" href="#talk" data-talk-open>Not sure yet? Talk to the team first</a>
     </div>
   </main>
 
@@ -463,5 +578,66 @@
       <a href="/live-trading-room/privacy">Privacy</a>
     </nav>
   </footer>
+  <script>
+  (function () {
+    var details = document.getElementById('talk');
+    var form = document.getElementById('talk-form');
+    if (!details || !form || !window.fetch || !window.FormData || !window.JSON) return;
+    var err = document.getElementById('talk-error');
+    var done = document.getElementById('talk-done');
+    var submit = form.querySelector('button[type="submit"]');
+    var RETRY = 'We could not send that just now. Please check your connection and try again.';
+
+    function openTalk(ev) {
+      if (ev) ev.preventDefault();
+      details.open = true;
+      details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    var links = document.querySelectorAll('[data-talk-open]');
+    for (var i = 0; i < links.length; i++) links[i].addEventListener('click', openTalk);
+    if (location.hash === '#talk') details.open = true;
+
+    function showError(msg, field) {
+      err.textContent = msg;
+      err.hidden = false;
+      if (field && form.elements[field] && form.elements[field].focus) form.elements[field].focus();
+    }
+
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      err.hidden = true;
+      var data = {};
+      var fd = new FormData(form);
+      fd.forEach(function (v, k) { data[k] = typeof v === 'string' ? v.trim() : ''; });
+      if (!data.name) { showError('Please enter your name.', 'name'); return; }
+      var digits = (data.phone || '').replace(/[^0-9]/g, '').length;
+      if (digits < 7 || digits > 20) { showError('Please enter a valid phone number.', 'phone'); return; }
+      submit.disabled = true;
+      submit.textContent = 'Sending...';
+      fetch('/api/ltr/call-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; });
+      }).then(function (res) {
+        if (res.ok && res.body && res.body.ok) {
+          form.hidden = true;
+          done.hidden = false;
+          done.setAttribute('tabindex', '-1');
+          done.focus();
+          return;
+        }
+        var b = res.body || {};
+        showError(b.error || RETRY, b.field);
+      }).catch(function () {
+        showError(RETRY);
+      }).then(function () {
+        submit.disabled = false;
+        submit.textContent = 'Request a call';
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

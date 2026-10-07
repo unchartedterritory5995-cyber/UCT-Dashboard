@@ -18,8 +18,10 @@ def _result(value, *, degraded=None):
 
 
 def test_recent_quarters_newest_first():
-    qs = om._recent_quarters(datetime.date(2026, 6, 29))   # Q2 2026
-    assert qs == [(2026, 2), (2026, 1), (2025, 4), (2025, 3)]
+    # R12: Q2 2026 has not even ended on 2026-06-29, so it is not a candidate;
+    # Q1 2026 ended 90 days earlier and its 45-day 13F window has closed.
+    qs = om._recent_quarters(datetime.date(2026, 6, 29))
+    assert qs == [(2026, 1), (2025, 4), (2025, 3), (2025, 2)]
 
 
 def test_thirteen_f_composes_from_newest_filed_quarter(monkeypatch):

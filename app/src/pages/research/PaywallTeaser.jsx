@@ -14,10 +14,10 @@ export default function PaywallTeaser({ sym }) {
           complete institutional-grade research dossier.
         </p>
         <ul className={styles.paywallList}>
-          <li><UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />5-year &amp; 8-quarter growth, margins, balance sheet &amp; cash flow</li>
-          <li><UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />UCT Composite + EPS / Relative Strength / Growth / Value ratings</li>
-          <li><UIcon name="dollar" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Institutional ownership, insider activity, short interest</li>
-          <li><UIcon name="mic" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />AI call recaps + full transcripts with TTS</li>
+          <li><UIcon name="breadth" size={13} className={styles.paywallIcon} />5-year &amp; 8-quarter growth, margins, balance sheet &amp; cash flow</li>
+          <li><UIcon name="patterns" size={13} className={styles.paywallIcon} />UCT Composite + EPS / Relative Strength / Growth / Value ratings</li>
+          <li><UIcon name="dollar" size={13} className={styles.paywallIcon} />Institutional ownership, insider activity, short interest</li>
+          <li><UIcon name="mic" size={13} className={styles.paywallIcon} />AI call recaps + full transcripts with TTS</li>
         </ul>
         {/* Free users are blocked from /settings by AuthGuard (isPaid gate) —
             routing there would immediately bounce them back to Morning Wire

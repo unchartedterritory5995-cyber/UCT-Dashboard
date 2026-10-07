@@ -42,6 +42,17 @@ describe('HelpPanel per-member flag markers', () => {
     expect(screen.queryByTestId('terminal-help-flag-HELP')).toBeNull()
   })
 
+  it('before the sign-in payload has arrived, no gated code says "not enabled" (quality pass 2026-10-05)', () => {
+    const { rerender } = render(<HelpPanel auth={{ loading: true }} />)
+    expect(screen.queryByText(/not enabled/)).toBeNull()
+    expect(screen.queryByTestId('terminal-help-flag-TECH')).toBeNull()
+    expect(screen.getByText('TECH')).toBeTruthy()            // the row itself still lists
+    rerender(<HelpPanel auth={{ loading: false, authTransient: true }} />)
+    expect(screen.queryByText(/not enabled/)).toBeNull()
+    rerender(<HelpPanel auth={{ loading: false }} />)          // arrived: the real answer
+    expect(screen.getByTestId('terminal-help-flag-TECH')).toHaveTextContent('not enabled')
+  })
+
   it('HELP never disagrees with the real gate: marker state matches flagOn for every flagged code', () => {
     const auth = { researchTechnicalTabEnabled: true, researchDepth: { ftd_dataset_enabled: false } }
     render(<HelpPanel auth={auth} />)

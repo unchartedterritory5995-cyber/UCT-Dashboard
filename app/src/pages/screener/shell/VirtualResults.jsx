@@ -4,6 +4,8 @@ import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
 import UIcon from '../../../components/ui/UIcon'
 import { useFlagged } from '../../../hooks/useFlagged'
+import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { useInTerminalPanel } from '../../../components/terminal/terminalPanel'
 import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
 import ColumnDesc from './ColumnDesc'
 import { nextSort, ariaSortFor } from '../../../lib/presentation/dataGrid'
@@ -14,7 +16,18 @@ import styles from './ScannerShell.module.css'
 // breaks position:sticky on the ticker column, so the live-price overlay and
 // the load-more append both have to happen without ever touching that.
 export const LIVE_WINDOW = 300
-const ROW_H = { compact: 30, comfortable: 38 }
+// `dense` is reached only from a UCT Terminal board set to dense (see `boardDensity` below);
+// the screener's own toggle offers compact and comfortable.
+const ROW_H = { compact: 30, comfortable: 38, dense: 24 }
+
+/** The row density the grid draws at. Inside a terminal panel, on desktop, the BOARD's density
+ *  tightens it (a compact board never shows comfortable rows, a dense board shows dense ones);
+ *  a comfortable board, the touch tier and the /screener page keep the member's own choice. */
+export function effectiveDensity(own, boardDensity) {
+  if (boardDensity === 'dense') return 'dense'
+  if (boardDensity === 'compact') return 'compact'
+  return own
+}
 // A described column's track is widened by exactly the disclosure trigger, so
 // the LABEL keeps its usual 92px instead of being squeezed by the icon.
 // Derived from `descFor`, never a hand-listed set of keys.
@@ -75,7 +88,10 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
    *      would be two authorities over one list — and they would agree on the
    *      day they were written. */
   const displayRows = rows
-  const rowH = ROW_H[density] || ROW_H.compact
+  const panel = useInTerminalPanel()
+  const isDesktop = useIsDesktop()
+  const drawn = effectiveDensity(density, panel && isDesktop ? panel.density : null)
+  const rowH = ROW_H[drawn] || ROW_H.compact
 
   const virtualizer = useVirtualizer({
     count: displayRows.length,
@@ -85,6 +101,14 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
     ...(virtualOpts || {}),
   })
   const items = virtualizer.getVirtualItems()
+  // The virtualizer caches row sizes and does not re-read `estimateSize` on its own, so a
+  // density change (the screener's toggle or the board's) has to ask it to measure again.
+  const firstRowH = useRef(rowH)
+  useEffect(() => {
+    if (firstRowH.current === rowH) return
+    firstRowH.current = rowH
+    virtualizer.measure()
+  }, [rowH, virtualizer])
 
   useImperativeHandle(ref, () => ({
     scrollToIndex: (index, options) => virtualizer.scrollToIndex(index, options),
@@ -113,7 +137,7 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
   }
 
   return (
-    <div className={styles.gridScroll} ref={scrollRef} data-density={density}>
+    <div className={styles.gridScroll} ref={scrollRef} data-density={drawn}>
       <div role="table" aria-label="Scan results" aria-rowcount={displayRows.length}
         className={styles.grid} style={{ '--grid-cols': gridCols }}>
         <div role="row" className={`${styles.gridRow} ${styles.gridHead}`}>

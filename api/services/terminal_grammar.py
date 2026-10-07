@@ -207,6 +207,50 @@ def _catalyst_key(c: dict) -> str:
     return f"cat|{c.get('market_date')}|{c.get('tag')}"
 
 
+# R14: the seen-set is the UNION of every key shown on visits that read cleanly,
+# pruned of keys whose own date is older than this. Overwriting it with only
+# this visit's keys made a fact that briefly dropped out (a source blip, an
+# outage) come back as NEW.
+_SEEN_KEEP_DAYS = 120
+_DATE_IN_KEY = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+
+
+def _prune_seen(keys: set, now_ts: float) -> set:
+    import datetime as _dt
+    floor = (_dt.datetime.fromtimestamp(now_ts, tz=_dt.timezone.utc).date()
+             - _dt.timedelta(days=_SEEN_KEEP_DAYS)).isoformat()
+    out = set()
+    for k in keys:
+        m = _DATE_IN_KEY.search(k)
+        if m is None or m.group(1) >= floor:
+            out.add(k)
+    return out
+
+
+def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
+    """R18: today's change % and its vendor observation time for `s`, looked up
+    SERVER-SIDE (no client passes `change_pct`, so the price-move fact never
+    fired). The shared live-price cache first; on a miss, one batch read through
+    the same path /api/live-prices uses, written back to that cache. A row that
+    replays a CLOSED session's move is not "today" and is not used."""
+    try:
+        from api.routers import live_prices as lp
+        row = lp.cache.get(lp._px_key(s))
+        if row is None:
+            from api.services.massive import _get_client, _detect_session
+            got = lp._fetch_snapshots(_get_client(), [s], _detect_session()) or {}
+            row = got.get(s)
+            if row is not None:
+                lp.cache.set(lp._px_key(s), row, ttl=lp._CACHE_TTL)
+        if not row or row.get("market_closed"):
+            return None, None
+        pct = row.get("change_pct")
+        return (float(pct) if isinstance(pct, (int, float)) else None), row.get("observed_at")
+    except Exception as exc:  # noqa: BLE001 -- the move fact is optional
+        log.warning("[terminal_grammar] live change lookup failed for %s: %s", s, exc)
+        return None, None
+
+
 def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
                change_pct: Optional[float] = None, now: Optional[float] = None) -> dict[str, Any]:
     """Compose the existing services for one security, diff against the member's last
@@ -218,10 +262,14 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
     ts = time.time() if now is None else float(now)
 
     intel: dict = {"status": "unavailable", "notable": False, "facts": [], "context": {}}
+    observed = None
+    if not isinstance(change_pct, (int, float)):
+        change_pct, observed = _live_change(s)
     try:
         from api.services.watchlist_intelligence import get_intelligence_for_symbols
         changes = {s: change_pct} if isinstance(change_pct, (int, float)) else None
-        intel = get_intelligence_for_symbols([s], changes).get(s) or intel
+        observed_at = {s: observed} if isinstance(observed, (int, float)) else None
+        intel = get_intelligence_for_symbols([s], changes, observed_at).get(s) or intel
     except Exception as exc:  # noqa: BLE001
         log.warning("[terminal_grammar] intelligence failed for %s: %s", s, exc)
 
@@ -245,9 +293,15 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
         prev = conn.execute("SELECT last_visit_at, seen_json FROM terminal_visits WHERE user_id=? AND sym=?",
                             (user_id, s)).fetchone()
         seen_before = set(json.loads(prev["seen_json"])) if prev else None
-        conn.execute("INSERT OR REPLACE INTO terminal_visits (user_id, sym, last_visit_at, seen_json) VALUES (?,?,?,?)",
-                     (user_id, s, ts, json.dumps(sorted(set(keys_now)))))
-        conn.commit()
+        # R14: record this visit only when every leg read cleanly. A partial or
+        # failed read is not a visit the member could have seen everything on,
+        # and recording it would move `last_visit_at` past facts never shown.
+        clean = intel.get("status") == "ok" and catalyst_status in ("ok", "not_entitled")
+        if clean:
+            seen = _prune_seen((seen_before or set()) | set(keys_now), ts)
+            conn.execute("INSERT OR REPLACE INTO terminal_visits (user_id, sym, last_visit_at, seen_json) "
+                         "VALUES (?,?,?,?)", (user_id, s, ts, json.dumps(sorted(seen))))
+            conn.commit()
     finally:
         conn.close()
 
@@ -262,6 +316,7 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
         "catalysts": catalysts,
         "catalyst_status": catalyst_status,
         "since_last_visit": since,
+        "visit_recorded": clean,
     }
 
 

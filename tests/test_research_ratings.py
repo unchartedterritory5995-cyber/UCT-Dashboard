@@ -185,6 +185,15 @@ class TestRoute:
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "composite", "components", "checkup", "method"}
 
+    def test_route_failure_is_a_503_not_an_empty_rating(self, monkeypatch):
+        # R10: a 200 with composite None read as "unrated".
+        import api.routers.research as research_router
+
+        def _boom(sym):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(research_router, "get_ratings", _boom)
+        assert self._client().get("/api/research/ratings/AAPL").status_code == 503
+
 
 class TestCompositeCoverageIsDisclosed:
     """A composite built on 4 of 6 inputs must not read like a complete one.
@@ -327,3 +336,31 @@ class TestPriceAsOf:
         self._stub_legs(monkeypatch, history=empty)
         out = ratings.get_ratings("test")
         assert out["price_as_of"] is None
+
+
+class TestRatingsCompleteness:
+    """tq-panels: an all-blank rating says whether its input legs actually answered.
+    (The fund answer itself lives on the route -- fix/terminal-quality-routes-3, e910f8ff6.)"""
+
+    def setup_method(self):
+        cache.invalidate("research_rat::SPY")
+        cache.invalidate("research_rat::TEST")
+
+    def test_every_leg_answering_with_nothing_is_complete(self, monkeypatch):
+        from api.services import ticker_search_index
+        monkeypatch.setattr(ticker_search_index, "instrument_type", lambda s: None)
+        monkeypatch.setattr(rt, "get_fundamentals", lambda s: {})
+        monkeypatch.setattr(rt, "get_ownership", lambda s: {})
+        monkeypatch.setattr(rt, "fetch_history", lambda s, **k: None)
+        out = rt.get_ratings("test")
+        assert "not_applicable" not in out
+        assert out["complete"] is True          # every leg answered, just with nothing
+
+    def test_a_failed_leg_marks_the_rating_incomplete(self, monkeypatch):
+        from api.services import ticker_search_index
+        monkeypatch.setattr(ticker_search_index, "instrument_type", lambda s: None)
+        monkeypatch.setattr(rt, "get_fundamentals", lambda s: {"error": "down"})
+        monkeypatch.setattr(rt, "get_ownership", lambda s: {})
+        monkeypatch.setattr(rt, "fetch_history", lambda s, **k: None)
+        out = rt.get_ratings("test")
+        assert out["complete"] is False

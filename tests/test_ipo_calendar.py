@@ -342,3 +342,49 @@ class TestIposEndpoint:
             r = client.get("/api/calendar/ipos?from=2026-06-01&to=2026-06-30")
         assert r.status_code == 200
         assert r.json() == []
+
+
+# ── Quality pass 2026-10-05: a failed read is labelled, never served as "no IPOs" ──
+
+class TestIpoFailedReadIsLabelled:
+    def _store(self):
+        store, ttls = {}, {}
+
+        def _set(k, v, ttl):
+            store[k] = v
+            ttls[k] = ttl
+        return store, ttls, _set
+
+    def test_both_providers_failing_is_a_failed_read_and_is_not_cached_as_no_ipos(self):
+        from api.services import ipo_calendar as ic
+        store, ttls, _set = self._store()
+        with mock.patch.object(ic.cache, "get", side_effect=store.get), \
+             mock.patch.object(ic.cache, "set", side_effect=_set), \
+             mock.patch.object(ic, "_fh_ipo_get", return_value=None), \
+             mock.patch.object(ic, "_fmp_ipo_get", return_value=None):
+            rows, answered = ic.get_ipos_with_status("2026-06-01", "2026-06-05")
+            assert (rows, answered) == ([], False)
+            assert ic.read_failed("2026-06-01", "2026-06-05") is True
+        # nothing was stored under the 6-hour data key
+        assert "ipo_calendar_2026-06-01_2026-06-05" not in store
+        assert ttls["ipo_calendar_failed_2026-06-01_2026-06-05"] == ic._CACHE_TTL_FAILED
+
+    def test_one_provider_answering_empty_is_an_answer_not_a_failure(self):
+        from api.services import ipo_calendar as ic
+        store, _ttls, _set = self._store()
+        with mock.patch.object(ic.cache, "get", side_effect=store.get), \
+             mock.patch.object(ic.cache, "set", side_effect=_set), \
+             mock.patch.object(ic, "_fh_ipo_get", return_value=[]), \
+             mock.patch.object(ic, "_fmp_ipo_get", return_value=None):
+            rows, answered = ic.get_ipos_with_status("2026-06-01", "2026-06-05")
+            assert (rows, answered) == ([], True)
+            assert ic.read_failed("2026-06-01", "2026-06-05") is False
+
+    def test_the_route_labels_a_failed_read_and_leaves_an_honest_empty_unlabelled(self):
+        for failed, header in ((True, "failed"), (False, None)):
+            with mock.patch("api.routers.calendar._get_ipos", return_value=[]), \
+                 mock.patch("api.routers.calendar._ipo_read_failed", return_value=failed):
+                r = client.get("/api/calendar/ipos?from=2026-06-01&to=2026-06-05")
+            assert r.status_code == 200
+            assert r.json() == []
+            assert r.headers.get("x-calendar-read") == header

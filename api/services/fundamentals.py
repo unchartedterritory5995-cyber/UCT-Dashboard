@@ -35,6 +35,49 @@ def _fmt_billions(v) -> str | None:
     return f"${n:,.0f}"
 
 
+# ── reporting currency vs trading currency (ADRs) ──────────────────────────
+# Yahoo states statement figures in the company's REPORTING currency
+# (`financialCurrency`) and the price/market cap in the TRADING currency
+# (`currency`). For a US ADR those differ, and Yahoo's own ratios then divide one
+# by the other: measured 2026-10-06, TSM P/S 0.56 (USD market cap / TWD revenue),
+# TM P/S 0.004, ASML EV/Revenue 1123. Its P/E fields are NOT affected (trailingEps
+# and forwardEps are in the trading currency: TSM 483.69 / 21.93 = forwardPE 22.06),
+# so they stay. Nothing is converted here; mixed ratios are withheld with a reason
+# and statement amounts are labelled with their real currency instead of "$".
+_MIXED_RATIOS = ("ps", "pb", "ev_to_revenue", "ev_to_ebitda", "enterprise_value")
+_REPORTED_AMOUNTS = ("total_revenue", "ebitda", "free_cash_flow", "total_cash", "total_debt")
+
+
+def _currency_guard(result: dict, info: dict) -> dict:
+    """Withhold ratios that mix currencies; relabel reporting-currency amounts.
+    Mutates and returns `result`. Amounts are relabelled whenever the reporting
+    currency is known and not USD (a JPY filer listed in JPY is still not "$");
+    ratios are withheld only when both currencies are known and differ."""
+    rep = str(info.get("financialCurrency") or "").strip().upper() or None
+    trade = str(info.get("currency") or "").strip().upper() or None
+    result["reporting_currency"] = rep
+    result["trading_currency"] = trade
+    if rep and rep != "USD":
+        # Statement amounts are in `rep` whatever the trading currency is (or
+        # whether Yahoo stated it): never "$" on them.
+        for k in _REPORTED_AMOUNTS:
+            v = result.get(k)
+            if isinstance(v, str) and "$" in v:
+                # "$4.44T" -> "TWD 4.44T"; "$-82.64B" -> "CNY -82.64B".
+                result[k] = v.replace("$", f"{rep} ", 1)
+    if not rep or not trade or rep == trade:
+        return result
+    why = (f"not shown: Yahoo divides the {trade} price by figures reported in {rep}, "
+           f"and no conversion is applied")
+    withheld = {}
+    for k in _MIXED_RATIOS:
+        if result.get(k) is not None:
+            withheld[k] = why
+        result[k] = None
+    result["currency_withheld"] = withheld
+    return result
+
+
 def _round_pct(v, digits: int = 1) -> float | None:
     try:
         return round(float(v) * 100.0, digits)
@@ -109,7 +152,33 @@ def _hq_str(info: dict) -> str | None:
 
 
 def get_fundamentals(ticker: str) -> dict[str, Any]:
-    """Compact fundamentals summary for a ticker."""
+    """Compact fundamentals summary for a ticker.
+
+    S5 (terminal backend fixes, 2026-10-05): a cold name is built ONCE however many
+    members open it at the same moment. The result was cached but nothing stopped N
+    concurrent cold opens each running the yfinance walk (2-3 of the 8 shared yfinance
+    slots per open) on the single web process. `single_flight` keys on the cache key,
+    so callers collapse exactly when they would have stored the same value. A follower
+    waits at most 30 s and then gets an honest "still loading" error, never a second
+    build.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {"error": "ticker required"}
+    cache_key = f"fund::{sym}"
+    cached = _CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
+    from api.services import single_flight
+    try:
+        out = single_flight.run(cache_key, lambda: _build_fundamentals(sym), wait=30)
+    except single_flight.SingleFlightTimeout:
+        return {"error": "fundamentals are still loading for this ticker", "ticker": sym}
+    return dict(out) if isinstance(out, dict) else out
+
+
+def _build_fundamentals(ticker: str) -> dict[str, Any]:
+    """The uncached build behind `get_fundamentals` (one caller per ticker at a time)."""
     sym = (ticker or "").upper().strip()
     if not sym:
         return {"error": "ticker required"}
@@ -216,6 +285,7 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         # Inception (first-trade date) — powers the "Age" metric
         "inception": _inception_iso(info),
     }
+    _currency_guard(result, info)
 
     # ── earnings-growth backfill ─────────────────────────────────────────────
     # yfinance leaves `earningsGrowth` blank often enough to matter: 8 of 40

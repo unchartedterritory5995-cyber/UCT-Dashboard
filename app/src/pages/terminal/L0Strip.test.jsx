@@ -97,6 +97,16 @@ describe('L0Strip', () => {
     expect(screen.getByTestId('l0-channel-chip')).toHaveTextContent('B')
   })
 
+  it(`names the chip as the active link GROUP (not "CH") and carries the group's stored colour`, () => {
+    renderStrip({ layout: { panels: [{ channel: 'B' }], focus: 0, count: 1, activeChannel: 'A',
+      channels: [{ id: 'B', name: 'Group B', color: '#60a5fa' }] } })
+    const chip = screen.getByTestId('l0-channel-chip')
+    expect(chip).toHaveTextContent('GROUP')
+    expect(chip).not.toHaveTextContent(/CH/)
+    expect(chip).toHaveAccessibleName('Active link group: Group B')
+    expect(chip.querySelector('[style]').style.getPropertyValue('--dot')).toBe('#60a5fa')
+  })
+
   it("falls back to layout.activeChannel when the focused panel is unlinked", () => {
     render(
       <AuthContext.Provider value={{ user: null }}>
@@ -141,5 +151,62 @@ describe('L0Strip', () => {
       renderStrip({ isPhone: false })
       expect(screen.getByTestId('terminal-l0-strip')).toHaveAttribute('data-phone', 'false')
     })
+  })
+})
+
+// 2026-10-05 audit #11: the chip ignored `wire_status === 'stale'`, so yesterday's rating read
+// as today's. Same rule as MarketBreadth's wire stamp: stale is dimmed and dated; unknown is not.
+describe('L0Strip — a stale exposure reading says so', () => {
+  it('stale: dimmed, labelled "as of <wire_date>", and the title says it is not today\'s', () => {
+    breadthData.current = { exposure: { score: 55 }, wire_status: 'stale', wire_date: '2026-10-02' }
+    try {
+      renderStrip()
+      const chip = screen.getByTestId('l0-regime-chip')
+      expect(chip.dataset.stale).toBe('true')
+      expect(screen.getByTestId('l0-regime-asof')).toHaveTextContent('as of 2026-10-02')
+      expect(chip.getAttribute('title')).toMatch(/as of 2026-10-02.*not today/)
+    } finally { breadthData.current = { exposure: { score: 82 } } }
+  })
+
+  it('fresh or unknown: no stale marking (asserting staleness we cannot support is the same error)', () => {
+    for (const status of ['fresh', 'unknown', undefined]) {
+      breadthData.current = { exposure: { score: 55 }, wire_status: status, wire_date: '2026-10-05' }
+      const { unmount } = renderStrip()
+      expect(screen.getByTestId('l0-regime-chip').dataset.stale).toBe('false')
+      expect(screen.queryByTestId('l0-regime-asof')).toBeNull()
+      unmount()
+    }
+    breadthData.current = { exposure: { score: 82 } }
+  })
+})
+
+// Phone/a11y pass: the session state stays readable on phone, and the exposure chip's colour
+// (its tone) is spoken, not only painted.
+describe('L0Strip — phone session label and exposure tone in words', () => {
+  it('phone keeps a short visible session label, with the full one as its accessible name', () => {
+    renderStrip({ isPhone: true })
+    const lbl = screen.getByTestId('l0-session-label')
+    expect(lbl).toHaveTextContent('OPEN')
+    expect(lbl).not.toHaveTextContent('MARKET OPEN')
+    expect(lbl.getAttribute('aria-label')).toBe('MARKET OPEN')
+  })
+
+  it('desktop shows the full session label', () => {
+    renderStrip({ isPhone: false })
+    expect(screen.getByTestId('l0-session-label')).toHaveTextContent('MARKET OPEN')
+  })
+
+  it('the exposure chip names its score AND its tone for a screen reader', () => {
+    renderStrip()
+    expect(screen.getByRole('group', { name: /UCT Exposure Rating 82, bullish/ })).toBeInTheDocument()
+  })
+
+  it('a missing score is named as not available, with no invented tone', () => {
+    breadthData.current = {}
+    try {
+      renderStrip()
+      const chip = screen.getByTestId('l0-regime-chip')
+      expect(chip.getAttribute('aria-label')).toBe('UCT Exposure Rating not available')
+    } finally { breadthData.current = { exposure: { score: 82 } } }
   })
 })

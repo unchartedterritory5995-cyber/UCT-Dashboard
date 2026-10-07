@@ -13,7 +13,7 @@
 .clock {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   font-family: var(--font-mono);
   flex: 0 0 auto;
 }
@@ -26,13 +26,13 @@
   background: var(--text-muted);
 }
 .toneOpen { background: var(--gain); box-shadow: 0 0 6px var(--gain); }
-.toneExt { background: var(--ut-gold, #dcbb5e); box-shadow: 0 0 6px rgba(220, 187, 94, 0.7); }
+.toneExt { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 .toneClosed { background: var(--text-muted); }
 
 .time {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text-bright, var(--text));
+  color: var(--text-bright);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -51,14 +51,14 @@
   white-space: nowrap;
 }
 .sessionLabel.toneOpen { color: var(--gain); }
-.sessionLabel.toneExt { color: var(--ut-gold, #dcbb5e); }
+.sessionLabel.toneExt { color: var(--accent); }
 .sessionLabel.toneClosed { color: var(--text-muted); }
 
 .chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px var(--space-xs);
+  gap: var(--space-xs);
+  padding: 0 var(--space-xs);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
@@ -72,6 +72,17 @@
   letter-spacing: 0.06em;
 }
 
+/* The active group's colour. Stored colours are the /charts group hexes (pale yellow and green
+   among them); a ring in the text colour keeps the dot visible on a light theme. */
+.groupSwatch {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--dot, var(--text-muted));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 35%, transparent);
+}
+
 .chipValue {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -80,8 +91,10 @@
 }
 
 .regime_bull .chipValue { color: var(--gain); }
-.regime_neutral .chipValue { color: var(--warn, #f59e0b); }
-.regime_caution .chipValue { color: #e67e22; }
+.regime_neutral .chipValue { color: var(--warn); }
+/* Caution sits between neutral (warn) and bear (loss): mixed from those two tokens, so it
+   follows the light theme's darker inks instead of a fixed orange. */
+.regime_caution .chipValue { color: color-mix(in srgb, var(--warn) 50%, var(--loss)); }
 .regime_bear .chipValue { color: var(--loss); }
 .regime_muted .chipValue { color: var(--text-muted); }
 
@@ -97,12 +110,25 @@
  * label, chip label text) via `isPhone` — matching the same
  * hide/abbreviate idiom the rest of TerminalShell's `.bar` uses. */
 .strip[data-phone='true'] {
-  gap: 4px;
+  gap: var(--space-xs);
 }
 .strip[data-phone='true'] .chip {
-  padding: 1px 4px;
-  gap: 2px;
+  padding: 0 var(--space-xs);
 }
 .strip[data-phone='true'] .chipLabel {
-  font-size: 9px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+}
+
+/* A stale exposure reading (wire_status === 'stale'): dimmed and dated, like MarketBreadth's
+ * wire stamp, so yesterday's number never reads as today's. */
+.regimeStale {
+  border-style: dashed;
+  background: var(--bg-surface);
+}
+.regimeStale .chipValue { color: var(--text-muted); }
+.chipAsOf {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
 }

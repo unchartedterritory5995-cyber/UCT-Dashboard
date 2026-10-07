@@ -227,7 +227,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
 
       <div className={styles.footer}>
         <span className={styles.hash}>#</span>
-        <input className={styles.hexInput} value={(hexText || '').replace(/^#/, '')} spellCheck={false} maxLength={6}
+        <input className={styles.hexInput} aria-label="Hex color" value={(hexText || '').replace(/^#/, '')} spellCheck={false} maxLength={6}
           onChange={(e) => setHexText(e.target.value)} onBlur={commitHex}
           onKeyDown={(e) => { if (e.key === 'Enter') commitHex() }} />
         <button type="button" className={`${styles.custBtn} ${customOpen ? styles.custOn : ''}`} onClick={() => setCustomOpen(o => !o)}>Custom</button>

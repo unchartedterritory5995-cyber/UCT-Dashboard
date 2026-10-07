@@ -4,6 +4,7 @@ import { labelStep, compactQuarter, fmtMove, FULL_LABEL_MIN_PX } from './format'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import styles from './ReactionBars.module.css'
+import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
 
 /** Internal SVG coordinate space. The element scales to its container with
  *  preserveAspectRatio="xMidYMid meet" so the dots stay CIRCLES — the shape
@@ -199,9 +200,9 @@ export default function ReactionBars({
   // the thinning above, so every label overlapped. Give the axis its short
   // form instead of hiding half the quarters.
   const compact = slotPx < FULL_LABEL_MIN_PX
-  const impliedText = geo.bracket ? ` Implied ±${geo.bracket.pct.toFixed(1)}%${impliedLabel ? ` ${impliedLabel}` : ''}.` : ''
+  const impliedText = geo.bracket ? ` Implied ±${formatPercent(geo.bracket.pct, { decimals: 1 })}${impliedLabel ? ` ${impliedLabel}` : ''}.` : ''
   const built = ariaLabel
-    || `Next-day move after each report: closed up ${stats.upCount} of ${stats.total}, average move ${stats.avgAbs.toFixed(1)}%.${impliedText}`
+    || `Next-day move after each report: closed up ${stats.upCount} of ${stats.total}, average move ${formatPercent(stats.avgAbs, { decimals: 1 })}.${impliedText}`
 
   return (
     <div className={`${styles.wrap} ${className}`}>

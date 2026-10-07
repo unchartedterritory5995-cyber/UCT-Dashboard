@@ -92,6 +92,14 @@ describe('FilingChangesTab', () => {
       .toBe('No comparison for AAPL: 1 original 10-K on file; two are needed to compare. That is a gap in what we could read, not a finding that nothing changed.')
   })
 
+  it('sections_unlocated (R9) shows the pair and says the sections could not be located', async () => {
+    body = { ...OK, state: 'sections_unlocated', sections: [OK.sections[1]] }
+    renderTab()
+    expect((await screen.findByTestId('blackline-sections-missing')).textContent)
+      .toBe('Both filings were found, but the comparable sections could not be located in them. That is a gap in what we could read, not a finding that nothing changed.')
+    expect(screen.queryByTestId('blackline-unread')).toBeNull()
+  })
+
   it('not_found with both filings shows the pair and says the sections could not be located -- never "no SEC filer"', async () => {
     body = { ...OK, state: 'not_found', sections: [OK.sections[1]] }
     renderTab()
@@ -174,5 +182,28 @@ describe('FilingChangesTab', () => {
     status = 503
     renderTab()
     expect((await screen.findByTestId('blackline-unavailable')).textContent).toMatch(/not a finding about AAPL/)
+  })
+})
+
+// Quality pass 2026-10-05: the pending re-ask is capped, and once spent the tab stops
+// promising "the page will update" and offers Check again.
+import { act } from '@testing-library/react'
+import { PENDING_REASK_MS, PENDING_REASK_MAX } from '../depth/depthFetch'
+describe('FilingChanges pending re-ask', () => {
+  it('re-asks with a cap, then offers Check again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      body = { ticker: 'AAPL', state: 'pending', queued: false }
+      renderTab()
+      await screen.findByTestId('blackline-pending')
+      for (let i = 0; i < PENDING_REASK_MAX + 1; i++) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(PENDING_REASK_MS + 10) })
+      }
+      const calls = global.fetch.mock.calls.length
+      expect(calls).toBeLessThanOrEqual(PENDING_REASK_MAX + 2)
+      expect(screen.getByTestId('pending-gave-up').textContent).toMatch(/automatic checking has stopped/)
+      await act(async () => { await vi.advanceTimersByTimeAsync(PENDING_REASK_MS * 3) })
+      expect(global.fetch.mock.calls.length).toBe(calls)
+    } finally { vi.useRealTimers() }
   })
 })

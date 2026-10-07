@@ -97,14 +97,57 @@ class TestRoute:
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "entity", "consensus", "price_target", "recent_actions"}
 
-    def test_route_degrades_safely_on_an_exception(self, monkeypatch):
+    def test_route_failure_is_a_503_not_an_empty_record(self, monkeypatch):
+        # R10: a 200 with an empty record read as "no analyst coverage".
         import api.routers.research as research_router
 
         def _boom(sym):
             raise RuntimeError("boom")
         monkeypatch.setattr(research_router, "get_analyst_ratings", _boom)
         r = self._client().get("/api/research/analyst-ratings/AAPL")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["sym"] == "AAPL"
-        assert body["recent_actions"] == {"items": [], "_meta": None}
+        assert r.status_code == 503
+        assert "AAPL" in r.json()["detail"]
+
+
+# tq-panels (ANR): the route never passed `outage_out`, so an outage and "no coverage"
+# were the same 200 with null sections. A total outage now raises (the route 503s);
+# a partial one is stamped `outage: True`; genuine no coverage is `outage: False`.
+def _grades_with(outage, result):
+    def fake(sym, outage_out=None):
+        if outage_out is not None:
+            outage_out["outage"] = outage
+        return result
+    return fake
+
+
+def test_a_total_outage_raises_so_the_route_can_503():
+    import pytest
+    with mock.patch("api.services.research.analyst_ratings.resolve_entity", return_value=(None, "ZZZ")), \
+         mock.patch("api.services.research.analyst_ratings.get_analyst_grades", _grades_with(True, None)):
+        with pytest.raises(ar.AnalystRatingsUnavailable):
+            ar.get_analyst_ratings("zzz")
+
+
+def test_genuine_no_coverage_is_a_200_record_with_outage_false():
+    with mock.patch("api.services.research.analyst_ratings.resolve_entity", return_value=(None, "ZZZ")), \
+         mock.patch("api.services.research.analyst_ratings.get_analyst_grades", _grades_with(False, None)):
+        out = ar.get_analyst_ratings("zzz")
+    assert out["outage"] is False and out["consensus"] is None
+
+
+def test_a_partial_outage_is_stamped_on_the_record():
+    with mock.patch("api.services.research.analyst_ratings.resolve_entity", return_value=(None, "ZZZ")), \
+         mock.patch("api.services.research.analyst_ratings.get_analyst_grades",
+                    _grades_with(True, {"consensus": {"label": "Buy"}, "price_target": None, "recent_actions": None})):
+        out = ar.get_analyst_ratings("zzz")
+    assert out["outage"] is True and out["consensus"] == {"label": "Buy"}
+
+
+def test_route_answers_503_for_a_total_outage_through_the_real_wrapper(monkeypatch):
+    from fastapi.testclient import TestClient
+    from api.main import app
+    with mock.patch("api.services.research.analyst_ratings.resolve_entity", return_value=(None, "AAPL")), \
+         mock.patch("api.services.research.analyst_ratings.get_analyst_grades", _grades_with(True, None)):
+        r = TestClient(app).get("/api/research/analyst-ratings/AAPL")
+    assert r.status_code == 503
+    assert "AAPL" in r.json()["detail"]

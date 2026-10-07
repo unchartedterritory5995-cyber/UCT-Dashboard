@@ -49,7 +49,7 @@ describe('EstimatesTab -- entity + empty state', () => {
     }))
     const { default: FreshEstimatesTab } = await import('./EstimatesTab')
     render(<FreshEstimatesTab sym="ZZZ" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
   })
 
   it('shows the empty-state note when forward and revisions are both empty', async () => {
@@ -93,5 +93,21 @@ describe('EstimatesTab -- failed read vs genuine empty state', () => {
     await renderWith({ data: null, isLoading: false, error: true, mutate })
     screen.getByText('Retry').click()
     expect(mutate).toHaveBeenCalled()
+  })
+})
+
+// tq-panels: the route marks a fund (e910f8ff6); the tab says so, not "unavailable".
+describe('EstimatesTab -- a fund', () => {
+  it('says not applicable to funds with the route reason', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useEstimates', () => ({
+      default: () => ({ data: { sym: 'SPY', entity: null, forward: [], revisions: [], not_applicable: 'fund',
+        reason: 'SPY is a fund; analysts publish no earnings or revenue estimates for a fund' }, isLoading: false }),
+    }))
+    const { default: Fresh } = await import('./EstimatesTab')
+    render(<Fresh sym="SPY" />)
+    expect(screen.getByTestId('estimates-na').textContent)
+      .toBe('Not applicable to funds — SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
+    expect(screen.queryByText('Estimate data is unavailable for this ticker.')).toBeNull()
   })
 })

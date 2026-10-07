@@ -12,6 +12,7 @@ import useSWR from 'swr'
 import { EmptyState } from '../../research-kit'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
 import { STATEMENTS, buildTable, rowLabel } from './depthFormat'
+import { reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 import styles from './FmpDepth.module.css'
 
 export const historyKey = (sym, period) => `/api/research/financial-history/${sym}?period=${period}`
@@ -36,6 +37,8 @@ export default function StatementTables({ sym }) {
   if (!sym) return null
   const shownPeriod = data?.period === 'annual' ? 'annual' : 'quarter'
   const table = buildTable(data, statement)
+  // FMP states each statement's currency (`currency`: TSM "TWD"); the cells carry it.
+  const currencyNote = reportingCurrencyNote(data?.currency)
 
   let body
   if (error) {
@@ -78,6 +81,7 @@ export default function StatementTables({ sym }) {
         <Seg label="Reporting period" value={period} onChange={setPeriod}
              options={[['quarter', 'Quarterly'], ['annual', 'Annual']]} />
       </div>
+      {currencyNote && <p className={styles.note} data-testid="fa-currency" data-currency={data.currency}>{currencyNote}</p>}
       {body}
     </section>
   )

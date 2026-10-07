@@ -13,6 +13,7 @@ import usePreferences from '../../hooks/usePreferences'
 import useTerminalNext, { calendarIntoShell, shellOutToCalendar } from './terminalGate'
 import { isGuardedStatus, readLibrary } from './boardModel'
 import { TERMINAL_BOARDS_PREF } from './useTerminalLayout'
+import { PanelSkeleton } from '../../components/terminal'
 
 /** `/calendar`: today's page, or — for an admitted member — the shell's Calendar section.
  *
@@ -27,14 +28,14 @@ export function CalendarRoute({ children }) {
   const { search, hash } = useLocation()
   const { prefs, loading } = usePreferences(open)
   if (!open) return children
-  if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>
+  if (loading) return <div style={{ padding: 'var(--space-lg)' }}><PanelSkeleton label="Loading" /></div>
   const { library, status } = readLibrary(prefs?.[TERMINAL_BOARDS_PREF])
   // An unreadable/newer preference must not silently reverse "keep classic calendar" —
   // warn and stay put, the same idiom BoardsMenu uses for the same guarded states.
   if (isGuardedStatus(status)) {
     return (
       <>
-        <p role="alert" style={{ color: '#f5c451', padding: '8px 20px', margin: 0 }}>
+        <p role="alert" style={{ color: 'var(--warn)', padding: 'var(--space-sm) var(--space-lg)', margin: 0 }}>
           Your terminal preferences could not be read, so your "keep classic calendar" choice
           could not be confirmed. Showing the classic calendar for now.
         </p>

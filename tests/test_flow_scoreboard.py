@@ -338,7 +338,72 @@ def test_get_payload_survives_tracker_error(monkeypatch):
     monkeypatch.setattr(tracker, "get_all", boom)
     fs._invalidate_cache()
     try:
+        # A failed tracker read is NOT an empty board: it raises, and nothing is
+        # cached as data (the old path cached a zero-pick board for 5 minutes).
+        import pytest
+        with pytest.raises(fs.ScoreboardUnavailable):
+            fs._get_payload()
+        assert fs._CACHE["payload"] is None
+    finally:
+        fs._invalidate_cache()
+
+
+def test_a_failed_read_is_negative_cached_briefly_then_retried(monkeypatch):
+    import pytest
+    import api.flow_scoreboard as fs
+    import api.top_flow_tracker as tracker
+
+    calls = {"n": 0}
+    state = {"fail": True}
+
+    def flaky():
+        calls["n"] += 1
+        if state["fail"]:
+            raise RuntimeError("disk gone")
+        return {"active": [make_pick(sym="BACK", entry=1.0, prices=(1.0, 1.5))], "archived": []}
+
+    clock = {"t": 1_000_000.0}
+    monkeypatch.setattr(fs.time, "time", lambda: clock["t"])
+    monkeypatch.setattr(tracker, "get_all", flaky)
+    fs._invalidate_cache()
+    try:
+        with pytest.raises(fs.ScoreboardUnavailable):
+            fs._get_payload()
+        # inside the failure window: no second tracker read, still a failure
+        clock["t"] += fs.FAILURE_TTL_SECONDS - 1
+        with pytest.raises(fs.ScoreboardUnavailable):
+            fs._get_payload()
+        assert calls["n"] == 1
+        # past it, and the tracker is back: real data, not the failure
+        state["fail"] = False
+        clock["t"] += 2
         payload = fs._get_payload()
-        assert payload["picks_tracked"] == 0
+        assert payload["picks_tracked"] == 1
+        assert calls["n"] == 2
+    finally:
+        fs._invalidate_cache()
+
+
+def test_the_route_answers_a_failed_read_as_503_never_as_an_empty_board(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    import api.flow_scoreboard as fs
+    import api.top_flow_tracker as tracker
+
+    def boom():
+        raise RuntimeError("disk gone")
+
+    monkeypatch.setattr(tracker, "get_all", boom)
+    fs._invalidate_cache()
+    app = FastAPI()
+    app.include_router(fs.router)
+    try:
+        for path in ("/api/flow-scoreboard", "/api/flow-scoreboard/"):
+            r = TestClient(app).get(path)
+            assert r.status_code == 503
+            assert r.headers.get("retry-after") == str(fs.FAILURE_TTL_SECONDS)
+            body = r.json()
+            assert "picks_tracked" not in body
+            assert "could not be read" in body["detail"]
     finally:
         fs._invalidate_cache()

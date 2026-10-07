@@ -83,6 +83,7 @@ GATES: tuple[str, ...] = (
     "bars",           # there are no bars to prove anything on
     "plot",           # the document declares v2 and names no tree for THIS plot
     "withheld",       # the lane answers "no number" for this plot on EVERY bar
+    "scalar",         # P0 0F: reads a current-only screener scalar (no history)
 )
 
 
@@ -141,6 +142,11 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     # `ast_interpret.CHART_CLOCK_WHOLE`'s; the SENTENCES behind them have one
     # owner (`interpret.js::CHART_CLOCK_WITHHELD`) and are not copied here.
     "withheld": "is a value the alert lane cannot answer on any bar",
+    # P0 0F. A table-declared scalar (`market_cap`, `rs_rank`, ...) is TODAY'S
+    # value from the nightly screener snapshot, and this lane is offered none:
+    # `interpret` seeds it as a hole and the comparison collapses the hole to a
+    # confident 0 (X23), so the alert armed and could never fire.
+    "scalar": "reads a current-only screener value that has no bar history",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -357,6 +363,70 @@ def _withheld_reason(codes: Sequence[str]) -> str:
     return ("; ".join(parts) or "the lane withholds it on every bar") + "."
 
 
+#: ⭐ P0 — the codes a plot is refused under when it reads a series the alert
+#: lane is never handed (``unsupplied_reads``).
+UNSUPPLIED_OTHER_SYMBOL = "other-symbol:unsupplied"
+UNSUPPLIED_LOWER_TF = "lower-tf:unsupplied"
+
+
+def _external_reads(tree: Any) -> tuple:
+    """(tickers read through ``sym``, whether any ``ltf`` node is read) -- an
+    iterative walk over every node, the shape ``ast_interpret``'s walkers take."""
+    tickers: set = set()
+    lower = False
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+            continue
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind == "sym" and isinstance(node.get("value"), str):
+            tickers.add(node["value"].strip().upper())
+        elif kind == "ltf":
+            lower = True
+        for value in node.values():
+            if isinstance(value, (Mapping, list)):
+                stack.append(value)
+    return tuple(sorted(tickers)), lower
+
+
+def unsupplied_reads(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> list:
+    """⭐⭐ P0 — the codes by which ``tree`` reads a series ``opts`` does not
+    supply: ``other-symbol:unsupplied`` for a ``sym`` read with no
+    ``opts["symbols"][ticker]``, ``lower-tf:unsupplied`` for an ``ltf`` read with
+    no ``opts["lowerTf"]``. ``[]`` when everything it reads is in hand.
+
+    ⛔ THE INTERPRETER DOES NOT FETCH -- THE CALLER SUPPLIES (``ast_interpret``'s
+    ``sym`` / ``ltf`` arms). A caller that supplies nothing gets "no number" on
+    every bar, which is exactly the silent never-firing alert this refuses."""
+    tickers, lower = _external_reads(tree)
+    supplied = (opts or {}).get("symbols") or {}
+    out = []
+    if any(not supplied.get(t) for t in tickers):
+        out.append(UNSUPPLIED_OTHER_SYMBOL)
+    if lower and not (opts or {}).get("lowerTf"):
+        out.append(UNSUPPLIED_LOWER_TF)
+    return out
+
+
+def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
+    tickers, _lower = _external_reads(tree)
+    parts = []
+    if UNSUPPLIED_OTHER_SYMBOL in codes:
+        parts.append("it reads another symbol (%s), and the alert lane evaluates "
+                     "each alert on its own symbol's bars only"
+                     % ", ".join("`sym('%s', …)`" % t for t in tickers))
+    if UNSUPPLIED_LOWER_TF in codes:
+        parts.append("it reads a timeframe below the chart (`ltf`), and the alert "
+                     "lane holds no intraday bars for it")
+    return "; ".join(parts) + "."
+
+
 def _make_value_fn(def_id: str, plot_key: str,
                    definition: Mapping[str, Any]) -> Callable[[list, dict], Optional[float]]:
     """One admitted (definition, plot) -> "what number is this formula at now".
@@ -450,7 +520,36 @@ def _make_value_fn(def_id: str, plot_key: str,
     # meant an alert that armed, said nothing, and never fired. Asked of THIS
     # plot's tree with the SAME opts the column below evaluates with; no bars are
     # needed (with no `tf` the decision reads none).
+    # ⭐ P0 0F -- THE SAME QUESTION THE SCREENER AND THE BACKTEST ASK BEFORE THEY
+    # EVALUATE (`unresolved_scalars`), asked here with NO scalars, because this
+    # lane never has any. A scalar is one number per symbol, dated to a nightly
+    # snapshot: the lane cannot supply it, and supplying today's value on past
+    # bars would fabricate a history. Refused by name instead of arming an alert
+    # that reads a hole through a comparison as a permanent "no".
+    # ⚠️ Only of a real tree: a missing/falsy one keeps ITS own refusal below.
+    scalars_read = (_lane.unresolved_scalars(tree, None)
+                    if isinstance(tree, Mapping) else [])
+    if scalars_read:
+        raise AdmissionRefused(
+            "scalar",
+            f"{address} {REFUSAL_FRAGMENTS['scalar']} ({', '.join(scalars_read)}): "
+            "it is one number per symbol from the nightly snapshot, so an alert "
+            "on it would arm and never fire. It works as a screen.")
     withheld = _lane.whole_series_withheld(tree, [], budget=budget, opts=lane_opts)
+    # ⭐⭐ P0 — AND A PLOT THAT READS A SERIES THIS LANE IS NEVER SUPPLIED. A
+    # `sym('SPY', …)` or `ltf(…, '60')` evaluates off `opts["symbols"]` /
+    # `opts["lowerTf"]`, and `lane_opts_for` supplies neither — so before P0 the
+    # plot armed, evaluated "no number" on every bar (or, in a comparison, a
+    # confident 0), and never fired. Refused here, under the SAME gate and with
+    # the same sibling rule as a whole-series withholding: it is one.
+    unsupplied = unsupplied_reads(tree, lane_opts)
+    if unsupplied:
+        raise AdmissionRefused(
+            "withheld",
+            f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(unsupplied)}): "
+            + _unsupplied_reason(tree, unsupplied)
+            + " An alert on it would arm and never fire. It still draws on a "
+            "chart that can supply it.")
     if withheld:
         raise AdmissionRefused(
             "withheld",
@@ -704,7 +803,8 @@ def _conformance():
 ARM_CASE_ID = "arm"
 
 
-def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None) -> dict:
+def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None,
+                      opts: Optional[Mapping] = None) -> dict:
     """Run BOTH lanes over `tree` on `bars`, WITH `inputs`, and return `compare_lanes`' verdict.
 
     Separated from the gate so a test can read the numbers (`compared`,
@@ -723,7 +823,11 @@ def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None) -
     .case_inputs`), so the two can never be handed different ones.
     """
     conf = _conformance()
-    cases = [{"id": ARM_CASE_ID, "ast": tree, "inputs": dict(inputs or {})}]
+    # ⭐ P0G -- AND THE DEFINITION'S SEMANTICS, carried in the SAME case object
+    # (`ast_conformance.case_opts`), so a document stamped `meta.semantics: 2` is
+    # proven equal under the evaluation production runs, never under the legacy one.
+    cases = [{"id": ARM_CASE_ID, "ast": tree, "inputs": dict(inputs or {}),
+              **({"opts": dict(opts)} if opts else {})}]
     js = conf.run_js(cases, bars)
     py = conf.run_py(cases, bars)
     return conf.compare_lanes(js, py)
@@ -761,8 +865,10 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
         # cited for every other row's. What the knobs move is the VALUE, not
         # which names resolve — but a lane divergence that only appears at some
         # other knob setting is outside what this measurement covers.
+        from api.services import ast_interpret as _lane
         report = cross_lane_report(compute.get("ast"), bars,
-                                   _inputs_for(definition, None))
+                                   _inputs_for(definition, None),
+                                   _lane.semantics_opts_for(definition))
     except AdmissionRefused:
         raise
     except Exception as exc:
@@ -790,6 +896,48 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
 
 
 # ─── admission ───────────────────────────────────────────────────────────────
+
+#: ⭐ P2 OWNER POLICY 7 — the gates that refuse ONE PLOT and leave its siblings
+#: admissible. `withheld` since C45; `scalar` since P2 (evaluability is per
+#: output: a scalar-reading plot stays refused, a valid SERIES/CONDITION sibling
+#: of it is not taken down). Mirrored by `evaluability.js` ALERT_PER_PLOT_GATES.
+PER_PLOT_GATES = frozenset({"withheld", "scalar"})
+
+
+def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:
+    """The per-plot half of admission: ``([(address, fn)], {address: refusal})``,
+    or RAISE the first non-``withheld`` refusal (which refuses the whole
+    definition). It registers nothing (``admit_user_definition`` does).
+
+    ⭐ C45 — ONE WITHHELD PLOT DOES NOT TAKE ITS SIBLINGS DOWN. A Pine indicator
+    commonly carries a `plot(bar_index)` debugging row beside the signal a member
+    actually alerts on; refusing the whole document for it would end alerts that
+    are perfectly answerable. The withheld plot is NOT registered, its refusal is
+    kept under its address, and `arm_for_alert` raises it when THAT plot is the
+    one being armed. ⭐ P2: a `scalar` refusal is per plot too (`PER_PLOT_GATES`).
+    Every other gate still refuses the whole admission.
+
+    ⭐⭐ P1 — THE SERVER HALF OF THE SHARED EVALUABILITY GATE. The browser's
+    ``evaluability.js`` (lane ``alert``) is a PREFLIGHT of exactly this, held
+    equal to it case by case by ``tests/fixtures/ast/p1_evaluability_alert.json``
+    (``tests/test_p1_truth_core.py`` and ``p1.core.truth.test.js``)."""
+    plots = definition.get("plots") or []
+    keys = [p.get("key") if isinstance(p, dict) else p for p in plots]
+    keys = [str(k) for k in keys if k]
+    admissible: list = []
+    withheld: dict = {}
+    for plot_key in keys:
+        address = f"{def_id}.{plot_key}"
+        try:
+            fn = _make_value_fn(def_id, plot_key, definition)
+        except AdmissionRefused as exc:
+            if exc.gate not in PER_PLOT_GATES:
+                raise
+            withheld[address] = exc
+            continue
+        admissible.append((address, fn))
+    return admissible, withheld
+
 
 def admit_user_definition(user_id: Any, def_id: str,
                           version: Optional[int] = None, *,
@@ -824,27 +972,10 @@ def admit_user_definition(user_id: Any, def_id: str,
     _gate_budget(definition, def_id)
     report = _gate_cross_lane(definition, def_id, bars)
 
-    plots = definition.get("plots") or []
-    keys = [p.get("key") if isinstance(p, dict) else p for p in plots]
-    keys = [str(k) for k in keys if k]
     addresses = []
-    # ⭐ C45 — ONE WITHHELD PLOT DOES NOT TAKE ITS SIBLINGS DOWN. A Pine indicator
-    # commonly carries a `plot(bar_index)` debugging row beside the signal a member
-    # actually alerts on; refusing the whole document for it would end alerts that
-    # are perfectly answerable. The withheld plot is NOT registered, its refusal is
-    # kept under its address, and `arm_for_alert` raises it when THAT plot is the
-    # one being armed. Every other gate still refuses the whole admission.
-    withheld: dict = {}
     with _REGISTRY_LOCK:
-        for plot_key in keys:
-            address = f"{def_id}.{plot_key}"
-            try:
-                fn = _make_value_fn(def_id, plot_key, definition)
-            except AdmissionRefused as exc:
-                if exc.gate != "withheld":
-                    raise
-                withheld[address] = exc
-                continue
+        admissible, withheld = plot_admissions(def_id, definition)
+        for address, fn in admissible:
             USER_FUNCS[scoped_key(user_id, address)] = fn
             addresses.append(address)
     admitted = {
@@ -1108,6 +1239,7 @@ def user_catalog(user_id: Any) -> list[dict]:
     """
     if not user_id:
         return []
+    from api.services import alert_trigger_policy as _trigger
     from api.services import indicator_alert_evaluator as ev
     from api.services import user_definitions
 
@@ -1160,6 +1292,14 @@ def user_catalog(user_id: Any) -> list[dict]:
                 "default_threshold": None,
                 "inputs": _inputs_for(definition, None),
                 "instance_label": _instance_label(definition, def_id),
+                # ⭐ P1 SIGNAL — WHAT KIND OF OUTPUT THIS PLOT IS, DERIVED HERE
+                # from its own tree (`alert_trigger_policy.output_type_of`: the
+                # manifest `yields` resolver + the scalar walk), never stored and
+                # never read from the client. A `condition` is offered as a
+                # trigger policy (is true / becomes true / becomes false) instead
+                # of a numeric threshold, which on a 0/1 column could be set to a
+                # level that never fires. Additive: the GLOBAL catalog is untouched.
+                "output_type": _trigger.output_type_of(definition, plot_key),
             }
             for plot, plot_key in pairs
         ]

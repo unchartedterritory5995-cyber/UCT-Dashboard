@@ -15,7 +15,7 @@
 // Any panel pops out into a larger modal (click the card, or its expand
 // button). Small multiples are for scanning; the pop-out is for reading one
 // chart closely — 24 bars at 168px tall hide the shape of a single quarter.
-import { memo, useCallback, useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { EmptyState, SeriesChart } from '../../research-kit'
 import { SkeletonBlock } from '../../Skeleton'
@@ -24,7 +24,13 @@ import UIcon from '../../ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { FETCH_FAILED, sectionFetcher } from './sectionFetch'
 import { EXPANDED_HEIGHT, PANEL_HEIGHT, PANEL_SPECS, panelSeries, spanLabel } from './statementSeries'
+import { isForeignCurrency, relabelDollarText, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
+
+/** The panel's axis/tooltip formatter in the statements' own currency: FMP
+ *  reports TSM in TWD, and "$" on those bars misstates them. USD/unknown: as is. */
+const inCurrency = (fmt, ccy) => (isForeignCurrency(ccy) ? (v) => relabelDollarText(fmt(v), ccy) : fmt)
 import styles from './StatementPanels.module.css'
+import Checkbox from '../../ui/Checkbox'
 
 // NO_HISTORY is a claim about the company, so it is only ever said off a
 // successful answer. A failed request throws out of sectionFetcher (TERM-033)
@@ -38,7 +44,7 @@ function Controls({ period, setPeriod, yoy, setYoy }) {
   return (
     <>
       <label className={styles.yoy}>
-        <input type="checkbox" checked={yoy} onChange={e => setYoy(e.target.checked)} />
+        <Checkbox checked={yoy} onChange={e => setYoy(e.target.checked)} />
         Year-ago
       </label>
       <div className={styles.toggle} role="group" aria-label="Reporting period">
@@ -86,14 +92,15 @@ function PanelCard({ spec, onExpand, children }) {
 
 /** Memoised so opening or closing the pop-out re-renders zero cards — six
  *  ECharts canvases would otherwise re-lay out behind the backdrop. */
-const PanelChart = memo(function PanelChart({ spec, periods, series, period, yoy, onExpand }) {
+const PanelChart = memo(function PanelChart({ spec, periods, series, period, yoy, onExpand, currency }) {
+  const fmt = useMemo(() => inCurrency(spec.fmt, currency), [spec, currency])
   return (
     <PanelCard spec={spec} onExpand={onExpand}>
       <SeriesChart
         periods={periods}
         mode="bars"
         height={PANEL_HEIGHT}
-        valueFormatter={spec.fmt}
+        valueFormatter={fmt}
         ariaLabel={`${spec.title} by period`}
         series={panelSeries(spec, series, period, yoy)}
       />
@@ -138,6 +145,8 @@ export default function StatementPanels({ sym }) {
   // flip is in flight the toggle already says the NEW period; the year-ago
   // shift has to follow the bars, not the toggle.
   const dataPeriod = data?.period === 'annual' ? 'annual' : 'quarter'
+  const currency = data?.currency ?? null
+  const currencyNote = reportingCurrencyNote(currency)
 
   const onKeyDown = useCallback((e) => {
     // Keys from the pop-out bubble here through the React tree even though
@@ -199,10 +208,11 @@ export default function StatementPanels({ sym }) {
     body = (
       <>
         <div className={styles.head}><span className={styles.count}>{caption}</span>{controls}</div>
+        {currencyNote && <p className={styles.note} data-testid="panels-currency">{currencyNote}</p>}
         <div className={styles.grid}>
           {PANEL_SPECS.map((s) => (
             <PanelChart key={s.key} spec={s} periods={periods} series={series}
-                        period={dataPeriod} yoy={yoy} onExpand={onExpand} />
+                        period={dataPeriod} yoy={yoy} onExpand={onExpand} currency={currency} />
           ))}
         </div>
       </>
@@ -233,7 +243,7 @@ export default function StatementPanels({ sym }) {
                 periods={periods}
                 mode="bars"
                 height={EXPANDED_HEIGHT}
-                valueFormatter={spec.fmt}
+                valueFormatter={inCurrency(spec.fmt, currency)}
                 ariaLabel={`${spec.title} by period, expanded`}
                 series={panelSeries(spec, series, dataPeriod, yoy)}
               />

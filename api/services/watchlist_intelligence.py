@@ -55,6 +55,31 @@ def _earnings_proximity_days() -> int:
 # fixing it is explicitly out of this program's scope). Errs toward showing a
 # filing a little longer over a weekend/holiday rather than dropping it.
 _FILING_RECENCY_DAYS = 5
+# R15: an analyst action is "why it is moving" only while it is recent. The
+# same window as filings: `actions[0]` used to be taken at any age, so a
+# months-old downgrade could be the headline fact.
+_ANALYST_RECENCY_DAYS = _FILING_RECENCY_DAYS
+
+_ET = ZoneInfo("America/New_York")
+
+
+def _today_et() -> datetime.date:
+    """R16: the trading calendar's date. `date.today()` is the server's (UTC on
+    Railway), so after ~8pm ET tomorrow's report read "today" and a filing
+    aged a day early."""
+    return datetime.datetime.now(_ET).date()
+
+
+def _recent(as_of: Optional[str], days: int) -> bool:
+    """True when the YYYY-MM-DD at the start of `as_of` is 0..`days` days old (ET)."""
+    if not as_of:
+        return False
+    try:
+        d = datetime.date.fromisoformat(str(as_of)[:10])
+    except ValueError:
+        return False
+    age = (_today_et() - d).days
+    return 0 <= age <= days
 
 
 def _fact(kind: str, label: str, as_of: Optional[str], source: str, freshness: str = "unknown") -> dict:
@@ -109,11 +134,19 @@ def _analyst_fact(sym: str) -> Optional[dict]:
     actions = ((data.get("recent_actions") or {}).get("items")) or []
     if not actions:
         return None
-    latest = actions[0]
+    # R15: the NEWEST dated action, and only while it is inside the recency
+    # window. An action with no date of its own cannot be shown as recent (the
+    # fetch time is when WE read it, not when the analyst acted).
+    dated = [a for a in actions if isinstance(a, dict) and a.get("date")]
+    if not dated:
+        return None
+    latest = max(dated, key=lambda a: str(a.get("date"))[:10])
+    if not _recent(latest.get("date"), _ANALYST_RECENCY_DAYS):
+        return None
     meta = (data.get("recent_actions") or {}).get("_meta") or {}
     firm = latest.get("firm") or latest.get("analyst") or "an analyst"
     action = latest.get("action") or latest.get("grade") or "rating action"
-    as_of = latest.get("date") or meta.get("sourceObservedAt") or meta.get("fetchedAt")
+    as_of = latest.get("date")
     freshness = meta.get("freshnessClass") or ("degraded" if meta.get("degraded") else "unknown")
     return _fact(
         "analyst_action", f"{firm}: {action}",
@@ -138,13 +171,47 @@ def _filing_fact(sym: str) -> Optional[dict]:
         filed_date = datetime.date.fromisoformat(filed[:10])
     except ValueError:
         return None
-    age_days = (datetime.date.today() - filed_date).days
+    age_days = (_today_et() - filed_date).days
     if age_days < 0 or age_days > _FILING_RECENCY_DAYS:
         return None
     return _fact(
         "new_filing", f"New {latest.get('form') or 'filing'} filed",
         as_of=filed_date.isoformat(), source="SEC EDGAR", freshness="fresh",
     )
+
+
+# S8 (terminal backend fixes, 2026-10-05): MOVE and the watchlist card walked the
+# whole earnings window -- one calendar lookup per day, each able to fall through to
+# Finnhub -- on EVERY request. The window answers the same for every symbol and every
+# member, and report dates a few days out do not move minute to minute, so it is
+# memoized per (ET day, window). This is this module's OWN memo, not the awareness
+# engine's (the reason that module's docstring gives for not sharing one still holds),
+# with a shorter TTL because a member is looking at it.
+#
+# The memo also records WHICH lookup produced it and is reused only while that same
+# function is still in place, so a test (or anything) that swaps the lookup gets a
+# fresh walk instead of an answer built from the previous one.
+_EARNINGS_WINDOW_TTL_S = 600
+_EARNINGS_WINDOW_TTL_PARTIAL_S = 60
+_EARNINGS_WINDOW_MEMO: dict = {}
+
+
+def _earnings_window(today, days: int, walk) -> tuple[dict, bool]:
+    import time as _time
+    from api.services import calendar_alerts as _ca
+    leaf = getattr(_ca, "_get_reporters_for_date_with_status", None)
+    key = (today.isoformat(), int(days))
+    now = _time.monotonic()
+    hit = _EARNINGS_WINDOW_MEMO.get(key)
+    if hit is not None and hit[3] is leaf and hit[4] is walk:
+        ttl = _EARNINGS_WINDOW_TTL_PARTIAL_S if hit[2] else _EARNINGS_WINDOW_TTL_S
+        if now - hit[0] < ttl:
+            return dict(hit[1]), hit[2]
+    out, failed = walk(today, days)
+    if len(_EARNINGS_WINDOW_MEMO) > 16:
+        _EARNINGS_WINDOW_MEMO.clear()
+    _EARNINGS_WINDOW_MEMO[key] = (now, dict(out), bool(failed), leaf, walk)
+    return dict(out), failed
 
 
 def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
@@ -177,8 +244,8 @@ def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
     from api.services.calendar_alerts import collect_earnings_window
 
     wanted = {s.upper() for s in symbols}
-    today = datetime.date.today()
-    by_sym, any_day_failed = collect_earnings_window(today, _earnings_proximity_days())
+    today = _today_et()
+    by_sym, any_day_failed = _earnings_window(today, _earnings_proximity_days(), collect_earnings_window)
 
     out: dict[str, dict] = {}
     for sym, d_str in by_sym.items():

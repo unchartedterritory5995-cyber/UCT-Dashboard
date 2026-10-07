@@ -287,6 +287,9 @@ def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
 
     assert scanned > 100, f"the module walk found almost nothing ({scanned}) — it is broken"
     assert sorted(hits) == [
+        # A14 CP1 (feb018022): GET /api/portfolio-heat, the member-facing door -- a
+        # request-time reader like the others, nothing scheduled or delivering.
+        "api/routers/portfolio_heat.py",
         "api/services/ai_search_personal.py",
         "api/services/journal_two/coach_chat_tools.py",
         "api/services/portfolio_heat.py",
@@ -300,8 +303,11 @@ def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
     assert "api/routers/intelligence.py" not in hits
 
     # …and nothing schedules it.
+    # (main.py may MOUNT the request-time router -- A14 CP1 -- but must never CALL the
+    # function or hand it to the scheduler.)
     main = _code_only(_REPO / "api" / "main.py")
-    assert "portfolio_heat" not in main
+    assert not rx.search(main), "main.py calls portfolio_heat( directly"
+    assert not re.search(r"add_job\([^)]*portfolio_heat", main), "main.py schedules portfolio_heat"
 
 
 def test_all_THREE_severities_are_pinned_and_the_schema_says_which_is_unreachable():

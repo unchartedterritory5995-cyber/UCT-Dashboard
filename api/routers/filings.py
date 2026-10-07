@@ -3,13 +3,15 @@
 GET /api/filings/{ticker}?count=10
 Returns: {ticker, company, cik, form_filter, count, filings: [{form, filed, period, accession, url}]}
 
-Empty-safe; never raises.
+An SEC outage is a 503 (R7) -- it used to be a 200 `{"error": ...}` that a
+reader could take for "this company has no filings". A ticker SEC does not know
+stays a 200 with its `error` (a genuine answer: ETF, foreign listing).
 """
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from api.services.sec_filings import recent_filings
 
@@ -21,17 +23,20 @@ router = APIRouter()
 def get_filings(ticker: str, count: int = Query(default=10, ge=1, le=50)):
     """Recent SEC filings for a ticker.
 
-    Returns at most `count` filings (newest-first). Empty-safe: returns
-    {ticker, filings: []} on any failure, never raises.
+    Returns at most `count` filings (newest-first). An SEC outage answers 503;
+    a ticker SEC does not list answers 200 with `error`.
     """
     sym = (ticker or "").upper().strip()
     if not sym:
         return {"ticker": sym, "filings": []}
     try:
-        return recent_filings(sym, count=count)
+        res = recent_filings(sym, count=count)
     except Exception as e:
         _log.warning("recent_filings failed for %s: %s", sym, e)
-        return {"ticker": sym, "filings": []}
+        raise HTTPException(status_code=503, detail="SEC filings are unavailable right now")
+    if isinstance(res, dict) and res.get("error_kind") == "unavailable":
+        raise HTTPException(status_code=503, detail=res.get("error") or "SEC unavailable")
+    return res
 
 
 # The forms a researcher reading a financial statement actually wants, in the
@@ -69,6 +74,8 @@ def get_primary_filings(ticker: str):
     try:
         for form, label, blurb in _PRIMARY_FORMS:
             res = recent_filings(sym, form_type=form, count=1) or {}
+            if res.get("error_kind") == "unavailable":
+                raise HTTPException(status_code=503, detail=res.get("error") or "SEC unavailable")
             if res.get("error"):
                 base = res
                 break
@@ -78,6 +85,8 @@ def get_primary_filings(ticker: str):
                 out.append({"form": hit.get("form"), "label": label, "blurb": blurb,
                             "filed": hit.get("filed"), "period": hit.get("period"),
                             "url": hit.get("url"), "direct": True})
+    except HTTPException:
+        raise
     except Exception as e:  # noqa: BLE001
         _log.warning("primary filings failed for %s: %s", sym, e)
         return {"ticker": sym, "filings": [], "reason": "fetch_failed"}

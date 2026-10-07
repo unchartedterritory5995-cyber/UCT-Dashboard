@@ -49,7 +49,7 @@ export default function ConfidenceBadge({ sym }) {
         <span className={styles.gold}>Grade {score.grade}</span>
         <span className={styles.muted}> · {score.total_score} total</span>
       </div>
-      <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div className={styles.badgeRow}>
         {SUB_SCORES.map(([key, label]) => (
           typeof score[key] === 'number' && (
             <span key={key} className={styles.muted}>
@@ -59,12 +59,12 @@ export default function ConfidenceBadge({ sym }) {
         ))}
       </div>
       {Array.isArray(score.qualifying) && score.qualifying.length > 0 && (
-        <div className={styles.muted} style={{ marginTop: 4 }}>
+        <div className={`${styles.muted} ${styles.badgeLine}`}>
           Qualifying: {score.qualifying.join(', ')}
         </div>
       )}
       {Array.isArray(score.invalidating) && score.invalidating.length > 0 && (
-        <div className={styles.muted} style={{ marginTop: 4 }}>
+        <div className={`${styles.muted} ${styles.badgeLine}`}>
           Invalidating: {score.invalidating.join(', ')}
         </div>
       )}

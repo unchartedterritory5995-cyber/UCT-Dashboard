@@ -133,3 +133,24 @@ describe('NewHighsLowsWidget', () => {
     expect(screen.queryByText('NEW HIGHS')).not.toBeInTheDocument()
   })
 })
+
+// TERM-033: the fetcher THROWS now. A failed live read with nothing to stand on used to draw
+// "0" under NEW HIGHS and NEW LOWS (a confident count made out of a failed request).
+describe('NewHighsLowsWidget -- failed read (TERM-033)', () => {
+  it('says the read failed, with a Retry, instead of drawing zero counts', () => {
+    const mutate = vi.fn()
+    swr.mockReturnValue({ data: undefined, error: new Error('Request failed (502)'), mutate })
+    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByRole('alert').textContent).toMatch(/could not be loaded/i)
+    expect(screen.queryByText('NEW HIGHS')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalled()
+  })
+
+  it('a failed refresh with an earlier answer keeps the board (SWR keeps data)', () => {
+    swr.mockReturnValue({ data: LIVE, error: new Error('Request failed (502)'), mutate: vi.fn() })
+    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByText('RL')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})

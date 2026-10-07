@@ -53,4 +53,52 @@ describe('SeasonalityTab', () => {
     expect((await screen.findByTestId('seasonality-unavailable')).textContent)
       .toMatch(/not a finding about NVDA/)
   })
+
+  // Live sweep 2026-10-05: a cold open answered 503 + Retry-After ("still being read") and the
+  // panel said "unavailable" for good. It now waits, says so, and fills in by itself.
+  it('a history still being read waits, then fills in without a reopen', async () => {
+    let calls = 0
+    global.fetch = vi.fn(() => {
+      calls += 1
+      if (calls === 1) {
+        return Promise.resolve({ ok: false, status: 503, headers: { get: (h) => (h === 'Retry-After' ? '2' : null) },
+          json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, json: () => Promise.resolve(DATA) })
+    })
+    renderTab()
+    expect((await screen.findByTestId('seasonality-pending')).textContent).toMatch(/Reading the full daily history for NVDA/)
+    expect(screen.queryByTestId('seasonality-unavailable')).toBeNull()
+    expect(await screen.findByTestId('seasonality-window', {}, { timeout: 5000 })).toBeInTheDocument()
+    const settled = calls
+    await new Promise((r) => setTimeout(r, 2500))
+    expect(calls).toBe(settled)          // it stops asking once it has the history
+  })
+
+  it('a 503 without a retry hint is still unavailable', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 503, headers: { get: () => null },
+      json: () => Promise.resolve({}) }))
+    renderTab()
+    expect(await screen.findByTestId('seasonality-unavailable')).toBeInTheDocument()
+  })
+
+  // tq-panels: a symbol with no full month on file rendered two empty tables.
+  it('a symbol with no full month says there is not enough history, and for what window', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
+      json: () => Promise.resolve({ ticker: 'NEWCO', covered_from: '2026-09-15', covered_to: '2026-10-02',
+        full_months: 0, min_years: 5, months: [], weekdays: [] }) }))
+    renderTab()
+    const t = (await screen.findByTestId('seasonality-thin')).textContent
+    expect(t).toMatch(/Not enough history for seasonality/)
+    expect(t).toMatch(/from 2026-09-15 to 2026-10-02/)
+    expect(screen.queryByText('By month')).toBeNull()
+  })
+
+  it('a symbol with no bars at all says we hold none', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
+      json: () => Promise.resolve({ ticker: 'NVDA', covered_from: null, covered_to: null,
+        full_months: 0, min_years: 5, months: [], weekdays: [] }) }))
+    renderTab()
+    expect((await screen.findByTestId('seasonality-thin')).textContent).toMatch(/We hold no daily bars for NVDA/)
+  })
 })

@@ -5,6 +5,7 @@ import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
 import { parseEconomicSource } from './econMark'
 import { catalogMetric } from './fundamentalSeries'
 import { fetchableOtherSymbols } from './otherSymbols'
+import { severInfoValuesTo } from './infoValues'
 
 function fundamentalOptionLabel(p) {
   const m = catalogMetric(p.metric)
@@ -324,6 +325,18 @@ export function isSeveredSource(value) {
  */
 export function severReferencesTo(cs, instanceId, defOf) {
   if (!cs || typeof instanceId !== 'string' || !instanceId) return cs
+  // ⭐ P1 — AND THE HEADER'S INFO VALUES (`header.infoValues`, `infoValues.js`).
+  // They reference an instance's OUTPUT by ids (not an `'@id::plot'` string), so
+  // they join through their own helper: a delete turns them into a visible
+  // gravestone (`severed: true`) — never a silent drop, never a retarget.
+  // Identity when none pointed at `instanceId`.
+  return severInfoValuesTo(severSourceReferencesTo(cs, instanceId, defOf), instanceId)
+}
+
+// ⛔ The `conditions` / `infoFormulas` branches below are dead vestiges of the old
+// branch (neither key survives `mergeChartSettings`); P1 deliberately does not
+// revive them and does not remove them (owner ruling pending, P0-arch §1).
+function severSourceReferencesTo(cs, instanceId, defOf) {
   let touched = false
 
   const instances = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
@@ -376,7 +389,10 @@ export function severReferencesTo(cs, instanceId, defOf) {
   return {
     ...cs,
     indicatorInstances: nextInstances,
-    conditions: nextConditions,
+    // ⛔ P2X — only a blob that HAD the dead `conditions` vestige gets it back; a
+    // sever must not conjure a key into every member's settings (the delete
+    // doors call this now).
+    ...(Array.isArray(cs.conditions) ? { conditions: nextConditions } : {}),
     ...(nextInfo ? { header: { ...cs.header, infoFormulas: nextInfo } } : {}),
   }
 }

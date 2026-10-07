@@ -19,6 +19,7 @@ import { explicitLegendMode } from './legendMode'
 import { explicitBarInfoFields } from './barInfoFields'
 import { adoptOverlayAverages } from './maAdoption'
 import { migrateLegacyCotGroups } from './engine/legacyCotGroups'
+import { sanitizeInfoValues, INFO_VALUES_KEY } from './engine/infoValues'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -630,6 +631,17 @@ function mergeChartSettingsRaw(userSettings) {
       // tests `Array.isArray`, never length, so "print no fields" is not quietly
       // read back as "print all of them".
       ...(explicitBarInfoFields(parsed) ? { barInfo: explicitBarInfoFields(parsed) } : {}),
+      // ⭐ P1 — THE HEADER'S INFO VALUES: references `{instanceId, plotKey, format}`
+      // to installed outputs (`engine/infoValues.js`). ⛔ NOT DECLARED IN
+      // `CHART_DEFAULTS.header` and emitted ONLY WHEN STORED, by the rule
+      // `barInfo` follows: absent stays absent, so every legacy blob merges
+      // byte-for-byte as before and the pinned merged-blob digests do not move.
+      // When present it is SANITISED — each entry rebuilt from its allow-list, so
+      // an `ast` / `source` / `type` smuggled into a stored entry is destroyed on
+      // read (an info value is a reference, never a formula store).
+      ...(parsed.header && typeof parsed.header === 'object'
+        && Object.prototype.hasOwnProperty.call(parsed.header, INFO_VALUES_KEY)
+        ? { [INFO_VALUES_KEY]: sanitizeInfoValues(parsed.header[INFO_VALUES_KEY]) } : {}),
     },
     // Positional merge, PADDED to the defaults' length: a stored blob written before a
     // slot was added is shorter, and .map alone would drop the new slot forever.

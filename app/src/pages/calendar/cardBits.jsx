@@ -3,6 +3,7 @@
 import {
   MOVE_UNAVAILABLE, moveIsUnavailable, moveUnavailableTitle,
 } from '../../constants/expectedMoveOutcome'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
 
 // ── Date-moved chip ──────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ export function ReactionSpark({ lastN, width = 44, height = 14 }) {
   const barW = Math.max(2, Math.floor(width / shown.length) - 2)
   const mid = height / 2
   const title = 'Recent post-earnings moves: ' +
-    moves.slice(0, 8).map(v => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`).join(', ')
+    moves.slice(0, 8).map(v => formatPercent(v, { decimals: 1, signed: v > 0 })).join(', ')
   return (
     <svg className={styles.reactSpark} width={width} height={height}
          role="img" aria-label={title}>
@@ -125,13 +126,13 @@ export function ExpectedMovePair({ em, typical, big = false, outcome = null }) {
   return (
     <div className={styles.emv}
          title={`The options market prices roughly a ±${em}% swing after this report${
-           typical != null ? ` — this name typically moves ±${typical.toFixed(1)}%` : ''}${
+           typical != null ? ` — this name typically moves ±${formatPercent(typical, { decimals: 1 })}` : ''}${
            rich ? ' (options pricing is RICH vs history)' : ''}`}>
       <span className={styles.emvLbl}>Expected move{rich ? <span className={styles.emvRich}> · rich</span> : null}</span>
       <span className={big ? styles.emvBigger : styles.emvBig}>
         ±{em}%
         {typical != null && (
-          <span className={styles.emvTypical}> · typ ±{typical.toFixed(1)}%</span>
+          <span className={styles.emvTypical}> · typ ±{formatPercent(typical, { decimals: 1 })}</span>
         )}
       </span>
     </div>

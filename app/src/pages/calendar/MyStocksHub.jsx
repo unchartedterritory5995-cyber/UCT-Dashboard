@@ -36,6 +36,7 @@ import useEarningsModalRoute, { normalizeSym } from './useEarningsModalRoute'
 import useSettledSym from '../../hooks/useSettledSym'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
+import Checkbox from '../../components/ui/Checkbox'
 
 // `todayIso`/`shouldUnwindHistory` come from ./earningsModalRow.js (T11
 // review round 1, minor) — no longer duplicated here. That module is ALREADY
@@ -267,13 +268,21 @@ function CallsTab({ mineSyms, seen, markSeen }) {
 }
 
 function CallRecapForSym({ sym }) {
-  const { data: recap } = useCallRecap(sym)
+  const { data: recap, error, mutate } = useCallRecap(sym)
   // The transcript renders either way — it is not downstream of the recap.
   return (
     <>
       {recap
         ? <CallRecapSection recap={recap} audio={null} />
-        : <div className={styles.hubCallLoading}>Loading recap…</div>}
+        : error
+          ? (
+            // TERM-033: a failed read used to sit on "Loading recap" forever.
+            <div className={styles.hubCallLoading} role="alert">
+              Could not load this recap.{' '}
+              <button type="button" onClick={() => mutate()}>Retry</button>
+            </div>
+          )
+          : <div className={styles.hubCallLoading}>Loading recap…</div>}
       <TranscriptPanel sym={sym} />
     </>
   )
@@ -661,8 +670,7 @@ function SourceCustomizer({ mySources, setMySources }) {
           <div className={styles.scolLbl}>Count toward &ldquo;My Stocks&rdquo;:</div>
           {SOURCES.map(([k, lbl]) => (
             <label key={k} className={styles.gearRow}>
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={mySources.includes(k)}
                 onChange={() => toggleSource(k)}
               />

@@ -607,9 +607,33 @@ def get_adjustment_basis(
     preferred over a confident-sounding guess.
     """
     from api.services.adjustment_basis import compute_adjustment_basis
+    from api.services import raw_price_view
     basis = compute_adjustment_basis(ticker.upper(), tf.upper())
-    return JSONResponse(content={"ticker": ticker.upper(), "tf": tf.upper(),
-                                  "adjustment_basis": basis.to_dict()})
+    payload = {"ticker": ticker.upper(), "tf": tf.upper(),
+               "adjustment_basis": basis.to_dict()}
+    # TERM-055 raw view: the key rides the payload ONLY when the gate is on, so the
+    # label's toggle cannot appear while the route behind it answers 404.
+    if raw_price_view.enabled():
+        payload["raw_view"] = True
+    return JSONResponse(content=payload)
+
+
+@router.get("/api/adjustment-basis/{ticker}/raw")
+def get_raw_price_view(
+    ticker: str,
+    _access: dict = Depends(require_bars_access),
+    around: str = Query(default="", description="ISO date the window centres on (the split date)"),
+):
+    """TERM-055 — as-traded (unadjusted) daily prices beside the split-adjusted ones.
+
+    ⛔ DARK: 404 unless `RAW_PRICE_VIEW_ENABLED` is on (`api/services/raw_price_view.py`).
+    Served under `/api/adjustment-basis/*` for the same reason as the basis itself: the
+    Cloudflare Worker sends `/api/bars/*` to the bars-api tier. It never changes what the
+    chart's bars route serves; it is a separate, bounded, cached daily window."""
+    from api.services import raw_price_view
+    if not raw_price_view.enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return JSONResponse(content=raw_price_view.raw_view(ticker.upper(), around or None))
 
 
 def _augment_daily_with_today(response, ticker: str):

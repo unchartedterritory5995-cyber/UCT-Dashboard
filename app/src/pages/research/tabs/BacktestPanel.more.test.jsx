@@ -38,8 +38,16 @@ describe('BacktestPanel with FT-011 switched on', () => {
     expect(opts.length).toBe(FX.catalog.strategies.length)
   })
 
-  it('by default the earnings anchor is offered DISABLED with the reason, and an earnings pick cannot be sent', async () => {
+  it('by default the earnings anchor is offered ENABLED (report timing is on file since O4)', async () => {
     wrap(<BacktestPanel sym="SPY" />)
+    const anchor = await screen.findByLabelText('Entry anchor')
+    const opt = [...anchor.querySelectorAll('option')].find((o) => o.value === 'earnings')
+    expect(opt.disabled).toBe(false)
+    expect(screen.queryByTestId('backtest-earnings-off')).toBeNull()
+  })
+
+  it('with timing off, the earnings anchor is offered DISABLED with the reason, and an earnings pick cannot be sent', async () => {
+    wrap(<BacktestPanel sym="SPY" earningsAnchor={false} />)
     const anchor = await screen.findByLabelText('Entry anchor')
     const opt = [...anchor.querySelectorAll('option')].find((o) => o.value === 'earnings')
     expect(opt.disabled).toBe(true)

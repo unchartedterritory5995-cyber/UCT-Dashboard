@@ -10,8 +10,9 @@ import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
 import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
-import ChartDetailDock, { ChartEarningsButton, ChartPanelsButton } from './ChartDetailDock'
+import ChartDetailDock from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
+import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './chartFeatures'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
@@ -324,8 +325,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   dockRef.current = dock
   const setDock = useCallback((updater) => {
     const next = typeof updater === 'function' ? updater(dockRef.current) : updater
+    // A refused transform (a duplicate add, a no-op collapse) hands back the SAME
+    // dock — nothing to persist.
+    if (next === dockRef.current) return
     onOptsChange?.({ ...(opts || {}), dock: next })
   }, [opts, onOptsChange])
+
+  // ⭐ THE HOST FEATURES THIS WIDGET OFFERS TO Indicators → Add to Chart. The
+  // dock stays the one owner of their state (per WIDGET, shared by every chart
+  // tab, exactly as before); this only describes it and routes the three verbs
+  // through `setDock`. ⛔ Never chart settings — see chartFeatures.js.
+  const chartFeatures = useMemo(() => ({
+    items: chartFeaturesOf(dock),
+    add: (id) => setDock(d => addFeature(d, id)),
+    remove: (id) => setDock(d => removeFeature(d, id)),
+    setOpen: (id, open) => setDock(d => setFeatureOpen(d, id, open)),
+  }), [dock, setDock])
 
   // ── Tab handlers (all go through the pure chartTabs reducer) ──
   const tabList = useMemo(() => chartTabList(opts), [opts])
@@ -552,6 +567,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         onSymbolChange={handleSymbolChange}
         onTfChange={setTf}
         allowEconomic
+        chartFeatures={chartFeatures}
         stored={activeStoredSettings}
         onStore={persistActiveSettings}
         chartId={paneChartId}
@@ -666,12 +682,30 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               )}
             </>
           ),
-          /* Company Intelligence panel toggle — takes the slot Share-to-Floor
-             used to hold (owner decision). One click opens/closes the panel. */
+          /* The slot after the gear (Share-to-Floor's, then the Company and
+             Earnings toggles'). It holds the one Add to Chart door now. */
           tfBarEnd: (
             <>
-              <ChartEarningsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
-              <ChartPanelsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
+              {/* ⭐ ADD TO CHART — the ONE door to everything a chart can carry
+                  (indicators, symbols, breadth, fundamentals, Research). Opens
+                  Chart settings straight into Indicators' add surface. Beside
+                  the gear because it opens the gear's own modal; deliberately
+                  NOT the `+` above, which is New chart tab. */}
+              <button
+                type="button"
+                className={styles.chartSettingsBtn}
+                onClick={() => paneRef.current?.openSettings('add')}
+                title="Add to Chart"
+                aria-label="Add to Chart"
+                data-testid="add-to-chart"
+              >
+                <UIcon name="ind-series" size={15} />
+              </button>
+              {/* ⚰️ THE EARNINGS-STRIP AND COMPANY-INFO TOGGLES STOOD HERE —
+                  two permanent header icons for two features. Both are
+                  Indicators → Add to Chart → Research rows now; Company Info's
+                  temporary collapse lives on the panel itself (chevron + edge
+                  rail), so nothing about either needed header space. */}
             </>
           ),
           overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,

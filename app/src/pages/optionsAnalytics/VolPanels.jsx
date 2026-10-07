@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { OffLine } from './OffNotice'
 import styles from './optionsAnalytics.module.css'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+import { volPts } from './optionsFormat'
 
 // FT-006 IV rank in the chain header, FT-019 option monitor strip, FT-020 volatility stats.
 // (api/services/options_analytics/vol.py)
@@ -12,7 +14,20 @@ import styles from './optionsAnalytics.module.css'
 // ⛔ HV is computed from completed sessions; volume and earnings are the vendor's / our file's.
 
 const enc = encodeURIComponent
-const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
+// A fraction rendered as a percent through the shared formatter (em dash when absent).
+const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
+
+// A hover title cannot be read on a touch screen, so a note that explains how a
+// number is measured is ALSO a tap-to-open line. The title stays for desktop.
+function TapNote({ text, testid }) {
+  if (!text) return null
+  return (
+    <details className={styles.muted} data-testid={testid} style={{ display: 'inline-block' }}>
+      <summary aria-label="How this is measured">how measured</summary>
+      {text}
+    </details>
+  )
+}
 
 export function IvRankBadge({ sym, fallback = null }) {
   const { data, hidden, failed, loading } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
@@ -22,12 +37,18 @@ export function IvRankBadge({ sym, fallback = null }) {
   if (!data || typeof data.sentence !== 'string') return fallback
   const title = `${data.method} ${data.n} session${data.n === 1 ? '' : 's'} logged since ${data.logging_began || '—'}.`
   if (data.iv_rank == null) {
-    return <span className={styles.muted} data-testid="iv-rank-badge" title={title}>{data.sentence}</span>
+    return (
+      <>
+        <span className={styles.muted} data-testid="iv-rank-badge" title={title}>{data.sentence}</span>
+        <TapNote text={title} testid="iv-rank-note" />
+      </>
+    )
   }
   return (
     <span data-testid="iv-rank-badge" title={title}>
       IV rank <b>{Math.round(data.iv_rank)}%</b> {data.rank_word}
       <span className={styles.muted}> · pctl {Math.round(data.iv_percentile)} · {data.window_sessions} sessions</span>
+      {' '}<TapNote text={title} testid="iv-rank-note" />
     </span>
   )
 }
@@ -53,6 +74,7 @@ export function OptionMonitorStrip({ sym }) {
     <div className={styles.head} data-testid="option-monitor">
       <span title={`${data.hv_method} (computed)`}>HV20 <b>{pct(data.hv?.hv20)}</b></span>
       <span title={`${data.hv_method} (computed)`}>HV30 <b>{pct(data.hv?.hv30)}</b></span>
+      <TapNote text={data.hv_method ? `${data.hv_method} (computed)` : ''} testid="hv-method-note" />
       <span data-testid="option-monitor-events">
         EVTS{' '}
         {e.next_earnings
@@ -73,6 +95,25 @@ function useVol(sym, kind) {
   return useDarkSection(sym ? `/api/options/vol/${enc(sym)}/${kind}` : null)
 }
 
+// Quality pass 2026-10-05: with one read still in flight, switched off or answering with a
+// window missing, the panel printed "HV10 —" -- an em dash that reads as a value. Each line now
+// says which of those it is, and a realized window that was not computed is named as such.
+function readState(r) {
+  if (r.failed) return 'unavailable'
+  if (r.loading) return 'still loading…'
+  if (r.off) return 'not switched on'
+  if (r.paywalled) return 'requires a paid plan'
+  return null
+}
+
+const HV_WINDOWS = [['hv10', 'HV10'], ['hv20', 'HV20'], ['hv30', 'HV30']]
+export function realizedText(hv) {
+  const parts = HV_WINDOWS.map(([k, label]) => (hv?.[k] == null ? `${label} not computed` : `${label} ${pct(hv[k])}`))
+  const missing = HV_WINDOWS.filter(([k]) => hv?.[k] == null).length
+  const why = missing === 0 ? '' : ` (not enough daily closes on file for ${missing === 1 ? 'that window' : 'those windows'})`
+  return `${parts.join(' · ')}${why}`
+}
+
 // `offNotice`: set by the terminal's VOL, which opens this panel on its own. When all three routes
 // answer 404 it says the stats are not switched on, instead of opening blank.
 export function VolStatsPanel({ sym, offNotice = false }) {
@@ -81,6 +122,14 @@ export function VolStatsPanel({ sym, offNotice = false }) {
   const vp = useVol(sym, 'vrp')
   if (offNotice && rv.off && cm.off && vp.off) {
     return <OffLine feature="Volatility stats" />
+  }
+  // Standalone (the terminal's VOL) the panel IS the page: say what is happening rather than
+  // opening blank while the reads are in flight or every read answered the paid gate.
+  if (offNotice && rv.paywalled && cm.paywalled && vp.paywalled) {
+    return <p className={styles.note} data-testid="feature-paywalled">Volatility stats require a paid plan.</p>
+  }
+  if (offNotice && rv.loading && cm.loading && vp.loading) {
+    return <p className={styles.note} data-testid="feature-loading">Loading volatility stats for {String(sym || '').toUpperCase()}…</p>
   }
   if (rv.hidden && cm.hidden && vp.hidden) return null
   if (rv.loading && cm.loading && vp.loading) return null
@@ -94,12 +143,12 @@ export function VolStatsPanel({ sym, offNotice = false }) {
         <span className={styles.badge}>computed</span>
       </div>
       <ul className={styles.list}>
-        <li data-testid="vol-realized">Realized (close to close): {rv.failed ? 'unavailable' : rv.data?.available === false ? rv.data.note
-          : `HV10 ${pct(rv.data?.hv?.hv10)} · HV20 ${pct(rv.data?.hv?.hv20)} · HV30 ${pct(rv.data?.hv?.hv30)}`}</li>
-        <li data-testid="vol-iv30">30-day constant-maturity IV: {cm.failed ? 'unavailable' : cm.data?.iv != null ? pct(cm.data.iv) : (cm.data?.reason || '—')}
+        <li data-testid="vol-realized">Realized (close to close): {readState(rv) || (rv.data?.available === false ? rv.data.note
+          : realizedText(rv.data?.hv))}</li>
+        <li data-testid="vol-iv30">30-day constant-maturity IV: {readState(cm) || (cm.data?.iv != null ? pct(cm.data.iv) : (cm.data?.reason || 'not computed'))}
           <span className={styles.muted}> (from vendor ATM IV by expiration)</span></li>
-        <li data-testid="vol-vrp">Variance risk premium (IV30 − HV30): {vp.failed ? 'unavailable' : vp.data?.vrp_points != null
-          ? `${vp.data.vrp_points >= 0 ? '+' : ''}${(vp.data.vrp_points * 100).toFixed(1)} vol pts` : (vp.data?.note || '—')}</li>
+        <li data-testid="vol-vrp">Variance risk premium (IV30 − HV30): {readState(vp) || (vp.data?.vrp_points != null
+          ? `${vp.data.vrp_points >= 0 ? '+' : ''}${volPts(vp.data.vrp_points)} vol pts` : (vp.data?.note || 'not computed'))}</li>
       </ul>
       <p className={styles.muted}>{rv.data?.method} {cm.data?.method}</p>
     </section>

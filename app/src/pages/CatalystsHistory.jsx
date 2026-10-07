@@ -8,14 +8,20 @@
 // Phase 1 — historical data is already accumulating.
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
-import HighlightThesis from '../utils/highlightThesis'
+import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../utils/highlightThesis'
 import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
+import Input from '../components/ui/Input'
+import { useInTerminalPanel } from '../components/terminal'
+import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
+import jsonFetcher from '../utils/jsonFetcher'
 
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : { rows: [] }))
+// Throws on failure (jsonFetcher). The old `r.ok ? r.json() : { rows: [] }` rendered a failed
+// read as "No catalysts recorded for this date" (quality pass 2026-10-05).
+const fetcher = (url) => jsonFetcher(url)
 
 function ymdNDaysAgo(n) {
   // ET-aware date string. Returns YYYY-MM-DD.
@@ -32,15 +38,13 @@ function ymdNDaysAgo(n) {
   return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`
 }
 
+// Shared formatter; "+" only above zero (a flat 0.00% reads unsigned), em dash when absent.
 function fmtPct(v) {
-  if (v == null) return '—'
-  const sign = v > 0 ? '+' : ''
-  return `${sign}${v.toFixed(2)}%`
+  return formatPercent(v, { decimals: 2, signed: v > 0 })
 }
 
 function fmtPrice(v) {
-  if (v == null) return '—'
-  return `$${v.toFixed(2)}`
+  return formatCurrency(v)
 }
 
 // Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
@@ -68,9 +72,10 @@ function parseSources(raw) {
 }
 
 export default function CatalystsHistory() {
+  const inPanel = useInTerminalPanel()
   const [date, setDate] = useState(ymdNDaysAgo(0))
-  const { data, isLoading } = useSWR(
-    `/api/catalysts/by-date/${date}`,
+  const { data, error, isLoading, mutate } = useSWR(
+    date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,
     { revalidateOnFocus: false }
   )
@@ -85,19 +90,20 @@ export default function CatalystsHistory() {
   ]
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
+    <div className={inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page}>
+      {/* The terminal panel header already names CATH; its title + blurb step aside there. */}
+      {!inPanel && <div className={styles.header}>
         <h1 className={styles.title}><UIcon name="book" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Catalyst History</h1>
         <p className={styles.subtitle}>
           Browse the engine's top-ranked single-stock catalysts from any past trading day.
           What was moving — and why — on a date you remember.
         </p>
-      </div>
+      </div>}
 
       <div className={styles.controlsRow}>
         <label className={styles.dateLabel}>
           <span>Pick a date:</span>
-          <input
+          <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -121,12 +127,20 @@ export default function CatalystsHistory() {
 
       <div className={styles.tile}>
         <div className={styles.tileHeader}>
-          <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date}</span>
-          <span className={styles.tileMeta}>{rows.length} rows</span>
+          <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date || 'pick a date'}</span>
+          <span className={styles.tileMeta}>{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
         </div>
 
-        {isLoading ? (
-          <div className={styles.empty}>Loading…</div>
+        {!date ? (
+          <div className={styles.empty}>Pick a date to see that day&rsquo;s catalysts.</div>
+        ) : error && !data ? (
+          <div className={styles.empty} data-testid="cath-error">
+            Catalysts for {date} could not be read right now. That is a gap in what we could read,
+            not a finding that the day was quiet.{' '}
+            <button type="button" onClick={() => mutate()}>Retry</button>
+          </div>
+        ) : isLoading ? (
+          <div className={styles.empty}>Loading catalysts for {date}…</div>
         ) : rows.length === 0 ? (
           <div className={styles.empty}>
             No catalysts recorded for this date. The engine started persisting on 2026-05-25;
@@ -161,11 +175,13 @@ export default function CatalystsHistory() {
                         {fmtPct(r.gap_pct)}
                       </td>
                       <td className={styles.colVol}>
-                        {r.vol_x ? `${r.vol_x.toFixed(2)}×` : '—'}
+                        {r.vol_x ? `${formatNumber(r.vol_x, { decimals: 2, grouping: false })}×` : '—'}
                       </td>
                       <td className={styles.colTag}><TagChip tag={r.tag} /></td>
                       <td className={styles.colThesis}>
-                        <HighlightThesis text={r.thesis_text} />
+                        {hasNoWriteup(r)
+                          ? <span className={styles.noWriteup} data-testid="cath-no-writeup">{FAILED_SYNTHESIS_NOTE}</span>
+                          : <HighlightThesis text={r.thesis_text} />}
                         {sources.length > 0 && (
                           <span className={styles.sourceCount} title={`${sources.length} cited sources`}>
                             · {sources.length} src

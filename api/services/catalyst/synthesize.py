@@ -259,20 +259,52 @@ Analyst action: {_format_analyst_block(c.get('analyst_meta'))}
 Output the JSON now."""
 
 
+# 2026-10-05 (CATH "summary step failed" rows): the write-up was being starved.
+# The live primary is claude-opus-5, which THINKS BY DEFAULT (adaptive thinking
+# when `thinking` is omitted) and its thinking tokens count against max_tokens.
+# The old max_tokens=500 was sized for a no-thinking Sonnet/Haiku reply, so on
+# Opus 5 the budget was often spent thinking: the reply stopped at
+# stop_reason="max_tokens" with no JSON or half a JSON object -> "malformed".
+# Output tokens are billed as used, so the headroom costs nothing on a normal
+# reply. Env-overridable.
+SYNTH_MAX_TOKENS = int(os.environ.get("CATALYST_SYNTH_MAX_TOKENS", "8000"))
+# The shared client's timeout=60 (api/services/engine.py) is sized for short
+# no-thinking calls; a thinking Opus call can legitimately run longer, and a
+# timeout here is a "failed" row. Synthesis runs inside the catalyst refresh
+# job, never a request handler, so a longer bound is safe.
+SYNTH_TIMEOUT_SECS = float(os.environ.get("CATALYST_SYNTH_TIMEOUT_SECS", "180"))
+
+# Models that still ACCEPT sampling params. Claude 5 (Opus 5 / 5.5, Sonnet 5 /
+# 5.5, Fable, Mythos) and Opus 4.7 / 4.8 reject `temperature` with a 400. Allow-
+# list on purpose: an unknown/new model id gets no `temperature`, so it can
+# never fail on it.
+_TEMPERATURE_OK_PREFIXES = (
+    "claude-haiku-4", "claude-sonnet-4", "claude-opus-4-6", "claude-opus-4-5",
+    "claude-opus-4-1", "claude-opus-4-0", "claude-opus-4-2", "claude-3",
+)
+
+
+def _accepts_temperature(model: str) -> bool:
+    m = (model or "").lower()
+    return any(m.startswith(p) for p in _TEMPERATURE_OK_PREFIXES)
+
+
 def _call_anthropic(model: str, prompt: str, system: str) -> tuple:
     """Make one Anthropic API call. Returns (response_message, input_tokens, output_tokens).
     Raises on transport/API errors so caller can handle fallback.
 
-    Newer models (e.g. Opus 4.8) reject the `temperature` param as deprecated;
-    on that specific 400 we retry once without it so any model id stays usable."""
+    `temperature` is sent only to models that accept it (_accepts_temperature);
+    if a 400 still names it, we retry once without it as a safety net."""
     from api.services.engine import _get_anthropic_client
-    client = _get_anthropic_client()
-    kwargs = dict(model=model, max_tokens=500, temperature=0.3,
+    client = _get_anthropic_client().with_options(timeout=SYNTH_TIMEOUT_SECS)
+    kwargs = dict(model=model, max_tokens=SYNTH_MAX_TOKENS,
                   system=system, messages=[{"role": "user", "content": prompt}])
+    if _accepts_temperature(model):
+        kwargs["temperature"] = 0.3
     try:
         msg = client.messages.create(**kwargs)
     except Exception as e:
-        if "temperature" in str(e).lower():
+        if "temperature" in kwargs and "temperature" in str(e).lower():
             kwargs.pop("temperature", None)
             msg = client.messages.create(**kwargs)
         else:
@@ -397,9 +429,22 @@ def _negative_examples_block() -> str:
     )
 
 
+# L5: the write-up step's outcome, stored beside the thesis. A failure is NEVER
+# written as thesis prose: it used to store "Synthesis temporarily unavailable…" /
+# "Synthesis returned malformed output…" / "Synthesis paused…" AS the thesis, and
+# with that row's signals_hash the skip-if-stable path then reused the failure
+# sentence on every refresh until the inputs changed (AMD, Oct 5 / Oct 2 / Sep 28).
+#   ok         a thesis written this refresh (or reused unchanged)
+#   failed     both models failed       } thesis_text is the PRIOR thesis when one
+#   malformed  unparseable model output } exists for the day, else None
+#   paused     the daily cost cap       }
+THESIS_STATUSES = ("ok", "failed", "malformed", "paused")
+
+
 def synthesize_ticker(candidate: dict, market_date: str) -> dict:
-    """Returns dict with thesis_text, thesis_model, thesis_at, thesis_sources,
-    signals_hash, was_cached, input_tokens, output_tokens."""
+    """Returns dict with thesis_text (None when no write-up exists), thesis_status
+    (THESIS_STATUSES), thesis_model, thesis_at, thesis_sources, signals_hash,
+    was_cached, input_tokens, output_tokens."""
     h = compute_signals_hash(candidate)
     prior = store.get_ticker_for_date(candidate["ticker"], market_date)
 
@@ -410,6 +455,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                           0, 0, was_cached=True)
         return {
             "thesis_text": prior["thesis_text"],
+            "thesis_status": "ok",
             "thesis_model": prior["thesis_model"],
             "thesis_at": prior["thesis_at"],
             "thesis_sources": prior["thesis_sources"],
@@ -423,11 +469,9 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
 
     # Hard cap check
     if not cost_guard.may_synthesize(market_date):
-        fallback_text = (prior["thesis_text"]
-                         if prior and prior.get("thesis_text") else
-                         "Synthesis paused — daily cost cap reached. Try again tomorrow.")
         return {
-            "thesis_text": fallback_text + " (cost cap reached)",
+            "thesis_text": prior.get("thesis_text") if prior else None,
+            "thesis_status": "paused",
             "thesis_model": prior.get("thesis_model") if prior else "none",
             "thesis_at": int(time.time()),
             "thesis_sources": prior.get("thesis_sources") if prior else "[]",
@@ -446,63 +490,57 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
     # Steer the grader with rows the user has flagged 👎 as low-quality.
     system_prompt = SYSTEM_PROMPT + _negative_examples_block()
 
-    # Primary call: OPUS_MODEL env (defaults to Sonnet 4.6; can be set to Opus 4.7)
-    msg = None
+    # Primary call (OPUS_MODEL env; live value claude-opus-5), then the Haiku
+    # fallback. The fallback now also covers UNPARSEABLE primary output, not
+    # just a raised exception: a truncated/garbled reply from the primary used to
+    # go straight to "malformed" without ever trying the second model.
     used_model = OPUS_MODEL
     in_tokens = out_tokens = 0
+    parsed = None
+    got_output = False
+    models = [OPUS_MODEL]
+    if HAIKU_FALLBACK and HAIKU_FALLBACK != OPUS_MODEL:
+        models.append(HAIKU_FALLBACK)
 
-    try:
-        msg, in_tokens, out_tokens = _call_anthropic(OPUS_MODEL, prompt, system_prompt)
-    except Exception as e:
-        logger.warning("[catalyst-synth] primary model %s failed for %s: %s. Falling back to Haiku.",
-                       OPUS_MODEL, candidate["ticker"], e)
+    for i, model in enumerate(models):
+        stage = "primary" if i == 0 else "fallback"
         try:
-            msg, in_tokens, out_tokens = _call_anthropic(HAIKU_FALLBACK, prompt, system_prompt)
-            used_model = HAIKU_FALLBACK
-        except Exception as e2:
-            logger.error("[catalyst-synth] Haiku fallback also failed for %s: %s",
-                         candidate["ticker"], e2)
-            fallback_text = (prior["thesis_text"]
-                             if prior and prior.get("thesis_text") else
-                             "Synthesis temporarily unavailable. Sources will be checked again on next refresh.")
-            return {
-                "thesis_text": fallback_text,
-                "thesis_model": prior.get("thesis_model") if prior else "none",
-                "thesis_at": int(time.time()),
-                "thesis_sources": prior.get("thesis_sources") if prior else "[]",
-                "signals_hash": h,
-                "was_cached": True,
-                "input_tokens": 0,
-                "output_tokens": 0,
-            }
+            msg, in_i, out_i = _call_anthropic(model, prompt, system_prompt)
+        except Exception as e:
+            logger.warning("[catalyst-synth] %s model %s failed for %s: %s: %s",
+                           stage, model, candidate["ticker"],
+                           type(e).__name__, str(e)[:300])
+            continue
+        got_output = True
+        in_tokens += in_i
+        out_tokens += out_i
+        cost_guard.record(market_date, candidate["ticker"], model,
+                          in_i, out_i, was_cached=False)
+        raw_text = _extract_text(msg)
+        cand = _parse_json_response(raw_text)
+        if cand is not None and cand.get("thesis"):
+            parsed = cand
+            used_model = model
+            break
+        logger.warning("[catalyst-synth] %s model %s malformed output for %s "
+                       "(stop_reason=%s, out_tokens=%s): %r",
+                       stage, model, candidate["ticker"],
+                       getattr(msg, "stop_reason", None), out_i, raw_text[:300])
 
-    raw_text = _extract_text(msg)
-    parsed = _parse_json_response(raw_text)
-
-    # Malformed JSON — keep prior if exists, log failure
-    if parsed is None or not parsed.get("thesis"):
-        logger.warning("[catalyst-synth] malformed JSON for %s: %s",
-                       candidate["ticker"], raw_text[:300])
-        cost_guard.record(market_date, candidate["ticker"], used_model,
-                          in_tokens, out_tokens, was_cached=False)
-        if prior and prior.get("thesis_text"):
-            return {
-                "thesis_text": prior["thesis_text"],
-                "thesis_model": prior["thesis_model"],
-                "thesis_at": prior["thesis_at"],
-                "thesis_sources": prior["thesis_sources"],
-                "signals_hash": h,
-                "was_cached": True,
-                "input_tokens": in_tokens,
-                "output_tokens": out_tokens,
-            }
+    if parsed is None:
+        status = "malformed" if got_output else "failed"
+        logger.error("[catalyst-synth] no write-up for %s (%s) after %s",
+                     candidate["ticker"], status, ", ".join(models))
         return {
-            "thesis_text": "Synthesis returned malformed output. Will retry next refresh.",
-            "thesis_model": used_model,
-            "thesis_at": int(time.time()),
-            "thesis_sources": "[]",
+            "thesis_text": prior.get("thesis_text") if prior else None,
+            "thesis_status": status,
+            "thesis_model": (prior.get("thesis_model") if prior else None)
+                            or (models[-1] if got_output else "none"),
+            "thesis_at": (prior.get("thesis_at") if prior and prior.get("thesis_text")
+                          else int(time.time())),
+            "thesis_sources": prior.get("thesis_sources") if prior else "[]",
             "signals_hash": h,
-            "was_cached": False,
+            "was_cached": bool(prior and prior.get("thesis_text")) or not got_output,
             "input_tokens": in_tokens,
             "output_tokens": out_tokens,
         }
@@ -519,6 +557,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             )
             in_tokens += in2
             out_tokens += out2
+            cost_guard.record(market_date, candidate["ticker"], used_model,
+                              in2, out2, was_cached=False)
             raw_text2 = _extract_text(msg2)
             parsed2 = _parse_json_response(raw_text2)
             if parsed2 and _validate_no_sources_phrasing(parsed2, has_sources):
@@ -540,11 +580,11 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                 "source_urls": [],
             }
 
-    cost_guard.record(market_date, candidate["ticker"], used_model,
-                      in_tokens, out_tokens, was_cached=False)
-
+    # (Cost was recorded per call above, so a fallback's tokens are billed to
+    # the model that actually spent them.)
     return {
         "thesis_text": parsed["thesis"],
+        "thesis_status": "ok",
         "thesis_model": used_model,
         "thesis_at": int(time.time()),
         "thesis_sources": json.dumps(parsed.get("source_urls", [])),

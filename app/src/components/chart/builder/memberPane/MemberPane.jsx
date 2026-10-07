@@ -52,6 +52,9 @@ import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { usePineLibraries } from '../usePineLibraries'
 import styles from './MemberPane.module.css'
+// ⭐ P0 gate (pineack) — the repaint acknowledgement reuses the Formula tab's own
+// `.ack` row, so the two doors' checkboxes look and behave alike.
+import sheetStyles from '../BuilderSheet.module.css'
 
 const noop = () => {}
 
@@ -199,12 +202,29 @@ export default function MemberPane({
   // here is a second vocabulary for one decision — the rule `useUserDefinitions`
   // is written under, applied at its caller.
   const [attach, setAttach] = useState({ state: 'idle', error: null })
+
+  // ⭐⭐ P0 gate (owner decision D) — THE REPAINT ACKNOWLEDGEMENT. The server
+  // refuses a NEW-MATHS save of a `preview-repaints` document unless the request
+  // carries `repaint_acknowledged` (`user_definitions._admit_new_maths`, 422
+  // `repaint-ack`), and refuses `repaints` outright (422 `repaint`). This door
+  // had no control to say it, so a preview-repainting import could not attach.
+  // ⛔ ONLY FOR `preview-repaints`. `meta.repaint` is the WORST plot's measured
+  // mode (`buildDefinition` → `worstRepaint`), so `repaints` anywhere means no
+  // checkbox here: the button stays as it was and the server's own refusal
+  // sentence is rendered verbatim below. Never persisted, reset per document.
+  const repaintMode = (built && built.ok && built.definition && built.definition.meta
+    && built.definition.meta.repaint) || null
+  const needsAck = repaintMode === 'preview-repaints'
+  const [acked, setAcked] = useState(false)
+  useEffect(() => { setAcked(false) }, [built])
+
   const doAttach = useCallback(async () => {
     if (!onAttach || !built || !built.ok || built.saveable === false) return
+    if (needsAck && !acked) return
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
-      res = await onAttach(built.definition)
+      res = await onAttach(built.definition, needsAck && acked ? { previewAcked: true } : null)
     } catch (e) {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
@@ -218,7 +238,7 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [onAttach, built])
+  }, [onAttach, built, needsAck, acked])
 
   if (!enabled) return null
   if (!live) return null
@@ -267,10 +287,24 @@ export default function MemberPane({
           `saveable: false` still hides the button for any document that says so. */}
       {onAttach && built && built.saveable !== false && (
         <div data-testid="pine-member-pane-attach">
+          {needsAck && (
+            <>
+              <p data-testid="pine-member-pane-repaint-note">This script can repaint recent signals.</p>
+              <label className={sheetStyles.ack}>
+                <input
+                  type="checkbox"
+                  checked={acked}
+                  onChange={(e) => setAcked(e.target.checked)}
+                  data-testid="pine-member-pane-repaint-ack"
+                />
+                <span>I understand this indicator may repaint</span>
+              </label>
+            </>
+          )}
           <button
             type="button"
             className={styles.attach}
-            disabled={attach.state === 'busy'}
+            disabled={attach.state === 'busy' || (needsAck && !acked)}
             onClick={doAttach}
           >
             {attach.state === 'busy' ? 'Adding…' : 'Add this script to my chart'}

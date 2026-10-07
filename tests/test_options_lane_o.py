@@ -291,6 +291,10 @@ def _reader():
 @pytest.fixture
 def tape(monkeypatch):
     mt.clear_cache()
+    # The fixture tape is the 2026-10-02 session: the clock is pinned inside it (L3's rule
+    # tides TODAY once today's session has opened).
+    import datetime as _d
+    monkeypatch.setattr(mt, "_now", lambda: _d.datetime(2026, 10, 2, 12, 6, tzinfo=mt._ET))
     r = _reader()
     monkeypatch.setattr(mt, "_read", r)
     yield r
@@ -505,3 +509,29 @@ def test_sizzle_ranks_today_against_the_prior_five_only(seed):
     top = out["ranked"][0]
     assert top["underlying"] == "AAA" and top["ratio"] == 5.0 and top["n_sessions"] == 5
     assert "prior 5 logged sessions" in out["method"] and out["label"] == "computed"
+
+
+def test_by_expiration_keeps_unknown_volume_unknown(screen):
+    """O8: a screen file logged without volume reads 'volume unknown', never 'nothing traded'."""
+    con = sqlite3.connect(screen)
+    con.execute("UPDATE contracts SET vol = NULL")
+    con.commit()
+    con.close()
+    r = ms.run("by_expiration")["rows"][0]
+    assert r["volume"] is None and r["call_share_pct"] is None
+    assert r["volume_contracts_counted"] == 0 and r["open_interest"] == 1800
+
+
+def test_a_better_low_oi_butterfly_survives_the_cap(screen, monkeypatch):
+    """O7: wings are found in SQL and the cap is taken on reward to risk."""
+    con = sqlite3.connect(screen)
+    # a second center at 102 with wings 100/104: debit 3.10 + 0.20 - 2 x 1.50 = 0.30 on width 2
+    for k, otm, b, a, oi in ((102, 2.0, 1.50, 1.60, 120), (104, 4.0, 0.15, 0.20, 110)):
+        con.execute("INSERT INTO contracts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (f"O:TST261101C{k * 1000:08d}", "TST", 20261101, 30, "C", k * 1000, round(otm * 10),
+                     3000, 500, round(b * 100), round(a * 100), 30, oi, 5))
+    con.commit()
+    con.close()
+    monkeypatch.setattr(ss, "CANDIDATE_CAP", 1)
+    (r,) = ms.run("call_butterflies")["rows"]
+    assert r["center"]["strike"] == 102.0 and r["debit"] == 0.3 and r["reward_to_risk"] == 5.67

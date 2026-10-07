@@ -332,6 +332,13 @@
 }
 .emptyTitle { font-weight: 700; color: var(--nh-text, var(--wl-text, var(--text-muted))); }
 .emptySub { font-size: 11px; color: var(--nh-text, var(--wl-text, var(--text-muted))); opacity: 0.8; max-width: 260px; }
+/* TERM-033: Retry beside a failed live read (NHNL, H/L Pulse, Volume Surge, Market Map). */
+.retry {
+  appearance: none; border: 0; background: transparent; padding: 0 0 0 4px;
+  min-height: var(--tap-min, 44px);
+  color: var(--accent, #c9a84c); font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.retry:hover { text-decoration: underline; }
 
 /* ── Responsive: shed toolbar chrome as the widget narrows ─────────────────── */
 /* Toolbar: shed chrome as it narrows so the scope selector + ⚙ gear always fit.
