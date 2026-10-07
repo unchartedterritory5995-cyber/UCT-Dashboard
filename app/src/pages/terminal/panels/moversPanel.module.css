@@ -203,3 +203,27 @@
 .inPanel {
   min-height: 0;
 }
+
+/* ── TOUCH TIER (phone + tablet): finger targets ──
+   Lens chips, sort headers, row buttons, the "why" toggle and the MOVE link were 16-22px tall on
+   touch; <=1024px is touch in this repo (styles/tapFloor.test.js; terminal a11y audit
+   2026-10-06, rail pages/terminal/a11y/panelTapFloor.test.js). The inline link becomes an
+   inline-flex box so its min-height is not inert. */
+@media (max-width: 1024px) {
+  .chip,
+  .sortBtn,
+  .rowBtn,
+  .whyBtn,
+  .linkBtn {
+    min-height: var(--tap-min);
+  }
+
+  .chip {
+    min-width: var(--tap-min);
+  }
+
+  .linkBtn {
+    display: inline-flex;
+    align-items: center;
+  }
+}

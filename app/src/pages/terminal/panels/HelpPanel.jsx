@@ -56,7 +56,7 @@ export function KeysTable() {
   const keys = HELP_SHORTCUT_IDS.map((id) => SHORTCUTS.find((d) => d.id === id)).filter(Boolean)
   return (
     <>
-      <table className={styles.helpTable} data-testid="terminal-help-keys">
+      <table className={styles.helpTable} data-testid="terminal-help-keys" aria-label="Terminal keyboard shortcuts">
         <tbody>
           {keys.map((d) => (
             <tr key={d.id}><td><kbd>{chordLabel(d)}</kbd></td><td>{d.why.split('. ')[0]}.</td></tr>
@@ -64,7 +64,7 @@ export function KeysTable() {
         </tbody>
       </table>
       <h3 className={styles.helpGroup}>In the command line</h3>
-      <table className={styles.helpTable} data-testid="terminal-help-cmdkeys">
+      <table className={styles.helpTable} data-testid="terminal-help-cmdkeys" aria-label="Command line keys">
         <tbody>
           {COMMAND_LINE_KEYS.map((k) => (
             <tr key={k.keys}><td><kbd>{k.keys}</kbd></td><td>{k.does}</td></tr>
@@ -115,7 +115,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           <h3 className={styles.helpGroup}>Keys</h3>
           <KeysTable />
           <h3 className={styles.helpGroup}>Addresses</h3>
-          <table className={styles.helpTable} data-testid="terminal-help-addresses">
+          <table className={styles.helpTable} data-testid="terminal-help-addresses" aria-label="Address prefixes">
             <tbody>
               {ADDRESS_PREFIXES.map((a) => (
                 <tr key={a.prefix}><td><kbd>{a.prefix}:id</kbd></td><td>{a.label}</td></tr>

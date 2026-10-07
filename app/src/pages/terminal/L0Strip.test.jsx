@@ -186,9 +186,14 @@ describe('L0Strip — phone session label and exposure tone in words', () => {
   it('phone keeps a short visible session label, with the full one as its accessible name', () => {
     renderStrip({ isPhone: true })
     const lbl = screen.getByTestId('l0-session-label')
-    expect(lbl).toHaveTextContent('OPEN')
-    expect(lbl).not.toHaveTextContent('MARKET OPEN')
-    expect(lbl.getAttribute('aria-label')).toBe('MARKET OPEN')
+    // What the eye sees: the short label, hidden from the accessibility tree…
+    const short = screen.getByTestId('l0-session-short')
+    expect(short.textContent).toBe('OPEN')
+    expect(short.getAttribute('aria-hidden')).toBe('true')
+    // …and what a screen reader reads: the full label as real (visually hidden) text. An
+    // aria-label on the bare <span> was not exposed (a11y audit 2026-10-06).
+    expect(lbl.querySelector('.sr-only').textContent).toBe('MARKET OPEN')
+    expect(lbl.getAttribute('aria-label')).toBeNull()
   })
 
   it('desktop shows the full session label', () => {

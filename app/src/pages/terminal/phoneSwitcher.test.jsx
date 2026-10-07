@@ -123,6 +123,10 @@ describe('phone panel switcher (P14a)', () => {
     expect(screen.getByTestId('terminal-phone-switch-0').getAttribute('aria-selected')).toBe('false')
     expect(screen.getByTestId('terminal-panel-1').hidden).toBe(false)
     expect(screen.getByTestId('terminal-panel-0').hidden).toBe(true)
+    // a11y (audit 2026-10-06): each tab's aria-controls names a real tabpanel
+    const panel = screen.getByTestId('terminal-panel-1')
+    expect(panel.getAttribute('role')).toBe('tabpanel')
+    expect(screen.getByTestId('terminal-phone-switch-1').getAttribute('aria-controls')).toBe(panel.id)
   })
 
   it('tapping a tab calls setFocus: the UI moves focus to that panel and persists it', async () => {

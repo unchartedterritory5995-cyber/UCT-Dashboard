@@ -218,11 +218,14 @@ export function Panel({
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
   const frame = useMemo(() => ({ code: panel.code, density, inset: !flush }), [panel.code, density, flush])
   const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
+  // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
+  // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''} ${reorder?.dropTarget ? styles.panelDropTarget : ''} ${reorder?.dragging ? styles.panelDragging : ''}`}
       onMouseDown={onFocus}
       onFocusCapture={onFocus}
+      role={isPhone && !standalone ? 'tabpanel' : undefined}
       aria-label={`Panel ${index + 1}: ${title || 'empty'}`}
       id={domId}
       data-testid={`terminal-panel-${index}`}
@@ -271,8 +274,9 @@ export function Panel({
             <span aria-hidden="true">{channel ? channel.id : ''}</span>
           </button>
         ) : (
+          // role="img": an aria-label on a bare <span> (generic role) is not exposed by screen readers.
           <span className={styles.groupDotStatic} title="This function does not follow a security"
-            aria-label="Does not follow a security" data-testid={`terminal-group-${index}`} />
+            role="img" aria-label="Does not follow a security" data-testid={`terminal-group-${index}`} />
         )}
         <span className={styles.panelTitle}>
           <span className={styles.code}>{title}</span>

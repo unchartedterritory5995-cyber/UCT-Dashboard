@@ -192,7 +192,7 @@ export function RecentsMenu({ layout, library, libraryWritable = true, functionR
         <ul className={styles.menuList} data-testid="terminal-recent-entities">
           {channels.map((c) => (
             <li key={c.id} className={styles.menuInline}>
-              <span className={styles.groupDotStatic} style={{ '--dot': c.color }} aria-label={c.name}>{c.id}</span>
+              <span className={styles.groupDotStatic} style={{ '--dot': c.color }} role="img" aria-label={c.name}>{c.id}</span>
               {c.history.map((s) => (
                 <button key={s} type="button" className={styles.chip} onClick={() => onRun(s, c.id)}>{s}</button>
               ))}

@@ -215,3 +215,18 @@
   color: var(--text-muted);
   font-size: var(--text-xs);
 }
+
+/* ── TOUCH TIER (phone + tablet): finger targets ──
+   The window chips and the row buttons were 18-22px tall on touch; <=1024px is touch in this
+   repo, so the floor is the shared --tap-min at that boundary (styles/tapFloor.test.js;
+   terminal a11y audit 2026-10-06, rail pages/terminal/a11y/panelTapFloor.test.js). */
+@media (max-width: 1024px) {
+  .chip,
+  .rowBtn {
+    min-height: var(--tap-min);
+  }
+
+  .chip {
+    min-width: var(--tap-min);
+  }
+}
