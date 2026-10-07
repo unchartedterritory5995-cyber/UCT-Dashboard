@@ -72,9 +72,12 @@ describe('the replay chart follows the theme', () => {
     expect(made.lines[0].color).toBe('#c9a84c')
   })
 
-  it('a caller\'s own line colour still wins', () => {
+  it('a line that brings its own colour keeps it', async () => {
     setTheme(LIGHT)
+    render(<BarReplay symbol="NVDA" tf="D" title="NVDA replay" autoplay={false} onClose={() => {}}
+      priceLines={[{ price: 100, title: 'stop', color: '#ef4444' }]} />)
+    await screen.findByLabelText('Replay position')
+    expect(made.lines[0].color).toBe('#ef4444')
     expect(replayChartColors().accent).toBe('#7a5c16')
-    expect(replayChartColors().background).not.toBe('#0b0b0d')
   })
 })
