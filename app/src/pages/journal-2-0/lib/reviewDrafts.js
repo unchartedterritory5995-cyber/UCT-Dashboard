@@ -26,9 +26,12 @@ import { callout, table, toggle } from './templateBlocks'
 import { getTemplate } from './notebookTemplates'
 import { createNoteViaApi } from './noteCreation'
 import { openDailyNote } from './dailyNote'
+import { todayET } from './calendar'
 import { buildAskInsertNode } from './askInsert'
 import { widgetSlotNode } from './widgetEmbedCore'
 import { settleNoteWrite } from './offline/settleNoteWrite'
+import { noteHasUnsentWork, STILL_SYNCING_MESSAGE } from './offline/noteHasUnsentWork'
+import { openNotebookDb } from './offline/notebookDb'
 import { notebookSchemaHeaders } from './notebookSchema'
 
 // The flag's one authority is `reviewDraftsFlag.js` (wave 14 perf lane): Research Home reads it
@@ -71,25 +74,31 @@ export function fetchMonthlyDraft({ month, accountId }) {
   return getJson(`${BASE}/monthly${qs({ month, accountId })}`)
 }
 
-// ── date helpers (ET-day spine; mirrors CompassTab's own local helpers) ────────────
+// ── date helpers (the EASTERN day, week and month) ─────────────────────────────────
+//
+// ⛔ The period a member means is the Eastern trading day. `now.toISOString()` is the UTC
+// date, which is already tomorrow from 8 PM Eastern (7 PM in winter): an evening review then
+// asked the server for a day, week or month that has no trades yet and wrote an empty recap.
+// All three read `todayET` (lib/calendar.js, Intl-based, right across daylight-saving
+// changes) -- the same authority the daily note itself is opened with. Never a typed offset.
 
 export function todayDayIso(now = new Date()) {
-  return now.toISOString().slice(0, 10)
+  return todayET(now)
 }
 
-/** The Monday of the week containing `now` (ISO date, UTC-midnight spine — matches
- *  `coach_data_assembler.assemble_week`'s own boundary, which this draft must agree
- *  with byte for byte). */
+/** The Monday of the Eastern week containing `now`, as an ISO date. Calendar arithmetic
+ *  on the Eastern day's own year, month and day; the `Date.UTC` below is only a container
+ *  for that arithmetic, never a reading of the clock. */
 export function mondayOfIso(now = new Date()) {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const day = d.getUTCDay() // 0=Sun..6=Sat
-  const shift = day === 0 ? -6 : 1 - day
-  d.setUTCDate(d.getUTCDate() + shift)
-  return d.toISOString().slice(0, 10)
+  const [y, m, d] = todayET(now).split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const dow = date.getUTCDay() // 0=Sun..6=Sat
+  date.setUTCDate(date.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
+  return date.toISOString().slice(0, 10)
 }
 
 export function thisMonthIso(now = new Date()) {
-  return now.toISOString().slice(0, 7)
+  return todayET(now).slice(0, 7)
 }
 
 // ── formatting (R3 wording lives on the server; this only RENDERS it) ──────────────
@@ -256,6 +265,11 @@ function leakToggle(finding) {
   const body = [
     labeled('Net P&L:', fmtDollar(di.netPnl)),
     labeled('Average R:', `${wordedMean(s)} vs your period average of ${fmtR(di.baselineAvgR)}`),
+    // Said, never silent: trades that fit this finding and have no R are in none of its numbers.
+    ...(finding.excludedNoR > 0 ? [p(
+      `${finding.excludedNoR} more trade${finding.excludedNoR === 1 ? '' : 's'} fit this but have no R value, `
+      + `so ${finding.excludedNoR === 1 ? 'it is' : 'they are'} not in the numbers above `
+      + `(${fmtDollar(finding.excludedNetPnl)} net).`)] : []),
     h(3, 'The trades'),
     bullets(
       (finding.trades || []).map(
@@ -275,12 +289,28 @@ function leakToggle(finding) {
   return toggle(summary, [...body, linkList], { open: !tooFew })
 }
 
-function leaksSection(leaks) {
+/** The Leaks section. Two honesty rules (fin-data M6):
+ *  - a finding whose trades did NOT do worse than the period average is not a leak; it is
+ *    listed apart, under its own heading, never dropped and never called a leak;
+ *  - when some trades have no R value they are in no finding at all, and the section says
+ *    how many, including when it found nothing.
+ *  A payload without `vsBaseline` (an older server) reads as before: every finding a leak. */
+function leaksSection(leaks, coverage) {
   const rows = Array.isArray(leaks) ? leaks : []
-  if (!rows.length) {
-    return [h(2, 'Leaks'), callout('success', 'No leaks found this period.')]
+  const worse = rows.filter((f) => f.vsBaseline !== 'not_worse')
+  const notWorse = rows.filter((f) => f.vsBaseline === 'not_worse')
+  const out = [h(2, 'Leaks')]
+  const c = coverage || {}
+  if (c.withoutR > 0) {
+    out.push(p(`${c.withoutR} of ${c.trades} trades have no R value and are left out of every finding below.`))
   }
-  return [h(2, 'Leaks'), ...rows.map(leakToggle)]
+  if (worse.length) out.push(...worse.map(leakToggle))
+  else out.push(callout('success', 'No leaks found this period.'))
+  if (notWorse.length) {
+    out.push(h(3, 'Checked, and not worse than your average this period'))
+    out.push(...notWorse.map(leakToggle))
+  }
+  return out
 }
 
 function compassSection(compassText) {
@@ -300,15 +330,25 @@ export function buildDraftBlocks(payload) {
   const blocks = []
   blocks.push(...numbersSection(payload.aggregates))
   blocks.push(hr())
-  blocks.push(...disciplineSection(payload.discipline))
-  blocks.push(hr())
+  // `discipline` is null while plan grading's own switch is off (the server then grades
+  // nothing and writes nothing). The section is left out, never drawn as a row of zeros.
+  if (payload.discipline) {
+    blocks.push(...disciplineSection(payload.discipline))
+    // Grading is capped per draft; trades left ungraded are said, never silently missing.
+    const cap = payload.gradingCap
+    if (cap && cap.ungraded > 0) {
+      blocks.push(p(`${cap.ungraded} older trade${cap.ungraded === 1 ? '' : 's'} this period `
+        + `${cap.ungraded === 1 ? 'was' : 'were'} not graded against a plan (the newest ${cap.limit} are).`))
+    }
+    blocks.push(hr())
+  }
   blocks.push(...setupChangesSection(payload.setupChanges))
   blocks.push(hr())
   blocks.push(...linksSection(payload.links))
   blocks.push(hr())
   blocks.push(...chartsSection(payload.bestTrade, payload.worstTrade))
   blocks.push(hr())
-  blocks.push(...leaksSection(payload.leaks))
+  blocks.push(...leaksSection(payload.leaks, payload.leakCoverage))
   const compass = compassSection(payload.compassText)
   if (compass.length) {
     blocks.push(hr())
@@ -337,12 +377,51 @@ function monthlyTitle(month) {
   return tpl ? tpl.defaultTitle({ dateShort: label }) : `Monthly Review — ${label}`
 }
 
+/** The recap's heading inside a daily note. "Today's" only when it IS today (Eastern). */
+export function recapHeading(day) {
+  return `${day === todayDayIso() ? "Today's recap" : 'Recap'} — ${fmtShort(day)}`
+}
+
 // ── orchestration: fetch, build, land through the create door ──────────────────────
 
+// ── a second click never makes a second draft (fin-data M2) ────────────────────────────────
+//
+// Each click on a draft door used to write again: a second recap appended to the daily note,
+// a second weekly or monthly note. A draft for a period that already has one now answers the
+// one that is there (`existing: true`), and nothing is fetched or written for it. To redraft,
+// the member deletes the recap section or the note and clicks again -- their choice, never a
+// silent overwrite of something they may have edited since.
+
+/** The member's live note with this tag and exactly this title, or null. Best effort: any
+ *  failure reads as "none", so a look-up can never block a draft. */
+async function findExistingDraft(tag, title) {
+  try {
+    const res = await fetch(`/api/j2/notes${qs({ tag, sort: 'updated', limit: 50 })}`, { credentials: 'include' })
+    if (!res.ok) return null
+    const rows = (await res.json())?.notes
+    return (Array.isArray(rows) ? rows : []).find((n) => n && n.title === title) || null
+  } catch {
+    return null
+  }
+}
+
+const plainText = (node) => (node?.type === 'text' ? (node.text || '')
+  : (Array.isArray(node?.content) ? node.content.map(plainText).join('') : ''))
+
+/** Does this daily note already carry the recap for `day`? Matched on the recap's own exact
+ *  heading (either wording of it), never on a heading that merely looks like one. */
+function hasRecapFor(content, day) {
+  const wanted = new Set([`Today's recap — ${fmtShort(day)}`, `Recap — ${fmtShort(day)}`])
+  return content.some((n) => n?.type === 'heading' && wanted.has(plainText(n)))
+}
+
 /** Weekly draft: a new standalone note, tagged like the catalog's own weekly-review
- *  template so it sits beside a member's hand-written ones. */
+ *  template so it sits beside a member's hand-written ones. One per week: a second
+ *  click opens the first. */
 export async function draftWeeklyReview({ accountId, weekStart } = {}) {
   const ws = weekStart || mondayOfIso()
+  const existing = await findExistingDraft('weekly-review', weeklyTitle(ws))
+  if (existing) return { note: existing, payload: null, existing: true }
   const payload = await fetchWeeklyDraft({ weekStart: ws, accountId })
   const body = doc([h(2, `Week of ${fmtShort(ws)}`), ...buildDraftBlocks(payload)])
   const note = await createNoteViaApi({ title: weeklyTitle(ws), bodyJson: body, tags: ['weekly-review'] })
@@ -350,9 +429,11 @@ export async function draftWeeklyReview({ accountId, weekStart } = {}) {
 }
 
 /** Monthly draft: a new standalone note, tagged like the catalog's own
- *  monthly-review template. */
+ *  monthly-review template. One per month: a second click opens the first. */
 export async function draftMonthlyReview({ accountId, month } = {}) {
   const m = month || thisMonthIso()
+  const existing = await findExistingDraft('monthly-review', monthlyTitle(m))
+  if (existing) return { note: existing, payload: null, existing: true }
   const payload = await fetchMonthlyDraft({ month: m, accountId })
   const body = doc([h(2, monthlyTitle(m)), ...buildDraftBlocks(payload)])
   const note = await createNoteViaApi({ title: monthlyTitle(m), bodyJson: body, tags: ['monthly-review'] })
@@ -365,15 +446,38 @@ export async function draftMonthlyReview({ accountId, month } = {}) {
  * A direct PUT with the CAS `baseUpdatedAt` the note was just read at (the same
  * compare-and-set every note save uses), so a concurrent edit is refused with a
  * conflict rather than silently clobbered.
+ *
+ * ⛔ REFUSED WHILE THE DAILY NOTE HAS UNSENT WORK (fin-frontend I3). The body this door
+ * writes is the SERVER's copy plus the recap. Words this browser still holds for the note
+ * and has not sent (typed offline, or a save still queued) are not in that copy, and the
+ * compare-and-set cannot see them either: the server's `updatedAt` has not moved. The PUT
+ * would land a body without them and then be recorded as this tab's own write
+ * (`settleNoteWrite`), so the queued save would rebase over the recap or be dropped. The
+ * sibling append door (`sendToJournal.js`) asks `noteHasUnsentWork` and refuses; this door
+ * asks the SAME helper, with the same plain store opener, and throws its sentence. Nothing
+ * is fetched for the draft and nothing is written until the note has synced.
+ * With the note open and CLEAN in the editor, the write lands and `settleNoteWrite` records
+ * it, so the editor's next save rebases onto it -- the same path as Send to Journal.
  */
 export async function draftDailyReview({ accountId, day } = {}) {
   const d = day || todayDayIso()
-  const [payload, { note: daily }] = await Promise.all([
-    fetchDailyDraft({ day: d, accountId }),
-    openDailyNote(),
-  ])
+  // ⛔ THE NOTE IS THE NOTE OF THE DAY BEING DRAFTED (fin-data M1). `d` is handed to the daily
+  // note door as its day, so the numbers and the note they are written into cannot be two
+  // different days. ⚰️ This opened TODAY's note whatever `day` was: an older recap card on
+  // the Compass tab wrote a past day's numbers into today's note under "Today's recap".
+  const { note: daily } = await openDailyNote({ today: () => d })
+  const verdict = await noteHasUnsentWork(daily.id, { connect: openNotebookDb })
+  if (verdict.unsent) {
+    const err = new Error(STILL_SYNCING_MESSAGE)
+    err.code = 'still-syncing'
+    err.memberMessage = STILL_SYNCING_MESSAGE   // callers show THIS sentence, not their generic one
+    throw err
+  }
   const existing = (daily.bodyJson && Array.isArray(daily.bodyJson.content)) ? daily.bodyJson.content : []
-  const appended = [...existing, hr(), h(2, `Today's recap — ${fmtShort(d)}`), ...buildDraftBlocks(payload)]
+  // One recap per day in the note (fin-data M2): a second click answers the note as it is.
+  if (hasRecapFor(existing, d)) return { note: daily, payload: null, existing: true }
+  const payload = await fetchDailyDraft({ day: d, accountId })
+  const appended = [...existing, hr(), h(2, recapHeading(d)), ...buildDraftBlocks(payload)]
   const res = await fetch(`/api/j2/notes/${encodeURIComponent(daily.id)}`, {
     method: 'PUT',
     credentials: 'include',

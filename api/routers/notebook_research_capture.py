@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import passed_setups as ps
@@ -114,10 +114,17 @@ def read_transcript(symbol: str, quarter: str, user: dict = Depends(require_paid
 # ── passed setups ────────────────────────────────────────────────────────────
 
 @passed_router.get("")
-def list_passed(user: dict = Depends(require_paid)) -> dict[str, Any]:
+def list_passed(background_tasks: BackgroundTasks, user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """A PLAIN READ (security review I-3). This used to run `ps.refresh` first: collect, then a
+    write for each open row, before answering -- a list view that could hold auth.db's write
+    lock. The refresh is now queued for AFTER the response, at most once per member per
+    `REFRESH_MIN_INTERVAL_S`, and commits row by row. `refreshQueued` tells the client a
+    fresher list is on its way, so it can read once more."""
     uid = str(user["id"])
-    ps.refresh(uid)
-    return ps.list_items(uid)
+    queued = ps.claim_refresh(uid)
+    if queued:
+        background_tasks.add_task(ps.run_claimed_refresh, uid)
+    return {**ps.list_items(uid), "refreshQueued": queued}
 
 
 @passed_router.post("")

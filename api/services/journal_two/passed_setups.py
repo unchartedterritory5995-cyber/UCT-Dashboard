@@ -36,9 +36,12 @@ import json
 import logging
 import re
 import sqlite3
+import threading
+import time
 import uuid
 from typing import Any, Iterable
 
+from api.services.journal_two import sample_marker
 from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
@@ -63,7 +66,11 @@ SCAN_WIDGETS = ("scanner", "screener")
 #: The session calendar: SPY's stored daily bars.
 CALENDAR_SYMBOL = "SPY"
 
-SOURCES = ("scanner", "watchlist", "manual")
+#: The source of the ONE row the sample notebook adds (`add_example`). It is this table's own
+#: durable marker for "the sample made this row": removal finds the row by it, and no
+#: member-facing door can write it.
+SOURCE_SAMPLE = "sample"
+SOURCES = ("scanner", "watchlist", "manual", SOURCE_SAMPLE)
 STATUS_PENDING, STATUS_SCORED, STATUS_NO_BARS, STATUS_TRADED = "pending", "scored", "no_bars", "traded"
 
 LABELS = {
@@ -266,24 +273,50 @@ def _watchlist_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]
     return out
 
 
+def _parse_body(body_json: Any) -> Any:
+    """A stored note body as a document, or None when it cannot be read. A body nested too
+    deeply for the JSON parser raises RecursionError, which is not a ValueError; it reads as a
+    note with no scan capture, never as an error (mirrors `chart_blocks.parse_body`)."""
+    try:
+        return json.loads(body_json or "{}")
+    except (TypeError, ValueError, RecursionError):
+        return None
+
+
 def _walk_scan_embeds(node: Any, found: list[dict]) -> None:
-    if isinstance(node, dict):
-        if node.get("type") == "widgetEmbed":
-            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    """Append the attrs of every scanner or Screener `widgetEmbed` under `node`, in document
+    order.
+
+    ⛔ A LOOP, NEVER A RECURSION (security review M-4). The walk used to call itself once per
+    level of nesting, so a very deeply nested body raised RecursionError and this member's
+    passed-setups page answered 500. The same fix, in the same shape, as lane SEC's
+    `chart_blocks.iter_chart_attrs` (that helper reads chart embeds only and lives in that
+    lane's file, so it is mirrored here, not shared): children are pushed in reverse so they
+    come off the stack in document order."""
+    stack: list[Any] = [node]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, list):
+            stack.extend(reversed(cur))
+            continue
+        if not isinstance(cur, dict):
+            continue
+        if cur.get("type") == "widgetEmbed":
+            attrs = cur.get("attrs") if isinstance(cur.get("attrs"), dict) else {}
             if attrs.get("widgetId") in SCAN_WIDGETS:
                 found.append(attrs)
-        for child in node.get("content") or []:
-            _walk_scan_embeds(child, found)
-    elif isinstance(node, list):
-        for child in node:
-            _walk_scan_embeds(child, found)
+        children = cur.get("content")
+        if isinstance(children, list):
+            stack.extend(reversed(children))
 
 
 def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
     try:
         notes = conn.execute(
             "SELECT n.id AS id, n.body_json AS body_json, n.created_at AS created_at"
-            " FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.id IN ("
+            " FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            # A scan captured inside a sample note is not a name the member saved (fin-data I3).
+            f" AND {sample_marker.not_sample_sql('n')} AND n.id IN ("
             "   SELECT DISTINCT e.note_id FROM j2_note_embeds e"
             f"  WHERE e.user_id = ? AND e.widget_id IN ({','.join('?' * len(SCAN_WIDGETS))}))",
             (user_id, user_id, *SCAN_WIDGETS)).fetchall()
@@ -291,9 +324,8 @@ def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
         return []
     out = []
     for n in notes:
-        try:
-            body = json.loads(n["body_json"] or "{}")
-        except (TypeError, ValueError):
+        body = _parse_body(n["body_json"])
+        if body is None:
             continue
         embeds: list[dict] = []
         _walk_scan_embeds(body, embeds)
@@ -329,9 +361,10 @@ def collect(conn, user_id: str, now: _dt.datetime | None = None) -> int:
         k = (sym, day)
         if k not in best or c["saved_at"] < best[k]["saved_at"]:
             best[k] = {**c, "symbol": sym}
-    have = conn.execute("SELECT symbol, saved_day FROM j2_passed_setups WHERE user_id = ?",
+    have = conn.execute("SELECT symbol, saved_day, source FROM j2_passed_setups WHERE user_id = ?",
                         (user_id,)).fetchall()
-    taken = {(r["symbol"], r["saved_day"]) for r in have}
+    # The sample's own row never stands in for a save the member made (fin-data I4).
+    taken = {(r["symbol"], r["saved_day"]) for r in have if r["source"] != SOURCE_SAMPLE}
     room = MAX_ROWS_PER_MEMBER - len(have)
     added = 0
     for k in sorted(best, key=lambda k: best[k]["saved_at"], reverse=True):
@@ -466,11 +499,73 @@ def refresh(user_id: str, *, conn: sqlite3.Connection | None = None,
                 score_row(conn, r)
             except Exception as e:  # noqa: BLE001 -- one bad row never blanks the others
                 _log.warning("[passed_setups] scoring %s failed: %s", r["symbol"], e)
-        conn.commit()
+            # ⛔ ONE ROW, ONE COMMIT (security review I-3). Scoring reads bars between its
+            # writes; one commit for the whole member held auth.db's write lock across up to
+            # 300 rows of bar reads, and every other writer there waits only three seconds.
+            conn.commit()
         return {"added": added, "scored": len(open_rows)}
     finally:
         if owned:
             conn.close()
+
+
+# ── when the list view may ask for a refresh ─────────────────────────────────
+
+#: A member's list is refreshed on view at most this often (seconds). The nightly job is the
+#: schedule; this only covers a member who has never been collected, or who looks again later
+#: the same day.
+REFRESH_MIN_INTERVAL_S = 15 * 60
+_REFRESH_SEEN_MAX = 5000
+#: {user_id: monotonic seconds of the last refresh that STARTED}. Per process, on purpose:
+#: it bounds work, it is not a record. A second web process doubles the bound, no more.
+_refresh_seen: dict[str, float] = {}
+_refresh_lock = threading.Lock()
+
+
+def _reset_refresh_clock() -> None:
+    with _refresh_lock:
+        _refresh_seen.clear()
+
+
+def claim_refresh(user_id: str, *, clock=time.monotonic) -> bool:
+    """Take this member's refresh slot if none was taken within `REFRESH_MIN_INTERVAL_S`.
+    Check and mark are one step under the lock, so two views at once queue one refresh. The
+    slot is taken when the refresh is QUEUED, not when it runs: a second view arriving before
+    the first's refresh has started must not queue another. Touches no database."""
+    uid = str(user_id)
+    now = clock()
+    with _refresh_lock:
+        last = _refresh_seen.get(uid)
+        if last is not None and now - last < REFRESH_MIN_INTERVAL_S:
+            return False
+        if len(_refresh_seen) >= _REFRESH_SEEN_MAX:
+            _refresh_seen.clear()
+        _refresh_seen[uid] = now
+        return True
+
+
+def run_claimed_refresh(user_id: str) -> bool:
+    """The refresh a claimed slot stands for. Never raises (it runs after the response, with
+    nobody waiting on it); a failed refresh frees the slot so the next view can try again."""
+    uid = str(user_id)
+    try:
+        refresh(uid)
+        return True
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[passed_setups] refresh on view failed for a member: %s", e)
+        with _refresh_lock:
+            _refresh_seen.pop(uid, None)
+        return False
+
+
+def refresh_if_stale(user_id: str, *, clock=time.monotonic) -> bool:
+    """Refresh this member's list unless one was claimed within `REFRESH_MIN_INTERVAL_S`.
+
+    ⛔ THE LIST VIEW NEVER CALLS `refresh` ITSELF (security review I-3). `GET /passed-setups`
+    used to refresh on every call: a write for each open row before it could answer. The
+    route now answers from a plain read, claims the slot and queues the refresh for after the
+    response. True when a refresh ran."""
+    return claim_refresh(user_id, clock=clock) and run_claimed_refresh(user_id)
 
 
 def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
@@ -507,15 +602,15 @@ def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
             raise PassedSetupError(
                 f"Your passed-setups list is full ({MAX_ROWS_PER_MEMBER}). Remove one first.", status=409)
         day_iso, _ = base_rule(saved_at)
-        dup = conn.execute(
-            "SELECT id FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
-            (user_id, sym, day_iso)).fetchone()
+        # ⛔ The member's OWN rows only (fin-data I4): the sample's row for this name and day is
+        # neither a duplicate of theirs nor a row this door may hand back or un-dismiss.
+        own = "user_id = ? AND symbol = ? AND saved_day = ? AND source != ?"
+        key = (user_id, sym, day_iso, SOURCE_SAMPLE)
+        dup = conn.execute(f"SELECT id FROM j2_passed_setups WHERE {own}", key).fetchone()
         if dup is None:
             _insert(conn, user_id, sym, saved_at, "manual", None)
             conn.commit()
-        row = conn.execute(
-            "SELECT * FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
-            (user_id, sym, day_iso)).fetchone()
+        row = conn.execute(f"SELECT * FROM j2_passed_setups WHERE {own}", key).fetchone()
         if row["status"] in (STATUS_PENDING, STATUS_NO_BARS) and row["dismissed_at"] is None:
             score_row(conn, row)
             conn.commit()
@@ -524,6 +619,59 @@ def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
             conn.commit()
         fresh = conn.execute("SELECT * FROM j2_passed_setups WHERE id = ?", (row["id"],)).fetchone()
         return {"item": serialize(fresh), "deduped": dup is not None}
+    finally:
+        if owned:
+            conn.close()
+
+
+def add_example(user_id: str, symbol: Any, saved_on: str, *,
+                conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """The sample notebook's one passed setup: a row marked `SOURCE_SAMPLE`, or None.
+
+    ⛔ IT NEVER TOUCHES A ROW IT DID NOT MAKE (fin-data I4). `add_manual` answers the member's
+    EXISTING row for the same name and day, and un-dismisses it; the sample then recorded that
+    id and "Remove sample" dismissed the member's own pass. Here an existing row for the name
+    and day -- any source, dismissed or not -- means the sample adds nothing and returns None:
+    the member already has their own."""
+    sym = clean_symbol(symbol)
+    day = _dt.date.fromisoformat(str(saved_on)[:10])
+    saved_at = _dt.datetime(day.year, day.month, day.day, CLOSE_HOUR_ET, 0,
+                            tzinfo=_et()).astimezone(_dt.timezone.utc)
+    owned = conn is None
+    conn = conn or _conn()
+    try:
+        ensure_schema(conn)
+        day_iso, _ = base_rule(saved_at)
+        if conn.execute("SELECT 1 FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
+                        (user_id, sym, day_iso)).fetchone() is not None:
+            return None
+        if not _insert(conn, user_id, sym, saved_at, SOURCE_SAMPLE, None):
+            return None
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ? AND source = ?",
+            (user_id, sym, day_iso, SOURCE_SAMPLE)).fetchone()
+        score_row(conn, row)
+        conn.commit()
+        return serialize(conn.execute("SELECT * FROM j2_passed_setups WHERE id = ?", (row["id"],)).fetchone())
+    finally:
+        if owned:
+            conn.close()
+
+
+def dismiss_examples(user_id: str, *, conn: sqlite3.Connection | None = None) -> int:
+    """Dismiss every row the sample made for this member, found by the row's OWN marker
+    (`source = SOURCE_SAMPLE`) and nothing else -- never by an id a preference names, which a
+    client can write. Returns how many were dismissed."""
+    owned = conn is None
+    conn = conn or _conn()
+    try:
+        ensure_schema(conn)
+        cur = conn.execute(
+            "UPDATE j2_passed_setups SET dismissed_at = ? WHERE user_id = ? AND source = ?"
+            " AND dismissed_at IS NULL", (_now_utc().isoformat(), user_id, SOURCE_SAMPLE))
+        conn.commit()
+        return cur.rowcount or 0
     finally:
         if owned:
             conn.close()

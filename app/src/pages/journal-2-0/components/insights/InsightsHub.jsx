@@ -190,8 +190,9 @@ export function ReviewDraftsSection({ accountId }) {
     try {
       const { note } = await fn()
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
-    } catch {
-      setError(`Could not draft the ${period} review — try again.`)
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
     } finally {
       setBusy(null)
     }

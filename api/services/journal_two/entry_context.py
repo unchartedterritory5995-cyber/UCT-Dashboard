@@ -87,6 +87,9 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable
 
@@ -131,6 +134,7 @@ MISSING_REASONS = {
     "no_scan_published": "no UCT scanner run had been published",
     "no_screens_swept": "none of the member's saved screens had a nightly sweep",
     "bad_symbol": "the symbol is not one the chart data can be read for",
+    "source_busy": "the source was busy when the context was frozen, so it was not asked",
 }
 
 #: Not-captured statuses a read can answer (never a guessed context).
@@ -256,6 +260,22 @@ class EntryContextRequestError(ValueError):
     """A request the caller must fix (a bad symbol, day or note)."""
 
 
+class WhyConflict(Exception):
+    """The why note changed since the caller read it (fin-data I5). `current` is what is
+    stored now -- `{"text", "updatedAt"}`, or None when it was cleared -- so the client can
+    show it beside the words the member typed, which it must keep."""
+
+    def __init__(self, current: dict | None):
+        super().__init__("the why note changed since it was read")
+        self.current = current
+
+
+#: `set_why(base_updated_at=...)` was not passed: the caller is a bundle from before the
+#: compare-and-set, and saves as it always did. A distinct object, because None is a real
+#: base ("there was no why when I read it").
+NO_BASE: Any = object()
+
+
 def clean_symbol(symbol: Any) -> str:
     s = symbol.strip().upper() if isinstance(symbol, str) else ""
     if not s or len(s) > 16 or not all(c.isalnum() or c in ".-/" for c in s):
@@ -364,11 +384,71 @@ def _rs_field(symbol: str, read_at: str) -> dict:
     return _guard(SRC_RS, read)
 
 
+# ── the one vendor read: bounded and remembered (fin-security I-1) ───────────────────────────
+#
+# `_next_report_date` is the only read in a capture that can leave the box: FMP (10 s timeout),
+# then Finnhub. Everything else here is a cache read. So this is where the bounds go:
+#   * REMEMBERED. One symbol's answer for one capture day is asked once, a hit or a miss; the
+#     next member to add the same name that day reads it from here. A vendor ERROR is
+#     remembered for `VENDOR_ERROR_TTL_S` only, then asked again.
+#   * BOUNDED. At most `VENDOR_CONCURRENCY` of these run at once in the process. A caller that
+#     cannot get a slot does not queue behind a 10-second timeout: the field is frozen as
+#     `source_busy` (a labelled gap, like any other source that could not be read). Only this
+#     module's own capture threads wait for a slot, briefly.
+
+#: Vendor reads of a report date in flight at once, process-wide.
+VENDOR_CONCURRENCY = 2
+#: How long one of THIS module's capture threads waits for a slot. Anyone else waits 0.
+VENDOR_WAIT_S = 20.0
+#: A vendor error is remembered this long, so a failing vendor is not asked on every add.
+VENDOR_ERROR_TTL_S = 600.0
+_VENDOR_CACHE_MAX = 4000
+_CAPTURE_THREAD_PREFIX = "entry-context"
+
+_VENDOR_SLOTS = threading.BoundedSemaphore(VENDOR_CONCURRENCY)
+_vendor_lock = threading.Lock()
+#: {(symbol, capture day): (report day | None, error: bool, monotonic seconds)}
+_vendor_cache: dict[tuple[str, str], tuple[str | None, bool, float]] = {}
+_monotonic = time.monotonic
+
+
+def _reset_vendor_state() -> None:
+    with _vendor_lock:
+        _vendor_cache.clear()
+
+
+def _report_day(symbol: str, as_of_day: str) -> tuple[str | None, str | None]:
+    """(report day or None, missing code or None) for one symbol on one capture day."""
+    key = (symbol, as_of_day)
+    with _vendor_lock:
+        hit = _vendor_cache.get(key)
+    if hit is not None and not (hit[1] and _monotonic() - hit[2] > VENDOR_ERROR_TTL_S):
+        return hit[0], ("source_error" if hit[1] else None)
+    ours = threading.current_thread().name.startswith(_CAPTURE_THREAD_PREFIX)
+    if not _VENDOR_SLOTS.acquire(timeout=VENDOR_WAIT_S if ours else 0):
+        return None, "source_busy"                       # never remembered
+    try:
+        from api.services import earnings_table
+        try:
+            nxt = earnings_table._next_report_date(symbol)
+            answer = (str(nxt)[:10] if nxt else None, False, _monotonic())
+        except Exception:  # noqa: BLE001 -- one source never takes the whole context down
+            log.warning("[entry_context] %s unreadable", SRC_EARNINGS, exc_info=True)
+            answer = (None, True, _monotonic())
+    finally:
+        _VENDOR_SLOTS.release()
+    with _vendor_lock:
+        if len(_vendor_cache) >= _VENDOR_CACHE_MAX:
+            _vendor_cache.clear()
+        _vendor_cache[key] = answer
+    return answer[0], ("source_error" if answer[1] else None)
+
+
 def _earnings_field(symbol: str, as_of_day: str, read_at: str) -> dict:
     def read() -> dict:
-        from api.services import earnings_table
-        nxt = earnings_table._next_report_date(symbol)
-        day = str(nxt)[:10] if nxt else None
+        day, problem = _report_day(symbol, as_of_day)
+        if problem:
+            return _missing(SRC_EARNINGS, problem)
         if not day:
             return _missing(SRC_EARNINGS, "no_report_date")
         days = (date.fromisoformat(day) - date.fromisoformat(as_of_day)).days
@@ -473,8 +553,7 @@ def _serialize(row: sqlite3.Row | None) -> dict | None:
         fields = json.loads(row["context"])
     except (TypeError, ValueError):
         fields = {}
-    why = ({"text": row["why_text"], "updatedAt": row["why_updated_at"]}
-           if row["why_text"] else None)
+    why = _why_of(row)
     return {
         "symbol": row["symbol"],
         "entryDay": row["entry_day_et"],
@@ -639,43 +718,86 @@ def freeze_static(user_id: str, symbol: str, entry_day: str, fields: dict[str, d
         return {"frozen": cur.rowcount == 1, "context": _serialize(_row(c, user_id, sym, day))}
 
 
-def forget(user_id: str, symbol: str, entry_day: str, *, conn: sqlite3.Connection | None = None) -> bool:
-    """Hard-delete one frozen context row, by its own primary key.
-
-    Wave 14, lane W14-E: the sample notebook's removal door for a `freeze_static` row. Real
-    entries are never deleted outside a full account purge -- this exists only so a sample's
-    static example can be removed as completely as the note it rides beside, scoped to exactly
-    the one (member, symbol, entry day) key the caller names."""
-    sym, day = clean_symbol(symbol), clean_day(entry_day)
-    with _Conn(conn) as c:
-        cur = c.execute(
-            "DELETE FROM j2_entry_context WHERE user_id = ? AND symbol = ? AND entry_day_et = ?",
-            (str(user_id), sym, day))
-        c.commit()
-        return cur.rowcount > 0
+def _why_of(row: sqlite3.Row) -> dict | None:
+    return ({"text": row["why_text"], "updatedAt": row["why_updated_at"]} if row["why_text"] else None)
 
 
 def set_why(user_id: str, symbol: str, entry_day: str, text: Any,
-            conn: sqlite3.Connection | None = None) -> dict | None:
+            conn: sqlite3.Connection | None = None, *, base_updated_at: Any = NO_BASE) -> dict | None:
     """Set (or, with an empty text, clear) the member's "why did you take it" note.
 
     Writes ONLY the two why columns; the frozen context is untouched. None when the key has
-    no captured context (there is nothing to attach the note to)."""
+    no captured context (there is nothing to attach the note to).
+
+    ⛔ COMPARE-AND-SET (fin-data I5). `base_updated_at` is the why's `updatedAt` as the caller
+    read it (None = "there was no why"). The UPDATE carries it in its own WHERE clause, so the
+    compare and the write are ONE statement: two tabs on the same base cannot both land. A
+    write whose base is no longer the stored one raises `WhyConflict` and changes nothing.
+    Not passing a base at all is the bundle from before this check, which saves as it did --
+    the same rule as the note door (`PUT /notes/{id}`: "Absent = legacy last-writer-wins")."""
     if text is not None and not isinstance(text, str):
         raise EntryContextRequestError("The note is text.")
+    if base_updated_at is not NO_BASE and base_updated_at is not None and not isinstance(base_updated_at, str):
+        raise EntryContextRequestError("The base is the note's last-saved time, as text.")
     clean = (text or "").strip()
     if len(clean) > WHY_MAX_CHARS:
         raise EntryContextRequestError(f"The note is at most {WHY_MAX_CHARS} characters.")
     sym, day = clean_symbol(symbol), clean_day(entry_day)
+    sql = ("UPDATE j2_entry_context SET why_text = ?, why_updated_at = ?"
+           " WHERE user_id = ? AND symbol = ? AND entry_day_et = ?")
+    params: list[Any] = [clean or None, _now_iso() if clean else None, str(user_id), sym, day]
+    if base_updated_at is not NO_BASE:
+        sql += " AND why_updated_at IS ?"      # IS, so a NULL base matches a NULL column
+        params.append(base_updated_at or None)
     with _Conn(conn) as c:
-        cur = c.execute(
-            "UPDATE j2_entry_context SET why_text = ?, why_updated_at = ?"
-            " WHERE user_id = ? AND symbol = ? AND entry_day_et = ?",
-            (clean or None, _now_iso() if clean else None, str(user_id), sym, day))
+        cur = c.execute(sql, params)
         c.commit()
-        if cur.rowcount == 0:
+        row = _row(c, user_id, sym, day)
+        if row is None:
             return None
-        return _serialize(_row(c, user_id, sym, day))
+        if cur.rowcount == 0:
+            raise WhyConflict(_why_of(row))
+        return _serialize(row)
+
+
+def why_for_trades(user_id: str, trades: Iterable[dict],
+                   conn: sqlite3.Connection | None = None) -> dict[str, dict]:
+    """``{trade id: {"text", "updatedAt"}}`` for every trade (as the journal serialises them:
+    ``id``, ``symbol``, ``entryDate``) whose entry has a why note. For the member's export.
+
+    The same key as `contexts_for_trades`. Two differences, both on purpose:
+      * NOT gated on the flag. These are the member's own words; switching the feature off
+        must not hide them from the member's own export.
+      * READ-ONLY, table included. A member who never had a context has no table to read,
+        and an export must not create one (flags off stays byte-for-byte: no write at all)."""
+    keyed: dict[str, tuple[str, str]] = {}
+    for t in trades:
+        try:
+            sym = clean_symbol(t.get("symbol"))
+        except EntryContextRequestError:
+            continue
+        day = entry_day_for(t.get("entryDate"))
+        if day:
+            keyed[str(t.get("id"))] = (sym, day)
+    if not keyed:
+        return {}
+    owned = conn is None
+    if owned:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+    try:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'j2_entry_context'"
+                        ).fetchone() is None:
+            return {}
+        found: dict[tuple[str, str], dict] = {}
+        for r in conn.execute(
+                "SELECT symbol, entry_day_et, why_text, why_updated_at FROM j2_entry_context"
+                " WHERE user_id = ? AND why_text IS NOT NULL AND why_text != ''", (str(user_id),)):
+            found[(r[0], r[1])] = {"text": r[2], "updatedAt": r[3]}
+        return {tid: found[k] for tid, k in keyed.items() if k in found}
+    finally:
+        if owned:
+            conn.close()
 
 
 def list_contexts(user_id: str, *, since: str | None = None, until: str | None = None,
@@ -771,18 +893,129 @@ def read_for(user_id: str, kind: str, item_id: str, *, capture: bool = True,
 
 # ── the doors that freeze ─────────────────────────────────────────────────────────────────
 
+def member_is_paid(user_id: str) -> bool:
+    """Is this member paid-equivalent -- an admin, on a paid plan, or inside their trial?
+
+    The SAME predicate every route in `notebook_entry_context.py` applies through
+    `require_paid` (`is_paid_user` = `trial.is_paid_or_trial`, over the member with their plan),
+    for a caller that holds only an id: the add-position hook and the sweep. Unknown, or any
+    error, is NOT paid."""
+    try:
+        from api.services import auth_service
+        from api.services.trial import is_paid_or_trial
+        user = auth_service.get_user_by_id(str(user_id))
+        if not user:
+            return False
+        user["plan"] = auth_service.get_user_plan(str(user_id))
+        return bool(is_paid_or_trial(user))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def on_position_added(user_id: str, position: Any) -> dict:
-    """The manual add's hook: runs AFTER the position is written (the add route schedules it
-    after its response). Reads the returned position only; never raises."""
+    """The manual add's hook: runs AFTER the position is written, on this module's own capture
+    thread (`schedule_position_capture`). Reads the returned position only; never raises.
+
+    ⛔ PAID MEMBERS ONLY (fin-security I-1). `POST /positions` is session-only, and this used
+    to check the flag and nothing else: an unpaid member's add made the vendor read and stored
+    a context row -- a paid surface's data -- for them. Every READ of a context is behind
+    `require_paid`; the write now asks the same question."""
     try:
         if not enabled() or not isinstance(position, dict):
             return {"status": "skipped"}
+        if not member_is_paid(user_id):
+            return {"status": "skipped", "reason": "not_paid"}
         return capture_at_entry(user_id, position.get("symbol"), position.get("entryDate"),
                                 trigger="manual_add",
                                 entry_estimated=bool(position.get("entryEstimated")))
     except Exception as e:  # noqa: BLE001 -- the add already succeeded; this never fails it
         log.warning("[entry_context] manual-add capture failed for %s", user_id, exc_info=True)
         return {"status": "error", "error": type(e).__name__}
+
+
+# ── the capture queue: never the request's own thread pool (fin-security I-1) ───────────────
+#
+# The add route used to hand `on_position_added` to Starlette as a background task. A sync
+# background task runs on the SAME 64-thread pool every sync route uses, so 64 adds at once,
+# each waiting on a vendor timeout, queued every other route behind them (the 524-outage
+# shape). The capture now runs on two threads of its own, behind a small bounded queue with a
+# share per member. An add that does not fit is simply not captured here: the market-hours
+# sweep (`capture_todays_entries`) freezes today's entries anyway, so nothing is lost, only
+# later.
+
+#: Threads that run manual-add captures. Per process.
+CAPTURE_WORKERS = 2
+#: Captures queued or running at once, process-wide.
+CAPTURE_QUEUE_MAX = 40
+#: Captures queued or running at once for ONE member.
+CAPTURE_PER_MEMBER_MAX = 3
+
+_capture_lock = threading.Lock()
+_capture_pending: dict[str, int] = {}
+_capture_executor: ThreadPoolExecutor | None = None
+
+
+def _capture_pool() -> ThreadPoolExecutor:
+    global _capture_executor
+    with _capture_lock:
+        if _capture_executor is None:
+            _capture_executor = ThreadPoolExecutor(max_workers=CAPTURE_WORKERS,
+                                                   thread_name_prefix=_CAPTURE_THREAD_PREFIX)
+        return _capture_executor
+
+
+def _capture_pending_total() -> int:
+    with _capture_lock:
+        return sum(_capture_pending.values())
+
+
+def _reset_capture_queue() -> None:
+    with _capture_lock:
+        _capture_pending.clear()
+
+
+def _release_capture(uid: str) -> None:
+    with _capture_lock:
+        left = _capture_pending.get(uid, 0) - 1
+        if left > 0:
+            _capture_pending[uid] = left
+        else:
+            _capture_pending.pop(uid, None)
+
+
+def schedule_position_capture(user_id: str, position: Any) -> str:
+    """Queue the capture for a position just added, and return at once.
+
+    Does no I/O itself (not even the paid check: that reads the database, so it runs on the
+    capture thread). Answers ``queued``, or why not: ``skipped`` (flag off, nothing to key),
+    ``member_busy`` (this member already has their share queued), ``queue_full``, ``error``.
+    Never raises: the add has already succeeded and nothing here can change that."""
+    uid = str(user_id)
+    claimed = False
+    try:
+        if not enabled() or not isinstance(position, dict):
+            return "skipped"
+        with _capture_lock:
+            if _capture_pending.get(uid, 0) >= CAPTURE_PER_MEMBER_MAX:
+                return "member_busy"
+            if sum(_capture_pending.values()) >= CAPTURE_QUEUE_MAX:
+                return "queue_full"
+            _capture_pending[uid] = _capture_pending.get(uid, 0) + 1
+            claimed = True
+
+        def run() -> None:
+            try:
+                on_position_added(uid, position)
+            finally:
+                _release_capture(uid)
+
+        _capture_pool().submit(run)
+        return "queued"
+    except Exception:  # noqa: BLE001
+        log.warning("[entry_context] could not queue a capture for %s", uid, exc_info=True)
+        if claimed:
+            _release_capture(uid)
+        return "error"
 
 
 def _todays_entries(conn: sqlite3.Connection, today: str) -> list[dict]:
@@ -821,7 +1054,7 @@ def capture_todays_entries(*, trigger: str = "sweep", budget: int = SWEEP_BUDGET
     is counted and the rest go on. Raises only if the journal itself cannot be read (the
     guarded door `after_broker_sync` catches that)."""
     today = today or today_et()
-    summary = {"candidates": 0, "frozen": 0, "already": 0, "failed": 0, "deferred": 0}
+    summary = {"candidates": 0, "frozen": 0, "already": 0, "failed": 0, "deferred": 0, "notPaid": 0}
     with _Conn(conn) as c:
         entries = _todays_entries(c, today)
         done = {(str(r["user_id"]), r["symbol"]) for r in c.execute(
@@ -830,7 +1063,15 @@ def capture_todays_entries(*, trigger: str = "sweep", budget: int = SWEEP_BUDGET
         summary["candidates"] = len(entries)
         summary["already"] = len(entries) - len(todo)
         memo: dict = {}
+        paid: dict[str, bool] = {}        # asked once per member per sweep
         for e in todo:
+            # Paid members only, like every read of a context (fin-security I-1).
+            uid = str(e["user_id"])
+            if uid not in paid:
+                paid[uid] = member_is_paid(uid)
+            if not paid[uid]:
+                summary["notPaid"] += 1
+                continue
             if summary["frozen"] + summary["failed"] >= budget:
                 summary["deferred"] += 1
                 continue

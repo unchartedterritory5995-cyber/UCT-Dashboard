@@ -138,15 +138,22 @@ def test_the_setups_board_shows_the_untraded_example(db, seeded):
 
 # ── thesis chips (13G-2) + resurfacing (13D) ────────────────────────────────────────────
 
-def test_thesis_chip_shows_status_and_stop(db, seeded):
+def test_the_example_thesis_is_indexed_but_puts_no_chip_on_a_real_row(db, seeded):
+    """fin-data I3: the example's status and stop are in the note and its level index, and
+    the chip surface (a member's REAL position or watchlist row) never reads them. The
+    control -- the member's own note with the same words does chip -- is in
+    tests/test_sample_never_feeds_real_numbers.py."""
     c = _conn()
     try:
-        chips = thesis_chips.batch_chips(c, U1, [sample_examples.SYM_THESIS])
+        assert thesis_chips.batch_chips(c, U1, [sample_examples.SYM_THESIS]) == {}
+        stop = c.execute("SELECT price FROM j2_note_levels WHERE user_id = ? AND symbol = ? AND role = 'stop'",
+                         (U1, sample_examples.SYM_THESIS)).fetchone()
+        props = c.execute("SELECT properties_json FROM j2_notes WHERE user_id = ? AND ticker = ?",
+                          (U1, sample_examples.SYM_THESIS)).fetchone()[0]
     finally:
         c.close()
-    chip = chips[sample_examples.SYM_THESIS]
-    assert chip["thesisStatus"] == "active"
-    assert chip["stop"] == 110.0
+    assert stop is not None and stop[0] == 110.0
+    assert json.loads(props)["builtin:thesis_status"] == "active"
 
 
 # ⛔⛔ THE EXAMPLE NOTICE NEVER COMPETES WITH A REAL ALERT (wave 14 docs lane). The first
@@ -217,7 +224,7 @@ def test_the_sample_leaves_the_real_resurfacing_budget_untouched(db, seeded):
 
 
 def test_a_sample_note_is_never_read_by_the_resurfacing_scan(db, seeded):
-    """The thesis chip still reads the sample's stop from the level index, but the scan
+    """The sample's stop is in the level index (its own note page shows it), but the scan
     (`load_index`) skips a sample note -- so an NVDA move can never resurface the example. A
     member's OWN note naming the same stop is still scanned (the control)."""
     own = notes.import_confirm(U1, {"source": "file", "notes": [{
@@ -229,7 +236,7 @@ def test_a_sample_note_is_never_read_by_the_resurfacing_scan(db, seeded):
     try:
         thesis_id = _thesis_note(c, U1)["id"]
         assert c.execute("SELECT COUNT(*) FROM j2_note_levels WHERE user_id = ? AND note_id = ?",
-                         (U1, thesis_id)).fetchone()[0] >= 1      # indexed (the chip needs it)
+                         (U1, thesis_id)).fetchone()[0] >= 1      # indexed
         own_row = c.execute("SELECT id, ticker, body_json, properties_json, updated_at FROM j2_notes"
                             " WHERE id = ?", (own,)).fetchone()
         note_levels.project_note(c, U1, own_row)
@@ -430,3 +437,224 @@ def test_a_second_seed_while_the_sample_is_live_is_refused_and_writes_nothing_ne
     pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
     assert pref["examples"]["passedSetupId"] == examples["passedSetupId"]
     assert pref["examples"]["insightId"] is None
+
+
+# ── fin-data I4: "Remove sample" only ever removes rows the sample created ──────────────────
+#
+# `passed_setups.add_manual` answers an EXISTING row when the member already has that name on
+# that day (and un-dismisses it). The sample recorded whatever id came back, so for a member
+# who had already passed on GOOGL that day, "Remove it" dismissed the member's own row.
+
+def _saved_on():
+    return (sample_examples._et_today() - __import__("datetime").timedelta(days=20)).isoformat()
+
+
+def _passed_rows(user):
+    c = _conn()
+    try:
+        passed_setups.ensure_schema(c)
+        return [dict(r) for r in c.execute(
+            "SELECT id, symbol, source, dismissed_at FROM j2_passed_setups WHERE user_id = ?"
+            " ORDER BY created_at, id", (user,)).fetchall()]
+    finally:
+        c.close()
+
+
+def test_the_samples_passed_setup_is_marked_as_the_samples_own(db, seeded):
+    rows = _passed_rows(U1)
+    assert [(r["symbol"], r["source"]) for r in rows] == [(sample_examples.SYM_PASSED, passed_setups.SOURCE_SAMPLE)]
+    item = passed_setups.list_items(U1)["items"][0]
+    assert item["source"] == passed_setups.SOURCE_SAMPLE
+
+
+def test_remove_never_dismisses_a_pass_the_member_already_had(db):
+    """The member passed on GOOGL that same day BEFORE adding the sample."""
+    mine = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())["item"]
+    assert mine["source"] == "manual"
+
+    sample_notebook.seed(U1)
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    assert pref["examples"]["passedSetupId"] is None, "the sample recorded a row it did not create"
+    assert [r["id"] for r in _passed_rows(U1)] == [mine["id"]], "the sample added a second row"
+
+    sample_notebook.remove(U1)
+
+    rows = _passed_rows(U1)
+    assert [(r["id"], r["source"], r["dismissed_at"]) for r in rows] == [(mine["id"], "manual", None)]
+    assert [it["id"] for it in passed_setups.list_items(U1)["items"]] == [mine["id"]]
+
+
+def test_the_sample_never_brings_back_a_pass_the_member_had_dismissed(db):
+    mine = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())["item"]
+    assert passed_setups.dismiss(U1, mine["id"]) is True
+    sample_notebook.seed(U1)
+    rows = _passed_rows(U1)
+    assert len(rows) == 1 and rows[0]["dismissed_at"] is not None, "seeding un-dismissed the member's row"
+    assert passed_setups.list_items(U1)["items"] == []
+
+
+def test_remove_ignores_an_id_in_the_preference_that_is_not_a_sample_row(db, seeded):
+    """The preference is client-writable. Naming the member's own row there must do nothing."""
+    mine = passed_setups.add_manual(U1, "AMD")["item"]
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    pref["examples"]["passedSetupId"] = mine["id"]
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps(pref))
+
+    sample_notebook.remove(U1)
+
+    by_symbol = {r["symbol"]: r for r in _passed_rows(U1)}
+    assert by_symbol["AMD"]["dismissed_at"] is None, "Remove dismissed a row the sample did not create"
+    assert by_symbol[sample_examples.SYM_PASSED]["dismissed_at"] is not None, "the sample's own row was left"
+
+
+def test_remove_finds_the_samples_row_even_when_the_preference_never_recorded_it(db, seeded):
+    """The row is found by its own marker, so a seed that died before recording it leaves nothing behind."""
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    pref["examples"]["passedSetupId"] = None
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps(pref))
+    sample_notebook.remove(U1)
+    assert all(r["dismissed_at"] is not None for r in _passed_rows(U1))
+    assert passed_setups.list_items(U1)["items"] == []
+
+
+def test_a_member_cannot_add_a_pass_marked_as_the_samples(db):
+    assert passed_setups.add_manual(U1, "AMD")["item"]["source"] == "manual"
+    import inspect
+    assert "source" not in inspect.signature(passed_setups.add_manual).parameters
+
+
+def test_the_samples_row_never_stands_in_for_the_members_own_pass(db, seeded):
+    """After seeding, the member passes on the same name on the same day: they get THEIR row,
+    not the sample's handed back, and theirs survives the removal."""
+    mine = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())
+    assert mine["deduped"] is False and mine["item"]["source"] == "manual"
+    assert {r["source"] for r in _passed_rows(U1)} == {"manual", passed_setups.SOURCE_SAMPLE}
+    sample_notebook.remove(U1)
+    assert [(it["id"], it["source"]) for it in passed_setups.list_items(U1)["items"]] == [(mine["item"]["id"], "manual")]
+    # And asking again answers the member's own row, never the dismissed sample one.
+    again = passed_setups.add_manual(U1, sample_examples.SYM_PASSED, _saved_on())
+    assert again["deduped"] is True and again["item"]["id"] == mine["item"]["id"]
+    assert sum(1 for r in _passed_rows(U1) if r["dismissed_at"] is None) == 1
+
+
+def test_the_samples_row_never_blocks_a_save_the_member_made_from_a_watchlist(db, seeded, monkeypatch):
+    import datetime as dt
+    day = dt.date.fromisoformat(_saved_on())
+    saved_at = dt.datetime(day.year, day.month, day.day, 15, 0, tzinfo=dt.timezone.utc)
+    monkeypatch.setattr(passed_setups, "_watchlist_candidates", lambda conn, user, since: [
+        {"symbol": sample_examples.SYM_PASSED, "saved_at": saved_at, "source": "watchlist", "source_ref": "Mine"}])
+    monkeypatch.setattr(passed_setups, "_scanner_candidates", lambda conn, user, since: [])
+    c = _conn()
+    try:
+        assert passed_setups.collect(c, U1) == 1
+    finally:
+        c.close()
+    assert {r["source"] for r in _passed_rows(U1)} == {"watchlist", passed_setups.SOURCE_SAMPLE}
+
+
+# ── every example is in the shape its own feature's reader and writer use ────────────────────
+#
+# The sample's chart plan stored each level as `{role, type, price}`: no `id`, no `points`.
+# That is not what the product writes when a member draws a plan (`lib/chartPlan.js`
+# `withPlanRole`: the line's anchor `points[0].price` IS the level, and no `price` is kept).
+# The server read it all the same, so every test was green -- and in the browser the role
+# buttons did nothing, "Arm alert" refused and no line was drawn. The example misrepresented
+# the feature it is there to teach. These tests read the example through the feature's OWN
+# reader and hold it to the rules the product's own writer applies.
+
+import pathlib  # noqa: E402
+import re  # noqa: E402
+
+from api.services.journal_two import chart_plan, plan_extract, tech_fingerprint  # noqa: E402
+
+_REPO = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _client_role_types():
+    """The drawing types the CLIENT lets carry a plan role, read from its own source."""
+    src = (_REPO / "app/src/pages/journal-2-0/lib/chartPlan.js").read_text(encoding="utf-8")
+    m = re.search(r"PLAN_ROLE_DRAWING_TYPES\s*=\s*Object\.freeze\(\[([^\]]*)\]\)", src)
+    assert m, "chartPlan.js no longer declares PLAN_ROLE_DRAWING_TYPES where this test reads it"
+    return set(re.findall(r"'([^']+)'", m.group(1)))
+
+
+def _example_chart(db, title_prefix, embed_id):
+    c = _conn()
+    try:
+        row = c.execute("SELECT body_json FROM j2_notes WHERE user_id = ? AND title LIKE ?",
+                        (U1, title_prefix + "%")).fetchone()
+    finally:
+        c.close()
+    attrs = chart_plan.find_chart_block(row["body_json"], embed_id)
+    assert attrs is not None, f"no chart block {embed_id!r} in the example note"
+    return attrs
+
+
+def _assert_drawn_shape(levels, wanted_roles, frozen_at):
+    assert [a["role"] for a in levels] == wanted_roles
+    ids = [a.get("id") for a in levels]
+    assert all(isinstance(i, str) and i for i in ids), "a level has no id: the role buttons cannot address it"
+    assert len(set(ids)) == len(ids), "two levels share an id: a role set on one lands on both"
+    for a in levels:
+        assert a["type"] in _client_role_types(), "the client would refuse a plan role on this drawing type"
+        assert "price" not in a, ("a top-level price is a second copy of the level: plan_extract reads it "
+                                  "FIRST, and the client deletes it whenever a role is set")
+        pts = a.get("points")
+        assert isinstance(pts, list) and len(pts) == 1 and isinstance(pts[0], dict)
+        assert isinstance(pts[0]["price"], float) and pts[0]["price"] > 0     # the alert and the line read this
+        assert pts[0]["time"] == frozen_at                                    # anchored where the chart is frozen
+        assert plan_extract._annotation_price(a) == pts[0]["price"]
+
+
+def test_the_plan_examples_levels_are_drawn_levels_and_the_servers_reader_agrees(db, seeded):
+    attrs = _example_chart(db, "Trade plan: example", "ex-plan")
+    _assert_drawn_shape(attrs["annotations"], ["entry", "stop", "target"], attrs["params"]["to"])
+    plan = chart_plan.read_block_plan(attrs, sample_examples.SYM_PLAN)
+    assert (plan["entry"], plan["stop"], plan["target"], plan["shares"]) == (180.0, 170.0, 205.0, 100.0)
+    assert plan["side"] == "long" and plan["setup"] == "Classic Flag/Pullback"
+    assert {r: plan["roles"][r]["state"] for r in ("entry", "stop", "target")} == {
+        "entry": plan_extract.STATE_OK, "stop": plan_extract.STATE_OK, "target": plan_extract.STATE_OK}
+
+
+def test_the_active_setup_examples_levels_are_drawn_levels_too(db, seeded):
+    attrs = _example_chart(db, "Active setup: example", "ex-setup")
+    _assert_drawn_shape(attrs["annotations"], ["entry", "stop"], attrs["params"]["to"])
+    plan = chart_plan.read_block_plan(attrs, sample_examples.SYM_SETUP)
+    assert (plan["entry"], plan["stop"], plan["target"]) == (410.0, 395.0, None)
+    c = _conn()
+    try:
+        cards = setups_board.build_cards(c, U1)["cards"]
+    finally:
+        c.close()
+    assert any(card["symbol"] == sample_examples.SYM_SETUP for card in cards)   # still on its board
+
+
+def test_the_two_examples_never_share_a_level_id(db, seeded):
+    a = _example_chart(db, "Trade plan: example", "ex-plan")["annotations"]
+    b = _example_chart(db, "Active setup: example", "ex-setup")["annotations"]
+    ids = [x["id"] for x in a + b]
+    assert len(set(ids)) == len(ids)
+
+
+def test_the_examples_fingerprint_is_the_shape_the_fingerprint_module_writes(db, seeded):
+    """The example's fingerprint is hand-written (it must never call `compute`), so it is held
+    to the real module's own field list and version here, where importing it is allowed."""
+    fp = _example_chart(db, "Trade plan: example", "ex-plan")["ta"]["fingerprint"]
+    assert fp["v"] == tech_fingerprint.FINGERPRINT_VERSION == sample_examples.FINGERPRINT_VERSION
+    assert tuple(fp["fields"]) == tuple(tech_fingerprint.FIELDS)
+    for name, field in fp["fields"].items():
+        assert set(field) >= {"value", "source", "missing"} and field["missing"] is None, name
+    assert tech_fingerprint.summary_values(fp)                      # the module's own reader takes it
+    block = next(b for b in chart_blocks.list_blocks(U1) if b["embedKey"] == "ex-plan")
+    assert block["setupTag"] == "Classic Flag/Pullback" and block["fingerprint"]["fields"]["rs_rank"]["value"] == 92
+
+
+def test_the_thesis_example_is_read_by_the_plan_reader_as_a_stop_and_nothing_else(db, seeded):
+    c = _conn()
+    try:
+        note = _thesis_note(c, U1)
+        row = c.execute("SELECT body_json, properties_json FROM j2_notes WHERE id = ?", (note["id"],)).fetchone()
+    finally:
+        c.close()
+    reading = plan_extract.read_note_plan(row["body_json"], row["properties_json"], [], sample_examples.SYM_THESIS)
+    assert reading.value("stop") == 110.0 and reading.value("entry") is None and reading.value("target") is None

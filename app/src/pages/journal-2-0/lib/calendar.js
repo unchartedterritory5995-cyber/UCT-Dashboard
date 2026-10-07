@@ -117,9 +117,11 @@ export function etDayOf(v) {
   return Number.isNaN(d.getTime()) ? null : ET_DAY.format(d)
 }
 
-/** Returns YYYY-MM-DD for "today" in America/New_York (consistent with backend). */
-export function todayET() {
-  return ET_DAY.format(new Date())
+/** Returns YYYY-MM-DD for "today" in America/New_York (consistent with backend).
+ *  `now` is the instant to read (default: the clock), so a caller that already
+ *  holds an instant gets its Eastern day from this ONE place. */
+export function todayET(now = new Date()) {
+  return ET_DAY.format(now)
 }
 
 export function monthOffset(year, month, delta) {

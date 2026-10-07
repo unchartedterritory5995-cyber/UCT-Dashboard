@@ -46,6 +46,15 @@ export default function PassedSetups() {
     enabled ? PASSED_URL : null, () => fetchPassedSetups(),
     { revalidateOnFocus: false, shouldRetryOnError: false },
   )
+  // The list is a plain read; the server refreshes scores AFTER answering and says so
+  // (`refreshQueued`). One follow-up read picks the fresher list up. The server queues at
+  // most one refresh per member per interval, so the follow-up never asks for another.
+  const refreshQueued = data?.refreshQueued === true
+  useEffect(() => {
+    if (!refreshQueued) return undefined
+    const t = setTimeout(() => { mutate() }, 2500)
+    return () => clearTimeout(t)
+  }, [refreshQueued, mutate])
   const [symbol, setSymbol] = useState('')
   const [savedOn, setSavedOn] = useState('')
   const [busy, setBusy] = useState(false)

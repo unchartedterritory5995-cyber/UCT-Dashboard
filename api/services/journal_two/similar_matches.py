@@ -65,7 +65,7 @@ from datetime import date, datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import Any, Callable
 
-from api.services.journal_two import chart_blocks
+from api.services.journal_two import chart_blocks, sample_marker
 from api.services.journal_two import tech_fingerprint as tfp
 from api.services.notebook_flags import flag_on
 
@@ -324,6 +324,9 @@ def templates_for(conn: sqlite3.Connection, user_id: str) -> list[dict]:
     """The member's tagged chart blocks with a frozen fingerprint, newest day first, at most
     `MAX_TEMPLATES` (the plan's bound). Read from the index only."""
     blocks = chart_blocks.list_blocks(user_id, conn, limit=chart_blocks.LIST_LIMIT)
+    # ⛔ Never a sample chart (fin-data I3): the example plan's hand-written fingerprint is not
+    # a setup the member traded, and it must not spend one of their template slots either.
+    blocks = sample_marker.without_sample_notes(conn, user_id, blocks)
     return [b for b in blocks if b.get("setupTag") and b.get("fingerprint")][:MAX_TEMPLATES]
 
 

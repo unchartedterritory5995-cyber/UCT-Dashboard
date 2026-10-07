@@ -464,3 +464,121 @@ def test_nothing_is_fetched_over_the_network(db_path, bars, monkeypatch):
     _manual(A, "NVDA", BASE_DAY, NOW)
     _refresh(A, NOW)
     assert tripped == []
+
+
+# ── fin-security M-4 (this file's half): the scan-embed walk is a loop ───────────────────────
+#
+# `_walk_scan_embeds` called itself once per level of nesting, so a very deeply nested note
+# body raised RecursionError and the member's passed-setups page answered 500. Lane SEC fixed
+# the chart walkers the same way (`chart_blocks.iter_chart_attrs`); this mirrors that fix.
+
+from api.services.journal_two import passed_setups as ps  # noqa: E402
+
+
+def _scan_embed(sym):
+    return {"type": "widgetEmbed", "attrs": {"widgetId": "scanner", "capturedAt": NOW.isoformat(),
+                                             "params": {"rows": [{"sym": sym}]}}}
+
+
+def test_the_scan_walk_reads_a_very_deep_body_without_recursing():
+    node = _scan_embed("DEEP")
+    for _ in range(5000):
+        node = {"type": "blockquote", "content": [node]}
+    doc = {"type": "doc", "content": [_scan_embed("FIRST"), node, _scan_embed("LAST")]}
+    found = []
+    ps._walk_scan_embeds(doc, found)
+    assert [a["params"]["rows"][0]["sym"] for a in found] == ["FIRST", "DEEP", "LAST"]   # document order
+
+
+def test_a_body_too_deep_to_parse_is_a_note_with_no_scan_never_an_error():
+    depth = 60_000
+    too_deep = '{"type":"doc","content":[' + '{"type":"blockquote","content":[' * depth + "]}" * depth + "]}"
+    with pytest.raises(RecursionError):
+        json.loads(too_deep)                         # the control: it really is too deep
+    assert ps._parse_body(too_deep) is None
+    assert ps._parse_body("{not json") is None
+    assert ps._parse_body('{"type":"doc"}') == {"type": "doc"}
+
+
+# ── fin-security I-3 (this file's part): a list view never writes ───────────────────────────
+#
+# `GET /passed-setups` ran `refresh` on every call: collect, then an UPDATE for each open row
+# (up to 300) inside ONE transaction that also did the bars reads. A list view could hold
+# auth.db's write lock, whose other writers wait only three seconds.
+
+def _writes(seen):
+    verbs = ("INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER")
+    return [s for s in seen if s.lstrip().upper().startswith(verbs)
+            and "IF NOT EXISTS" not in s.upper()]
+
+
+def test_the_list_route_runs_no_refresh_inside_the_request(db_path, monkeypatch):
+    from fastapi import BackgroundTasks
+    from api.routers import notebook_research_capture as rc
+    ps._reset_refresh_clock()
+    calls = []
+    monkeypatch.setattr(ps, "refresh", lambda *a, **k: calls.append(a) or {"added": 0, "scored": 0})
+    tasks = BackgroundTasks()
+    body = rc.list_passed(tasks, user={"id": A, "plan": "pro"})
+    assert calls == [], "the list view refreshed (wrote) before answering"
+    assert body["items"] == [] and body["refreshQueued"] is True
+    assert len(tasks.tasks) == 1                      # queued for AFTER the response
+
+    again = BackgroundTasks()
+    body = rc.list_passed(again, user={"id": A, "plan": "pro"})
+    assert again.tasks == [] and body["refreshQueued"] is False, "a second view inside the interval queued another refresh"
+
+
+def test_reading_the_list_issues_no_write_statement(db_path, bars):
+    _manual(A, "NVDA", BASE_DAY, NOW)
+    conn = _conn()
+    seen = []
+    conn.set_trace_callback(seen.append)
+    try:
+        out = ps.list_items(A, conn=conn)
+        assert conn.in_transaction is False
+    finally:
+        conn.set_trace_callback(None)
+        conn.close()
+    assert len(out["items"]) == 1
+    assert _writes(seen) == []
+
+
+def test_refresh_if_stale_runs_at_most_once_per_interval_per_member(monkeypatch):
+    ps._reset_refresh_clock()
+    calls = []
+    monkeypatch.setattr(ps, "refresh", lambda uid, **k: calls.append(uid) or {"added": 0, "scored": 0})
+    t0 = 1_000_000.0
+    assert ps.refresh_if_stale(A, clock=lambda: t0) is True
+    assert ps.refresh_if_stale(A, clock=lambda: t0 + ps.REFRESH_MIN_INTERVAL_S - 1) is False
+    assert ps.refresh_if_stale(B, clock=lambda: t0 + 1) is True              # per member
+    assert ps.refresh_if_stale(A, clock=lambda: t0 + ps.REFRESH_MIN_INTERVAL_S) is True
+    assert calls == [A, B, A]
+
+
+def test_a_refresh_that_fails_does_not_block_the_next_one_and_never_raises(monkeypatch):
+    ps._reset_refresh_clock()
+    monkeypatch.setattr(ps, "refresh", lambda uid, **k: (_ for _ in ()).throw(RuntimeError("bars down")))
+    assert ps.refresh_if_stale(A, clock=lambda: 5.0) is False
+    monkeypatch.setattr(ps, "refresh", lambda uid, **k: {"added": 0, "scored": 0})
+    assert ps.refresh_if_stale(A, clock=lambda: 6.0) is True
+
+
+def test_the_refresh_commits_row_by_row_so_no_one_transaction_spans_every_row(db_path, bars, monkeypatch):
+    for sym in ("NVDA", "AMD", "TSLA"):
+        _manual(A, sym, BASE_DAY, NOW)
+    conn = _conn()
+    conn.execute("UPDATE j2_passed_setups SET status = 'pending'")
+    conn.commit()
+    open_during = []
+    real = ps.score_row
+
+    def spy(c, row):
+        open_during.append(c.in_transaction)      # is a write transaction already open?
+        return real(c, row)
+
+    monkeypatch.setattr(ps, "score_row", spy)
+    ps.refresh(A, conn=conn, now=NOW)
+    conn.close()
+    assert len(open_during) == 3 and not any(open_during), (
+        "a row was scored while an earlier row's write was still uncommitted")
