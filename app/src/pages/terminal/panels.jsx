@@ -64,6 +64,10 @@ export const PANEL_IMPORTERS = {
   Flow: () => import('../research/tabs/FlowTab'),
   Help: () => import('./panels/HelpPanel'),
   Move: () => import('./panels/MovePanel'),
+  // comparison analytics (feature-gaps-2026-10-06) — terminal-native panels, no page behind them
+  Rrg: () => import('./panels/RrgPanel'),
+  Rel: () => import('./panels/RelPanel'),
+  Corr: () => import('./panels/CorrPanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its
@@ -95,3 +99,8 @@ export const URL_OWNING_PANELS = new Set(['Calendar', ...URL_WRITING_SURFACE_IDS
  *  header band). Every other panel, embedded tab or whole page, gets the one shared inset, and
  *  learns that through `useInTerminalPanel().inset` (components/terminal/terminalPanel.js). */
 export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])
+
+/** Terminal-native panels whose rows are COMMANDS: the shell hands them `onRun` (click a row)
+ *  and `onRows` (type its number + Enter) beside their props. Embedded page/tab components get
+ *  neither — they are never forked to accept them. */
+export const COMMAND_PANELS = new Set(['Move', 'Rrg'])

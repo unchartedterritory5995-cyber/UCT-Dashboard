@@ -43,7 +43,7 @@ import HelpPanel from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
-import { FLUSH_PANELS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
+import { COMMAND_PANELS, FLUSH_PANELS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
@@ -292,8 +292,8 @@ export function Panel({
                   testId={`terminal-loading-${index}`} />}>
                   {r.name === 'Help'
                     ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} auth={auth} />
-                    : r.name === 'Move'
-                      ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
+                    : COMMAND_PANELS.has(r.name)
+                      ? <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} onRun={onRun} onRows={rowsProp} />
                       : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
                 </Suspense>
               </TerminalPanelContext.Provider>
