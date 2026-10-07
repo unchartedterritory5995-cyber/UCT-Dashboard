@@ -58,8 +58,13 @@ import notebook_perf_harness as h  # noqa: E402
 import notebook_w14_onboarding_walk as w  # noqa: E402  -- probes, member factory
 import notebook_w13x_walk as x13  # noqa: E402  -- PRE_CHILD (bars / transcript / intel seed), series
 
-PORT = 8132
-TODAY = date.today()
+PORT = 8132            # this lane's port; 8134 is the fallback when 8132 is someone else's
+PORTS = (8132, 8134)
+WALK_FILE = "walk.json"   # a --serve-only process writes walk-serve.json, never a walk's own file
+# The product's trading day is the ET day. A walk started late in the evening in another zone
+# would otherwise date its trades "yesterday" and read an empty daily review as a finding.
+from zoneinfo import ZoneInfo  # noqa: E402
+TODAY = datetime.now(ZoneInfo("America/New_York")).date()
 VIEWPORTS = {"1280": (1280, 800), "820": (820, 1180), "390": (390, 844)}
 TOUCH_MAX = 1024
 ERROR_BOUNDARY_TEXT = "Something went wrong on this page"
@@ -98,11 +103,12 @@ STATE: dict = {}
 
 def flush() -> None:
     if OUT is not None:
-        tmp = OUT / "walk.json.tmp"
+        tmp = OUT / (WALK_FILE + ".tmp")
         tmp.write_text(json.dumps(REC, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
-        os.replace(tmp, OUT / "walk.json")
-        (OUT / f"state-{REC.get('config', 'x')}.json").write_text(
-            json.dumps(STATE, indent=1, default=str), encoding="utf-8")
+        os.replace(tmp, OUT / WALK_FILE)
+        if WALK_FILE == "walk.json":
+            (OUT / f"state-{REC.get('config', 'x')}.json").write_text(
+                json.dumps({**STATE, "tip": REC.get("tip")}, indent=1, default=str), encoding="utf-8")
 
 
 PROBE_JS = r"""
@@ -117,7 +123,8 @@ PROBE_JS = r"""
     for (const el of document.querySelectorAll('body *')) {
       const b = el.getBoundingClientRect()
       if (b.width > 0 && b.height > 0 && b.right > vw + 1 && !hScrollable(el)) {
-        offenders.push({ tag: el.tagName, cls: String(el.className || '').slice(0, 50), right: Math.round(b.right),
+        offenders.push({ tag: el.tagName, cls: String(el.className && el.className.baseVal !== undefined ? el.className.baseVal : (el.className || '')).slice(0, 50), right: Math.round(b.right),
+                         label: (el.getAttribute('aria-label') || (el.children.length ? '' : el.textContent) || '').trim().slice(0, 40),
                          testid: el.getAttribute('data-testid') || el.getAttribute('data-tour') || null })
         if (offenders.length >= 6) break
       } } }
@@ -166,9 +173,15 @@ class Inst:
         for pg in ctx.pages:
             self._attach(pg)
         ctx.on("response", self._on_response)
+        # A response body is read only once its request has FINISHED: `response.text()` has no
+        # timeout, and on a response that is still streaming it blocks the walk for good.
+        self._finished: set = set()
+        ctx.on("requestfinished", lambda req: self._finished.add(id(req)))
+        ctx.on("requestfailed", lambda req: self._finished.add(id(req)))
 
     def _reset(self):
         self.console, self.page_errors, self.failed, self.pending_writes = [], [], [], []
+        self.pending_fail_bodies = []
 
     def _attach(self, pg):
         pg.on("pageerror", lambda e: self.page_errors.append(str(e)[:400]))
@@ -178,10 +191,17 @@ class Inst:
         try:
             req = r.request
             url = r.url
-            path = url.split(f"127.0.0.1:{PORT}", 1)[-1][:200]
+            path = re.sub(r"^https?://[^/]+", "", url)[:200]
             if r.status >= 400:
-                self.failed.append({"status": r.status, "method": req.method, "url": path,
-                                    "benign": any(b in url for b in BENIGN)})
+                row = {"status": r.status, "method": req.method, "url": path, "benign": any(b in url for b in BENIGN)}
+                # By design, stated in FingerprintPanel.jsx's header: the freeze route answers 404
+                # until the note's save has landed, and the panel retries. Kept out of the
+                # unexpected list, but counted by name so a freeze that NEVER lands still shows.
+                if r.status == 404 and "/notebook-fingerprint/blocks/" in url and url.endswith("/freeze"):
+                    row["benign"], row["by_design"] = True, "freeze before the save landed (retried)"
+                self.failed.append(row)
+                if not row["benign"]:
+                    self.pending_fail_bodies.append((req, r, row))
             if req.method in ("POST", "PUT", "PATCH", "DELETE") and "/api/" in url:
                 self.pending_writes.append((req, r, path))
         except Exception:  # noqa: BLE001 -- an event handler must never raise into the walk
@@ -194,11 +214,20 @@ class Inst:
                 body = (req.post_data or "")[:1500]
             except Exception as e:  # noqa: BLE001
                 body = f"(request body unavailable: {type(e).__name__})"
-            try:
-                resp = (r.text() or "")[:1500]
-            except Exception as e:  # noqa: BLE001
-                resp = f"(response body unavailable: {type(e).__name__})"
+            if id(req) not in self._finished:
+                resp = "(response still in flight when the step ended: body not read)"
+            else:
+                try:
+                    resp = (r.text() or "")[:1500]
+                except Exception as e:  # noqa: BLE001
+                    resp = f"(response body unavailable: {type(e).__name__})"
             writes.append({"method": req.method, "url": path, "status": r.status, "request": body, "response": resp})
+        for req, r, row in self.pending_fail_bodies[:20]:
+            if id(req) in self._finished:
+                try:
+                    row["body"] = (r.text() or "")[:400]
+                except Exception as e:  # noqa: BLE001
+                    row["body"] = f"(unavailable: {type(e).__name__})"
         out = {"console_errors": self.console[:40], "page_errors": self.page_errors[:20],
                "failed_requests": self.failed[:80], "writes": writes}
         self._reset()
@@ -232,11 +261,13 @@ def step(pg, inst: Inst, feature: str, name: str, verdict: str, *, scope: list[s
             probe = pg.evaluate(PROBE_JS, [scope or [], inst.touch, ERROR_BOUNDARY_TEXT])
         except Exception as e:  # noqa: BLE001 -- a navigation mid-probe
             probe = {"error": f"{type(e).__name__}: {str(e)[:160]}"}
-    row = {"config": inst.config, "viewport": inst.vp, "feature": feature, "step": name, "verdict": verdict,
+    row = {"tip": REC.get("tip"), "config": inst.config, "viewport": inst.vp, "feature": feature, "step": name, "verdict": verdict,
            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"), **facts}
     if probe:
         row.update(probe)
     row.update(inst.drain())
+    if pg is not None and inst.config == "c2" and "surfaces_present" not in row:
+        row["surfaces_present"] = census(pg)   # the control for c1's absence checks
     if shot and pg is not None:
         row["screenshot"] = snap(pg, f"{inst.config}-{inst.vp}-{feature}-{name}")
     REC["steps"].append(row)
@@ -410,7 +441,7 @@ CENSUS_JS = r"""
   for (const [key, [kind, v]] of Object.entries(S)) {
     let els = []
     if (kind === 'css') els = [...document.querySelectorAll(v)]
-    else if (kind === 'text') els = [...document.querySelectorAll('h1,h2,h3,h4,h5,p,span,div,summary')].filter(e => e.children.length === 0 && txt(e) === v.toLowerCase())
+    else if (kind === 'text') els = [...document.querySelectorAll('h1,h2,h3,h4,h5,p,span,summary,legend,strong')].filter(e => txt(e) === v.toLowerCase())
     else if (kind === 'heading') els = [...document.querySelectorAll('h1,h2,h3,h4')].filter(e => txt(e) === v.toLowerCase())
     else if (kind === 'button') els = [...document.querySelectorAll('button,[role=button],[role=tab]')].filter(e => txt(e) === v.toLowerCase() || e.getAttribute('aria-label') === v)
     else if (kind === 'buttonprefix') els = [...document.querySelectorAll('button')].filter(e => (e.getAttribute('aria-label') || txt(e)).toLowerCase().startsWith(v.toLowerCase()))
@@ -476,16 +507,16 @@ def seed_pre_boot(data_dir: Path, out: Path, d_report: date) -> None:
     spec = {
         "bars": {s: x13.weekday_series(TODAY, 90, b, a) for s, (b, a) in SYMS.items()},
         "transcript": {"symbol": "TSLA", "fy": 2026, "q": 3, "call_date": "2026-10-01", "content": TRANSCRIPT},
-        "implied": [{"sym": "AMZN", "report_date": d_report.isoformat(), "pct": 6.4, "dollar": 12.2,
-                     "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}],
-        "intel": x13.intel_payload("AMZN", d_report.isoformat(), TODAY),
+        "implied": [{"sym": sym, "report_date": d_report.isoformat(), "pct": 6.4, "dollar": 12.2,
+                     "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds")} for sym in ("AMD", "AMZN")],
+        "intel": x13.intel_payload("AMD", d_report.isoformat(), TODAY),
     }
     env = {k: v for k, v in os.environ.items() if not k.startswith("RAILWAY_")}
     r = subprocess.run([sys.executable, "-c", x13.PRE_CHILD, str(REPO), str(data_dir), json.dumps(spec)],
                        cwd=str(REPO), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=900)
     (out / f"pre-seed-child-{REC.get('config')}.log").write_text(
-        (r.stdout or "")[-3000:] + "\n--- stderr ---\n" + (r.stderr or "")[-6000:], encoding="utf-8")
+        f"tip: {REC.get('tip')}\n" + (r.stdout or "")[-3000:] + "\n--- stderr ---\n" + (r.stderr or "")[-6000:], encoding="utf-8")
     if r.returncode != 0 or "SEEDED" not in (r.stdout or ""):
         raise h.SetupFailed(f"pre-boot seeding failed (rc {r.returncode}); see pre-seed-child log")
 
@@ -513,12 +544,31 @@ def walk(n, acc):
 
 # 1) find more like this: tonight's universe is ONE candidate whose values are the template's own
 tpl = None
-for row in conn.execute("SELECT id, ticker, body_json FROM j2_notes WHERE user_id = ? AND ticker = ?", (uid, spec["template_symbol"])):
-    acc = []; walk(json.loads(row["body_json"] or "{}"), acc)
-    for a in acc:
-        ta = a.get("ta") or {}
-        if (ta.get("fingerprint") or {}).get("fields"):
-            tpl = {"note": row["id"], "tag": ta.get("setupTag"), "fields": ta["fingerprint"]["fields"]}
+from api.services.journal_two import chart_blocks as cb
+cb.ensure_schema(conn)
+try:
+    cb.catch_up(uid, conn)
+    conn.commit()
+except Exception as e:
+    out["catch_up_error"] = repr(e)[:200]
+def find_fields(o):
+    if isinstance(o, str):
+        try: o = json.loads(o)
+        except Exception: return None
+    if isinstance(o, dict):
+        if isinstance(o.get("fields"), dict): return o["fields"]
+        for v in o.values():
+            f = find_fields(v)
+            if f: return f
+    return None
+blocks = [dict(b) if not isinstance(b, dict) else b for b in cb.list_blocks(uid, conn, limit=cb.LIST_LIMIT)]
+out["block_keys"] = sorted(blocks[0].keys()) if blocks else []
+out["block_symbols"] = [[b.get("symbol"), b.get("setupTag") or b.get("setup_tag")] for b in blocks]
+for b in blocks:
+    if b.get("symbol") == spec["template_symbol"]:
+        f = find_fields(b)
+        if f:
+            tpl = {"note": b.get("noteId") or b.get("note_id"), "tag": b.get("setupTag") or b.get("setup_tag"), "fields": f}
 out["template"] = {"found": bool(tpl), "tag": (tpl or {}).get("tag")}
 if tpl:
     vals = {k: v.get("value") for k, v in tpl["fields"].items() if isinstance(v, dict) and k != "patterns" and v.get("value") is not None}
@@ -553,8 +603,10 @@ eng._build_market_scan_ctx = lambda user_ctxs: {"live_prices": {}, "regime": {"l
 scans = []
 import unittest.mock as um
 with um.patch("api.services.watchlist_alert_service.deliver_alert_payload", side_effect=AssertionError("deliver_alert_payload reached")) as deliver:
-    for label, price in spec["quotes"]:
-        cache.set(_px_key(spec["resurface_symbol"]), {"price": price, "change_pct": 0.0}, ttl=600)
+    for label, quotes in spec["quotes"]:
+        for sym, price in quotes.items():
+            cache.set(_px_key(sym), {"price": price, "change_pct": 0.0}, ttl=600)
+        price = quotes
         try:
             result = eng.run_awareness_scan()
         except Exception as e:
@@ -573,7 +625,7 @@ def run_post_child(data_dir: Path, out: Path, spec: dict) -> dict:
     r = subprocess.run([sys.executable, "-c", POST_CHILD, str(REPO), str(data_dir), json.dumps(spec)],
                        cwd=str(REPO), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=900)
-    (out / "post-seed-child.log").write_text((r.stdout or "")[-6000:] + "\n--- stderr ---\n" + (r.stderr or "")[-8000:],
+    (out / "post-seed-child.log").write_text(f"tip: {REC.get('tip')}\n" + (r.stdout or "")[-6000:] + "\n--- stderr ---\n" + (r.stderr or "")[-8000:],
                                              encoding="utf-8")
     line = [ln for ln in (r.stdout or "").splitlines() if ln.startswith("POSTSEED ")]
     if r.returncode != 0 or not line:
@@ -669,17 +721,17 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
             if more.count():
                 more.first.click()
                 pg.wait_for_timeout(700)
-                cand = pg.locator('[role="menuitem"], [role="menu"] button').filter(has_text=re.compile(r"trash|delete", re.I))
-                menu_items = [t.strip()[:40] for t in pg.locator('[role="menuitem"], [role="menu"] button').all_inner_texts()]
+                # the menu's entries are plain buttons (Version history, Duplicate note, ..., Delete)
+                cand = pg.get_by_role("button", name="Delete", exact=True).filter(visible=True)
+                menu_items = [t for t in pg.evaluate("() => [...document.querySelectorAll('button')].filter(b => b.getBoundingClientRect().width > 0).map(b => (b.innerText || '').trim()).filter(Boolean)")
+                              if t in ("Version history", "Duplicate note", "Lock", "Archive", "Save as template", "Export", "Delete")]
                 if cand.count():
-                    how = "More note actions > " + cand.first.inner_text().strip()[:40]
-                    cand.first.click()
+                    how = "More note actions > Delete"
+                    cand.last.click()
         if how:
             pg.wait_for_timeout(600)
-            confirm = (pg.locator("[role=dialog], [role=alertdialog]").filter(has_text="Delete this note?")
-                       .get_by_role("button", name="Delete", exact=True))
-            if C_vis(confirm, 5000):
-                confirm.first.click()
+            if C_vis(pg.get_by_text("Delete this note?"), 5000):
+                pg.get_by_role("button", name="Delete", exact=True).filter(visible=True).last.click()
             for _ in range(30):
                 if not any(n.get("id") == nid for n in notes_list(ctx, base)):
                     deleted = True
@@ -921,7 +973,7 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
 
     checks(pg, inst)
     ctx.close()
-    for vp in ("390",):
+    for vp in ("820", "390"):
         c2 = new_ctx(browser, vp, storage)
         i2 = Inst(c2, cfg, vp)
         p2 = c2.new_page()
@@ -965,11 +1017,12 @@ def run_config(config: str, args, fs: dict) -> int:
         data_dir.mkdir(parents=True, exist_ok=True)
         set_env(fs, config, data_dir)
         seed_pre_boot(data_dir, OUT, d_report)
-        (data_dir / CAL_FILE).write_text(json.dumps({"reporters": {"AMZN": {"date": d_report.isoformat()}},
+        (data_dir / CAL_FILE).write_text(json.dumps({"reporters": {"AMZN": {"date": d_report.isoformat()}, "AMD": {"date": d_report.isoformat()}},
                                                      "asOf": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                                      "partial": False}, indent=1), encoding="utf-8")
         sb = h.Sandbox(str(data_dir), args.port, OUT / f"sandbox-{config}.log")
         sb.start()
+        (OUT / f"sandbox-{config}.tip").write_text(f"sandbox-{config}.log is the boot of tip {REC.get('tip')}\n", encoding="utf-8")
     else:
         set_env(fs, config, data_dir)   # children (post-seed) read the same flags
     not_run, failure = None, None
@@ -1021,7 +1074,8 @@ def run_config(config: str, args, fs: dict) -> int:
         ipath = sb.integrity_path()
         if ipath and Path(ipath).is_file():
             kept = OUT / f"integrity-{config}.md"
-            shutil.copyfile(ipath, kept)
+            kept.write_text(f"tip under test: {REC.get('tip')} (configuration {config})\n\n"
+                            + Path(ipath).read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
             integ["path"] = str(kept)
         info["integrity"] = integ
         info["first_line"] = h.integrity_line(integ, f"stop: {sb.stop_how}", not_run=not_run)
@@ -1050,21 +1104,29 @@ def main(argv=None) -> int:
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--out", required=True)
     ap.add_argument("--only", default="")
+    ap.add_argument("--tip", required=True, help="the product commit under test; written into every evidence file")
     ap.add_argument("--attach", action="store_true", help="the sandbox is already up (development)")
     ap.add_argument("--serve-only", action="store_true", help="boot and hold until <out>/STOP exists")
     args = ap.parse_args(argv)
+    # A walk that stops making progress says where: the Python stack goes to stderr every N seconds.
+    import faulthandler
+    faulthandler.dump_traceback_later(int(os.environ.get("FINWALK_STACK_S", "900")), repeat=True, file=sys.stderr)
     why = h.refuse_shared_root(args.data_root)
     if why:
         print(f"REFUSED: {why}")
         return 3
-    if args.port != PORT:
-        print(f"REFUSED: this lane's port is {PORT}")
+    if args.port not in PORTS:
+        print(f"REFUSED: this lane's ports are {PORTS}")
         return 3
+    global WALK_FILE
+    if args.serve_only:
+        WALK_FILE = "walk-serve.json"
     OUT = Path(args.out) / args.config
     OUT.mkdir(parents=True, exist_ok=True)
     w.OUT = OUT / "tours"
     sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO), capture_output=True, text=True).stdout.strip()
-    REC.update({"config": args.config, "tree": sha, "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    (OUT / "TIP").write_text(f"{args.tip}\n", encoding="utf-8")
+    REC.update({"config": args.config, "tip": args.tip, "tool_tree": sha, "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "viewports": VIEWPORTS, "status": "INCOMPLETE (run did not finish)"})
     if args.attach:
         sp = OUT / f"state-{args.config}.json"

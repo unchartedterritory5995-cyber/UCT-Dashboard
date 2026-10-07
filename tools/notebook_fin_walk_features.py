@@ -32,9 +32,9 @@ import notebook_w13h2_walk as h2  # noqa: E402
 
 PW = "LocalTest2026!"
 SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
-ORDER = ["firstrun", "sample", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
+ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "earnings", "transcript", "passed", "child", "resurface", "board2", "trades", "grading", "discipline",
-         "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours390", "remove"]
+         "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -46,10 +46,53 @@ CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e
 MAIN_TEXT_JS = "() => (document.querySelector('[class*=\"_main_\"]') || document.body).innerText.trim().replace(/\\s+/g, ' ').slice(0, 900)"
 
 
+def toolbar_button(pg, frame, name, touch):
+    """The 13H-2 helper centres the embed, which at an 800 px tall window leaves the embed's own
+    toolbar under the note's sticky header (the header then takes the click, by design). A member
+    scrolls until the toolbar is clear of it; so does this: the embed's top goes 170 px below the
+    window's top, then the pointer rests on the embed so its hover toolbar shows."""
+    btn = frame.get_by_role("button", name=name, exact=True)
+    for off in (200, 280, 360, 440, 520):
+        frame.evaluate("""(el, off) => { let n = el.parentElement;
+            while (n && n !== document.body) { const cs = getComputedStyle(n);
+              if (n.scrollHeight > n.clientHeight + 2 && /(auto|scroll)/.test(cs.overflowY)) break; n = n.parentElement }
+            const dy = el.getBoundingClientRect().top - off;
+            if (n && n !== document.body) n.scrollTop += dy; else window.scrollBy(0, dy) }""", off)
+        pg.wait_for_timeout(200)
+        if not touch:
+            box = frame.bounding_box()
+            if box:
+                pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + 60)
+                pg.wait_for_timeout(200)
+        try:
+            btn.first.wait_for(state="visible", timeout=2500)
+        except Exception:  # noqa: BLE001 -- not shown at this offset; try the next
+            continue
+        on_top = btn.first.evaluate("""b => { const r = b.getBoundingClientRect();
+            const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return !!e && (e === b || b.contains(e)) }""")
+        if on_top:
+            return btn.first
+    btn.first.wait_for(state="visible", timeout=10000)
+    return btn.first
+
+
+h2.toolbar_button = toolbar_button
+
+
 class Shim:
     """What the 13H-2 helpers expect of their `Walk` object."""
     def __init__(self):
         self.raw = {}
+
+    def shot(self, pg, name):
+        self.raw.setdefault("shots_asked", []).append(name)
+
+    def dump(self, name, data):
+        self.raw[name] = data
+
+    def record(self, rid, ok, detail):
+        self.raw.setdefault("records", []).append([rid, ok, detail])
 
 
 def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
@@ -153,6 +196,92 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if ok else "FAIL", strip=strip, notes=len(notes), tickers=tick, recorded_ids=len(S["sample_ids"]),
                titles=S["sample_titles"])
     run("sample", sample)
+
+    # ── the sample's examples, each on its own feature's screen (before the member adds anything) ──
+    def examples():
+        sb = S.get("sample_by_ticker") or {}
+        # AAPL: the untraded chart plan -- fingerprint panel, plan panel, visual playbook card
+        C.goto(pg, base, f"/journal/notebook?note={sb.get('AAPL')}", ".ProseMirror")
+        for name_ in ("Got it", "Dismiss tip"):
+            b_ = pg.get_by_role("button", name=name_, exact=True)
+            if b_.count() and b_.first.is_visible():
+                b_.first.click()
+        fp = C.vis(pg, '[data-testid="fingerprint-panel"]', 30000)
+        frame = h2.frame_of(pg, 0)
+        rows_n, perr = 0, None
+        try:
+            if not pg.locator("[data-chart-plan-panel]").count():
+                h2.press(h2.toolbar_button(pg, frame, "Plan", False), False)
+            pg.locator("[data-chart-plan-panel] li[data-level-id]").first.wait_for(state="visible", timeout=20000)
+            rows_n = pg.locator("[data-chart-plan-panel] li[data-level-id]").count()
+        except Exception as e:  # noqa: BLE001
+            perr = str(e)[:240]
+        C.step(pg, inst, "sample examples", "AAPL plan note: its chart, the technical fingerprint and the drawn plan's levels",
+               "PASS" if fp and rows_n >= 2 else "FAIL", fingerprint_panel=fp, plan_levels=rows_n, reach_error=perr,
+               bars_error=frame.get_by_text("Couldn't load bars").count(),
+               scope=['[data-testid="fingerprint-panel"]', "[data-chart-plan-panel]"])
+        opened, cards_txt, verr = False, None, None
+        try:
+            d = pg.get_by_role("button", name="Visual playbook")
+            d.first.scroll_into_view_if_needed(timeout=10000)
+            d.first.click(timeout=10000)
+            opened = C.vis(pg, '[data-testid="visual-playbook"]', 30000)
+            pg.wait_for_timeout(2000)
+            cards_txt = [t.replace("\n", " ")[:90] for t in pg.locator('[data-testid="playbook-card"]').all_inner_texts()]
+        except Exception as e:  # noqa: BLE001
+            verr = str(e)[:240]
+        C.step(pg, inst, "sample examples", "visual playbook: the sample's tagged charts are its first cards",
+               "PASS" if opened and any("AAPL" in t for t in (cards_txt or [])) else "FAIL", cards=cards_txt, reach_error=verr,
+               scope=['[data-testid="visual-playbook"]'])
+        pg.keyboard.press("Escape")
+        # MSFT: the active setup, on the board
+        C.goto(pg, base, "/journal/notebook/setups")
+        C.vis(pg, "[data-board-card]", 40000)
+        pg.wait_for_timeout(2000)
+        cards = pg.locator("[data-board-card]").evaluate_all("els => els.map(e => e.getAttribute('data-board-card'))")
+        C.step(pg, inst, "sample examples", "setups board: the MSFT example setup (and the untraded AAPL plan) are on it",
+               "PASS" if "MSFT" in cards else "FAIL", cards=cards, scope=["[data-board-card]"])
+        # NVDA: the thesis, with the example resurfacing notice inside the note only
+        C.goto(pg, base, f"/journal/notebook?note={sb.get('NVDA')}", ".ProseMirror")
+        pg.wait_for_timeout(1500)
+        t_nv = pg.locator(".ProseMirror").first.inner_text()
+        inbox = M.get(base + "/api/voice/insights")
+        n_ins = len((inbox.json().get("insights") or [])) if inbox.status == 200 else None
+        C.step(pg, inst, "sample examples", "NVDA thesis note: the example resurfacing notice is in the note, and nothing is in the inbox",
+               "PASS" if "Example: NVDA reached" in t_nv and n_ins == 0 else "FAIL", notice_in_note="Example: NVDA reached" in t_nv,
+               inbox_insights=n_ins)
+        # TSLA: the quoted call passage
+        C.goto(pg, base, f"/journal/notebook?note={sb.get('TSLA')}", ".ProseMirror")
+        pg.wait_for_timeout(1500)
+        cites = pg.locator("button[data-type='documentExcerptCitation'], [data-document-excerpt]").count()
+        ex = M.get(f"{base}/api/j2/notes/{sb.get('TSLA')}/excerpts")
+        n_ex = len(ex.json().get("excerpts") or []) if ex.status == 200 else None
+        C.step(pg, inst, "sample examples", "TSLA call excerpt note: the quoted passage renders as a cited excerpt",
+               "PASS" if n_ex and cites else "FAIL", citations_on_page=cites, stored_excerpts=n_ex,
+               note_text=pg.locator(".ProseMirror").first.inner_text()[:300])
+        # GOOGL and AMZN: Research Home
+        home()
+        googl = C.vis(pg, '[data-passed-symbol="GOOGL"]', 30000)
+        g_txt = pg.locator('[data-passed-symbol="GOOGL"]').first.inner_text().replace("\n", " ")[:200] if googl else None
+        C.step(pg, inst, "sample examples", "passed setups: the GOOGL example is listed with how it moved since",
+               "PASS" if googl else "FAIL", row_text=g_txt, scope=["[data-passed-setups]"])
+        rs = pg.locator("[data-reporting-soon]")
+        rs_ok = C.vis_loc(rs, 20000)
+        rs_txt = rs.first.inner_text()[:300] if rs_ok else None
+        opened_prep, perr2 = None, None
+        try:
+            ob = pg.get_by_role("button", name="Open the AMZN prep note")
+            if ob.count():
+                ob.first.click(timeout=10000)
+                pg.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                opened_prep = pg.url.split("note=")[-1].split("&")[0]
+        except Exception as e:  # noqa: BLE001
+            perr2 = str(e)[:240]
+        C.step(pg, inst, "sample examples", "earnings prep: the AMZN example draft opens from Reporting soon (when AMZN reports this week)",
+               "PASS" if opened_prep == sb.get("AMZN") else "FAIL", reporting_soon=rs_txt, opened_note=opened_prep,
+               sample_amzn_note=sb.get("AMZN"), reach_error=perr2,
+               note="AMZN is in the sandbox calendar for this run; the sample itself fabricates no calendar row")
+    run("examples", examples)
 
     # ── the Get started list ────────────────────────────────────────────────────────────
     def checklist():
@@ -421,20 +550,32 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         nid = body["note"]["id"]
         S["amd_note"] = nid
         sh = Shim()
+        trace = lambda m: print(f"   .. chartplan: {m}", flush=True)  # noqa: E731
         h2.open_note(pg, base, nid)
+        for name_ in ("Got it", "Dismiss tip"):   # the first-run cards a member closes once
+            b_ = pg.get_by_role("button", name=name_, exact=True)
+            if b_.count() and b_.first.is_visible():
+                b_.first.click()
+                pg.wait_for_timeout(300)
+        trace("note open")
         h2.type_slash(pg, "/chart AMD", re.compile(r"^Chart — AMD"), False)
+        trace("slash chosen")
         frame = h2.frame_of(pg, 0)
         frame.wait_for(state="visible", timeout=30000)
+        trace("frame visible")
         stored, ok1 = h2.wait_stored(M, base, nid, lambda e: any((a.get("params") or {}).get("symbol") == "AMD" for a in e))
         chart = next((a for a in stored or [] if (a.get("params") or {}).get("symbol") == "AMD"), {})
         embed_id = chart.get("embedId")
         _, archived = h2.wait_stored(M, base, nid, lambda e: bool((e[0].get("fallback") or {}).get("url")), timeout_s=30)
+        trace(f"stored={ok1} archived={archived}")
         pg.wait_for_timeout(1000)
         bars_err = frame.get_by_text("Couldn't load bars").count()
         C.step(pg, inst, "chart plan", "insert a chart into a note with /chart", "PASS" if ok1 and embed_id and not bars_err else "FAIL",
                embed=embed_id, params=chart.get("params"), snapshot_archived=archived, bars_error=bars_err,
                scope=['[data-widget-embed-view="chart"]'])
+        trace("chart step recorded; drawing")
         placed = h2.draw_three_lines(pg, frame, False, sh, "c2", req=M, base=base, nid=nid)
+        trace(f"placed={placed}")
         stored, drew = h2.wait_stored(M, base, nid, lambda e: len([d for d in (e[0].get("annotations") or []) if d.get("type") == "horizontal"]) >= 3)
         h2.press(h2.toolbar_button(pg, frame, "Plan", False), False)
         panel = pg.locator("[data-chart-plan-panel]").first
@@ -461,10 +602,38 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             pass
         vals = {k: (panel.locator(f'[data-plan-value="{k}"]').first.inner_text() if panel.locator(f'[data-plan-value="{k}"]').count() else None)
                 for k in ("rr", "rps", "acct", "shares")}
+        ptxt = panel.inner_text()
+        honest = "No max risk per trade is set" in ptxt
+        C.step(pg, inst, "chart plan", "sizing as a brand-new member: R:R and risk per share, and a plain instruction where size needs a setting",
+               "PASS" if (vals.get("rr") or "").endswith("R") and (vals.get("rps") or "").startswith("$") and (honest or (vals.get("shares") or "").endswith("sh")) else "FAIL",
+               values=vals, instruction_shown=honest, panel_text=ptxt[-260:], scope=["[data-chart-plan-panel]"])
+        # the setting the panel asks for, through the member's own account-settings route
+        accts = M.get(base + "/api/j2/accounts").json().get("accounts") or []
+        acct_id = next((a["id"] for a in accts if a.get("isDefault")), accts[0]["id"] if accts else None)
+        cur = M.get(f"{base}/api/j2/accounts/{acct_id}/settings").json() if acct_id else {}
+        ps_, _ = C.api(ctx, inst, "PUT", base, f"/api/j2/accounts/{acct_id}/settings", {**cur, "maxRiskPerTradePct": 1})
+        pg.reload(wait_until="domcontentloaded")
+        h._dismiss_intro(pg)
+        pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=60000)
+        frame = h2.frame_of(pg, 0)
+        frame.wait_for(state="visible", timeout=30000)
+        pg.wait_for_timeout(2500)
+        if not pg.locator("[data-chart-plan-panel]").count():
+            h2.press(h2.toolbar_button(pg, frame, "Plan", False), False)
+        panel = pg.locator("[data-chart-plan-panel]").first
+        panel.wait_for(state="visible", timeout=30000)
+        rows = panel.locator("li[data-level-id]")
+        rows.nth(2).wait_for(state="visible", timeout=20000)
+        try:
+            pg.wait_for_function("() => { const e = document.querySelector('[data-plan-value=\"shares\"]'); return e && e.textContent.trim() !== '—' }", timeout=30000)
+        except Exception:  # noqa: BLE001
+            pass
+        vals = {k: (panel.locator(f'[data-plan-value="{k}"]').first.inner_text() if panel.locator(f'[data-plan-value="{k}"]').count() else None)
+                for k in ("rr", "rps", "acct", "shares")}
         label = panel.locator("[data-sized-by]").first.inner_text() if panel.locator("[data-sized-by]").count() else None
-        C.step(pg, inst, "chart plan", "sizing: R:R, risk per share and shares, with the sizing label",
-               "PASS" if vals.get("rr") and vals.get("shares") and label else "FAIL", values=vals, label=label,
-               panel_text=panel.inner_text()[:500], scope=["[data-chart-plan-panel]"])
+        C.step(pg, inst, "chart plan", "sizing once max risk per trade is set (1%): account risk and shares, with the sizing label",
+               "PASS" if (vals.get("shares") or "").endswith("sh") and label else "FAIL", settings_put=ps_, values=vals, label=label,
+               panel_text=panel.inner_text()[-300:], scope=["[data-chart-plan-panel]"])
         stop_row = rows.nth(2)
         armed, aerr = False, None
         try:
@@ -495,8 +664,22 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         s2, p2 = C.api(ctx, inst, "POST", base, "/api/j2/positions", {"symbol": "NVDA", "side": "Long", "shares": 30, "entryPrice": 121.0,
                                                                      "stopPrice": 110.0, "entryDate": C.TODAY.isoformat()})
         S["amd_pos"], S["nvda_pos"] = (p1 or {}).get("id"), (p2 or {}).get("id")
+        # a thesis the member wrote and later edited (so a saved version names its stop): the note's own routes
+        x = C.x13
+        s3, b3 = C.api(ctx, inst, "POST", base, "/api/j2/notes", {"title": "IBM thesis", "ticker": "IBM", "bodyJson": x.doc_with(
+            x.para("Long the base; mainframe cycle is the story."),
+            x.chart_block("IBM", [x.level("entry", 205.0, "i-entry"), x.level("stop", 195.0, "i-stop")], "e-ibm"))})
+        ibm = (b3 or {}).get("note") or {}
+        s4, _ = C.api(ctx, inst, "PUT", base, f"/api/j2/notes/{ibm.get('id')}", {"bodyJson": x.doc_with(
+            x.para("Long the base; mainframe cycle is the story. Added a target after the print."),
+            x.chart_block("IBM", [x.level("entry", 205.0, "i-entry"), x.level("stop", 195.0, "i-stop"), x.level("target", 230.0, "i-target")], "e-ibm")),
+            "properties": {"builtin:thesis_status": "active"}, "baseUpdatedAt": ibm.get("updatedAt")})
+        S["ibm_note"] = ibm.get("id")
+        vers = (M.get(f"{base}/api/j2/notes/{ibm.get('id')}/versions").json().get("versions") or []) if ibm.get("id") else []
+        S["ibm_v1"] = vers[-1]["id"] if vers else None
         C.step(None, inst, "setup", "two open positions through the member's own API (AMD against the drawn plan, NVDA)",
-               "PASS" if s1 in (200, 201) and s2 in (200, 201) else "FAIL", amd=s1, nvda=s2, entry=entry, stop=stop, shot=False)
+               "PASS" if s1 in (200, 201) and s2 in (200, 201) and S.get("ibm_v1") else "FAIL", amd=s1, nvda=s2, entry=entry,
+               stop=stop, ibm_thesis_note=S.get("ibm_note"), ibm_first_version=S.get("ibm_v1"), shot=False)
         C.goto(pg, base, "/journal-2-0/position/AMD")
         card = pg.locator('[data-testid="entry-context-card"]')
         present = C.vis_loc(card, 30000)
@@ -577,9 +760,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         pg.wait_for_timeout(2500)
         text = box.first.inner_text()[:400] if present else None
         C.step(pg, inst, "earnings prep", "Reporting soon lists the member's stock that reports this week",
-               "PASS" if present and "AMZN" in (text or "") else "FAIL", box_text=text, report_day=S.get("report_day"),
-               scope=["[data-reporting-soon]"])
-        btn = pg.get_by_role("button", name="Create prep note for AMZN")
+               "PASS" if present and "AMZN" in (text or "") and "AMD" in (text or "") else "FAIL", box_text=text,
+               report_day=S.get("report_day"), scope=["[data-reporting-soon]"])
+        C.step(pg, inst, "earnings prep", "the sample's AMZN draft is offered as that name's prep note (Open, not Create)", "INFO",
+               open_button=pg.get_by_role("button", name="Open the AMZN prep note").count(),
+               create_button=pg.get_by_role("button", name="Create prep note for AMZN").count(), shot=False)
+        btn = pg.get_by_role("button", name="Create prep note for AMD")
         made, body, err = None, "", None
         try:
             btn.first.click(timeout=15000)
@@ -625,9 +811,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             if n.get("ticker") == "TSLA":
                 r = M.get(f"{base}/api/j2/notes/{n['id']}/excerpts")
                 if r.status == 200:
-                    exs += [{"note": n["id"], "quote": (e.get("quote") or e.get("text") or "")[:80]} for e in (r.json().get("excerpts") or [])]
+                    exs += [{"note": n["id"], "quote": json.dumps({k: e.get(k) for k in ("documentName", "captureType", "capturedText", "locator", "speaker") if k in e}, default=str)[:500]}
+                            for e in (r.json().get("excerpts") or [])]
         C.step(pg, inst, "transcript capture", "select a passage from a saved call and save it as a cited quote",
-               "PASS" if cited and any("17.1%" in e["quote"] for e in exs) else "FAIL", door=there, quarter=opt, cited=cited,
+               "PASS" if cited and "Cited as TSLA earnings call" in cited and any("17.1%" in e["quote"] for e in exs) else "FAIL", door=there, quarter=opt, cited=cited,
                stored_excerpts=exs[:6], sample_tsla_note=tsla, reach_error=err, scope=["[data-save-transcript]"])
     run("transcript", transcript)
 
@@ -646,17 +833,17 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         added, removed, err = False, False, None
         try:
             tick = pg.get_by_label("Ticker you passed on")
-            tick.first.fill("IBM")
+            tick.first.fill("QQQ")
             pg.get_by_label("Day you passed on it").first.fill(day.isoformat())
             tick.first.focus()
             pg.keyboard.press("Enter")
-            added = C.vis(pg, '[data-passed-symbol="IBM"]', 30000)
-            row_text = pg.locator('[data-passed-symbol="IBM"]').first.inner_text().replace("\n", " ")[:200] if added else None
+            added = C.vis(pg, '[data-passed-symbol="QQQ"]', 30000)
+            row_text = pg.locator('[data-passed-symbol="QQQ"]').first.inner_text().replace("\n", " ")[:200] if added else None
             C.step(pg, inst, "passed setups", "add a name you passed on: scored from the day you passed", "PASS" if added else "FAIL",
                    row_text=row_text, day=day.isoformat(), scope=["[data-passed-setups]"])
-            pg.get_by_role("button", name="Remove IBM from passed setups").first.click()
+            pg.get_by_role("button", name="Remove QQQ from passed setups").first.click()
             pg.wait_for_timeout(2500)
-            removed = pg.locator('[data-passed-symbol="IBM"]').count() == 0
+            removed = pg.locator('[data-passed-symbol="QQQ"]').count() == 0
             C.step(pg, inst, "passed setups", "remove it again", "PASS" if removed else "FAIL", scope=["[data-passed-setups]"])
         except Exception as e:  # noqa: BLE001
             C.step(pg, inst, "passed setups", "add and remove a passed name", "FAIL", added=added, reach_error=str(e)[:300])
@@ -667,16 +854,19 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         plan = S.get("amd_plan") or {}
         entry, stop = float(plan.get("entry") or 150.0), float(plan.get("stop") or 142.0)
         spec = {"email": S["c2_email"], "today": C.TODAY.isoformat(), "flags": fs["c2"], "template_symbol": "MSFT",
-                "candidate": "CRWD", "project_note_ids": [S.get("amd_note")], "resurface_symbol": "AMD",
-                "quotes": [["above the stop", round((entry + stop) / 2, 2)], ["through the stop", round(stop * 0.99, 2)]]}
+                "candidate": "CRWD", "project_note_ids": [S.get("amd_note"), S.get("ibm_note")],
+                "quotes": [["above the stops", {"AMD": round((entry + stop) / 2, 2), "IBM": 200.0}],
+                           ["through the stops", {"AMD": round(stop * 0.99, 2), "IBM": 193.0}]]}
         out = C.run_post_child(Path(S["data_dir"]), C.OUT, spec)
         S["post_child"] = out
         scans = out.get("scans") or []
         crossed = scans[-1] if scans else {}
-        lv = next((x for x in crossed.get("levels", []) if x.get("note_id") == S.get("amd_note") and x.get("role") == "stop"), {})
+        lv = next((x for x in crossed.get("levels", []) if x.get("note_id") == S.get("ibm_note") and x.get("role") == "stop"), {})
         S["resurface_version"] = lv.get("version_id")
+        S["amd_level"] = next((x for x in crossed.get("levels", []) if x.get("note_id") == S.get("amd_note") and x.get("role") == "stop"), {})
         S["resurface_insights"] = crossed.get("insights")
-        ok = not out.get("error") and bool((out.get("nightly") or {}).get("ran", (out.get("nightly") or {}).get("rows"))) and bool(crossed.get("insights"))
+        ok = (not out.get("error") and (out.get("template") or {}).get("found") and not (out.get("nightly") or {}).get("error")
+              and len(crossed.get("insights") or []) >= 2 and S.get("resurface_version") == S.get("ibm_v1"))
         C.step(None, inst, "overnight jobs", "find-similar precompute, passed-setups refresh and one awareness scan (child process, sandbox data)",
                "PASS" if ok else "FAIL", result=json.dumps(out, default=str)[:1800], shot=False)
     run("child", child)
@@ -684,35 +874,45 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── resurfacing ─────────────────────────────────────────────────────────────────────
     def resurface():
         ins = M.get(base + "/api/voice/insights")
-        items = ins.json() if ins.status == 200 else None
-        listed = json.dumps(items, default=str)[:700] if items is not None else None
-        door, opened, err = None, False, None
-        home()
+        items = (ins.json().get("insights") or []) if ins.status == 200 else []
+        links = {i.get("symbol"): i.get("link") for i in items}
+        # the in-app notice lives in Settings > Voice Insights Inbox (VoiceInsightsPanel)
+        C.goto(pg, base, "/settings")
+        sec = pg.get_by_text("Compass & Voice", exact=True)
+        if C.vis_loc(sec, 15000):
+            sec.first.click()
+        doors = pg.get_by_role("link", name="Open what you wrote")
+        shown = C.vis_loc(doors, 30000)
+        hrefs = [a.get_attribute("href") for a in doors.all()] if shown else []
+        panel_text = None
+        if shown:
+            panel_text = doors.first.locator("xpath=ancestor::li[1]").inner_text()[:300] if doors.first.locator("xpath=ancestor::li[1]").count() else None
+        C.step(pg, inst, "note resurfacing", "the notices for the two crossed stops are in the in-app inbox (Settings, Voice Insights Inbox)",
+               "PASS" if shown and len(hrefs) >= 2 else "FAIL", insights_api_status=ins.status,
+               headlines=[i.get("headline") for i in items], links=links, door_hrefs=hrefs, first_notice_text=panel_text,
+               scope=['a[href*="/journal/notebook?note="]'])
+        opened, text, err = False, None, None
         try:
-            bell = pg.get_by_role("button", name="Notifications")
-            if bell.count():
-                bell.first.click()
-                pg.wait_for_timeout(1500)
-                item = pg.get_by_text(re.compile(r"AMD.*(stop|reached|named)", re.I))
-                if item.count():
-                    door = "Notifications bell: " + item.first.inner_text()[:100]
-                    item.first.click()
-                    pg.wait_for_timeout(2500)
+            door = pg.locator('a[href*="resurfaceVersion"]').first
+            door.scroll_into_view_if_needed(timeout=10000)
+            door.click(timeout=10000)
+            sheet = pg.get_by_role("dialog", name="What you wrote then")
+            opened = C.vis_loc(sheet, 40000)
+            for _ in range(40):   # the sheet mounts first and fills once the version has loaded
+                text = sheet.first.inner_text()[:700] if opened else None
+                if text and "first named" in text:
+                    break
+                pg.wait_for_timeout(500)
         except Exception as e:  # noqa: BLE001
-            err = str(e)[:200]
-        sheet = pg.get_by_role("dialog", name="What you wrote then")
-        if not sheet.count():
-            vid = S.get("resurface_version")
-            if vid:
-                C.goto(pg, base, f"/journal/notebook?note={S['amd_note']}&resurfaceVersion={vid}")
-                door = (door or "") + " | direct link with resurfaceVersion (the notice's own target)"
-        opened = C.vis_loc(sheet, 30000)
-        text = sheet.first.inner_text()[:600] if opened else None
-        C.step(pg, inst, "note resurfacing", "a notice for the crossed stop opens the note at 'What you wrote then'",
-               "PASS" if opened and S.get("resurface_insights") else "FAIL", insights_api_status=ins.status, insights=listed,
-               scan_insights=S.get("resurface_insights"), door=door, sheet_text=text, reach_error=err,
-               explainer=pg.locator("[data-tour-explainer]").count(), scope=["[role=dialog]"])
+            err = str(e)[:300]
+        ok = (opened and "version that first named the level" in (text or "") and "mainframe cycle is the story." in (text or "")
+              and "Added a target after the print" not in (text or ""))
+        C.step(pg, inst, "note resurfacing", "the notice opens the note at 'What you wrote then': the version that first named the stop",
+               "PASS" if ok else "FAIL", landed=pg.url.split(base)[-1], sheet_text=text, reach_error=err,
+               expected_version=S.get("ibm_v1"), explainer=pg.locator("[data-tour-explainer]").count(), scope=["[role=dialog]"])
         pg.keyboard.press("Escape")
+        C.step(None, inst, "note resurfacing", "a plan drawn in one sitting has no saved version naming its stop, so its notice opens the note itself, with no sheet (by design: note_levels.project_note)",
+               "INFO", amd_level=S.get("amd_level"), amd_link=links.get("AMD"), shot=False)
     run("resurface", resurface)
 
     run("board2", lambda: board("after the overnight run"))
@@ -721,13 +921,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def trades():
         plan = S.get("amd_plan") or {}
         target = round(float(plan.get("target") or 160.0), 2)
+        s2, p2 = C.api(ctx, inst, "POST", base, "/api/j2/positions", {"symbol": "CRWD", "side": "Long", "shares": 10, "entryPrice": 300.0,
+                                                                     "stopPrice": 290.0, "entryDate": C.TODAY.isoformat()})
+        s3, t2 = C.api(ctx, inst, "POST", base, f"/api/j2/positions/{(p2 or {}).get('id')}/close", {"shares": 10, "exitPrice": 296.0, "exitDate": C.TODAY.isoformat()})
+        S["ibm_trade"] = ((t2.get("trade") or t2) if isinstance(t2, dict) else {}).get("id")
+        time.sleep(1.5)   # the planned trade is closed LAST so it is the newest: the two trade tours open the newest trade
         s1, tr = C.api(ctx, inst, "POST", base, f"/api/j2/positions/{S['amd_pos']}/close", {"shares": 40, "exitPrice": target, "exitDate": C.TODAY.isoformat()})
         S["amd_trade"] = ((tr.get("trade") or tr) if isinstance(tr, dict) else {}).get("id")
-        s2, p2 = C.api(ctx, inst, "POST", base, "/api/j2/positions", {"symbol": "IBM", "side": "Long", "shares": 10, "entryPrice": 200.0,
-                                                                     "stopPrice": 190.0, "entryDate": C.TODAY.isoformat()})
-        s3, t2 = C.api(ctx, inst, "POST", base, f"/api/j2/positions/{(p2 or {}).get('id')}/close", {"shares": 10, "exitPrice": 196.0, "exitDate": C.TODAY.isoformat()})
-        S["ibm_trade"] = ((t2.get("trade") or t2) if isinstance(t2, dict) else {}).get("id")
-        C.step(None, inst, "setup", "the AMD position closed at its target; one IBM trade with no plan (member API)",
+        C.step(None, inst, "setup", "the AMD position closed at its target; one CRWD trade with no plan (member API)",
                "PASS" if S.get("amd_trade") and S.get("ibm_trade") else "FAIL", amd_close=s1, ibm_close=s3, shot=False)
     run("trades", trades)
 
@@ -869,6 +1070,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             ("position page", "/journal-2-0/position/NVDA", ['[data-testid="entry-context-card"]']),
             ("Open Positions rows", "/journal?j2tab=positions", ["[data-thesis-chip]"]),
             ("closed trades table", "/journal/trades?seg=closed", ['[data-testid="unplanned-chip"]']),
+            ("Insights (the My Playbook door)", "/journal/insights", ['[data-testid="open-my-playbook"]']),
             ("Insights > Discipline", "/journal/insights?ins=discipline", ['[data-testid="discipline-record"]']),
             ("Insights > Reviews", "/journal/insights?ins=reviews", ['[data-testid="review-drafts-section"]']),
             ("My Playbook", "/journal-2-0/playbook", ['[data-testid="my-playbook"]']),
@@ -900,7 +1102,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     for k, v in found.items():
                         union[k] = union.get(k, 0) + v
                     probe = p2.evaluate(C.PROBE_JS, [scope, i2.touch, C.ERROR_BOUNDARY_TEXT])
-                    bad = probe["error_boundary"] or probe["overflow"]["horizontal"] or bool((probe.get("small") or {}).get("under"))
+                    sm_ = probe.get("small") or {}
+                    bad = probe["error_boundary"] or probe["overflow"]["horizontal"] or bool(sm_.get("scoped") and sm_.get("under"))
                     C.step(p2, i2, "layout", f"{label}", "FAIL" if bad else "PASS", path=path, surfaces_present=found, scope=scope)
                 except Exception as e:  # noqa: BLE001
                     C.step(p2, i2, "layout", f"{label} (driver exception)", "FAIL", path=path, error=str(e)[:300])
@@ -921,6 +1124,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             except Exception as e:  # noqa: BLE001
                 C.step(p2, i2, "layout", "visual playbook gallery (driver exception)", "FAIL", error=str(e)[:300])
             c2.close()
+        for srow in C.REC["steps"]:   # every c2 step carries the same census
+            for k, v in (srow.get("surfaces_present") or {}).items():
+                if not k.startswith("__"):
+                    union[k] = union.get(k, 0) + v
         C.REC["surfaces_seen_present_in_c2"] = union
         missing = [k for k in C.SURFACES if k not in union]
         C.step(None, inst, "census control", "every absence selector used in c1 matched a real element somewhere in c2",
@@ -928,7 +1135,33 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     run("layout", layout)
 
     # ── tours ───────────────────────────────────────────────────────────────────────────
+    def tour_assist(p_, tid, stepdef):
+        """The one "do this to continue" step that is not a press: the transcript tour asks the
+        member to type /transcript in the note and pick the call."""
+        if tid != "transcript-capture" or stepdef.get("id") != "open":
+            return False
+        try:
+            pm = p_.locator(".ProseMirror").first
+            pm.click(position={"x": 10, "y": 10})
+            p_.keyboard.press("Control+End")
+            p_.keyboard.press("Enter")
+            p_.keyboard.type("/transcript", delay=30)
+            opt = p_.get_by_role("option", name=re.compile("transcript", re.I))
+            opt.first.wait_for(state="visible", timeout=10000)
+            p_.keyboard.press("Enter")
+            return True
+        except Exception:  # noqa: BLE001 -- the generic press is tried next, and the row says what happened
+            return False
+
     def tours(vp):
+        q2.WAIT_ASSIST = tour_assist
+        # the formulas tour opens on the member's most recent note: make that the note with a formula
+        if S.get("formula_note"):
+            fn_ = note_json(S["formula_note"])
+            if fn_:
+                C.api(ctx, inst, "PUT", base, f"/api/j2/notes/{S['formula_note']}",
+                      {"title": f"Formula walk ({vp})", "baseUpdatedAt": fn_.get("updatedAt")})
+                M.post(f"{base}/api/j2/notes/{S['formula_note']}/opened")
         registry = q2.read_registry()
         storage = ctx.storage_state()
         c2 = C.new_ctx(browser, vp, storage)
@@ -970,7 +1203,39 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                failed_checks=fails, sub_checks=list(sub))
         c2.close()
     run("tours1280", lambda: tours("1280"))
+    run("tours820", lambda: tours("820"))
     run("tours390", lambda: tours("390"))
+
+    # ── the "why did you take it" box, after the tours (the entry-context tour needs it unsaved) ──
+    def whysave():
+        C.goto(pg, base, f"/journal-2-0/trade/{S.get('amd_trade')}")
+        card = pg.locator('[data-testid="entry-context-card"]')
+        present = C.vis_loc(card, 30000)
+        pg.wait_for_timeout(2000)
+        box = pg.locator('[data-tour="entry-context-why"] textarea, [data-testid="entry-context-card"] textarea')
+        typed, saved, err = False, None, None
+        try:
+            if not box.count():
+                ed = card.get_by_role("button", name="Edit")
+                if ed.count():
+                    ed.first.click()
+            box.first.wait_for(state="visible", timeout=10000)
+            box.first.fill("Tight base, volume dried up, entered over the pivot.")
+            typed = True
+            sv = pg.locator('[data-tour="entry-context-why-save"]')
+            (sv.first if sv.count() else card.get_by_role("button", name=re.compile("^Save"))).click(timeout=10000)
+            saved = C.vis(pg, '[data-testid="why-prompt-saved"]', 15000)
+        except Exception as e:  # noqa: BLE001
+            err = str(e)[:300]
+        pg.reload(wait_until="domcontentloaded")
+        h._dismiss_intro(pg)
+        C.vis_loc(card, 30000)
+        pg.wait_for_timeout(2000)
+        after = card.first.inner_text()[:500] if card.count() else None
+        C.step(pg, inst, "entry context", "write why you took the trade, save it, and it is still there after a reload",
+               "PASS" if present and typed and saved and "Tight base" in (after or "") else "FAIL", box_found=typed, saved_state=saved,
+               card_after_reload=after, reach_error=err, scope=['[data-testid="entry-context-card"]'])
+    run("whysave", whysave)
 
     # ── remove the sample in one click; nothing of it remains ───────────────────────────
     def remove():
@@ -1075,7 +1340,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(None, inst, "remove sample", "a Notebook export after removal carries none of the sample",
                ("PASS" if not ran["sample_titles_inside"] and not ran["sample_ids_inside"] else "FAIL") if ran else "FAIL",
                export=exp, shot=False)
-        tr_ = M.get(base + "/api/j2/notes?trash=1&limit=500")
+        sq = M.get(base + "/api/j2/notes?q=example&limit=100")
+        sq_hits = [n.get("title") for n in ((sq.json().get("notes") or []) if sq.status == 200 else []) if n.get("id") in ids]
+        C.step(None, inst, "remove sample", "the notes search API returns no sample note for the word every example title carries",
+               "PASS" if sq.status == 200 and not sq_hits else "FAIL", status=sq.status, sample_hits=sq_hits, shot=False)
+        tr_ = M.get(base + "/api/j2/notes?deleted=true&limit=100")
         C.step(None, inst, "remove sample", "the sample notes are in Trash, restorable (the product's own stated design)", "INFO",
                trash_status=tr_.status, trash_count=len((tr_.json().get("notes") or [])) if tr_.status == 200 and isinstance(tr_.json(), dict) else None,
                shot=False)

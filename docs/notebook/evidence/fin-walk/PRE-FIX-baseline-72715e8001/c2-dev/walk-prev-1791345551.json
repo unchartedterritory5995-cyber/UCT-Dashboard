@@ -1,0 +1,1030 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:57:22+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "chart plan",
+   "step": "insert a chart into a note with /chart",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:57:33+00:00",
+   "embed": "82b35fcf-9291-4926-8ebc-84e8af4850fd",
+   "params": {
+    "symbol": "AMD",
+    "tf": "D",
+    "to": 1791345444,
+    "settings": {
+     "chartType": "candles",
+     "invertScale": false,
+     "candles": {
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "upBorder": "#2faf68",
+      "downBorder": "#df4646",
+      "upWick": "#2faf68",
+      "downWick": "#df4646",
+      "oneColor": "#2faf68",
+      "thinBars": true
+     },
+     "candleColorMode": "netchange",
+     "background": "#17181a",
+     "bgMode": "solid",
+     "bgGradient": {
+      "top": "#16233b",
+      "bottom": "#17181a"
+     },
+     "textColor": "#706b5e",
+     "textSize": 11,
+     "grid": {
+      "color": "rgba(46,49,39,0.25)",
+      "visible": true
+     },
+     "crosshair": {
+      "enabled": true,
+      "color": "#706b5e",
+      "style": 1,
+      "width": 1,
+      "magnet": false
+     },
+     "header": {
+      "titleMode": "company",
+      "showChange": true,
+      "timeframes": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ],
+      "customTimeframes": [],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "showLegend": true,
+      "legendLayout": "vertical",
+      "colors": {}
+     },
+     "overlays": [
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 9,
+       "color": "#4ade80",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:0"
+      },
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 20,
+       "color": "#f472b6",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:1"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 50,
+       "color": "#60a5fa",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:2"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 200,
+       "color": "#fb923c",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:3"
+      }
+     ],
+     "volume": {
+      "visible": true,
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22,
+      "labelVisible": true,
+      "labelColor": "#9b9684",
+      "maPeriod": 0,
+      "maColor": "rgba(168,162,144,0.55)",
+      "maLineWidth": 1,
+      "maLineStyle": "solid",
+      "barStyle": "columns",
+      "plotStyle": "histogram"
+     },
+     "watermark": {
+      "visible": true,
+      "opacity": 0.07,
+      "color": "#a8a290",
+      "sizeScale": 1.25,
+      "weight": 500,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      },
+      "x": 0.5,
+      "y": 0.5
+     },
+     "drawingDefaults": {
+      "color": "#c9a84c",
+      "width": 1,
+      "style": "solid",
+      "fontSize": 13
+     },
+     "indicators": {
+      "volumeProfile": {
+       "enabled": false,
+       "bins": 24,
+       "color": "rgba(120,160,100,0.25)",
+       "pocColor": "rgba(200,160,40,0.65)"
+      }
+     },
+     "swingLabels": {
+      "enabled": false,
+      "sensitivity": "medium",
+      "color": "#d4d0c4",
+      "tintByType": false,
+      "upColor": "#4ade80",
+      "downColor": "#f87171",
+      "bgEnabled": true,
+      "bg": null
+     },
+     "heikinAshi": false,
+     "logScale": false,
+     "percentScale": false,
+     "comparisonSymbols": [],
+     "compareHideBase": false,
+     "markers": {
+      "earnings": false,
+      "splits": false,
+      "dividends": false,
+      "news": false,
+      "ipo": true,
+      "earningsBeat": "#2faf68",
+      "earningsMiss": "#df4646",
+      "ipoColor": "#dcbb5e"
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true,
+       "color": "#3cb868",
+       "style": "dashed",
+       "width": 1
+      },
+      "low": {
+       "enabled": true,
+       "color": "#e74c3c",
+       "style": "dashed",
+       "width": 1
+      },
+      "close": {
+       "enabled": true,
+       "color": "#9aa0a6",
+       "style": "dotted",
+       "width": 1
+      }
+     },
+     "countdown": false,
+     "showPatterns": false,
+     "showPriceLabels": true,
+     "showMaLabels": false,
+     "darkPool": {
+      "enabled": false,
+      "barColor": "#c9a84ccc",
+      "labelColor": "#c9a84c"
+     },
+     "signature": {
+      "darkPoolLevels": false,
+      "gexWalls": false,
+      "flowSignals": false
+     },
+     "settingsVersion": 2,
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema",
+        "color": "#4ade80"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema",
+        "color": "#f472b6"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma",
+        "color": "#60a5fa"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma",
+        "color": "#fb923c"
+       },
+       "hidden": false
+      }
+     ],
+     "paneOrder": [],
+     "paneSizes": {},
+     "paneSeriesOrder": {},
+     "hideDrawings": false,
+     "extendedHoursShading": true,
+     "sessionView": "regular",
+     "volumeOverlayIndicators": [],
+     "theme": "dark",
+     "positionCalc": {
+      "accountSize": 50000,
+      "riskPct": 1
+     },
+     "preset": "classic"
+    }
+   },
+   "snapshot_archived": true,
+   "bars_error": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=96378c56fc68439c81b43be0687bed71",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 404,
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/96378c56fc68439c81b43be0687bed71/82b35fcf-9291-4926-8ebc-84e8af4850fd/freeze",
+     "benign": false
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:57:23.776034+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"de01fc2e-b408-411c-8837-7cdcc3b8177e\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T03:57:23.654Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/96378c56fc68439c81b43be0687bed71/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":363}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/bars/warm",
+     "status": 200,
+     "request": "{\"ticker\":\"AMD\",\"tf\":\"D\",\"to\":1791345444}",
+     "response": "{\"ok\":true,\"kicked\":false}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/96378c56fc68439c81b43be0687bed71/82b35fcf-9291-4926-8ebc-84e8af4850fd/freeze",
+     "status": 404,
+     "request": "",
+     "response": "(response still in flight when the step ended: body not read)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/96378c56fc68439c81b43be0687bed71",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345444,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"96378c56fc68439c81b43be0687bed71\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345444,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/96378c56fc68439c81b43be0687bed71/82b35fcf-9291-4926-8ebc-84e8af4850fd/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"96378c56fc68439c81b43be0687bed71\",\"noteTitle\":\"AMD plan\",\"embedKey\":\"82b35fcf-9291-4926-8ebc-84e8af4850fd\",\"embedId\":\"82b35fcf-9291-4926-8ebc-84e8af4850fd\",\"position\":0,\"symbol\":\"AMD\",\"timeframe\":\"D\",\"asOf\":\"2026-10-06\",\"setupTag\":null,\"mode\":\"snapshot\",\"fingerprint\":{\"v\":1,\"symbol\":\"AMD\",\"requested_as_of\":\"2026-10-06\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma10\":{\"value\":4.2,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":11.7,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma50\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma200\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ma_stack\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ema_stack_intact\":{\"value\":true,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"up\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":1.38,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":0,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":2.1,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"patterns\":{\"value\":[],\"source\":\"pattern_v"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/96378c56fc68439c81b43be0687bed71",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345444,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"96378c56fc68439c81b43be0687bed71\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345444,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/96378c56fc68439c81b43be0687bed71/images",
+     "status": 200,
+     "request": "",
+     "response": "{\"url\":\"/api/j2/notes/attachments/f127fc04-090c-4bd4-a50b-677ceee4fb35/96378c56fc68439c81b43be0687bed71/inline/d8c66d8c2940129a45e16b9ee66ab9a8.png\",\"width\":776,\"height\":427}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/96378c56fc68439c81b43be0687bed71",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345444,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"96378c56fc68439c81b43be0687bed71\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345444,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-chart-plan-insert-a-chart-into-a-note-with-chart.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "chartplan",
+   "step": "driver exception (the step did not finish)",
+   "verdict": "FAIL",
+   "at": "2026-10-07T03:57:54+00:00",
+   "error": "TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-widget-embed-view=\\\"chart\\\"]\").first.get_by_role(\"button\", name=\"Draw\", exact=True).first to be visible\n",
+   "traceback": "ers\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-widget-embed-view=\\\"chart\\\"]\").first.get_by_role(\"button\", name=\"Draw\", exact=True).first to be visible\n\n",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=96378c56fc68439c81b43be0687bed71",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-chartplan-driver-exception-the-step-did-not-finish-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "setup",
+   "step": "two open positions through the member's own API (AMD against the drawn plan, NVDA)",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:57:54+00:00",
+   "amd": 200,
+   "nvda": 200,
+   "entry": 150.0,
+   "stop": 142.5,
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "entry context",
+   "step": "the card on the position page: the market at the fill, and why you took it",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:58:03+00:00",
+   "present": true,
+   "card_text": "Market context at the fill\nRegime\nAmber\nas of 2026-01-02\nExposure\n72 / 150\nas of 2026-01-02\n% above the 50-day\n61.0%\nas of 2026-01-02\nRS rank\n98\nas of 2026-10-07\nDays to earnings\n28 days\nas of 2026-10-07\nUCT scans\nNot available\nWhy did you take it?\nSave",
+   "why_box": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/position/AMD",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/position/AMD\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:57:55.462972+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/entry-context/why",
+     "status": 200,
+     "request": "{\"symbol\":\"AMD\",\"entryDay\":\"2026-10-06\",\"text\":\"Tight base, volume dried up, entered over the pivot.\"}",
+     "response": "{\"context\":{\"symbol\":\"AMD\",\"entryDay\":\"2026-10-06\",\"captureKind\":\"at_entry\",\"capturedLate\":false,\"captureDay\":\"2026-10-06\",\"capturedAt\":\"2026-10-07T03:57:56.743571+00:00\",\"trigger\":\"manual_add\",\"version\":1,\"fields\":{\"regime\":{\"value\":\"amber\",\"source\":\"journal_two.regime.get_current_regime\",\"asOf\":\"2026-01-02\",\"missing\":null,\"detail\":null},\"exposure\":{\"value\":72.0,\"source\":\"journal_two.regime.get_current_regime (wire UCT Exposure Rating)\",\"asOf\":\"2026-01-02\",\"missing\":null,\"detail\":null},\"breadth_pct_above_50\":{\"value\":61.0,\"source\":\"engine.get_breadth pct_above_50ma (the wire's daily breadth)\",\"asOf\":\"2026-01-02\",\"missing\":null,\"detail\":{\"universe\":\"wire\",\"liveUnavailable\":\"no warm live cache (cached_only)\"}},\"rs_rank\":{\"value\":98,\"source\":\"rs_ranking.get_rs_for_ticker\",\"asOf\":\"2026-10-07T03:57:54.437218+00:00\",\"missing\":null,\"detail\":{\"rsScore\":57.41}},\"days_to_earnings\":{\"value\":28,\"source\":\"earnings_table._next_report_date\",\"asOf\":\"2026-10-07T03:57:54.437218+00:00\",\"missing\":null,\"detail\":{\"reportDate\":\"2026-11-03\",\"countedFrom\":\"2026-10-06\"}},\"uct_scans\":{\"value\":null,\"source\":\"engine.get_candidates / engine.candidate_tickers\",\"asOf\":null,\"missing\":\"no_scan_published\",\"detail\":null},\"member_screens\":{\"value\":null,\"source\":\"user_definitions.list_for_user + screener.scan_store.hits\",\"asOf\":null,\"missing\":\"no_screens_swept\",\"detail\":null},\"fingerprint\":{\"value\":{\"v\":1,\"symbol\":\"AMD\",\"requested_as_of\":\"2026-10-06\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value"
+    }
+   ],
+   "screenshot": "c2-1280-entry-context-the-card-on-the-position-page-the-market-at-the-fill-and-why-you-took-it.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "thesis chips",
+   "step": "Open Positions rows carry a chip for a stock the member wrote a thesis on",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:58:08+00:00",
+   "chips": [
+    {
+     "note": "b42aa00944d742ac8b047b0728e597cf",
+     "text": "+54.0% above stop",
+     "row": "+54.0% above stop"
+    }
+   ],
+   "nvda_thesis_note": "b42aa00944d742ac8b047b0728e597cf",
+   "preview_link": 1,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/trades?seg=open",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:58:04.619495+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/thesis-chips",
+     "status": 200,
+     "request": "{\"symbols\":[\"AMD\",\"NVDA\"]}",
+     "response": "{\"NVDA\":{\"noteId\":\"b42aa00944d742ac8b047b0728e597cf\",\"title\":\"Thesis: example -- NVDA leadership\",\"thesisStatus\":\"active\",\"entry\":null,\"stop\":110.0,\"target\":null,\"noteUpdatedAt\":\"2026-10-07T03:23:34.821616+00:00\",\"link\":\"/journal/notebook?note=b42aa00944d742ac8b047b0728e597cf\"}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"charts_workspace_groups\",\"value\":\"{\\\"A\\\":\\\"AMD\\\"}\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-thesis-chips-Open-Positions-rows-carry-a-chip-for-a-stock-the-member-wrote-a-thesis-on.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "setups board",
+   "step": "the board lists the open chart plans (before the first overnight run)",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:58:15+00:00",
+   "cards": [
+    "MSFT",
+    "AAPL"
+   ],
+   "page_text": "Meet Compass Tap the compass button to talk to your trading coach — markets, setups, and your journal, all by voice. Got it Trade Journal Today Trades Calendar Notebook Insights Compass Log Trade ? Default $100,000.00 ▾ Setups ACTIVE SETUPS Open plans with levels drawn on a chart, closest to the entry first. MSFT Triggered New today Triggered · 22.54% through the entry · 7.95R Entry $410.00 Stop $",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:58:09.494644+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-setups-board-the-board-lists-the-open-chart-plans-before-the-first-overnight-run-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "find similar",
+   "step": "find similar before the first overnight run: an honest 'nothing yet', not an error",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:58:19+00:00",
+   "symbol": "MSFT",
+   "matches": 0,
+   "sheet_text": "Find more like this\n×\nNAMES LIKE THIS CHART\n\nNo matches yet. Tagged charts are matched against the day’s scored names every night after the scan sweep, so this one is matched tonight.",
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/setups?similar=9e9d103b0f2c4d928dc8ad9fc3083e7d%3Aex-setup",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-find-similar-find-similar-before-the-first-overnight-run-an-honest-nothing-yet-not-an-error.png"
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "not_run": null,
+   "failure": null,
+   "port_free_after": null,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tree": "e8cbd3019c44e201e6ec2e7bdf753a9b36c94738",
+ "started": "2026-10-07T03:57:19+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"AMD plan\", \"ticker\": \"AMD\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"The plan:\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"96378c56fc68439c81b43be0687bed71\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"folderId\": null, \"title\": \"AMD plan\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"The plan:\"}]}]}, \"bodyPlain\": \"The plan:\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": \"AMD\", \"tags\": [], \"createdAt\": \"2026-10-07T03:57:22.506170+00:00\", \"updatedAt\": \"2026-10-07T03:57:22.506170+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/watchlists",
+   "status": 200,
+   "request": "{\"name\": \"This week\"}",
+   "response": "{\"id\": \"43a6da7e-0b2\", \"user_id\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"name\": \"This week\", \"description\": \"\", \"is_public\": 0, \"is_flagged_list\": 0, \"is_prebuilt\": 0, \"created_at\": \"2026-10-07T03:57:54.341179+00:00\", \"updated_at\": \"2026-10-07T03:57:54.341179+00:00\", \"items\": [], \"owner_name\": \"q1c2m\"}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/watchlists/43a6da7e-0b2/items",
+   "status": 200,
+   "request": "{\"sym\": \"AMZN\"}",
+   "response": "{\"id\": \"26499a80-563\", \"watchlist_id\": \"43a6da7e-0b2\", \"sym\": \"AMZN\", \"notes\": \"\", \"duplicate\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AMD\", \"side\": \"Long\", \"shares\": 40, \"entryPrice\": 150.0, \"stopPrice\": 142.5, \"entryDate\": \"2026-10-06\", \"setup\": \"VCP\"}",
+   "response": "{\"id\": \"b7a01134-6818-47b0-855e-37c94ff9fef7\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": \"d5f0618b-208e-4470-a063-cb885341e0db\", \"symbol\": \"AMD\", \"side\": \"Long\", \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"shares\": 40.0, \"originalShares\": 40.0, \"entryPrice\": 150.0, \"stopPrice\": 142.5, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": \"VCP\", \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T03:57:54.418711+00:00\", \"updatedAt\": \"2026-10-07T03:57:54.418711+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"NVDA\", \"side\": \"Long\", \"shares\": 30, \"entryPrice\": 121.0, \"stopPrice\": 110.0, \"entryDate\": \"2026-10-06\"}",
+   "response": "{\"id\": \"37a341ef-dd05-4e25-9a39-a8590d293df3\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": \"d5f0618b-208e-4470-a063-cb885341e0db\", \"symbol\": \"NVDA\", \"side\": \"Long\", \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"shares\": 30.0, \"originalShares\": 30.0, \"entryPrice\": 121.0, \"stopPrice\": 110.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T03:57:54.475752+00:00\", \"updatedAt\": \"2026-10-07T03:57:54.475752+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  }
+ ],
+ "finished": "2026-10-07T03:58:37+00:00"
+}

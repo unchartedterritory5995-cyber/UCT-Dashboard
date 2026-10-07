@@ -72,6 +72,11 @@ ARMED_OFF = ["NOTEBOOK_ONBOARDING_ENABLED"] + CAPABILITY_FLAGS
 
 record = w.record
 
+# Lane WALK (finish program): an optional helper a caller may set for a "do this to continue" step
+# whose action is not a press on the thing the card points at (typing /transcript in the note).
+# Called as WAIT_ASSIST(pg, tour_id, step); a true return means "the action was done".
+WAIT_ASSIST = None
+
 
 # ── the registry, read from the source (never restated) ───────────────────────────────────
 
@@ -352,6 +357,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
         wf = steps[n0 - 1].get("waitFor") if st["waiting"] else None
         if wf and pg.evaluate(ANCHOR_JS, wf)["withBox"]:
             st = {**st, "waiting": False}     # already done (we came Back onto it): Next moves on
+        if st["waiting"] and WAIT_ASSIST is not None and WAIT_ASSIST(pg, tid, steps[n0 - 1]):
+            nx = wait_state(pg, title, lambda s: s["kind"] != "step" or s["n"] != n0, 12)
+            if nx["kind"] == "step" and nx["n"] != n0:
+                row["clicked"].append(n0)
+                continue
+            row["notes"].append(f"step {n0}: the assisted action did not advance")
         if st["waiting"]:
             # "Do this to continue": do what the card asks -- click what it points at
             try:
