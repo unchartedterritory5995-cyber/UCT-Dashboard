@@ -63,7 +63,8 @@ describe('(a) one mount, in the app shell', () => {
     expect(tab).not.toMatch(/<RegistryToursGate\b/)
     expect(tab).not.toMatch(/import RegistryToursGate/)
     // the offer stays with the Notebook (it never shows while a note is open, R4)
-    expect(tab.match(/<TourOfferGate\b/g)).toHaveLength(1)
+    // (through its door, which reads the wave-14 switch before loading the gate)
+    expect(tab.match(/<TourOfferDoor\b/g)).toHaveLength(1)
   })
 
   test('a real tour opens on a Journal page outside the Notebook (My Playbook), from a Replay link', async () => {

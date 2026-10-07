@@ -61,10 +61,12 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
-// Wave 14 (lane W14-C2): "newly switched on, offer once" -- an eager gate that fetches its
-// small card only when a registered tour is due to be offered. `OTHER_TOURS` is one frozen
-// module-level array (tourRegistry.js), so the gate's own effects see a stable list.
-import TourOfferGate from '../components/notebook/onboarding/TourOfferGate'
+// Wave 14 (lane W14-C2): "newly switched on, offer once" -- a gate that fetches its small
+// card only when a registered tour is due to be offered. It is reached through a DOOR that
+// reads the wave-14 switch first, so with the switch off none of the offer's rules ride in
+// the first open. `OTHER_TOURS` is one frozen module-level array (tourRegistry.js), so the
+// gate's own effects see a stable list.
+import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
@@ -2637,7 +2639,7 @@ export default function NotebookTab() {
       )}
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
-      <TourOfferGate tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
+      <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
     </div>
     </SplitViewContext.Provider>
   )
