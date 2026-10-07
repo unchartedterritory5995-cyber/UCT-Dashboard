@@ -47,7 +47,7 @@ export default function FtdPanel({ sym }) {
           <p className={styles.warn} data-testid="ftd-mismatch">Files whose row count did not match their trailer: {data.mismatched_files.join(', ')}.</p>
         )}
         <div className={styles.scroll}>
-          <table className={styles.grid}>
+          <table className={styles.grid} aria-label="Fails to deliver (SEC)">
             <thead><tr><th scope="col">Settlement date</th><th scope="col">Fails (shares)</th><th scope="col">Price</th><th scope="col">Value</th></tr></thead>
             <tbody>
               {pts.slice(0, 60).map((p) => (

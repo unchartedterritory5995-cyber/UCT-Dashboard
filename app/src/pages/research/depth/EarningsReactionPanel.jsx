@@ -66,7 +66,7 @@ export default function EarningsReactionPanel({ sym }) {
     body = (
       <div data-testid="earnings-reaction">
         <div className={styles.scroll}>
-          <table className={styles.grid}>
+          <table className={styles.grid} aria-label="Earnings reaction (8 quarters)">
             <thead>
               <tr><th scope="col">Quarter</th><th scope="col">Session</th>
                 {COLS.map(([, l]) => <th key={l} scope="col">{l}</th>)}

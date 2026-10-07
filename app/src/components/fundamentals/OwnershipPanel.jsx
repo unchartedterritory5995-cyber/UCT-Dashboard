@@ -65,7 +65,7 @@ export default function OwnershipPanel({ sym }) {
         {data.as_of && <span className={styles.muted}>as of {fmtAsOf(data.as_of)}</span>}
       </div>
       <div className={styles.sectionLabel}>Top holders</div>
-      <table className={styles.tbl}><tbody>
+      <table className={styles.tbl} aria-label={`Top holders of ${sym}`}><tbody>
         {data.top_holders.map((h, i) => (
           <tr key={i}>
             <td className={styles.holder}>{h.holder}</td>

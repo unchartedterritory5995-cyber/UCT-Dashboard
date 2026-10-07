@@ -156,14 +156,14 @@ export default function PortfolioHeat() {
 
       <h2 className={styles.subheading}>Positions</h2>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={styles.table} aria-label="Positions">
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Side</th>
-              <th>Dist. to stop</th>
-              <th>Risk %</th>
-              <th>Stop</th>
+              <th scope="col">Symbol</th>
+              <th scope="col">Side</th>
+              <th scope="col">Dist. to stop</th>
+              <th scope="col">Risk %</th>
+              <th scope="col">Stop</th>
             </tr>
           </thead>
           <tbody>

@@ -99,15 +99,15 @@ function IvCrush({ sym }) {
         <>
           {data.prints.length > 0 && (
             <div className={styles.scroll}>
-              <table className={styles.table}>
-                <thead><tr><th>Print</th>{offs.map((k) => <th key={k}>{k > 0 ? `+${k}` : k}</th>)}<th>Crush</th></tr></thead>
+              <table className={styles.table} aria-label="IV around earnings">
+                <thead><tr><th scope="col">Print</th>{offs.map((k) => <th scope="col" key={k}>{k > 0 ? `+${k}` : k}</th>)}<th scope="col">Crush</th></tr></thead>
                 <tbody>
                   {data.prints.map((p) => (
-                    <tr key={p.report_date}><th>{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
+                    <tr key={p.report_date}><th scope="row">{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
                       <td>{p.crush_pct == null ? '' : `${num(p.crush_pct, 1)}%`}</td></tr>
                   ))}
                   {data.summary && ['average', 'max', 'min'].map((s) => (
-                    <tr key={s}><th>{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>
+                    <tr key={s}><th scope="row">{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>
                   ))}
                 </tbody>
               </table>

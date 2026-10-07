@@ -49,7 +49,7 @@ function Period({ p, ccy }) {
           </div>
         : <div className={styles.gap} data-testid={`collecting-${p.period_end}`}>Collecting: {memberText(p.reason)}.</div>}
       <div className={styles.scroll}>
-        <table className={styles.grid}>
+        <table className={styles.grid} aria-label={`Estimate history, fiscal period ending ${p.period_end}`}>
           <thead><tr>
             <th scope="col">Snapshot</th><th scope="col" className={styles.num}>{headIn('EPS', ccy)} (low–high)</th>
             <th scope="col" className={styles.num}># EPS</th><th scope="col" className={styles.num}>{headIn('Revenue', ccy)}</th>

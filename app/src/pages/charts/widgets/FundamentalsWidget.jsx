@@ -46,12 +46,12 @@ function AnnualTable({ rows }) {
   // so the forward-estimate years lead and the oldest year sits at the bottom.
   const ordered = rows.slice().reverse()
   return (
-    <table className={styles.annual}>
+    <table className={styles.annual} aria-label="Annual EPS and sales">
       <thead>
         <tr>
-          <th className={styles.left}>Year</th>
-          <th>EPS</th><th>% Chg</th>
-          <th>Sales</th><th>% Chg</th>
+          <th scope="col" className={styles.left}>Year</th>
+          <th scope="col">EPS</th><th scope="col" aria-label="EPS % Chg">% Chg</th>
+          <th scope="col">Sales</th><th scope="col" aria-label="Sales % Chg">% Chg</th>
         </tr>
       </thead>
       <tbody>

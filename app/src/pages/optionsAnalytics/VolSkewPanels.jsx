@@ -29,14 +29,14 @@ export function RrBfTable({ sym }) {
       {failed ? <p className={styles.note}>The RR/BF table is unavailable right now.</p> : (
         <>
           <div className={styles.scroll}>
-            <table className={styles.table} data-testid="rr-bf-table">
+            <table className={styles.table} data-testid="rr-bf-table" aria-label="Risk reversal and butterfly by tenor">
               <thead>
-                <tr><th>Expiry</th><th>DTE</th><th>ATM IV</th><th>25Δ RR</th><th>25Δ BF</th><th>10Δ RR</th><th>10Δ BF</th></tr>
+                <tr><th scope="col">Expiry</th><th scope="col">DTE</th><th scope="col">ATM IV</th><th scope="col">25Δ RR</th><th scope="col">25Δ BF</th><th scope="col">10Δ RR</th><th scope="col">10Δ BF</th></tr>
               </thead>
               <tbody>
                 {data.tenors.map((t) => (
                   <tr key={t.expiration}>
-                    <th>{t.expiration}</th><td>{t.dte}</td><td>{vp(t.atm_iv)}</td>
+                    <th scope="row">{t.expiration}</th><td>{t.dte}</td><td>{vp(t.atm_iv)}</td>
                     <td title={t.reason_25d || undefined}>{signed(t.rr_25d)}</td><td title={t.reason_25d || undefined}>{signed(t.bf_25d)}</td>
                     <td title={t.reason_10d || undefined}>{signed(t.rr_10d)}</td><td title={t.reason_10d || undefined}>{signed(t.bf_10d)}</td>
                   </tr>

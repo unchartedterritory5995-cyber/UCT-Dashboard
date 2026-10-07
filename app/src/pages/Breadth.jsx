@@ -1171,17 +1171,18 @@ export default function Breadth() {
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap} ref={tableWrapRef}>
-          <table className={styles.table}>
+          <table className={styles.table} aria-label="Breadth monitor">
             <thead>
               {/* Single column-label row — the colored group-header strip was
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
               <tr>
-                <th className={`${styles.th} ${styles.dateCol}`}>Date</th>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`}>Date</th>
                 {visibleCols.map(col => {
                   const isColCollapsed = collapsedCols.has(col.key)
                   return (
                     <th
+                      scope="col"
                       key={col.key}
                       title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
                       className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}

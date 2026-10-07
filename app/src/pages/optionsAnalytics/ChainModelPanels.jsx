@@ -33,16 +33,16 @@ const legText = (l) => `${l.side > 0 ? 'buy' : 'sell'}${Math.abs(l.side) > 1 ? `
 
 // ── FT-012 ─────────────────────────────────────────────────────────────────────
 
-function EdgeTable({ rows, testid }) {
+function EdgeTable({ rows, testid, label }) {
   if (!rows.length) return <p className={styles.note}>None on this expiration.</p>
   return (
     <div className={styles.scroll}>
-      <table className={styles.table} data-testid={testid}>
-        <thead><tr><th>Contract</th><th>Mid</th><th>Theoretical</th><th>Edge</th><th>Edge %</th><th>Vendor IV</th></tr></thead>
+      <table className={styles.table} data-testid={testid} aria-label={label}>
+        <thead><tr><th scope="col">Contract</th><th scope="col">Mid</th><th scope="col">Theoretical</th><th scope="col">Edge</th><th scope="col">Edge %</th><th scope="col">Vendor IV</th></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.contract || `${r.type}-${r.strike}`}>
-              <th>{r.type} {num(r.strike)}</th><td>{num(r.mid)}</td><td>{num(r.theoretical)}</td>
+              <th scope="row">{r.type} {num(r.strike)}</th><td>{num(r.mid)}</td><td>{num(r.theoretical)}</td>
               <td className={r.edge >= 0 ? styles.gain : styles.loss}>{r.edge > 0 ? '+' : ''}{num(r.edge)}</td>
               <td>{r.edge_pct > 0 ? '+' : ''}{num(r.edge_pct, 1)}%</td><td>{pct(r.vendor_iv)}</td>
             </tr>
@@ -71,9 +71,9 @@ export function EdgePanel({ sym, expiration }) {
           </p>
           {data.note && <p className={styles.note} data-testid="edge-note">{data.note}</p>}
           <p className={styles.title}>Cheap against realized movement (buyer&apos;s edge)</p>
-          <EdgeTable rows={data.buyer_edge} testid="edge-buyer" />
+          <EdgeTable rows={data.buyer_edge} testid="edge-buyer" label="Cheap against realized movement (buyer's edge)" />
           <p className={styles.title}>Rich against realized movement (seller&apos;s edge)</p>
-          <EdgeTable rows={data.seller_edge} testid="edge-seller" />
+          <EdgeTable rows={data.seller_edge} testid="edge-seller" label="Rich against realized movement (seller's edge)" />
           <p className={styles.muted} data-testid="edge-history">{data.history?.win_rate_note}</p>
           <p className={styles.muted}>{data.method} Inputs: {data.inputs}.</p>
         </>
@@ -187,14 +187,14 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
           <p className={styles.muted}>{data.views[view]}</p>
           {found.candidates.length ? (
             <div className={styles.scroll}>
-              <table className={styles.table} data-testid="finder-candidates">
-                <thead><tr><th>Structure</th><th>Legs</th><th>Net</th><th>Max profit</th><th>Max loss</th><th>Breakeven</th><th>PoP</th>{canSave && <th />}</tr></thead>
+              <table className={styles.table} data-testid="finder-candidates" aria-label="Strategy finder candidates">
+                <thead><tr><th scope="col">Structure</th><th scope="col">Legs</th><th scope="col">Net</th><th scope="col">Max profit</th><th scope="col">Max loss</th><th scope="col">Breakeven</th><th scope="col">PoP</th>{canSave && <td />}</tr></thead>
                 <tbody>
                   {found.candidates.slice(0, 12).map((c) => {
                     const k = candidateKey(view, expiration, c)
                     return (
                     <tr key={k}>
-                      <th>{c.name}</th>
+                      <th scope="row">{c.name}</th>
                       <td>{c.legs.map(legText).join(' / ')}</td>
                       <td>{c.cost >= 0 ? `pay ${money(c.cost)}` : `collect ${money(-c.cost)}`}</td>
                       <td>{money(c.maxProfit)}</td><td>{money(c.maxLoss)}</td>

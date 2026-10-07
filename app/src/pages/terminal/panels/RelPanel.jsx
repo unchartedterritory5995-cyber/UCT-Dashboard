@@ -123,7 +123,7 @@ export default function RelPanel({ sym, lookback, ...props }) {
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-rel-table" aria-label={`Relative performance over ${win}`}>
           <thead>
-            <tr><th>Symbol</th><th>Return</th><th>Worst drawdown</th><th>vs {read.rows[0].sym}</th></tr>
+            <tr><th scope="col">Symbol</th><th scope="col">Return</th><th scope="col">Worst drawdown</th><th scope="col">vs {read.rows[0].sym}</th></tr>
           </thead>
           <tbody>
             {read.rows.map((r, i) => (

@@ -46,7 +46,7 @@ export default function MentionSeriesPanel({ sym }) {
           {' '}{sm.mentions_total} mentions over {sm.days_measured} measured days since {data.window.from > data.window.store_from ? data.window.from : data.window.store_from} (ET).
         </p>
         <div className={styles.scroll}>
-          <table className={styles.grid}>
+          <table className={styles.grid} aria-label="Room attention (#main-chat)">
             <thead><tr><th scope="col">Day (ET)</th><th scope="col">Mentions</th><th scope="col">People</th><th scope="col">Share of room</th></tr></thead>
             <tbody>
               {recent.map((p) => (
