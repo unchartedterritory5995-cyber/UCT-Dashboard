@@ -9,7 +9,7 @@ import useNotebookHome from '../../hooks/useNotebookHome'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openNotebookTour } from './onboarding/tourControl'
 import {
-  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, isNotebookKey,
+  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, removedMessage, isNotebookKey,
   describeSampleHold,
 } from './onboarding/sampleNotebook'
 import { precheckNoteBatch } from '../../lib/noteBatch'
@@ -252,7 +252,7 @@ export default function ResearchHome({
         setSampleMessage({ alert: true, text: out.message })
         return
       }
-      setSampleMessage({ alert: false, text: SAMPLE_COPY.removed })
+      setSampleMessage({ alert: false, text: removedMessage(out) })
       mutate(isNotebookKey)
     } finally {
       setRemoving(false)

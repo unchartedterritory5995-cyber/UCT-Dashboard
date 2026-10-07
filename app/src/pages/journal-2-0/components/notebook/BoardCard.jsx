@@ -124,10 +124,10 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
         </Link>
         {/* An example's chart is left out of the overnight matching by design, so the door
             that would promise "matched tonight" is not offered on it. */}
-        {onFindSimilar && card.similarEmbedKey && card.example && (
+        {onFindSimilar && card.similarEmbedKey && (card.similarNeverMatched || card.example) && (
           <span className={styles.quiet}>Examples are not matched against the day’s names.</span>
         )}
-        {onFindSimilar && card.similarEmbedKey && !card.example && (
+        {onFindSimilar && card.similarEmbedKey && !(card.similarNeverMatched || card.example) && (
           <button type="button" className={styles.action}
             aria-label={`Find more like ${card.symbol}`} data-tour="setups-similar"
             onClick={() => onFindSimilar({ noteId: card.noteId, embedKey: card.similarEmbedKey, symbol: card.symbol })}>

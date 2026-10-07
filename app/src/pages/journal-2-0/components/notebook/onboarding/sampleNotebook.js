@@ -83,10 +83,23 @@ export async function removeSampleNotebook() {
     const res = await fetch(SAMPLE_URL, { method: 'DELETE', credentials: 'include' })
     if (!res.ok) return { ok: false, message: await detail(res, SAMPLE_COPY.removeFailed) }
     const body = await res.json()
-    return { ok: true, trashed: Array.isArray(body.trashed) ? body.trashed : [] }
+    return {
+      ok: true,
+      trashed: Array.isArray(body.trashed) ? body.trashed : [],
+      foldersKept: Array.isArray(body.foldersKept) ? body.foldersKept : [],
+      foldersRemoved: Array.isArray(body.foldersRemoved) ? body.foldersRemoved : [],
+    }
   } catch {
     return { ok: false, message: SAMPLE_COPY.removeFailed }
   }
+}
+
+/** What the member reads after "Remove it": the usual sentence, then one sentence for each
+ *  folder that stayed (the server's own words: it holds a note of theirs), so a folder left in
+ *  the sidebar is explained and not a leftover. */
+export function removedMessage(out) {
+  const kept = (Array.isArray(out?.foldersKept) ? out.foldersKept : []).map((f) => f?.sentence).filter(Boolean)
+  return [SAMPLE_COPY.removed, ...kept].join(' ')
 }
 
 const named = (ids, words, titleOf) => ids.map((id) => {

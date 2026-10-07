@@ -348,7 +348,9 @@ export function buildDraftBlocks(payload) {
     }
   } else {
     // Said, never silently missing: the member was told the draft covers discipline.
-    blocks.push(h(2, 'Discipline record'), p(DISCIPLINE_OFF_IN_DRAFT))
+    // The server's own sentence when it sends one (`disciplineOmitted`, lane DATA2); an older
+    // answer without it still gets a plain reason.
+    blocks.push(h(2, 'Discipline record'), p(payload.disciplineOmitted?.sentence || DISCIPLINE_OFF_IN_DRAFT))
     blocks.push(hr())
   }
   blocks.push(...setupChangesSection(payload.setupChanges))

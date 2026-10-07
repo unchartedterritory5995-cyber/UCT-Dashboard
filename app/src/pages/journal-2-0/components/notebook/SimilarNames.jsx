@@ -113,6 +113,11 @@ export default function SimilarNames({ noteId, embedKey, example = false }) {
       {!error && data?.status === 'not_tagged' && (
         <p className={styles.quiet}>Tag this chart with a setup and it is matched in the nightly run.</p>
       )}
+      {!error && data?.status === 'example' && (
+        <p className={styles.quiet} data-similar-never-matched="">
+          {data.neverMatched?.sentence || 'This chart is an example, so it is never matched. Tag a chart of your own to find names like it.'}
+        </p>
+      )}
       {!error && data?.status === 'pending' && example && (
         <p className={styles.quiet}>
           This is an example chart. Examples are not matched; tag one of your own charts with a

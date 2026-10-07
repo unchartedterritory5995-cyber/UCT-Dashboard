@@ -51,9 +51,16 @@ const warmDaily = (syms) => prefetchListAllTimeframes(syms, { tfs: WARM_TFS })
 
 /** The board's "nothing yet" line. With the chart plan off the member cannot mark a line as an
  *  entry, so the line says what is missing instead of naming a step they cannot take. */
-export function emptyBoardText({ chartPlanOn }) {
+export function emptyBoardText({ planDrawing = null, chartPlanOn }) {
+  const how = 'No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here.'
+  // The board's own answer says whether a plan can be drawn, and why not (`planDrawing`).
+  if (planDrawing && typeof planDrawing.available === 'boolean') {
+    if (planDrawing.available) return how
+    return `No open setups yet. ${planDrawing.sentence || 'Drawing a plan on a chart is not switched on for your account.'}`
+  }
+  // An older answer without it: the tab's own latched flag decides.
   return chartPlanOn
-    ? 'No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here.'
+    ? how
     : 'No open setups yet. A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.'
 }
 
@@ -91,7 +98,7 @@ function Board({ onFindSimilar }) {
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
       {!error && data && !hasOwn && (
-        <p className={styles.quiet}>{emptyBoardText({ chartPlanOn: chartPlanEnabled() })}</p>
+        <p className={styles.quiet}>{emptyBoardText({ planDrawing: data?.planDrawing, chartPlanOn: chartPlanEnabled() })}</p>
       )}
       {!error && data?.capped && (
         <p className={styles.note} role="note">
