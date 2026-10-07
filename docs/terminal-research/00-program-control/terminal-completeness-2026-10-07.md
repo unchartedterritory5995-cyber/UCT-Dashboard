@@ -158,8 +158,10 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 - ERN / BRD colour debt: `EarningsResearchModal.module.css`, `breadth/heatmapMetrics.js`,
   `breadth/views/TreemapView.jsx` — tf7-themedebt's ledger.
 
-**Owner decisions** — awaiting the owner; deliberately left as they are (re-checked unchanged on
-`terminal/fn8-fmtrows`, 2026-10-07).
+**Owner decisions** — ➜ **DECIDED 2026-10-07 under the owner's delegation**
+(`12-decisions/2026-10-07-owner-delegated-decisions.md` I-7, I-8): FA/EE with an unknown currency
+print no symbol plus "Currency not reported" (built by tf9-theme). ANR targets and OWN values stay
+`$` (USD). The text below is the before-state.
 - FA / EE: `depthFormat.fmtMoney` prints "$" when the payload carries no currency (deliberate:
   "USD or unknown renders $ exactly as before"); EstimateHistory chose the opposite ("never a guessed
   $"). One rule should win.
@@ -230,7 +232,8 @@ places (the range grouped) and the dividend yield prints two places. The census 
 (magnitude-suffix only) did not move: none of these files carried a K/M/B/T suffix by hand.
 
 **Owner decisions — unchanged, awaiting the owner:** FA/EE "$" on an unknown currency, ANR price
-targets and OWN Yahoo holder values in "$" were deliberately not touched.
+targets and OWN Yahoo holder values in "$" were deliberately not touched. ➜ Decided 2026-10-07:
+`12-decisions/2026-10-07-owner-delegated-decisions.md` I-7, I-8.
 
 ## Overlaps with concurrent lanes
 
