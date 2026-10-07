@@ -1,4 +1,4 @@
-// Finish program, lane FE, finding I1 (I6 joins this file next): a tour never traps navigation, and a tour that
+// Finish program, lane FE, findings I1 and I6: a tour never traps navigation, and a tour that
 // cannot start says so and gets out of the way.
 //
 // The REAL gate and the REAL engine, mounted the way the app shell mounts them (inside the
@@ -8,7 +8,7 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import RouteErrorBoundary from '../../../../../components/RouteErrorBoundary'
-import { makeRegistryToursGate } from './RegistryToursGate'
+import { makeRegistryToursGate, TOUR_FAILED_NOTICE } from './RegistryToursGate'
 import GenericTourEngine from './GenericTourEngine'
 import {
   REGISTRY_TOUR_CLOSED_EVENT, openRegistryTour, hasPendingRegistryTourOpen, __resetRegistryTourControl,
@@ -129,5 +129,67 @@ describe('I1 — a tour never traps the Back button', () => {
     render(<App Gate={Gate} entries={[replayEntry('/journal/notebook', HOME_TOUR.id)]} />)
     expect(await screen.findByRole('dialog', { name: 'On home' })).toBeInTheDocument()
     expect(here.state).toBeNull()
+  })
+})
+
+describe('I6 — a tour that cannot start closes itself, frees the slot and says so', () => {
+  it('no anchor ever appears: one sentence, the offer is not spent, and the next tour can open', async () => {
+    const Gate = makeRegistryToursGate(fastEngine(), 0)
+    render(<App Gate={Gate} entries={['/journal/notebook']} />)
+    act(() => { openRegistryTour(NOWHERE_TOUR.id) })
+    expect(await screen.findByRole('status')).toHaveTextContent(TOUR_FAILED_NOTICE)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(closedEvents).toEqual([{ tourId: NOWHERE_TOUR.id, opened: false }])
+    expect(hasPendingRegistryTourOpen()).toBeNull()
+    act(() => { openRegistryTour(HOME_TOUR.id) })
+    expect(await screen.findByRole('dialog', { name: 'On home' })).toBeInTheDocument()
+  })
+
+  it('the tour’s step file cannot be loaded (a deploy removed it): the same outcome, not a jammed slot', async () => {
+    const stale = { ...HOME_TOUR, id: 'fin-fe-stale', load: vi.fn(async () => { throw new TypeError('Failed to fetch dynamically imported module: http://localhost:3000/assets/x.steps-abc.js') }) }
+    vi.spyOn(chunkRetry, 'importUrl').mockRejectedValue(new TypeError('Failed to fetch dynamically imported module: http://localhost:3000/assets/x.steps-abc.js?chunk-retry=1'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const Gate = makeRegistryToursGate(fastEngine(), 0)
+    render(<App Gate={Gate} entries={['/journal/notebook']} tours={[...TOURS, stale]} />)
+    act(() => { openRegistryTour(stale.id) })
+    expect(await screen.findByRole('status')).toHaveTextContent(TOUR_FAILED_NOTICE)
+    expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1)     // asked again once, under a new name
+    expect(closedEvents).toEqual([{ tourId: stale.id, opened: false }])
+    act(() => { openRegistryTour(HOME_TOUR.id) })
+    expect(await screen.findByRole('dialog', { name: 'On home' })).toBeInTheDocument()
+  })
+
+  it('a step file that fails once and then loads under a new name: the tour opens, nothing is said', async () => {
+    const blip = { ...HOME_TOUR, id: 'fin-fe-blip', load: vi.fn(async () => { throw new TypeError('Failed to fetch dynamically imported module: http://localhost:3000/assets/y.steps-abc.js') }) }
+    vi.spyOn(chunkRetry, 'importUrl').mockResolvedValue({
+      STEPS: [{ id: 'h1', anchor: 'home-anchor', file: 'x' }], COPY: { h1: { title: 'Second try', body: 'Body' } },
+    })
+    const Gate = makeRegistryToursGate(fastEngine(), 0)
+    render(<App Gate={Gate} entries={['/journal/notebook']} tours={[...TOURS, blip]} />)
+    act(() => { openRegistryTour(blip.id) })
+    expect(await screen.findByRole('dialog', { name: 'Second try' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('the engine’s own file cannot be loaded: the same sentence, and a later tour still opens', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let fail = true
+    const real = fastEngine()
+    const load = vi.fn(async () => { if (fail) throw new Error('engine file is gone'); return real() })
+    const Gate = makeRegistryToursGate(load, 0)
+    render(<App Gate={Gate} entries={['/journal/notebook']} />)
+    act(() => { openRegistryTour(HOME_TOUR.id) })
+    expect(await screen.findByRole('status')).toHaveTextContent(TOUR_FAILED_NOTICE)
+    expect(closedEvents).toEqual([{ tourId: HOME_TOUR.id, opened: false }])
+    await waitFor(() => expect(hasPendingRegistryTourOpen()).toBeNull())
+  })
+
+  it('a passive explainer that has nothing to point at stays silent (nobody asked for it)', async () => {
+    const passive = { ...NOWHERE_TOUR, id: 'fin-fe-passive', replayable: false }
+    const Gate = makeRegistryToursGate(fastEngine(), 0)
+    render(<App Gate={Gate} entries={['/journal/notebook']} tours={[...TOURS, passive]} />)
+    act(() => { openRegistryTour(passive.id) })
+    await waitFor(() => expect(closedEvents).toEqual([{ tourId: passive.id, opened: false }]))
+    expect(screen.queryByRole('status')).toBeNull()
   })
 })

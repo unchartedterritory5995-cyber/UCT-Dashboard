@@ -44,6 +44,8 @@ import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourS
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { cardIsTopmost, dialogHost } from './tourLayers'
 import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
+import { importWithOneRetry } from '../../../lib/lazyChunk'
+import { reportError } from '../../../../../lib/errorBeacon'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 
@@ -69,6 +71,15 @@ function presentFrom(steps, from, dir) {
   return -1
 }
 
+const hasSteps = (m) => !!m && (Array.isArray(m.steps) || Array.isArray(m.STEPS))
+
+/** A tour's steps and copy, through the Notebook's chunk recovery (lib/lazyChunk.js): a failed
+ *  fetch is asked for once more under a name the module map has not seen. A second failure
+ *  rejects; the engine then closes and says so, it never reloads the page. */
+export function loadTourContent(entry, waitMs) {
+  return importWithOneRetry(() => entry.load(), waitMs, hasSteps)
+    .then((m) => (Array.isArray(m.steps) ? m : { steps: m.STEPS, copy: m.COPY }))
+}
 
 export default function GenericTourEngine({
   entry, onClose, startWaitMs = START_WAIT_MS, stepWaitMs = STEP_WAIT_MS,
@@ -95,7 +106,14 @@ export default function GenericTourEngine({
 
   useEffect(() => {
     let cancelled = false
-    entry.load().then((c) => { if (!cancelled) setContent(c) })
+    loadTourContent(entry)
+      .then((c) => { if (!cancelled) setContent(c) })
+      .catch((err) => {
+        // A stale step file after a deploy: close and say so, never hold the one tour slot.
+        if (cancelled) return
+        reportError(err, { kind: 'tour-load' })
+        onCloseRef.current({ opened: false, failed: true })
+      })
     return () => { cancelled = true }
   }, [entry])
 
@@ -156,7 +174,9 @@ export default function GenericTourEngine({
       if (Date.now() - began < startWaitMs) return false
       const at = presentFrom(steps, 0, 1)
       if (at >= 0) open(at)
-      else onCloseRef.current({ opened: false })
+      // Nothing to point at after the bounded wait. A tour the member asked for says so
+      // (the gate shows the sentence); a passive explainer nobody asked for stays silent.
+      else onCloseRef.current({ opened: false, failed: !passive })
       return true
     }
     if (tick()) return undefined

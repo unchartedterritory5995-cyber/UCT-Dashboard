@@ -24,6 +24,18 @@ import {
   stripTourState, takePendingRegistryTourOpenAny,
 } from './tourRegistryControl'
 
+/** The one sentence a member reads when a walkthrough they asked for could not be shown. */
+export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Help.'
+/** How long that sentence stays up. */
+export const TOUR_NOTICE_MS = 8000
+const NOTICE_STYLE = Object.freeze({
+  position: 'fixed', left: '50%', bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+  transform: 'translateX(-50%)', zIndex: 1200, maxWidth: 'min(92vw, 520px)', margin: 0,
+  padding: '10px 14px', borderRadius: 8, fontSize: 13, lineHeight: 1.45,
+  background: 'var(--bg-elevated, #1c1f26)', color: 'var(--text-primary, #f1f3f5)',
+  border: '1px solid var(--border, rgba(255,255,255,0.14))', boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+})
+
 /** This gate's own boundary: a failed chunk (or a throw while it renders) renders
  *  NOTHING, never the route's error screen. Mirrors NotebookTourGate.jsx's
  *  `TourCatch` exactly (same shape, same swallow-on-purpose contract) but declared
@@ -46,6 +58,8 @@ class RegistryTourCatch extends Component {
     // eslint-disable-next-line no-console
     console.error('[RegistryToursGate] a registered tour could not load:', error)
     reportError(error, { kind: 'boundary', componentStack: info?.componentStack })
+    // Rendering nothing is not enough: the gate must hear it, or the one tour slot stays taken.
+    this.props.onFail?.()
   }
 
   render() {
@@ -63,6 +77,12 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
   function RegistryToursGate({ tours = [] }) {
     const location = useLocation()
     const navigate = useNavigate()
+    const [notice, setNotice] = useState(null)
+    useEffect(() => {
+      if (!notice) return undefined
+      const t = setTimeout(() => setNotice(null), TOUR_NOTICE_MS)
+      return () => clearTimeout(t)
+    }, [notice])
     const [wantedId, setWantedId] = useState(() => {
       const pending = takePendingRegistryTourOpenAny()
       return pending && tours.some((t) => t.id === pending) ? pending : null
@@ -105,7 +125,13 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
       // (W14-Q2).
       if (id && hasPendingRegistryTourOpen() === id) takePendingRegistryTourOpenAny()
       if (id) announceRegistryTourClosed(id, info?.opened === true)
+      // A walkthrough the member asked for that could not be shown says so, once.
+      if (id && info?.failed === true) setNotice(TOUR_FAILED_NOTICE)
     }, [])
+    const failed = useCallback(() => {
+      const e = wantedRef.current ? getTourEntry(wantedRef.current, tours) : null
+      close({ opened: false, failed: e?.replayable !== false })
+    }, [close, tours])
 
     const entry = wantedId ? getTourEntry(wantedId, tours) : null
     // tourLive: own flag, `requires`, and the wave-14 onboarding switch (tourRegistry.js)
@@ -114,13 +140,17 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     // tour wide, so a held request would block every later one (W14-C1).
     useEffect(() => { if (wantedId && !allowed) close({ opened: false }) }, [wantedId, allowed, close])
 
-    if (!allowed) return null
+    const said = notice ? <p role="status" data-tour-notice="" style={NOTICE_STYLE}>{notice}</p> : null
+    if (!allowed) return said
     return (
-      <RegistryTourCatch>
-        <Suspense fallback={null}>
-          <GenericTourEngineLeaf entry={entry} onClose={close} />
-        </Suspense>
-      </RegistryTourCatch>
+      <>
+        <RegistryTourCatch key={wantedId} onFail={failed}>
+          <Suspense fallback={null}>
+            <GenericTourEngineLeaf entry={entry} onClose={close} />
+          </Suspense>
+        </RegistryTourCatch>
+        {said}
+      </>
     )
   }
   return RegistryToursGate
