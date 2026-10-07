@@ -584,7 +584,8 @@ export default function TradeDetailPage() {
             {trade.result}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+        {/* A class, so it can wrap on a phone (an inline no-wrap style ran to 470 px at 390). */}
+        <span className={styles.headActions}>
           <ReplayButton trade={trade} />
           <SaveToNotebookButton trade={trade} tf={tf} />
           <TradeCardActions trade={trade} />
