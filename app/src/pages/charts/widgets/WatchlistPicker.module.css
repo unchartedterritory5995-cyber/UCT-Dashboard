@@ -26,7 +26,7 @@
 }
 .gearBtn:hover, .gearBtnActive {
   color: var(--wl-accent, var(--ut-gold, #dcbb5e));
-  background: var(--wl-row-hover, rgba(255, 255, 255, 0.06));
+  background: var(--wl-row-hover, color-mix(in srgb, var(--text) 6%, transparent));
 }
 
 /* Tab strip — flat tabs + New/⚙ on the right (mirrors ThemeTrackerPage .periodBar).
@@ -55,7 +55,7 @@
   cursor: pointer;
   transition: color 0.1s, background 0.1s, border-color 0.1s;
 }
-.tabFlat:hover { color: var(--wl-sym, var(--text-bright, #e0dac8)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
+.tabFlat:hover { color: var(--wl-sym, var(--text-bright, #e0dac8)); background: var(--wl-row-hover, color-mix(in srgb, var(--text) 6%, transparent)); }
 .tabFlatActive {
   color: var(--wl-accent, var(--accent, var(--ut-gold, #dcbb5e)));
   background: color-mix(in srgb, var(--wl-accent, var(--accent, var(--ut-gold))) 12%, transparent);
@@ -85,7 +85,7 @@
 .newAction:hover:not(:disabled) {
   color: var(--wl-accent, var(--ut-gold, #dcbb5e));
   border-color: var(--accent, var(--ut-gold));
-  background: var(--wl-row-hover, rgba(255, 255, 255, 0.06));
+  background: var(--wl-row-hover, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .newAction:disabled { opacity: 0.5; cursor: default; }
 .newHint { font-size: 8px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.6; }
@@ -102,7 +102,7 @@
 .searchBox {
   flex: 1;
   min-width: 0;
-  background: var(--wl-row-hover, rgba(255, 255, 255, 0.05));
+  background: var(--wl-row-hover, color-mix(in srgb, var(--text) 5%, transparent));
   border: 1px solid var(--wl-divider, var(--border, #1f2937));
   border-radius: 3px;
   padding: 5px 10px;
@@ -224,7 +224,7 @@
   color: var(--wl-text-strong, var(--text-bright, #e4e6ea));
   padding: 8px 12px;
   /* Subtle band so the header sits ABOVE its cells, not blended into them. */
-  background: var(--wl-row-hover, rgba(255, 255, 255, 0.04));
+  background: var(--wl-row-hover, color-mix(in srgb, var(--text) 4%, transparent));
   border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
   /* A whisper of gold on the leading edge so the header isn't pure white/grey. */
   box-shadow: inset 2px 0 0 var(--wl-accent, var(--ut-gold, #c9a84c));
@@ -288,7 +288,7 @@
 .pCell:nth-child(odd) { border-right: 1px solid var(--wl-divider, var(--border, #1f2937)); }
 .pGrid .pCell:last-child,
 .pGrid .pCell:nth-last-child(2):nth-child(2n+1) { border-bottom: none; }
-.pCell:hover { background: var(--wl-row-hover, rgba(220, 187, 94, 0.09)); }
+.pCell:hover { background: var(--wl-row-hover, color-mix(in srgb, var(--ut-gold) 9%, transparent)); }
 .pCell:hover .pCellName { color: var(--wl-accent, var(--ut-gold, #dcbb5e)); }
 .pCellName {
   flex: 1;
@@ -356,7 +356,7 @@
 .mineRow:hover .deleteBtn { opacity: 1; }
 .deleteBtn:hover {
   color: var(--danger-ink);
-  background: rgba(248, 113, 113, 0.12);
+  background: color-mix(in srgb, var(--loss) 12%, transparent);
 }
 .deleteBtn:disabled { opacity: 0.4; cursor: default; }
 /* keep the affordance discoverable on touch (no hover) */
@@ -372,8 +372,8 @@
   width: calc(100% - 16px);
   margin: 8px 8px 4px;
   padding: 9px 10px;
-  background: linear-gradient(180deg, rgba(220, 187, 94, 0.10), rgba(220, 187, 94, 0.03));
-  border: 1px dashed rgba(220, 187, 94, 0.45);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ut-gold) 10%, transparent), color-mix(in srgb, var(--ut-gold) 3%, transparent));
+  border: 1px dashed color-mix(in srgb, var(--ut-gold) 45%, transparent);
   border-radius: 7px;
   cursor: pointer;
   font-family: inherit;
@@ -383,7 +383,7 @@
   transition: background 0.12s, border-color 0.12s;
 }
 .newBtn:hover {
-  background: linear-gradient(180deg, rgba(220, 187, 94, 0.18), rgba(220, 187, 94, 0.06));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ut-gold) 18%, transparent), color-mix(in srgb, var(--ut-gold) 6%, transparent));
   border-color: var(--accent);
 }
 
@@ -394,7 +394,7 @@
   margin: 8px;
   padding: 10px;
   background: var(--bg, #060809);
-  border: 1px solid rgba(220, 187, 94, 0.35);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
   border-radius: var(--radius-lg);
 }
 .createInput,

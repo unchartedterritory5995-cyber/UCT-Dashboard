@@ -80,8 +80,8 @@
 .clearBtn:hover { color: var(--text, #e5e7eb); }
 .askBtn {
   flex-shrink: 0;
-  background: rgba(220, 187, 94, 0.16);
-  border: 1px solid rgba(220, 187, 94, 0.5);
+  background: color-mix(in srgb, var(--ut-gold) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 50%, transparent);
   color: var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-md);
   padding: 5px 14px;
@@ -92,14 +92,14 @@
   min-width: 46px;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.askBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.26); color: #f0d888; }
+.askBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--ut-gold) 26%, transparent); color: var(--ut-gold); }
 .askBtn:disabled { opacity: 0.5; cursor: default; }
 /* Stop — replaces Ask while a search is in flight (cancel a long reasoning pass). */
 .stopBtn {
   flex-shrink: 0;
-  background: rgba(196, 31, 45, 0.14);
-  border: 1px solid rgba(196, 31, 45, 0.5);
-  color: #e88;
+  background: color-mix(in srgb, var(--loss) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--loss) 50%, transparent);
+  color: var(--danger-ink);
   border-radius: var(--radius-md);
   padding: 5px 12px;
   font-size: 12px;
@@ -109,7 +109,7 @@
   min-width: 46px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
-.stopBtn:hover { background: rgba(196, 31, 45, 0.24); color: #f2a9a9; }
+.stopBtn:hover { background: color-mix(in srgb, var(--loss) 24%, transparent); color: var(--danger-ink); }
 .stopSquare { width: 8px; height: 8px; border-radius: 1.5px; background: currentColor; }
 
 /* ── Body (scrolls) ── */
@@ -125,8 +125,8 @@
   color: var(--text-muted, #9ca3af); font-size: 12.5px; padding: 6px 0;
 }
 .error {
-  color: var(--danger, #f87171); font-size: 12.5px;
-  background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.25);
+  color: var(--danger, var(--danger-ink)); font-size: 12.5px;
+  background: color-mix(in srgb, var(--loss) 8%, transparent); border: 1px solid color-mix(in srgb, var(--loss) 25%, transparent);
   border-radius: var(--radius-md); padding: 8px 10px;
 }
 
@@ -229,7 +229,7 @@
 /* Daily-limit notice — informational gold, not an error red. */
 .limit {
   color: var(--ut-gold, #dcbb5e); font-size: 12.5px;
-  background: rgba(220, 187, 94, 0.08); border: 1px solid rgba(220, 187, 94, 0.3);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent); border: 1px solid color-mix(in srgb, var(--ut-gold) 30%, transparent);
   border-radius: var(--radius-md); padding: 8px 10px; margin-bottom: 10px;
 }
 .disclaimer {
@@ -263,7 +263,7 @@
   font-size: 12px; line-height: 1.4; cursor: pointer; font-family: inherit;
   transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
-.follow:hover { border-color: var(--ut-gold, #dcbb5e); background: rgba(220, 187, 94, 0.06); color: var(--ut-gold, #dcbb5e); }
+.follow:hover { border-color: var(--ut-gold, #dcbb5e); background: color-mix(in srgb, var(--ut-gold) 6%, transparent); color: var(--ut-gold, #dcbb5e); }
 .followArrow { color: var(--ut-gold, #dcbb5e); flex-shrink: 0; }
 
 .citations { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, #1f2937); }
@@ -285,14 +285,14 @@
 .citNum {
   display: inline-flex; align-items: center; justify-content: center;
   width: 15px; height: 15px; border-radius: 3px;
-  background: rgba(220, 187, 94, 0.16); color: var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold, #dcbb5e);
   font-size: 9px; font-weight: 700; flex-shrink: 0;
 }
 
 /* ── Spinner ── */
 .spinner {
   width: 12px; height: 12px; border-radius: 50%;
-  border: 2px solid rgba(220, 187, 94, 0.3);
+  border: 2px solid color-mix(in srgb, var(--ut-gold) 30%, transparent);
   border-top-color: var(--ut-gold, #dcbb5e);
   animation: aiSpin 0.7s linear infinite;
   display: inline-block; flex-shrink: 0;
@@ -309,7 +309,7 @@
   border-radius: 3px;
   transition: background 0.1s ease, color 0.1s ease;
 }
-.ticker:hover { background: rgba(220, 187, 94, 0.16); color: #e3c877; text-decoration: underline; }
+.ticker:hover { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold); text-decoration: underline; }
 
 /* ── Sunrise (light) chart theme ──
    .root pins vivid --gain/--loss locally, which outranks the workspace-level
@@ -323,8 +323,8 @@
 /* ── Wave-4 additions (2026-08-28) ── */
 /* Outage labels: stale last-known-good / desk-only degraded — informational gold. */
 .outageNote {
-  color: #dcbb5e; font-size: 11.5px;
-  background: rgba(220, 187, 94, 0.08); border: 1px solid rgba(220, 187, 94, 0.25);
+  color: var(--ut-gold); font-size: 11.5px;
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent); border: 1px solid color-mix(in srgb, var(--ut-gold) 25%, transparent);
   border-radius: var(--radius-md); padding: 6px 9px; margin-bottom: 6px;
 }
 
@@ -332,18 +332,18 @@
 .chipsRow { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 7px; }
 .chipsLabel { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted, #7c8493); }
 .chip {
-  font-size: 10.5px; color: #cbb46a; background: rgba(220, 187, 94, 0.10);
-  border: 1px solid rgba(220, 187, 94, 0.22); border-radius: 999px; padding: 1px 8px;
+  font-size: 10.5px; color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 22%, transparent); border-radius: 999px; padding: 1px 8px;
 }
 
 /* Retry affordance inside the error banner. */
 .retryBtn {
   margin-left: 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
-  color: var(--danger, #f87171); background: transparent;
-  border: 1px solid rgba(248, 113, 113, 0.45); border-radius: var(--radius-md);
+  color: var(--danger, var(--danger-ink)); background: transparent;
+  border: 1px solid color-mix(in srgb, var(--loss) 45%, transparent); border-radius: var(--radius-md);
   padding: 2px 10px;
 }
-.retryBtn:hover:not(:disabled) { background: rgba(248, 113, 113, 0.12); }
+.retryBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--loss) 12%, transparent); }
 .retryBtn:disabled { opacity: 0.5; cursor: default; }
 
 /* Depth toggle beside Ask — reasoning tier on demand. */
@@ -353,10 +353,10 @@
   border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
   border-radius: 999px; padding: 3px 10px;
 }
-.deepToggle:hover { color: #cbb46a; border-color: rgba(220, 187, 94, 0.4); }
+.deepToggle:hover { color: var(--ut-gold); border-color: color-mix(in srgb, var(--ut-gold) 40%, transparent); }
 .deepToggleOn {
-  color: #e3c877; background: rgba(220, 187, 94, 0.14);
-  border-color: rgba(220, 187, 94, 0.5);
+  color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ut-gold) 50%, transparent);
 }
 
 /* Quota meter — quiet counter so the daily cap is never a surprise 429. */
@@ -366,31 +366,31 @@
 .sparkRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .sparkItem {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-  font-size: 11px; color: var(--text, #e5e7eb); background: rgba(148, 163, 184, 0.06);
+  font-size: 11px; color: var(--text, #e5e7eb); background: color-mix(in srgb, var(--text-muted) 6%, transparent);
   border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
   border-radius: var(--radius-md); padding: 3px 8px;
 }
-.sparkItem:hover { border-color: rgba(220, 187, 94, 0.45); }
-.sparkSym { font-weight: 700; color: #cbb46a; }
+.sparkItem:hover { border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent); }
+.sparkSym { font-weight: 700; color: var(--ut-gold); }
 .sparkNote { font-size: 9.5px; color: var(--text-muted, #7c8493); }
 
 /* Frozen-embed door back to a live conversation. */
 .continueRow { padding: 6px 12px 10px; }
 .continueBtn {
-  font-size: 11.5px; font-weight: 600; cursor: pointer; color: #cbb46a;
-  background: transparent; border: 1px solid rgba(220, 187, 94, 0.35);
+  font-size: 11.5px; font-weight: 600; cursor: pointer; color: var(--ut-gold);
+  background: transparent; border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
   border-radius: var(--radius-md); padding: 4px 10px;
 }
-.continueBtn:hover { background: rgba(220, 187, 94, 0.12); }
+.continueBtn:hover { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
 
 /* One-tap action proposal ("set alert…") — consent chip, gold action accent. */
 .proposalBtn {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
-  font-size: 11.5px; font-weight: 600; cursor: pointer; color: #e3c877;
-  background: rgba(220, 187, 94, 0.12); border: 1px solid rgba(220, 187, 94, 0.45);
+  font-size: 11.5px; font-weight: 600; cursor: pointer; color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent); border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
   border-radius: 999px; padding: 4px 12px;
 }
-.proposalBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.2); }
+.proposalBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--ut-gold) 20%, transparent); }
 .proposalBtn:disabled { opacity: 0.6; cursor: default; }
 .proposalDone {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;

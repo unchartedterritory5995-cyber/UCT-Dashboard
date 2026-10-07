@@ -61,6 +61,10 @@
       "count": 19,
       "why": "MA-breadth extreme-line and tone data inks; BreadthChartsV2 passes them through readable() (extremeInks) per theme."
     },
+    "pages/breadth/heatmapMetrics.js": {
+      "count": 15,
+      "why": "TIER_CELL_COLORS / TIER_TIP_COLORS are now ONLY the /charts Breadth widget's dark-canvas tile palette (BreadthWidget picks them, LIGHT_TIER_* or the member's up/down hues by the member-chosen canvas). The Breadth treemap follows the theme through --heat-* (breadth/heatTiles.js, 21-theme contrast rail)."
+    },
     "pages/breadth/v2/BreadthChartsV2.jsx": {
       "count": 4,
       "why": "The jsdom surface fallback used only when no token resolves (t.text empty)."
@@ -73,6 +77,94 @@
       "count": 44,
       "why": "The four selectable Breadth View data palettes; useViewColors nudges every tier ink to 3:1 on a light surface."
     },
+    "pages/charts/ChartsWorkspace.module.css": {
+      "count": 120,
+      "why": "Two fixed sets: the .colorDotA-H/N link-group dots (the same identity hues as colorGroups.js GROUP_HEX), and the /charts chart-theme scopes ([data-charts-theme='sunrise'|'default']: the Sunrise palette, the default theme's widget re-assertion and frozen-light placement), which only the /charts workspace or a popped-out widget window stamps. Every other workspace colour is a token."
+    },
+    "pages/charts/colorGroups.js": {
+      "count": 9,
+      "why": "Link-group (A-H, N) identity colours: a group is recognised by its hue across every widget and stored in the layout, like boardModel.js's link groups and a member-picked tag colour."
+    },
+    "pages/charts/widgetChrome.js": {
+      "count": 2,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/AiSearchWidget.module.css": {
+      "count": 4,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/BreadthSettingsPanel.jsx": {
+      "count": 4,
+      "why": "The ⚙ panel's swatch fallbacks: the hex a member-pickable colour input displays before the member has picked one (an <input type=color> needs a hex)."
+    },
+    "pages/charts/widgets/BreadthWidget.jsx": {
+      "count": 8,
+      "why": "Ratio-bar inks keyed on the member-chosen widget canvas (isLightCanvas: one pair for a light canvas, one for a dark), beside the member's own up/down hues (customBreadthColors) which win when set."
+    },
+    "pages/charts/widgets/ChartDateNav.module.css": {
+      "count": 3,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/FundamentalsWidget.module.css": {
+      "count": 3,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/LeverageInverseControl.module.css": {
+      "count": 4,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/NhnlSettingsPanel.jsx": {
+      "count": 3,
+      "why": "The ⚙ panel's swatch fallbacks: the hex a member-pickable colour input displays before the member has picked one (an <input type=color> needs a hex)."
+    },
+    "pages/charts/widgets/VolumeScanWidget.module.css": {
+      "count": 9,
+      "why": "The surge heat ramp (.t1-.t5): five opaque data-encoding fills, each paired with its own fixed ink chosen for that fill (white on the greens/red, near-black on yellow/orange) plus the new-surge white flash, so each pair reads the same on any theme ground."
+    },
+    "pages/charts/widgets/WatchlistPicker.module.css": {
+      "count": 15,
+      "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme='sunrise']), a palette of its own that only the /charts workspace (or a popped-out widget window) stamps; the terminal mounts these widgets with no [data-charts-theme] ancestor, so none of it applies there."
+    },
+    "pages/charts/widgets/alertsWidgetSettings.js": {
+      "count": 14,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/basicWidgetSettings.js": {
+      "count": 9,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/breadthWidgetSettings.js": {
+      "count": 22,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/calendarWidgetSettings.js": {
+      "count": 19,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/fundamentalsSettings.js": {
+      "count": 10,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/newsWidgetSettings.js": {
+      "count": 13,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/nhnlSettings.js": {
+      "count": 7,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/notebookWidgetSettings.js": {
+      "count": 9,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/optionsFlowWidgetSettings.js": {
+      "count": 14,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/charts/widgets/profileWidgetSettings.js": {
+      "count": 17,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
     "pages/cot/cotPalette.js": {
       "count": 7,
       "why": "COT trader-group HUES (the one authority); useCotPalette nudges each to 3:1 on the live surface and swaps the neutrals for text tokens."
@@ -80,6 +172,18 @@
     "pages/terminal/boardModel.js": {
       "count": 13,
       "why": "Link-group (A-D) and channel identity colours: a group is recognised by its hue across every panel, like a tag colour."
+    },
+    "pages/theme-tracker/themeTrackerSettings.js": {
+      "count": 15,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
+    },
+    "pages/watchlist/WatchlistSettingsPanel.jsx": {
+      "count": 1,
+      "why": "The ⚙ panel's swatch fallbacks: the hex a member-pickable colour input displays before the member has picked one (an <input type=color> needs a hex)."
+    },
+    "pages/watchlist/watchlistSettings.js": {
+      "count": 16,
+      "why": "Member-pickable widget appearance (the ⚙ colour pickers): the hex seeds a colour input shows and stores (an <input type=color> needs a hex) and inks derived by luminance from the member-chosen canvas. Persisted member data, not chrome; an untouched widget's chrome reads the theme tokens."
     },
     "utils/dividerColor.js": {
       "count": 42,
@@ -90,202 +194,6 @@
     "components/research/EarningsResearchModal.module.css": {
       "count": 49,
       "why": "THEME ISLAND: the earnings research modal pins every themed token to its dark :root value, so it stays dark under light themes. Owner decision pending (the ruling says every panel follows the theme; the island was a deliberate fix)."
-    },
-    "pages/breadth/heatmapMetrics.js": {
-      "count": 16,
-      "why": "Treemap tier fills are OPAQUE DARK tiles carrying their own white ink: legible, but dark on a light page. Owner decision pending (translucent --heat-* tiles would follow the theme)."
-    },
-    "pages/breadth/views/TreemapView.jsx": {
-      "count": 3,
-      "why": "The white tile ink and amber notable border that pair with heatmapMetrics.js opaque dark tiles (same decision)."
-    },
-    "pages/charts/ChartsWorkspace.module.css": {
-      "count": 156,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/PeriodSortPanel.module.css": {
-      "count": 5,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/colorGroups.js": {
-      "count": 9,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgetChrome.js": {
-      "count": 2,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/AiSearchWidget.module.css": {
-      "count": 47,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/AlertsWidget.module.css": {
-      "count": 16,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/BreadthSettingsPanel.jsx": {
-      "count": 4,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/BreadthSettingsPanel.module.css": {
-      "count": 2,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/BreadthWidget.jsx": {
-      "count": 10,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/BreadthWidget.module.css": {
-      "count": 17,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/CalendarWidget.module.css": {
-      "count": 15,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ChartDateNav.module.css": {
-      "count": 3,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ChartDetailDock.module.css": {
-      "count": 16,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ChartEarningsStrip.module.css": {
-      "count": 2,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ChartWidget.jsx": {
-      "count": 1,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/CompanySearch.module.css": {
-      "count": 8,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/FundamentalsSettingsPanel.module.css": {
-      "count": 2,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/FundamentalsWidget.module.css": {
-      "count": 10,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/LeverageInverseControl.module.css": {
-      "count": 8,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NewHighsLowsWidget.module.css": {
-      "count": 5,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NewsSettingsPanel.module.css": {
-      "count": 3,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NewsWidget.module.css": {
-      "count": 7,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NhnlPulseWidget.jsx": {
-      "count": 12,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NhnlPulseWidget.module.css": {
-      "count": 2,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NhnlSettingsPanel.jsx": {
-      "count": 3,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/NotebookWidget.module.css": {
-      "count": 14,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/OptionsFlowWidget.module.css": {
-      "count": 31,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ProfileWidget.module.css": {
-      "count": 14,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ScannerResults.module.css": {
-      "count": 7,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ScatterWidget.jsx": {
-      "count": 11,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/ScatterWidget.module.css": {
-      "count": 8,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/VolumeScanWidget.module.css": {
-      "count": 23,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/WatchlistPicker.module.css": {
-      "count": 28,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/alertsWidgetSettings.js": {
-      "count": 14,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/basicWidgetSettings.js": {
-      "count": 9,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/breadthWidgetSettings.js": {
-      "count": 22,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/calendarWidgetSettings.js": {
-      "count": 19,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/dockPanels.module.css": {
-      "count": 73,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/fundamentalsSettings.js": {
-      "count": 10,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/newsWidgetSettings.js": {
-      "count": 13,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/nhnlSettings.js": {
-      "count": 7,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/notebookWidgetSettings.js": {
-      "count": 9,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/optionsFlowWidgetSettings.js": {
-      "count": 14,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/charts/widgets/profileWidgetSettings.js": {
-      "count": 17,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/theme-tracker/themeTrackerSettings.js": {
-      "count": 15,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/watchlist/WatchlistSettingsPanel.jsx": {
-      "count": 1,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
-    },
-    "pages/watchlist/watchlistSettings.js": {
-      "count": 16,
-      "why": "A /charts workspace widget (or its settings palette), reached from the terminal only through the Breadth drill board; widget palettes are member-pickable and theming them is the charts workspace sweep."
     }
   }
 }

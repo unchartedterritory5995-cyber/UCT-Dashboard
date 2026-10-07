@@ -52,7 +52,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--divider, rgba(255, 255, 255, 0.09));
+  border-left: 1px solid var(--divider, color-mix(in srgb, var(--text) 9%, transparent));
   background: var(--widget-canvas, var(--bg, #0e0f0d));
   animation: dockSlideIn 160ms ease;
 }
@@ -68,7 +68,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-top: 1px solid var(--divider, rgba(255, 255, 255, 0.09));
+  border-top: 1px solid var(--divider, color-mix(in srgb, var(--text) 9%, transparent));
   background: var(--widget-canvas, var(--bg, #0e0f0d));
 }
 
@@ -87,7 +87,7 @@
   width: 24px; align-self: center; height: 22px; border-radius: 5px;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.dockIconBtn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #d8d2c2); }
+.dockIconBtn:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text, #d8d2c2); }
 /* the embedded widget owns its own height:100% root */
 .dockBody > * { flex: 1; min-width: 0; min-height: 0; }
 
@@ -99,8 +99,8 @@
   gap: 6px;
   height: 26px;
   padding: 0 4px 0 8px;
-  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.07));
-  background: var(--panel-2, rgba(255, 255, 255, 0.02));
+  border-bottom: 1px solid var(--divider, color-mix(in srgb, var(--text) 7%, transparent));
+  background: var(--panel-2, color-mix(in srgb, var(--text) 2%, transparent));
 }
 .dockTitle {
   font-size: 10.5px;
@@ -176,13 +176,13 @@
   /* 9px + .rdTab's own 9px right padding = the same 18px that separates every
      other pair of tab labels (.rdTab padding: 0 9px). Keep these two in step. */
   margin: 0 4px 0 9px;
-  border: 1px solid var(--divider, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--divider, color-mix(in srgb, var(--text) 12%, transparent));
   border-radius: 6px;
   background: transparent;
   color: var(--text-muted, #8b8574);
   cursor: pointer;
 }
-.rdSearch:hover { color: var(--text, #d8d2c2); border-color: rgba(255, 255, 255, 0.22); }
+.rdSearch:hover { color: var(--text, #d8d2c2); border-color: color-mix(in srgb, var(--text) 22%, transparent); }
 .rdSearchOn { color: var(--accent, #c9a84c); border-color: var(--accent, #c9a84c); }
 
 /* Collapse chevron — folds the panel to its edge rail. Borderless and quieter
@@ -204,7 +204,7 @@
   color: var(--text-muted, #8b8574);
   cursor: pointer;
 }
-.rdCollapse:hover { color: var(--text, #d8d2c2); background: rgba(255, 255, 255, 0.06); }
+.rdCollapse:hover { color: var(--text, #d8d2c2); background: color-mix(in srgb, var(--text) 6%, transparent); }
 
 /* ── Collapsed rail ──────────────────────────────────────────────────────────
    The Company panel folded to its edge: the same divider and canvas as the
@@ -216,7 +216,7 @@
   flex-direction: column;
   align-items: center;
   min-height: 0;
-  border-left: 1px solid var(--divider, rgba(255, 255, 255, 0.09));
+  border-left: 1px solid var(--divider, color-mix(in srgb, var(--text) 9%, transparent));
   background: var(--widget-canvas, var(--bg, #0e0f0d));
 }
 .railBtn {
@@ -242,7 +242,7 @@
 /* segmented Profile | News switch */
 .seg {
   display: inline-flex;
-  border: 1px solid var(--divider, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--divider, color-mix(in srgb, var(--text) 10%, transparent));
   border-radius: 6px;
   overflow: hidden;
 }
@@ -261,9 +261,9 @@
   gap: 4px;
 }
 .segBtn:hover { color: var(--text, #d8d2c2); }
-.segBtn + .segBtn { border-left: 1px solid var(--divider, rgba(255, 255, 255, 0.1)); }
+.segBtn + .segBtn { border-left: 1px solid var(--divider, color-mix(in srgb, var(--text) 10%, transparent)); }
 .segBtnActive {
-  background: var(--accent-weak, rgba(201, 168, 76, 0.16));
+  background: var(--accent-weak, color-mix(in srgb, var(--ut-gold) 16%, transparent));
   color: var(--accent, #c9a84c);
 }
 
@@ -280,7 +280,7 @@
   height: 20px;
   border-radius: 5px;
 }
-.dockClose:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #d8d2c2); }
+.dockClose:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text, #d8d2c2); }
 
 /* ── Drag-resize handles ─────────────────────────────────────────────────── */
 /* Holds the earnings strip at its dragged height and anchors the divider. */
@@ -330,8 +330,8 @@
   min-width: 176px;
   padding: 5px;
   border-radius: 9px;
-  background: var(--menu-bg, var(--panel, #171814));
-  border: 1px solid var(--divider, rgba(255, 255, 255, 0.12));
+  background: var(--menu-bg, var(--panel, var(--bg-elevated)));
+  border: 1px solid var(--divider, color-mix(in srgb, var(--text) 12%, transparent));
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 .panelsHint {
@@ -356,7 +356,7 @@
   border-radius: 6px;
   cursor: pointer;
 }
-.panelsRow:hover { background: rgba(255, 255, 255, 0.06); }
+.panelsRow:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .panelsRowActive { color: var(--accent, #c9a84c); }
 .panelsRowIcon { flex: 0 0 auto; display: inline-flex; }
 .panelsRowLabel { flex: 1; }

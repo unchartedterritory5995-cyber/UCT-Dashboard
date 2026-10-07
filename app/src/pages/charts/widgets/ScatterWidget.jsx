@@ -31,6 +31,7 @@ import { prewarmVisibleList } from '../../../utils/prefetchBars'
 import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
 import Input from '../../../components/ui/Input'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { useThemeInk, CHROME_INK, withAlpha } from '../../../lib/theme'
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, and the map
 // said "No data for this universe yet.", a claim about the universe made out of a failed
@@ -39,9 +40,14 @@ import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 // enrichments and stay soft at the render (an empty menu, no claim). A 402 stays absent.
 const getFetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
-const GREEN = '#34d17c'
-const RED = '#f24b42'
-const GRID = 'rgba(255,255,255,0.06)'
+// Chart inks from the member's app theme (lib/theme): the up/down defaults are the theme's
+// bright candle green/red (a member's own pick in ⚙ still wins), and the axis/tooltip chrome
+// is the theme's text and surface, so the chart reads on a light page as on a dark one.
+const CHART_INK = {
+  up: ['--ut-green-bright', '#34d17c'], down: ['--ut-red-bright', '#f24b42'],
+  text: CHROME_INK.text, muted: CHROME_INK.muted, bright: CHROME_INK.bright,
+  elevated: CHROME_INK.elevated, bg: CHROME_INK.bg,
+}
 
 const DEFAULTS = { source: 'index', value: 'sp500', xKey: 'rvol', yKey: 'chg_today', sizeKey: '' }
 // The list-ref sources /api/scatter/data resolves — exactly what WatchlistWidget's
@@ -74,11 +80,9 @@ function fmtVal(v, unit) {
     default: return String(v)
   }
 }
-function faint(hex, a) {
-  const m = /^#([0-9a-f]{6})/i.exec(hex || '')
-  if (!m) return `rgba(52,209,124,${a})`
-  const n = parseInt(m[1], 16)
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+function faint(color, a) {
+  const out = withAlpha(color, a)
+  return out === color ? 'transparent' : out
 }
 function fmtAxis(v, unit) {
   switch (unit) {
@@ -173,7 +177,9 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
 // gutter (the rotated Y-title lives there); the axis numbers render inside it.
 const GRID_M = { left: 54, right: 26, top: 16, bottom: 50 }
 
-function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, upFaint, dnFaint }) {
+function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, upFaint, dnFaint, ink }) {
+  const grid = withAlpha(ink.text, 0.06)
+  const axisLine = withAlpha(ink.text, 0.18)
   const data = plot.map(p => ({
     name: p.sym,
     value: [p.x, p.y, p.size == null ? 1 : p.size, p.sym],
@@ -184,7 +190,7 @@ function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, u
   const sizeFn = hasSize
     ? (val) => { const t = (val[2] - sizeMin) / (sizeMax - sizeMin); return 7 + Math.sqrt(Math.max(0, t)) * 24 }
     : () => 7
-  const axisText = { color: '#a9a9b2', fontSize: 10, fontFamily: CHART_FONT_FAMILY }
+  const axisText = { color: ink.muted, fontSize: 10, fontFamily: CHART_FONT_FAMILY }
   const signedX = xMeta.unit === 'pct', signedY = yMeta.unit === 'pct'
   const markData = []
   if (signedX) markData.push({ xAxis: 0 })
@@ -206,24 +212,24 @@ function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, u
     grid: { ...GRID_M, containLabel: false },
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(18,18,22,0.96)',
-      borderColor: 'rgba(255,255,255,0.12)',
-      textStyle: { color: '#f2f2f5', fontSize: 11.5, fontFamily: CHART_FONT_FAMILY },
+      backgroundColor: withAlpha(ink.elevated, 0.96),
+      borderColor: withAlpha(ink.text, 0.12),
+      textStyle: { color: ink.bright, fontSize: 11.5, fontFamily: CHART_FONT_FAMILY },
       formatter: (p) => `<b>${p.value[3]}</b><br/>${yMeta.label}: ${fmtVal(p.value[1], yMeta.unit)}<br/>${xMeta.label}: ${fmtVal(p.value[0], xMeta.unit)}`,
     },
     xAxis: {
       type: 'value', scale: true,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.18)' } },
+      axisLine: { lineStyle: { color: axisLine } },
       axisTick: { show: false },
       axisLabel: { ...axisText, formatter: (v) => fmtAxis(v, xMeta.unit) },
-      splitLine: { lineStyle: { color: GRID } },
+      splitLine: { lineStyle: { color: grid } },
     },
     yAxis: {
       type: 'value', scale: true,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.18)' } },
+      axisLine: { lineStyle: { color: axisLine } },
       axisTick: { show: false },
       axisLabel: { ...axisText, formatter: (v) => fmtAxis(v, yMeta.unit), margin: 6 },
-      splitLine: { lineStyle: { color: GRID } },
+      splitLine: { lineStyle: { color: grid } },
     },
     dataZoom: [
       { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
@@ -236,7 +242,7 @@ function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, u
       emphasis: { focus: 'self', scale: 1.35, label: { show: true, fontWeight: 700 } },
       markLine: markData.length ? {
         silent: true, symbol: 'none', animation: false,
-        lineStyle: { color: 'rgba(255,255,255,0.16)', type: 'dashed', width: 1 },
+        lineStyle: { color: withAlpha(ink.text, 0.16), type: 'dashed', width: 1 },
         label: { show: false }, data: markData,
       } : undefined,
       markArea: quad,
@@ -300,8 +306,9 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   const placedTheme = usePlacedTheme(opts?.placedTheme)
   const settings = useMemo(() => mergeNhnlSettings(opts?.settings || null), [opts?.settings])
   const styleVars = useMemo(() => nhnlWidgetStyleVars(settings), [settings])
-  const up = settings.upColor || GREEN
-  const dn = settings.downColor || RED
+  const ink = useThemeInk(CHART_INK)
+  const up = settings.upColor || ink.up
+  const dn = settings.downColor || ink.down
   const rootRef = useRef(null)
   const gearRef = useRef(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -404,8 +411,8 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   const quadrant = xMeta.unit === 'pct' && yMeta.unit === 'pct'
   const option = useMemo(() => makeOption({
     plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode,
-    upFaint: faint(up, 0.07), dnFaint: faint(dn, 0.07),
-  }), [plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode])
+    upFaint: faint(up, 0.07), dnFaint: faint(dn, 0.07), ink,
+  }), [plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, ink])
 
   // ── ECharts instance: resize with the cell, click a point → color group ──
   const chartRef = useRef(null)
