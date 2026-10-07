@@ -301,8 +301,20 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         # resolves a member's own watchlists, flags and colour tags; reading the
         # id off the client-supplied spec would let any member screen any other
         # member's lists.
-        return scr_query.run_scan(spec.model_dump(),
-                                  user_id=(user or {}).get("id"), user=user)
+        body = spec.model_dump()
+        uid = (user or {}).get("id")
+        out = scr_query.run_scan(body, user_id=uid, user=user)
+        # TERM-047 (dark, COVERAGE_RECEIPTS_SCANS_ENABLED): the screen's own
+        # four-count receipt. Computed only when armed (two COUNTs); a receipt
+        # failure never costs the member their scan.
+        from api.services import coverage_receipt as _cov
+        if _cov.is_enabled():
+            try:
+                out["coverage"] = scr_query.coverage_for(body, user_id=uid)
+            except Exception as e:  # noqa: BLE001
+                import logging
+                logging.getLogger(__name__).warning("[screener] coverage receipt failed: %s", e)
+        return out
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:

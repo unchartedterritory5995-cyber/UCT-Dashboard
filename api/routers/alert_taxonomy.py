@@ -118,3 +118,119 @@ def alert_taxonomy_dark_report_all(_admin: dict = Depends(require_admin)):
     `alert_taxonomy_dark_report_one` for what each type's payload holds."""
     from api.services.alert_taxonomy import dark_report as _dark_report
     return _dark_report.dark_report_all()
+
+
+# ── FT-034: rating-change (dark: ALERT_RATING_CHANGE_ENABLED) ───────────────
+
+def _rating_change_armed() -> None:
+    from api.services.alert_taxonomy import rating_change as _rc
+    if not _rc.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+class RatingChangeCreate(BaseModel):
+    ticker: str
+    actions: list[str] | None = None
+
+
+@router.post("/api/alerts/taxonomy/rating-change", dependencies=[Depends(_rating_change_armed)])
+def create_rating_change_alert(body: RatingChangeCreate, user: dict = Depends(get_current_user)):
+    """Be told when an analyst upgrades or downgrades this ticker."""
+    from api.services.alert_taxonomy import rating_change as _rc
+    _rc.register()
+    try:
+        pid = _rc.register_predicate_for_user(user["id"], body.ticker, actions=body.actions)
+    except PredicateRegistrationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"predicate_id": pid}
+
+
+@router.get("/api/alerts/taxonomy/rating-change", dependencies=[Depends(_rating_change_armed)])
+def list_rating_change_alerts(active_only: bool = True, user: dict = Depends(get_current_user)):
+    from api.services.alert_taxonomy import rating_change as _rc
+    return {"predicates": _predicates.list_predicates(type_id=_rc.TYPE_ID, user_id=user["id"],
+                                                      active_only=active_only)}
+
+
+@router.delete("/api/alerts/taxonomy/rating-change/{predicate_id}",
+               dependencies=[Depends(_rating_change_armed)])
+def suspend_rating_change_alert(predicate_id: str, user: dict = Depends(get_current_user)):
+    """Suspend, never delete: the predicate and its fires stay."""
+    if not _predicates.suspend_predicate(predicate_id, user["id"]):
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"predicate_id": predicate_id, "suspended": True}
+
+
+@router.post("/api/admin/alerts/taxonomy/run-rating-change-sweep",
+             dependencies=[Depends(_rating_change_armed)])
+def run_rating_change_sweep_now(_admin: dict = Depends(require_admin)):
+    from api.services.alert_taxonomy import rating_change as _rc
+    return _rc.run_sweep()
+
+
+# ── FT-035: remind + per-channel read-state (dark: ALERT_REMIND_ENABLED) ────
+
+def _remind_armed() -> None:
+    from api.services.alert_taxonomy import remind as _remind
+    if not _remind.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+class RemindIn(BaseModel):
+    minutes: float | None = None
+
+
+class ReadIn(BaseModel):
+    channel: str = "in_app"
+
+
+@router.put("/api/alerts/taxonomy/predicates/{predicate_id}/remind",
+            dependencies=[Depends(_remind_armed)])
+def set_alert_remind(predicate_id: str, body: RemindIn, user: dict = Depends(get_current_user)):
+    from api.services.alert_taxonomy import remind as _remind
+    try:
+        out = _remind.set_remind(user["id"], predicate_id, body.minutes)
+    except _remind.RemindError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if out is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return out
+
+
+@router.post("/api/alerts/taxonomy/fires/{fire_id}/read", dependencies=[Depends(_remind_armed)])
+def mark_fire_read_on_channel(fire_id: int, body: ReadIn, user: dict = Depends(get_current_user)):
+    from api.services.alert_taxonomy import remind as _remind
+    try:
+        ok = _remind.mark_read(fire_id, user["id"], body.channel)
+    except _remind.RemindError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return _remind.read_state(fire_id, user["id"])
+
+
+@router.get("/api/alerts/taxonomy/fires/{fire_id}/read-state", dependencies=[Depends(_remind_armed)])
+def fire_read_state(fire_id: int, user: dict = Depends(get_current_user)):
+    from api.services.alert_taxonomy import remind as _remind
+    out = _remind.read_state(fire_id, user["id"])
+    if out is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return out
+
+
+# ── AC-7: per-trigger ops monitor + channel health (dark: ALERT_OPS_MONITOR_ENABLED) ──
+
+def _ops_monitor_armed() -> None:
+    from api.services.alert_taxonomy import ops_monitor as _ops
+    if not _ops.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/admin/alerts/ops-monitor", dependencies=[Depends(_ops_monitor_armed)])
+def alert_ops_monitor(hours: int = Query(24, ge=1, le=24 * 14), _admin: dict = Depends(require_admin)):
+    """Per trigger type: evaluated / fired / could-not-evaluate. Per channel
+    kind (the AC-2 registry): ok / failed / skipped and a health status.
+    NAMES only -- the registry never returns a webhook value."""
+    from api.services.alert_taxonomy import ops_monitor as _ops
+    from api.services.alert_taxonomy import queue_caps as _caps
+    return {**_ops.report(window_s=hours * 3600), "queue": _caps.published()}

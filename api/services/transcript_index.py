@@ -144,11 +144,47 @@ def _to_match_query(q: str) -> Optional[str]:
     return " AND ".join(terms) if terms else None
 
 
+# ── BRK-09: Boolean / NEAR / synonym operators (dark) ───────────────────────
+#
+# ⛔ NO SECOND PARSER. The operator language is `filing_search`'s -- the same
+# tokenizer, grammar, synonym table and FTS5 compiler -- called with no scopes
+# (a `section:` / `form:` is refused with a sentence; transcripts have neither).
+# Both corpora use `porter unicode61`, so the compiled MATCH is valid here.
+# Off, `_to_match_query` (every term quoted and ANDed) is untouched.
+
+OPERATORS_ENV = "TRANSCRIPT_OPERATOR_SEARCH_ENABLED"
+#: With exact (`=word` / "phrase") filters the SQL match is stemmed, so the
+#: hits are re-checked against the call text; this many candidates per hit.
+_EXACT_OVERFETCH = 5
+
+
+def operators_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get(OPERATORS_ENV, "").strip() == "1"
+
+
+def _compile_operators(query: str) -> dict:
+    """{'fts','expanded','exact','notes'} or raises filing_search.QueryError."""
+    from api.services import filing_search
+    return filing_search.compile_query(query, scopes=())
+
+
 def search(query: str, limit: int = 40, symbol: Optional[str] = None,
            since: Optional[str] = None) -> dict[str, Any]:
     """Cross-company search. Returns ranked hits with a highlighted snippet."""
     init_db()
-    match = _to_match_query(query)
+    compiled = None
+    if operators_enabled():
+        from api.services import filing_search
+        try:
+            compiled = _compile_operators(query)
+        except filing_search.QueryError as e:
+            # A sentence the member can act on -- never a 500, never a guess.
+            return {"query": query, "match": None, "hits": [], "total": 0,
+                    "error": str(e), "query_error": True}
+        match = compiled["fts"]
+    else:
+        match = _to_match_query(query)
     if not match:
         return {"query": query, "match": None, "hits": [], "total": 0}
 
@@ -161,16 +197,18 @@ def search(query: str, limit: int = 40, symbol: Optional[str] = None,
         where.append("call_date >= ?")
         args.append(since)
 
+    exact = (compiled or {}).get("exact") or []
+    want = max(1, min(int(limit or 40), 200))
     sql = f"""
         SELECT symbol, fiscal_year, quarter, call_date,
                snippet(transcript_fts, 4, '<mark>', '</mark>', ' … ', 28) AS snip,
-               bm25(transcript_fts) AS score
+               bm25(transcript_fts) AS score{', content' if exact else ''}
           FROM transcript_fts
          WHERE {' AND '.join(where)}
          ORDER BY score
          LIMIT ?
     """
-    args.append(max(1, min(int(limit or 40), 200)))
+    args.append(want * _EXACT_OVERFETCH if exact else want)
     try:
         with _conn() as c:
             rows = c.execute(sql, args).fetchall()
@@ -184,7 +222,18 @@ def search(query: str, limit: int = 40, symbol: Optional[str] = None,
         return {"query": query, "match": match, "hits": [], "total": 0,
                 "error": "unsupported search syntax"}
 
+    out_extra: dict[str, Any] = {}
+    if compiled is not None:
+        notes = list(compiled.get("notes") or [])
+        if exact:
+            from api.services import filing_search
+            rows = [r for r in rows if filing_search.passes(r["content"], exact)][:want]
+            notes.append("Exact words and quoted phrases were checked against the call text "
+                         "for the hits shown; the total counts the stemmed matches.")
+        out_extra = {"operators": True, "expanded": compiled.get("expanded") or {},
+                     "notes": notes}
     return {
+        **out_extra,
         "query": query,
         "match": match,
         "total": total,
@@ -210,7 +259,15 @@ def trend(query: str, months: int = 12, symbol: Optional[str] = None) -> dict[st
     as a percentage of the calls indexed that month, which is the honest series.
     """
     init_db()
-    match = _to_match_query(query)
+    if operators_enabled():
+        from api.services import filing_search
+        try:
+            match = _compile_operators(query)["fts"]
+        except filing_search.QueryError as e:
+            return {"query": query, "months": [], "total": 0, "error": str(e),
+                    "query_error": True}
+    else:
+        match = _to_match_query(query)
     if not match:
         return {"query": query, "months": [], "total": 0}
 
