@@ -15,6 +15,7 @@
 import { useEffect, useId, useRef } from 'react'
 import useFocusTrap from '../../../../components/mobile/useFocusTrap'
 import shellStyles from '../ModalShell.module.css'
+import useBodyScrollLock from '../../lib/useBodyScrollLock'
 
 export const UNSENT_TRASH_TITLE = 'This note has words the server doesn’t have yet'
 
@@ -36,6 +37,7 @@ export default function UnsentTrashDialog({ what, sending = false, still = false
     return () => window.removeEventListener('keydown', onKey)
   }, [])
   useFocusTrap(true, dialogRef)
+  useBodyScrollLock()      // the floating buttons hide on this lock (lib/useBodyScrollLock.js)
 
   return (
     <div
