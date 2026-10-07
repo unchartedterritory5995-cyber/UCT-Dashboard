@@ -92,7 +92,9 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
     fireEvent.click(sheetSave())
     await flush()
 
-    const writes = H.requests.filter((r) => r.method !== 'GET' && !r.url.endsWith(CONVERSE_ENDPOINT))
+    // definition writes only: the rollout funnel's shape-only telemetry (`studio_action`) is not one
+    const writes = H.requests.filter((r) => r.method !== 'GET' && !r.url.endsWith(CONVERSE_ENDPOINT)
+      && !r.url.includes('/api/indicator-telemetry/'))
     expect(writes).toHaveLength(1)
     expect(JSON.parse(writes[0].body).definition.compute.source).toBe('sma(close, 50)')
     // the sheet's form still says 20 — and it can no longer save it over version 2

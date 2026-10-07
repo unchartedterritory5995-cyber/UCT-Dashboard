@@ -54,6 +54,7 @@ import logging
 import math
 import os
 import re
+import time
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -1049,9 +1050,11 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     calls: List[Dict[str, Any]] = []
     trace: Dict[str, Any] = {}
     cap_usd = conversation_cap_usd(admin=admin)
+    started = time.monotonic()
     result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                             snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
                             trace=trace)
+    latency_ms = int((time.monotonic() - started) * 1000)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
@@ -1060,7 +1063,111 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                                    input_wrapper=trace.get("input_wrapper"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
+    _record_turn(user_id, conversation_id, result, admin=admin, message=message,
+                 latency_ms=latency_ms)
     return result
+
+
+# --------------------------------------------------------------------------- #
+# ⭐ CONTROLLED ROLLOUT -- one structured `converse_turn` event per turn
+# --------------------------------------------------------------------------- #
+
+#: The turn-result classes that are DIFFERENT product signals (indicator_telemetry
+#: ``FAILURE_CLASSES``). A model answer within the contract is "ok" whatever its
+#: disposition: a clarification or a truthful "unsupported" is the product working.
+_BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global"}
+_PLATFORM_GATES = {"model:transport"}
+_INTERNAL_GATES = {"internal:error"}
+_MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
+
+#: ⭐ UNSUPPORTED DEMAND. Deterministic buckets over a model-"unsupported" turn's own
+#: message: ONLY the bucket is stored, never the words. Ordered: the first match wins.
+_DEMAND_BUCKETS: Tuple[Tuple[str, re.Pattern], ...] = (
+    ("table", re.compile(r"\btables?\b|\bgrid\b|\bpanel\b", re.I)),
+    ("fundamentals", re.compile(
+        r"\b(earnings|eps|revenue|sales|fundamentals?|roe|margins?|p/?e|market cap|"
+        r"float|institutional|insiders?|dividends?|guidance|can ?slim)\b", re.I)),
+    ("economic_data", re.compile(r"\b(cpi|ppi|fed|fomc|rates?|yields?|gdp|unemployment|macro)\b", re.I)),
+    ("options", re.compile(r"\b(options?|implied vol\w*|iv|open interest|gamma|delta|put/?call)\b", re.I)),
+    ("news_sentiment", re.compile(r"\b(news|sentiment|twitter|tweets?|headlines?|social)\b", re.I)),
+    ("drawing", re.compile(r"\b(labels?|text|boxes?|draw(ing)?|annotat\w*|arrows?|trend ?lines?)\b", re.I)),
+    ("delivery", re.compile(r"\b(email|sms|text me|push|webhook|discord|notify me)\b", re.I)),
+)
+_GATE_CATEGORIES = {
+    "unsupported:other-symbol": "other_symbol",
+    "unsupported:other-timeframe": "other_timeframe",
+    "unsupported:scalar": "nightly_scalar",
+    "concept:ungrounded": "unknown_concept",
+}
+
+
+def unsupported_category(result: Mapping[str, Any], message: Any) -> Optional[str]:
+    """The demand bucket of a turn the system could not author, or None."""
+    gate = result.get("gate") if not result.get("ok") else None
+    if gate in _GATE_CATEGORIES:
+        return _GATE_CATEGORIES[gate]
+    if gate and str(gate).startswith(("unsupported:", "concept:")):
+        return "other"
+    if result.get("ok") and result.get("disposition") == "unsupported":
+        text = str(message or "")
+        for name, pattern in _DEMAND_BUCKETS:
+            if pattern.search(text):
+                return name
+        return "other"
+    return None
+
+
+def failure_class(result: Mapping[str, Any]) -> str:
+    if result.get("ok"):
+        return "ok"
+    gate = str(result.get("gate") or "")
+    if result.get("preflight"):
+        return "preflight_refused"
+    if result.get("backstop"):
+        return "backstop_refused"
+    if gate in _BUDGET_GATES:
+        return _BUDGET_GATES[gate]
+    if gate in _PLATFORM_GATES:
+        return "platform"
+    if gate in _INTERNAL_GATES:
+        return "internal"
+    if gate.startswith(_MODEL_GATE_PREFIXES):
+        return "model_invalid"
+    return "concept_refused"
+
+
+def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
+                 admin: bool, message: Any, latency_ms: int) -> None:
+    """⛔ NEVER RAISES and stores SHAPE ONLY (indicator_telemetry's allowlists)."""
+    try:
+        from api.services import indicator_telemetry
+        usage = result.get("usage") or {}
+        per_call = usage.get("per_call") or []
+        envelope = result.get("envelope") or {}
+        ops = [o.get("op") for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
+        indicator_telemetry.log_event(
+            user_id, "converse_turn",
+            conversation_id=conversation_key(conversation_id),
+            access="admin" if admin else "cohort",
+            disposition=result.get("disposition") or "none",
+            outcome=str(result.get("turn") if result.get("ok") else result.get("gate") or "")[:80] or None,
+            failure_class=failure_class(result),
+            unsupported_category=unsupported_category(result, message),
+            attempts=result.get("attempts"),
+            calls=usage.get("calls"),
+            repair_gate=usage.get("repair_gate"),
+            input_wrapper=usage.get("input_wrapper"),
+            usd=usage.get("usd"),
+            input_tokens=usage.get("input_tokens"),
+            output_tokens=usage.get("output_tokens"),
+            cache_read_tokens=sum(int(c.get("cache_read_tokens") or 0) for c in per_call),
+            cache_write_tokens=sum(int(c.get("cache_creation_tokens") or 0) for c in per_call),
+            latency_ms=latency_ms,
+            op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
+            preflight=bool(result.get("preflight")),
+        )
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] turn telemetry failed")
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
