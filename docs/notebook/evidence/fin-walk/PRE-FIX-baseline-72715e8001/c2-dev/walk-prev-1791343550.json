@@ -1,0 +1,2537 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:22:07+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "first run",
+   "step": "welcome, capability preview, sample promotion and Get started list",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:22:10+00:00",
+   "welcome": true,
+   "base_tour_autostarted": true,
+   "preview": true,
+   "preview_lines": [
+    "Chart plans. Draw entry, stop and target on a chart in a note. It works out your size and can alert you at those levels.",
+    "Plan versus execution. Every closed trade is checked against your plan: entry, stop, size and target.",
+    "Entry context. The market at the moment you filled, saved with the trade: regime, days to earnings, RS rank.",
+    "Reviews that write themselves. One click drafts your daily, weekly or monthly review from your own trades.",
+    "My Playbook. Your setups side by side, each with how it has actually worked for you.",
+    "Active setups board. Every setup you are watching on one board, sorted by how close it is to your entry.",
+    "Reporting soon. Names you follow that report in the next week, with a prep note one click away.",
+    "Passed setups. The trades you chose not to take, scored later against what the stock did.",
+    "Writing help. Ask for a tighter or shorter version of what you wrote. Nothing changes until you accept it."
+   ],
+   "promotion": true,
+   "checklist": {
+    "progress": "0 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note",
+      "done": false
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook",
+      "done": false
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:22:08.483556+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"8a805e3e-d928-49c4-bec6-71a561eafc54\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T03:22:08.285Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_tour\",\"value\":\"{\\\"v\\\":1,\\\"state\\\":\\\"started\\\",\\\"step\\\":\\\"first-run\\\"}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_tour\",\"value\":\"{\\\"v\\\":1,\\\"state\\\":\\\"dismissed\\\",\\\"step\\\":\\\"first-run\\\"}\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-first-run-welcome-capability-preview-sample-promotion-and-Get-started-list.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "first run",
+   "step": "welcome, capability preview, sample promotion and Get started list",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:22:15+00:00",
+   "welcome": true,
+   "base_tour_autostarted": true,
+   "preview": true,
+   "preview_lines": [
+    "Chart plans. Draw entry, stop and target on a chart in a note. It works out your size and can alert you at those levels.",
+    "Plan versus execution. Every closed trade is checked against your plan: entry, stop, size and target.",
+    "Entry context. The market at the moment you filled, saved with the trade: regime, days to earnings, RS rank.",
+    "Reviews that write themselves. One click drafts your daily, weekly or monthly review from your own trades.",
+    "My Playbook. Your setups side by side, each with how it has actually worked for you.",
+    "Active setups board. Every setup you are watching on one board, sorted by how close it is to your entry.",
+    "Reporting soon. Names you follow that report in the next week, with a prep note one click away.",
+    "Passed setups. The trades you chose not to take, scored later against what the stock did.",
+    "Writing help. Ask for a tighter or shorter version of what you wrote. Nothing changes until you accept it."
+   ],
+   "promotion": true,
+   "checklist": {
+    "progress": "0 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note",
+      "done": false
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook",
+      "done": false
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 30,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0352fe5a-c83\",\"user_id\":\"1955be13-7749-46e2-a96b-98c0d2933302\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:12.611709+00:00\",\"updated_at\":\"2026-10-07T03:22:13.079226+00:00\",\"items\":[],\"owner_name\":\"q1c2f820\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"d997540e-b13b-4fd0-b9ee-5d198a1048a9\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T03:22:12.897Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_tour\",\"value\":\"{\\\"v\\\":1,\\\"state\\\":\\\"started\\\",\\\"step\\\":\\\"first-run\\\"}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_tour\",\"value\":\"{\\\"v\\\":1,\\\"state\\\":\\\"dismissed\\\",\\\"step\\\":\\\"first-run\\\"}\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-first-run-welcome-capability-preview-sample-promotion-and-Get-started-list.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "first run",
+   "step": "welcome, capability preview, sample promotion and Get started list",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:23:23+00:00",
+   "welcome": true,
+   "base_tour_autostarted": true,
+   "preview": true,
+   "preview_lines": [
+    "Chart plans. Draw entry, stop and target on a chart in a note. It works out your size and can alert you at those levels.",
+    "Plan versus execution. Every closed trade is checked against your plan: entry, stop, size and target.",
+    "Entry context. The market at the moment you filled, saved with the trade: regime, days to earnings, RS rank.",
+    "Reviews that write themselves. One click drafts your daily, weekly or monthly review from your own trades.",
+    "My Playbook. Your setups side by side, each with how it has actually worked for you.",
+    "Active setups board. Every setup you are watching on one board, sorted by how close it is to your entry.",
+    "Reporting soon. Names you follow that report in the next week, with a prep note one click away.",
+    "Passed setups. The trades you chose not to take, scored later against what the stock did.",
+    "Writing help. Ask for a tighter or shorter version of what you wrote. Nothing changes until you accept it."
+   ],
+   "promotion": true,
+   "checklist": {
+    "progress": "0 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note",
+      "done": false
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook",
+      "done": false
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 30,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"93341daf-437\",\"user_id\":\"3b512f19-0a27-492b-b550-3f058b1bb0d5\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:23:20.019239+00:00\",\"updated_at\":\"2026-10-07T03:23:20.497176+00:00\",\"items\":[],\"owner_name\":\"q1c2f390\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"bc8e1383-1c6d-4214-81b8-914de553c101\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T03:23:20.277Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_tour\",\"value\":\"{\\\"v\\\":1,\\\"state\\\":\\\"started\\\",\\\"step\\\":\\\"first-run\\\"}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_tour\",\"value\":\"{\\\"v\\\":1,\\\"state\\\":\\\"dismissed\\\",\\\"step\\\":\\\"first-run\\\"}\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-first-run-welcome-capability-preview-sample-promotion-and-Get-started-list.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "sample notebook",
+   "step": "the click lands on the sample's welcome note",
+   "verdict": "INFO",
+   "at": "2026-10-07T03:23:38+00:00",
+   "landed": "/journal/notebook?note=b379888bd2b34402b99bc72aaefb3196",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=b379888bd2b34402b99bc72aaefb3196",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:23:23.711563+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/onboarding/sample-notebook",
+     "status": 200,
+     "request": "",
+     "response": "{\"folderId\":\"f7616537187a4999905ee1a79b99b886\",\"welcomeNoteId\":\"b379888bd2b34402b99bc72aaefb3196\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/b379888bd2b34402b99bc72aaefb3196/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":283}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-sample-notebook-the-click-lands-on-the-sample-s-welcome-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "sample notebook",
+   "step": "Add a sample notebook: practice notes plus one example per feature",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:23:46+00:00",
+   "strip": true,
+   "notes": 10,
+   "tickers": [
+    "AMZN",
+    "NVDA",
+    "TSLA"
+   ],
+   "recorded_ids": 10,
+   "titles": [
+    "Call excerpt: example -- TSLA",
+    "Earnings prep draft: example -- AMZN",
+    "Thesis: example -- NVDA leadership",
+    "Active setup: example -- MSFT base breakout",
+    "Trade plan: example -- AAPL pullback",
+    "Research: how a base forms",
+    "Thesis: leaders recover first",
+    "Welcome to your sample notebook",
+    "Daily note example",
+    "Pre-market checklist"
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"sample\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:23:39.124589+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-sample-notebook-Add-a-sample-notebook-practice-notes-plus-one-example-per-feature.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "get started",
+   "step": "the list after adding the sample",
+   "verdict": "INFO",
+   "at": "2026-10-07T03:23:58+00:00",
+   "checklist": {
+    "progress": "1 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note",
+      "done": false
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook Done",
+      "done": true
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:23:47.441326+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-get-started-the-list-after-adding-the-sample.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "get started",
+   "step": "opening a sample note ticks 'Open the sample notebook'",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:24:09+00:00",
+   "checklist": {
+    "progress": "1 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note",
+      "done": false
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook Done",
+      "done": true
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/b379888bd2b34402b99bc72aaefb3196/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":235}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:24:04.809411+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-get-started-opening-a-sample-note-ticks-Open-the-sample-notebook-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "get started",
+   "step": "writing a note ticks 'Write your first note'",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:24:19+00:00",
+   "checklist": {
+    "progress": "2 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note Done",
+      "done": true
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook Done",
+      "done": true
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "note": "f26de5b674214006af6dfac7bbc2d6b5",
+   "was_already_done": false,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/f26de5b674214006af6dfac7bbc2d6b5/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":7}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/f26de5b674214006af6dfac7bbc2d6b5",
+     "status": 200,
+     "request": "{\"title\":\"My first note\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Watching the leaders into earnings.\"}]}]},\"baseUpdatedAt\":\"2026-10-07T03:24:10.041164+00:00\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"sample\\\",\\\"note\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:24:14.776721+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-get-started-writing-a-note-ticks-Write-your-first-note-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "get started",
+   "step": "starting a note from a template ticks its step",
+   "verdict": "FAIL",
+   "at": "2026-10-07T03:24:45+00:00",
+   "checklist": {
+    "progress": "2 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note Done",
+      "done": true
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook Done",
+      "done": true
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "template_note": null,
+   "template_key": null,
+   "reach_error": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-template-key]\").first to be visible\n",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:24:40.612215+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-get-started-starting-a-note-from-a-template-ticks-its-step.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "get started",
+   "step": "ticks survive a reload",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:24:52+00:00",
+   "before": {
+    "progress": "2 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note Done",
+      "done": true
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook Done",
+      "done": true
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "after": {
+    "progress": "2 of 23 done",
+    "items": [
+     {
+      "label": "Write your first note Done",
+      "done": true
+     },
+     {
+      "label": "Start a note from a template",
+      "done": false
+     },
+     {
+      "label": "Open the sample notebook Done",
+      "done": true
+     },
+     {
+      "label": "Take the Notebook basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Writing help tour",
+      "done": false
+     },
+     {
+      "label": "Take the Add an image or Word document tour",
+      "done": false
+     },
+     {
+      "label": "Take the Publish and share a note tour",
+      "done": false
+     },
+     {
+      "label": "Take the Task reminders tour",
+      "done": false
+     },
+     {
+      "label": "Take the Template gallery tour",
+      "done": false
+     },
+     {
+      "label": "Take the Search by meaning tour",
+      "done": false
+     },
+     {
+      "label": "Take the Formulas and rollups tour",
+      "done": false
+     },
+     {
+      "label": "Take the Plan versus execution grading tour",
+      "done": false
+     },
+     {
+      "label": "Take the Entry context card tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reviews that write themselves tour",
+      "done": false
+     },
+     {
+      "label": "Take the My Playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan basics tour",
+      "done": false
+     },
+     {
+      "label": "Take the Chart plan replay and context tour",
+      "done": false
+     },
+     {
+      "label": "Take the The technical fingerprint tour",
+      "done": false
+     },
+     {
+      "label": "Take the Visual playbook tour",
+      "done": false
+     },
+     {
+      "label": "Take the Active setups and find more like this tour",
+      "done": false
+     },
+     {
+      "label": "Take the Reporting soon and earnings prep tour",
+      "done": false
+     },
+     {
+      "label": "Take the Transcript passages tour",
+      "done": false
+     },
+     {
+      "label": "Take the Passed setups tour",
+      "done": false
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:24:46.397118+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-get-started-ticks-survive-a-reload.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "get started",
+   "step": "Hide removes the list and it stays hidden after a reload",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:01+00:00",
+   "hidden_at_once": true,
+   "hidden_after_reload": true,
+   "pref": "{\"v\":1,\"done\":[\"sample\",\"note\"],\"state\":\"dismissed\",\"at\":\"2026-10-07T03:24:53.037Z\"}",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"sample\\\",\\\"note\\\"],\\\"state\\\":\\\"dismissed\\\",\\\"at\\\":\\\"2026-10-07T03:24:53.037Z\\\"}\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:24:55.318631+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-get-started-Hide-removes-the-list-and-it-stays-hidden-after-a-reload.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "offer",
+   "step": "the one-time tour offer appears on Home, without taking focus",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:07+00:00",
+   "title": "New in your Notebook: Writing help",
+   "took_focus": false,
+   "stage": {
+    "tourDialogs": [],
+    "offers": 1,
+    "slotPresent": true,
+    "slotChildren": 1,
+    "slotOthers": [],
+    "surfaces": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:25:02.426463+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-offer-the-one-time-tour-offer-appears-on-Home-without-taking-focus.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "offer",
+   "step": "Not now hides it; no second offer in the same session after a reload",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:17+00:00",
+   "hidden": true,
+   "offers_after_reload": 0,
+   "notebook_tours": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null}}",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "PUT",
+     "url": "/api/j2/onboarding/tours/writing-help",
+     "status": 200,
+     "request": "{\"state\":\"dismissed\",\"step\":null}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:25:10.384953+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-offer-Not-now-hides-it-no-second-offer-in-the-same-session-after-a-reload.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "help",
+   "step": "Walkthroughs lists the base tour and every replayable feature tour",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:22+00:00",
+   "listed": [
+    "Notebook basics",
+    "Writing help",
+    "Add an image or Word document",
+    "Publish and share a note",
+    "Task reminders",
+    "Template gallery",
+    "Search by meaning",
+    "Formulas and rollups",
+    "Plan versus execution grading",
+    "Entry context card",
+    "Reviews that write themselves",
+    "My Playbook",
+    "Chart plan basics",
+    "Chart plan replay and context",
+    "The technical fingerprint",
+    "Visual playbook",
+    "Active setups and find more like this",
+    "Reporting soon and earnings prep",
+    "Transcript passages",
+    "Passed setups"
+   ],
+   "expected": [
+    "Writing help",
+    "Add an image or Word document",
+    "Publish and share a note",
+    "Task reminders",
+    "Template gallery",
+    "Search by meaning",
+    "Formulas and rollups",
+    "Plan versus execution grading",
+    "Entry context card",
+    "Reviews that write themselves",
+    "My Playbook",
+    "Chart plan basics",
+    "Chart plan replay and context",
+    "The technical fingerprint",
+    "Visual playbook",
+    "Active setups and find more like this",
+    "Reporting soon and earnings prep",
+    "Transcript passages",
+    "Passed setups"
+   ],
+   "missing": [],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/support",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/support\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:25:18.370923+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-help-Walkthroughs-lists-the-base-tour-and-every-replayable-feature-tour.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "help",
+   "step": "What's new lists the tours not taken yet",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:25:22+00:00",
+   "starts": [
+    "Start the Writing help tour",
+    "Start the Add an image or Word document tour",
+    "Start the Publish and share a note tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour",
+    "Start the Search by meaning tour",
+    "Start the Formulas and rollups tour",
+    "Start the Plan versus execution grading tour",
+    "Start the Entry context card tour",
+    "Start the Reviews that write themselves tour",
+    "Start the My Playbook tour",
+    "Start the Chart plan basics tour",
+    "Start the Chart plan replay and context tour",
+    "Start the The technical fingerprint tour",
+    "Start the Visual playbook tour",
+    "Start the Active setups and find more like this tour",
+    "Start the Reporting soon and earnings prep tour",
+    "Start the Transcript passages tour",
+    "Start the Passed setups tour"
+   ],
+   "count": 19,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/support",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-help-What-s-new-lists-the-tours-not-taken-yet.png"
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "not_run": null,
+   "failure": null,
+   "port_free_after": null,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tree": "72715e8001b0ee3273363fb2fb83a91c6f8b3563",
+ "started": "2026-10-07T03:22:04+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "finished": "2026-10-07T03:25:22+00:00"
+}

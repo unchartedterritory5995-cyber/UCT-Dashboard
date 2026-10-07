@@ -1,0 +1,2296 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "dependents ON, prerequisites OFF in the auth payload",
+   "verdict": "PASS",
+   "at": "2026-10-07T17:38:27+00:00",
+   "email": "q1c3m4706976@local.dev",
+   "flags": {
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": true,
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": true,
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": true,
+    "NOTEBOOK_GETTING_STARTED_ENABLED": true,
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": false,
+    "NOTEBOOK_CHART_PLAN_ENABLED": false,
+    "NOTEBOOK_PLAN_GRADING_ENABLED": false
+   },
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "setup",
+   "step": "member with the sample notebook and one closed trade",
+   "verdict": "PASS",
+   "at": "2026-10-07T17:38:27+00:00",
+   "sample": 200,
+   "trade": "f30cdb5c-0cd1-48dd-9f97-4b8a383c2bb2",
+   "notes": 10,
+   "plan_note": "5dc567c8395c43bf929a5357da1a6a39",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "visual playbook without fingerprint",
+   "step": "the plan note (its usual door is the fingerprint panel)",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:38:32+00:00",
+   "surfaces_found": {},
+   "api_status": 200,
+   "api_body": "\"<!doctype html>\\r\\n<!-- data-theme=\\\"oled\\\" is the app-wide default (see hooks/usePreferences +\\r\\n     components/Layout.jsx). Setting it here means the FIRST paint before React\\r\\n     mounts is already OLED black, not the retired bare-:root palette. Layout\\r\\n     switches it to \\\"light\\\" only w",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=5dc567c8395c43bf929a5357da1a6a39",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=1&bars=960&warm=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:38:28.431903+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"ae0d40f3-73bc-4cde-a223-2f606609d700\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T17:38:28.319Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/5dc567c8395c43bf929a5357da1a6a39/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":281}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/bars/warm",
+     "status": 200,
+     "request": "{\"ticker\":\"AAPL\",\"tf\":\"D\",\"to\":1790539200}",
+     "response": "{\"ok\":true,\"kicked\":true}"
+    }
+   ],
+   "screenshot": "c3-1280-visual-playbook-without-fingerprint-the-plan-note-its-usual-door-is-the-fingerprint-panel-.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "visual playbook without fingerprint",
+   "step": "trade page: before/after renders or says why not",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:38:42+00:00",
+   "before_after_present": 1,
+   "before_after_text": "Before and after\n\nNo frozen plan for this trade, so only the fills are drawn.\n\nFills drawn: long entry at 200 on 2026-10-07, exit at 205 on 2026-10-07.\n\nBefore: IBM as of the entry day, 2026-10-07\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nVolume\n1.0M\nAfter: IBM as of the exit day, 2026-10-07\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nVolume\n1.0M",
+   "surfaces_found": {
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/f30cdb5c-0cd1-48dd-9f97-4b8a383c2bb2",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=1&bars=960&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/f30cdb5c-0cd1-48dd-9f97-4b8a383c2bb2\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:38:33.885853+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    }
+   ],
+   "screenshot": "c3-1280-visual-playbook-without-fingerprint-trade-page-before-after-renders-or-says-why-not.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "setups board without chart plan",
+   "step": "the board page: an honest message, not an error",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:38:51+00:00",
+   "heading": 1,
+   "cards": 2,
+   "alerts": [],
+   "page_text": "Meet Compass Tap the compass button to talk to your trading coach — markets, setups, and your journal, all by voice. Got it Trade Journal Today Trades Calendar Notebook Insights Compass Log Trade ? Default $100,050.00 ▾ Setups ACTIVE SETUPS Open plans with levels drawn on a chart, closest to the entry first. No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here. MSFT Example Triggered New today Triggered · 4.50% through the entry · 1.29R Entry $410.00 Stop $395.00 Target — $429.31 close 10/07 Active setup: example -- MSFT base breakout AAPL Example Triggered New today Triggered · 23.44% through the entry · 5.51R Entry $180.00 S",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:38:43.863876+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c3-1280-setups-board-without-chart-plan-the-board-page-an-honest-message-not-an-error.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "review drafts without plan grading",
+   "step": "Draft today from Home: a note, with the discipline part honest",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:38:56+00:00",
+   "review_box": true,
+   "note": "d38eab4cf2584d988924887329339e4a",
+   "note_text": "Today's recap — Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n1\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n1 / 0 / 0\n\n\n\n\nWin rate\n\n\t\n\n100%\n\n\n\n\nAverage R\n\n\t\n\n+0.50R\n\n\n\n\nNet P&L\n\n\t\n\n$50.00\n\n\n\n\nProfit factor\n\n\t\n\n—\n\nSetup changes\n\nNo tagged setups this period.\n\nLinks\nPlans used this period\n\nNo plan notes linked to this period’s trades.\n\nPrior reviews\n\nNo prior review notes found.\n\nResurfaced this period\n\nNothing resurfaced this period.\n\nBest and worst trade\nBest trade — IBM +0.50R ($50.00)\nLeaks\n\nNo leaks found this period.\n\n\n",
+   "wait_error": null,
+   "alerts": [],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=d38eab4cf2584d988924887329339e4a",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:38:52.465325+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"sample\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/daily",
+     "status": 200,
+     "request": "{\"date\":\"2026-10-07\"}",
+     "response": "{\"note\":{\"id\":\"d38eab4cf2584d988924887329339e4a\",\"userId\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"accountId\":null,\"folderId\":\"bec415917dbe4615a698bf749e522fe9\",\"title\":\"2026-10-07 · Wednesday\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[]},\"bodyPlain\":\"\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-07T17:38:55.952347+00:00\",\"updatedAt\":\"2026-10-07T17:38:55.952347+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":\"2026-10-07\",\"propertiesJson\":{}},\"created\":true,\"templateMissing\":false}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/d38eab4cf2584d988924887329339e4a",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Today's recap — Oct 7\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 0 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"100%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"+0.50R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\"",
+     "response": "{\"note\":{\"id\":\"d38eab4cf2584d988924887329339e4a\",\"userId\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"accountId\":null,\"folderId\":\"bec415917dbe4615a698bf749e522fe9\",\"title\":\"2026-10-07 · Wednesday\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Today's recap — Oct 7\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 0 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"100%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average"
+    }
+   ],
+   "screenshot": "c3-1280-review-drafts-without-plan-grading-Draft-today-from-Home-a-note-with-the-discipline-part-honest.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "1280",
+   "feature": "review drafts without plan grading",
+   "step": "Insights > Reviews section",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:04+00:00",
+   "section": 1,
+   "section_text": "Reviews that write themselves\n\nOne click drafts the trades and P&L, the discipline record, setup changes, links to plans and prior reviews, the best and worst trade, and any leaks — from your own numbers, never generated.\n\nDraft today’s recap\nDraft this week’s review\nDraft this month’s review",
+   "discipline_tab": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/insights?ins=reviews",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":116}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/d38eab4cf2584d988924887329339e4a/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:38:56.800772+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    }
+   ],
+   "screenshot": "c3-1280-review-drafts-without-plan-grading-Insights-Reviews-section.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "820",
+   "feature": "visual playbook without fingerprint",
+   "step": "driver exception",
+   "verdict": "FAIL",
+   "at": "2026-10-07T17:39:09+00:00",
+   "error": "APIRequestContext.get: Target page, context or browser has been closed",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 100,
+    "inline_links": 0,
+    "under": 11,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 182,
+      "h": 31,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 30,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Subtitle",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 43,
+      "host": null
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=5dc567c8395c43bf929a5357da1a6a39",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:05.505814+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"fbc4d3b2-9907-4006-9016-538b177f5e59\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T17:39:05.535Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/5dc567c8395c43bf929a5357da1a6a39/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":238}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c3-820-visual-playbook-without-fingerprint-driver-exception.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "820",
+   "feature": "setups board without chart plan",
+   "step": "the board page: an honest message, not an error",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:19+00:00",
+   "heading": 1,
+   "cards": 2,
+   "alerts": [],
+   "page_text": "Meet Compass Tap the compass button to talk to your trading coach — markets, setups, and your journal, all by voice. Got it Trade Journal Today Trades Calendar Notebook Insights Compass Log Trade ? Default $100,050.00 ▾ Setups ACTIVE SETUPS Open plans with levels drawn on a chart, closest to the entry first. No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here. MSFT Example Triggered New today Triggered · 22.51% through the entry · 7.94R Entry $410.00 Stop $395.00 Target — $529.10 close 10/07 Active setup: example -- MSFT base breakout AAPL Example Triggered New today Triggered · 46.42% through the entry · 15.59R Entry $180.00",
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 26,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:10.568222+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    }
+   ],
+   "screenshot": "c3-820-setups-board-without-chart-plan-the-board-page-an-honest-message-not-an-error.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "820",
+   "feature": "review drafts without plan grading",
+   "step": "Draft today from Home: a note, with the discipline part honest",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:23+00:00",
+   "review_box": true,
+   "note": "d38eab4cf2584d988924887329339e4a",
+   "note_text": "Today's recap — Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n1\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n1 / 0 / 0\n\n\n\n\nWin rate\n\n\t\n\n100%\n\n\n\n\nAverage R\n\n\t\n\n+0.50R\n\n\n\n\nNet P&L\n\n\t\n\n$50.00\n\n\n\n\nProfit factor\n\n\t\n\n—\n\nSetup changes\n\nNo tagged setups this period.\n\nLinks\nPlans used this period\n\nNo plan notes linked to this period’s trades.\n\nPrior reviews\n\nNo prior review notes found.\n\nResurfaced this period\n\nNothing resurfaced this period.\n\nBest and worst trade\n‹\n⋯\n1m\n5m\n15m\n30m\n1h\nD\nW\nM\nLive\nHalf\nDraw\nCharts ↗\nAftermath\nRe-capture\nSync\nFreeze\n✕\nBest trade — IBM +0.50R ($50.00)\nLeaks\n\nNo leaks found this period.\n\n\n",
+   "wait_error": null,
+   "alerts": [],
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 99,
+    "inline_links": 0,
+    "under": 11,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 182,
+      "h": 31,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 30,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Subtitle",
+      "tag": "INPUT",
+      "w": 378,
+      "h": 43,
+      "host": null
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=d38eab4cf2584d988924887329339e4a",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:19.829871+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"sample\\\",\\\"note\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/daily",
+     "status": 200,
+     "request": "{\"date\":\"2026-10-07\"}",
+     "response": "{\"note\":{\"id\":\"d38eab4cf2584d988924887329339e4a\",\"userId\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"accountId\":null,\"folderId\":\"bec415917dbe4615a698bf749e522fe9\",\"title\":\"2026-10-07 · Wednesday\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Today's recap — Oct 7\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 0 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"100%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average"
+    }
+   ],
+   "screenshot": "c3-820-review-drafts-without-plan-grading-Draft-today-from-Home-a-note-with-the-discipline-part-honest.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "820",
+   "feature": "review drafts without plan grading",
+   "step": "Insights > Reviews section",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:31+00:00",
+   "section": 1,
+   "section_text": "Reviews that write themselves\n\nOne click drafts the trades and P&L, the discipline record, setup changes, links to plans and prior reviews, the best and worst trade, and any leaks — from your own numbers, never generated.\n\nDraft today’s recap\nDraft this week’s review\nDraft this month’s review",
+   "discipline_tab": 0,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 64,
+    "inline_links": 0,
+    "under": 25,
+    "sample": [
+     {
+      "label": "Playbook",
+      "tag": "BUTTON",
+      "w": 89,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Exit Quality",
+      "tag": "BUTTON",
+      "w": 103,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Edge",
+      "tag": "BUTTON",
+      "w": 63,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Psychology",
+      "tag": "BUTTON",
+      "w": 103,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Regime",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Coach",
+      "tag": "BUTTON",
+      "w": 72,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Reviews",
+      "tag": "BUTTON",
+      "w": 82,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Add metric card",
+      "tag": "SELECT",
+      "w": 223,
+      "h": 33,
+      "host": null
+     },
+     {
+      "label": "Consistency period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Consistency up",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Consistency down",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Remove Consistency",
+      "tag": "BUTTON",
+      "w": 21,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Payoff & Kelly period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Payoff & Kelly up",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Payoff & Kelly down",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Remove Payoff & Kelly",
+      "tag": "BUTTON",
+      "w": 21,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Time Intelligence period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Time Intelligence up",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Time Intelligence down",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Remove Time Intelligence",
+      "tag": "BUTTON",
+      "w": 21,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "INPUT",
+      "tag": "INPUT",
+      "w": 108,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "INPUT",
+      "tag": "INPUT",
+      "w": 215,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "KPI period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 28,
+      "host": null
+     },
+     {
+      "label": "Add",
+      "tag": "BUTTON",
+      "w": 52,
+      "h": 28,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/insights?ins=reviews",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":102}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/d38eab4cf2584d988924887329339e4a/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:24.244276+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    }
+   ],
+   "screenshot": "c3-820-review-drafts-without-plan-grading-Insights-Reviews-section.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "390",
+   "feature": "visual playbook without fingerprint",
+   "step": "driver exception",
+   "verdict": "FAIL",
+   "at": "2026-10-07T17:39:37+00:00",
+   "error": "APIRequestContext.get: Target page, context or browser has been closed",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 54,
+    "inline_links": 0,
+    "under": 11,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 186,
+      "h": 37,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 36,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Subtitle",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 43,
+      "host": null
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=5dc567c8395c43bf929a5357da1a6a39",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:33.086174+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"2b0fde7f-85c2-4bf0-9b8f-09d426e3384b\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T17:39:33.013Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/5dc567c8395c43bf929a5357da1a6a39/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":283}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c3-390-visual-playbook-without-fingerprint-driver-exception.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "390",
+   "feature": "setups board without chart plan",
+   "step": "the board page: an honest message, not an error",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:46+00:00",
+   "heading": 1,
+   "cards": 2,
+   "alerts": [],
+   "page_text": "Meet Compass Tap the compass button to talk to your trading coach — markets, setups, and your journal, all by voice. Got it Log Trade Journal tools Today Trades Calendar Notebook Insights Compass Setups ACTIVE SETUPS Open plans with levels drawn on a chart, closest to the entry first. No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here. MSFT Example Triggered New today Triggered · 22.51% through the entry · 7.94R Entry $410.00 Stop $395.00 Target — $529.10 close 10/07 Active setup: example -- MSFT base breakout AAPL Example Triggered New today Triggered · 46.42% through the entry · 15.59R Entry $180.00 Stop $170.00 Target $20",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 23,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:37.911039+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    }
+   ],
+   "screenshot": "c3-390-setups-board-without-chart-plan-the-board-page-an-honest-message-not-an-error.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "390",
+   "feature": "review drafts without plan grading",
+   "step": "Draft today from Home: a note, with the discipline part honest",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:51+00:00",
+   "review_box": true,
+   "note": "d38eab4cf2584d988924887329339e4a",
+   "note_text": "Today's recap — Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n1\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n1 / 0 / 0\n\n\n\n\nWin rate\n\n\t\n\n100%\n\n\n\n\nAverage R\n\n\t\n\n+0.50R\n\n\n\n\nNet P&L\n\n\t\n\n$50.00\n\n\n\n\nProfit factor\n\n\t\n\n—\n\nSetup changes\n\nNo tagged setups this period.\n\nLinks\nPlans used this period\n\nNo plan notes linked to this period’s trades.\n\nPrior reviews\n\nNo prior review notes found.\n\nResurfaced this period\n\nNothing resurfaced this period.\n\nBest and worst trade\n‹\n⋯\n1m\n5m\n15m\n30m\n1h\nD\nW\nM\nLive\nHalf\nDraw\nCharts ↗\nAftermath\nRe-capture\nSync\nFreeze\n✕\nBest trade — IBM +0.50R ($50.00)\nLeaks\n\nNo leaks found this period.\n\n\n",
+   "wait_error": null,
+   "alerts": [],
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 61,
+    "inline_links": 0,
+    "under": 11,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 186,
+      "h": 37,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 36,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Subtitle",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 43,
+      "host": null
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=d38eab4cf2584d988924887329339e4a",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:47.163224+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/daily",
+     "status": 200,
+     "request": "{\"date\":\"2026-10-07\"}",
+     "response": "{\"note\":{\"id\":\"d38eab4cf2584d988924887329339e4a\",\"userId\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"accountId\":null,\"folderId\":\"bec415917dbe4615a698bf749e522fe9\",\"title\":\"2026-10-07 · Wednesday\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Today's recap — Oct 7\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 0 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"100%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average"
+    }
+   ],
+   "screenshot": "c3-390-review-drafts-without-plan-grading-Draft-today-from-Home-a-note-with-the-discipline-part-honest.png"
+  },
+  {
+   "tip": "8852a2a8c0",
+   "config": "c3",
+   "viewport": "390",
+   "feature": "review drafts without plan grading",
+   "step": "Insights > Reviews section",
+   "verdict": "INFO",
+   "at": "2026-10-07T17:39:59+00:00",
+   "section": 1,
+   "section_text": "Reviews that write themselves\n\nOne click drafts the trades and P&L, the discipline record, setup changes, links to plans and prior reviews, the best and worst trade, and any leaks — from your own numbers, never generated.\n\nDraft today’s recap\nDraft this week’s review\nDraft this month’s review",
+   "discipline_tab": 0,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 65,
+    "inline_links": 0,
+    "under": 25,
+    "sample": [
+     {
+      "label": "Playbook",
+      "tag": "BUTTON",
+      "w": 89,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Exit Quality",
+      "tag": "BUTTON",
+      "w": 103,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Edge",
+      "tag": "BUTTON",
+      "w": 63,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Psychology",
+      "tag": "BUTTON",
+      "w": 103,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Regime",
+      "tag": "BUTTON",
+      "w": 79,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Coach",
+      "tag": "BUTTON",
+      "w": 72,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Reviews",
+      "tag": "BUTTON",
+      "w": 82,
+      "h": 40,
+      "host": "nav"
+     },
+     {
+      "label": "Add metric card",
+      "tag": "SELECT",
+      "w": 223,
+      "h": 33,
+      "host": null
+     },
+     {
+      "label": "Consistency period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Consistency up",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Consistency down",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Remove Consistency",
+      "tag": "BUTTON",
+      "w": 21,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Payoff & Kelly period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Payoff & Kelly up",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Payoff & Kelly down",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Remove Payoff & Kelly",
+      "tag": "BUTTON",
+      "w": 21,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Time Intelligence period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Time Intelligence up",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Move Time Intelligence down",
+      "tag": "BUTTON",
+      "w": 17,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "Remove Time Intelligence",
+      "tag": "BUTTON",
+      "w": 21,
+      "h": 25,
+      "host": null
+     },
+     {
+      "label": "INPUT",
+      "tag": "INPUT",
+      "w": 90,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "INPUT",
+      "tag": "INPUT",
+      "w": 180,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "KPI period",
+      "tag": "SELECT",
+      "w": 80,
+      "h": 28,
+      "host": null
+     },
+     {
+      "label": "Add",
+      "tag": "BUTTON",
+      "w": 52,
+      "h": 28,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/insights?ins=reviews",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/d38eab4cf2584d988924887329339e4a/opened",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"3d119c4f-732\",\"user_id\":\"bf2a99f7-6628-4940-bcf7-e02ef83202bb\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T17:38:28.051463+00:00\",\"updated_at\":\"2026-10-07T17:39:51.546096+00:00\",\"items\":[],\"owner_name\":\"q1c3m\"}"
+    }
+   ],
+   "screenshot": "c3-390-review-drafts-without-plan-grading-Insights-Reviews-section.png"
+  }
+ ],
+ "configs": {
+  "c3": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-r\\c3",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T12-37-41.md (identity f70e65cf8876..., data dir C:\\data-fin-walk-r\\c3)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-walk\\8852a2a8c0\\rerun\\c3\\integrity-c3.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-07 12:37:47",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-07 12:38:25",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-07 12:40:17",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-07 12:40:25",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\fin-walk\\8852a2a8c0\\rerun\\c3\\integrity-c3.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c3",
+ "tip": "8852a2a8c0",
+ "tool_tree": "0d9dd939468089c893a1f830d8f453bb5ff1b36e",
+ "started": "2026-10-07T17:37:36+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c3",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/onboarding/sample-notebook",
+   "status": 200,
+   "request": null,
+   "response": "{\"folderId\": \"f20d1706a59e48d5b605f92272e5b6c6\", \"welcomeNoteId\": \"de64c7c29ed7461fbd57ab3e082c16df\"}"
+  },
+  {
+   "config": "c3",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"entryDate\": \"2026-10-07\"}",
+   "response": "{\"id\": \"fa14f73c-fc15-4470-b3bc-884ede8d3eb3\", \"userId\": \"bf2a99f7-6628-4940-bcf7-e02ef83202bb\", \"accountId\": \"287ae206-c79c-4e08-a56b-82b0c28ba236\", \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-07T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T17:38:27.531266+00:00\", \"updatedAt\": \"2026-10-07T17:38:27.531266+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c3",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions/fa14f73c-fc15-4470-b3bc-884ede8d3eb3/close",
+   "status": 200,
+   "request": "{\"shares\": 10, \"exitPrice\": 205.0, \"exitDate\": \"2026-10-07\"}",
+   "response": "{\"trade\": {\"id\": \"f30cdb5c-0cd1-48dd-9f97-4b8a383c2bb2\", \"userId\": \"bf2a99f7-6628-4940-bcf7-e02ef83202bb\", \"positionId\": \"fa14f73c-fc15-4470-b3bc-884ede8d3eb3\", \"symbol\": \"IBM\", \"side\": \"Long\", \"shares\": 10.0, \"entryPrice\": 200.0, \"entryDate\": \"2026-10-07T00:00:00+00:00\", \"exitPrice\": 205.0, \"exitDate\": \"2026-10-07T00:00:00+00:00\", \"originalStop\": 190.0, \"setup\": null, \"notes\": null, \"pnlDollar\": 50.0, \"pnlPercent\": 0.025, \"rMultiple\": 0.5, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T17:38:27.551182+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"fa14f73c-fc15-4470-b3bc-884ede8d3eb3\", \"userId\": \"bf2a99f7-6628-4940-bcf7-e02ef83202bb\", \"accountId\": null, \"symbol\": \"IBM\", \"side\": \"Long\", \"entryDate\": \"2026-10-07T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 10.0, \"entryPrice\": 200.0, \"stopPrice\": 190.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T17:38:27.531266+00:00\", \"updatedAt\": \"2026-10-07T17:38:27.551182+00:00\", \"closedAt\": \"2026-10-07T17:38:27.551182+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  }
+ ],
+ "finished": "2026-10-07T17:40:56+00:00"
+}
