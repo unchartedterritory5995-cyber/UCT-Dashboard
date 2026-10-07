@@ -5,6 +5,7 @@ import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
 import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import OffNotice from './OffNotice'
+import FailedRead from './FailedRead'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 import Select from '../../components/ui/Select'
 import { usePanelFreshness } from '../../components/terminal/terminalPanel'
@@ -79,7 +80,7 @@ export function minuteAt(minutes, fracX) {
 }
 
 function TidePanel({ scope, setScope, onPickMinute }) {
-  const { data, error } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
+  const { data, error, mutate } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false })
   // TERM-019: the terminal panel header names the tape and the session minute it runs through.
   const tideLast = Array.isArray(data?.minutes) ? data.minutes[data.minutes.length - 1] : null
@@ -102,9 +103,8 @@ function TidePanel({ scope, setScope, onPickMinute }) {
   )
   if (error) {
     return <section className={styles.panel} data-testid="market-tide">{head}
-      <p className={styles.note} data-testid="market-tide-unavailable">
-        Market Tide is unavailable right now. That does not mean the tape is quiet.
-      </p></section>
+      <FailedRead testId="market-tide-unavailable" retry={mutate}
+        title="Market Tide is unavailable right now. That does not mean the tape is quiet." /></section>
   }
   if (!data) return <section className={styles.panel} data-testid="market-tide">{head}<p className={styles.note}>Reading the tape…</p></section>
   // A body that is not a tide (an HTML page, another route's JSON) renders nothing rather
@@ -168,7 +168,7 @@ function TidePanel({ scope, setScope, onPickMinute }) {
 // ── FT-056 per-sector tide ────────────────────────────────────────────────────
 
 export function SectorTide({ scope }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/market-tide/sectors?scope=${scope}`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/options/market-tide/sectors?scope=${scope}`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.sectors))) return null
   return (
     <section className={styles.panel} data-testid="sector-tide">
@@ -176,7 +176,7 @@ export function SectorTide({ scope }) {
         <span className={styles.title}>Market Tide by sector</span>
         <span className={styles.badge}>computed</span>
       </div>
-      {failed ? <p className={styles.note}>The sector tide is unavailable right now. That does not mean the tape is quiet.</p> : (
+      {failed ? <FailedRead testId="sector-tide-unavailable" retry={retry} title="The sector tide is unavailable right now. That does not mean the tape is quiet." /> : (
         <>
           {data.sectors.length ? (
             <div className={styles.scroll}>
@@ -223,7 +223,7 @@ export function TideMinute({ scope, minute, setMinute }) {
           {probe.data.minutes.map((t) => <option key={t} value={t}>{t} ET</option>)}
         </Select>
       </div>
-      {one.failed && <p className={styles.note}>That minute&apos;s prints are unavailable right now.</p>}
+      {one.failed && <FailedRead testId="tide-minute-unavailable" retry={one.retry} title={"That minute's prints are unavailable right now."} />}
       {d && Array.isArray(d.prints) && (
         <>
           <p className={styles.facts} data-testid="tide-minute-count">

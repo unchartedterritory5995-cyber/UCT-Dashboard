@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
+import FailedRead from './FailedRead'
 import CoverageLine from '../../components/provenance/CoverageLine'
 import { sideWords, callPutWords } from './flowWords'
 import { num, fracPct } from './optionsFormat'
@@ -66,7 +67,7 @@ function FirstScreens() {
     if (cat.loading) return null
     if (cat.failed) return (
       <section className={styles.panel} data-testid="strategy-screens">
-        <p className={styles.note} data-testid="strategy-catalog-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>
+        <FailedRead testId="strategy-catalog-unavailable" retry={cat.retry} title={'The strategy screen is unavailable right now. That is not "nothing matched".'} />
       </section>
     )
     return null
@@ -82,7 +83,7 @@ function FirstScreens() {
         </Select>
         <Input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
-      {res.failed && <p className={styles.note} data-testid="strategy-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>}
+      {res.failed && <FailedRead testId="strategy-unavailable" retry={res.retry} title={'The strategy screen is unavailable right now. That is not "nothing matched".'} />}
       {/* the results read for each strategy / ticker change: a header over nothing until now */}
       {res.loading && <p className={styles.note} data-testid="strategy-loading">Loading the screen…</p>}
       {res.data && Array.isArray(res.data.rows) && (
@@ -138,7 +139,7 @@ export function MoreStrategyScreens() {
     if (cat.loading) return null
     if (cat.failed) return (
       <section className={styles.panel} data-testid="more-strategy-screens">
-        <p className={styles.note} data-testid="more-catalog-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>
+        <FailedRead testId="more-catalog-unavailable" retry={cat.retry} title={'This screen is unavailable right now. That is not "nothing matched".'} />
       </section>
     )
     return null
@@ -154,7 +155,7 @@ export function MoreStrategyScreens() {
         </Select>
         <Input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
-      {res.failed && <p className={styles.note} data-testid="more-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>}
+      {res.failed && <FailedRead testId="more-unavailable" retry={res.retry} title={'This screen is unavailable right now. That is not "nothing matched".'} />}
       {res.loading && <p className={styles.note} data-testid="more-loading">Loading the screen…</p>}
       {d && Array.isArray(d.rows) && (
         <>
@@ -182,7 +183,7 @@ export function MoreStrategyScreens() {
 // ── FT-075 Sizzle ──────────────────────────────────────────────────────────────
 
 export function SizzlePanel() {
-  const { data, hidden, failed } = useDarkSection('/api/options-screener/sizzle')
+  const { data, hidden, failed, retry } = useDarkSection('/api/options-screener/sizzle')
   if (hidden || (!data && !failed) || (data && !('method' in data))) return null
   return (
     <section className={styles.panel} data-testid="sizzle">
@@ -190,7 +191,7 @@ export function SizzlePanel() {
         <span className={styles.title}>Sizzle, 5-day</span>
         <span className={styles.badge}>computed</span>
       </div>
-      {failed ? <p className={styles.note}>Sizzle is unavailable right now. That is not "no unusual volume".</p> : (
+      {failed ? <FailedRead retry={retry} title={'Sizzle is unavailable right now. That is not "no unusual volume".'} /> : (
         <>
           <p className={styles.facts} data-testid="sizzle-history">
             {data.session ? `Session ${data.session}` : 'No session logged yet'} · {data.prior_sessions ?? 0} prior session{data.prior_sessions === 1 ? '' : 's'} held

@@ -1,5 +1,6 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
+import FailedRead from './FailedRead'
 import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminalPanel'
@@ -27,7 +28,7 @@ function Coverage({ data }) {
 }
 
 function Straddle({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/straddle`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/research/options-history/${enc(sym)}/straddle`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.points))) return null
   const pts = data?.points || []
   const ys = pts.map((p) => p.straddle_pct)
@@ -38,7 +39,7 @@ function Straddle({ sym }) {
   return (
     <section className={styles.panel} data-testid="straddle-history">
       <div className={styles.head}><span className={styles.title}>ATM straddle history</span><span className={styles.badge}>our log</span></div>
-      {failed ? <p className={styles.note}>The straddle history is unavailable right now.</p> : (
+      {failed ? <FailedRead retry={retry} title="The straddle history is unavailable right now." /> : (
         <>
           {pts.length > 1 && (
             <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Front straddle as a percent of the underlying, by session">
@@ -60,12 +61,12 @@ function Straddle({ sym }) {
 }
 
 function DailyMove({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/daily-move`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/research/options-history/${enc(sym)}/daily-move`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.pairs))) return null
   return (
     <section className={styles.panel} data-testid="daily-move">
       <div className={styles.head}><span className={styles.title}>Implied 1-day move vs actual</span><span className={styles.badge}>computed</span></div>
-      {failed ? <p className={styles.note}>The daily move history is unavailable right now.</p> : (
+      {failed ? <FailedRead retry={retry} title="The daily move history is unavailable right now." /> : (
         <>
           <ul className={styles.list}>
             {data.pairs.slice(-20).reverse().map((p) => (
@@ -88,14 +89,14 @@ function DailyMove({ sym }) {
 }
 
 function IvCrush({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/iv-crush`)
+  const { data, hidden, failed, retry } = useDarkSection(`/api/research/options-history/${enc(sym)}/iv-crush`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.prints))) return null
   const offs = data?.offsets || []
   const cell = (v) => (v == null ? '' : fracPct(v))
   return (
     <section className={styles.panel} data-testid="iv-crush">
       <div className={styles.head}><span className={styles.title}>IV around earnings</span><span className={styles.badge}>our log</span></div>
-      {failed ? <p className={styles.note}>The IV-crush table is unavailable right now.</p> : (
+      {failed ? <FailedRead retry={retry} title="The IV-crush table is unavailable right now." /> : (
         <>
           {data.prints.length > 0 && (
             <div className={styles.scroll}>

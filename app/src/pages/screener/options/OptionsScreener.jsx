@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { OffLine } from '../../optionsAnalytics/OffNotice'
+import FailedRead from '../../optionsAnalytics/FailedRead'
 import { useInTerminalPanel } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
 import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
@@ -49,15 +50,14 @@ export function screenUrl(preset, filters) {
 
 // Quality pass 2026-10-05: a 404 here is the route's switch being off
 // (OPTIONS_SCREENER_ENABLED), not a failure -- it used to read "unavailable right now".
-function ReadFailed({ error, what }) {
+function ReadFailed({ error, what, retry }) {
   if (error?.status === 404) return <OffLine feature={`The ${what}`} />
-  return <Unavailable what={what} />
+  return <Unavailable what={what} retry={retry} />
 }
 
-function Unavailable({ what }) {
-  return <p className={styles.note} data-testid="opts-unavailable">
-    The {what} is unavailable right now. That does not mean there is nothing to show.
-  </p>
+function Unavailable({ what, retry }) {
+  return <FailedRead testId="opts-unavailable" retry={retry}
+    title={`The ${what} is unavailable right now. That does not mean there is nothing to show.`} />
 }
 
 function Screen() {
@@ -65,7 +65,7 @@ function Screen() {
   const [draft, setDraft] = useState({ type: 'any' })
   const [filters, setFilters] = useState({})
   const url = screenUrl(preset, filters)
-  const { data, error } = useSWR(url, sectionFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(url, sectionFetcher, { revalidateOnFocus: false })
 
   const presets = data?.presets || {}
   return (
@@ -95,7 +95,7 @@ function Screen() {
         <span className={styles.muted}>{preset ? 'Filters refine the preset.' : ''}</span>
       </form>
       {error?.status === 422 && <p className={styles.note} data-testid="opts-bad">A filter value could not be read.</p>}
-      {error && error.status !== 422 && <ReadFailed error={error} what="option screener" />}
+      {error && error.status !== 422 && <ReadFailed error={error} what="option screener" retry={mutate} />}
       {data?.paywalled && <p className={styles.note}>The option screener requires a paid plan.</p>}
       {!error && !data && <p className={styles.note}>Loading the screen…</p>}
       {data && data.status === 'no_screen' && <p className={styles.note} data-testid="opts-no-screen">{data.note}</p>}
@@ -137,8 +137,8 @@ function Screen() {
 }
 
 function Volume() {
-  const { data, error } = useSWR('/api/options-screener/unusual-volume', sectionFetcher, { revalidateOnFocus: false })
-  if (error) return <ReadFailed error={error} what="unusual-volume ranking" />
+  const { data, error, mutate } = useSWR('/api/options-screener/unusual-volume', sectionFetcher, { revalidateOnFocus: false })
+  if (error) return <ReadFailed error={error} what="unusual-volume ranking" retry={mutate} />
   if (!data) return <p className={styles.note}>Loading the unusual-volume ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
   if (data.status !== 'ok') return <p className={styles.note} data-testid="opts-vol-none">{data.note}</p>
@@ -178,8 +178,8 @@ function Volume() {
 }
 
 function Iv() {
-  const { data, error } = useSWR('/api/options-screener/iv-percentile', sectionFetcher, { revalidateOnFocus: false })
-  if (error) return <ReadFailed error={error} what="IV percentile ranking" />
+  const { data, error, mutate } = useSWR('/api/options-screener/iv-percentile', sectionFetcher, { revalidateOnFocus: false })
+  if (error) return <ReadFailed error={error} what="IV percentile ranking" retry={mutate} />
   if (!data) return <p className={styles.note}>Loading the IV percentile ranking…</p>
   if (data.paywalled) return <p className={styles.note}>The option rankings require a paid plan.</p>
   if (data.status !== 'ok') return <p className={styles.note} data-testid="opts-iv-none">{data.note}</p>

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
 import { OffLine } from './OffNotice'
+import FailedRead from './FailedRead'
 import styles from './optionsAnalytics.module.css'
 import { formatPercent } from '../../lib/presentation/presentationPrimitives'
 import { volPts } from './optionsFormat'
@@ -31,10 +32,17 @@ function TapNote({ text, testid }) {
 }
 
 export function IvRankBadge({ sym, fallback = null }) {
-  const { data, hidden, failed, loading } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
+  const { data, hidden, failed, loading, retry } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
   if (hidden) return fallback
   if (loading) return <span className={styles.muted} data-testid="iv-rank-badge-loading">Loading…</span>
-  if (failed) return <span className={styles.muted} data-testid="iv-rank-badge-failed">IV rank is unavailable right now.</span>
+  if (failed) {
+    return (
+      <>
+        <span className={styles.muted} data-testid="iv-rank-badge-failed">IV rank is unavailable right now.</span>
+        {' '}<button type="button" onClick={() => retry()}>Retry</button>
+      </>
+    )
+  }
   if (!data || typeof data.sentence !== 'string') return fallback
   const title = `${data.method} ${data.n} session${data.n === 1 ? '' : 's'} logged since ${data.logging_began || '—'}.`
   if (data.iv_rank == null) {
@@ -65,9 +73,9 @@ export function volumeScope(v) {
 }
 
 export function OptionMonitorStrip({ sym }) {
-  const { data, hidden, failed } = useDarkSection(sym ? `/api/research/options/${enc(sym)}/monitor` : null)
+  const { data, hidden, failed, retry } = useDarkSection(sym ? `/api/research/options/${enc(sym)}/monitor` : null)
   if (hidden || (!data && !failed)) return null
-  if (failed) return <p className={styles.note} data-testid="option-monitor">The option monitor is unavailable right now.</p>
+  if (failed) return <FailedRead testId="option-monitor" retry={retry} title="The option monitor is unavailable right now." />
   if (!data.events || !data.volume) return null
   const e = data.events
   const v = data.volume
@@ -151,6 +159,11 @@ export function VolStatsPanel({ sym, offNotice = false }) {
         <span className={styles.title}>Volatility</span>
         <span className={styles.badge}>computed</span>
       </div>
+      {/* a failed read is said where the member reads, with one Retry that re-asks every failed read */}
+      {(rv.failed || cm.failed || vp.failed) && (
+        <FailedRead testId="vol-failed" retry={() => { for (const r of [rv, cm, vp]) if (r.failed) r.retry?.() }}
+          title="A volatility read failed. A line marked unavailable is a failed read, not a value." />
+      )}
       <ul className={styles.list}>
         <li data-testid="vol-realized">Realized (close to close): {readState(rv) || (rv.data?.available === false ? rv.data.note
           : realizedText(rv.data?.hv))}</li>
