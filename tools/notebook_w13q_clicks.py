@@ -2088,6 +2088,10 @@ def q21_arm_alert(cx: Ctx, pg, m: Meter, width: str) -> dict:
         arm.first.wait_for(state="visible", timeout=20000)
     except Exception:  # noqa: BLE001
         raise Inconclusive(f"the stop's row offers no 'Arm alert at this level'; panel: {panel.inner_text()[:300]!r}")
+    if m.mode == "keys" and panel.locator("[data-plan-keys]").count():
+        # Lane KEYS3: the plan's own documented key (its hint line names it). From inside the
+        # open plan it moves focus to the stop's alert button; before, that was 12 Tabs.
+        m.key("Control+Alt+s", "the plan's key to the stop's alert (Ctrl+Alt+S)")
     m.press(arm, "Arm alert at this level (the stop)")
     try:
         row.get_by_text("Alert armed").first.wait_for(state="visible", timeout=30000)

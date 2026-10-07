@@ -41,6 +41,7 @@ import {
 } from '../../lib/chartPlan'
 import { AddLevelForm, LevelPriceField, RoleRadios } from './ChartPlanLevelControls'
 import { PRICE_ROLES } from '../../lib/planLevels'
+import { PLAN_STOP_ARIA_KEYS, planStopChordLabel, usePlanStopShortcut } from '../../lib/planStopShortcut'
 import useBoundDrawingAlerts from '../../../../components/chart/useBoundDrawingAlerts'
 import { anchorsForDrawing } from '../../../../components/chart/drawingAlertAnchors'
 import { money } from '../../../../lib/journal-2-0/format'
@@ -205,6 +206,10 @@ export default function ChartPlanPanel({
     wasOpenRef.current = open
     if (open && !was) rootRef.current?.focus({ preventScroll: false })
   }, [open])
+
+  // Lane KEYS3 (Q21): Ctrl+Alt+S, from anywhere inside this open plan, goes to the stop's
+  // alert button (lib/planStopShortcut.js; declared in the shared shortcut registry).
+  usePlanStopShortcut(rootRef, open)
 
   // ── the typed door to a level (lane FIN-A11Y, I-6): make one, move one ─────────────────
   // Focus follows the level being worked on: the rows are sorted by price, so a step can
@@ -389,7 +394,7 @@ export default function ChartPlanPanel({
               // elsewhere the row says why, before any click (it used to refuse after one).
               const canArm = anchorsForDrawing(d, { tf }) != null
               return (
-                <li key={d.id} className={styles.level} data-level-id={d.id}>
+                <li key={d.id} className={styles.level} data-level-id={d.id} data-level-role={role}>
                   <LevelPriceField
                     price={price}
                     label={role ? `Price of the ${ROLE_LABEL[role]} line, ${fmtPrice(price)}` : `Price of the line at ${fmtPrice(price)}`}
@@ -422,9 +427,11 @@ export default function ChartPlanPanel({
                         type="button"
                         className={styles.armBtn}
                         data-tour="chart-plan-alert"
+                        data-plan-arm=""
                         disabled={arming === d.id}
                         onClick={() => armAlert(d)}
                         aria-label={`Arm alert at this level, ${fmtPrice(price)}`}
+                        {...(role === 'stop' ? { 'aria-keyshortcuts': PLAN_STOP_ARIA_KEYS } : {})}
                       >
                         {arming === d.id ? 'Arming…' : 'Arm alert at this level'}
                       </button>
@@ -434,6 +441,9 @@ export default function ChartPlanPanel({
               )
             })}
           </ul>
+        )}
+        {levels.some((d) => d.role === 'stop') && (
+          <p className={styles.hint} data-plan-keys="">{planStopChordLabel()} goes to the stop's alert.</p>
         )}
         <AddLevelForm onAdd={addLevelAt} onInvalid={badPrice} />
 
