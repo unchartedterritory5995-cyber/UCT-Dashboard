@@ -531,3 +531,48 @@ as well, and both are fixed (`tests/test_parity_scorecard.py`, `test_notebook_br
 Run together: `tests/test_parity_scorecard.py`, `tests/test_notebook_bridges_pin_the_root.py`,
 `tests/test_shared_state_landmines.py`: 1 failed, 62 passed. The one failure is the landmine
 rail on the four files listed in the table above.
+
+## 13. Phase 8 (2026-10-07): data lane 2 and frontend lane 2, at `d88b514743`
+
+Where this section disagrees with an earlier one, this section is newer.
+
+| Merge commit | Branch and tip | Conflicts |
+|---|---|---|
+| `bff2eef093` | `fin-data2` at `627a9a9ff3` (final) | None. `landing-12-15-rollback.md` changed on both sides in separate hunks |
+| `d88b514743` | `fin-fe2` at `9e09c09f85` (a small round 2 follows) | None, and no both-sides file |
+
+What these add: a review draft says when its discipline part is unavailable and why; the setups
+board says whether a plan can be drawn; a sample folder is removed by a durable mark; an example
+chart answers "example" in find-similar; a Notebook confirm locks the page and no longer sits
+under the voice orb; touch targets are 44 px wide as well as tall; a tour's step counter counts
+the steps it shows.
+
+**Contract fixtures: 182** (was 172). The ten new ones are the sample notebook's doors, from the
+onboarding router now in the generator. `python tools/notebook_contract_fixtures.py --check` on
+the merged tree: 182 match, nothing to regenerate.
+
+New rollback surface: `j2_note_folders.import_source`, a nullable column added by an idempotent
+ALTER. Its line is in the rollback page. The schema guard, purge, deletion manifest and
+keep-list tests pass with it.
+
+More that is LIVE on merge (no flag): the confirm's page lock, the 44 px width floors, and the
+tour step counter. The rest is behind the features' own flags.
+
+Gates:
+
+- Build exit 0. First-open bytes `2,208,087 B across 56 JS chunks`, PASS.
+- Flags-off parity: 36 identical, 4 differ only by a named expected difference, 0 differ. PASS,
+  with the same fingerprints as before. The tour counter and the confirm lock are always-on, but
+  no case captures them: no parity case has a tour card or a confirm on screen, and the lock and
+  the width floors are not markup. Nothing was added to the named list.
+- Frontend: 30 named files (both lanes' and every contract consumer), the whole accessibility
+  directory and the whole onboarding directory: 1,497 passed, 1 skipped, 1 inherited failure
+  (the chart-engine parking note).
+- Backend: both lanes' files with the fixture rail, schema guard, purge, manifest, keep-list,
+  body order, census and router order: 699 passed, 1 inherited failure (master's
+  `tools/runtime_pane_smoke.py`).
+- Body order unchanged: 93 capped bodies in order; no plain body parameter in the family.
+- Hygiene clean; the deletion manifest matches the purge code.
+
+Still to come before the final gate: `fin-fe2` round 2, `fin-keys`, the `fin-walk` tools.
+
