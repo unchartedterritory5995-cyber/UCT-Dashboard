@@ -166,6 +166,15 @@ describe('HistoryTab', () => {
     expect(screen.getAllByTestId('history-row')).toHaveLength(3)    // the other lanes are shown now
   })
 
+  it('any lane can be still reading, several at once, each named in plain words', async () => {
+    const lanes = { ...BODY.lanes, wire: { status: 'pending', count: null, retry_after_s: 2 },
+      journal: { status: 'pending', count: null, retry_after_s: 2 } }
+    await renderWith({ ok: true, body: { ...BODY, lanes } })
+    expect(screen.getByTestId('history-lane-pending').textContent).toMatch(/Still reading: Morning Wire, Your journal\./)
+    expect(screen.queryByTestId('history-lane-unavailable')).toBeNull()
+    expect(screen.queryByTestId('history-lane-partial')).toBeNull()
+  })
+
   it('an empty answer while a lane is still reading says "so far", not "nothing"', async () => {
     const lanes = { ...BODY.lanes, flow: { status: 'pending', count: null } }
     await renderWith({ ok: true, body: { ...BODY, lanes, timeline: [] } })

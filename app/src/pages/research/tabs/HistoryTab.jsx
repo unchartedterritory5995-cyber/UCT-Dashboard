@@ -62,7 +62,7 @@ export async function fetchHistory(url) {
   }
 }
 
-// A lane behind another service (the options tape) answers `pending` when it has not
+// ANY lane (the options tape, the Wire archive, the member's journal...) answers `pending` when it has not
 // finished inside the server's short wait; its read keeps going server-side. Ask again
 // until every lane has answered -- then stop asking.
 export function pendingLanesOf(body) {
