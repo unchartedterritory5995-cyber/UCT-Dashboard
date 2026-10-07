@@ -1393,7 +1393,7 @@ export default function TerminalShell() {
   // a group retargeted from Recents) used to land underneath it, unseen. While a sheet is open
   // the same notice renders at the top of that sheet instead. One element, one place at a time.
   const noticeEl = notice ? (
-        <div className={`${styles.notice} ${notice.kind === 'error' ? styles.noticeError : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'} data-testid="terminal-notice">
+        <div className={`${styles.notice} ${notice.kind === 'error' ? styles.noticeError : ''}`} role={notice.kind === 'error' ? 'alert' : undefined} data-testid="terminal-notice">
           <span>{notice.text}</span>
           {notice.suggestions?.length > 0 && (
             <span className={styles.noticeSuggest}>
@@ -1419,6 +1419,13 @@ export default function TerminalShell() {
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
       data-testid="terminal-shell">
+      {/* a11y (audit 2026-10-06): ONE always-mounted polite live region speaks info notices. A
+          role="status" element inserted together with its text (how the notice line mounts) is
+          not reliably announced; a region that already exists and changes text is. Errors keep
+          role="alert" on the notice itself, which IS announced on insertion. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="terminal-notice-announce">
+        {notice && notice.kind !== 'error' ? notice.text : ''}
+      </div>
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
         <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards}

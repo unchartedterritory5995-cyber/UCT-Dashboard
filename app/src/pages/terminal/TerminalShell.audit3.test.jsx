@@ -180,6 +180,10 @@ describe('undo close never hides a panel in silence', () => {
       terminal_layout: panels([{ code: 'DES', channel: 'A' }, { code: 'GP', channel: 'A' }]) }
     renderAt(['/terminal'])
     await settle()
+    // the polite live region is mounted BEFORE anything is said (an inserted one is not announced)
+    const announce = screen.getByTestId('terminal-notice-announce')
+    expect(announce.getAttribute('role')).toBe('status')
+    expect(announce.textContent).toBe('')
     const close = screen.getByTestId('terminal-close-1')
     close.focus()
     expect(document.activeElement).toBe(close)
@@ -187,6 +191,9 @@ describe('undo close never hides a panel in silence', () => {
     // the button that had focus is gone; the rAF hand-off puts it on the notice's Undo
     await act(async () => { await new Promise((r) => requestAnimationFrame(() => r())) })
     expect(document.activeElement).toBe(screen.getByTestId('terminal-notice-undo-close'))
+    // …and the same, already-mounted region now carries what happened
+    expect(screen.getByTestId('terminal-notice-announce')).toBe(announce)
+    expect(announce.textContent).toBe('Closed GP.')
   })
 })
 
