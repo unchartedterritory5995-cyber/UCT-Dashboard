@@ -3345,7 +3345,8 @@ def _cutover_on() -> bool:
     return os.environ.get("IMPLIED_ENRICHMENT_CUTOVER") == "1"
 
 
-def _inhouse_move(sym: str, target: str, *, into: dict | None = None) -> dict | None:
+def _inhouse_move(sym: str, target: str, *, into: dict | None = None,
+                  timing: str | None = None) -> dict | None:
     """In-house straddle mapped into the calendar-enrichment shape.
 
     ROUNDING IS LOAD-BEARING: the outgoing yfinance builder rounded pct to 1dp
@@ -3364,7 +3365,8 @@ def _inhouse_move(sym: str, target: str, *, into: dict | None = None) -> dict | 
     """
     from api.services import implied_move as _im
     oc: dict = {}
-    out = _im.get_expected_move(sym, target, outcome=oc)
+    out = (_im.get_expected_move(sym, target, outcome=oc, timing=timing) if timing
+           else _im.get_expected_move(sym, target, outcome=oc))
     if into is not None:
         into["outcome"] = oc
     if not out:
@@ -3476,6 +3478,9 @@ def _build_enrichment_for_date(target: str) -> dict:
     if not syms:
         cache.set(ck, {}, ttl=_ENRICH_TTL)
         return {}
+    # The session bucket decides which expiry holds the print: an after-close
+    # reporter needs the first expiry AFTER the date (implied_move.select_report_expiry).
+    amc_syms = {e["sym"] for e in (day.get("amc") or []) if e.get("sym")}
 
     cur_monday = _week_dates()[0]
     in_current_week = _monday_of(date.fromisoformat(target)) == cur_monday
@@ -3557,14 +3562,20 @@ def _build_enrichment_for_date(target: str) -> dict:
             holder: dict = {}
             bounded: dict = {}
             if _cutover_on():
-                move = _bounded_em(lambda s=sym: _inhouse_move(s, target, into=holder),
-                                   outcome=bounded)
+                move = _bounded_em(
+                    (lambda s=sym: _inhouse_move(s, target, into=holder, timing="amc"))
+                    if sym in amc_syms else
+                    (lambda s=sym: _inhouse_move(s, target, into=holder)),
+                    outcome=bounded)
             else:
                 # The legacy yfinance builder reports no reason of its own, so
                 # a clean `None` from it stays a bare null (today's behaviour,
                 # today's em-dash). Only its timeouts/raises are explained.
-                move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target),
-                                   outcome=bounded)
+                move = _bounded_em(
+                    (lambda s=sym: get_implied_move(s, earnings_date=target, timing="amc"))
+                    if sym in amc_syms else
+                    (lambda s=sym: get_implied_move(s, earnings_date=target)),
+                    outcome=bounded)
             em_outcome = _im.wire_outcome(holder.get("outcome") or bounded)
         # Carried per-symbol because the failure IS per-symbol: this fan-out
         # sheds individual Finnhub calls for budget, so one ticker's history

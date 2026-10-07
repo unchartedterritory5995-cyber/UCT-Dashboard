@@ -244,3 +244,53 @@ def test_nyse_holiday_table_matches_the_sessions_spy_actually_traded(fx):
                 phantom.append(d.isoformat())
         d += timedelta(days=1)
     assert missing == [] and phantom == []
+
+
+# ── ERX / ERN / CAL: implied move must use an expiry that HOLDS the print ────────────────────
+
+# NVDA's listed expiries on 2026-10-06 (read live from the chain): Mon/Wed/Fri weeklies.
+NVDA_EXPIRIES = ["2026-10-07", "2026-10-09", "2026-10-12", "2026-10-14", "2026-10-16"]
+
+
+def test_an_after_close_report_skips_the_same_day_expiry():
+    from api.services import implied_move as im
+    # Wednesday after the close: the Wednesday expiry settles at 4 PM, BEFORE the print.
+    assert im.select_report_expiry(NVDA_EXPIRIES, "2026-10-07", "amc") == "2026-10-09"
+    assert im.select_report_expiry(NVDA_EXPIRIES, "2026-10-07", "AMC ") == "2026-10-09"
+    # before the open (and unknown timing, unchanged): the same-day expiry settles after the reaction
+    assert im.select_report_expiry(NVDA_EXPIRIES, "2026-10-07", "bmo") == "2026-10-07"
+    assert im.select_report_expiry(NVDA_EXPIRIES, "2026-10-07") == "2026-10-07"
+    # a Thursday AMC with no Thursday expiry is unaffected
+    assert im.select_report_expiry(NVDA_EXPIRIES, "2026-10-08", "amc") == "2026-10-09"
+
+
+def test_get_expected_move_threads_amc_and_caches_it_apart(monkeypatch):
+    from api.services import implied_move as im
+    seen = []
+
+    def fake_compute(sym, rd, **kw):
+        seen.append(kw.get("timing"))
+        return {"pct": 6.0, "dollar": 11.0, "expiry": "2026-10-09"}
+
+    im._MOVE_CACHE.clear()
+    for k in ("expmove::TSTA::2026-10-07", "expmove::TSTA::2026-10-07::amc"):
+        im._MOVE_STALE.forget(k)
+    monkeypatch.setattr(im, "compute_expected_move", fake_compute)
+    im.get_expected_move("TSTA", "2026-10-07")
+    im.get_expected_move("TSTA", "2026-10-07", timing="amc")
+    assert seen == [None, "amc"], "an AMC read must not be served the same-day expiry's cached answer"
+
+
+def test_calendar_enrichment_hands_amc_timing_to_the_straddle(monkeypatch):
+    from api.routers import calendar as cal
+    from api.services import implied_move as im
+    got = {}
+
+    def fake_gem(sym, target, *, outcome=None, timing=None):
+        got[sym] = timing
+        return None
+
+    monkeypatch.setattr(im, "get_expected_move", fake_gem)
+    cal._inhouse_move("NVDA", "2026-10-07", timing="amc")
+    cal._inhouse_move("JPM", "2026-10-07")
+    assert got == {"NVDA": "amc", "JPM": None}
