@@ -11,6 +11,9 @@ Branch `feat/notebook-fin-nav`. Budgets: `docs/notebook/WAVE-13-PLAN.md` section
 | `44aa449a16` | raw evidence, onboarding flows O1 to O6; Q21 keyboard reach of Plan |
 | (this commit) | raw evidence for the Q20 and Q21 re-run, this record |
 
+> **Latest reading: section 13** (round 3). The "Loading..." stall of section 12.6 was the
+> click tool, not the page. Keyboard is 10 of 23 inside budget; mouse and touch are 18 of 23.
+>
 > **Final reading: section 12** (round 2: the keyboard ruling, more focus fixes, the final
 > table). Keyboard is 9 of 23 inside budget; mouse and touch are 18 of 23.
 >
@@ -571,7 +574,8 @@ all editors on the page, bound while an editor exists. It acts only on a press o
 
 ### 12.6 Findings
 
-* **A page stuck on "Loading..." three times in three runs** (Q6 on a keyboard: twice at
+* **CORRECTED in section 13.1: this was the click tool, not the page.** As first written:
+  **A page stuck on "Loading..." three times in three runs** (Q6 on a keyboard: twice at
   1280 px, once at 390 px, never the same row twice). The Journal's lazy Trades page did not
   finish loading within 45 seconds after "g then j" from an open note. The server log shows the
   page's files being fetched and the list stopping part way (`sandbox.log` of the probe run:
@@ -611,3 +615,132 @@ of 2,260,793 B, PASS.
 * The "Loading..." stall was not reproduced by hand or explained.
 * No screen reader was run.
 * The landing is used on Trades, Insights and My Playbook only.
+
+## 13. Lane KEYS round 3: the stall explained, and the final table
+
+Section 12 is the reading before this round and is kept as written, including its finding
+12.6, which this section corrects.
+
+### 13.1 The "Loading..." stall: it was the tool, not the page
+
+**Verdict: the Trades page was never stuck. The click tool gave up within a second and its
+screenshot caught the page's half-second loading state. No product code is involved.**
+
+What section 12.6 said: Q6 on a keyboard read INCONCLUSIVE three times in three runs beside a
+screenshot of "Loading...", and the page "did not finish loading within 45 seconds". The 45
+seconds were never measured. They were the helper's own time limit, assumed to have run out.
+
+What happened, from the raw record:
+
+* The server log of the failing run carries times. The Trades page's first file was fetched
+  at 12:26:24, and the NEXT flow's note was created at 12:26:24, the same second
+  (`docs/notebook/evidence/fin-keys/4b46b05a4c/q6-q13/sandbox.log`, lines 2133 and 2149). The
+  flow ended in under a second.
+* The row helper (`_trade_row` in `tools/notebook_w13q_clicks.py`) takes a table row that
+  names the symbol, or failing that any control that names it. The note the flow starts on
+  names CRWD too, in its ticker chip. The probe counted that control on the start page in
+  every run: 1 (`loose_match_on_start_page`).
+* So the helper returned the note's chip as "the trade row". A moment later the note was
+  gone, the count was 0, and the flow reported "the row is not visible". The screenshot was
+  taken then, while the Trades page showed its loading state.
+* Whether the chip or the table won was a race of a few hundred milliseconds, which is why it
+  moved between widths and runs.
+
+The deliberate reproduction (`tools/notebook_fin_keys_stall_probe.py`, raw in
+`docs/notebook/evidence/fin-keys/stall/`): a note is open, "g" then "j", then wait for the
+trade rows. Each run records every request with status and time, console and page errors,
+React commit counts, the focused element, and the box's CPU load.
+
+| build | runs | stalled | rows arrived, slowest | React commits per run | CPU load during |
+|---|---|---|---|---|---|
+| tip (round 2 code) | 15 | 0 | 0.67 s | 9 to 15 | 7 to 88 percent |
+| base `a8bd0502f8` | 15 | 0 | 1.48 s | 11 to 15 | 60 to 100 percent |
+| tip, second set | 15 | 0 | 0.93 s | 12 to 16 | 63 to 100 percent |
+
+30 clean runs on the tip build and 15 on the base. No render loop: the commit counts are the
+same on both builds. Focus does not move in a loop: it ends on the Trades landing on the tip
+and on the page body on the base. The requests left unanswered when a run was closed are
+background calls the page does not wait for (a plan status call; on the base also a tracking
+call and an account call). The one console line is a 503 on a call the sandbox does not serve.
+
+The suspects, each ruled out by the above rather than by a revert: the route focus code and
+the key registry would both show as extra commits or a moving focus, and neither is there; a
+failed lazy file would show as a failed or unanswered request, and there is none; load on the
+box did not produce a stall on either build.
+
+The fix is in the tool (`d68ba8958a`), test first. The new test reproduces the mechanism: a
+page being left that names the symbol for one sample. It was red before the fix. A loose match
+now counts only when it is still there on the next sample. In the full run after the fix there
+is no INCONCLUSIVE row.
+
+### 13.2 Rulings applied
+
+* The keyboard ruling now covers Q18 and Q23 (floor 7, budget 9). The plan's table, the tool
+  and the cross-read test hold ten flows (`docs/notebook/WAVE-13-PLAN.md` section 6).
+* "Select all shown" for Q11: **it already exists**, and so does a range select
+  (`tabs/NotebookTab.bulk.test.jsx`, "Shift+click selects the range between" and "Select all N
+  shown"). Nothing was built. The tool did not use either: its mouse path ticked five boxes.
+  It now ticks the first and Shift+clicks the last. Q11 with a mouse is 9, one over: the flow
+  starts on Research Home and spends one click on "All notes". On touch there is no range
+  gesture, and "Select all shown" would select every note in the list, not the five, so the
+  touch count is still 12.
+
+### 13.3 What was built this round
+
+| commit | what | effect |
+|---|---|---|
+| `d68ba8958a` | tool: a control of the page being left is never the trade row | no more false stall |
+| `fca50d3e5a` | the editor's formatting toolbar is one Tab stop | Q18 48 to 27, part of Q2 and Q12 |
+| `816a05096c` | the position page has a skip link to "Why did you take it?" | Q17 27 / 21 to 7 / 7, passes |
+| `dd214a3f9f` | tool: Shift+Tab where a member would go back; Q11 range select; the ruling for Q18 and Q23 | Q2 209 to 82, Q11 219 to 103, Q12 32 to 20 |
+
+The Shift+Tab change is a change to the tool, not to the product. A control that sits before
+the focus was being reached by tabbing forward round the whole page. A keyboard member goes
+back. Each Shift+Tab is pressed for real and counted as one.
+
+### 13.4 Final counts
+
+Evidence: `docs/notebook/evidence/fin-keys/816a05096c/q/`. 92 rows, none INCONCLUSIVE,
+integrity CLEAN.
+
+* **Mouse: 18 of 23 inside budget.** Over: Q2 5 (4), Q6 5 (3), Q11 9 (8), Q13 3 (2), Q20 13 (6).
+* **Touch: 18 of 23.** Over: Q2 5 (4), Q6 5 (3), Q11 12 (10), Q13 3 (2), Q20 13 (8).
+* **Keyboard: 10 of 23 inside budget at both widths** (Q1, Q3, Q4, Q5, Q7, Q8, Q10, Q13, Q14,
+  Q17). First reading 6, round 1 7, round 2 9.
+
+| flow | keys 1280 / 390 | budget | floor | what the keys are spent on | why still over |
+|---|---|---|---|---|---|
+| Q2 | 82 / 61 | 6 | 11 on today's path | 12 Tabs to All notes, 44 Shift+Tabs back to the list's skip link, 13 Tabs to Templates | no template door on Research Home (12.4). The skip link is 44 stops behind the folder panel; the list header is 13 stops |
+| Q6 | 23 / 19 | 10 | 8 | 11 Tabs to the sixth trade row, 5 to Save to Notebook | each trade row is two stops; Save to Notebook is the fifth stop of the trade page |
+| Q9 | 18 / 24 | 9 | 7 | 8 Tabs to the skip link, 4 to Insert | not worked on |
+| Q11 | 103 / 80 | 27 | 25 | 14 Tabs to All notes, 46 Shift+Tabs to the skip link, 15 Tabs through the list header to the first tick | the same two runs as Q2 |
+| Q12 | 20 / 19 | 12 | 10 | 6 Shift+Tabs to More, 8 Tabs to Export, 3 Down | More note actions is a group of plain buttons with Export eighth |
+| Q15 | 7 / 7 | 5 | 5 | 2 Tabs to the skip link, 3 to the prep button | two stops before the button; not worked on |
+| Q16 | 46 / 45 | 8 | 6 | 9 Tabs to the Settings section, 33 inside it | `Settings.jsx` is not a Notebook or Journal file. Not built |
+| Q18 | 27 / 30 | 9 | 7 | 4 Tabs to the skip link, 2 to the review, 18 to the leak's arrow | the drafted note opens with focus at its top; the header (7), the title area (5) and two charts are before the arrow |
+| Q19 | 12 / 12 | 9 | 7 | 5 Tabs to the turn, 2 to Save | not worked on |
+| Q20 | 25 / 25 | 22 | 20 | 15 Tabs between the plan's fields | after "Add level" focus follows the new row |
+| Q21 | 15 / 15 | 4 | 4 | 12 Tabs to the stop's Arm button | four stops per level row; the stop is the third |
+| Q22 | 21 / 21 | 4 | 4 | 9 Tabs to Visual playbook, 10 to the filter button | not worked on this round |
+| Q23 | 14 / 14 | 9 | 7 | 4 Tabs to the skip link, 5 to Active setups, 2 to "find more" | the reviews box is between the landing and the board link |
+
+**Asked for and not delivered.** The controller asked for the one change that removes the long
+run in Q2, Q11, Q16, Q18, Q12 and Q17. Q17 is done. Q18 and Q12 are lower and still over. For
+Q2 and Q11 the long runs that remain are the folder panel (44 and 46 stops between it and the
+list's skip link) and the list header (13 and 15 stops). The fix for both is the same: the
+folder tree, the Recents list and the view switcher as single stops with arrow keys. That is a
+rewrite of the keyboard model of a 2,000 line component (`FolderSidebar.jsx`) and was not
+attempted. Q16 is in a file this lane does not own.
+
+### 13.5 Tests and gates
+
+| what | totals |
+|---|---|
+| a11y directory, onboarding directory, seven `Layout.*`, five `JournalLayout.*`, `styles/tapFloor.test.js`, `src/pages/command/` | 106 files passed; 1131 tests passed, 1 skipped |
+| every ContextPopover user, every `NoteEditorPage*` and `WidgetEmbedView*` test, this round's new tests, `position/` | 91 files passed; 872 tests passed |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 65 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+| first-open bytes | 2,208,527 B of 2,260,793 B, PASS |
+
+Still true from 12.6: one red case in `components/screener/reachable.test.js`, a chart-engine
+parking note that expired on 2026-10-06. Not from this lane.
