@@ -8,18 +8,69 @@
 // lane, the stored presentation, the requested alert / info value — and NEVER
 // from model prose. The one model string it shows is a slot-less assumption,
 // quoted and labelled as the assistant's.
+//
+// ⭐ P3 UX — A TRADER'S VOICE, AND STILL ONLY THE DEFINITION'S WORDS. What changed
+// is the voice, not the source: no internal output keys unless two outputs share
+// a label (the key is then the only way to tell them apart); colour names where
+// the hex is an exact palette colour (else the hex); a comparison read as
+// "true when … is above …" (EXACT — see `conditionWords`); and the unknown-bar
+// rule said as what the member will see, only where it shows (an output that
+// compares something). `sentence.js` is untouched: its exact sentence stays on
+// `outputs[i].sentence`, and is the line whenever `conditionWords` declines.
 
 import { sentenceFor } from '../../engine/ast/sentence'
 import { declaredInputs, lintRepaint } from '../../engine/ast/lint'
 import { outputTreeOf } from '../../engine/outputType'
 import { STATUS } from '../../engine/evaluability'
 import { policyLabel } from '../../engine/triggerPolicy'
+import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
 
-export const SEMANTICS_LINE = 'How unknown bars are treated is decided by the server when you save.'
+/** Rule A of `definitionSemantics.js`, said as what the member sees, for the
+ *  semantics the store's rule gives this save (`stampSemantics` mirrors
+ *  `decide_semantics`; the preview draws under the same prediction). */
+export const SEMANTICS_LINE = 'Until there is enough history to compute it, a comparison is left blank (unknown) rather than counted as false.'
+export const SEMANTICS_LINE_LEGACY = 'Until there is enough history to compute it, a comparison counts as false (this indicator keeps its original rule).'
 
 const POSITION_WORDS = Object.freeze({ aboveBar: 'above the bar', belowBar: 'below the bar', inBar: 'on the bar' })
 const SHAPE_WORDS = Object.freeze({ circle: 'circle', square: 'square', arrowUp: 'up-arrow', arrowDown: 'down-arrow' })
+const STYLE_WORDS = Object.freeze({ line: 'line', stepline: 'step line', histogram: 'histogram', area: 'area', baseline: 'baseline', columns: 'columns' })
+
+/** EXACT hex → the palette name a member would use. A hex not listed is shown as
+ *  the hex: a guessed name ("goldish") is a claim nobody can check. */
+const COLOUR_NAMES = Object.freeze({
+  '#FFD700': 'gold', '#C9A84C': 'UCT gold', '#FFFFFF': 'white', '#000000': 'black',
+  '#FF0000': 'red', '#F23645': 'red', '#EF5350': 'red', '#FF5252': 'red',
+  '#00FF00': 'bright green', '#089981': 'green', '#4CAF50': 'green', '#22AB94': 'green', '#26A69A': 'teal',
+  '#0000FF': 'blue', '#2962FF': 'blue', '#2196F3': 'blue',
+  '#FFA500': 'orange', '#FF9800': 'orange', '#FFFF00': 'yellow', '#FFEB3B': 'yellow',
+  '#800080': 'purple', '#9C27B0': 'purple', '#808080': 'grey', '#787B86': 'grey',
+  '#00FFFF': 'cyan', '#00BCD4': 'cyan', '#FFC0CB': 'pink', '#E91E63': 'pink',
+})
+
+/** A colour value → its palette name, else the value exactly as stored. */
+export function colourWords(v) {
+  if (typeof v !== 'string') return String(v)
+  let hex = v.trim().toUpperCase()
+  if (/^#[0-9A-F]{8}$/.test(hex) && hex.endsWith('FF')) hex = hex.slice(0, 7)
+  return COLOUR_NAMES[hex] || v
+}
+
+const UPPER_FNS = new Set(['rsi', 'ema', 'sma', 'wma', 'hma', 'vwma', 'dema', 'tema', 'rma', 'atr', 'adx', 'macd',
+  'vwap', 'roc', 'cci', 'mfi', 'obv', 'dmi', 'tsi', 'cmo'])
+const CONSTANT_WORDS = Object.freeze({ '*': 'multiplier', '/': 'divisor', '+': 'offset', '-': 'offset' })
+
+/** An engine slot label (`rsi period`, `threshold of >`, `constant in *`) in a
+ *  member's words. A re-spelling only: the slot itself is untouched. */
+export function slotWords(label) {
+  let s = String(label == null ? '' : label)
+  let tail = ''
+  if (s.endsWith(' (negated)')) { tail = ' (negated)'; s = s.slice(0, -tail.length) }
+  if (s.startsWith('threshold of ')) s = 'threshold'
+  else if (s.startsWith('constant in ')) s = CONSTANT_WORDS[s.slice('constant in '.length)] || 'number'
+  else s = s.replace(/^([a-z]+)(?= )/, (w) => (UPPER_FNS.has(w) ? w.toUpperCase() : w))
+  return s + tail
+}
 
 /** A plot's `$input` reference → that input's default (the colour the member chose). */
 function resolveRef(def, v) {
@@ -28,39 +79,111 @@ function resolveRef(def, v) {
   return spec ? spec.default : v
 }
 
+/** key → the member-facing name of that output: its label, plus the key only
+ *  when two outputs share that label. */
+export function outputNamer(def) {
+  const plots = (def && Array.isArray(def.plots) ? def.plots : []).filter((p) => p && p.style !== 'hlines')
+  const counts = new Map()
+  for (const p of plots) { const l = p.label || p.key; counts.set(l, (counts.get(l) || 0) + 1) }
+  return (key) => {
+    const p = plots.find((x) => x.key === key)
+    const label = (p && p.label) || key
+    return counts.get(label) > 1 ? `${label} (${key})` : label
+  }
+}
+
 /** One-line presentation per output, plus the document's paints and placement. */
 export function presentationLines(def) {
   const out = []
+  const nameOf = outputNamer(def)
   const plots = (def.plots || []).filter((p) => p && p.style !== 'hlines')
   for (const p of plots) {
-    const colour = resolveRef(def, p.color)
+    const colour = colourWords(resolveRef(def, p.color))
     const width = resolveRef(def, p.width)
-    const label = p.label || p.key
-    if (p.hidden) { out.push(`${label}: hidden (still computed)`); continue }
+    const label = nameOf(p.key)
+    if (p.hidden) { out.push(`${label}: hidden (still calculated)`); continue }
     if (p.style === 'markers' && p.marker) {
       const where = POSITION_WORDS[p.marker.position] || p.marker.position || 'on the bar'
-      out.push(`${label}: ${SHAPE_WORDS[p.marker.shape] || p.marker.shape} marker ${where} where it is true, colour ${colour}`
+      out.push(`${label}: ${colour} ${SHAPE_WORDS[p.marker.shape] || p.marker.shape} ${where} where it is true`
         + (p.marker.text ? `, labelled "${p.marker.text}"` : ''))
     } else {
-      out.push(`${label}: ${p.style || 'line'}, colour ${colour}, width ${width}`
-        + (p.colorMode && p.colorUp ? ` (coloured ${p.colorUp} / ${p.colorDown} by ${String(p.colorMode).slice(7)})` : ''))
+      const style = STYLE_WORDS[p.style || 'line'] || p.style
+      const by = typeof p.colorMode === 'string' && p.colorMode.startsWith('column:')
+        ? nameOf(p.colorMode.slice(7)) : String(p.colorMode || '').slice(7)
+      out.push(`${label}: ${colour} ${style}, width ${width}`
+        + (p.colorMode && p.colorUp ? ` (coloured ${colourWords(p.colorUp)} / ${colourWords(p.colorDown)} by ${by})` : ''))
     }
   }
   for (const paint of def.paints || []) {
     if (!paint) continue
     const key = typeof paint.colorMode === 'string' && paint.colorMode.startsWith('column:') ? paint.colorMode.slice(7) : null
     const own = key && paint.colorDown === NO_PAINT && typeof paint.colorUp === 'string'
-    const what = paint.kind === 'barcolor' ? 'candles painted' : 'background shaded'
-    if (own) out.push(`${what} ${paint.colorUp} where ${key} is true (nothing where it is false or unknown)`)
-    else out.push(`an imported ${paint.kind} paint${key ? ` reading ${key}` : ''} (kept as imported)`)
+    if (own && paint.kind === 'barcolor') out.push(`candles painted ${colourWords(paint.colorUp)} where ${nameOf(key)} is true (normal colour otherwise)`)
+    else if (own) out.push(`background shaded ${colourWords(paint.colorUp)} where ${nameOf(key)} is true (no shading otherwise)`)
+    else out.push(`an imported ${paint.kind === 'barcolor' ? 'candle colouring' : 'background colouring'}${key ? ` reading ${nameOf(key)}` : ''} (kept as imported)`)
   }
   out.push(def.placement && def.placement.target === 'price' ? 'drawn on the price chart' : 'drawn in its own pane')
   return out
 }
 
+const RELATION_WORDS = Object.freeze({
+  '>': 'is above', '<': 'is below', '>=': 'is at or above', '<=': 'is at or below', '==': 'equals', '!=': 'does not equal',
+})
+const isLogical = (n) => !!n && n.type === 'op' && (n.name === '&&' || n.name === '||')
+const isTruthOp = (n) => !!n && n.type === 'op' && (!!RELATION_WORDS[n.name] || isLogical(n) || n.name === '!')
+
+/**
+ * A yes/no tree built ONLY from comparisons of numbers joined by and / or / not,
+ * said as the condition it is ("the 14-bar RSI of close is above 70 and …");
+ * null for anything else, which then keeps `sentence.js`'s exact sentence. The
+ * operands are `sentence.js`'s own phrases — this adds relation and join words.
+ *
+ * EXACT: a comparison is 1 or 0 (or, under semantics 2, unknown — never 1), and
+ * over such values `&&` / `||` / `!` are 1 exactly when the plain logic words are
+ * true. So "true when P" is the bar set the engine marks 1. What an UNKNOWN bar
+ * shows is the semantics line's job, not this sentence's.
+ */
+export function conditionWords(node, scope) {
+  if (!node || node.type !== 'op' || !Array.isArray(node.args)) return null
+  if (RELATION_WORDS[node.name] && node.args.length === 2) {
+    if (node.args.some(isTruthOp)) return null // a yes/no compared as a number: keep the exact sentence
+    return `${sentenceFor(node.args[0], scope)} ${RELATION_WORDS[node.name]} ${sentenceFor(node.args[1], scope)}`
+  }
+  if (isLogical(node) && node.args.length === 2) {
+    const parts = []
+    for (const c of node.args) {
+      const p = conditionWords(c, scope)
+      if (p === null) return null
+      parts.push(isLogical(c) && c.name !== node.name ? `(${p})` : p)
+    }
+    return parts.join(node.name === '&&' ? ' and ' : ' or ')
+  }
+  if (node.name === '!' && node.args.length === 1) {
+    const p = conditionWords(node.args[0], scope)
+    return p === null ? null : `not (${p})`
+  }
+  return null
+}
+
+/** Does a tree compare anything? (Where rule A of the semantics shows.) */
+function comparesAnything(node) {
+  if (!node || typeof node !== 'object') return false
+  if (node.type === 'op' && RELATION_WORDS[node.name]) return true
+  return Array.isArray(node.args) && node.args.some(comparesAnything)
+}
+
+/** The output's own line, after its name: "true when …" for a comparison
+ *  condition, else the type in plain words and the exact sentence. */
+function phraseOf(o, tree, scope) {
+  let cw = null
+  try { cw = o.type === 'condition' ? conditionWords(tree, scope) : null } catch { cw = null }
+  if (cw) return `true when ${cw}`
+  return `${o.words}: ${o.sentence || 'UCT cannot put this formula into words yet'}`
+}
+
 /**
  * @param {object|null} def the resulting definition
- * @param {object} [state] the authoring state (intent, requests, assumptions, questions)
+ * @param {object} [state] the authoring state (intent, requests, assumptions, questions, base)
  * @param {object} [gateCtx] the chart context for the shared gate
  */
 export function readback(def, state = {}, gateCtx = {}) {
@@ -71,34 +194,44 @@ export function readback(def, state = {}, gateCtx = {}) {
   }
   const scope = declaredInputs(def)
   const intent = state.intent || null
+  const nameOf = outputNamer(def)
   const rb = intentReadback(def, intent ? intent.intent : INTENTS.PLOT,
     { ctx: gateCtx, requestedKey: intent ? intent.output : null })
+  let compares = false
   const outputs = rb.outputs.map((o) => {
     const tree = outputTreeOf(def, o.key)
     let sentence = null
     let mode = null
     try { sentence = sentenceFor(tree, scope) } catch { sentence = null }
     try { mode = lintRepaint(tree, { inputs: scope }).mode } catch { mode = 'repaints' }
-    return { key: o.key, label: o.label, type: o.type, words: o.words, sentence, lane: o.lane,
+    if (comparesAnything(tree)) compares = true
+    const base = { key: o.key, label: o.label, type: o.type, words: o.words, sentence }
+    return { ...base, name: nameOf(o.key), phrase: phraseOf(base, tree, scope), lane: o.lane,
       status: o.verdict.status, reason: o.verdict.reason || null, mode }
   })
   const outputLines = outputs.map((o) => {
-    let line = `${o.label} (${o.key}) — ${o.words}: ${o.sentence || 'no read-back'}`
+    let line = `${o.name} — ${o.phrase}`
     if (o.status === STATUS.REFUSED) line += ` — cannot be used this way here: ${o.reason}`
     return line
   })
   const presentation = presentationLines(def)
   const intentLine = intent && intent.intent !== INTENTS.PLOT
-    ? `${intent.intent === INTENTS.SIGNAL ? 'Signal' : 'Value'}: ${intent.output || rb.selectedKey}`
+    ? `${intent.intent === INTENTS.SIGNAL ? 'Used as a signal' : 'Used as a value'}: ${nameOf(intent.output || rb.selectedKey)}`
     : null
   const req = state.requests || {}
-  const alerts = (req.alerts || []).map((a) => `Alert when ${a.plotKey} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`)
-  const infoValues = (req.infoValues || []).map((v) => `Chart header shows the latest value of ${v.plotKey}${v.format === 'yesno' ? ' as Yes/No' : ''}`)
+  const alerts = (req.alerts || []).map((a) => `Alert when ${nameOf(a.plotKey)} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`)
+  const infoValues = (req.infoValues || []).map((v) => `Chart header shows the latest value of ${nameOf(v.plotKey)}${v.format === 'yesno' ? ' as Yes/No' : ''}`)
+  // the output an assumption is about, named only when there is more than one
+  const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
   const assumptions = (state.assumptions || []).map((a) => (a.label !== undefined
-    ? `Assumed ${a.label} = ${a.value}${a.output ? ` (${a.output})` : ''}`
-    : (a.source === 'engine' ? `Default: ${a.text}${a.output ? ` (${a.output})` : ''}` : `Assistant assumed: "${a.text}"`)))
+    ? `Assumed ${slotWords(a.label)} ${a.value}${on(a.output)}`
+    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `UCT Intelligence assumed: "${a.text}"`)))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
+  const semantics = semanticsOf(stampSemantics(def, { prior: state.base || null }))
+  const semanticsLine = compares
+    ? (semantics === SEMANTICS_UNKNOWN_PROPAGATES ? SEMANTICS_LINE : SEMANTICS_LINE_LEGACY)
+    : null
   const lines = [
     `Name: ${(def.meta && def.meta.name) || ''}`,
     ...outputLines,
@@ -107,8 +240,8 @@ export function readback(def, state = {}, gateCtx = {}) {
     ...alerts,
     ...infoValues,
     ...assumptions,
-    ...needsAck.map((k) => `${k} reads a bar ahead and needs your acknowledgement before saving`),
-    SEMANTICS_LINE,
+    ...needsAck.map((k) => `${nameOf(k)} reads a bar ahead, so it can change until that bar closes — confirm below before saving`),
+    ...(semanticsLine ? [semanticsLine] : []),
     ...questions,
   ]
   return Object.freeze({ lines, name: (def.meta && def.meta.name) || '', outputs, presentation, intent: intentLine,

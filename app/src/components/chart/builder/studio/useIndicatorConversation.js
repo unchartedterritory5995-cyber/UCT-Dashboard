@@ -38,6 +38,8 @@ import { storeConversation, attachConversation, armConversationAlerts } from '..
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from './chartPreview'
+import { memberError, memberSaveError } from '../authoring/memberWords'
+import { outputNamer, slotWords } from '../authoring/readback'
 
 /** The member-facing type word for an output, keyed by the P1 type authority's own values. */
 const TYPE_WORDS = Object.freeze({
@@ -58,8 +60,9 @@ function changeWords(c) {
   }
 }
 
-/** A refused engine error, without engine jargon. The code stays on the entry. */
-const errorWords = (e) => String((e && e.message) || 'That change could not be applied.')
+/** A refused engine error, without engine jargon (P3 UX: the ONE mapping,
+ *  `memberError`). The code and the engine's message stay on the entry. */
+const errorWords = (e, working = null) => memberError(e, { nameOf: working ? outputNamer(working) : null }).text
 
 /**
  * The deterministic lines a UCT reply carries after a successful turn: what each
@@ -69,11 +72,12 @@ export function replyLines(rb, state, changes = []) {
   const lines = []
   for (const c of changes) { const w = changeWords(c); if (w) lines.push(w) }
   for (const o of rb.outputs || []) {
-    if (o.sentence) lines.push(o.sentence)
+    if (o.phrase) lines.push(`${o.name || o.label} — ${o.phrase}`)
+    else if (o.sentence) lines.push(o.sentence)
   }
   for (const a of state.assumptions || []) {
     if (a.revision !== state.revision) continue
-    if (a.label !== undefined) lines.push(`Using ${a.label} = ${a.value}.`)
+    if (a.label !== undefined) lines.push(`Using ${slotWords(a.label)} ${a.value}.`)
     else if (a.source === 'engine') lines.push(`Default: ${a.text}.`)
   }
   return lines
@@ -172,7 +176,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       const { result } = out
       if (result.status === 'refused') {
         say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
-          lines: [...(result.errors || []).map(errorWords), ...gaps, NOTHING_CHANGED] })
+          details: (result.errors || []).map((e) => memberError(e).detail),
+          lines: [...(result.errors || []).map((e) => errorWords(e, stateRef.current.working)), ...gaps, NOTHING_CHANGED] })
         return false
       }
       if (result.status === 'question') {
@@ -202,7 +207,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     setChangeSeq((n) => n + 1)
     const after = readback(next.working, next, gateCtx)
     say({ role: 'uct', kind: 'undo', lines: next.working
-      ? ['Undid the last change.', ...(after.outputs || []).map((o) => o.sentence).filter(Boolean)]
+      ? ['Undid the last change.', ...(after.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)]
       : ['Undid the last change. The chart preview is cleared.'] })
     return true
   }, [busy, saving, commit, gateCtx, say])
@@ -221,7 +226,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
-        say({ role: 'uct', kind: 'refusal', lines: ['Not saved.', stored.error] })
+        const m = memberSaveError(stored)
+        say({ role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] })
         return { ok: false, error: stored.error }
       }
       if (typeof beforeAttach === 'function') beforeAttach()
@@ -260,6 +266,15 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const questions = lastEntry && lastEntry.kind === 'question' ? (lastEntry.questions || []) : []
   const needsAck = rb.needsAck || []
   const dirty = isDirty(state)
+
+  // ⭐ P3 UX — the draft lives in this tab's memory only (✕ keeps it, by design):
+  // a reload or a closed tab would lose an unsaved draft silently, so ask first.
+  useEffect(() => {
+    if (!dirty || typeof window === 'undefined') return undefined
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
