@@ -66,6 +66,11 @@ describe('terminal theme rail — hardcoded colours', () => {
       'pages/research/tabs/NewsTab.jsx', // a lazy PANEL_IMPORTERS entry
       'pages/cot/useCotPalette.js', // a hook two levels down
       'pages/CotData.module.css', // a stylesheet
+      'pages/terminal/panels/ImovPanel.jsx', // terminal-native panels and their styles
+      'pages/terminal/panels/imovPanel.module.css',
+      'pages/terminal/scanBoard.js',
+      'components/terminal/BoardFromList.jsx', // the shell's shared terminal kit
+      'components/terminal/BoardFromList.module.css',
     ]) expect(scope, `${f} fell out of the terminal scope`).toContain(f)
     // Other lanes' files are not walked, and theme definitions are not scanned.
     expect(scope.some((f) => f.startsWith('components/chart/'))).toBe(false)
