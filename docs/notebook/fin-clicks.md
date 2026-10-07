@@ -11,6 +11,10 @@ Branch `feat/notebook-fin-nav`. Budgets: `docs/notebook/WAVE-13-PLAN.md` section
 | `44aa449a16` | raw evidence, onboarding flows O1 to O6; Q21 keyboard reach of Plan |
 | (this commit) | raw evidence for the Q20 and Q21 re-run, this record |
 
+> **Second reading: section 11** (lane KEYS, branch `feat/notebook-fin-keys`). Keyboard is now 7
+> of 23 inside budget, Q20 has a keyboard path, and every keyboard flow still over has its count,
+> cause and floor there. Sections 1 to 10 are the first reading, kept as written.
+
 ## 1. Verdict
 
 A completeness review found that Q14, Q16, Q17, Q18, Q19, Q21, Q22 and Q23 had no driver, so
@@ -238,3 +242,194 @@ Empty data dirs, free ports. For the onboarding tool, export the gate names in
   overstates the member's cost.
 * No keyboard fix was built. Each needs a file another lane owns, shared chrome, or a design
   decision, and none reaches its budget with a small change.
+
+## 11. Lane KEYS: the keyboard fixes, and all 23 flows measured again
+
+Branch `feat/notebook-fin-keys`, cut from the landing tip `a8bd0502f8`. Sections 1 to 10 above
+are the first reading and are kept as written. This section is the second reading.
+
+| commit | what |
+|---|---|
+| `fab841b49b` | keyboard focus lands on the new page after an in-app move, Journal pages only |
+| `8c8a7b8415` | the chart toolbar in a note can be reached with Tab |
+| `45b82470b9` | "Arm alert at this level" is offered only where it can work |
+| `eee804fe6f` | the Passed setups list shows five rows and a "Show all" button |
+| `dfe97c9152` | the anchored action menu holds real menu items and has a menu's keys |
+| `94759a1209` | the palette's "Search Notebook" opens search with the cursor in the box |
+| `c289dba098` | tool: Q4 through the palette, Q20 on a keyboard, a taller window for Q20 |
+| `adeec310c4` | raw evidence, all 23 flows (committed before this reading) |
+| `7a2d8b9b82` | raw evidence, Q17 alone, still reading "no field" |
+| `6833f05d21` | tool: Q17 finds the field by its form, not by a fixed id |
+| `b0c3103229` | raw evidence, Q17 with the fixed driver |
+
+### 11.1 Verdict
+
+* **Keyboard: 7 of 23 inside budget, up from 6.** Q4 now passes (9 to 3).
+* **Every other keyboard flow that moved, moved down, with one exception.** Q22 at 1280 px went
+  from 20 to 34 (section 11.4).
+* **Q20 can now be done on a keyboard** (42 and 43 keys). Before it had no keyboard path.
+* **Mouse and touch are unchanged**: Q2, Q6, Q11 and Q13 are still over. Q20 with a mouse is
+  now measured: 13 against a budget of 6.
+* **16 keyboard flows are still over.** Eight of them cannot meet their budget on a keyboard
+  however the page is arranged; the arithmetic is in section 11.3. The other eight can, and
+  each needs one more focus fix that was not built here.
+
+### 11.2 Before and after
+
+Before: `docs/notebook/evidence/fin-clicks/` (first reading, section 2). After:
+`docs/notebook/evidence/fin-keys/c289dba098/q/table.md`, and for Q17
+`docs/notebook/evidence/fin-keys/6833f05d21/q17/table.md`. "n/m" means not measured.
+
+| flow | mouse 1280 (budget) | touch 390 (budget) | keys 1280 before | keys 1280 after | keys 390 before | keys 390 after | keys budget |
+|---|---|---|---|---|---|---|---|
+| Q1 new note | 2 (2) | 2 (2) | 2 | 2 | 2 | 2 | 3 |
+| Q2 note from a template | 5 (4) over | 5 (4) over | 209 | 209 | 159 | 159 | 6 |
+| Q3 open by title | 2 (2) | 1 (3) | 2 | 2 | 2 | 2 | 4 |
+| Q4 search, open a hit | 2 (3) | 2 (3) | 9 | **3** | 9 | **3** | 5 |
+| Q5 daily note | 1 (1) | 1 (1) | 1 | 1 | 1 | 1 | 2 |
+| Q6 link a note to a trade | 5 (3) over | 5 (3) over | 97 | 64 | 41 | 27 | 6 |
+| Q7 save Screener results | 1 (3) | 1 (3) | 5 | 5 | 5 | 5 | 10 |
+| Q8 save a fact | 1 (3) | 1 (3) | 3 | 3 | 3 | 3 | 8 |
+| Q9 ask, insert the answer | 3 (3) | 3 (3) | 18 | 18 | 24 | 24 | 5 |
+| Q10 task with a due date | 1 (2) | 1 (3) | 4 | 4 | 4 | 4 | 4 |
+| Q11 tag and move 5 notes | 12 (8) over | 12 (10) over | 219 | 219 | 234 | 234 | 15 |
+| Q12 export as Word | 3 (3) | 3 (3) | 32 | 32 | 31 | 31 | 6 |
+| Q13 plan grade, last trade | 3 (2) over | 3 (2) over | 56 | 47 | 22 | 13 | 4 |
+| Q14 My Playbook, drill | 3 (3) | 3 (3) | 49 | 38 | 29 | 18 | 6 |
+| Q15 earnings prep | 1 (2) | 1 (2) | 7 | 7 | 7 | 7 | 5 |
+| Q16 resurfaced note | 2 (2) | 2 (2) | 46 | 46 | 45 | 45 | 4 |
+| Q17 why did you take it | 2 (2) | 2 (2) | 28 | 27 | 22 | 21 | 4 |
+| Q18 weekly review, a leak | 2 (3) | 2 (3) | 108 | 91 | 127 | 83 | 6 |
+| Q19 transcript passage | 3 (3) | 3 (4) | 12 | 12 | 12 | 12 | 6 |
+| Q20 chart, three levels, size | 13 (6) over, was n/m | 13 (8) over | no path | 42 | no path | 43 | 10 |
+| Q21 arm an alert at the stop | 2 (2) | 2 (2) | n/m | 31 | 36 | 32 | 4 |
+| Q22 filter the visual playbook | 2 (2) | 2 (3) | 20 | 34 | 34 | 35 | 4 |
+| Q23 morning board, similar | 2 (3) | 2 (3) | 85 | 31 | 81 | 31 | 6 |
+
+Which fix moved which flow:
+
+* Focus landing after a page change: Q6, Q13, Q14.
+* The Passed setups cap: Q23 (85 to 31). Q18 also fell (108 to 91, 127 to 83); which fix did
+  that was not separated.
+* The palette's Search Notebook: Q4.
+* The chart toolbar reachable with Tab: Q21 at 1280 px is now measured. It needed reverse Tab
+  before.
+* Typed plan levels in the tool: Q20 on a keyboard.
+
+### 11.3 Every keyboard flow still over, with the arithmetic
+
+How the floor is worked out. The tool counts one for every Tab and one for every other key.
+Typed text is free. So the least a keyboard flow can cost is its presses of Enter, Space or a
+shortcut, plus one Tab for each move to a new control. "Floor" below is that number with the
+controls the flow needs today. A floor above the budget means the budget cannot be met on a
+keyboard, however short the Tab order is made.
+
+**Budget cannot be met on a keyboard (floor is above budget):**
+
+| flow | now 1280 / 390 | budget | floor | the arithmetic | where the rest goes |
+|---|---|---|---|---|---|
+| Q6 | 64 / 27 | 6 | 8 | "g then j" is 2 keys, 3 presses of Enter (row, Save to Notebook, Current note), 3 moves | 52 Tabs (14 at 390) from the top of the Trades page to the first trade row |
+| Q9 | 18 / 24 | 5 | 7 | 4 presses of Enter (skip link, Ask, send, Insert), 3 moves | 8 Tabs (12 at 390) to the skip link in an open note, 4 to 6 to Insert |
+| Q11 | 219 / 234 | 15 | 25 | 14 keys that are not Tab (5 ticks, 2 jumps to the bulk bar, 7 others), at least 11 moves | 162 Tabs (177 at 390) from the folder tree to "Skip to notes list" |
+| Q12 | 32 / 31 | 6 | 10 | 7 keys that are not Tab (Word is the fourth item of the Export menu: 3 Down, 4 Enter), 3 moves | 10 Tabs to the skip link, 7 to More, 8 to Export |
+| Q16 | 46 / 45 | 4 | 6 | 3 presses of Enter, 3 moves; the flow starts in Settings | 33 Tabs inside the Compass section to "Open what you wrote" |
+| Q17 | 27 / 21 | 4 | 5 | 2 presses of Enter, 1 move to the skip link, 1 to the field, 1 to Save | 22 Tabs (16 at 390) through the chart header before the card |
+| Q19 | 12 / 12 | 6 | 7 | 5 keys that are not Tab, 2 moves | 5 Tabs to the quote button, 2 to Save |
+| Q20 | 42 / 43 | 10 | 20 | 10 keys that are not Tab (insert the chart is 3, open Plan is 1, each level is a role key and Enter), 10 moves | 8 Tabs to Plan, 11 to the first price box |
+
+For these eight the budget in `WAVE-13-PLAN.md` section 6 reads as a pointer budget with a
+small allowance. It does not fit a keyboard. An honest keyboard budget is the floor plus a few
+Tabs: about 10 for Q6, Q9, Q12, Q16, Q17 and Q19, about 28 for Q11, about 24 for Q20. This is an
+owner decision and is recorded as open.
+
+**Budget can be met, one more fix needed (floor is at or under budget):**
+
+| flow | now 1280 / 390 | budget | floor | cause of what is left | smallest fix |
+|---|---|---|---|---|---|
+| Q2 | 209 / 159 | 6 | 11 on today's path, 4 with a template door on Research Home | no template door on Research Home, so the flow goes through All notes; 86 Tabs to "Skip to notes list"; 89 Tabs (34 at 390) from the new note's top to its Ticker field | the same Research Home door the mouse miss needs, and put the cursor in Ticker when a template asks for one |
+| Q13 | 47 / 13 | 4 | 4 | 44 Tabs (10 at 390) from the Trades page's focus target to the newest trade row | a "Skip to trades" link, or land focus on the table |
+| Q14 | 38 / 18 | 6 | 6 | 30 Tabs (10 at 390) to "Open My Playbook" on Insights | a skip link on Insights, or move the button up |
+| Q15 | 7 / 7 | 5 | 4 | the skip link is the second stop, the prep button is the third stop in the list | make the skip link the first stop |
+| Q18 | 91 / 83 | 6 | 6 | 21 Tabs to "This week's review"; 65 (57 at 390) from the top of the drafted note to the leak's arrow | focus the first block of a freshly drafted review |
+| Q21 | 31 / 32 | 4 | 4 | Plan is the 7th toolbar stop; the stop's Arm button is 22 stops into the panel | Plan first in the toolbar's Tab order, and one stop per level row |
+| Q22 | 34 / 35 | 4 | 4 | "Visual playbook" is 22 stops into the note; the filter is 10 stops into the playbook | the same toolbar ordering as Q21 |
+| Q23 | 31 / 31 | 6 | 6 | "Active setups" is 24 stops into Research Home | a skip link to the morning board |
+
+None of these fixes was built. Each one changes Tab order on a page another lane also edits,
+and the brief asked for the six named fixes first.
+
+### 11.4 One number went up
+
+Q22 at 1280 px went from 20 to 34. The cause is the chart toolbar fix. The toolbar's buttons
+used to be out of the Tab order at 1280 px until the pointer was over the chart. They are now
+in it, as they always were at 390 px, so both widths cost the same (34 and 35). This is the
+price of the toolbar being reachable at all, and it is why Q21 at 1280 px could be measured
+this time.
+
+### 11.5 The five mouse and touch misses
+
+Asked: apply the smallest fix if it is in Notebook or Journal files and additive. None met
+both tests. Open decisions for the owner:
+
+| flow | over by | what would close it | why it was not built |
+|---|---|---|---|
+| Q2 | 1 | a Templates button on Research Home | the template dialog lives in the list view and must be lifted out; and Research Home with the wave switches off must stay exactly as it was, so the button needs its own switch. Not a small additive change |
+| Q6 | 2 | a "Link a trade" control in the note | a new control and a new picker: a design decision |
+| Q11 | 4 (2 on touch) | select all in view, or a range select | a new bulk control: a design decision |
+| Q13 | 1 | Trades remembers the last segment, or opens on Closed | the segment is kept in the address (`?seg=`); changing what opens first changes the page for every member, so it is a product choice |
+| Q20 | 7 (5 on touch) | keep the line tool armed after a line is drawn, in a note's chart | the tool drops by design in the shared chart overlay; that file is not Notebook-owned |
+
+### 11.6 Tool fixes in this lane
+
+* Q4 on a keyboard goes through the palette ("Search Notebook"), which is the door a keyboard
+  member uses.
+* Q20 on a keyboard types the three levels into the plan panel's own form. Q20 with a mouse
+  uses a 1200 px tall window, so the drawing helper has room. Both gaps noted in section 10 are
+  closed.
+* Q21 on a keyboard needs no reverse Tab now that the toolbar is in the Tab order.
+* Q17 read "no field" in all four modes on tree `c289dba098`. The page had the field. Another
+  lane changed the field's id from a fixed one to a generated one (one card per lot), and the
+  driver looked for the fixed id. The driver now finds the field inside its form. This was a
+  tool defect, not a product one.
+
+### 11.7 Findings for other lanes
+
+* `app/src/pages/command/keyListenerCensus.test.js` is red on the landing tip, before any
+  commit of this lane: three files are over their baseline
+  (`GenericTourEngine.jsx`, `lib/toggleNode.js`, `tabs/NotebookTab.jsx`), total 114 against a
+  ceiling of 111. Counts at `a8bd0502f8` and at this tip are the same for all three. Not fixed
+  here.
+* `components/mobile/ContextPopover.jsx` has a second branch that takes custom children. That
+  branch still has `role="menu"` around content that is not menu items (the Save to Notebook
+  box is one caller). Only the `items` branch was fixed.
+* `tokens.reachable.test.js` and `TradeDetailPage.test.jsx` timed out once under load and pass
+  alone.
+
+### 11.8 Runs, integrity, tests
+
+| run | port | rows | verdict line | integrity |
+|---|---|---|---|---|
+| all 23, tree `c289dba098` | 8720 | 92 | `RAN -- 92 rows; INCONCLUSIVE 4, OVER 40, PASS 48` | CLEAN |
+| Q17 alone, tree `c289dba098` | 8721 | 4 | 4 INCONCLUSIVE | CLEAN |
+| Q17 alone, tree `6833f05d21` | 8722 | 4 | `RAN -- 4 rows; OVER 2, PASS 2` | CLEAN |
+
+One build, from tree `c289dba098`. First-open bytes: 2,204,142 B across 59 files against a
+budget of 2,260,793 B, PASS.
+
+Tests, each from `app/` with `--maxWorkers=2`, log read for the totals line:
+
+| what | totals |
+|---|---|
+| `src/pages/journal-2-0/a11y/` (whole directory) | 44 files passed; 392 tests passed, 1 skipped |
+| tour rails (whole `onboarding/` directory), the seven `Layout.*` tests, the five `JournalLayout.*` tests, `ScannerShell.skipToSave`, `styles/tapFloor` | 59 files passed; 703 tests passed |
+| this lane's new tests, the tests of every file it touched, every test that uses ContextPopover | 40 of 41 files passed; 663 of 665 tests passed. The 2 failures are the key listener census above |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 61 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+
+### 11.9 Not covered in this lane
+
+* The eight "one more fix" rows of section 11.3 were not built.
+* Focus landing is on `/journal/**` and `/journal-2-0/**` only, as asked. Other pages are
+  unchanged.
+* The custom-children branch of ContextPopover.
+* No screen reader was run. The announcements were checked by tests of the rendered text only.
