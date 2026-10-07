@@ -944,9 +944,8 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
             goto(pg, base, f"/journal/notebook?note={plan['id']}", ".ProseMirror")
             pg.wait_for_timeout(4000)
             found = census(pg)
-            api_st, api_body = api(ctx, inst, "GET", base, "/api/j2/visual-playbook")
             step(pg, inst, "visual playbook without fingerprint", "the plan note (its usual door is the fingerprint panel)", "INFO",
-                 surfaces_found=found, api_status=api_st, api_body=json.dumps(api_body, default=str)[:300])
+                 surfaces_found=found, visual_playbook_door=pg.get_by_role("button", name="Visual playbook").count())
             goto(pg, base, f"/journal-2-0/trade/{tid}")
             pg.wait_for_timeout(5000)
             ba = pg.locator('[data-testid="trade-before-after"]')

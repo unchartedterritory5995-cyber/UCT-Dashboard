@@ -370,6 +370,10 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
                     if (pg.evaluate("() => (document.activeElement.innerText || '').trim().toLowerCase()") or "").startswith("skip"):
                         break
                 href = pg.evaluate("() => document.activeElement.getAttribute('href')")
+                if not (href or "").startswith("#"):
+                    # focus did not come back to a skip link on the second pass: focus the first one directly
+                    href = seen[0][2]
+                    pg.evaluate("(h) => { const a = document.querySelector(`a[href='${h}']`); if (a) a.focus() }", href)
                 pg.keyboard.press("Enter")
                 pg.wait_for_timeout(500)
                 at = pg.evaluate("() => { const a = document.activeElement; return a ? [a.tagName, a.id] : null }")

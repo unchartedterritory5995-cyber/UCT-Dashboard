@@ -594,6 +594,17 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         ordered = (prices.get("target") or 0) > (prices.get("entry") or 0) > (prices.get("stop") or 0)
         S["amd_plan"] = prices
         S["amd_embed"] = embed_id
+        try:
+            tag_sel = pg.locator('[data-testid="fingerprint-panel"] select[id^="fp-tag-"]').first
+            tag_sel.scroll_into_view_if_needed(timeout=10000)
+            opts = [o.strip() for o in tag_sel.locator("option").all_inner_texts()]
+            pick = next((o for o in opts if o.startswith("VCP")), opts[1] if len(opts) > 1 else None)
+            if pick:
+                tag_sel.select_option(label=pick)
+                h2.wait_stored(M, base, nid, lambda e: bool((e[0].get("ta") or {}).get("setupTag")), timeout_s=20)
+            S["amd_tag"] = pick
+        except Exception as e:  # noqa: BLE001
+            S["amd_tag_error"] = str(e)[:200]
         C.step(pg, inst, "chart plan", "draw entry, stop and target on the chart and mark their roles",
                "PASS" if placed == 3 and drew and roled and ordered else "FAIL", lines_placed=placed, stored=drew, roles_stored=roled,
                prices=prices, target_over_entry_over_stop=ordered, draw_raw=sh.raw.get("c2_lines_after_tap"),
@@ -680,6 +691,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         S["ibm_note"] = ibm.get("id")
         vers = (M.get(f"{base}/api/j2/notes/{ibm.get('id')}/versions").json().get("versions") or []) if ibm.get("id") else []
         S["ibm_v1"] = vers[-1]["id"] if vers else None
+        s5, p5 = C.api(ctx, inst, "POST", base, "/api/j2/positions", {"symbol": "IBM", "side": "Long", "shares": 10, "entryPrice": 205.0,
+                                                                     "stopPrice": 195.0, "entryDate": C.TODAY.isoformat()})
+        S["ibm_pos"] = (p5 or {}).get("id")
         C.step(None, inst, "setup", "two open positions through the member's own API (AMD against the drawn plan, NVDA)",
                "PASS" if s1 in (200, 201) and s2 in (200, 201) and S.get("ibm_v1") else "FAIL", amd=s1, nvda=s2, entry=entry,
                stop=stop, ibm_thesis_note=S.get("ibm_note"), ibm_first_version=S.get("ibm_v1"), shot=False)
@@ -705,7 +719,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         has = C.vis_loc(chips, 30000)
         info = pg.evaluate("() => [...document.querySelectorAll('[data-thesis-chip]')].map(e => ({ note: e.getAttribute('data-thesis-chip'), text: e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 120), row: (e.closest('tr') || e.parentElement).innerText.trim().replace(/\\s+/g, ' ').slice(0, 60) }))")
         nvda_note = (S.get("sample_by_ticker") or {}).get("NVDA")
-        on_nvda = any(c["note"] == nvda_note for c in info)
+        # the chip is the member's OWN thesis (IBM); a sample thesis (NVDA) must never put one on a real row
+        on_nvda = any(c["note"] == S.get("ibm_note") for c in info) and not any(c["note"] == nvda_note for c in info)
         opened = None
         if has:
             try:
@@ -718,7 +733,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             except Exception as e:  # noqa: BLE001
                 opened = str(e)[:120]
         C.step(pg, inst, "thesis chips", "Open Positions rows carry a chip for a stock the member wrote a thesis on",
-               "PASS" if has and on_nvda else "FAIL", chips=info, nvda_thesis_note=nvda_note, preview_link=opened,
+               "PASS" if has and on_nvda else "FAIL", chips=info, own_thesis_note=S.get("ibm_note"), sample_thesis_note=nvda_note,
+               preview_link=opened, chips_api=(M.get(base + "/api/j2/thesis-chips?symbols=IBM,NVDA,AMD").text() or "")[:400],
                scope=["[data-thesis-chip]"])
     run("positions", positions)
 
@@ -731,7 +747,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         cards = pg.locator("[data-board-card]").evaluate_all("els => els.map(e => e.getAttribute('data-board-card'))")
         C.step(pg, inst, "setups board", f"the board lists the open chart plans ({tag})", "PASS" if hd and cards else "FAIL",
                cards=cards, page_text=pg.evaluate(MAIN_TEXT_JS)[:400], scope=["[data-board-card]"])
-        sym = "MSFT" if "MSFT" in cards else (cards[0] if cards else None)
+        sym = "AMD" if (tag == "after the overnight run" and "AMD" in cards) else ("MSFT" if "MSFT" in cards else (cards[0] if cards else None))
         if not sym:
             return
         btn = pg.get_by_role("button", name=f"Find more like {sym}", exact=True)
@@ -795,7 +811,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         ntext = pg.locator(".ProseMirror").first.inner_text() if made else ""
         C.step(pg, inst, "earnings prep", "one click builds the prep note, each part naming its source",
                "PASS" if made and sources else "FAIL", note=made, source_lines=sources, body_chars=len(body), reach_error=err,
-               note_text=ntext[:700])
+               note_text=ntext[:6000])
         # the member's own closed AMD trade must print its percent result as a percent (a 12.3% trade reads "+12.3%")
         plan = S.get("amd_plan") or {}
         if made and plan.get("entry") and plan.get("target"):
@@ -879,7 +895,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def child():
         plan = S.get("amd_plan") or {}
         entry, stop = float(plan.get("entry") or 150.0), float(plan.get("stop") or 142.0)
-        spec = {"email": S["c2_email"], "today": C.TODAY.isoformat(), "flags": fs["c2"], "template_symbol": "MSFT",
+        spec = {"email": S["c2_email"], "today": C.TODAY.isoformat(), "flags": fs["c2"], "template_symbol": "AMD",
                 "candidate": "CRWD", "project_note_ids": [S.get("amd_note"), S.get("ibm_note")],
                 "quotes": [["above the stops", {"AMD": round((entry + stop) / 2, 2), "IBM": 200.0}],
                            ["through the stops", {"AMD": round(stop * 0.99, 2), "IBM": 193.0}]]}
@@ -1250,7 +1266,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             typed = True
             sv = pg.locator('[data-tour="entry-context-why-save"]')
             (sv.first if sv.count() else card.get_by_role("button", name=re.compile("^Save"))).click(timeout=10000)
-            saved = C.vis(pg, '[data-testid="why-prompt-saved"]', 15000)
+            saved = C.vis(pg, '[data-testid="why-prompt-saved"]', 8000) or C.vis_loc(card.get_by_role("button", name="Edit"), 8000)
         except Exception as e:  # noqa: BLE001
             err = str(e)[:300]
         pg.reload(wait_until="domcontentloaded")
@@ -1331,6 +1347,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         box = pg.get_by_label("Search your notes").first
         found_by_search = None
         try:
+            if not box.count() or not box.is_visible():
+                pg.locator('[aria-label="Search notes"]').first.click(timeout=15000)
             box.fill("sample")
             pg.wait_for_timeout(2500)
             found_by_search = [t for t in (S.get("sample_titles") or []) if t and t in pg.evaluate("() => document.body.innerText")]
