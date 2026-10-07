@@ -25,7 +25,6 @@ import { yourPositionModel, statsModel, analystModel } from '../../lib/positionD
 import { money, moneySigned, percent, withResearchReturnParam } from '../../../../lib/journal-2-0'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
-import EntryContextCard from '../EntryContextCard'
 import AboutSection from './AboutSection'
 import StatsSection from './StatsSection'
 import NewsSection from './NewsSection'
@@ -337,12 +336,7 @@ export default function PositionDetailPage() {
             <div key={m.side}>
               <YourPositionGrid model={m} />
               {(rawIdsBySide.get(m.side) || []).map((id) => (
-                <div key={id}>
-                  <LinkedNotesPanel tradeRef={String(id)} tradeRefType="position" />
-                  {/* Wave 13 lane 13E-2: the market context frozen at the fill (dark behind
-                      notebook_entry_context_enabled; renders nothing while off or on a free plan). */}
-                  <EntryContextCard kind="position" id={id} />
-                </div>
+                <LinkedNotesPanel key={id} tradeRef={String(id)} tradeRefType="position" />
               ))}
             </div>
           ))}

@@ -80,8 +80,7 @@ describe('LogTradeButton — handleCreatePosition (P0-18 fix)', () => {
   it('still posts, revalidates, toasts, and navigates -- the fix only adds the missing return', async () => {
     renderButton()
     openPositionModal()
-    // The dialog's chunk loads on its first open, so the stub arrives a tick later.
-    fireEvent.click(await screen.findByTestId('stub-save-position'))
+    fireEvent.click(screen.getByTestId('stub-save-position'))
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       '/api/j2/positions',

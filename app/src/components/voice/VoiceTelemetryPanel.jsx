@@ -32,7 +32,6 @@ export default function VoiceTelemetryPanel() {
   const [variantStats, setVariantStats] = useState([])
   const [variantCatalog, setVariantCatalog] = useState({})
   const [costSummary, setCostSummary] = useState(null)
-  const [costNote, setCostNote] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -74,16 +73,7 @@ export default function VoiceTelemetryPanel() {
         setVariantStats(j.rows || [])
       }
       if (costR.ok) {
-        // The door answers 200 either way. When usage could not be read it sends
-        // {available: false, message} with every figure null: say the sentence.
-        const j = await costR.json()
-        if (j?.available === false) {
-          setCostSummary(null)
-          setCostNote(j.message || 'Voice usage is not available right now.')
-        } else {
-          setCostNote(null)
-          setCostSummary(j)
-        }
+        setCostSummary(await costR.json())
       }
       const catalog = {}
       for (let i = 0; i < REWARD_VARIANT_CONTEXTS.length; i++) {
@@ -143,8 +133,6 @@ export default function VoiceTelemetryPanel() {
       </p>
 
       {error && <div className={styles.error}>{error}</div>}
-
-      {costNote && <div className={styles.costNote}>{costNote}</div>}
 
       {/* Cost banner ── */}
       {costSummary && (

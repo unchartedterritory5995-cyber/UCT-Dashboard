@@ -286,7 +286,6 @@ export default function CompassTab() {
           <EODRecap
             key={r.id}
             recap={r}
-            accountId={accountId}
             onFeedback={(v) => eodFeedback(r.id, v)}
             onRegenerate={async () => {
               try {
@@ -315,7 +314,6 @@ export default function CompassTab() {
         <CompassReview
           key={r.id}
           review={r}
-          accountId={accountId}
           onFeedback={(v) => feedback(r.id, v)}
           onRegenerate={async () => {
             try {

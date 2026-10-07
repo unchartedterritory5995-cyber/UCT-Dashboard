@@ -39,22 +39,6 @@ function resultBadge(result) {
   return <span className={`${styles.badge} ${cls}`}>{result}</span>
 }
 
-// A refused request as an Error. When the server refused it for its SIZE (413) the
-// error carries the server's own sentence in `reason` ("File exceeds 10 MB limit"):
-// that is the one failure "try again" cannot fix, so the modal says it.
-async function refusalOf(res) {
-  let detail = null
-  try {
-    const body = await res.json()
-    if (typeof body?.detail === 'string') detail = body.detail
-  } catch { /* not JSON: the status is all there is */ }
-  const err = new Error(detail || `${res.status}`)
-  err.reason = res.status === 413 ? detail : null
-  return err
-}
-
-const asSentence = (text) => (/[.!?]$/.test(text) ? text : `${text}.`)
-
 export default function ImportCsvModal({ onConfirmed, onClose }) {
   const { accountId, accounts } = useJ2SelectedAccount()
   const [step, setStep] = useState('drop') // drop | mapping | preview
@@ -82,16 +66,17 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
         credentials: 'include',
         body: form,
       })
-      if (!res.ok) throw await refusalOf(res)
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(body || `${res.status}`)
+      }
       const data = await res.json()
       setPreview(data)
       if (data.format === 'unknown') setStep('mapping')
       else setStep('preview')
     } catch (e) {
       console.error('Failed to preview CSV import:', e)
-      setErrorMsg(e?.reason
-        ? `${asSentence(e.reason)} Nothing was imported.`
-        : "Couldn't read this file. Nothing was imported — try again.")
+      setErrorMsg("Couldn't read this file. Nothing was imported — try again.")
     } finally {
       setBusy(false)
     }
@@ -109,15 +94,16 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
         credentials: 'include',
         body: form,
       })
-      if (!res.ok) throw await refusalOf(res)
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(body || `${res.status}`)
+      }
       const data = await res.json()
       setPreview(data)
       setStep('preview')
     } catch (e) {
       console.error('Failed to preview mapped CSV import:', e)
-      setErrorMsg(e?.reason
-        ? `${asSentence(e.reason)} Nothing was imported.`
-        : "Couldn't read this file with that column mapping. Nothing was imported — try again.")
+      setErrorMsg("Couldn't read this file with that column mapping. Nothing was imported — try again.")
     } finally {
       setBusy(false)
     }
@@ -160,7 +146,10 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
         credentials: 'include',
         body: JSON.stringify({ trades: preview.trades, accountId: importAccountId }),
       })
-      if (!res.ok) throw await refusalOf(res)
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(body || `${res.status}`)
+      }
       const data = await res.json()
       // Preset-format confirms fire import_preset_used (best-effort telemetry).
       if (PRESET_FORMATS.has(preview.format)) {
@@ -176,9 +165,7 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       onClose?.()
     } catch (e) {
       console.error('Failed to import trades:', e)
-      setErrorMsg(e?.reason
-        ? `${asSentence(e.reason)} Nothing was added.`
-        : "Couldn't import these trades. Nothing was added — try again.")
+      setErrorMsg("Couldn't import these trades. Nothing was added — try again.")
     } finally {
       setBusy(false)
     }

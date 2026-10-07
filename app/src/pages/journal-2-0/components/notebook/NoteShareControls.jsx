@@ -67,7 +67,6 @@ export default function NoteShareControls({ noteId, onMessage }) {
         className={editorStyles.chromeBtn}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-tour="note-share"
         title={publishOn ? 'Share a link to this note or publish it to the web' : 'Share a read-only link to this note'}
         onClick={() => setOpen(true)}
       >

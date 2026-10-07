@@ -1,14 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
-// 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
-// hooks in this tree (useJ2SavedViews, useJ2PropertyDefs) use real `useSWR`,
-// and the "primes the cache" test below needs the real cache to assert against.
-const swrMutateSpy = vi.fn()
-vi.mock('swr', async (importOriginal) => {
-  const actual = await importOriginal()
-  return { ...actual, mutate: (...args) => { swrMutateSpy(...args); return actual.mutate(...args) } }
-})
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
@@ -53,14 +45,7 @@ vi.mock('../components/notebook/NoteCard', () => ({
   ),
 }))
 vi.mock('../components/notebook/NoteEditorPage', () => ({
-  // `data-open-focus` surfaces NotebookTab's own `openFocus` decision (13Q-2:
-  // 'body' for a blank note, 'title' for a templated/typed one, 'landmark' for
-  // an existing note reopened) -- a real NoteEditorPage would apply it itself,
-  // which is covered by NoteEditorPage.wave13Q2focus.test.jsx; this mock keeps
-  // these tests about the TAB's wiring (what it decides), not the editor's.
-  default: ({ noteId, openFocus }) => (
-    <div data-testid="note-editor" data-note-id={noteId} data-open-focus={openFocus ?? ''} />
-  ),
+  default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({
   // Shallow mock — a real "onImported" trigger button lets tests fire the
@@ -96,7 +81,6 @@ beforeEach(() => {
   lastPostBody = null
   mockRefresh.mockClear()
   mockLoadMore.mockClear()
-  swrMutateSpy.mockClear()
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({
     notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(),
@@ -203,50 +187,6 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.bodyJson).toBeUndefined()
   })
 
-  // 13Q-2 (13Q click-budget fix, Q1 "new blank note, cursor in body"): a bare
-  // blank note has nothing in the title worth a look first, so it opens with
-  // focus in the BODY, not the title -- cutting the 4 extra real Tab presses
-  // (keys) / 1 extra click (mouse, taps) the instrument measured reaching the
-  // body by hand after a fresh=true open always landed on the title (I-1).
-  it('13Q-2: the primary "+ New note" button opens with focus in the BODY, not the title', async () => {
-    renderTab()
-    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
-    const editor = await screen.findByTestId('note-editor')
-    expect(editor).toHaveAttribute('data-open-focus', 'body')
-  })
-
-  it('13Q-2: a TEMPLATE pick still opens with focus on the TITLE (I-1 unchanged)', async () => {
-    renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Daily Game Plan' }))
-    const editor = await screen.findByTestId('note-editor')
-    expect(editor).toHaveAttribute('data-open-focus', 'title')
-  })
-
-  it('13Q-2: a "Blank note" TEMPLATE CARD pick (no body, but a typed title) still opens on the TITLE', async () => {
-    // The picker's own "Blank note" card posts no bodyJson (same request shape
-    // as the bare button above) but DOES carry a non-empty title in general use
-    // -- this fixture's title is '' either way, so the real discriminator this
-    // case exists to prove is read from `createNote`'s OWN `blank` computation
-    // (`!title && !bodyJson`) rather than from the server's response, which the
-    // next test pins directly.
-    renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /Blank note/ }))
-    const editor = await screen.findByTestId('note-editor')
-    expect(editor).toHaveAttribute('data-open-focus', 'body')
-  })
-
-  it('13Q-2: ?new=blank deep link (the command palette\'s "New Note") also focuses the BODY', async () => {
-    renderTab('/journal/notebook?new=blank')
-    const editor = await screen.findByTestId('note-editor')
-    expect(editor).toHaveAttribute('data-open-focus', 'body')
-  })
-
-  it('13Q-2: a non-blank ?new=<template> deep link still focuses the TITLE', async () => {
-    renderTab('/journal/notebook?new=earnings-play&ticker=gh')
-    const editor = await screen.findByTestId('note-editor')
-    expect(editor).toHaveAttribute('data-open-focus', 'title')
-  })
-
   it('opens the editor for the created note after a template pick', async () => {
     renderTab()
     // Exact, not /Weekly Review/: that regex now also matches the card's OWN
@@ -283,23 +223,6 @@ describe('NotebookTab — template picker', () => {
     renderTab('/journal/notebook?new=blank&ticker=nvda')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.ticker).toBe('NVDA')
-  })
-
-  // 13Q-Q1check: createNote primes useJ2Note's SWR cache with the exact
-  // object the create POST already returned, BEFORE opening the note --
-  // see createNote's own comment for why (NoteEditorPage's useEditor is
-  // keyed on [note?.id]; a note useSWR has nothing cached for rebuilds the
-  // editor the instant the real GET resolves, silently losing the 'body'
-  // openFocus effect's one-shot focus call to the instance it tore down).
-  // This mock's NoteEditorPage stub never reads the cache -- what this
-  // pins is that the WIRING fires, at the right key, with the right
-  // shape, and WITHOUT asking SWR to revalidate a response that is already
-  // the freshest possible copy.
-  it('13Q-Q1check: "+ New note" primes the note\'s SWR cache before opening it', async () => {
-    renderTab()
-    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
-    await screen.findByTestId('note-editor')
-    expect(swrMutateSpy).toHaveBeenCalledWith('/api/j2/notes/new1', { note: { id: 'new1' } }, false)
   })
 })
 

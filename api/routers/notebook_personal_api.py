@@ -43,7 +43,6 @@ from api.middleware.auth_middleware import (
 )
 from api.middleware.capture_scope import _bearer, require_capture_scope
 from api.services.journal_two import capture_auth
-from api.services import request_body_cap as body_cap
 from api.services.journal_two import note_personal_api as papi
 
 NOT_FOUND = "Not Found"   # byte-identical to FastAPI's unknown-route body
@@ -154,9 +153,9 @@ def personal_scope(scope: str):
 
 
 async def _json_body(request: Request) -> dict[str, Any]:
-    # ⛔ Capped WHILE it is read (wave 14): this was `await request.body()` then a
-    # length check, so a chunked or no-length body was buffered whole first.
-    raw = await body_cap.read_capped_body(request, _MAX_BODY_BYTES, papi.TOO_LARGE_SENTENCE)
+    raw = await request.body()
+    if len(raw) > _MAX_BODY_BYTES:
+        raise HTTPException(status_code=413, detail=papi.TOO_LARGE_SENTENCE)
     if not raw.strip():
         return {}
     try:

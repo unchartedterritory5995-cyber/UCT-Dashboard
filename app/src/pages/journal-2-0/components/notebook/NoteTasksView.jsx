@@ -76,8 +76,7 @@ export default function NoteTasksView({ onOpenTask }) {
 
   return (
     <section className={styles.wrap} aria-labelledby={headingId}>
-      <header className={styles.header}
-        data-tour="tasks-list">
+      <header className={styles.header}>
         <h2 id={headingId} className={styles.title}>
           <UIcon name="check" size={16} style={{ verticalAlign: '-3px', marginRight: 6 }} />
           Tasks
@@ -96,8 +95,7 @@ export default function NoteTasksView({ onOpenTask }) {
           ))}
         </div>
       </header>
-      <p className={styles.note}
-        data-tour="tasks-tick">To tick a task off, open its note.</p>
+      <p className={styles.note}>To tick a task off, open its note.</p>
       {body}
       {data?.truncated && (
         <p className={styles.note}>Showing the first {tasks.length.toLocaleString()} tasks.</p>
@@ -110,8 +108,7 @@ function TaskGroup({ label, tasks, today, onOpen, tone }) {
   const id = useId()
   return (
     <section className={styles.group} aria-labelledby={id}>
-      <h3 id={id} className={`${styles.groupTitle} ${tone === 'overdue' ? styles.groupOverdue : ''}`}
-        data-tour="tasks-group">
+      <h3 id={id} className={`${styles.groupTitle} ${tone === 'overdue' ? styles.groupOverdue : ''}`}>
         {label} <span className={styles.count}>({tasks.length})</span>
       </h3>
       <ul className={styles.list}>

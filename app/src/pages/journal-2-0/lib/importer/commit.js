@@ -16,6 +16,7 @@
 
 const REF_PREFIX = 'import-ref://'
 const LINK_PREFIX = 'import-link://'
+const CONFIRM_BATCH_SIZE = 200 // server caps a single batch at 500; we stay well under it
 
 // ---------------------------------------------------------------------------
 // checkExisting
@@ -24,7 +25,6 @@ const LINK_PREFIX = 'import-link://'
 import { settleNoteWrite, settleNoteWrites } from '../offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../notebookSchema'
 import { noteKeyFor } from './uctJson'
-import { planConfirmBatches, confirmBody, noteTooLargeSentence } from './confirmBatches'
 
 /**
  * @param {Array<{importKey: string}>} docs
@@ -242,15 +242,7 @@ async function uploadMediaItem(noteId, item) {
   const fd = new FormData()
   fd.append('file', new Blob([bytes], { type: mimeForName(mimeSource) }), filename)
   const res = await fetchWithRetry(endpoint, { method: 'POST', credentials: 'include', body: fd })
-  if (!res.ok) {
-    // A refusal the member can act on arrives as the server's own sentence: a file
-    // over its size cap is a 413 "File must be < 25 MB", a type that is not allowed
-    // a 400 that names the type. Say that. A 5xx detail is plumbing, so it keeps
-    // the bare status.
-    const refusal = res.status < 500 ? await res.json().catch(() => null) : null
-    const said = typeof refusal?.detail === 'string' ? refusal.detail : null
-    throw new Error(said || `Upload failed (HTTP ${res.status})`)
-  }
+  if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`)
   const data = await res.json()
   return data.url
 }
@@ -275,16 +267,10 @@ async function uploadMediaItem(noteId, item) {
  * no-op `skipped` entry, and a batch that never got a confirm attempt (or a
  * note reported in `failed`) is retried fresh, not skipped as already-seen.
  *
- * ⛔ THE CONFIRM STEP IS SENT IN PIECES, bounded by bytes and by count
- * (`./confirmBatches.js`): the server holds one request to 32 MiB, and one
- * request with a whole library in it is a body one process would have to hold
- * in memory for every member's sake. `limits` exists for tests; the wizard
- * passes none and gets the module's own numbers.
- *
- * @param {{source: string, destFolderId: string|null, docs: object[], limits?: {maxNotes?: number, maxBytes?: number}, onProgress?: (p: {phase: string, done: number, total: number}) => void}} args
+ * @param {{source: string, destFolderId: string|null, docs: object[], onProgress?: (p: {phase: string, done: number, total: number}) => void}} args
  * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>}>}
  */
-export async function runImport({ source, destFolderId, docs, onProgress, limits }) {
+export async function runImport({ source, destFolderId, docs, onProgress }) {
   // `outcomes` and `importedNoteIds` are DERIVED alongside the counts above,
   // never a second pass over the same responses — the arrival screen (Wave
   // 5, §9) reads `outcomes` to build its per-folder breakdown, and the
@@ -317,19 +303,9 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
   const confirmTotal = docs.length
   let confirmDone = 0
 
-  const plan = planConfirmBatches(docs, toConfirmPayload, limits)
-  // A note that cannot fit one request on its own is never sent. No legal note
-  // is this large (the service holds a body to 1 MB); this is the honest answer
-  // for one that is, named like any other note that could not be stored.
-  for (const { item, bytes } of plan.tooLarge) {
-    summary.failures.push({ name: item.title || item.importKey, reason: noteTooLargeSentence(bytes) })
-    summary.outcomes[item.importKey] = 'failed'
-    confirmDone += 1
-    onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
-  }
-
-  for (let batchIndex = 0; batchIndex < plan.batches.length; batchIndex++) {
-    const batch = plan.batches[batchIndex].items
+  for (let i = 0; i < docs.length; i += CONFIRM_BATCH_SIZE) {
+    const batch = docs.slice(i, i + CONFIRM_BATCH_SIZE)
+    const batchIndex = Math.floor(i / CONFIRM_BATCH_SIZE)
     let res
     let networkError = null
     try {
@@ -337,7 +313,7 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: confirmBody({ source, destFolderId }, plan.batches[batchIndex].parts),
+        body: JSON.stringify({ source, destFolderId, notes: batch.map(toConfirmPayload) }),
       })
     } catch (err) {
       networkError = err

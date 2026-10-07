@@ -19,13 +19,10 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.btn:hover:not(:disabled):not([aria-disabled='true']) {
+.btn:hover:not(:disabled) {
   border-color: var(--border-accent);
 }
-/* Busy (a save in flight) is aria-disabled, so the button keeps keyboard focus; it looks the
-   same as the native disabled state. */
-.btn:disabled,
-.btn[aria-disabled='true'] {
+.btn:disabled {
   cursor: default;
   opacity: 0.6;
 }
