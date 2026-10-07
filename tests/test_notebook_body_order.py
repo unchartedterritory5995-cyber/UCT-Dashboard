@@ -417,3 +417,73 @@ def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_share
         own_and_different.append(f"{method} {path} ({module}): {dark.payload!r}")
     assert not own_and_different, "a router words its own dark 404 differently:\n  " + "\n  ".join(own_and_different)
     assert {"notebook_thesis_chips", "notebook_research_capture"} <= shared, sorted(shared)
+
+
+# ── the admin API docs still describe these routes' bodies ───────────────────
+
+def _capped_json_routes(real_app):
+    """(method, route, dependency) for every route that takes its body through capped_json."""
+    out = []
+    for route in real_app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        dep = next((d for d in route.dependant.dependencies
+                    if bc._name(d.call) == bc.CAPPED_JSON_QUALNAME), None)
+        if dep is not None:
+            out.extend((m, route, dep) for m in sorted(route.methods - {"HEAD", "OPTIONS"}))
+    return out
+
+
+def test_every_converted_route_has_a_request_body_schema_in_the_api_docs(real_app):
+    """A dependency does not appear in OpenAPI as a body, so the conversion took
+    the request body out of the admin docs for every converted route.
+    `request_body_cap.document_json_bodies` puts it back, from the annotation.
+    The route list is derived, never typed: a route converted tomorrow is held
+    to this the day it lands."""
+    import typing
+    from pydantic import BaseModel
+    routes = _capped_json_routes(real_app)
+    assert len(routes) >= 90, len(routes)
+    paths = real_app.openapi()["paths"]
+    missing, wrong = [], []
+    for method, route, dep in routes:
+        entry = paths.get(route.path, {}).get(method.lower(), {})
+        schema = entry.get("requestBody", {}).get("content", {}).get("application/json", {}).get("schema")
+        if not schema:
+            missing.append(f"{method} {route.path}")
+            continue
+        annotation = dep.call.annotation
+        args = [a for a in typing.get_args(annotation) if a is not type(None)]
+        optional = type(None) in typing.get_args(annotation)
+        inner = args[0] if optional and args else annotation
+        if entry["requestBody"]["required"] is optional:
+            wrong.append(f"{method} {route.path}: required={entry['requestBody']['required']} for {annotation}")
+        if isinstance(inner, type) and issubclass(inner, BaseModel):
+            want = {(f.alias or n) for n, f in inner.model_fields.items()}
+            if set(schema.get("properties", {})) != want:
+                wrong.append(f"{method} {route.path}: properties {sorted(schema.get('properties', {}))} != {sorted(want)}")
+            need = {(f.alias or n) for n, f in inner.model_fields.items() if f.is_required()}
+            if set(schema.get("required", [])) != need:
+                wrong.append(f"{method} {route.path}: required {schema.get('required')} != {sorted(need)}")
+        if "$defs" in json_dumps(schema):
+            wrong.append(f"{method} {route.path}: the schema carries $defs, which OpenAPI cannot resolve here")
+    assert not missing, f"{len(missing)} converted routes have no request body in the API docs:\n  " + "\n  ".join(missing)
+    assert not wrong, "\n  ".join(wrong)
+
+
+def json_dumps(value) -> str:
+    import json
+    return json.dumps(value)
+
+
+def test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled(real_app):
+    """It only writes each route's `openapi_extra`, and only when the docs are
+    asked for. The dependency list a request is solved against is untouched."""
+    before = {(r.path, tuple(sorted(r.methods))): [bc._name(c) for c in bc.solve_order(r)]
+              for r in real_app.routes if isinstance(r, APIRoute)}
+    real_app.openapi_schema = None
+    real_app.openapi()
+    after = {(r.path, tuple(sorted(r.methods))): [bc._name(c) for c in bc.solve_order(r)]
+             for r in real_app.routes if isinstance(r, APIRoute)}
+    assert before == after
+    assert all(r.body_field is None for _m, r, _d in _capped_json_routes(real_app))

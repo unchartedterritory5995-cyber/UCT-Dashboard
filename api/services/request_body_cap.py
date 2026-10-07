@@ -209,7 +209,52 @@ def capped_json(annotation: Any, max_bytes: Callable[[], int], sentence: Callabl
             return await _read(request)
 
     dependency.max_bytes = max_bytes        # read by the body census, never by a route
+    dependency.annotation = annotation      # read by `document_json_bodies`, never by a route
     return dependency
+
+
+def document_json_bodies(app: Any) -> None:
+    """Put the request body back in the API docs for every route that takes it
+    through `capped_json`.
+
+    A dependency does not appear in OpenAPI as a body, so converting a declared
+    body parameter took the request body out of `app.openapi()` (the admin doc
+    pages). This restores it from the dependency's own annotation.
+
+    ⛔ IT TOUCHES NO REQUEST. It wraps `app.openapi`, and only when the schema is
+    first ASKED FOR does it write each such route's `openapi_extra` -- a field
+    FastAPI reads while generating the schema and nowhere else. Nothing here runs
+    at import, and no route's dependencies, handler or body handling change.
+    A route that already describes its own request body is left alone."""
+    from fastapi.routing import APIRoute
+
+    generate = app.openapi
+
+    def _schema(annotation: Any) -> tuple[dict, bool]:
+        schema = TypeAdapter(annotation).json_schema(ref_template="#/components/schemas/{model}")
+        schema.pop("$defs", None)
+        accepts_none = any(s.get("type") == "null" for s in schema.get("anyOf", []))
+        if accepts_none:
+            rest = [s for s in schema["anyOf"] if s.get("type") != "null"]
+            schema = rest[0] if len(rest) == 1 else {"anyOf": rest}
+        return schema, not accepts_none
+
+    def openapi() -> dict:
+        if app.openapi_schema is None:
+            for route in app.routes:
+                if not isinstance(route, APIRoute):
+                    continue
+                annotation = next((getattr(d.call, "annotation", None) for d in route.dependant.dependencies
+                                   if getattr(d.call, "__qualname__", "") == "capped_json.<locals>.dependency"),
+                                  None)
+                if annotation is None or "requestBody" in (route.openapi_extra or {}):
+                    continue
+                schema, required = _schema(annotation)
+                route.openapi_extra = {**(route.openapi_extra or {}), "requestBody": {
+                    "required": required, "content": {"application/json": {"schema": schema}}}}
+        return generate()
+
+    app.openapi = openapi
 
 
 def _missing_body() -> RequestValidationError:

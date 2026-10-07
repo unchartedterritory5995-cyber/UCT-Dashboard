@@ -8712,6 +8712,12 @@ from api import open_reads_gate as _open_reads_gate
 # passes straight through. Unset flag = returns before reading anything.
 _OPEN_READS = [Depends(_open_reads_gate.open_reads_gate)]
 _open_reads_gate.install_docs(app)
+# The Notebook / Journal JSON doors read their body through a capped dependency,
+# which OpenAPI does not show as a body. This puts the request body back in the
+# schema the doc pages above serve. It wraps `app.openapi` only: no request is
+# handled differently, and nothing is built until the schema is first asked for.
+from api.services import request_body_cap as _request_body_cap  # noqa: E402
+_request_body_cap.document_json_bodies(app)
 app.include_router(_open_reads_gate.router)   # GET /api/admin/open-reads-gate (require_admin)
 # Pure ASGI; only acts on a request the gate ENFORCED and allowed (rewrites
 # Cache-Control to `private` so an edge cache cannot replay it anonymously).
