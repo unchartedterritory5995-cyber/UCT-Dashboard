@@ -565,21 +565,50 @@ JOURNAL_RESULT_TEXT = {"win": "win", "loss": "loss", "breakeven": "breakeven", "
 _RUN_MEMO = threading.local()
 
 
-def _member_journal(user_id: Optional[str]) -> tuple[list[dict], list[dict]]:
-    """(closed trades, open positions) for ONE member, through the journal_two service
-    functions keyed on that member's id. No id raises: the lane is then `unavailable`,
-    and there is no code path that reads a journal without the caller's own id."""
-    if not user_id:
-        raise LaneUnreadable("no member id: the journal lane is the caller's own or nothing")
+def _journal_prefix(sym: str) -> str:
+    """The leading letters/digits every stored spelling of `sym` shares (BRK-B, BRK.B -> BRK)."""
+    m = re.match(r"[A-Z0-9]+", _canon(sym))
+    return m.group(0) if m else ""
+
+
+def _run_memo(key, read):
+    """`read()` once per lane run (see `_RUN_MEMO`); outside a run, every call reads."""
     memo = getattr(_RUN_MEMO, "d", None)
-    key = ("journal", str(user_id))
     if memo is not None and key in memo:
-        return memo[key]                 # the lane and its coverage share ONE read per run
-    from api.services.journal_two import positions, trades
-    out = trades.list_trades_for_user(str(user_id)), positions.list_open_positions(str(user_id))
+        return memo[key]
+    out = read()
     if memo is not None:
         memo[key] = out
     return out
+
+
+def _member_positions(user_id: str) -> list[dict]:
+    from api.services.journal_two import positions
+    return _run_memo(("positions", user_id), lambda: positions.list_open_positions(user_id))
+
+
+def _member_journal(user_id: Optional[str], sym: Optional[str] = None) -> tuple[list[dict], list[dict]]:
+    """(closed trades, open positions) for ONE member, through the journal_two service
+    functions keyed on that member's id. No id raises: the lane is then `unavailable`,
+    and there is no code path that reads a journal without the caller's own id.
+
+    With `sym`, only that ticker's trades are read, through the service's own symbol filter
+    (`FilterSpec.symbol`, a prefix match the caller narrows to the exact ticker). Live
+    2026-10-06: reading and decoding EVERY trade of a large journal cost the lane >1 s on
+    every open (6,000 trades: 4.1 s, nearly all of it each row's `context_at_entry` JSON)."""
+    if not user_id:
+        raise LaneUnreadable("no member id: the journal lane is the caller's own or nothing")
+    uid = str(user_id)
+    from api.services.journal_two import trades
+    if sym is None:
+        closed = _run_memo(("trades", uid, None), lambda: trades.list_trades_for_user(uid))
+    else:
+        from api.services.journal_two.filters import FilterSpec
+        prefix = _journal_prefix(sym)
+        closed = _run_memo(("trades", uid, prefix), lambda: (
+            trades.list_trades_for_user(uid, spec=FilterSpec(symbol=prefix))[0] if prefix
+            else trades.list_trades_for_user(uid)))
+    return closed, _member_positions(uid)
 
 
 def _day(v) -> Optional[str]:
@@ -593,7 +622,7 @@ def _day(v) -> Optional[str]:
 def journal_lane(sym: str, since: date, user_id: Optional[str] = None) -> list[dict]:
     """The member's own trades in `sym`: an OPENED row on the entry day (closed trades and
     open positions) and a CLOSED row on the exit day, with result and R as stored."""
-    closed, open_pos = _member_journal(user_id)
+    closed, open_pos = _member_journal(user_id, sym)
     lo = since.isoformat()
     rows = []
     # Journal writes go through `journal_two.symbol_normalize` (BRK.B -> BRK-B) only since
@@ -630,10 +659,38 @@ def journal_lane(sym: str, since: date, user_id: Optional[str] = None) -> list[d
     return rows
 
 
+_JOURNAL_OLDEST_TTL_S = 600.0
+_JOURNAL_OLDEST_MEMO: dict = {}
+
+
 def _journal_coverage(user_id: Optional[str]) -> tuple[Optional[str], Optional[str]]:
-    """The member's first journalled entry, any ticker. Before it, nothing was recorded."""
-    closed, open_pos = _member_journal(user_id)
-    days = [d for d in (_day(x.get("entryDate")) for x in [*closed, *open_pos]) if d]
+    """The member's first journalled entry, any ticker. Before it, nothing was recorded.
+
+    Two one-row reads through the same service door instead of the whole journal: the
+    service lists newest entry first, so its total names the offset of the OLDEST trade."""
+    if not user_id:
+        raise LaneUnreadable("no member id: the journal lane is the caller's own or nothing")
+    uid = str(user_id)
+    from api.services.journal_two import trades
+    from api.services.journal_two.filters import FilterSpec
+    days = []
+    _first, total = trades.list_trades_for_user(uid, spec=FilterSpec(limit=1))
+    if total:
+        # The offset read walks every trade's row (350 ms at 6,000 trades), so its answer is
+        # kept per (member, trade COUNT): adding or deleting a trade re-reads at once; an edit
+        # that back-dates an existing trade is picked up within _JOURNAL_OLDEST_TTL_S.
+        key = (uid, int(total))
+        hit = _JOURNAL_OLDEST_MEMO.get(key)
+        if hit is not None and time.monotonic() - hit[0] < _JOURNAL_OLDEST_TTL_S:
+            days += hit[1]
+        else:
+            oldest, _t = trades.list_trades_for_user(uid, spec=FilterSpec(limit=1, offset=total - 1))
+            found = [d for d in (_day(t.get("entryDate")) for t in oldest) if d]
+            if len(_JOURNAL_OLDEST_MEMO) > 2048:
+                _JOURNAL_OLDEST_MEMO.clear()
+            _JOURNAL_OLDEST_MEMO[key] = (time.monotonic(), found)
+            days += found
+    days += [d for d in (_day(p.get("entryDate")) for p in _member_positions(uid)) if d]
     return (min(days) if days else None, None)
 
 
