@@ -104,10 +104,10 @@ STATE: dict = {}
 def flush() -> None:
     if OUT is not None:
         tmp = OUT / (WALK_FILE + ".tmp")
-        tmp.write_text(json.dumps(REC, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+        tmp.write_text(newline=chr(10), data=json.dumps(REC, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
         os.replace(tmp, OUT / WALK_FILE)
         if WALK_FILE == "walk.json":
-            (OUT / f"state-{REC.get('config', 'x')}.json").write_text(
+            (OUT / f"state-{REC.get('config', 'x')}.json").write_text(newline=chr(10), data=
                 json.dumps({**STATE, "tip": REC.get("tip")}, indent=1, default=str), encoding="utf-8")
 
 
@@ -515,7 +515,7 @@ def seed_pre_boot(data_dir: Path, out: Path, d_report: date) -> None:
     r = subprocess.run([sys.executable, "-c", x13.PRE_CHILD, str(REPO), str(data_dir), json.dumps(spec)],
                        cwd=str(REPO), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=900)
-    (out / f"pre-seed-child-{REC.get('config')}.log").write_text(
+    (out / f"pre-seed-child-{REC.get('config')}.log").write_text(newline=chr(10), data=
         f"tip: {REC.get('tip')}\n" + (r.stdout or "")[-3000:] + "\n--- stderr ---\n" + (r.stderr or "")[-6000:], encoding="utf-8")
     if r.returncode != 0 or "SEEDED" not in (r.stdout or ""):
         raise h.SetupFailed(f"pre-boot seeding failed (rc {r.returncode}); see pre-seed-child log")
@@ -625,7 +625,7 @@ def run_post_child(data_dir: Path, out: Path, spec: dict) -> dict:
     r = subprocess.run([sys.executable, "-c", POST_CHILD, str(REPO), str(data_dir), json.dumps(spec)],
                        cwd=str(REPO), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=900)
-    (out / "post-seed-child.log").write_text(f"tip: {REC.get('tip')}\n" + (r.stdout or "")[-6000:] + "\n--- stderr ---\n" + (r.stderr or "")[-8000:],
+    (out / "post-seed-child.log").write_text(newline=chr(10), data=f"tip: {REC.get('tip')}\n" + (r.stdout or "")[-6000:] + "\n--- stderr ---\n" + (r.stderr or "")[-8000:],
                                              encoding="utf-8")
     line = [ln for ln in (r.stdout or "").splitlines() if ln.startswith("POSTSEED ")]
     if r.returncode != 0 or not line:
@@ -1017,12 +1017,12 @@ def run_config(config: str, args, fs: dict) -> int:
         data_dir.mkdir(parents=True, exist_ok=True)
         set_env(fs, config, data_dir)
         seed_pre_boot(data_dir, OUT, d_report)
-        (data_dir / CAL_FILE).write_text(json.dumps({"reporters": {"AMZN": {"date": d_report.isoformat()}, "AMD": {"date": d_report.isoformat()}},
+        (data_dir / CAL_FILE).write_text(newline=chr(10), data=json.dumps({"reporters": {"AMZN": {"date": d_report.isoformat()}, "AMD": {"date": d_report.isoformat()}},
                                                      "asOf": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                                      "partial": False}, indent=1), encoding="utf-8")
         sb = h.Sandbox(str(data_dir), args.port, OUT / f"sandbox-{config}.log")
         sb.start()
-        (OUT / f"sandbox-{config}.tip").write_text(f"sandbox-{config}.log is the boot of tip {REC.get('tip')}\n", encoding="utf-8")
+        (OUT / f"sandbox-{config}.tip").write_text(newline=chr(10), data=f"sandbox-{config}.log is the boot of tip {REC.get('tip')}\n", encoding="utf-8")
     else:
         set_env(fs, config, data_dir)   # children (post-seed) read the same flags
     not_run, failure = None, None
@@ -1074,7 +1074,7 @@ def run_config(config: str, args, fs: dict) -> int:
         ipath = sb.integrity_path()
         if ipath and Path(ipath).is_file():
             kept = OUT / f"integrity-{config}.md"
-            kept.write_text(f"tip under test: {REC.get('tip')} (configuration {config})\n\n"
+            kept.write_text(newline=chr(10), data=f"tip under test: {REC.get('tip')} (configuration {config})\n\n"
                             + Path(ipath).read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
             integ["path"] = str(kept)
         info["integrity"] = integ
@@ -1125,7 +1125,7 @@ def main(argv=None) -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     w.OUT = OUT / "tours"
     sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO), capture_output=True, text=True).stdout.strip()
-    (OUT / "TIP").write_text(f"{args.tip}\n", encoding="utf-8")
+    (OUT / "TIP").write_text(newline=chr(10), data=f"{args.tip}\n", encoding="utf-8")
     REC.update({"config": args.config, "tip": args.tip, "tool_tree": sha, "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "viewports": VIEWPORTS, "status": "INCOMPLETE (run did not finish)"})
     if args.attach:

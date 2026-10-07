@@ -54,6 +54,19 @@ With getting-started off, Add a sample notebook wrote exactly the five wave-8 no
   `api/services/voice_cost_service.py:95`. That file is not in the diff under review. Seen on a
   fresh sandbox database; not checked against production's schema.
 
+- `GET /api/j2/accounts/comparison` answered 500 once, on a brand-new member's first page:
+  `sqlite3.IntegrityError: UNIQUE constraint failed: j2_accounts.user_id, j2_accounts.name`,
+  `api/services/journal_two/accounts.py:163` (`get_or_migrate_default_account`). Two first
+  requests raced to create the Default account. Seen in 1 of 3 first runs during a later tool
+  check on this same tip (raw file kept in the lane's scratchpad, not here). Not in the diff.
+
+## Open, not yet classified (from a tool check on this tip, after the capture above)
+
+- The sample's AAPL plan note: the fingerprint panel shows, but the walk found no level rows in
+  the chart plan panel. Not yet known whether the panel did not open (walker) or the example's
+  levels do not list (product). The tool now records the panel's text and the roles stored in
+  the note, so the next run answers it.
+
 ## What passed in configuration 2 on this tip (1280 unless noted)
 
 First run at 1280, 820 and 390 (welcome, capability preview, sample promotion, Get started

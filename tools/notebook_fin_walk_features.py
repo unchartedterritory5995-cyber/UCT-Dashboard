@@ -208,16 +208,23 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 b_.first.click()
         fp = C.vis(pg, '[data-testid="fingerprint-panel"]', 30000)
         frame = h2.frame_of(pg, 0)
-        rows_n, perr = 0, None
+        rows_n, perr, panel_txt, plan_btn = 0, None, None, None
+        stored_roles = sorted(str(d.get("role")) for e_ in h2.embeds(note_json(sb.get("AAPL")).get("bodyJson") or {})
+                              for d in (e_.get("annotations") or []) if d.get("role"))
         try:
             if not pg.locator("[data-chart-plan-panel]").count():
+                plan_btn = frame.get_by_role("button", name="Plan", exact=True).count()
                 h2.press(h2.toolbar_button(pg, frame, "Plan", False), False)
-            pg.locator("[data-chart-plan-panel] li[data-level-id]").first.wait_for(state="visible", timeout=20000)
-            rows_n = pg.locator("[data-chart-plan-panel] li[data-level-id]").count()
+            pnl = pg.locator("[data-chart-plan-panel]").first
+            pnl.wait_for(state="visible", timeout=20000)
+            pg.wait_for_timeout(2500)
+            panel_txt = pnl.inner_text()[:400]
+            rows_n = pnl.locator("li[data-level-id]").count()
         except Exception as e:  # noqa: BLE001
             perr = str(e)[:240]
         C.step(pg, inst, "sample examples", "AAPL plan note: its chart, the technical fingerprint and the drawn plan's levels",
                "PASS" if fp and rows_n >= 2 else "FAIL", fingerprint_panel=fp, plan_levels=rows_n, reach_error=perr,
+               plan_button_in_embed=plan_btn, plan_panel_text=panel_txt, roles_stored_in_the_note=stored_roles,
                bars_error=frame.get_by_text("Couldn't load bars").count(),
                scope=['[data-testid="fingerprint-panel"]', "[data-chart-plan-panel]"])
         opened, cards_txt, verr = False, None, None
@@ -268,19 +275,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         rs = pg.locator("[data-reporting-soon]")
         rs_ok = C.vis_loc(rs, 20000)
         rs_txt = rs.first.inner_text()[:300] if rs_ok else None
-        opened_prep, perr2 = None, None
-        try:
-            ob = pg.get_by_role("button", name="Open the AMZN prep note")
-            if ob.count():
-                ob.first.click(timeout=10000)
-                pg.wait_for_url(lambda u: "note=" in u, timeout=30000)
-                opened_prep = pg.url.split("note=")[-1].split("&")[0]
-        except Exception as e:  # noqa: BLE001
-            perr2 = str(e)[:240]
-        C.step(pg, inst, "sample examples", "earnings prep: the AMZN example draft opens from Reporting soon (when AMZN reports this week)",
-               "PASS" if opened_prep == sb.get("AMZN") else "FAIL", reporting_soon=rs_txt, opened_note=opened_prep,
-               sample_amzn_note=sb.get("AMZN"), reach_error=perr2,
-               note="AMZN is in the sandbox calendar for this run; the sample itself fabricates no calendar row")
+        amzn = note_json(sb.get("AMZN"))
+        C.goto(pg, base, f"/journal/notebook?note={sb.get('AMZN')}", ".ProseMirror")
+        pg.wait_for_timeout(1200)
+        a_txt = pg.locator(".ProseMirror").first.inner_text()[:400]
+        C.step(pg, inst, "sample examples", "earnings prep: the AMZN example draft is a tagged prep note; Reporting soon lists nothing until AMZN is one of the member's own names",
+               "PASS" if "earnings-prep" in (amzn.get("tags") or []) and rs_ok and "AMZN" not in (rs_txt or "") else "FAIL",
+               tags=amzn.get("tags"), reporting_soon=rs_txt, note_text=a_txt,
+               note="the Open-the-prep-note door is exercised in the earnings step, once AMZN is on the member's watchlist")
     run("examples", examples)
 
     # ── the Get started list ────────────────────────────────────────────────────────────
@@ -762,9 +764,21 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "earnings prep", "Reporting soon lists the member's stock that reports this week",
                "PASS" if present and "AMZN" in (text or "") and "AMD" in (text or "") else "FAIL", box_text=text,
                report_day=S.get("report_day"), scope=["[data-reporting-soon]"])
-        C.step(pg, inst, "earnings prep", "the sample's AMZN draft is offered as that name's prep note (Open, not Create)", "INFO",
-               open_button=pg.get_by_role("button", name="Open the AMZN prep note").count(),
-               create_button=pg.get_by_role("button", name="Create prep note for AMZN").count(), shot=False)
+        ob = pg.get_by_role("button", name="Open the AMZN prep note")
+        n_open, n_create = ob.count(), pg.get_by_role("button", name="Create prep note for AMZN").count()
+        opened_prep = None
+        if n_open:
+            ob.first.click(timeout=10000)
+            try:
+                pg.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                opened_prep = pg.url.split("note=")[-1].split("&")[0]
+            except Exception:  # noqa: BLE001
+                pass
+        C.step(pg, inst, "sample examples", "earnings prep: with AMZN on the watchlist, Reporting soon opens the sample's AMZN draft (Open, not Create)",
+               "PASS" if opened_prep and opened_prep == (S.get("sample_by_ticker") or {}).get("AMZN") else "FAIL",
+               open_button=n_open, create_button=n_create, opened_note=opened_prep)
+        home()
+        C.vis_loc(box, 30000)
         btn = pg.get_by_role("button", name="Create prep note for AMD")
         made, body, err = None, "", None
         try:
