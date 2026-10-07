@@ -127,7 +127,7 @@ const NO_READ_KINDS = ['no-read:', 'gap:']
 /** One token each ARG_KIND accepts — every kind must have one, so a new kind fails here first. */
 const ARG_SAMPLE = {
   timeframe: 'W', calendarDay: 'TODAY', code: 'GP', symbol: 'AMD', lookback: '3M', cadence: 'D',
-  moversLens: 'UP', contribWindow: '1W',
+  moversLens: 'UP', contribWindow: '1W', themeName: 'SEMICONDUCTORS',
 }
 
 afterEach(cleanup)

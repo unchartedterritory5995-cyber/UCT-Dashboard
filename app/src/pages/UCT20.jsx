@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
-import { useInTerminalPanel, usePanelFreshness } from '../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelRows } from '../components/terminal'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
@@ -506,6 +506,15 @@ export default function UCT20() {
     })
   }, [ranked, sort, posMap])
 
+  // Row <GO>: the number a member types is the RANK this list prints in its # column, so the
+  // numbered rows follow rank order whatever the sort; the board list follows the rows as shown.
+  const rankRows = useMemo(() => allTickers.map(sym => `$${sym}`), [allTickers])
+  usePanelRows(rankRows)
+  const shownSyms = useMemo(
+    () => sortedRows.map(({ item }) => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
+    [sortedRows])
+  usePanelList(shownSyms.length ? { syms: shownSyms, label: 'UCT 20' } : null)
+
   const toggleSort = useCallback(key => {
     setSort(prev => nextUct20Sort(prev, key))   // desc → asc → reset
   }, [])
@@ -559,6 +568,7 @@ export default function UCT20() {
         <button className={styles.methodBtn} onClick={copyTickers} disabled={!stocks.length}>
           {copied ? 'Copied' : 'Copy tickers'}
         </button>
+        <BoardFromList syms={shownSyms} label="UCT 20" testId="uct20-board" />
         <button className={styles.methodBtn} onClick={() => setShowMethodology(true)}>
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           How it&rsquo;s built

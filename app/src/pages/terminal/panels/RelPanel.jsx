@@ -11,7 +11,7 @@
 //
 // Computed in the panel from `/api/bars` daily closes; no new route (useCloses.js).
 import { useEffect, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance } from './useCloses'
 import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
@@ -93,6 +93,9 @@ export default function RelPanel({ sym, lookback, ...props }) {
   usePanelFreshness(closesProvenance(state, 'D'))
   const read = useMemo(() => (state.phase === 'ready' ? relativePerformance(state.series, syms, win, RATIO_AVG) : null),
     [state, syms, win])
+  // Row <GO>: the table's rows, in order, each load that name (`$SYM`); the compared names are the
+  // list a "Board of" opens. Nothing is published until the comparison is on screen.
+  const shownSyms = usePanelSymbolRows(read && read.lines.length >= 2 ? read.rows.map((r) => r.sym) : [], `REL ${win}`)
 
   if (!syms.length) {
     return (
@@ -115,6 +118,7 @@ export default function RelPanel({ sym, lookback, ...props }) {
         {REL_WINDOWS.map((w) => (
           <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}>{w}</button>
         ))}
+        <BoardFromList syms={shownSyms} label={`REL ${win}`} testId="terminal-rel-board" />
       </div>
       {unapplied && (
         <p className={styles.note} role="status" data-testid="terminal-rel-unapplied">

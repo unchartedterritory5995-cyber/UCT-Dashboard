@@ -11,7 +11,7 @@
 // Pearson on daily simple returns, each pair over the sessions BOTH traded. A pair with fewer
 // than MIN_CORR_SESSIONS common returns shows "n/a", never a number.
 import { useEffect, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance } from './useCloses'
 import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, withArgsKey } from './relativeMath'
@@ -71,6 +71,9 @@ export default function CorrPanel({ sym, lookback, ...props }) {
     const { sessions, since } = corrWindow(win, state.series, live)
     return correlationMatrix(state.series, live, sessions, { since })
   }, [state, syms, win])
+  // Row <GO>: the matrix's rows, in order, each load that name (`$SYM`); the names in the matrix
+  // are the list a "Board of" opens. Nothing is published until a matrix is on screen.
+  const shownSyms = usePanelSymbolRows(read ? read.syms : [], `CORR ${win}`)
 
   if (!syms.length) {
     return (
@@ -90,6 +93,7 @@ export default function CorrPanel({ sym, lookback, ...props }) {
         {CORR_WINDOWS.map((w) => (
           <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}>{w}</button>
         ))}
+        <BoardFromList syms={shownSyms} label={`CORR ${win}`} testId="terminal-corr-board" />
       </div>
       {unapplied && (
         <p className={styles.note} role="status" data-testid="terminal-corr-unapplied">
