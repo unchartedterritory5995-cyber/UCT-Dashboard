@@ -342,7 +342,7 @@ def test_slice2_lanes_are_dark_and_unread_until_their_own_gate_is_set(stores, mo
     opened = []
     monkeypatch.setattr(th, "_engine_ro", lambda: opened.append(1) or (_ for _ in ()).throw(AssertionError))
     journal_reads = []
-    monkeypatch.setattr(th, "_member_journal", lambda uid: journal_reads.append(uid) or ([], []))
+    monkeypatch.setattr(th, "_member_journal", lambda uid, sym=None: journal_reads.append(uid) or ([], []))
     out = th.history("NVDA", days=30, user_id="u-dark")
     assert set(out["lanes"]) == {"wire", "book", "catalysts", "room"}
     assert {r["lane"] for r in out["timeline"]} <= {"wire", "book", "catalysts", "room"}
@@ -728,7 +728,7 @@ def test_journal_matches_a_pre_normalisation_dot_row(stores, monkeypatch):
     closed = [{"id": "t1", "symbol": "BRK.B", "side": "Long", "entryDate": D1, "exitDate": D2,
                "result": "Win", "rMultiple": 1.5}]
     open_pos = [{"id": "p1", "symbol": "BRK-B", "side": "Long", "entryDate": D2}]
-    monkeypatch.setattr(th, "_member_journal", lambda uid: (closed, open_pos))
+    monkeypatch.setattr(th, "_member_journal", lambda uid, sym=None: (closed, open_pos))
     for s in DUAL:
         rows = _lane(th.history(s, days=30, user_id="me"), "journal")
         assert sorted((r["date"], r["event"], r["source"]) for r in rows) == [
@@ -740,7 +740,7 @@ def test_two_same_day_journal_trades_are_both_kept(stores, monkeypatch):
     ref, because two trades opened the same day read exactly alike."""
     closed = [{"id": f"t{i}", "symbol": "NVDA", "side": "Long", "entryDate": D1, "exitDate": None}
               for i in (1, 2)]
-    monkeypatch.setattr(th, "_member_journal", lambda uid: (closed, []))
+    monkeypatch.setattr(th, "_member_journal", lambda uid, sym=None: (closed, []))
     rows = _lane(th.history("NVDA", days=30, user_id="me"), "journal")
     assert sorted(r["ref"] for r in rows) == ["j2_trades#t1", "j2_trades#t2"]
 
@@ -868,20 +868,71 @@ def test_an_archived_wire_is_parsed_once_and_re_read_when_rewritten(stores, monk
     th._WIRE_DOC_MEMO.clear()
 
 
-def test_the_journal_is_read_once_per_lane_run(stores, monkeypatch):
+def _spy_journal(monkeypatch):
+    """Record every journal read as (kind, symbol filter, limit, offset); never change answers."""
     from api.services.journal_two import positions, trades
     calls = []
     real_t, real_p = trades.list_trades_for_user, positions.list_open_positions
-    monkeypatch.setattr(trades, "list_trades_for_user",
-                        lambda uid, *a, **k: (calls.append("t"), real_t(uid, *a, **k))[1])
+
+    def t(uid, *a, spec=None, **k):
+        calls.append(("t", spec and spec.symbol, spec and spec.limit, spec and spec.offset))
+        return real_t(uid, *a, spec=spec, **k)
+    monkeypatch.setattr(trades, "list_trades_for_user", t)
     monkeypatch.setattr(positions, "list_open_positions",
-                        lambda uid, *a, **k: (calls.append("p"), real_p(uid, *a, **k))[1])
+                        lambda uid, *a, **k: (calls.append(("p",)), real_p(uid, *a, **k))[1])
+    return calls
+
+
+def test_the_journal_lane_never_reads_the_whole_journal(stores, monkeypatch):
+    """fn6 -- live: a large journal cost >1 s on EVERY open, because the lane read and decoded
+    every trade. It now asks the service for this ticker only, and the coverage for one row."""
     uid = _journal_member()
+    _trade(uid, "AMD", OLD, D1)
+    _trade(uid, "NVDA", D1, D2)
+    calls = _spy_journal(monkeypatch)
     out = th.history("NVDA", days=30, user_id=uid)
-    assert out["lanes"]["journal"]["status"] == "ok"
-    assert calls == ["t", "p"], calls                       # lane + coverage, one read
-    th.history("NVDA", days=30, user_id=uid)
-    assert calls == ["t", "p", "t", "p"]                    # never shared ACROSS requests
+    assert out["lanes"]["journal"]["status"] == "ok" and out["lanes"]["journal"]["covers_from"] == OLD
+    trade_reads = [c for c in calls if c[0] == "t"]
+    assert trade_reads, calls
+    assert all(c[1] == "NVDA" or c[2] == 1 for c in trade_reads), calls   # ticker-only, or ONE row
+    assert calls.count(("p",)) == 1, calls                                 # positions once per run
+    assert [r["date"] for r in _lane(out, "journal")] == [D2, D1]
+
+
+def test_the_ticker_filter_is_narrowed_to_the_exact_ticker(stores):
+    """The service filter is a PREFIX match; NVDL, NVDAX and NV must never ride into NVDA."""
+    uid = _journal_member()
+    for s in ("NVDA", "NVDL", "NVDAX", "NV"):
+        _trade(uid, s, D1, D2)
+    rows = _lane(th.history("NVDA", days=30, user_id=uid), "journal")
+    assert len(rows) == 2 and {r["symbol"] for r in rows} == {"NVDA"}
+
+
+def test_a_dot_and_a_hyphen_class_share_are_both_found_through_the_filter(stores):
+    from api.services.auth_db import get_connection
+    uid = _journal_member()
+    t1 = _trade(uid, "BRK-B", D1, D2)
+    _trade(uid, "BRKR", D1, D2)
+    with contextlib.closing(get_connection()) as c:       # a pre-2026-09-06 row kept the dot
+        c.execute("UPDATE j2_trades SET symbol='BRK.B' WHERE id=?", (t1["id"],))
+        c.commit()
+    _trade(uid, "BRK-B", D2, D2)
+    rows = _lane(th.history("BRK.B", days=30, user_id=uid), "journal")
+    assert len({r["ref"] for r in rows}) == 2 and all(r["symbol"] == "BRK-B" for r in rows)
+
+
+def test_the_coverage_follows_a_new_earlier_trade_at_once(stores, monkeypatch):
+    """The oldest-trade answer is kept per (member, trade count): adding a trade re-reads it."""
+    th._JOURNAL_OLDEST_MEMO.clear()
+    uid = _journal_member()
+    _trade(uid, "NVDA", D1, D2)
+    assert th._journal_coverage(uid) == (D1, None)
+    calls = _spy_journal(monkeypatch)
+    assert th._journal_coverage(uid) == (D1, None)
+    assert [c for c in calls if c[0] == "t" and c[3] is not None] == [], calls         # memo: no offset read
+    _trade(uid, "AMD", OLD, D1)
+    assert th._journal_coverage(uid) == (OLD, None)
+    th._JOURNAL_OLDEST_MEMO.clear()
 
 
 def test_the_setup_ledger_is_read_through_its_symbol_index(stores):
