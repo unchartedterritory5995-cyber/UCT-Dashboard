@@ -579,6 +579,8 @@ def test_ordinary_stock_history_caching_is_unchanged(monkeypatch):
 
 # ── breadth-DERIVED market indicators share the breadth cache policy ─────────────────────────
 _BD = ("US:MCO", "US:MCS", "US:AD", "US:ZBT")
+#: ⭐ The derived ratios (Breadth finishing pass, 2026-10-07) — published for US, breadth-derived like _BD.
+_BD_RATIOS = ("US:ADR", "US:ADP", "US:RHP", "US:HLI")
 
 
 def _mi_hist(monkeypatch, value):
@@ -590,12 +592,12 @@ def _mi_hist(monkeypatch, value):
     return br
 
 
-def test_breadth_derived_indicators_are_exactly_the_four_us_series():
+def test_breadth_derived_indicators_are_exactly_the_us_series():
     from api.routers import bars as br
     from api.services.market_indicators import registry as reg
     derived = {s.id for s in reg.published_rows() if s.source_type == reg.SRC_BREADTH_DERIVED}
-    assert derived == set(_BD)
-    assert all(br._is_breadth_derived_indicator(s) for s in _BD)
+    assert derived == set(_BD) | set(_BD_RATIOS)
+    assert all(br._is_breadth_derived_indicator(s) for s in _BD + _BD_RATIOS)
     # other published indicators (surveys, Cboe, COT, ...) and stocks/breadth are NOT
     others = [s.id for s in reg.published_rows() if s.source_type != reg.SRC_BREADTH_DERIVED]
     assert others and not any(br._is_breadth_derived_indicator(s) for s in others)

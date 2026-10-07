@@ -110,10 +110,11 @@ export default function useSymbolDiscovery(query, enabled, opts = {}) {
       // (an older backend, or a cached response). Substring over the registry rows.
       : ((breadth && typeof breadth.all === 'function') ? breadth.all() : [])
         .filter((r) => matchesBreadth(r, q))
-    const brd = breadthResults(matched, { tf, bars })
+    const universes = lib && Array.isArray(lib.universes) ? lib.universes : []
+    const brd = breadthResults(matched, { tf, bars, universes })
     // ⛔ ONLY THE REPLY TO THE QUESTION ON SCREEN. A reply to an older query is
     // not cleared, it is simply not read.
-    const sec = answer.q === q ? securityResults(answer.rows, { tf, bars }) : []
+    const sec = answer.q === q ? securityResults(answer.rows, { tf, bars, universes }) : []
     // ⛔ DEDUPED BY KEY, LOCAL WINNING. `/api/ticker-search` INJECTS breadth rows
     // into its own results, and `securityResults` re-routes those to the breadth
     // kind — so without this a member searching `UCTA50` would see it twice, once

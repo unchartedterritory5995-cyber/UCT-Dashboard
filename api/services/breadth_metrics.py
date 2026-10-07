@@ -181,7 +181,7 @@ _ROWS = [
     ("is_ftd",            "FTD",   "Follow-Through Day",            "FTD",       "score_regime", UNIT_POINTS, DOMAIN_NONNEG, PRES_LINE, NOT_PORTABLE),
 
     # ── Score / regime ───────────────────────────────────────────────────────
-    ("mcclellan_osc",     "MC",    "McClellan Oscillator",          "McClellan", "score_regime", UNIT_POINTS, DOMAIN_SIGNED, PRES_LINE, PORTABLE),
+    ("mcclellan_osc",     "MC",    "McClellan Oscillator (Raw)",    "McClellan", "score_regime", UNIT_POINTS, DOMAIN_SIGNED, PRES_LINE, PORTABLE),
     ("adv_decline_cum",   "AD",    "Advance/Decline Line",          "A/D Line",  "score_regime", UNIT_COUNT, DOMAIN_SIGNED, PRES_LINE, PORTABLE),
     ("adv_decline",       "NA",    "Net Advancers (Daily)",         "Net Adv",   "score_regime", UNIT_COUNT, DOMAIN_SIGNED, PRES_HISTOGRAM, PORTABLE),
     ("stage2_count",      "S2",    "Stage 2 Uptrend Count",         "Stage 2",   "score_regime", UNIT_COUNT, DOMAIN_NONNEG, PRES_LINE, PORTABLE),
@@ -200,6 +200,69 @@ _ROWS = [
 
 _FIELDS = ("metric", "code", "name", "short_name", "group", "unit", "domain",
            "presentation", "portability")
+
+#: ⭐ WHAT EACH NUMBER MEANS, in one member-facing sentence (finishing pass, 2026-10-07).
+#: Written from the engine's own definitions (`breadth_live.compute_metrics`,
+#: `breadth_monitor._derive_ascending`) — thresholds and windows are the ones the code applies.
+#: Served on every library row as `description`; the client shows it and never writes its own.
+#: ⛔ KEPT OUT OF `_ROWS` on purpose: those tuples are positional and read by the grind's
+#: applicability gate, which this pass must not touch.
+DESCRIPTIONS = {
+    "pct_above_5sma": "Share of stocks closing above their 5-day simple moving average.",
+    "pct_above_10sma": "Share of stocks closing above their 10-day simple moving average.",
+    "pct_above_20ema": "Share of stocks closing above their 20-day exponential moving average.",
+    "pct_above_40sma": "Share of stocks closing above their 40-day simple moving average.",
+    "pct_above_50sma": "Share of stocks closing above their 50-day simple moving average.",
+    "pct_above_100sma": "Share of stocks closing above their 100-day simple moving average.",
+    "pct_above_200sma": "Share of stocks closing above their 200-day simple moving average.",
+    "up_4pct_today": "Stocks that closed up 4% or more versus the prior close.",
+    "down_4pct_today": "Stocks that closed down 4% or more versus the prior close.",
+    "up_20pct_5d": "Stocks up 20% or more over the last 5 sessions.",
+    "down_20pct_5d": "Stocks down 20% or more over the last 5 sessions.",
+    "up_25pct_month": "Stocks up 25% or more over the last 21 sessions.",
+    "down_25pct_month": "Stocks down 25% or more over the last 21 sessions.",
+    "up_50pct_month": "Stocks up 50% or more over the last 21 sessions.",
+    "down_50pct_month": "Stocks down 50% or more over the last 21 sessions.",
+    "up_25pct_quarter": "Stocks up 25% or more over the last 65 sessions.",
+    "down_25pct_quarter": "Stocks down 25% or more over the last 65 sessions.",
+    "magna_up": "Stocks up 13% or more over the last 34 sessions.",
+    "magna_down": "Stocks down 13% or more over the last 34 sessions.",
+    "ratio_5day": "Up-4% stocks ÷ down-4% stocks, summed over the last 5 sessions.",
+    "ratio_10day": "Up-4% stocks ÷ down-4% stocks, summed over the last 10 sessions.",
+    "up_vol_ratio": "Up-volume issues ÷ down-volume issues for the session.",
+    "new_52w_highs": "Stocks closing at a new 52-week high.",
+    "new_52w_lows": "Stocks closing at a new 52-week low.",
+    "net_new_high_low": "New 52-week highs minus new 52-week lows; negative when lows dominate.",
+    "new_20d_highs": "Stocks closing at a new 20-session high.",
+    "new_20d_lows": "Stocks closing at a new 20-session low.",
+    "hi_ratio": "New 52-week highs as a percent of the universe.",
+    "lo_ratio": "New 52-week lows as a percent of the universe.",
+    "near_52w_high": "Stocks within 5% of their 52-week high.",
+    "hvc_52w": "Stocks closing above their 10-day MA on their highest volume in 52 weeks.",
+    "atr_ext_7": "Stocks more than 7 ATRs above their 50-day moving average.",
+    "new_ath": "Stocks closing at an all-time high.",
+    "universe_count": "Number of stocks measured that session.",
+    "advancing": "Stocks that closed above their prior close.",
+    "declining": "Stocks that closed below their prior close.",
+    "up_on_volume": "Advancing stocks whose volume rose versus the prior session.",
+    "down_on_volume": "Declining stocks whose volume rose versus the prior session.",
+    "is_ftd": "1 on a Follow-Through Day session, else 0.",
+    "mcclellan_osc": "Raw McClellan Oscillator: 19-day EMA minus 39-day EMA of net advances "
+                     "(not ratio-adjusted).",
+    "adv_decline_cum": "Running total of daily net advances (advance/decline line).",
+    "adv_decline": "Advancing minus declining stocks for the session; negative when decliners lead.",
+    "stage2_count": "Stocks in a Stage 2 uptrend: price > 50-day > 150-day > 200-day MA, "
+                    "with the 200-day rising.",
+    "stage4_count": "Stocks in a Stage 4 downtrend: price < 50-day < 150-day < 200-day MA, "
+                    "with the 200-day falling.",
+    "breadth_score": "UCT's composite breadth health score.",
+    "uct_exposure": "UCT's recommended market exposure rating.",
+    "rsp_spy_ratio": "Equal-weight S&P 500 (RSP) ÷ cap-weight S&P 500 (SPY).",
+    "iwm_qqq_ratio": "Russell 2000 (IWM) ÷ Nasdaq-100 (QQQ).",
+    "cnn_fear_greed": "CNN Fear & Greed Index (0 = extreme fear, 100 = extreme greed).",
+    "cboe_putcall": "CBOE put/call ratio. ⚠ Feed stale since 2026-08-07.",
+    "aaii_spread": "AAII survey: % bullish minus % bearish.",
+}
 
 METRICS = {r[0]: dict(zip(_FIELDS, r)) for r in _ROWS}
 METRIC_KEYS = [r[0] for r in _ROWS]
@@ -294,10 +357,42 @@ V1_METRICS = (
     "universe_count", "adv_decline",
 )
 
-#: Named publication sets. `*` is not a set — see `publication_set_name`.
-PUBLICATION_SETS = {"v1": V1_METRICS}
+#: ⭐ V1.1 — the BL-014 promotion (Breadth finishing pass, 2026-10-07). Every metric below was
+#: ALREADY ground, validated and stored by the accepted authorities (US V2's 35 canonical metrics;
+#: the Exchange V1 artifact's identical set) and was held back only because V1 was deliberately
+#: focused. Classified one by one before promotion — the classification table lives in
+#: `V1_1_CLASSIFICATION` below so a reviewer can read WHY each one is (or is not) here.
+#:
+#: ⛔ NOTHING NEW IS COMPUTED. This is a publication decision over stored rows; the producers,
+#: the grind and the authorities are untouched. Rollback = `BREADTH_LIBRARY_METRICS=v1`.
+V1_1_ADDED = (
+    # Multi-period momentum participation — the UCT-differentiating family, now per universe
+    "up_20pct_5d", "down_20pct_5d", "up_25pct_month", "down_25pct_month",
+    "up_50pct_month", "down_50pct_month", "up_25pct_quarter", "down_25pct_quarter",
+    "magna_up", "magna_down",
+    # Short-horizon highs / lows and proximity to highs
+    "new_20d_highs", "new_20d_lows", "near_52w_high",
+    # Trend structure
+    "stage2_count", "stage4_count",
+    # The raw issue counts — already published for NYSE/NASDAQ (EXCHANGE_EXTRA_METRICS); US gains them
+    "advancing", "declining",
+)
+V1_1_METRICS = V1_METRICS + V1_1_ADDED
 
-DEFAULT_PUBLICATION_SET = "v1"
+#: The per-candidate verdicts behind V1.1 (A = useful + ready → published; B = redundant;
+#: C = internal/intermediate → hidden; D = unclear methodology → not published). Every
+#: registered, applicable, producible metric outside V1 appears here exactly once.
+V1_1_CLASSIFICATION = {
+    **{m: "A" for m in V1_1_ADDED},
+    # D — withheld by the US V2 authority itself (`breadth_authority.US_WITHHELD`): the only
+    #     population they exist in is V1's, which is the defective one. Not stored by Exchange V1.
+    "up_on_volume": "D", "down_on_volume": "D", "hvc_52w": "D", "up_vol_ratio": "D",
+}
+
+#: Named publication sets. `*` is not a set — see `publication_set_name`.
+PUBLICATION_SETS = {"v1": V1_METRICS, "v1.1": V1_1_METRICS}
+
+DEFAULT_PUBLICATION_SET = "v1.1"
 
 
 def is_applicable(metric: str, universe: str) -> bool:

@@ -341,7 +341,8 @@ def ticker_search(
             for rec in _breadth_syms.search(qq, limit):
                 row = {"ticker": rec["ticker"], "name": rec["name"], "type": "breadth",
                        "exchange": "UCT", "entity_id": None,
-                       "breadth": True, "group_label": rec.get("group_label")}
+                       "breadth": True, "group_label": rec.get("group_label"),
+                       "universe_label": rec.get("universe_label")}
                 (b_front if rec.get("symbol_hit") else b_back).append(row)
             results = b_front + results + b_back
         except Exception:

@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest'
 
 import PARITY from './__fixtures__/breadthSearchParity.json'
-import { searchLibrary, browseFamilies, tokens, availabilityOf } from './breadthLibrary'
+import { searchLibrary, browseFamilies, tokens, availabilityOf, SYNONYMS } from './breadthLibrary'
 import CATALOG from './__fixtures__/breadthLibraryRows.json'
 
 const ROWS = CATALOG.rows
@@ -24,6 +24,11 @@ const syms = (q, limit = 12) =>
   searchLibrary(ROWS, q, { limit, metricOrder: METRIC_ORDER }).map((r) => r.symbol)
 
 describe('the JS lane agrees with the Python reference', () => {
+  it('⛔ the trader-spelling synonyms are the SAME table in both lanes', () => {
+    const sorted = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => (a < b ? -1 : 1)))
+    expect(sorted({ ...SYNONYMS })).toEqual(PARITY.synonyms)
+  })
+
   for (const [query, expected] of Object.entries(PARITY.queries)) {
     it(`"${query}"`, () => {
       expect(syms(query, expected.length || 12)).toEqual(expected)

@@ -145,8 +145,11 @@ describe('a result says which half leads', () => {
   it('⭐ the Symbols library row inverts too — headline metric, subtitle universe', () => {
     const row = symbolLibraryRow(pickRes('NASDAQ:A50'))
     expect(row.name).toBe('% of Stocks Above 50-Day MA')
-    expect(row.description).toBe('NASDAQ · NASDAQ:A50')
-    expect(row.shortName).toBe('Breadth')       // the chip still says what it is
+    // ⭐ finishing pass (2026-10-07): the hover leads with universe · metric (symbol), and the
+    // chip names the POPULATION — four "% Above 50-Day MA" rows reading "Breadth" were
+    // indistinguishable in search.
+    expect(row.description.split('\n')[0]).toBe('NASDAQ · % of Stocks Above 50-Day MA (NASDAQ:A50)')
+    expect(row.shortName).toBe('NASDAQ')
   })
 
   it('…and a security library row still leads with its ticker', () => {
