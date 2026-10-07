@@ -73,6 +73,35 @@ export const ARG_KINDS = {
     parse: (tok) => (isCode(tok) ? String(tok).toUpperCase() : null),
     describe: (v) => `function ${v}`,
   },
+  // ── the comparison panels (RRG / REL / CORR, feature-gaps-2026-10-06) ──
+  /** A comparator security. `$` forces a ticker reading; a bare function code is never one. */
+  symbol: {
+    takes: 'tickers to compare (NVDA REL AMD SMH)',
+    parse: (tok) => {
+      const t = String(tok).toUpperCase()
+      const forced = t.startsWith('$')
+      const s = t.replace(/^\$/, '')
+      if (!/^[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z]{1,2})?$/.test(s)) return null
+      if (!forced && isCode(s)) return null
+      return s
+    },
+    describe: (v) => `ticker ${v}`,
+  },
+  /** A comparison window. */
+  lookback: {
+    takes: 'a window (1M, 3M, 6M, 1Y, 2Y, YTD)',
+    parse: (tok) => {
+      const t = String(tok).toUpperCase()
+      return ['1M', '3M', '6M', '1Y', '2Y', 'YTD'].includes(t) ? t : null
+    },
+    describe: (v) => `window ${v}`,
+  },
+  /** RRG's cadence: weekly or daily closes. */
+  cadence: {
+    takes: 'D or W',
+    parse: (tok) => ({ D: 'D', DAILY: 'D', W: 'W', WEEKLY: 'W' })[String(tok).toUpperCase()] ?? null,
+    describe: (v) => (v === 'D' ? 'daily closes' : 'weekly closes'),
+  },
 }
 
 /**
@@ -96,7 +125,7 @@ export function applyArgs(variant, args = [], ctx = {}) {
     }
   }
   const specs = variant.args || []
-  out.takes = specs.map((s) => ARG_KINDS[s.kind]?.takes).filter(Boolean)
+  out.takes = [...new Set(specs.map((s) => ARG_KINDS[s.kind]?.takes).filter(Boolean))]
   const filled = new Set()
   tokens.forEach((tok, i) => {
     if (consumed.has(i)) return

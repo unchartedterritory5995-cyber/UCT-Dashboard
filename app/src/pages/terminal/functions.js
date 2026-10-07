@@ -205,7 +205,26 @@ export const FUNCTIONS = [
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
     market: { panel: 'Help', args: [{ kind: 'code', prop: 'focusCode' }] } },
+
+  // ── comparison analytics (feature-gaps-2026-10-06: what leading terminals give a swing trader
+  // that this one did not). Each is computed in its panel from `/api/bars` closes; no new route.
+  // `with0` … `withN` are the comparator tickers typed after the code. A linked panel's security
+  // leads the list, so `RRG` in a panel following NVDA plots NVDA among the sectors.
+  { code: 'RRG', label: 'Relative rotation graph (sectors or any list vs SPY)', group: 'Market',
+    ticker: { panel: 'Rrg', args: [{ kind: 'cadence', prop: 'tf' }, ...symbolArgs(11)] },
+    market: { panel: 'Rrg', args: [{ kind: 'cadence', prop: 'tf' }, ...symbolArgs(12)] } },
+  { code: 'REL', label: 'Relative performance & A/B ratio', group: 'Security',
+    ticker: { panel: 'Rel', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(5)] },
+    market: { panel: 'Rel', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(6)] } },
+  { code: 'CORR', label: 'Correlation matrix (daily returns)', group: 'Security',
+    ticker: { panel: 'Corr', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(9)] },
+    market: { panel: 'Corr', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(10)] } },
 ]
+
+/** `n` comparator-ticker argument slots (`with0` … `with{n-1}`), for the comparison codes. */
+function symbolArgs(n) {
+  return Array.from({ length: n }, (_, i) => ({ kind: 'symbol', prop: `with${i}` }))
+}
 
 /** Codes a member will type for surfaces this build does not have. Answered, not refused.
  *  (OSCR and OBT stood here until 2026-10-02 — both were BUILT, and the shell denied them.) */
