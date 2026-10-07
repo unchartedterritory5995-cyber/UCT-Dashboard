@@ -107,3 +107,138 @@ describe('1. CHANGE-TURN TRUTH — the model is not the authority on applied sta
     expect(screen.getAllByTestId('converse-assistant-reply').at(-1).textContent).toMatch(/haven't changed anything yet/)
   })
 })
+
+// ═══ 2. PREVIEW INVALIDATION — any content change re-installs the preview ════════
+//
+// ROOT CAUSE (traced): the registry skipped an install whose key was unchanged, and
+// the key was `id@version#compute.fn` — `compute.fn` hashes only the scan/primary
+// tree, and the live preview keeps ONE id + version for its whole life. A change to
+// a second output's tree, a paint, a style or the levels kept the key, so the chart
+// drew the previous document. The key now carries a content fingerprint.
+
+import * as registry from '../nativeRegistry'
+import { newAuthoringState, applyTurn } from '../../builder/authoring/authoringState'
+import { stampSemantics } from '../definitionSemantics'
+import { STUDIO_PREVIEW_DEF_ID } from '../../builder/studio/chartPreview'
+
+const asPreview = (state) => stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: null })
+const turn = (state, ops) => {
+  const out = applyTurn(state, { contract: C, baseRevision: state.revision, ops }, { gateCtx: { symbol: 'XRPN', tf: 'D' } })
+  expect(out.result.status).toBe('applied')
+  return out.state
+}
+/** The P3R create: RSI 28 in a pane + an "above 70" condition that paints candles gold. */
+const p3rRsi = () => turn(newAuthoringState(), [
+  { op: 'create', name: 'RSI 28', placement: 'pane', primary: 'rsi', outputs: [
+    { key: 'rsi', label: 'RSI 28', tree: parseFormula('rsi(close, 28)').ast },
+    { key: 'overbought', label: 'RSI above 70', tree: parseFormula('rsi(close, 28) > 70').ast }] },
+  { op: 'set_levels', values: [70, 30] },
+  { op: 'set_paint', output: 'overbought', channel: 'barcolor', color: '#FFD700' },
+])
+const installed = () => registry.getDefinition(STUDIO_PREVIEW_DEF_ID)
+const install = (state) => {
+  const before = registry.registryGeneration()
+  const { installed: got, errors } = registry.installUserDefinitions([asPreview(state)])
+  expect(errors).toEqual([])
+  return { bumped: registry.registryGeneration() !== before, got }
+}
+
+describe('2. PREVIEW INVALIDATION — a non-primary change re-installs the preview', () => {
+  afterEach(() => { registry.clearUserDefinitions() })
+
+  it('the exact P3R transition: "above 70" → "crossing above 70" on the PAINTED output', () => {
+    let s = p3rRsi()
+    install(s)
+    const fnBefore = installed().compute.fn
+    expect(JSON.stringify(installed())).not.toContain('crossOver')
+    s = turn(s, [{ op: 'set_output_tree', output: 'overbought', tree: parseFormula('crossOver(rsi(close, 28), 70)').ast },
+      { op: 'rename_output', output: 'overbought', label: 'RSI 28 crosses above 70' }])
+    const r = install(s)
+    expect(installed().compute.fn).toBe(fnBefore)          // the primary hash did NOT move…
+    expect(r.bumped).toBe(true)                            // …and the preview still re-installed
+    expect(JSON.stringify(installed())).toContain('crossOver')
+    expect(JSON.stringify(installed())).toContain('RSI 28 crosses above 70')
+    expect(JSON.stringify(installed())).toContain('#FFD700')   // the paint is kept
+  })
+
+  it.each([
+    ['a paint colour', [{ op: 'set_paint', output: 'overbought', channel: 'barcolor', color: '#00FF00' }], '#00FF00'],
+    ['a background paint', [{ op: 'set_paint', output: 'overbought', channel: 'bgcolor', color: '#112233' }], '#112233'],
+    ['a line style on the primary', [{ op: 'set_style', output: 'rsi', lineStyle: 'dashed' }], '"lineStyle":"dashed"'],
+    ['the levels', [{ op: 'set_levels', values: [80, 20] }], '80'],
+    ['a marker', [{ op: 'set_marker', output: 'overbought', shape: 'circle', position: 'belowBar' }], 'circle'],
+    ['a fill', [{ op: 'add_output', key: 'mid', label: 'Mid', tree: parseFormula('rsi(close, 14)').ast },
+      { op: 'set_fill', output: 'rsi', with: 'mid', color: '#334455' }], '#334455'],
+  ])('%s re-installs although compute.fn is unchanged', (_label, ops, needle) => {
+    let s = p3rRsi()
+    install(s)
+    const fn = installed().compute.fn
+    s = turn(s, ops)
+    const r = install(s)
+    expect(installed().compute.fn).toBe(fn)
+    expect(r.bumped).toBe(true)
+    expect(JSON.stringify(installed())).toContain(needle)
+  })
+
+  it('an IDENTICAL re-install is still a no-op (the SWR revalidate must not bump)', () => {
+    const s = p3rRsi()
+    install(s)
+    expect(install(s).bumped).toBe(false)
+  })
+
+  it('the persisted identity is untouched: id, version, compute.fn and treesHash are the engine\'s', () => {
+    const s = p3rRsi()
+    install(s)
+    const d = installed()
+    expect(d.id).toBe(STUDIO_PREVIEW_DEF_ID)
+    expect(d.compute.fn).toBe(s.working.compute.fn)
+    expect(d.compute.treesHash).toBe(s.working.compute.treesHash)
+  })
+})
+
+// ═══ 5. HARDENING — every non-mutating outcome, then authoring resumes ══════════
+//
+// Through the REAL studio hook: after a create, each TALK / refusal outcome leaves
+// the state object IDENTICAL (not an equal copy) and the revision unmoved; the next
+// valid change then applies on that same revision and conversation.
+
+describe('5. TALK → AUTHOR continuity matrix (studio hook)', () => {
+  afterEach(() => { cleanup(); clearUserDefinitions() })
+  const outcomes = {
+    answer: (st) => ok('answer', { contract: C, baseRevision: st.revision, ops: [] }, 'It is an average.'),
+    clarify: (st) => ok('clarify', { contract: C, baseRevision: st.revision, ops: [], questions: [{ id: 'q', text: 'Which?' }] }, ''),
+    unsupported: () => ({ ok: false, gate: 'unsupported:table', disposition: 'unsupported', reason: 'Tables are not drawable yet.', notUnderstood: [], unavailable: [] }),
+    refused: () => ({ ok: false, gate: 'envelope:schema', reason: 'the assistant\'s change did not follow the change format', notUnderstood: [], unavailable: [] }),
+    staleRevision: (st) => ok('change', setLen(st.revision + 5, 30), ''),
+    malformedOp: (st) => ok('change', { contract: C, baseRevision: st.revision, ops: [{ op: 'set_slot', slot: 'nope#9', value: 3 }] }, ''),
+    network: () => ({ ok: false, gate: 'network', reason: 'Could not reach the server.', notUnderstood: [], unavailable: [] }),
+  }
+  it.each(Object.keys(outcomes))('%s: no mutation, then "Make it 50." applies on the same revision', async (kind) => {
+    let mode = 'create'
+    const converse = vi.fn(async ({ state }) => {
+      if (mode === 'create') return ok('change', createEma(state.revision, 20), '')
+      if (mode === 'talk') return outcomes[kind](state)
+      return ok('change', setLen(state.revision, 50), '')
+    })
+    const { result } = renderHook(() => useIndicatorConversation({ sym: 'XRPN', tf: 'D', converse }))
+    await act(async () => { await result.current.send('Add a 20 EMA.') })
+    const created = result.current.state
+    const lineage = created.lineage
+    mode = 'talk'
+    await act(async () => { await result.current.send('something else') })
+    if (kind === 'clarify') {
+      // a question is recorded on the state, but the working definition and revision do not move
+      expect(result.current.state.working).toBe(created.working)
+      expect(result.current.state.revision).toBe(created.revision)
+    } else {
+      expect(result.current.state).toBe(created)
+    }
+    expect(result.current.transcript.at(-1).kind).not.toMatch(/created|patched/)
+    mode = 'change'
+    await act(async () => { await result.current.send('Make it 50.') })
+    expect(result.current.transcript.at(-1).kind).toBe('patched')
+    expect(result.current.state.revision).toBe(created.revision + 1)
+    expect(result.current.state.lineage).toBe(lineage)
+    expect(JSON.stringify(result.current.state.working)).toContain('"value":50')
+  })
+})
