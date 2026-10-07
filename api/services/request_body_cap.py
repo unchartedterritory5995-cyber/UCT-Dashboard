@@ -189,7 +189,11 @@ def capped_json(annotation: Any, max_bytes: Callable[[], int], sentence: Callabl
                 value = raw
         adapter = _adapter()
         try:
-            return adapter.validate_python(value)
+            # `from_attributes=True` is how FastAPI validates a body field. Without
+            # it a non-object sent to a model door is `model_type`; with it, the
+            # `model_attributes_type` a declared parameter answered. Found by the
+            # old-versus-new differential, pinned in tests/test_notebook_body_order.py.
+            return adapter.validate_python(value, from_attributes=True)
         except ValidationError as e:
             if value is None:
                 raise _missing_body() from None

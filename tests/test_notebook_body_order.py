@@ -162,6 +162,15 @@ _SAME_AS_FASTAPI = [
     ("model", b'{"name": "n", "count": "many"}', "application/json"),
     ("model", b"", "application/json"),
     ("model", b'{"name": "n", "extra": 1}', "application/json"),
+    # found by the old-versus-new differential (docs/notebook/evidence/fin-voice/differential):
+    # FastAPI validates a model body with `from_attributes`, so a non-object is
+    # `model_attributes_type`, not the `model_type` a bare TypeAdapter gives.
+    ("model", b"[1, 2]", "application/json"),
+    ("model", b'"text"', "application/json"),
+    ("model", b"42", "application/json"),
+    ("model", b"null", "application/json"),
+    ("model", b'{"name": "n"}', "text/plain"),
+    ("model", b'{"name": "n"}', "application/x-www-form-urlencoded"),
 ]
 
 
@@ -181,7 +190,7 @@ def test_capped_json_answers_what_a_declared_body_parameter_answered(helper_app,
     if old.status_code == 200:
         assert new.json() == old.json()
     else:
-        shape = lambda r: [(e["type"], e["loc"]) for e in r.json()["detail"]]  # noqa: E731
+        shape = lambda r: [(e["type"], e["loc"], e["msg"]) for e in r.json()["detail"]]  # noqa: E731
         assert shape(new) == shape(old), (new.text, old.text)
 
 
@@ -359,3 +368,52 @@ def test_with_its_flag_on_the_onboarding_tour_door_still_refuses_before_reading(
             got = _drive(real_app, "/api/j2/onboarding/tours/first-note", body, method="PUT")
             assert got.status == (401 if on else 404), (on, label, got.status, got.payload[:120])
             assert got.pulled == 0, (on, label, got.pulled)
+
+
+# ── the dark 404's BYTES, against an unknown route's ─────────────────────────
+
+def _gate_of(route):
+    return next(fn for fn in bc.solve_order(route) if bc._name(fn) == bc.GATE_QUALNAME)
+
+
+def test_the_onboarding_gates_404_is_byte_identical_to_an_unknown_routes(real_app, monkeypatch):
+    """`notebook_onboarding.py` words its own gate 404 (`NOT_FOUND`). With the gate
+    off, a malformed and an oversized anonymous request to the tours door answer
+    the exact bytes an unknown path under the same prefix answers."""
+    from api.routers import notebook_onboarding
+    monkeypatch.setattr(notebook_onboarding, "onboarding_enabled", lambda: False)
+    door = "/api/j2/onboarding/tours/first-note"
+    for make in (lambda: iter([b"{"]), lambda: _chunks(4 * 1024 * 1024, chunk=256 * 1024)):
+        dark = _drive(real_app, door, make(), method="PUT")
+        miss = _drive(real_app, _unknown_sibling(door), make(), method="PUT")
+        assert (dark.status, dark.payload) == (miss.status, miss.payload) == (404, b'{"detail":"Not Found"}')
+        assert dark.pulled == 0
+
+
+def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_shared_public_helper(real_app):
+    """KNOWN, AND NOT THIS FILE'S TO CHANGE. Most Notebook gates raise
+    `public_note_payload.not_found()`, whose body is `{"detail":"Not found"}`:
+    one letter's case away from FastAPI's `{"detail":"Not Found"}`. This pins
+    WHERE the difference comes from, so a router that words its own different
+    404 fails by name, and it stops passing the day the shared helper is made
+    byte-identical (delete this test then, and widen the one above)."""
+    from api.services.journal_two import public_note_payload as public
+    shared, own_and_different, identical = set(), [], set()
+    by_key = {(m, r.path): r for r in real_app.routes if isinstance(r, APIRoute) for m in r.methods}
+    for method, path in _dark_body_routes(real_app):
+        url = _concrete(path)
+        dark = _drive(real_app, url, iter([b"{"]), method=method)
+        miss = _drive(real_app, _unknown_sibling(url), iter([b"{"]), method=method)
+        module = by_key[(method, path)].endpoint.__module__.rsplit(".", 1)[-1]
+        if dark.payload == miss.payload:
+            identical.add(module)
+            continue
+        try:
+            _gate_of(by_key[(method, path)])()
+        except HTTPException as e:
+            if e.detail == public.NOT_FOUND_DETAIL:
+                shared.add(module)
+                continue
+        own_and_different.append(f"{method} {path} ({module}): {dark.payload!r}")
+    assert not own_and_different, "a router words its own dark 404 differently:\n  " + "\n  ".join(own_and_different)
+    assert {"notebook_thesis_chips", "notebook_research_capture"} <= shared, sorted(shared)
