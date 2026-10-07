@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, screen } from '@testing-library/react'
 import useRovingTabIndex from './useRovingTabIndex'
@@ -157,5 +158,41 @@ describe('useRovingTabIndex -- an item that leaves the group (W14-keys)', () => 
     rerender(<Shrinking items={['a', 'b', 'c', 'd']} />)
     expect(screen.getByText('b').tabIndex).toBe(0)
     expect(screen.getByText('a').tabIndex).toBe(-1)
+  })
+
+  // Landing 12-15 (R5 finding I2). The default stop used to be chosen in a PASSIVE effect, so a
+  // group that mounted outside a user event (a lazy chunk resolving, a fetch landing) was in the
+  // DOM for a moment with EVERY item at tabIndex -1: out of the Tab order entirely. A test that
+  // read the DOM in that moment failed (`a11y/onboardingKeys.test.jsx:61`, CI run 37307749593,
+  // green one push earlier): a race, not a regression. The stop is now chosen in a layout effect,
+  // whose state update React applies before the commit can be observed. This rail reads the DOM
+  // at the FIRST moment the group is observable, with no act() to flush effects early.
+  it('a group that mounts late is never observable with no Tab stop', async () => {
+    let show
+    function Late() {
+      const [on, setOn] = useState(false)
+      show = () => setOn(true)
+      return on ? <TestNav orientation="vertical" activeTo={null} /> : null
+    }
+    const { container } = render(<Late />)
+    const firstSight = new Promise((resolve) => {
+      const mo = new MutationObserver(() => {
+        const items = [...container.querySelectorAll('[data-roving-item]')]
+        if (!items.length) return
+        mo.disconnect()
+        resolve(items.map((n) => n.tabIndex))
+      })
+      mo.observe(container, { childList: true, subtree: true, attributes: true })
+    })
+    const prev = globalThis.IS_REACT_ACT_ENVIRONMENT
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false // the product's world: nothing flushes effects for us
+    try {
+      show()
+      const seen = await firstSight
+      expect(seen).toHaveLength(4)                              // non-vacuity: the group was read
+      expect(seen.filter((t) => t === 0)).toHaveLength(1)
+    } finally {
+      globalThis.IS_REACT_ACT_ENVIRONMENT = prev
+    }
   })
 })

@@ -42,7 +42,7 @@
  * tabs into the group for the first time, or after navigating elsewhere and
  * back without having used the arrow keys, lands on the page they are on.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 const ALL_SELECTOR = '[data-roving-item]'
 
@@ -64,7 +64,15 @@ export default function useRovingTabIndex({ orientation = 'horizontal' } = {}) {
   // and the only authority for "which one is active" is the DOM attribute
   // react-router already maintains. The functional setState below is a
   // no-op when the key is unchanged, so this cannot loop.
-  useEffect(() => {
+  //
+  // A LAYOUT effect, not a passive one (landing 12-15, R5 finding I2). The first render has no
+  // stop yet (`rovingKey` is null, so every item is tabIndex -1). A passive effect fixes that a
+  // moment AFTER the commit is on screen, and a group that mounts outside a user event (a lazy
+  // chunk resolving, a fetch landing) was observable in between with no Tab stop at all: a
+  // keyboard user tabbing right then skips the whole group. React applies a state update made in
+  // a layout effect before the commit can be painted or observed, so that moment no longer exists.
+  // Rail: useRovingTabIndex.test.jsx, "a group that mounts late is never observable with no Tab stop".
+  useLayoutEffect(() => {
     const nodes = getItems()
     if (!nodes.length) return
     // W14-keys: a moved stop is kept only while its item is still in the group. An item can
