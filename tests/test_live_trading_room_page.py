@@ -139,13 +139,45 @@ def test_the_json_ld_is_valid_and_the_faq_matches_the_visible_faq():
         assert q["acceptedAnswer"]["text"] in html, f"FAQ answer not visible: {q['name']}"
 
 
+SOCIAL_LINKS = [
+    "https://x.com/TSDR_Trading",
+    "https://www.instagram.com/tsdr_trading",
+    "https://youtube.com/@unchartedtrtyy",
+    "https://facebook.com/unchartedterritoryy",
+]
+
+
+def test_the_footer_social_row_links_the_approved_accounts_with_labels():
+    html = PAGE.read_text(encoding="utf-8")
+    foot = html[html.index("<footer"):html.index("</footer>")]
+    assert '<span class="social-label">Follow along:</span>' in foot
+    row = re.findall(r'<a href="(https://[^"]+)" target="_blank" rel="noopener" aria-label="([^"]+)">([^<]+)</a>', foot)
+    assert [h for h, _, _ in row] == SOCIAL_LINKS, row
+    assert [text for _, _, text in row] == ["X", "Instagram", "YouTube", "Facebook"], row
+    assert all(label.strip() for _, label, _ in row), row
+    main = html[html.index("<main"):html.index("</main>")]
+    assert not any(link in main for link in SOCIAL_LINKS), "a social link left the footer"
+
+
+def test_the_owner_is_named_patrick_tsdr_everywhere():
+    html = PAGE.read_text(encoding="utf-8")
+    # The X handle keeps its name; every other mention carries "Patrick (TSDR)".
+    rest = html.replace("TSDR_Trading", "").replace("TSDR Trading on", "")
+    assert rest.count("TSDR") == rest.count("Patrick (TSDR)") == 12, (rest.count("TSDR"), rest.count("Patrick (TSDR)"))
+    assert "TSDR (Patrick)" not in html
+    p = _parsed()
+    for desc in (_meta(p, name="description"), _meta(p, property="og:description"), _meta(p, name="twitter:description")):
+        assert "Patrick (TSDR) and Bracco" in desc, desc
+    assert "Patrick (TSDR), Bracco" in _meta(p, property="og:image:alt")
+
+
 def test_every_cta_goes_to_the_whop_link_and_there_are_no_prices():
     p = _parsed()
     external = [a["href"] for t, a in p.tags if t == "a" and a.get("href", "").startswith("http")]
     assert external, "no outbound CTA found -- the check is pointed at nothing"
-    # The only outbound link is the Whop CTA. The footer's Terms and Privacy
-    # are the room's own pages (Privacy moved off Whop's policy 2026-10-04).
-    assert set(external) == {WHOP}, f"unexpected outbound links: {sorted(set(external))}"
+    # The outbound links are the Whop CTA and the footer's social row. The
+    # footer's Terms and Privacy are the room's own pages.
+    assert set(external) == {WHOP, *SOCIAL_LINKS}, f"unexpected outbound links: {sorted(set(external))}"
     ctas = [a["href"] for t, a in p.tags if t == "a" and "btn" in (a.get("class") or "").split()]
     assert ctas and set(ctas) == {WHOP}, f"a CTA button points somewhere else: {ctas}"
     text = re.sub(r"<script.*?</script>|<style.*?</style>", "", PAGE.read_text(encoding="utf-8"), flags=re.S)
@@ -536,14 +568,14 @@ V4_H1 = "A live trading room run by traders who trade, and teach, every single d
 V4_INTRO = [
     "Before you join any trading room, you should see what happens inside it and meet the people "
     "who run it. Here's ours.",
-    "Every market morning, about 20 minutes before the 9:30 AM ET open, co-founders TSDR (Patrick) "
+    "Every market morning, about 20 minutes before the 9:30 AM ET open, co-founders Patrick (TSDR) "
     "and Bracco go live on Zoom. They lay out the plan and the levels, then trade the open on screen "
     "share and talk through every decision. Around them: five traders, an options flow team, and a "
     "productive, helpful and focused main chat.",
 ]
 V4_TIMELINE = [
     ("About 9:10 AM ET.", "The Zoom link drops in the live Zoom links channel."),
-    ("Before the open.", "TSDR and Bracco walk through the market, the levels and the names on their list."),
+    ("Before the open.", "Patrick (TSDR) and Bracco walk through the market, the levels and the names on their list."),
     ("9:30 AM ET.", "They trade the open live on screen share and talk through each decision."),
     ("During the day.", "Each trader posts ideas and alerts in his own channel. Options flow and news "
                         "run all day. Questions go in main chat."),
@@ -551,7 +583,7 @@ V4_TIMELINE = [
     ("The weekend.", "Sunday Scans lands with the prep for the week ahead."),
 ]
 V4_TRADERS = [
-    ("TSDR and Bracco", "Run the morning Zoom and explain every trade, "
+    ("Patrick (TSDR) and Bracco", "Run the morning Zoom and explain every trade, "
                         "including the ones they pass on."),
     ("ChartMaster", "Swing trade ideas, educational workshops, and always easy to reach. Years of "
                     "his workshops are in the library."),

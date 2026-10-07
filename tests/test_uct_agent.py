@@ -380,3 +380,10 @@ def test_taste_requests_propose_rather_than_clarify_in_the_prompt():
     the target; the accepted behaviour is a proposal the member can adjust."""
     p = turn.system_prompt(turn.validate_manifest(CAPS))
     assert "Never clarify a matter of taste or judgment" in p
+
+
+def test_talk_is_general_purpose_not_trading_only():
+    """Production 2026-10-07: "Give me three ideas for dinner." was refused as
+    "outside my wheelhouse" — the opening line scoped TALK to trading."""
+    p = turn.system_prompt(turn.validate_manifest(CAPS))
+    assert "general-purpose assistant" in p and "answer ANY question" in p
