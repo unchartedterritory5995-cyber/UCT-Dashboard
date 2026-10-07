@@ -104,6 +104,9 @@ function Screen() {
           <p className={styles.facts} data-testid="opts-session">
             {int(data.matched)} contracts matched · showing {int(data.shown)} · session {data.session} (end-of-day snapshot)
           </p>
+          {!data.rows?.length ? (
+            <p className={styles.note} data-testid="opts-none">No contract in the {data.session} snapshot passed these filters.</p>
+          ) : (
           <div className={styles.scroll}>
             <table className={styles.grid} aria-label="Option screener results">
               <thead><tr>
@@ -124,6 +127,7 @@ function Screen() {
               </tbody>
             </table>
           </div>
+          )}
           <CoverageLine coverage={data.coverage} />
           <p className={styles.muted}>{data.note} {data.screen_rule} Source: {data.source}.</p>
         </>

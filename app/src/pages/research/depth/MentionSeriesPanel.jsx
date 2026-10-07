@@ -31,7 +31,7 @@ export default function MentionSeriesPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading room attention" />
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason)}</div>
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason) || `Room attention for ${s} is not available right now.`}</div>
   else if (!data.summary?.days_measured) {
     // state ok with nothing measured rendered "Last 0 measured days: — mentions a day"
     body = <div className={styles.note} data-testid="mentions-none-measured">No days of #main-chat have been measured for {s} in this window yet.</div>

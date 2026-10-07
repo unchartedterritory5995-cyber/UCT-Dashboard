@@ -138,6 +138,15 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
       </PanelState>
     )
   }
+  // 2026-10-07 completeness audit: with the benchmark read but EVERY other name failing, this
+  // said "Not enough common history" — a failed read drawn as a genuine empty graph.
+  if (!rows.length && state.failed.length) {
+    return (
+      <PanelState kind="error" title={`Could not read ${state.failed.join(', ')} just now.`} testId="terminal-rrg-error">
+        Nothing could be placed on the graph. Run RRG again to retry.
+      </PanelState>
+    )
+  }
   if (!rows.length) {
     return (
       <PanelState kind="empty" title="Not enough common history to place anything on the graph." testId="terminal-rrg-empty">

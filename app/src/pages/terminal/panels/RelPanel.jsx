@@ -104,6 +104,8 @@ export default function RelPanel({ sym, lookback, ...props }) {
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} shape="chart" testId="terminal-rel-loading" />
   if (!read || read.lines.length < 2) {
     const missing = state.failed.length ? `Could not read ${state.failed.join(', ')} just now.` : 'These names share too little trading history to compare.'
+    // Nothing failed: too little SHARED history is a genuine empty answer, not an error to retry.
+    if (!state.failed.length) return <PanelState kind="empty" title={missing} testId="terminal-rel-empty">Try a shorter window, or drop the newest listing.</PanelState>
     return <PanelState kind="error" title={missing} testId="terminal-rel-error">Run the command again to retry, or drop a name.</PanelState>
   }
   const classes = read.lines.map((_, i) => styles[`s${i}`])

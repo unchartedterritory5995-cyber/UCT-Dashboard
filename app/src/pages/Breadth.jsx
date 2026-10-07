@@ -938,15 +938,45 @@ export default function Breadth() {
     return keys
   }, [visibleCols])
 
+  const errorBanner = error ? (
+    <div className={styles.errorBanner} role="alert">
+      <span>
+        {breadthErrorText(error)}
+      </span>
+      {/* ⛔ A 5-minute auto-retry with no manual lever leaves a reader who
+          already knows the network recovered staring at a stale error for
+          up to five more minutes. `onManualRefresh` is the same
+          revalidation the header's refresh icon fires. */}
+      <button
+        type="button"
+        className={styles.errorRetryBtn}
+        onClick={onManualRefresh}
+        disabled={refreshing}
+      >
+        {refreshing ? 'Retrying…' : 'Retry now'}
+      </button>
+    </div>
+  ) : null
+
   if (activeTab === 'overview') {
+    // 2026-10-07 completeness audit: this branch returned before the error banner, so a failed
+    // read (or the first load still in flight) reached DailyOverview with no rows and read
+    // "No session recorded yet" — a failure drawn as an empty day. The banner and a loading
+    // state now come first, and DailyOverview only speaks for rows that were actually read.
+    const noRows = !rows.length
     return (
       <div className={pageCls}>
         <SurfaceHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <div className={styles.overviewBody}>
-          <DailyOverview rows={rows} live={liveBreadth} cols={COLS}
-                         phaseClassFn={phaseClass} onDrill={openDrill} />
+          {errorBanner}
+          {noRows && isLoading && !error
+            ? <div className={styles.empty} data-testid="breadth-overview-loading"><SkeletonTileContent lines={4} /></div>
+            : !(noRows && error) && (
+              <DailyOverview rows={rows} live={liveBreadth} cols={COLS}
+                             phaseClassFn={phaseClass} onDrill={openDrill} />
+            )}
           <MarketBreadth />
         </div>
         {drill && (
@@ -1118,25 +1148,7 @@ export default function Breadth() {
         )}
       </SurfaceHeader>
 
-      {error && (
-        <div className={styles.errorBanner} role="alert">
-          <span>
-            {breadthErrorText(error)}
-          </span>
-          {/* ⛔ A 5-minute auto-retry with no manual lever leaves a reader who
-              already knows the network recovered staring at a stale error for
-              up to five more minutes. `onManualRefresh` is the same
-              revalidation the header's refresh icon fires. */}
-          <button
-            type="button"
-            className={styles.errorRetryBtn}
-            onClick={onManualRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? 'Retrying…' : 'Retry now'}
-          </button>
-        </div>
-      )}
+      {errorBanner}
 
       {!error && rows.length === 0 && !isLoading && (
         <div className={styles.empty}>

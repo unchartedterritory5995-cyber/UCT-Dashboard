@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 // TERM-088 -- the decision record's member surface.
 //
@@ -33,9 +33,9 @@ const considered = {
   entity: { enabled: false, distinct_entities: null }, source: SOURCE,
 }
 
-async function renderWith(result, isLoading = false) {
+async function renderWith(result, isLoading = false, mutate = () => {}) {
   vi.resetModules()
-  vi.doMock('../hooks/useDecisionRecord', () => ({ default: () => ({ result, isLoading }) }))
+  vi.doMock('../hooks/useDecisionRecord', () => ({ default: () => ({ result, isLoading, mutate }) }))
   const { default: Tab } = await import('./DecisionRecordTab')
   return render(<Tab sym="AMD" />)
 }
@@ -83,6 +83,13 @@ describe('DecisionRecordTab', () => {
     expect(screen.queryByTestId('decision-record-not-considered')).not.toBeInTheDocument()
     expect(screen.queryByText(/Not considered/)).not.toBeInTheDocument()
     expect(screen.queryAllByTestId('decision-record-row')).toHaveLength(0)
+  })
+
+  it('unavailable offers Retry, and Retry reads again (2026-10-07: it had none)', async () => {
+    const mutate = vi.fn()
+    await renderWith({ ok: false, httpStatus: 503, body: null }, false, mutate)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalledTimes(1)
   })
 
   it('the youth caveat and the coverage are DERIVED from the payload', async () => {

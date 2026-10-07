@@ -83,6 +83,8 @@ function FirstScreens() {
         <Input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
       {res.failed && <p className={styles.note} data-testid="strategy-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>}
+      {/* the results read for each strategy / ticker change: a header over nothing until now */}
+      {res.loading && <p className={styles.note} data-testid="strategy-loading">Loading the screen…</p>}
       {res.data && Array.isArray(res.data.rows) && (
         <>
           <p className={styles.muted} data-testid="strategy-basis">
@@ -153,6 +155,7 @@ export function MoreStrategyScreens() {
         <Input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
       {res.failed && <p className={styles.note} data-testid="more-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>}
+      {res.loading && <p className={styles.note} data-testid="more-loading">Loading the screen…</p>}
       {d && Array.isArray(d.rows) && (
         <>
           <p className={styles.muted} data-testid="more-basis">
