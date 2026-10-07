@@ -159,7 +159,24 @@ BUDGETS = [
     ("Q22", "filter the visual playbook to one setup (13I)", 2, 4, 3, "13I"),
     ("Q23", "morning board, open the closest setup, find similar (13J)", 3, 6, 3, "13J"),
 ]
-BUDGET = {b[0]: {"flow": b[1], "mouse": b[2], "keys": b[3], "taps": b[4], "owner": b[5]} for b in BUDGETS}
+
+# Controller ruling, 2026-10-07 (the plan's section 6, "Keyboard budgets by ruling"). For these
+# eight flows the plan's keyboard number is below the arithmetic FLOOR for a keyboard: the keys
+# that are not Tab, plus one Tab per move to a new control. No page design can meet a number
+# below its floor, so it is not a usable bar. Their keyboard budget is the floor plus
+# KEYS_RULING_ALLOWANCE. Mouse and touch budgets are unchanged, and so is every other flow.
+# (flow id: the floor). Cross-read against the plan by tests/test_notebook_w13q_clicks.py.
+KEYS_RULING_FLOOR = {"Q6": 8, "Q9": 7, "Q11": 25, "Q12": 10, "Q16": 6, "Q17": 5, "Q19": 7, "Q20": 20}
+KEYS_RULING_ALLOWANCE = 2
+
+
+def keys_budget(fid: str, plan_keys: int) -> int:
+    floor = KEYS_RULING_FLOOR.get(fid)
+    return plan_keys if floor is None else floor + KEYS_RULING_ALLOWANCE
+
+
+BUDGET = {b[0]: {"flow": b[1], "mouse": b[2], "keys": keys_budget(b[0], b[3]), "taps": b[4], "owner": b[5],
+                 "keys_plan": b[3], "keys_floor": KEYS_RULING_FLOOR.get(b[0])} for b in BUDGETS}
 
 
 class Inconclusive(Exception):
@@ -193,7 +210,8 @@ ROVING_PLAN_JS = """h => {
       window.__w13qRovingStop = stop;
       const a = items[0].getBoundingClientRect(), b = items[items.length - 1].getBoundingClientRect();
       return {from: items.indexOf(stop), to: items.indexOf(h), n: items.length,
-              vertical: Math.abs(b.top - a.top) > Math.abs(b.left - a.left)};
+              vertical: root.getAttribute('role') === 'toolbar' ? false
+                : Math.abs(b.top - a.top) > Math.abs(b.left - a.left)};
     }
     root = root.parentElement;
   }
@@ -1767,7 +1785,9 @@ def q18_review_leak(cx: Ctx, pg, m: Meter, width: str) -> dict:
         btn.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
         raise Inconclusive("no 'This week's review' on Research Home")
-    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+    # Lane KEYS round 2: Research Home's own link to this part of the page.
+    if not use_skip_link(m, r"^Skip to reviews and setups$", "Skip to reviews and setups"):
+        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     m.press(btn, "This week's review")
     nid = wait_note_open(pg, 60000)
     if nid in before:
@@ -1964,7 +1984,8 @@ def q23_board_similar(cx: Ctx, pg, m: Meter, width: str) -> dict:
         door.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
         raise Inconclusive("no 'Active setups' door on Research Home")
-    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+    if not use_skip_link(m, r"^Skip to reviews and setups$", "Skip to reviews and setups"):
+        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     m.press(door, "Active setups")
     try:
         pg.wait_for_url("**/journal/notebook/setups", timeout=20000)

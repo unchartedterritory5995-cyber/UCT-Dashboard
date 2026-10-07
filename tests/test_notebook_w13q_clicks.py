@@ -814,6 +814,42 @@ def test_table_md_sanitizes_pipes_and_newlines_in_the_reason_so_the_table_stays_
     assert "\n" not in body_line
 
 
+# ── the keyboard ruling of 2026-10-07 must not drift from the plan doc that owns it ────────
+
+def _parse_plan_keys_ruling() -> dict[str, tuple[int, int, int]]:
+    """The plan's "Keyboard budgets by ruling" table, read directly: flow -> (plan, floor, budget)."""
+    text = (REPO / "docs" / "notebook" / "WAVE-13-PLAN.md").read_text(encoding="utf-8")
+    start = text.index("| # | plan keys | floor | keys budget |")
+    rows: dict[str, tuple[int, int, int]] = {}
+    for line in text[start:].splitlines()[2:]:
+        m = re.match(r"^\|\s*(Q\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|", line)
+        if not m:
+            break
+        rows[m.group(1)] = (int(m.group(2)), int(m.group(3)), int(m.group(4)))
+    return rows
+
+
+def test_the_keyboard_ruling_in_the_tool_is_the_plans_table():
+    ruling = _parse_plan_keys_ruling()
+    assert len(ruling) == 8                                   # NON-VACUITY: the parser read rows
+    assert set(ruling) == set(w13q.KEYS_RULING_FLOOR)
+    plan_keys = {b[0]: b[3] for b in w13q.BUDGETS}
+    for fid, (plan, floor, budget) in ruling.items():
+        assert plan == plan_keys[fid], fid                    # the "plan keys" column is the plan's own
+        assert floor == w13q.KEYS_RULING_FLOOR[fid], fid
+        assert floor > plan, fid                              # the ruling covers only a floor ABOVE the plan
+        assert budget == floor + w13q.KEYS_RULING_ALLOWANCE, fid
+        assert w13q.BUDGET[fid]["keys"] == budget, fid
+
+
+def test_the_ruling_changes_keyboard_only_and_only_the_eight():
+    for fid, _flow_name, mouse, keys, taps, _owner in w13q.BUDGETS:
+        assert w13q.BUDGET[fid]["mouse"] == mouse and w13q.BUDGET[fid]["taps"] == taps
+        if fid not in w13q.KEYS_RULING_FLOOR:
+            assert w13q.BUDGET[fid]["keys"] == keys, fid
+            assert w13q.BUDGET[fid]["keys_floor"] is None
+
+
 # ── the 23 budgets must not drift from the plan doc that owns them ─────────────────────────
 
 _PLAN = REPO / "docs" / "notebook" / "WAVE-13-PLAN.md"
@@ -855,7 +891,9 @@ def test_instrument_budgets_match_the_plan_doc_exactly():
     assert set(plan) == set(w13q.BUDGET)
     for fid, (mouse, keys, taps) in plan.items():
         b = w13q.BUDGET[fid]
-        assert (b["mouse"], b["keys"], b["taps"]) == (mouse, keys, taps), fid
+        #  is the plan table's own number;  is that number, or the ruled
+        # one for the eight flows of the 2026-10-07 keyboard ruling (checked above).
+        assert (b["mouse"], b["keys_plan"], b["taps"]) == (mouse, keys, taps), fid
 
 
 # ── finish program, lane CLICKS: one-Tab-stop groups, the helper count, the full roster ─────
