@@ -12,9 +12,15 @@ no file to download: a signed `.shortcut` file can only be produced on an Apple
 device, so each Shortcut is built step by step below. It takes about five
 minutes each.
 
-> **Status (wave 7, 2026-09-25):** the personal API is built and DARK
+> ✅ **Status today (corrected 2026-10-07): the personal API is ON in production**, since
+> 2026-09-26 23:11:17Z. The record is `docs/feature_flags.json`, entry
+> `NOTEBOOK_PERSONAL_API_ENABLED` (`status` `armed`, `where` `web`): "set to 1 on web 2026-09-26
+> 23:11:17Z ... GET /api/j2/personal/tokens read as the smoke account went 404 -> 200 on the
+> new boot". **Settings → Personal API** is there for members now.
+> ⚰️ As written on 2026-09-25, struck 2026-10-07: ~~the personal API is built and DARK
 > (`NOTEBOOK_PERSONAL_API_ENABLED`). Until it is switched on, **Settings →
-> Personal API** does not appear and every request answers `404`.
+> Personal API** does not appear and every request answers `404`.~~ (A bare `404` still means
+> the switch is off; it is simply not off today.)
 > ⚠️ Not yet walked on a physical iPhone. The action names below are the
 > standard Shortcuts actions; what a Shortcut shows for a refusal (§4) is
 > **not measured** on a device.
@@ -164,6 +170,8 @@ To put a photo or a scanned page into a note, add it in the Notebook itself
   page's photo picker normally hands the browser a JPEG, but that conversion is
   iOS's and was **not measured** in wave 7. If an upload is refused, set
   *Settings → Camera → Formats* to **Most Compatible**.
-- **Searchable text from images** (OCR) is a separate, also-dark feature
-  (`NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED`): when it is on, the words in an
-  uploaded image become searchable in the Notebook.
+- **Searchable text from images** (OCR) is a separate feature
+  (`NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED`): while it is on, the words in an
+  uploaded image become searchable in the Notebook. ⚰️ This line called it "also-dark" until
+  2026-10-07; the flag ledger records it switched on in the same restart as the personal API
+  (2026-09-26 23:11Z).

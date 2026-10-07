@@ -58,7 +58,7 @@ proposal, not a decision: ruling P6 says the order is the owner's call.
 
 | switch | what members get | what has to be true first |
 |---|---|---|
-| `NOTEBOOK_TA_FINGERPRINT_ENABLED=1` | Nothing a member sees by itself. This is the one engine that reads a chart's technical shape (distance from its moving averages, how tight its base is, its RS rank, and more) for the three features below it. | None. It is the foundation the next three rows build on. |
+| `NOTEBOOK_TA_FINGERPRINT_ENABLED=1` | A panel under every chart inside a note. It describes the chart's technical shape (distance from its moving averages, how tight its base is, its RS rank, and more) and lets the member tag the setup; the tag is saved in the note. It is also the one engine the three features below read. ⚰️ Until 2026-10-07 this cell said "Nothing a member sees by itself". The code says otherwise: `WidgetEmbedView.jsx`:805 renders `FingerprintPanel` for a chart block whenever `notebook_ta_fingerprint_enabled` is true and for no other condition, and `FingerprintPanel.jsx`:225 returns nothing only when that same flag is off. | None. It is the foundation the next three rows build on. ⚠️ It is also the first switch that can write plan data into a note (`widgetEmbed.ta`), so the rollback for this release must be rehearsed before it goes on (`landing-12-15-rollback.md`). |
 | `NOTEBOOK_PLAN_GRADING_ENABLED=1` | Every closed trade is matched to the plan the member wrote before it and graded on four simple checks: did they get in close to plan, did they exit at or past their stop, was the size close to plan, and did the trade reach its target. A trade with no plan is labeled "Unplanned," never hidden. Insights gains a new Discipline tab over the last 20 and 60 trades. | None. Plain arithmetic, no AI. |
 | `NOTEBOOK_ENTRY_CONTEXT_ENABLED=1` | The market is frozen at the moment a member enters a trade: the overall mood, how many stocks are healthy, how the stock stacks up against others, and how many days until it next reports earnings. A card on the trade shows this, with a box to write "why did you take it." | None. Needs one vendor read (the earnings date) and no AI. |
 | `NOTEBOOK_CHART_PLAN_ENABLED=1` | A member can draw their plan right on a chart inside a note (entry, stop, target lines). The Notebook sizes the trade for them and lets them set a price alert with one click. Also adds a replay tool and side-by-side timeframe and before/after chart inserts. | Ready. Drawing on a phone-width chart was a rough edge; lane 13H-4 gave it the real fix (see Lanes that landed above). |
@@ -190,7 +190,9 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 
 **Wave 13 (the trading and research features, 1b)**
 
-3. **Technical fingerprint.** Nothing changes for members yet, but three later rows read it.
+3. **Technical fingerprint.** Members get a panel under each chart in a note, with a place to
+   tag the setup; three later rows read it. (⚰️ "Nothing changes for members yet" until 2026-10-07;
+   see the corrected row in 1b.)
 4. **Plan grading.** A self-contained feature, and the review drafts switch (step 16) needs it.
 5. **Entry context.** A self-contained feature, and review drafts needs it too.
 6. **Chart plan in notes.** The flagship: the chart becomes the plan. Stands on its own.
@@ -205,7 +207,29 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 14. **Your notes come back when it matters** (`AWARENESS_NOTE_RESURFACE_ENABLED`). Stands on its
     own, but thesis chips (step 15) read the same level data, so put this one first.
 15. **Thesis status chip on rows.** Reads the level data step 14 builds.
-16. **Reviews that write themselves.** Last of the features on purpose: it reads plan grading
+    ⛔ **FIRM RULE, not a preference (added 2026-10-07): turn this on only after step 14's FIRST scan
+    has completed.** On the code as it stands on this branch, `thesis_chips.py` reads the table
+    `j2_note_levels` and never creates it; only the resurfacing scan does. With the chip on
+    first, every chips request is a server error ("no such table") that the page hides, about
+    once a minute per open Positions, Holdings or Watchlists page.
+    *Status of the rule:* a fix exists and is not yet on this branch. Commit `ce23ddf5f1`
+    ("thesis chips answer on a database with no level index yet", on
+    `origin/feat/notebook-fin-sec`) makes the missing table a quiet empty answer. Once that
+    commit is in the release, the rule is **no longer required, fixed in `ce23ddf5f1`**, and what
+    is left is only the ordinary fact that there are no chips to show before the first scan.
+    Until then, keep the rule.
+16. **Reviews that write themselves.**
+    ⛔ **FIRM RULE, not a preference (added 2026-10-07): never before plan grading (step 4).** On the
+    code as it stands on this branch, drafting a review runs plan grading itself
+    (`review_drafts.py` calls `grade_payload`, which freezes each trade's link to a plan) with
+    no check of the plan-grading switch. Drafted first, a review would quietly lock every trade
+    in the period to a plan while the control that changes that link is still hidden.
+    *Status of the rule:* a fix exists and is not yet on this branch. Commit `71f24aafd7`
+    ("review drafts write no plan-grading state while plan grading is off", on
+    `origin/feat/notebook-fin-data`). Once that commit is in the release, the rule is **no
+    longer required, fixed in `71f24aafd7`**; the order below is then only the sensible one.
+    Until then, keep the rule.
+    Last of the features on purpose: it reads plan grading
     (step 4), entry context (step 5), and the resurfaced-notes list (step 14), so everything it
     draws from should already be live.
 
@@ -234,12 +258,12 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 | 1c, 5a, 5b, 5c, 16a | a task-based study with 5-8 traders (core tasks unaided, SUS >= 80, first useful note < 2 min) | `docs/notebook/user-study-kit.md` |
 | 3a | 30 days with real members and zero data loss | `docs/notebook/soak-30day.md` |
 | 8a, 12c, 12d, 13a | zero-retention terms in writing from Anthropic and OpenAI; then arm meaning search | the vendor letters |
-| 1a, 1b | the above letter, plus the browser-extension store submission (G-043) | Chrome Web Store |
+| 1a, 1b | the above letter, plus the browser-extension store submission (G-043): reported submitted 2026-09-26, not verified in the store. `OWNER-ACTIONS.md` records the owner's report; its only source is outside git, and the scorecard still reads `BLOCKED (owner)`. One look at the store's developer dashboard settles it (added 2026-10-07) | Chrome Web Store |
 | 9c | a screen-reader pass by a person, VoiceOver and NVDA | `docs/notebook/a11y-second-review-brief.md` |
 | 10a | run the iOS Shortcut on an iPhone (G-044) | the Shortcut docs |
 | 10c | a real-device pass per release | BrowserStack Live (Automate is not on the account) |
 | 4d | typing under 16 ms: one more quiet-box reading to settle two disagreeing quiet readings | `docs/notebook/perf-runs/ty8/README.md` |
-| 7a | the scheduled restore drill, Sunday 2026-10-04 09:00 local (keep the PC on) | `soak-drills/` |
+| 7a | the scheduled restore drill, Sunday **2026-10-11** 09:00 local (keep the PC on and logged in). ⚰️ This said 2026-10-04 until 2026-10-07: that run did not start (the task ran from the wrong folder and exited 2 before the drill began; a run by hand the same morning passed, which does not count). The hardened wrapper was deployed 2026-10-06 (`wave14-ops.md`, 5B) | `soak-drills/` |
 
 ## 3. Rows a beta tester exercises directly (not walked by automation)
 
