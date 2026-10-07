@@ -50,10 +50,18 @@ git switch -q "$START" || { note "could not return to $START"; exit 2; }
 
 note ""
 note "== TREE B: the landing reverted WHOLE (a plain git revert: the pre-landing tree) =="
+# The probe is a TRACKED file of the landing, so the pre-landing tree does not have it. It is
+# carried across in $L and put back at its own path as an untracked file for this tree only
+# (inside the repository, so the tree's own conftest pins every data path), then removed
+# before the switch back. Without this both B runs exit 4, "file not found", and prove nothing.
+cp "$E/test_ab_probe.py" "$L/test_ab_probe.carry.py" || { note "could not carry the probe"; exit 2; }
 git switch -q --detach "$BASE" || { note "switch failed"; exit 2; }
 note "checked out $(git rev-parse HEAD) tree $(git rev-parse HEAD^{tree})"
+[ ! -e "$E/test_ab_probe.py" ] || { note "the pre-landing tree already has the probe: refuse"; git switch -q "$START"; exit 2; }
+mkdir -p "$E" && cp "$L/test_ab_probe.carry.py" "$E/test_ab_probe.py"
 run B1-ab-probe-whole        env EXPECT=whole python -m pytest "$E/test_ab_probe.py" -q -p no:cacheprovider -W ignore -s
 run B2-ab-probe-keeplist-MUST-FAIL env EXPECT=keeplist python -m pytest "$E/test_ab_probe.py" -q -p no:cacheprovider -W ignore -s
+rm -f "$E/test_ab_probe.py"; rmdir -p "$E" 2>/dev/null
 git switch -q "$START" || { note "could not return to $START"; exit 2; }
 note ""
 note "back on $(git branch --show-current) at $(git rev-parse HEAD); tracked changes: [$(git status --porcelain --untracked-files=no | tr '\n' ' ')]"
