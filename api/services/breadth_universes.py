@@ -92,6 +92,20 @@ _ROWS = [
     ("nyse",   "NYSE",   NYSE_VENUES,    "pit",       HISTORY_FLOOR["nyse"]),
 ]
 
+#: ⭐ WHAT EACH POPULATION IS, in one member-facing sentence (finishing pass, 2026-10-07). Served
+#: on every library row as `universe_description` so a member can tell `UCT · % Above 50-Day MA`
+#: from `NYSE · % Above 50-Day MA` without reading a methodology document.
+DESCRIPTIONS = {
+    "uct": "UCT universe: the liquid US stocks UCT tracks. Point-in-time from 2026-03-23; "
+           "earlier history is reconstructed over today's universe.",
+    "us": "US: all US-listed operating equity (common stock + ADRs), point-in-time "
+          "membership every session (US Breadth V2).",
+    "nasdaq": "Nasdaq: Nasdaq-listed operating equity, point-in-time (Exchange Breadth V1). "
+              "Not the vendor all-issues composite.",
+    "nyse": "NYSE: NYSE-listed operating equity, point-in-time, excluding NYSE American, Arca "
+            "and Cboe (Exchange Breadth V1). Not the vendor all-issues composite.",
+}
+
 #: The universes whose ONLY member authority is Exchange Breadth V1 (`breadth_exchange_authority`).
 EXCHANGE_UNIVERSE_IDS = frozenset({"nyse", "nasdaq"})
 
