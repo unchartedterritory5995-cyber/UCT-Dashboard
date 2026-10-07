@@ -99,7 +99,9 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 23  # +2 2026-10-02: GET /api/screener/grammar and
+EXPECTED_SCREENER_ROUTES = 24  # +1 2026-10-07: GET /api/screener/fields (the filter
+#   registry without meta()'s measurements, for UCT Agent). PAID like /meta.
+#                              # +2 2026-10-02: GET /api/screener/grammar and
 #   POST /api/screener/grammar/parse (FT-029, dark behind SCREENER_LOGIC_ENABLED).
 #   PAID like /scan: the grammar compiles to the same spec the paid screen runs.
 #                              # +1 2026-09-29: POST /api/screener/rebuild-universe (admin;
