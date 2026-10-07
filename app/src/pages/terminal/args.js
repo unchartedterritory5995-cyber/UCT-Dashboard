@@ -102,6 +102,16 @@ export const ARG_KINDS = {
     parse: (tok) => ({ D: 'D', DAILY: 'D', W: 'W', WEEKLY: 'W' })[String(tok).toUpperCase()] ?? null,
     describe: (v) => (v === 'D' ? 'daily closes' : 'weekly closes'),
   },
+  /** MOST's lens: which cut of the movers tape. `VOL` is a function code, so it is not offered. */
+  moversLens: {
+    takes: 'UP, DOWN or RVOL',
+    parse: (tok) => ({
+      UP: 'up', GAINERS: 'up', GAIN: 'up',
+      DOWN: 'down', DN: 'down', LOSERS: 'down', LOSS: 'down',
+      RVOL: 'volume', UNUSUAL: 'volume', VOLUME: 'volume',
+    })[String(tok).toUpperCase()] ?? null,
+    describe: (v) => ({ up: 'gainers', down: 'losers', volume: 'unusual volume' })[v],
+  },
 }
 
 /**
