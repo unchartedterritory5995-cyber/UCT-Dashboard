@@ -1,8 +1,18 @@
 import useOwnership from '../../hooks/useOwnership'
 import styles from './OwnershipPanel.module.css'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
-const fmtShares = v => v == null ? '—' : Math.abs(v) >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${v}`
-const fmtVal = v => v == null ? '—' : v >= 1e12 ? `$${(v / 1e12).toFixed(1)}T` : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : `$${(v / 1e6).toFixed(0)}M`
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladders
+// these columns already used. Values no row carries differ: shares under 1M print rounded,
+// a holding under $1M prints whole dollars instead of "$0M", a non-number is an em dash.
+const SHARES_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }]
+const VALUE_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 1 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+]
+const fmtShares = v => v == null ? '—' : formatCompact(v, { tiers: SHARES_TIERS })
+const fmtVal = v => v == null ? '—' : formatCompact(v, { tiers: VALUE_TIERS, prefix: '$' })
 const CHIP = { new: 'NEW', added: '+ADD', reduced: '−CUT', sold_out: 'SOLD' }
 const chipClass = c => (c === 'new' || c === 'added') ? styles.chipUp : (c === 'reduced' || c === 'sold_out') ? styles.chipDown : styles.chipFlat
 
