@@ -1380,8 +1380,10 @@ def write(fresh: dict[str, str]) -> list[str]:
         changed.append(f"removed {stale}")
     for name, text in fresh.items():
         path = FIXTURE_DIR / f"{name}.json"
-        if not path.exists() or path.read_bytes() != text.encode("utf-8"):
-            with open(path, "w", encoding="utf-8", newline="\n") as fh:   # LF, whatever the box prefers
+        # Compared as TEXT: git may have checked the file out with either line ending, and a
+        # rewrite for that alone would show every fixture as changed.
+        if not path.exists() or path.read_text(encoding="utf-8") != text:
+            with open(path, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(text)
             changed.append(f"wrote {name}")
     return changed

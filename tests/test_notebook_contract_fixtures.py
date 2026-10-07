@@ -60,17 +60,17 @@ def test_two_runs_are_byte_identical(fresh):
     assert not moved, f"these fixtures are not repeatable (a clock or an id is not pinned): {moved}"
 
 
-def test_the_fixtures_are_stored_with_unix_line_endings_and_sorted_keys():
-    """A fixture rewritten by hand or by an editor would still parse, and would then differ from
-    the generator's bytes for a reason that has nothing to do with the server."""
+def test_every_fixture_is_in_the_generators_own_form():
+    """A fixture edited by hand would still parse, and would then differ from the generator's
+    text for a reason that has nothing to do with the server. (Text, not bytes: git may check
+    the files out with either line ending on this box.)"""
     files = sorted(gen.FIXTURE_DIR.glob("*.json"))
     assert len(files) > 100                                                                 # non-vacuity
     for path in files:
-        raw = path.read_bytes()
-        assert b"\r" not in raw, f"{path.name} has a carriage return"
-        payload = json.loads(raw)
+        text = path.read_text(encoding="utf-8")
+        payload = json.loads(text)
         assert set(payload) == {"_contract", "body"}, path.name
-        assert raw.decode("utf-8") == gen._render(payload), f"{path.name} is not in the generator's own form"
+        assert text == gen._render(payload), f"{path.name} is not in the generator's own form"
 
 
 # ── controls: the comparison can fail, and it names what moved ──────────────────────────────────
