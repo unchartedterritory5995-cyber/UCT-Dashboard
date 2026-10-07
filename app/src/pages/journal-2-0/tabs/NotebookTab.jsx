@@ -48,6 +48,7 @@ import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
+import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
   joinUndo, runNoteBatch, undoFor,
@@ -430,6 +431,17 @@ export default function NotebookTab() {
     try { localStorage.setItem('uct.j2.nb.sidebarOpen', next ? '1' : '0') } catch { /* private mode */ }
     return next
   })
+
+  // Lane KEYS: the command palette's "Search Notebook" arrives with `#search`
+  // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
+  // only: the member's stored choice is not rewritten) and asked to open its search with the
+  // cursor in the box. Keyed on `location.key`, so choosing the command twice works twice.
+  const [searchRequest, setSearchRequest] = useState(0)
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_SEARCH_HASH) return
+    setSidebarOpen(true)
+    setSearchRequest((n) => n + 1)
+  }, [location.hash, location.key])
 
   // Divider drag. The live width is written straight to a CSS variable on the
   // wrap element (no React state per move) so the panel tracks the pointer 1:1
@@ -1940,6 +1952,7 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            searchRequest={searchRequest}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
