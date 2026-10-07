@@ -470,27 +470,39 @@ def relink(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row, *,
                     "version_id": v["id"], "plan_as_of": v["created_at"], "edited_after_entry": False}
         else:
             raise RelinkError("Choose a note, a verdict, or no plan")
-    previous = conn.execute("SELECT * FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?",
-                            (user_id, ref)).fetchone()
-    history = []
-    count = 0
-    if previous is not None:
-        count = int(previous["relink_count"] or 0) + 1
-        try:
-            history = json.loads(previous["previous_json"] or "[]")
-        except ValueError:
-            history = []
-        prev = dict(previous)
-        prev.pop("previous_json", None)
-        history = (history if isinstance(history, list) else []) + [prev]
+    # Everything that needs no lock is done first: the new row is fully built before the write
+    # lock is taken, so the lock is held for one read and two statements.
     row = _candidate_row(user_id, ref, symbol, cand, "member", moment)
-    conn.execute("DELETE FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?", (user_id, ref))
-    conn.execute(
-        f"INSERT INTO j2_trade_plan_links ({_INSERT_COLS}, relinked_at, relink_count, previous_json)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (*row, _now_iso(), count, json.dumps(history[-20:]) if history else None),
-    )
-    conn.commit()
+    # ⛔ THE LOCK IS TAKEN BEFORE THE ROW BEING REPLACED IS READ (fin-data M7). The read and the
+    # replace are one transaction. ⚰️ The read used to come first and unlocked: a second Re-link
+    # landing between it and the write was replaced without ever being read, so it was missing
+    # from `previous_json` (the history R-11 keeps) and `relink_count` was one short.
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
+    try:
+        previous = conn.execute("SELECT * FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?",
+                                (user_id, ref)).fetchone()
+        history = []
+        count = 0
+        if previous is not None:
+            count = int(previous["relink_count"] or 0) + 1
+            try:
+                history = json.loads(previous["previous_json"] or "[]")
+            except ValueError:
+                history = []
+            prev = dict(previous)
+            prev.pop("previous_json", None)
+            history = (history if isinstance(history, list) else []) + [prev]
+        conn.execute("DELETE FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?", (user_id, ref))
+        conn.execute(
+            f"INSERT INTO j2_trade_plan_links ({_INSERT_COLS}, relinked_at, relink_count, previous_json)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (*row, _now_iso(), count, json.dumps(history[-20:]) if history else None),
+        )
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
     return get_link(conn, user_id, ref)
 
 

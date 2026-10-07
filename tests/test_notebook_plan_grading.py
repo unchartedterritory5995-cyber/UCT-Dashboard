@@ -537,3 +537,56 @@ def test_the_table_is_not_a_named_saved_object_so_needs_no_address(pg):
     tables = address_space.saved_object_tables(ROOT / "api")
     assert "j2_trade_plan_links" not in tables
     assert "j2_notes" in tables   # non-vacuity: the census sees the schema
+
+
+# ── fin-data M7: two Re-links at once both stay in the kept history ─────────────────────────
+#
+# `relink` read the row it was about to replace BEFORE it held the write lock. A second
+# Re-link landing between that read and the write was then replaced without ever being read,
+# so it vanished from `previous_json` (the history R-11 says is kept) and the count was short.
+
+def test_two_relinks_at_once_both_stay_in_the_kept_history(conn, pg, db_path, monkeypatch):
+    from api.services.auth_db import get_connection
+    a = add_note(conn, body=plan_body(entry=100), title="A")
+    tid = add_trade(conn)
+    pg.grade_payload(conn, U, trade_row(conn, tid))                      # frozen on A
+    b = add_note(conn, body=plan_body(entry=104, stop=99), title="B", created="2026-09-06T12:00:00+00:00")
+    c = add_note(conn, body=plan_body(entry=106, stop=101), title="C", created="2026-09-06T13:00:00+00:00")
+
+    real = pg._candidate_row
+    state = {"raced": False}
+
+    def racing(*args, **kwargs):
+        """The other tab's Re-link (to C) lands while this one (to B) is being prepared."""
+        if not state["raced"]:
+            state["raced"] = True
+            other = get_connection()
+            try:
+                pg.relink(other, U, trade_row(other, tid), note_id=c)
+            finally:
+                other.close()
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(pg, "_candidate_row", racing)
+    link = pg.relink(conn, U, trade_row(conn, tid), note_id=b)
+    assert state["raced"], "the race never ran; the test proves nothing"
+
+    assert link["noteId"] == b
+    row = conn.execute("SELECT relink_count, previous_json FROM j2_trade_plan_links").fetchone()
+    history = [h["note_id"] for h in json.loads(row["previous_json"])]
+    assert history == [a, c], "a Re-link that landed in between was dropped from the kept history"
+    assert row["relink_count"] == 2
+
+
+def test_a_relink_that_fails_leaves_the_frozen_plan_exactly_as_it_was(conn, pg, monkeypatch):
+    a = add_note(conn, body=plan_body(entry=100), title="A")
+    tid = add_trade(conn)
+    pg.grade_payload(conn, U, trade_row(conn, tid))
+    b = add_note(conn, body=plan_body(entry=104, stop=99), title="B", created="2026-09-06T12:00:00+00:00")
+    before = dict(conn.execute("SELECT * FROM j2_trade_plan_links").fetchone())
+    monkeypatch.setattr(pg, "_now_iso", lambda: (_ for _ in ()).throw(RuntimeError("clock")))
+    with pytest.raises(RuntimeError):
+        pg.relink(conn, U, trade_row(conn, tid), note_id=b)
+    monkeypatch.undo()
+    assert dict(conn.execute("SELECT * FROM j2_trade_plan_links").fetchone()) == before
+    assert before["note_id"] == a and conn.in_transaction is False
