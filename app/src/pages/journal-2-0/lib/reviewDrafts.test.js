@@ -544,3 +544,94 @@ describe('draftDailyReview — the note it writes is the note of the day it draf
     expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/review-drafts/daily?day=2026-10-06')).toBe(true)
   })
 })
+
+// ── fin-data M2: a second click on a draft door never makes a second draft ─────────────────
+describe('the draft doors are idempotent', () => {
+  let state
+  beforeEach(() => {
+    guard.answer = { unsent: false, why: 'clean' }
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-06T18:00:00Z'))
+    state = { daily: { type: 'doc', content: [] }, stamp: 1, notes: [], puts: 0, creates: 0, draftFetches: 0, listUrls: [] }
+    global.fetch = vi.fn((url, opts) => {
+      const ok = (body) => Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
+      if (url === '/api/j2/notes/daily') {
+        return ok({ note: { id: 'daily1', updatedAt: `u${state.stamp}`, bodyJson: state.daily } })
+      }
+      if (typeof url === 'string' && url.startsWith('/api/j2/notes/daily1') && opts?.method === 'PUT') {
+        state.puts += 1
+        state.daily = JSON.parse(opts.body).bodyJson
+        state.stamp += 1
+        return ok({ note: { id: 'daily1', updatedAt: `u${state.stamp}`, bodyJson: state.daily } })
+      }
+      if (url === '/api/j2/notes' && opts?.method === 'POST') {
+        state.creates += 1
+        const body = JSON.parse(opts.body)
+        const note = { id: `n${state.creates}`, title: body.title, tags: body.tags }
+        state.notes.push(note)
+        return ok({ note })
+      }
+      if (typeof url === 'string' && url.startsWith('/api/j2/notes?')) {
+        state.listUrls.push(url)
+        const tag = new URL(url, 'http://x').searchParams.get('tag')
+        return ok({ notes: state.notes.filter((n) => (n.tags || []).includes(tag)), total: 0 })
+      }
+      if (typeof url === 'string' && url.startsWith('/api/j2/review-drafts/')) {
+        state.draftFetches += 1
+        return ok(fixturePayload())
+      }
+      return ok({})
+    })
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  const headings = (docNode) => (docNode.content || [])
+    .filter((n) => n.type === 'heading').map((n) => flattenText(n).join(''))
+
+  it('daily: the second click appends nothing and answers the same note', async () => {
+    const first = await draftDailyReview({ day: '2026-10-06' })
+    const second = await draftDailyReview({ day: '2026-10-06' })
+    expect(state.puts).toBe(1)
+    expect(headings(state.daily).filter((t) => t.startsWith("Today's recap"))).toHaveLength(1)
+    expect(second.note.id).toBe(first.note.id)
+    expect(second.existing).toBe(true)
+    expect(first.existing).toBeFalsy()
+    expect(state.draftFetches).toBe(1) // nothing is fetched for a draft that will not be written
+  })
+
+  it('daily: the member’s own heading that merely resembles a recap does not block the draft', async () => {
+    state.daily = { type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Recap of my week' }] }] }
+    await draftDailyReview({ day: '2026-10-06' })
+    expect(state.puts).toBe(1)
+  })
+
+  it('weekly: the second click opens the first draft instead of creating another', async () => {
+    const first = await draftWeeklyReview({ weekStart: '2026-10-05' })
+    const second = await draftWeeklyReview({ weekStart: '2026-10-05' })
+    expect(state.creates).toBe(1)
+    expect(second.note.id).toBe(first.note.id)
+    expect(second.existing).toBe(true)
+    expect(state.listUrls.every((u) => u.includes('tag=weekly-review'))).toBe(true)
+  })
+
+  it('weekly: a different week is a different draft', async () => {
+    await draftWeeklyReview({ weekStart: '2026-10-05' })
+    await draftWeeklyReview({ weekStart: '2026-09-28' })
+    expect(state.creates).toBe(2)
+  })
+
+  it('monthly: the second click opens the first draft', async () => {
+    const first = await draftMonthlyReview({ month: '2026-09' })
+    const second = await draftMonthlyReview({ month: '2026-09' })
+    expect(state.creates).toBe(1)
+    expect(second.note.id).toBe(first.note.id)
+  })
+
+  it('a failed look-up never blocks a draft: it is created', async () => {
+    const inner = global.fetch
+    global.fetch = vi.fn((url, opts) => (typeof url === 'string' && url.startsWith('/api/j2/notes?')
+      ? Promise.resolve({ ok: false, status: 500 }) : inner(url, opts)))
+    await draftWeeklyReview({ weekStart: '2026-10-05' })
+    expect(state.creates).toBe(1)
+  })
+})

@@ -357,10 +357,44 @@ export function recapHeading(day) {
 
 // ── orchestration: fetch, build, land through the create door ──────────────────────
 
+// ── a second click never makes a second draft (fin-data M2) ────────────────────────────────
+//
+// Each click on a draft door used to write again: a second recap appended to the daily note,
+// a second weekly or monthly note. A draft for a period that already has one now answers the
+// one that is there (`existing: true`), and nothing is fetched or written for it. To redraft,
+// the member deletes the recap section or the note and clicks again -- their choice, never a
+// silent overwrite of something they may have edited since.
+
+/** The member's live note with this tag and exactly this title, or null. Best effort: any
+ *  failure reads as "none", so a look-up can never block a draft. */
+async function findExistingDraft(tag, title) {
+  try {
+    const res = await fetch(`/api/j2/notes${qs({ tag, sort: 'updated', limit: 50 })}`, { credentials: 'include' })
+    if (!res.ok) return null
+    const rows = (await res.json())?.notes
+    return (Array.isArray(rows) ? rows : []).find((n) => n && n.title === title) || null
+  } catch {
+    return null
+  }
+}
+
+const plainText = (node) => (node?.type === 'text' ? (node.text || '')
+  : (Array.isArray(node?.content) ? node.content.map(plainText).join('') : ''))
+
+/** Does this daily note already carry the recap for `day`? Matched on the recap's own exact
+ *  heading (either wording of it), never on a heading that merely looks like one. */
+function hasRecapFor(content, day) {
+  const wanted = new Set([`Today's recap — ${fmtShort(day)}`, `Recap — ${fmtShort(day)}`])
+  return content.some((n) => n?.type === 'heading' && wanted.has(plainText(n)))
+}
+
 /** Weekly draft: a new standalone note, tagged like the catalog's own weekly-review
- *  template so it sits beside a member's hand-written ones. */
+ *  template so it sits beside a member's hand-written ones. One per week: a second
+ *  click opens the first. */
 export async function draftWeeklyReview({ accountId, weekStart } = {}) {
   const ws = weekStart || mondayOfIso()
+  const existing = await findExistingDraft('weekly-review', weeklyTitle(ws))
+  if (existing) return { note: existing, payload: null, existing: true }
   const payload = await fetchWeeklyDraft({ weekStart: ws, accountId })
   const body = doc([h(2, `Week of ${fmtShort(ws)}`), ...buildDraftBlocks(payload)])
   const note = await createNoteViaApi({ title: weeklyTitle(ws), bodyJson: body, tags: ['weekly-review'] })
@@ -368,9 +402,11 @@ export async function draftWeeklyReview({ accountId, weekStart } = {}) {
 }
 
 /** Monthly draft: a new standalone note, tagged like the catalog's own
- *  monthly-review template. */
+ *  monthly-review template. One per month: a second click opens the first. */
 export async function draftMonthlyReview({ accountId, month } = {}) {
   const m = month || thisMonthIso()
+  const existing = await findExistingDraft('monthly-review', monthlyTitle(m))
+  if (existing) return { note: existing, payload: null, existing: true }
   const payload = await fetchMonthlyDraft({ month: m, accountId })
   const body = doc([h(2, monthlyTitle(m)), ...buildDraftBlocks(payload)])
   const note = await createNoteViaApi({ title: monthlyTitle(m), bodyJson: body, tags: ['monthly-review'] })
@@ -410,8 +446,10 @@ export async function draftDailyReview({ accountId, day } = {}) {
     err.memberMessage = STILL_SYNCING_MESSAGE   // callers show THIS sentence, not their generic one
     throw err
   }
-  const payload = await fetchDailyDraft({ day: d, accountId })
   const existing = (daily.bodyJson && Array.isArray(daily.bodyJson.content)) ? daily.bodyJson.content : []
+  // One recap per day in the note (fin-data M2): a second click answers the note as it is.
+  if (hasRecapFor(existing, d)) return { note: daily, payload: null, existing: true }
+  const payload = await fetchDailyDraft({ day: d, accountId })
   const appended = [...existing, hr(), h(2, recapHeading(d)), ...buildDraftBlocks(payload)]
   const res = await fetch(`/api/j2/notes/${encodeURIComponent(daily.id)}`, {
     method: 'PUT',
