@@ -39,7 +39,7 @@ import {
   canCarryPlanRole, drawingLevelPrice, setPlanRole, sizePlan, withPlanShares, SIZED_BY_LABEL,
   addLevel, moveLevel,
 } from '../../lib/chartPlan'
-import { AddLevelForm, LevelPriceField, RoleRadios } from './ChartPlanLevelControls'
+import { AddLevelForm, AlertCell, LevelPriceField, RoleRadios } from './ChartPlanLevelControls'
 import { PRICE_ROLES } from '../../lib/planLevels'
 import { PLAN_STOP_ARIA_KEYS, planStopChordLabel, usePlanStopShortcut } from '../../lib/planStopShortcut'
 import useBoundDrawingAlerts from '../../../../components/chart/useBoundDrawingAlerts'
@@ -406,7 +406,7 @@ export default function ChartPlanPanel({
                     label={`Role of the line at ${fmtPrice(price)}`}
                     onChange={(r) => setRole(d.id, r)}
                   />
-                  <div className={styles.alertCell}>
+                  <AlertCell>
                     {!derived && !armed && canArm && (
                       <select
                         className={styles.dirSelect}
@@ -436,7 +436,7 @@ export default function ChartPlanPanel({
                         {arming === d.id ? 'Arming…' : 'Arm alert at this level'}
                       </button>
                     )}
-                  </div>
+                  </AlertCell>
                 </li>
               )
             })}

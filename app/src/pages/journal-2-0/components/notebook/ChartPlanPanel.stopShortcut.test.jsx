@@ -73,9 +73,13 @@ describe('Q21: Ctrl+Alt+S in an open plan goes to the stop\'s alert', () => {
     expect(d.chord).toMatchObject({ code: 'KeyS', alt: true, shift: false, mod: 'either' })
   })
 
-  it('BEFORE the key: the stop\'s button is many Tab stops into the plan (the cost this removes)', () => {
+  it('WITHOUT the key: the stop\'s alert is many Tab stops into the plan (the cost this removes)', () => {
     render(ui(<Panel />))
-    expect(stopsTo(panels()[0], armStop())).toBeGreaterThanOrEqual(9)
+    // The stop is the last row, and its alert cell is that row's last Tab stop (the cell is
+    // one stop: its direction select where one shows, else the button itself).
+    const row = armStop().closest('[data-level-id]')
+    const cellStop = [...row.querySelectorAll(TABBABLE)].filter((n) => n.tabIndex >= 0).pop()
+    expect(stopsTo(panels()[0], cellStop)).toBeGreaterThanOrEqual(9)
   })
 
   it('from the panel itself, the key puts focus on the stop\'s "Arm alert at this level"', () => {

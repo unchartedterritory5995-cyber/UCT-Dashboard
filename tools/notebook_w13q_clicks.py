@@ -1785,7 +1785,13 @@ def q20_chart(cx: Ctx, pg, m: Meter, width: str) -> dict:
             sel.select_option(role)
             m.keys += 1
             m.steps.append({"do": "key", "key": f"{role[0].upper()} (choose {role} in the select; counted 1)", "on": "Role"})
-            m.press(form.get_by_role("button", name="Add level"), "Add level")
+            if "Enter adds it" in form.inner_text():
+                # Lane KEYS3: Enter in the role select adds the level (the form says so).
+                # Before, a Tab to the Add level button came first, for every level.
+                # Focus is on the select: the Tab that reached it put it there, for real.
+                m.key("Enter", "add the level (Enter in the role select)")
+            else:
+                m.press(form.get_by_role("button", name="Add level"), "Add level")
             pg.wait_for_timeout(500)
         try:
             pg.wait_for_function("() => { const e = document.querySelector('[data-plan-value=\"shares\"]'); "

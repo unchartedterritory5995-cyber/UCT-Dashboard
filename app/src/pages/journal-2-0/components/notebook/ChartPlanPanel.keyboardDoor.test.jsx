@@ -7,7 +7,7 @@
 // The door lives in the panel. It writes the same drawing shape the canvas writes
 // (a horizontal line whose anchor is the level), through the same updateAttributes.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import { useState } from 'react'
@@ -258,5 +258,66 @@ describe('I-6 -- the door lives in the panel', () => {
       const src = readFileSync(join(dir, f), 'utf8')
       expect(src, f).not.toMatch(/from\s+['"][^'"]*(StockChart|ChartDrawingOverlay)['"]/)
     }
+  })
+})
+
+// Finish program, lane KEYS3 (Q20): typing a plan's three levels was 25 keys against a budget
+// of 22. Focus follows a new level's row (lane FIN-A11Y's rule, pinned above and kept), so the
+// way back to the add form is through that row. Two things in the way are removed:
+//   - Enter in the "Role of the new level" select adds the level (it used to need a Tab to
+//     the Add level button first: one key per level);
+//   - a row's alert direction and its Arm button are ONE Tab stop (Left / Right between them),
+//     so a row is three stops, not four.
+describe('lane KEYS3 (Q20): the add form takes Enter in its role select; the alert cell is one stop', () => {
+  it('Enter in the role select adds the level, with the role chosen', async () => {
+    const user = userEvent.setup()
+    const { last } = renderHost([])
+    await user.type(screen.getByRole('spinbutton', { name: 'Add a level at price' }), '105')
+    const role = screen.getByRole('combobox', { name: 'Role of the new level' })
+    await user.selectOptions(role, 'stop')
+    role.focus()
+    await user.keyboard('{Enter}')
+    const made = last()
+    expect(made).toHaveLength(1)
+    expect(made[0].role).toBe('stop')
+    expect(drawingLevelPrice(made[0])).toBe(105)
+  })
+
+  it('CONTROL: other keys in the role select add nothing, and Enter with no price says so', async () => {
+    const user = userEvent.setup()
+    const { spy } = renderHost([])
+    const role = screen.getByRole('combobox', { name: 'Role of the new level' })
+    role.focus()
+    await user.keyboard('{ArrowDown}s ')
+    expect(spy).not.toHaveBeenCalled()
+    await user.keyboard('{Enter}')
+    expect(spy).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a price above zero.')
+  })
+
+  it('the form says that Enter adds the level', () => {
+    renderHost([])
+    expect(document.querySelector('[data-add-level]').textContent).toMatch(/Enter adds it/)
+  })
+
+  it('a row\'s alert direction and Arm button are one Tab stop, moved with Right and Left', async () => {
+    renderHost()      // no side yet, so every row offers a direction select beside its button
+    const dir = screen.getByRole('combobox', { name: 'Alert direction at 97.25' })
+    const arm = screen.getByRole('button', { name: 'Arm alert at this level, 97.25' })
+    expect([dir, arm].filter((el) => el.tabIndex === 0)).toEqual([dir])
+    expect(arm.tabIndex).toBe(-1)
+    dir.focus()
+    fireEvent.keyDown(dir, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(arm)
+    expect(arm.tabIndex).toBe(0)
+    fireEvent.keyDown(arm, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(dir)
+  })
+
+  it('a level row is three Tab stops (price, role, alert), not four', () => {
+    renderHost()
+    const row = document.querySelector('[data-level-id="s"]')
+    const stops = [...row.querySelectorAll('input, select, button')].filter((el) => el.tabIndex === 0)
+    expect(stops).toHaveLength(3)
   })
 })
