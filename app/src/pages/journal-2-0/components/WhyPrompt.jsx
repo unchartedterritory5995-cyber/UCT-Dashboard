@@ -8,7 +8,7 @@
  * button is not in the tree at all, not merely hidden, so nothing it owns can call
  * `getUserMedia`.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import VoiceInputButton from './VoiceInputButton'
 import { notebookFlag } from '../lib/offline/notebookFlags'
 import { putWhy } from '../hooks/useEntryContext'
@@ -24,6 +24,9 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   const [text, setText] = useState(why?.text || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // One id per card: the position page shows a card per lot, and a fixed id made every
+  // label focus the FIRST card's box.
+  const textId = useId()
 
   // Reseed when the identity changes (a different position's card) or the server's own
   // answer changes (another tab saved it) — never mid-edit on this same key.
@@ -77,10 +80,10 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
 
   return (
     <div className={styles.wrap} data-testid="why-prompt-editing" data-tour="entry-context-why">
-      <label className={styles.label} htmlFor="why-prompt-text">Why did you take it?</label>
+      <label className={styles.label} htmlFor={textId}>Why did you take it?</label>
       <div className={styles.row}>
         <textarea
-          id="why-prompt-text"
+          id={textId}
           className={styles.textarea}
           rows={3}
           maxLength={maxChars}

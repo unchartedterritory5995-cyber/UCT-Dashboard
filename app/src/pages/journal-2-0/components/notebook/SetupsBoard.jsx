@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
@@ -197,14 +197,9 @@ export default function SetupsBoard() {
     setParams((p) => { const n = new URLSearchParams(p); n.delete('similar'); return n }, { replace: true })
   }, [setParams])
 
-  if (!boardOn && !similarOn) {
-    return (
-      <div className={styles.page}>
-        <p className={styles.quiet}>This page is not available yet.</p>
-        <Link className={styles.noteLink} to="/journal/notebook">Back to the Notebook</Link>
-      </div>
-    )
-  }
+  // Both capabilities off: the route sends the member back to the Notebook (as My Playbook
+  // sends them to Insights) instead of a page that says a dark feature exists.
+  if (!boardOn && !similarOn) return <Navigate to="/journal/notebook" replace />
   return (
     <div className={styles.page} data-setups-page="">
       <h1 className={styles.pageTitle}>Setups</h1>

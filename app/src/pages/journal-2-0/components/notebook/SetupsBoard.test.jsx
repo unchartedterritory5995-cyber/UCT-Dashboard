@@ -81,10 +81,11 @@ describe('SetupsBoard', () => {
   })
   afterEach(() => { __resetNotebookFlags() })
 
-  it('both flags OFF: says so and fetches nothing', async () => {
+  it('both flags OFF: shows no page of its own and fetches nothing (it sends the member back; finFeMinors.test.jsx)', async () => {
     const calls = stub([[/setups-board$/, BOARD]])
     render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
-    expect(screen.getByText('This page is not available yet.')).toBeTruthy()
+    expect(screen.queryByText('This page is not available yet.')).toBeNull()
+    expect(document.querySelector('[data-setups-page]')).toBeNull()
     await new Promise((r) => setTimeout(r, 20))
     expect(calls).toEqual([])
     expect(h.everMounted).toEqual([])
