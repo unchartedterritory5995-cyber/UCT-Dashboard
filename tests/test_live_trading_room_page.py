@@ -748,3 +748,14 @@ def test_terms_and_privacy_carry_the_business_name_and_the_contact_address():
         text = _visible_text(html)
         assert f"Uncharted Territory. Questions or data requests: {CONTACT_EMAIL}" in text, page.name
         assert f'href="mailto:{CONTACT_EMAIL}"' in html, page.name
+
+
+def test_the_title_and_description_fit_a_search_result():
+    # Google cuts a title at about 60 characters and a description at about 160
+    # (uct-growth docs/google/SEO.md, fix 4). The og:/twitter: copy is separate.
+    p = _parsed()
+    title, desc = p.title.strip(), _meta(p, name="description")
+    assert len(title) <= 60, (len(title), title)
+    assert 70 <= len(desc) <= 160, (len(desc), desc)
+    assert "live trading room on Discord" in desc
+    assert title.startswith("Live Trading Room on Discord")
