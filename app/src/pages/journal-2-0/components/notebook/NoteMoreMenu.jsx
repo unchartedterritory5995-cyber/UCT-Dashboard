@@ -34,12 +34,16 @@
  * so it sits wholly inside a 16 px gutter (`onScreenShift`). Measured before/after:
  * docs/notebook/evidence/d3-controls-2026-09-28/more-panel-*.json.
  */
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import styles from './NoteMoreMenu.module.css'
 
 export const MORE_NOTE_ACTIONS = 'More note actions'
+
+/** Lane KEYS3: lets an action INSIDE the panel open the panel it lives in (the Export menu,
+ *  asked for from the command palette). The value is a stable `() => void`, or null outside. */
+export const MoreMenuOpenContext = createContext(null)
 export const PANEL_GUTTER = 16
 
 /** How far to move a box spanning [left, right] so it sits inside [gutter, viewport - gutter]
@@ -56,6 +60,7 @@ export default function NoteMoreMenu({ children, buttonClassName = '' }) {
   const triggerRef = useRef(null)
   const panelRef = useRef(null)
   const close = useCallback(() => setOpen(false), [])
+  const openPanel = useCallback(() => setOpen(true), [])
   const { disclosureProps } = useDisclosureFocus({
     open, containerRef: panelRef, onClose: close, openerRef: triggerRef,
   })
@@ -119,7 +124,7 @@ export default function NoteMoreMenu({ children, buttonClassName = '' }) {
         data-export-exclude
         {...disclosureProps}
       >
-        {children}
+        <MoreMenuOpenContext.Provider value={openPanel}>{children}</MoreMenuOpenContext.Provider>
       </div>
     </span>
   )

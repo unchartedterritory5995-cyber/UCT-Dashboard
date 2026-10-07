@@ -85,6 +85,11 @@ const NOTEBOOK_COMMANDS = [
     action: 'door', door: NOTEBOOK_DOORS.VISUAL_PLAYBOOK, keywords: [],
     match: phraseStart('visual playbook', 'playbook'),
     when: ({ location }) => notebookFlag('notebook_visual_playbook_enabled') === true && noteOpenAt(location) },
+  // Q12: the note's Export menu (Markdown, web page, JSON, Word), inside "More note actions".
+  { id: 'nb-export', kind: 'command', label: 'Export this note', icon: 'document',
+    action: 'door', door: NOTEBOOK_DOORS.EXPORT, keywords: [],
+    match: phraseStart('export this note', 'export note', 'export as word'),
+    when: ({ location }) => noteOpenAt(location) },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact

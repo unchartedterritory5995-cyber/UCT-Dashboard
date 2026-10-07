@@ -34,7 +34,9 @@
 // ⛔ Final review M-1: PNG and the Export button are DISABLED while a file is made, and a
 // disabled button loses focus (the browser moves it to <body>). When the work ends, the
 // button that started it takes focus back -- unless the member has moved on meanwhile.
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
+import { MoreMenuOpenContext } from './NoteMoreMenu'
+import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import UIcon from '../../../../components/ui/UIcon'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { EXPORT_FORMATS, noteExportUrl, saveResponse } from './export/exportFormats'
@@ -143,6 +145,17 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   useEffect(() => {
     if (menuOpen) itemRefs.current[0]?.focus()
   }, [menuOpen])
+
+  // Lane KEYS3 (Q12): the command palette's "Export this note". The panel these controls live
+  // in opens (it is hidden while closed), then this menu, in one render; the effect above puts
+  // focus on the first format. Nothing is exported until the member picks one.
+  const openMore = useContext(MoreMenuOpenContext)
+  useEffect(() => onNotebookDoor(NOTEBOOK_DOORS.EXPORT, () => {
+    if (exportBusy) return false
+    openMore?.()
+    setMenuOpen(true)
+    return true
+  }), [openMore, exportBusy])
 
   // A press outside the menu closes it (the trigger toggles on its own).
   useEffect(() => {

@@ -82,3 +82,30 @@ describe('palette: Visual playbook (Q22)', () => {
     expect(await screen.findByRole('option', { name: 'Visual playbook' })).toBeTruthy()
   })
 })
+
+describe('palette: Export this note (Q12)', () => {
+  it('in a note, choosing it asks for the export door and does not navigate', async () => {
+    const heard = vi.fn()
+    const off = onNotebookDoor(NOTEBOOK_DOORS.EXPORT, heard)
+    renderPalette()
+    await openAndType('export')
+    fireEvent.click(await screen.findByRole('option', { name: 'Export this note' }))
+    await waitFor(() => expect(heard).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('route-spy').textContent).toBe(NOTE)
+    off()
+  })
+
+  it('"expo" (a ticker) never offers it, and it is not offered where no note is open', async () => {
+    renderPalette()
+    const box = await openAndType('expo')
+    expect(option('Export this note')).toBeNull()
+    fireEvent.change(box, { target: { value: 'export note' } })
+    expect(await screen.findByRole('option', { name: 'Export this note' })).toBeTruthy()
+  })
+
+  it('not offered on the notes list (no note open)', async () => {
+    renderPalette('/journal/notebook?view=all')
+    await openAndType('export')
+    expect(option('Export this note')).toBeNull()
+  })
+})

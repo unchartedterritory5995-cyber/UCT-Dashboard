@@ -1626,13 +1626,13 @@ def q12_export_word(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # 13Q-3: "More note actions" sits in the sticky chrome, same reasoning as Q9's Ask toggle.
     more = pg.locator("button[aria-label='More note actions']").filter(visible=True)
     if m.mode == "keys":
-        # the member is in the note's body and More is in the header ABOVE it: back, not round
-        m.shift_tab_to_locator(more, "More note actions")
-        m.key("Enter", "activate More note actions")
+        # Lane KEYS3: the command palette's "Export this note" opens More and the Export menu,
+        # with focus on its first format. (Before: 6 Shift+Tabs to More, 8 Tabs to Export.)
+        palette_command(m, "export", r"^Export this note$", "Export this note")
     else:
         m.press(more, "More note actions")
-    panel = pg.locator("[role=group][aria-label='More note actions']")
-    m.press(panel.get_by_role("button", name=re.compile(r"^Export")).filter(visible=True), "Export (in More note actions)")
+        panel = pg.locator("[role=group][aria-label='More note actions']")
+        m.press(panel.get_by_role("button", name=re.compile(r"^Export")).filter(visible=True), "Export (in More note actions)")
     item = pg.get_by_role("menuitem", name=re.compile(r"Word")).filter(visible=True)
     item.first.wait_for(state="visible", timeout=10000)
     with pg.expect_download(timeout=30000) as dl:
