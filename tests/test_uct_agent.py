@@ -372,3 +372,11 @@ def test_a_proposal_in_history_never_reads_as_executed():
     msgs = turn.history_messages(rows)
     assert "executed" not in msgs[1]["content"].replace("NOT executed", "")
     assert msgs[1]["content"].startswith("[UCT proposed -- NOT executed")
+
+
+def test_taste_requests_propose_rather_than_clarify_in_the_prompt():
+    """Production 2026-10-07: without this line Haiku answered "make the right
+    chart look cleaner" with a clarify whose bare choices ("Hide volume") lost
+    the target; the accepted behaviour is a proposal the member can adjust."""
+    p = turn.system_prompt(turn.validate_manifest(CAPS))
+    assert "Never clarify a matter of taste or judgment" in p

@@ -235,6 +235,21 @@ describe('UCT Agent panel', () => {
     expect(host.commits).toHaveLength(0)
   })
 
+  it("a choice under the MODEL's question goes back to the model, never through the fast path", async () => {
+    const host = makeHost([{ ref: 'w1', label: 'Left chart (SPY)', position: 'left' }, { ref: 'w2', label: 'Right chart (SPY)', position: 'right' }])
+    turns.push(env('clarify', [], '', { text: 'What would make it cleaner?', choices: ['Hide volume', 'Switch to line'] }))
+    turns.push(env('apply', [{ action: 'volume.setState', target: 'c2', args: { state: 'hidden' } }]))
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('make the right chart look cleaner')
+    await screen.findByText('Hide volume')
+    fireEvent.click(screen.getByText('Hide volume'))
+    await screen.findByText(/Hid Volume/)
+    expect(turnBodies).toHaveLength(2)                 // the choice went to the model
+    expect(turnBodies[1].message).toBe('Hide volume')
+    expect(host.raw('w2').stored.volume.visible).toBe(false)
+    expect(host.raw('w1').stored).toBeNull()
+  })
+
   it('keys typed in the panel never reach chart shortcuts', () => {
     const host = makeHost([{ ref: 'w1' }])
     const seen = vi.fn()

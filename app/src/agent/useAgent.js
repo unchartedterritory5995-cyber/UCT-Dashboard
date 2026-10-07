@@ -177,7 +177,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: 'apply', member: `${p.member} → ${label}`, voice: p.voice })
   }, [execute, push])
 
-  const send = useCallback(async (raw, { voice = false } = {}) => {
+  const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
     if (!text || busy) return
     push({ role: 'member', text, voice })
@@ -189,7 +189,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: t, telemetry: { path: 'local', disposition: 'unsupported', unsupported: 'multichart', voice } })
         return
       }
-      const fast = fastParse(text)
+      // A choice clicked under the MODEL's own question answers that question:
+      // it goes back to the model (which has the conversation), never through the
+      // fast path, which would act on the bare label ("Hide volume") out of context.
+      const fast = answering ? null : fastParse(text)
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
