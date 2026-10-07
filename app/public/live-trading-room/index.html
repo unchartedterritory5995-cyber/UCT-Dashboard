@@ -160,12 +160,13 @@
     }
     img { display: block; max-width: 100%; height: auto; }
     a { color: var(--green); }
+    a:focus-visible, summary:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 3px; border-radius: 4px; }
     .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 16px; }
     @media (min-width: 720px) { .wrap { padding: 0 28px; } }
 
     /* Header */
-    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 18px; padding-bottom: 18px; }
-    .brand { display: flex; align-items: center; gap: 10px; color: var(--text-bright); text-decoration: none; min-width: 0; }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 17px; padding-bottom: 17px; }
+    .brand { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--text-bright); text-decoration: none; min-width: 0; }
     .brand img { width: 34px; height: 34px; flex: none; }
     .brand span { font-weight: 700; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; }
     .brand b { color: var(--green); font-weight: 700; }
@@ -181,7 +182,7 @@
     }
     .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 32px -8px rgba(63, 212, 110, 0.7); }
     .btn:focus-visible { outline: 3px solid var(--text-bright); outline-offset: 3px; }
-    .btn-sm { padding: 9px 16px; font-size: 15px; border-radius: 10px; flex: none; }
+    .btn-sm { min-height: 44px; padding: 9px 16px; font-size: 15px; border-radius: 10px; flex: none; }
 
     /* Hero */
     .hero { padding-top: 28px; padding-bottom: 12px; }
@@ -234,8 +235,19 @@
     .note { margin: 18px 0 0; font-size: 18px; color: var(--text-bright); }
 
     .inside { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-    @media (min-width: 640px) { .inside { grid-template-columns: 1fr 1fr; } }
-    @media (min-width: 960px) { .inside { grid-template-columns: 1fr 1fr 1fr; } }
+    /* Each card spans two tracks so a short last row can sit centred instead of
+       leaving a lone card at the left (seven items: 2+2+2+1 and 3+3+1). */
+    @media (min-width: 640px) and (max-width: 959.98px) {
+      .inside { grid-template-columns: repeat(4, 1fr); }
+      .inside li { grid-column: span 2; }
+      .inside li:last-child:nth-child(odd) { grid-column: 2 / span 2; }
+    }
+    @media (min-width: 960px) {
+      .inside { grid-template-columns: repeat(6, 1fr); }
+      .inside li { grid-column: span 2; }
+      .inside li:last-child:nth-child(3n + 1) { grid-column: 3 / span 2; }
+      .inside li:nth-last-child(2):nth-child(3n + 1) { grid-column: 2 / span 2; }
+    }
     .inside li { position: relative; padding: 16px 18px 16px 44px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-bright); }
     .inside li::before {
       content: ""; position: absolute; left: 18px; top: 23px; width: 10px; height: 10px;
@@ -320,14 +332,14 @@
     .talk-submit { border: 0; cursor: pointer; font: inherit; font-weight: 700; font-size: 17px; justify-self: start; }
     .talk-submit[disabled] { opacity: 0.6; cursor: progress; }
     .talk-fine { margin: 0; font-size: 13.5px; color: var(--text-muted); }
-    .talk-fine a { color: var(--text-muted); }
+    .talk-fine a { color: var(--text-muted); padding: 14px 0; }
     .talk-msg { margin: 0; padding: 12px 14px; border-radius: 10px; font-size: 15.5px; }
     .talk-msg.ok { border: 1px solid var(--green); color: var(--text-bright); background: rgba(63, 212, 110, 0.1); }
     .talk-msg.err { border: 1px solid var(--red); color: var(--text-bright); background: rgba(224, 72, 74, 0.1); }
     .talk-msg[hidden] { display: none; }
     .talk-target { display: none; margin: 14px 0 0; max-width: 560px; }
     .talk-target:target { display: block; }
-    .talk-link { display: inline-block; margin-top: 14px; color: var(--text-bright); font-weight: 600; font-size: 16px; }
+    .talk-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 5px; color: var(--text-bright); font-weight: 600; font-size: 16px; }
     @media (max-width: 420px) {
       .talk { width: 100%; }
       .talk-toggle { width: 100%; }
@@ -335,16 +347,22 @@
       .talk-submit { width: 100%; }
     }
 
-    footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text-muted); }
+    footer.wrap { margin-top: 64px; padding-top: 28px; padding-bottom: 40px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text-muted); }
     footer p { margin: 0 0 10px; }
-    footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
-    footer nav a { color: var(--text-muted); }
+    footer nav { display: flex; flex-wrap: wrap; gap: 0 18px; }
+    footer nav a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; color: var(--text-muted); }
     footer nav a:hover { color: var(--text-bright); }
 
     @media (max-width: 420px) {
       .brand span { font-size: 11px; letter-spacing: 2px; }
       .btn { width: 100%; }
       .btn-sm { width: auto; }
+    }
+    /* At 360px the wordmark ran under the header button. Tighten, never shrink the type. */
+    @media (max-width: 380px) {
+      .brand { gap: 8px; }
+      .brand span { letter-spacing: 1px; }
+      .btn-sm { padding: 9px 12px; }
     }
     @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
   </style>
