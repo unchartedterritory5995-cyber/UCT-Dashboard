@@ -1051,9 +1051,15 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     trace: Dict[str, Any] = {}
     cap_usd = conversation_cap_usd(admin=admin)
     started = time.monotonic()
-    result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
-                            snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                            trace=trace)
+    # ⭐ One interactive AI call in flight per member, shared with /propose
+    # (`dc.interactive_slot`): a concurrent turn is refused and spends nothing.
+    with dc.interactive_slot(user_id) as free:
+        if free:
+            result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
+                                    snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
+                                    trace=trace)
+        else:
+            result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
@@ -1075,7 +1081,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 #: The turn-result classes that are DIFFERENT product signals (indicator_telemetry
 #: ``FAILURE_CLASSES``). A model answer within the contract is "ok" whatever its
 #: disposition: a clarification or a truthful "unsupported" is the product working.
-_BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global"}
+_BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
+                 "rate:busy": "rate_limited"}
 _PLATFORM_GATES = {"model:transport"}
 _INTERNAL_GATES = {"internal:error"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
