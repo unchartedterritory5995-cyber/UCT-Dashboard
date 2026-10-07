@@ -148,12 +148,13 @@ describe('P3 UX — refusals in member words, the code kept for support', () => 
 
   it('11 UNREPRESENTABLE — CLAIMED (before) the raw path list; DID: plain sentence, paths only in the detail (REFUSAL)', () => {
     const d = applyPatch(null, env({ revision: 0 }, [{ op: 'create', name: 'x', outputs: [{ tree: P('close > open') }] }])).definition
-    const odd = { ...d, plots: d.plots.map((p) => ({ ...p, legend: { decimals: 4 } })) }
+    // ⭐ PHASE 4 — the blocking case is maths the row model cannot hold.
+    const odd = { ...d, compute: { ...d.compute, importedStage: { kind: 'foreign' } } }
     const r = applyPatch(odd, env({ revision: 0 }, [{ op: 'rename_definition', name: 'y' }]))
     const m = memberError(r.errors[0])
     expect(m.text).toBe('This indicator has parts UCT Intelligence cannot reproduce yet, so it cannot be changed by conversation. You can still edit it manually.')
-    expect(m.text).not.toMatch(/plots\[|legend/)
-    expect(m.detail).toMatch(/authoring:unrepresentable: .*plots\[value\]\.legend\.decimals/)
+    expect(m.text).not.toMatch(/compute|importedStage/)
+    expect(m.detail).toMatch(/authoring:unrepresentable: .*compute\.importedStage/)
   })
 
   it('12 A MODEL FAULT — ASKED anything; the model sent a bad slot / schema; DID: the generic sentence, never the schema path (CONTROLLED ERROR)', () => {
@@ -186,9 +187,12 @@ describe('P3 UX — the conversation says up front what it cannot edit', () => {
   it('15 EDITABILITY AGREES WITH THE FIRST TURN — DID: conversationEditability is the engine\'s own guards; it is editable exactly when a first change would not be refused for its kind/fidelity (EXACT)', () => {
     const plain = applyPatch(null, env({ revision: 0 }, [{ op: 'create', name: 'x', outputs: [{ tree: P('close > open') }] }])).definition
     const native = { id: 'rsi', meta: { name: 'RSI' }, compute: { kind: 'native', fn: 'rsi' }, plots: [{ key: 'rsi' }] }
-    const odd = { ...plain, plots: plain.plots.map((p) => ({ ...p, legend: { decimals: 4 } })) }
+    const odd = { ...plain, compute: { ...plain.compute, importedStage: { kind: 'foreign' } } }
     const imported = { ...odd, meta: { ...odd.meta, recurrenceOrigin: 'pine' } }
-    for (const def of [plain, native, odd, imported]) {
+    // ⭐ PHASE 4 — a carried presentation field is EDITABLE (and the first turn applies).
+    const carried = { ...plain, plots: plain.plots.map((p) => ({ ...p, legend: { decimals: 4 } })) }
+    expect(conversationEditability(carried)).toMatchObject({ editable: true, carried: 1 })
+    for (const def of [plain, native, odd, imported, carried]) {
       const first = applyPatch(def, env({ revision: 0 }, [{ op: 'rename_definition', name: 'y' }]))
       const kindOrFidelity = first.status === 'refused' && /^authoring:/.test(first.errors[0].code)
       expect(conversationEditability(def).editable).toBe(!kindOrFidelity)

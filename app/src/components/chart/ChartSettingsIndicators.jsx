@@ -100,6 +100,11 @@ import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES } from './engine/presentation'
 import { tfLabel } from './timeframes'
 import { CLEAN } from './engine/repaintVerdict'
 import styles from './ChartSettingsModal.module.css'
+import { kindOf as definitionKindOf, copyVerdict } from './builder/definitionActions'
+
+/** ⭐ PHASE 4 — the "Your indicators" tab (`discoveryCatalog.tabOf` files a member's
+ *  own formula under `formulas`, which `resultsForTab` already answers). */
+const YOUR_INDICATORS_TAB = Object.freeze({ key: 'formulas', label: 'Your indicators' })
 import SourceField from './SourceField'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
 import { ohlcCapabilityOf, outputIsSource } from './engine/ohlcCapability'
@@ -310,6 +315,10 @@ export default function ChartSettingsIndicators({
   // Opened from the chart's own "Add to Chart" control: land IN the add surface
   // with the caret in search, rather than on the structure list.
   openAdd = false,
+  // ⭐ PHASE 4 — UNIFIED EDITING: `{canModify(), modify(defId), editFormula(defId),
+  // customCopy(def, inputs)}` from the host (it reaches the chart's toolbar). Absent ⇒
+  // the inspector offers only instance-level actions, exactly as before.
+  definitionDoors = null,
 }) {
   // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
   // AND the server-provided admin role. A member flipping localStorage from
@@ -913,7 +922,18 @@ export default function ChartSettingsIndicators({
     () => (featureItems || []).filter((f) => f && f.enabled),
     [featureItems],
   )
-  const libraryTabs = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
+  // ⭐ PHASE 4 — "YOUR INDICATORS": the member's own saved definitions get their own
+  // tab, FIRST, whenever they have any — find a saved indicator, see whether it is on
+  // this chart, add it, open it, edit it or copy it, without going through a creation
+  // flow. (The old `Formulas` browse tab was retired when "New Formula" was the only
+  // thing to do with a formula; now there is something to find.)
+  const ownFormulaCount = useMemo(() => userCatalogRows(registry).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` is the install counter (see above)
+    [registry, generation])
+  const libraryTabs = useMemo(() => {
+    const base = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
+    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base] : base
+  }, [econAvailable, featureRows.length, ownFormulaCount])
   // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
   // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
   useLayoutEffect(() => { if (tabsCheck.current) tabsCheck.current() }, [libraryTabs])
@@ -2433,6 +2453,35 @@ export default function ChartSettingsIndicators({
             a member arrived at deliberately. `removeRow` itself is unchanged: a
             fixture is TOMBSTONED (slot kept, nothing shifts, settings preserved)
             and an instance goes through `removeInstance`. */}
+        {definitionDoors && def && (() => {
+          // ⭐ PHASE 4 — THE INDICATOR ITSELF, separate from this instance's settings
+          // above. A member's own formula can be modified (UCT Intelligence, where
+          // authorized) or edited as a formula; a formula or a parity-approved built-in
+          // can be copied into a NEW indicator of their own. A built-in that cannot be
+          // reproduced exactly shows the copy action disabled, with its reason.
+          const k = definitionKindOf(def)
+          if (k === 'other') return null
+          const inst = row.instanceId ? (settings.indicatorInstances || []).find((i) => i && i.instanceId === row.instanceId) : null
+          const copy = copyVerdict(def, (inst && inst.inputs) || {})
+          return (
+            <>
+            <div className={styles.insActions} data-testid="inspector-definition-actions" data-definition-kind={k}>
+              {k === 'user' && definitionDoors.canModify() && (
+                <button type="button" className={styles.insAction} data-testid="inspector-modify"
+                  onClick={() => definitionDoors.modify(def.id)}>Modify with UCT Intelligence</button>
+              )}
+              {k === 'user' && (
+                <button type="button" className={styles.insAction} data-testid="inspector-edit-formula"
+                  onClick={() => definitionDoors.editFormula(def.id)}>Edit formula</button>
+              )}
+              <button type="button" className={styles.insAction} data-testid="inspector-custom-copy"
+                disabled={!copy.ok} title={copy.ok ? 'A new, independent indicator of your own — this one stays as it is' : copy.reason}
+                onClick={() => { if (copy.ok) definitionDoors.customCopy(def, (inst && inst.inputs) || {}) }}>Create custom copy</button>
+            </div>
+            {!copy.ok && <div className={styles.insNote} data-testid="inspector-not-customizable">{copy.reason}</div>}
+            </>
+          )
+        })()}
         <div className={styles.insActions}>
           {duplicate && (
             <button
@@ -2445,7 +2494,7 @@ export default function ChartSettingsIndicators({
                 // a click that did nothing.
                 if (next !== settings) onChange?.({ ...next, preset: 'custom' })
               }}
-            >Duplicate</button>
+             title="Another copy of this same indicator on the chart">Duplicate on chart</button>
           )}
           <button
             type="button"
@@ -3070,6 +3119,11 @@ export default function ChartSettingsIndicators({
             <span className={styles.resName}>{row.name}</span>
             {!isEcon && <span className={styles.resShort}>{row.shortName}</span>}
             {row.userDefined && <span className={styles.resMine}>Your formula</span>}
+            {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
+            {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
+            {row.userDefined && !on && (
+              <span className={styles.resPill} data-testid="your-indicator-status">Not on this chart</span>
+            )}
             {row.sessionOnly && <span className={styles.resPill}>Intraday only</span>}
             {/* The LINTER's measurement, per plot — never the definition's own
                 declared claim. Same read the library row makes. */}
@@ -3088,6 +3142,27 @@ export default function ChartSettingsIndicators({
               <span className={styles.resTier}>{row.tier}</span>
             )}
           </span>
+          {/* ⭐ PHASE 4 — the DEFINITION's own doors on the member's saved indicator:
+              the same calls as the legend menu and the inspector. Buttons stop the
+              click from also adding the row. */}
+          {row.userDefined && definitionDoors && (() => {
+            const d = registry?.getDefinition?.(row.id) || null
+            if (!d || definitionKindOf(d) !== 'user') return null
+            const stop = (fn) => (e) => { e.stopPropagation(); fn() }
+            return (
+              <span className={styles.resActions} data-testid="your-indicator-actions">
+                {definitionDoors.canModify() && (
+                  <button type="button" className={styles.resAction} data-testid="your-indicator-modify"
+                    onClick={stop(() => definitionDoors.modify(d.id))}>Modify</button>
+                )}
+                <button type="button" className={styles.resAction} data-testid="your-indicator-edit"
+                  onClick={stop(() => definitionDoors.editFormula(d.id))}>Edit formula</button>
+                <button type="button" className={styles.resAction} data-testid="your-indicator-copy"
+                  title="A new, independent indicator of your own — this one stays as it is"
+                  onClick={stop(() => definitionDoors.customCopy(d, {}))}>Custom copy</button>
+              </span>
+            )
+          })()}
           {/* ⚠️⚠️ EXCEPT FOR A SECURITY, WHERE THE "DESCRIPTION" IS THE INSTRUMENT'S
               NAME. `securityResults` builds a ticker row as `name: QQQ`,
               `shortName: ETF`, `description: Invesco QQQ Trust` — so dropping the

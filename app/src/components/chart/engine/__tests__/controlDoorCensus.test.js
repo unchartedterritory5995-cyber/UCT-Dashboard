@@ -674,6 +674,15 @@ describe('the control-door census — how many doors, and whether an eighth exis
        '→ addInstance ON A CREATE ONLY, addressing the STORE\'s id (never the draft\'s). It ' +
        'then hands the minted instanceId to the info-value and alert doors, so the one ' +
        'instance it adds is the one every stored request names'],
+      ['app/src/components/chart/builder/definitionActions.js',
+       '⭐ NEW AT PHASE 4 (Unified Editing) — "Create custom copy": a NEW, independent ' +
+       'definition (a server fork of the member\'s own formula, or a parity-approved copy of a ' +
+       'built-in) is put on THIS chart as its own instance. addInstance is the only door that ' +
+       'means "put THIS definition on the chart, as its own copy" — the copy has no legacy:<id> ' +
+       'to revive — and it follows BuilderSheet\'s TASK-16 ORDER: installUserDefinitions FIRST, ' +
+       'addInstance on the id the registry actually installed. ⛔ The source definition and its ' +
+       'existing instances are never addressed: the chart-instance Duplicate stays ' +
+       'duplicateInstance, a second instance of the SAME definition'],
       ['app/src/components/chart/builder/studio/chartPreview.js',
        '⭐ NEW AT P2 TRACK B (Create Indicator, slice 1) — the conversation\'s LIVE PREVIEW ' +
        'on the member\'s REAL chart. addInstance is called against the STORED blob only to ' +

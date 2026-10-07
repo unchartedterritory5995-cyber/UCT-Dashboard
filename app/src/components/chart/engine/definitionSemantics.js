@@ -36,6 +36,16 @@ export function isPineOrigin(def) {
   return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_ORIGIN)
 }
 
+/** ⭐ PHASE 4 — Pine-translated maths by ANY door: a `recurrenceOrigin`
+ *  translation, or a Builder "Apply" import stamped `meta.importedFrom.dialect`.
+ *  Mirrors `user_definitions.py::is_pine_import`; used ONLY by the preview stamp
+ *  below (it does not change how a document evaluates). */
+export function isPineImport(def) {
+  if (isPineOrigin(def)) return true
+  const imp = def && def.meta && def.meta.importedFrom
+  return !!(imp && typeof imp === 'object' && String(imp.dialect || '').toLowerCase() === PINE_ORIGIN)
+}
+
 /** 2 only for a non-Pine document carrying exactly `meta.semantics === 2`. */
 export function semanticsOf(def) {
   if (!def || !def.meta || isPineOrigin(def)) return LEGACY_SEMANTICS
@@ -97,6 +107,9 @@ export function stampSemantics(def, { prior = null, dialect = null } = {}) {
   if (!def) return def
   const bare = withoutStamp(def)
   if (isPineOrigin(bare)) return bare
+  // ⭐ PHASE 4 — the store keeps Pine semantics for an Apply import and for any
+  // edit of a stored Pine import (`decide_semantics`); the preview draws the same.
+  if (isPineImport(bare) || (prior && isPineImport(prior))) return bare
   const priorId = prior ? mathsIdentity(prior) : null
   const unchanged = prior && priorId !== null && priorId === mathsIdentity(bare)
   if (unchanged) {

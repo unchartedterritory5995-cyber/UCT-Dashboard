@@ -30,6 +30,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from '../authoring'
+import { openAuthoringState } from '../authoring/authoringState'
 import { converseTurn, transcriptSnippets, distinctNotUnderstood } from '../authoring/converseClient'
 import { classifyTurn, OUTCOMES } from '../authoring/turnOutcome'
 import { preflight } from '../authoring/preflight'
@@ -86,20 +87,47 @@ export function replyLines(rb, state, changes = []) {
 
 const NOTHING_CHANGED = 'Nothing on the chart changed.'
 
+/** ⭐ PHASE 4 — the first line of an opened definition's conversation. */
+function openedEntry(open) {
+  const def = open.def
+  const name = (def && def.meta && def.meta.name) || open.defId
+  const st = openAuthoringState(def, { defId: open.defId, version: open.version })
+  const rb = readback(st.working, st, {})
+  return {
+    id: 0, role: 'uct', kind: 'opened',
+    lines: [`Opened “${name}” (saved version ${open.version}). Describe a change — nothing is saved until you choose Save.`,
+      ...(rb.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)],
+  }
+}
+
 /**
  * @param {object} p
  * @param {string|null} p.sym / p.tf   the chart the studio was opened over
  * @param {Function} [p.converse]      injectable client (tests / harness)
  * @param {string|null} [p.sessionKey] the opaque authoring context to keep the
  *                                     conversation under while the dock is closed
+ * @param {{def: object, defId: string, version: number}|null} [p.open] ⭐ PHASE 4 —
+ *   an EXISTING user definition to edit (the store's row). The studio opens it as
+ *   its working snapshot: OPEN != MUTATE — nothing is written until Save, and an
+ *   opened, untouched definition is clean.
  */
-export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null } = {}) {
+export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null, open = null } = {}) {
   // ⭐ Restored once, at mount — the same key reopened is the same conversation.
-  const [initial] = useState(() => readSession(sessionKey))
-  const [state, setState] = useState(() => (initial && initial.state) || newAuthoringState())
+  // ⭐ PHASE 4 — an EDIT's draft is restored only while it was opened from the
+  // version that is STILL the stored one; a draft of an older version is stale
+  // and the studio reopens the definition as it is now.
+  const [initial] = useState(() => {
+    const kept = readSession(sessionKey)
+    if (!open) return kept
+    const st = kept && kept.state
+    return st && st.defId === open.defId && st.baseVersion === open.version ? kept : null
+  })
+  const [state, setState] = useState(() => (initial && initial.state)
+    || (open && open.def ? openAuthoringState(open.def, { defId: open.defId, version: open.version }) : newAuthoringState()))
   const stateRef = useRef(state)
   const commit = useCallback((next) => { stateRef.current = next; setState(next) }, [])
-  const [transcript, setTranscript] = useState(() => (initial && initial.transcript) || [])
+  const [transcript, setTranscript] = useState(() => (initial && initial.transcript)
+    || (open && open.def ? [openedEntry(open)] : []))
   const transcriptRef = useRef(transcript)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -107,16 +135,20 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   /** Bumped on every applied change — the "Updated preview" cue keys off it. */
   const [changeSeq, setChangeSeq] = useState(0)
   const restored = !!(initial && ((initial.transcript && initial.transcript.length) || (initial.state && initial.state.working)))
+  /** ⭐ PHASE 4 — true while this studio edits a stored definition. */
+  const editing = !!(state.defId && Number.isInteger(state.baseVersion))
   const gateCtx = useMemo(() => ({ tf, symbol: sym }), [tf, sym])
 
   // Keep the session current. Nothing to keep (a fresh, untouched dock) is not
   // stored, so opening and closing an empty dock leaves no session behind.
+  // ⭐ PHASE 4 — an opened, untouched definition is "nothing to keep" too.
   const ended = useRef(false)
   useEffect(() => {
     if (!sessionKey || ended.current) return
     if (!transcript.length && !state.working) return
+    if (open && !isDirty(state) && transcript.length <= 1) return
     writeSession(sessionKey, { state, transcript, acked })
-  }, [sessionKey, state, transcript, acked])
+  }, [sessionKey, state, transcript, acked, open])
 
   const say = useCallback((entry) => {
     setTranscript((t) => {
@@ -250,7 +282,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       const outcomes = [...attached.outcomes, ...alerts]
       say({ role: 'uct', kind: 'saved', lines: outcomes.map((o) => o.text), outcomes })
       // Creation is complete (the dock closes on it): this context's session ends,
-      // so the next Create Indicator starts a new definition.
+      // so the next Create Indicator starts a new definition. ⭐ PHASE 4 — an edit
+      // ends the same way: the store's row is the authority again.
       ended.current = true
       clearSession(sessionKey)
       return { ok: true, storedDoc: stored.storedDoc, instanceId: attached.instanceId, outcomes }
@@ -273,8 +306,11 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
    *  (pinned in `chartPreview.test.js`). */
   const previewDefinition = useMemo(() => {
     if (!state.working) return null
-    return stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: null })
-  }, [state.working])
+    // ⭐ PHASE 4 — an edit previews under the store's rule for an EDIT (prior = the
+    // stored definition): an unchanged-maths edit keeps its semantics, a Pine import
+    // keeps Pine's.
+    return stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: state.base || null })
+  }, [state.working, state.base])
 
   const lastEntry = transcript.length ? transcript[transcript.length - 1] : null
   const questions = lastEntry && lastEntry.kind === 'question' ? (lastEntry.questions || []) : []
@@ -292,7 +328,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
-    previewDefinition, send, undo, save, discard, dirty, restored,
+    previewDefinition, send, undo, save, discard, dirty, restored, editing,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }

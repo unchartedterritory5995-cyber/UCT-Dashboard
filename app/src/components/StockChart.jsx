@@ -147,6 +147,7 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
+import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
 // installed output, read from the binder's own latest value (`infoValueResolve`).
 import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf, severInfoValuesForInstanceSwap } from './chart/engine/infoValues'
@@ -5205,8 +5206,19 @@ export default function StockChart({
       },
       // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator", the
       // same CALL-not-mount route; the studio is mounted inside the toolbar.
-      openCreateIndicator: () => {
-        try { return toolbarRef.current?.openCreateIndicator?.() ?? false } catch { return false }
+      openCreateIndicator: (opts = null) => {
+        try { return toolbarRef.current?.openCreateIndicator?.(opts) ?? false } catch { return false }
+      },
+      // ⭐ PHASE 4 — the definition's own doors, for Chart Settings → Indicators and
+      // the "Your indicators" list (siblings of this chart, so a CALL, not a mount).
+      openFormulaEditor: (opts = null) => {
+        try { return toolbarRef.current?.openFormulaEditor?.(opts) ?? false } catch { return false }
+      },
+      createCustomCopy: async (opts = {}) => {
+        try { return (await toolbarRef.current?.createCustomCopy?.(opts)) ?? { ok: false, error: 'This chart cannot add indicators.' } } catch (e) { return { ok: false, error: String((e && e.message) || e) } }
+      },
+      canModifyWithIntelligence: () => {
+        try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false }
       },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
@@ -6519,11 +6531,18 @@ export default function StockChart({
   // `cs`, and `handleUpdateChartSettings` strips it besides. Local state, so it
   // dies with this chart and can never outlive the conversation that owns it.
   const [studioPreview, setStudioPreview] = useState(null)
+  // ⭐ PHASE 4 — the definition an EDIT's preview stands in for (its own instances
+  // step aside in the read view while the studio edits it). Null for a create.
+  const [studioPreviewReplaces, setStudioPreviewReplaces] = useState(null)
+  const handleStudioPreview = useCallback((inst, opts) => {
+    setStudioPreview(inst || null)
+    setStudioPreviewReplaces(inst && opts && typeof opts.replaces === 'string' ? opts.replaces : null)
+  }, [])
   const csView = useMemo(() => {
     const list = resolveCotFollow(cs.indicatorInstances, _cotFollow)
     const view = list === cs.indicatorInstances ? cs : { ...cs, indicatorInstances: list }
-    return withPreviewInstance(view, studioPreview)
-  }, [cs, _cotFollow, studioPreview])
+    return withPreviewInstance(view, studioPreview, studioPreviewReplaces)
+  }, [cs, _cotFollow, studioPreview, studioPreviewReplaces])
   const _storedInstances = useCallback(() => csView.indicatorInstances, [csView])
   // ⭐ WHICH PANE A CHIP BELONGS TO, IN PANE-KEY UNITS. Pane keys are host
   // instance ids, so a chip's pane is: its own instance when it hosts one, or the
@@ -18309,7 +18328,13 @@ export default function StockChart({
         const defOf = (id) => engineRegistry.getDefinition(id)
         const displayOptions = inst ? displayTargetOptions(inst, cs, defOf) : []
         const displayCurrent = inst ? resolveDisplayTarget(inst, cs) : null
+        // ⭐ PHASE 4 — what this definition IS decides its definition-level rows.
+        const defKind = definitionKindOf(def)
+        const copyCheck = defKind === 'other' ? null : copyVerdict(def, (inst && inst.inputs) || {})
         const items = chipMenuItems(c, def, {
+          onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
+          onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
           onToggleHidden: (id) => { close(); handleChipHidden(id) },
           onMove: (id, t) => { close(); handleChipMove(id, t) },
@@ -18328,6 +18353,9 @@ export default function StockChart({
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
+          definitionKind: defKind,
+          canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
+          copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
         })
         const move = items.find((i) => i.key === 'move')
         const page = (chipPage === 'move' && move && !move.disabled)
@@ -20106,7 +20134,7 @@ export default function StockChart({
             /* ⭐ P2 Track B — Create Indicator's preview channel (see `csView`) and
                its Library door (Chart Settings → Indicators → Add to Chart). The
                PRIMARY toolbar only: it is the one handed this chart's symbol. */
-            onStudioPreview={setStudioPreview}
+            onStudioPreview={handleStudioPreview}
             anchorRef={containerRef}
             studioDockHost={studioDockHost}
             onStudioDockChange={onStudioDockChange}

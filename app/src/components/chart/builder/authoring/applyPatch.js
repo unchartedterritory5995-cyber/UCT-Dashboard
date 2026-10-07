@@ -25,7 +25,7 @@
 import { namingSnapshot, applyDerivedNaming } from './derivedName'
 import { validatePatchShape, opIndexOf, PATCH_LIMITS } from './patchValidate'
 import {
-  modelOf, buildFromModel, fidelityResidual, evaluateRowSource, AuthoringError, LEVELS_PLOT_KEY,
+  modelOf, buildFromModel, fidelityPlan, graftCarried, orderLike, evaluateRowSource, AuthoringError, LEVELS_PLOT_KEY,
 } from './model'
 import {
   parseSlotId, nodeAt, replaceAt, slotsOfTree, clausesOfTree, parameterSlots, barFields,
@@ -462,7 +462,21 @@ export const HANDLED_OPS = Object.freeze(Object.keys(OPS))
 const guardOf = (v) => (v && (v.guard || (v.gate && v.gate.guard) || v.status)) || 'refused'
 
 function finalChecks(st, input, gateCtx) {
-  const def = buildFromModel(st.model, { like: input })
+  let def = buildFromModel(st.model, { like: input })
+  // ⭐⭐ PHASE 4 — the CARRIED residual (fields outside the conversation's vocabulary)
+  // goes back on verbatim; a patch that moved the same group of settings is refused.
+  if (st.carry && st.carry.length) {
+    const g = graftCarried(def, input, st.baseModel, st.model, st.carry)
+    if (g.conflicts.length) {
+      const c = g.conflicts[0]
+      const what = c.output ? `"${c.output}"` : 'This indicator'
+      throw err('authoring:opaque-conflict',
+        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form UCT Intelligence can't change yet, so that change was not made. You can still edit it manually.`,
+        { output: c.output || undefined, paths: g.conflicts.map((x) => x.path) })
+    }
+    def = orderLike(input, g.doc)
+    for (const p of g.dropped) st.changes.push({ op: null, kind: 'carried-dropped', path: p })
+  }
   const { errors } = validateUserDefinitions([def])
   if (errors.length) throw err('definition:invalid', errors.join('\n'))
 
@@ -591,12 +605,17 @@ function runOps(input, ops, ctx) {
       if (e instanceof AuthoringError) return { ok: false, errors: [{ op: null, code: e.code, message: e.message }] }
       throw e
     }
-    const residual = fidelityResidual(input, st.model)
-    if (residual.length) {
+    // ⭐⭐ PHASE 4 — only MATHS/STRUCTURE the row model cannot hold refuses the
+    // definition; every other residual field is carried (`fidelityPlan`).
+    const plan = fidelityPlan(input, st.model)
+    if (plan.blocking.length) {
       return { ok: false, errors: [{ op: null, code: 'authoring:unrepresentable',
-        message: `This definition carries ${residual.length} field(s) the Builder cannot reproduce, so it is not edited here: ${residual.slice(0, 8).join(', ')}`,
-        paths: residual }] }
+        message: `This definition carries ${plan.blocking.length} field(s) the Builder cannot reproduce, so it is not edited here: ${plan.blocking.slice(0, 8).join(', ')}`,
+        paths: plan.blocking }] }
     }
+    st.carry = plan.carry
+    // The row model BEFORE the patch — what a carried field's conflict is judged against.
+    st.baseModel = plan.carry.length ? JSON.parse(JSON.stringify(st.model)) : null
   }
   for (let i = 0; i < ops.length; i += 1) {
     try {
