@@ -26,6 +26,7 @@ export const VIEWPORT_LOCKED_ROUTES = Object.freeze([
   '/screener',
   '/model-book',
   '/community',
+  '/terminal',
 ])
 
 const LOCKED = new Set(VIEWPORT_LOCKED_ROUTES)
