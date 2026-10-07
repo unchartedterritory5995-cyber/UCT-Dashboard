@@ -437,3 +437,34 @@
 @media (max-width: 640px) {
   .shell { padding: 12px; }
 }
+
+/* Finish program, lane NAV (ruling P5 / Q7): "Skip to save results", the keyboard door to the
+   toolbar's last control. Rendered through the app shell's skip-link slot
+   (components/skipLinks.jsx), so it shows at the shell link's own spot. Same recipe as the
+   Notebook's skip links, with the PR #225 / H14 lesson built in: unfocused it is invisible AND
+   lets the pointer through, so it can never take a tap on a phone, and it is shown by
+   :focus-visible only, which a tap does not cause. */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none;
+}
+.skipLink:focus-visible {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
