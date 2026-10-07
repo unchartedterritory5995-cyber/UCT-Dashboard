@@ -37,7 +37,7 @@ note ""
 note "== TREE A: the landing reverted WITH the keep-list =="
 git switch -q -C rehearsal/w12-15-revert-keeplist "$RESULT" || { note "switch failed"; exit 2; }
 note "checked out $(git rev-parse HEAD) tree $(git rev-parse HEAD^{tree})"
-note "kept files vs the landing tip (must list nothing): [$(git diff --name-only "$START" HEAD -- api/services/journal_two/notebook_schema.py app/src/pages/journal-2-0/lib/notebookSchema.js tests/test_notebook_schema_guard.py app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js api/services/journal_two/account_purge.py tests/test_journal_two_account_purge.py tests/test_notebook_rollback_never_revert.py docs tools scripts CLAUDE.md | tr '\n' ' ')]"
+note "kept files vs the landing tip (must list nothing): [$(git diff --name-only "$START" HEAD -- api/services/journal_two/notebook_schema.py app/src/pages/journal-2-0/lib/notebookSchema.js tests/test_notebook_schema_guard.py app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js api/services/journal_two/account_purge.py tests/test_journal_two_account_purge.py tests/test_notes_cas_is_atomic.py tests/test_notebook_rollback_never_revert.py docs tools scripts CLAUDE.md | tr '\n' ' ')]"
 note "product files that differ from the pre-landing base (must list only the kept ones): [$(git diff --name-only "$BASE" HEAD -- api app/src | tr '\n' ' ')]"
 note "landing modules on disk (must be none): [$(ls api/services/journal_two/chart_blocks.py api/services/journal_two/plan_grading.py api/services/journal_two/template_gallery.py 2>/dev/null | tr '\n' ' ')]"
 run A1-kept-rails            python -m pytest tests/test_notebook_rollback_never_revert.py tests/test_notebook_schema_guard.py tests/test_journal_two_account_purge.py -q -p no:cacheprovider -W ignore

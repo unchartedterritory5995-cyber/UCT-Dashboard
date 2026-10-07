@@ -100,11 +100,18 @@ KEEP_AT_TIP = SCHEMA_FILES + SCHEMA_RAILS
 #     always have, and lose their own landing's rows from the list -- stated in the runbook.
 #   * the rails that prove it travel with it: a kept file checked by a reverted rail is a red
 #     rail on a correct tree (the same reason as SCHEMA_RAILS).
+#   * `tests/test_notes_cas_is_atomic.py` (controller ruling, 2026-10-07). The rail on the
+#     Notebook's core write protection. The copy below the landing cannot find the append doors
+#     (a test defect from wave 10 L14, fixed in 4c9520c606), so it fails three times while seeing
+#     nothing. The fixed copy passes on the pre-landing product. A rolled-back tree must not carry
+#     a blind write-protection rail, so the fixed test is kept. Rehearsed: the note save and load
+#     set on the rolled-back tree went from 3 failed to fully green with this entry.
 LANDING_12_15 = "W12-15"
 KEEP_WITH_LANDING: dict[str, tuple[str, ...]] = {
     LANDING_12_15: ("api/services/journal_two/account_purge.py",
                     "tests/test_journal_two_account_purge.py",
-                    "tests/test_notebook_rollback_never_revert.py"),
+                    "tests/test_notebook_rollback_never_revert.py",
+                    "tests/test_notes_cas_is_atomic.py"),
 }
 KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 

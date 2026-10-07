@@ -87,6 +87,9 @@ KEPT_WITH_THIS_LANDING = (
     "api/services/journal_two/account_purge.py",
     "tests/test_journal_two_account_purge.py",
     "tests/test_notebook_rollback_never_revert.py",
+    # The fixed write-protection rail (controller ruling, 2026-10-07): the copy a rollback would
+    # otherwise restore cannot find the append doors and fails without seeing anything.
+    "tests/test_notes_cas_is_atomic.py",
 )
 
 
