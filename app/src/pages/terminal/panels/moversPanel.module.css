@@ -35,7 +35,7 @@
 }
 
 /* Live is the only state that may look live; every other session reads as information. */
-.badge_regular { color: var(--gain); }
+.badge_regular { color: var(--success-ink); }
 .badge_pre,
 .badge_post { color: var(--info); }
 .badge_closed { color: var(--text-muted); }
@@ -197,8 +197,8 @@
   line-height: var(--lh-normal);
 }
 
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 
 .inPanel {
   min-height: 0;
