@@ -9,6 +9,7 @@
 // ⛔ PURE. No React, no fetch. Everything here is table-driven-tested in grammar.test.js.
 import { BY_CODE, ABSENT, isCode } from './functions'
 import { applyArgs, argsEcho } from './args'
+import { MAX_VISIBLE } from './boardModel'
 
 // ── V5: codes that are ALSO real tickers ───────────────────────────────────────
 /** Function codes that are ALSO ticker symbols (the TERMINAL-NEXT scope audit's list,
@@ -42,7 +43,7 @@ export const CHANNEL_RULE = '@A … @D sends the command to the panel linked to 
 
 // ── V6b: member aliases ───────────────────────────────────────────────────────
 /** Words the grammar itself owns: never usable as an alias name. */
-export const RESERVED_WORDS = Object.freeze(['HELP', 'ASK', 'ALIAS', 'UNALIAS', 'SECTOR'])
+export const RESERVED_WORDS = Object.freeze(['HELP', 'ASK', 'ALIAS', 'UNALIAS', 'SECTOR', 'BOARD'])
 export const ALIAS_NAME_RE = /^[A-Z][A-Z0-9_]{1,11}$/
 export const ALIAS_RULE = 'ALIAS NAME = command saves a shortcut (ALIAS SEMIS = SMH GP). '
   + 'A name that is a function code, a reserved word, or a real ticker is refused, never '
@@ -119,6 +120,12 @@ export const ADDRESS_PREFIXES = Object.freeze([
   { prefix: 'F', label: 'Floor post' },
   { prefix: 'P', label: 'Playbook entry' },
 ])
+/** Scan-to-board (feature-gaps-2026-10-06 #9). */
+export const BOARD_RULE = 'BOARD GP opens the focused panel\'s list (MOST, the screener, RRG) as a board of price '
+  + 'charts, one name per panel; any per-security function works (BOARD DES, BOARD CN). Name the list '
+  + 'instead: BOARD GP NVDA AMD MSFT TSLA, BOARD GP W:3 (a watchlist) or BOARD GP FLAGGED. A board '
+  + `shows ${MAX_VISIBLE} panels at a time: a longer list opens its first ${MAX_VISIBLE} and Next / Previous page `
+  + 'through the rest, and every name not on screen is named. Back to my layout returns your own board.'
 export const ROW_RULE = 'A bare number (3, then Enter) opens row 3 of the numbered list in '
   + 'the focused panel.'
 
@@ -136,6 +143,25 @@ export function argShape(code) {
   if (t && m) return `[TICKER] ${fn.code}${tail}`
   if (t) return `TICKER ${fn.code}${tail}`
   return fn.code
+}
+
+/** The echo for `BOARD FUNC …`: what list, as what, and — for a typed list longer than a board —
+ *  that it opens the first page and pages through the rest (never "these 6 fit on a board"). */
+export const BOARD_SHAPE = 'BOARD FUNC [TICKERS | W:id | FLAGGED]'
+const BOARD_PAGE_SIZE = MAX_VISIBLE   // one name per visible panel (boardModel)
+function describeBoard(cmd) {
+  const fn = BY_CODE[cmd.code]
+  const as = `a board of ${cmd.code}${fn ? ` (${fn.label})` : ''}`
+  const src = cmd.source || {}
+  if (src.kind === 'watchlist') return { text: `Open watchlist ${src.address} as ${as}, ${BOARD_PAGE_SIZE} names at a time`, tone: 'ok', shape: BOARD_SHAPE }
+  if (src.kind === 'flagged') return { text: `Open your flagged list as ${as}, ${BOARD_PAGE_SIZE} names at a time`, tone: 'ok', shape: BOARD_SHAPE }
+  if (src.kind === 'list') {
+    const n = src.syms.length
+    const more = n > BOARD_PAGE_SIZE
+      ? `: the first ${BOARD_PAGE_SIZE} of ${n} (Next pages through the rest)` : ''
+    return { text: `Open ${src.syms.join(', ')} as ${as}${more}`, tone: 'ok', shape: BOARD_SHAPE }
+  }
+  return { text: `Open the focused panel's list as ${as}, ${BOARD_PAGE_SIZE} names at a time`, tone: 'ok', shape: BOARD_SHAPE }
 }
 
 /**
@@ -165,6 +191,8 @@ export function describeCommand(cmd) {
       return { text: `Remove alias ${cmd.name}`, tone: 'ok', shape: 'UNALIAS NAME' }
     case 'alias-list':
       return { text: 'List your aliases', tone: 'ok', shape: 'ALIAS' }
+    case 'board':
+      return describeBoard(cmd)
     default: break
   }
   const fn = BY_CODE[cmd.code]

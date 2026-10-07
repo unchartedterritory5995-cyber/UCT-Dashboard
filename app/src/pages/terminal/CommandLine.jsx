@@ -11,6 +11,9 @@
 //      security a line names is not one it knows;
 //   4. the address space (`GET /api/address/search`, TERM-038) — only for a `X:` token and
 //      only while `addressSpaceEnabled` rides the auth payload (a dark deploy asks nothing).
+//   5. the Entity Master's dated ticker history (`GET /api/research/rename-notice/{sym}`,
+//      TERM-023) — only for a security the search does NOT know as a live ticker, only while
+//      `entity_rename_notice_enabled` rides the payload: the echo says "FB now trades as META".
 //
 // Sources 1-3 are ordered by the PUBLISHED ranking (ranking.js / grammar.js RANKING_ORDER),
 // personalised by the member's own server-side command counts (`stats`).
@@ -188,6 +191,61 @@ export function knownTicker(sym, results) {
   return Array.isArray(results) && results.some((r) => canon(r?.ticker || r?.value) === s)
 }
 
+/** Pure: is `sym`'s exact row in the ticker search's answer a DELISTED one (the search names
+ *  dead tickers from the delisted registry)? A renamed company's old ticker can sit there. */
+export function delistedTicker(sym, results) {
+  const canon = (v) => String(v || '').toUpperCase().replace(/-/g, '.')
+  const s = canon(sym)
+  return Array.isArray(results) && results.some((r) => canon(r?.ticker || r?.value) === s && r?.delisted === true)
+}
+
+/** Pure (TERM-023, the terminal's entity door): what the Entity Master's dated ticker history
+ *  says about a ticker the search does not know as a live one — `FB` → "now trades as META".
+ *  Input is `GET /api/research/rename-notice/{sym}` (the Research header's own notice, local
+ *  SQLite only). Returns `{ text, now }` or null. `now` is a ticker to suggest ONLY when every
+ *  earlier holder of `sym` answers to that one ticker today — two companies that each used the
+ *  symbol never become one suggestion. Anything but `state: 'ok'` says nothing (a store we could
+ *  not read is not "no rename"). Dates are the store's own, never computed here. */
+export function renameLine(sym, notice) {
+  const s = String(sym || '').toUpperCase()
+  if (!s || !notice || notice.state !== 'ok' || !Array.isArray(notice.previous_holders)) return null
+  if (notice.current) return null      // someone holds it today: the search would know it
+  const holders = notice.previous_holders
+  if (!holders.length) return null
+  const nowSet = new Set()
+  let noTicker = null
+  for (const h of holders) {
+    const now = Array.isArray(h?.now_trades_as) ? h.now_trades_as : []
+    if (now.length === 1 && now[0]?.alias) nowSet.add(String(now[0].alias).toUpperCase())
+    else if (now.length === 0) noTicker = h
+    else return { text: `${s} was used by a company that now trades under more than one ticker.`, now: null }
+  }
+  if (nowSet.size === 1 && !noTicker) {
+    const now = [...nowSet][0]
+    const since = holders.length === 1 ? holders[0].now_trades_as[0].valid_from : null
+    return { text: `${s} now trades as ${now}${since ? ` (since ${since})` : ''}`, now }
+  }
+  if (nowSet.size === 0 && noTicker && holders.length === 1) {
+    const when = noTicker.held_to ? ` after ${noTicker.held_to}` : ''
+    return { text: `${s} belonged to a company that no longer trades under any ticker${when}.`, now: null }
+  }
+  const list = [...nowSet].join(', ')
+  return { text: `${s} was used by more than one company${list ? ` (now ${list})` : ''}.`, now: null }
+}
+
+// The rename answer per ticker, cached like the search (it changes only when a rename lands).
+const renameCache = new Map()
+function fetchRename(sym) {
+  const key = sym.toUpperCase()
+  const hit = renameCache.get(key)
+  if (hit && Date.now() - hit.at < 600000) return hit.promise
+  const promise = jsonFetcher(`/api/research/rename-notice/${encodeURIComponent(key)}`)
+  promise.catch(() => renameCache.delete(key))
+  renameCache.set(key, { at: Date.now(), promise })
+  if (renameCache.size > 200) renameCache.delete(renameCache.keys().next().value)
+  return promise
+}
+
 // One cached answer per query: the completion list and the echo's "did you mean" ask the
 // same endpoint for the same token, and must not each pay for it.
 //
@@ -218,7 +276,11 @@ export default function CommandLine({
   const historyRef = useRef(history)
   historyRef.current = history
   const getHistory = () => (Array.isArray(historyRef.current) ? historyRef.current : readHistory())
-  const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  const auth = useContext(AuthContext)
+  const addressSpaceEnabled = auth?.addressSpaceEnabled === true
+  // The Entity Master rename door rides the Research notice's own server flag: off, it asks nothing.
+  const renameEnabled = auth?.researchNotices?.entity_rename_notice_enabled === true
+  const [renameCheck, setRenameCheck] = useState(null)  // { sym, line } from the rename notice
   const [text, setText] = useState('')
   const [tickers, setTickers] = useState([])
   const [addresses, setAddresses] = useState([])
@@ -285,6 +347,21 @@ export default function CommandLine({
     return () => { live = false; clearTimeout(t) }
   }, [parsedSym])
 
+  // TERM-023: the search does not know this security as a live ticker — ask the Entity Master
+  // whether it changed hands (FB → META). Only then, only while the flag rides the payload, and
+  // once per ticker per tab (cached): a known ticker costs nothing here.
+  const symResults = symCheck?.sym === parsedSym ? symCheck.results : null
+  const needsRename = !!(renameEnabled && parsedSym && symResults
+    && (!knownTicker(parsedSym, symResults) || delistedTicker(parsedSym, symResults)))
+  useEffect(() => {
+    if (!needsRename) return undefined
+    let live = true
+    fetchRename(parsedSym)
+      .then((notice) => { if (live) setRenameCheck({ sym: parsedSym, line: renameLine(parsedSym, notice) }) })
+      .catch(() => {})            // a paywall or a failed read is "nothing to say", never "no rename"
+    return () => { live = false }
+  }, [needsRename, parsedSym])
+
   const suggestions = useMemo(() => {
     if (!text.trim()) {
       // ↓ on an empty line: the recent commands, newest first.
@@ -302,6 +379,14 @@ export default function CommandLine({
   const echo = useMemo(() => {
     const e = echoFor(text, aliases, boards)
     if (!e || !parsedSym || symCheck?.sym !== parsedSym) return e
+    const rename = needsRename && renameCheck?.sym === parsedSym ? renameCheck.line : null
+    // An unknown ticker, or a delisted row the search still names: say what the company trades
+    // as now when the Entity Master knows — it outranks a spelling guess.
+    if (rename) {
+      return { ...e, tone: e.tone === 'error' ? 'error' : 'warn',
+        text: `${e.text} ${rename.text}${rename.now ? ` — did you mean ${rename.now}?` : ''}`,
+        didYouMean: rename.now || undefined }
+    }
     if (knownTicker(parsedSym, symCheck.results)) return e
     // Round 3: a symbol the search has never heard of (`ZZZZQ DES`) is said too, not only one
     // with a close spelling — the line still runs on Enter, but the member is not surprised.
@@ -309,7 +394,7 @@ export default function CommandLine({
     const tail = cand ? `did you mean ${cand}?` : 'check the spelling, or press Enter to open it anyway.'
     return { ...e, tone: e.tone === 'error' ? 'error' : 'warn',
       text: `${e.text} ${parsedSym} is not a ticker we know — ${tail}`, didYouMean: cand || undefined }
-  }, [text, aliases, boards, parsedSym, symCheck])
+  }, [text, aliases, boards, parsedSym, symCheck, needsRename, renameCheck])
 
   // Announce the echo once typing pauses (a screen reader must not read every keystroke).
   const echoText = echo?.text || ''

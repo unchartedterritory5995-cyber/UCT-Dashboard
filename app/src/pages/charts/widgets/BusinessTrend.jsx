@@ -18,6 +18,7 @@
 import { useMemo } from 'react'
 import MiniBars from './MiniBars'
 import styles from './dockPanels.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 const shortFy = (label, year) =>
   (label ? String(label).replace(/^FY(\d{2})(\d{2})/, 'FY$2') : `FY${String(year).slice(2)}`)
@@ -36,12 +37,19 @@ function Strip({ title, rows, format }) {
   )
 }
 
-const fmtMoney = (v) => {
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact); this keeps its
+// own ladder and sign rule (formatCompact only sees the magnitude). Exported for the
+// frozen-oracle test (widgetFormatters.term066.test.js).
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+]
+export const fmtMoney = (v) => {
   const a = Math.abs(v)
-  if (a >= 1e12) return `${v < 0 ? '-' : ''}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${v < 0 ? '-' : ''}$${(a / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${v < 0 ? '-' : ''}$${(a / 1e6).toFixed(0)}M`
-  return `${v < 0 ? '-' : ''}$${a.toFixed(0)}`
+  const s = v < 0 ? '-' : ''
+  if (a < 1e6) return `${s}$${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix: '$' })}`
 }
 const fmtEps = (v) => `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`
 

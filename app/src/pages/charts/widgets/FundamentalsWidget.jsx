@@ -16,13 +16,19 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
 import { FUNDAMENTALS_SETTINGS_KEY, mergeFundamentalsSettings, fundamentalsStyleVars, fundamentalsDefaultsForTheme } from './fundamentalsSettings'
 import styles from './FundamentalsWidget.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
-function fmtSales(v) {
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladder
+// this widget already had. Exported for the frozen-oracle test (widgetFormatters.term066.test.js).
+const SALES_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+]
+export function fmtSales(v) {
   if (v == null) return '—'
-  if (Math.abs(v) >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (Math.abs(v) >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (Math.abs(v) >= 1e6) return `$${(v / 1e6).toFixed(0)}M`
-  return `$${v}`
+  if (Math.abs(v) < 1e6) return `$${v}`
+  return formatCompact(Number(v), { tiers: SALES_TIERS, prefix: '$' })
 }
 function fmtEps(v) { return v == null ? '—' : v.toFixed(2) }
 function fmtPct(v) { return v == null ? '' : `${v > 0 ? '+' : ''}${v}%` }

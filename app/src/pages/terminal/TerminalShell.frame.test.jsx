@@ -256,7 +256,10 @@ describe('the shell reads app tokens only', () => {
     const css = read(f)
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     expect(css).not.toMatch(/rgba?\(/)
-    expect(css).not.toMatch(/var\(--(text-faint|text-secondary|text-primary|text-dim|color-text|color-danger|color-success|color-warning|bg-base|danger)\b/)
+    // `(?![\w-])`, not `\b`: `\b` matched `--danger-ink` (a real, themed text-ink token) as the
+    // phantom `--danger` (a11y audit 2026-10-06 moved loss TEXT onto --danger-ink).
+    expect(css).not.toMatch(/var\(--(text-faint|text-secondary|text-primary|text-dim|color-text|color-danger|color-success|color-warning|bg-base|danger)(?![\w-])/)
+    expect('var(--danger)').toMatch(/var\(--(danger)(?![\w-])/) // control: the phantom is still caught
   })
 
   it('TerminalRoutes.jsx carries no hex colour', () => {

@@ -11,7 +11,7 @@
 // `TIMEFRAMES` is pinned to StockChart's own `TF_WM_LABELS` keys by functions.rail.test.js.
 import { todayIso } from '../calendar/earningsModalRow'
 import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
-import { isCode } from './functions'
+import { canonicalCode, isCode } from './functions'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -70,7 +70,7 @@ export const ARG_KINDS = {
   },
   code: {
     takes: 'a function code (HELP GP)',
-    parse: (tok) => (isCode(tok) ? String(tok).toUpperCase() : null),
+    parse: (tok) => (isCode(tok) ? canonicalCode(tok) : null),   // HELP MOVERS focuses MOST
     describe: (v) => `function ${v}`,
   },
   // ── the comparison panels (RRG / REL / CORR, feature-gaps-2026-10-06) ──
@@ -111,6 +111,12 @@ export const ARG_KINDS = {
       RVOL: 'volume', UNUSUAL: 'volume', VOLUME: 'volume',
     })[String(tok).toUpperCase()] ?? null,
     describe: (v) => ({ up: 'gainers', down: 'losers', volume: 'unusual volume' })[v],
+  },
+  /** IMOV's window: the periods theme_performance stores a reference close for (1D is live). */
+  contribWindow: {
+    takes: 'a window (1D, 1W, 1M, 3M)',
+    parse: (tok) => ({ '1D': '1D', TODAY: '1D', '1W': '1W', '1M': '1M', '3M': '3M' })[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `window ${v}`,
   },
 }
 

@@ -142,6 +142,31 @@ def _quarter_label(period_end: str) -> Optional[str]:
     return f"Q{q} {y}" if q else None
 
 
+def fiscal_relabel(quarterly: list[dict], annual_rows: Any) -> list[dict]:
+    """Relabel quarterly rows with the COMPANY'S fiscal quarter when it differs from the
+    calendar one `_quarter_label` assigns.
+
+    ⛔ `_quarter_label` numbers a quarter by its calendar months, which is right only for a
+    December fiscal year. The panel says "by fiscal quarter", so for NVIDIA (January year end)
+    the quarter ending October 2026 read "Q3 2026" while NVIDIA calls it Q3 FY2027 and the annual
+    table beside it reads "FY2027"; Apple's December quarter read "Q4" for its fiscal Q1
+    (accuracy audit 2026-10-06). The fiscal year ends come from FMP's own ANNUAL estimate rows
+    (their `date` IS the fiscal year end), placed by `fiscal_calendar.FiscalCalendar`. A
+    December filer keeps its label byte-for-byte; with no annual anchors nothing changes."""
+    from api.services.fiscal_calendar import FiscalCalendar
+    ends = [str(r.get("date") or "")[:10] for r in (annual_rows or []) if isinstance(r, dict)]
+    cal = FiscalCalendar([e for e in ends if len(e) == 10])
+    if not cal.anchors:
+        return quarterly
+    for row in quarterly:
+        info = cal.resolve(row.get("period_end"))
+        fy, q = info.get("fiscal_year"), info.get("fiscal_quarter")
+        if not fy or not q or row.get("label") == f"Q{q} {fy}":
+            continue
+        row["label"] = f"Q{q} FY{fy}"
+    return quarterly
+
+
 def shape_rows(rows: Any, kind: str, *, today: Optional[date] = None,
                last_report: Optional[str] = None) -> list[dict]:
     """FMP rows -> forward periods, soonest first. Pure, so the fixture test
@@ -250,6 +275,8 @@ def get_consensus(sym: str, *, today: Optional[date] = None) -> dict:
               if legs["annual"][0] == "ok" else [])
     quarterly = (shape_rows(legs["quarterly"][1], "quarterly", today=today, last_report=last_report)
                  if legs["quarterly"][0] == "ok" else [])
+    if quarterly and legs["annual"][0] == "ok":
+        quarterly = fiscal_relabel(quarterly, legs["annual"][1])
     errors = {k: v[1] for k, v in legs.items() if v[0] == "error"}
     if annual or quarterly:
         # Without the report date the grace window alone decided what is
