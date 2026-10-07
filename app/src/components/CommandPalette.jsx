@@ -90,6 +90,11 @@ const NOTEBOOK_COMMANDS = [
     action: 'door', door: NOTEBOOK_DOORS.EXPORT, keywords: [],
     match: phraseStart('export this note', 'export note', 'export as word'),
     when: ({ location }) => noteOpenAt(location) },
+  // Q9: the note's own Ask panel, with the cursor in its question field.
+  { id: 'nb-ask-note', kind: 'command', label: 'Ask about this note', icon: 'sparkle',
+    action: 'door', door: NOTEBOOK_DOORS.ASK, keywords: [],
+    match: phraseStart('ask about this note', 'ask this note', 'ask note'),
+    when: ({ location }) => noteOpenAt(location) },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact

@@ -1486,8 +1486,13 @@ def q9_ask_insert(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # 13Q-3: the Ask toggle sits in the sticky chrome, ABOVE the body the member's caret just
     # landed in (setup) -- "Skip to editor toolbar" (NoteEditorPage.jsx) lands right before it,
     # a couple of presses, instead of the editor's own ~80-tab-stop content tree.
-    use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
-    m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask a question about this note")
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "Ask about this note" opens the note's own Ask
+        # panel with the cursor in its field. (Before: 8 to 12 Tabs to a skip link, Enter,
+        # 2 Tabs to the Ask button, Enter.)
+        palette_command(m, "ask this note", r"^Ask about this note$", "Ask about this note")
+    else:
+        m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask a question about this note")
     import re
     box = pg.get_by_placeholder(re.compile("What did I say")).filter(visible=True)
     focus_field(m, box, "question field")

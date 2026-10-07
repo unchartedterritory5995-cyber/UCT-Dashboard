@@ -20,6 +20,7 @@ export const NOTEBOOK_DOOR_EVENT = 'uct:notebook-door'
 export const NOTEBOOK_DOORS = Object.freeze({
   VISUAL_PLAYBOOK: 'visual-playbook',     // FingerprintPanel: the chart's own "Visual playbook"
   EXPORT: 'export',                       // NoteExportControls: the note's Export menu
+  ASK: 'ask',                             // AskPanel (scope "note"): Ask about the open note
 })
 
 /** Ask for a door. Returns true when a mounted surface took it. */

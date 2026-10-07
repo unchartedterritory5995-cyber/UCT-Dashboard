@@ -109,3 +109,30 @@ describe('palette: Export this note (Q12)', () => {
     expect(option('Export this note')).toBeNull()
   })
 })
+
+describe('palette: Ask about this note (Q9)', () => {
+  it('in a note, choosing it asks for the Ask door and does not navigate', async () => {
+    const heard = vi.fn()
+    const off = onNotebookDoor(NOTEBOOK_DOORS.ASK, heard)
+    renderPalette()
+    await openAndType('ask this note')
+    fireEvent.click(await screen.findByRole('option', { name: 'Ask about this note' }))
+    await waitFor(() => expect(heard).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('route-spy').textContent).toBe(NOTE)
+    off()
+  })
+
+  it('"ask" alone never offers it, and it is not offered where no note is open', async () => {
+    renderPalette()
+    const box = await openAndType('ask')
+    expect(option('Ask about this note')).toBeNull()
+    fireEvent.change(box, { target: { value: 'ask no' } })
+    expect(await screen.findByRole('option', { name: 'Ask about this note' })).toBeTruthy()
+  })
+
+  it('not offered on Research Home (no note open)', async () => {
+    renderPalette('/journal/notebook')
+    await openAndType('ask this note')
+    expect(option('Ask about this note')).toBeNull()
+  })
+})
