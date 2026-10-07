@@ -87,6 +87,7 @@ export async function removeSampleNotebook() {
       ok: true,
       trashed: Array.isArray(body.trashed) ? body.trashed : [],
       foldersKept: Array.isArray(body.foldersKept) ? body.foldersKept : [],
+      foldersOlder: Array.isArray(body.foldersOlder) ? body.foldersOlder : [],
       foldersRemoved: Array.isArray(body.foldersRemoved) ? body.foldersRemoved : [],
     }
   } catch {
@@ -99,7 +100,13 @@ export async function removeSampleNotebook() {
  *  the sidebar is explained and not a leftover. */
 export function removedMessage(out) {
   const kept = (Array.isArray(out?.foldersKept) ? out.foldersKept : []).map((f) => f?.sentence).filter(Boolean)
-  return [SAMPLE_COPY.removed, ...kept].join(' ')
+  // ⛔ `foldersOlder` rows are {id, name, sentence} and cover two cases the row cannot tell
+  // apart: a folder an old seed made, and the member's OWN folder the seed reused. The server's
+  // sentence calls both "an older example folder", which is wrong for a folder that was always
+  // the member's. So its sentence is not shown: the folder is named and said to be left in place.
+  const older = (Array.isArray(out?.foldersOlder) ? out.foldersOlder : [])
+    .map((f) => (f?.name ? `The folder "${f.name}" was left in place.` : 'This folder was left in place.'))
+  return [SAMPLE_COPY.removed, ...kept, ...older].join(' ')
 }
 
 const named = (ids, words, titleOf) => ids.map((id) => {

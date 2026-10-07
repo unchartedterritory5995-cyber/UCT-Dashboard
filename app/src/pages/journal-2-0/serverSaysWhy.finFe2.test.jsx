@@ -129,6 +129,39 @@ describe('sample removal: a folder that stayed says why', () => {
   it('the confirmation carries each kept folder’s sentence after the usual one', () => {
     expect(removedMessage({ foldersKept: KEPT })).toBe(`${SAMPLE_COPY.removed} ${KEPT[0].sentence}`)
   })
+  it('the RECORDED answers: nothing kept is the usual sentence; two kept folders add their two sentences', () => {
+    expect(removedMessage(contractBody('sample-notebook.remove'))).toBe(SAMPLE_COPY.removed)
+    const kept = contractBody('sample-notebook.remove.folder-kept')
+    expect(kept.foldersKept).toHaveLength(2)
+    expect(removedMessage(kept)).toBe([SAMPLE_COPY.removed, ...kept.foldersKept.map((f) => f.sentence)].join(' '))
+  })
+
+  // `foldersOlder` names two different things with one sentence ("An older example folder may
+  // remain..."): a folder an old seed made, AND a member's OWN folder the seed reused. Its rows
+  // are {id, name, sentence}: nothing in them tells the two apart, and calling a member's own
+  // folder "an example folder" is wrong. So the client prints a neutral sentence with the
+  // folder's name, never the server's. (No recorded answer has a populated `foldersOlder`: a
+  // legacy folder cannot be made through a route. The row below is the recorded answer plus
+  // the shape lane DATA2's record gives.)
+  it('a folder in `foldersOlder` gets the neutral sentence, never "example folder"', () => {
+    const body = { ...contractBody('sample-notebook.remove'), foldersOlder: [{ id: 'f9', name: 'Sample notebook', sentence: 'An older example folder may remain. It was made before folders were marked, so it was left alone. You can delete it by hand.' }] }
+    const text = removedMessage(body)
+    expect(text).toBe(`${SAMPLE_COPY.removed} The folder "Sample notebook" was left in place.`)
+    expect(text).not.toMatch(/example folder/)
+  })
+
+  it('kept and older together: each folder is named once', () => {
+    const kept = contractBody('sample-notebook.remove.folder-kept')
+    const text = removedMessage({ ...kept, foldersOlder: [{ id: 'f9', name: 'My ideas', sentence: 'x' }] })
+    expect(text.endsWith('The folder "My ideas" was left in place.')).toBe(true)
+    expect(text).toContain(kept.foldersKept[0].sentence)
+  })
+
+  it('the removal call hands `foldersOlder` back too', async () => {
+    global.fetch = answer({ ...contractBody('sample-notebook.remove'), foldersOlder: [{ id: 'f9', name: 'N', sentence: 's' }] })
+    expect((await removeSampleNotebook()).foldersOlder).toEqual([{ id: 'f9', name: 'N', sentence: 's' }])
+  })
+
   it('nothing kept (or an older answer): the usual sentence alone', () => {
     expect(removedMessage({ foldersKept: [] })).toBe(SAMPLE_COPY.removed)
     expect(removedMessage({})).toBe(SAMPLE_COPY.removed)
