@@ -1816,7 +1816,9 @@ def q17_why(cx: Ctx, pg, m: Meter, width: str) -> dict:
     settle(pg, 400)
     pg.evaluate("() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur();"
                 " window.scrollTo(0, 0) }")
-    use_skip_link(m, r"^Skip to main content$", "Skip to main content")
+    # Lane KEYS round 3: the position page's own link to the reason, when it is there.
+    if not use_skip_link(m, r"^Skip to why you took it$", "Skip to why you took it"):
+        use_skip_link(m, r"^Skip to main content$", "Skip to main content")
     focus_field(m, box, "Why did you take it?")
     m.fill(box, words, "the reason")
     m.press(pg.locator('[data-testid="why-prompt-editing"]').get_by_role("button", name="Save", exact=True), "Save")
