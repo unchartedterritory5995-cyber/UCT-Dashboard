@@ -844,9 +844,15 @@ def focus_field(m: Meter, loc, label: str):
     """Put focus in a field the member is about to type into. Free when it already has focus."""
     loc = loc.first
     loc.wait_for(state="visible", timeout=20000)
-    if is_focused(m.pg, loc):
-        m.steps.append({"do": "already focused (free)", "on": label})
-        return
+    # A page that focuses its own field does it a frame or two after the field appears (the
+    # Ask panel waits two frames on purpose). Sampling at once read "not focused" on a field
+    # that had focus a moment later, and charged a click the member never makes (Q9, lane KEYS
+    # round 4). So: look for up to 0.6 s. A field that never takes focus still costs its click.
+    for _ in range(6):
+        if is_focused(m.pg, loc):
+            m.steps.append({"do": "already focused (free)", "on": label})
+            return
+        m.pg.wait_for_timeout(100)
     if m.mode == "keys":
         m.keys_to(loc, label)
     else:
