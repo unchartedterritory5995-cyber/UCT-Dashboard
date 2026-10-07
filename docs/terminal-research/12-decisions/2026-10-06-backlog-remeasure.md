@@ -53,6 +53,12 @@ compare page. Copy for a failed compare, decided here: *"The comparison of A and
 be loaded. The request failed; this is not a statement about either company."* plus Retry,
 matching the research sections' existing `FETCH_FAILED` wording.
 
+Second slice (`8a3d066ce`): `useFundamentals`, `useExpectedMove`, `useFundamentalSnapshot`,
+`useEarningsTable`. Their consumers already draw an absent answer as dashes, so no consumer
+changed; the gain is that a failed refresh keeps the last good answer and a failed first read
+is retried. A 402 stays an absent answer (decided: a lapsed member's card hides, as before,
+rather than drawing a `{paywalled}` object).
+
 **Reverses it.** Nothing; later slices continue in the same order.
 
 ## D5. TERM-047: built, verified, not merged by this session

@@ -23,7 +23,7 @@ date: 2026-10-06
 
 - **93 tickets.** Shipped 62 (one of them, TERM-055, on this branch) · needs the owner 10 · partial 9 · built and dark (waits for an owner switch) 7 · moot 4 · built but unmerged 1 (the §3 command prints these; re-run it, don't retype them).
 - **Every "BUILT on lane/... (not merged)" row in `backlog.md` is now stale in the good direction.** `lane/term-001-006`, `lane/term-004-093`, `lane/p-platform`, `lane/t1..t3`, `integrate/terminal-fixes` are all ancestors of master. TERM-001, TERM-006, TERM-014, TERM-059, TERM-064, TERM-082 and TERM-093 are on master.
-- **This branch (`terminal/fn-backlog`) adds three things:** TERM-055 (intraday split label live, raw "As traded" view dark), TERM-067/065 (Radio primitive, 10 more controls named, 5 more grids on the DataGrid seed), and a TERM-033 slice (the DES quote strip and the CMP compare page stop swallowing failed reads).
+- **This branch (`terminal/fn-backlog`) adds three things:** TERM-055 (intraday split label live, raw "As traded" view dark), TERM-067/065 (Radio primitive, 10 more controls named, 5 more grids on the DataGrid seed), and two TERM-033 slices (the DES quote strip, the CMP compare page and four research reads stop swallowing failed reads).
 - **One lane is built, tested (121 pass) and NOT merged because merging it needs a feature-flag ledger edit this session was not permitted to make:** `lane/s2-finish` (TERM-047 + five alert remainders). §4 gives the exact steps.
 - **Ten tickets wait on an owner decision or purchase, and seven built ones wait on an owner switch.** §5 lists each with the one command or click.
 
@@ -77,7 +77,7 @@ Evidence is `file:line` on master unless it names a commit. Line numbers are as 
 | 030 | Calendar reader schema assertion | shipped | `api/services/calendar_week_contract.py:107` | none |
 | 031 | Derived Fed-speaker list | shipped | `api/routers/calendar.py:2370` | none |
 | 032 | "coverage n=0" for transcripts | moot | RG-15 refuted (RG-15a) | none |
-| 033 | `.catch(()=>null)` migration | partial | this branch `2c9ee09b5`: QuoteStrip + useComparison moved onto `sectionFetcher`; `app/src/lib/swallowedFetch.baseline.json` 63 → **61** sites | drain the terminal-reached research hooks next (`useEarningsTable`, `useFundamentals`, `useFundamentalSnapshot`, `useExpectedMove`, `useOwnership`); each needs its consumer to render `error` |
+| 033 | `.catch(()=>null)` migration | partial | this branch `2c9ee09b5` (QuoteStrip, useComparison + CMP failure notice) and `8a3d066ce` (useFundamentals, useExpectedMove, useFundamentalSnapshot, useEarningsTable) moved onto `sectionFetcher`; `app/src/lib/swallowedFetch.baseline.json` 63 → **57** sites in 48 files | next terminal-reached: `useOwnership` (needs its locked/failed split kept), `useAnalystIntel`, `useCallRecap`, `useTimedTranscript`, `useTranscriptQuarters`, `useEarningsBrief`; then the chart dock widgets |
 | 034 | I1 spec as rails | shipped | `app/src/pages/research/i1S8Boundary.test.js:562` | none |
 | 035 | Market clock as code | shipped | `app/src/lib/marketClock/marketClock.js:194` | none |
 | 036 | Dividends onto Massive | shipped | `api/services/reference_corp_actions.py:62` | none |
@@ -194,4 +194,4 @@ Each line is the one command or click. Flag flips follow the repo's rule: after 
 - `COMPLETION-LEDGER.md` lists TERM-014, 059, 064, 082 as "branch-only (`lane/p-platform`)". That lane is an ancestor of master.
 - `COMPLETION-LEDGER.md` lists TERM-037 as "inert, parked to 2026-11-30". The terminal shell imports it (`surfacePanels.js:16`).
 - TERM-018's open count is 20, not 22.
-- The swallowed-fetch census is 61 sites in 52 files after this branch, not 77 in 68.
+- The swallowed-fetch census is 57 sites in 48 files after this branch (63 in 54 on master), not 77 in 68.
