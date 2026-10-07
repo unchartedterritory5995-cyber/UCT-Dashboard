@@ -5,6 +5,7 @@ import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import HighlightThesis from '../../../utils/highlightThesis'
 import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -23,6 +24,10 @@ export default function EventsPanel({ sym }) {
   // tq-panels: any source still being read (not only earnings) re-asks, and is named.
   const pendingKinds = Object.entries(data?.sources || {}).filter(([, v]) => v?.state === 'pending').map(([k]) => KIND[k] || k)
   const reask = usePendingReask(pendingKinds.length > 0, mutate, s)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  // Events come from several feeds and each row names its own, so the header says exactly that.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error ? { source: 'several feeds; each row names its own' } : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>

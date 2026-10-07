@@ -30,6 +30,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import Spark from './Spark'
 import MiniBars from './MiniBars'
 import styles from './dockPanels.module.css'
+import Provenance from '../../../components/provenance/Provenance'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -413,7 +414,10 @@ const fmtWhen = (ts) => {
  * nothing extra. Companies absent from EDGAR say so instead of showing a
  * fabricated link.
  */
-function Provenance({ sym, meta, periods, annual, mode }) {
+// ⚰️ This function was named `Provenance`, shadowing S8's primitive of the same name; TERM-019's
+// census (`pages/terminal/panelProvenance.rail.test.js`) fails on a second definition. Renamed, and
+// its Source row now composes S8's <Provenance> so the vendor and the read time share one renderer.
+function DataAndSources({ sym, meta, periods, annual, mode }) {
   const { data: docs } = useMobileSWR(sym ? `/api/filings/${encodeURIComponent(sym)}/primary` : null, jsonFetcher,
     { refreshInterval: 0, dedupingInterval: 6 * 3600000, revalidateOnFocus: false })
   const updated = fmtWhen(meta?.retrieved_at)
@@ -424,7 +428,13 @@ function Provenance({ sym, meta, periods, annual, mode }) {
     <div className={styles.finMethod}>
       <div className={styles.finProvGrid}>
         <span className={styles.finProvK}>Source</span>
-        <span className={styles.finProvV}>{meta?.source || 'Yahoo Finance'} · as-reported figures</span>
+        <span className={styles.finProvV}>
+          <Provenance
+            value={`${meta?.source || 'Yahoo Finance'} · as-reported figures`}
+            provenance={{ sourceActivity: meta?.source || 'Yahoo Finance',
+              timestamp: Number.isFinite(meta?.retrieved_at) ? meta.retrieved_at * 1000 : null }}
+          />
+        </span>
         {updated && <><span className={styles.finProvK}>Updated</span><span className={styles.finProvV}>{updated}{meta?.stale ? ' · refreshing' : ''}</span></>}
         {fye && <><span className={styles.finProvK}>Fiscal year ends</span><span className={styles.finProvV}>{fye.replace('-', '/')}</span></>}
         <span className={styles.finProvK}>Periods</span>
@@ -643,7 +653,7 @@ export default function DockFinancials({ sym }) {
             <button type="button" className={styles.finMethodBtn} onClick={() => setMethodOpen(o => !o)}>
               {methodOpen ? 'Hide data & sources' : 'Data & sources'}
             </button>
-            {methodOpen && <Provenance sym={sym} meta={data?.meta} periods={periods} annual={annual} mode={mode} />}
+            {methodOpen && <DataAndSources sym={sym} meta={data?.meta} periods={periods} annual={annual} mode={mode} />}
           </>
         )}
       </div>

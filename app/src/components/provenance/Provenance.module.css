@@ -41,7 +41,7 @@
 }
 .detailToggle:hover,
 .detailToggle:focus-visible { color: var(--text-bright); background: var(--bg-surface); }
-.detailToggle:focus-visible { outline: 2px solid var(--color-accent, #c9a84c); outline-offset: 1px; }
+.detailToggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .detailPanel {
   position: absolute;

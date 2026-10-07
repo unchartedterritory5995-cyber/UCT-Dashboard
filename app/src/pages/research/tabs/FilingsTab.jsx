@@ -1,6 +1,7 @@
 import useFilings from '../../../hooks/useFilings'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 export default function FilingsTab({ sym }) {
   const { data, error, isLoading, mutate } = useFilings(sym)
@@ -9,6 +10,8 @@ export default function FilingsTab({ sym }) {
   // connection) is NOT an empty filing list -- see useFilings.js.
   const unavailable = error?.kind === 'unavailable'
   const noFiler = error?.kind === 'no_filer'
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error ? { source: 'SEC EDGAR', age: { asOfDate: filings[0]?.filed || null } } : null)
 
   return (
     <div className={styles.finWrap}>

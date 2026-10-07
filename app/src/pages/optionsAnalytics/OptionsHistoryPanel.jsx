@@ -2,6 +2,7 @@ import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
+import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // FT-009 straddle history, FT-007 daily implied vs actual move, FT-010 IV crush — read ONLY from
 // our own options log (api/services/options_analytics/log_history.py). The log began 2026-09-30.
@@ -127,6 +128,8 @@ export const optionsHistoryUrls = (s) => ['straddle', 'daily-move', 'iv-crush']
 // `offNotice`: set by the terminal's OHIS, which opens this panel on its own.
 export default function OptionsHistoryPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
+  // TERM-019: every section below is computed by UCT from Massive's options history; each dates itself.
+  usePanelFreshness(s ? { source: 'UCT, computed from Massive options data' } : null)
   if (!s) return null
   return (
     <div data-testid="options-history">

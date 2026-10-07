@@ -7,6 +7,7 @@ import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/pres
 import OffNotice from './OffNotice'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 import Select from '../../components/ui/Select'
+import { usePanelFreshness } from '../../components/terminal/terminalPanel'
 
 // Premium reads on the terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS):
 // T/B at two decimals, M at one, K whole -- the tide's own old ladder, now shared.
@@ -80,6 +81,12 @@ export function minuteAt(minutes, fracX) {
 function TidePanel({ scope, setScope, onPickMinute }) {
   const { data, error } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false })
+  // TERM-019: the terminal panel header names the tape and the session minute it runs through.
+  const tideLast = Array.isArray(data?.minutes) ? data.minutes[data.minutes.length - 1] : null
+  usePanelFreshness(data && !data.paywalled && !error && Array.isArray(data.minutes)
+    ? { source: 'UCT options flow tape (50+ contract, $10K+ prints)', observedAt: data.computed_at || null,
+      age: { asOfDate: data.session ? `${data.session}${tideLast ? ` ${tideLast.t} ET` : ''}` : null } }
+    : null)
 
   if (error?.status === 404 || data?.paywalled) return null
   const head = (

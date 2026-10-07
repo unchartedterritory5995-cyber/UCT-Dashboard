@@ -761,6 +761,16 @@
   --tick-up-bg: rgba(10, 92, 34, 0.26);
   --tick-down-bg: rgba(125, 22, 32, 0.24);
 
+  /* Score ramp on white (terminal theme lane, 2026-10-06). The :root ramp is five bright
+     hexes tuned for a dark ground; on white the middle steps fall under 3:1. Each step is
+     derived from THIS theme's own up / caution / down inks, so a score follows the theme
+     exactly as a P&L figure does. The --grade-* aliases ride along (they point here). */
+  --score-elite: var(--gain);
+  --score-strong: color-mix(in srgb, var(--gain) 55%, var(--warn));
+  --score-neutral: var(--warn);
+  --score-weak: color-mix(in srgb, var(--warn) 45%, var(--loss));
+  --score-poor: var(--loss);
+
   /* NO --glass-* HERE, ON PURPOSE. Spec §3.2: light-theme adaptation of the
      glass surfaces is deferred to the post-launch app-wide token sweep (§10).
      This is a recorded decision, not an omission — styles/tokens.test.js

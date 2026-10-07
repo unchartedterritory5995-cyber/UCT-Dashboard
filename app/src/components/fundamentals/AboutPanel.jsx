@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react'
 import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
-const GOLD = '#c9a84c', GOLD_BRI = '#e6cd8a', CREAM = '#dcd6c8', MUTED = '#8b8e85', DIM = '#63665e', LINE = '#22251d'
+// Every ink is an app token, so the panel follows the member's theme (it was a fixed dark card).
+const GOLD = 'var(--ut-gold)', GOLD_BRI = 'var(--ut-gold)', CREAM = 'var(--text-bright)', MUTED = 'var(--text-muted)', DIM = 'var(--text-muted)', LINE = 'var(--border)'
 
 // TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladder this
 // panel already used. Under $1M it still prints grouped whole dollars ("$950,000"). A negative
@@ -49,7 +50,7 @@ const kStyle = { color: DIM, fontSize: 13 }
 const vStyle = { color: CREAM, fontSize: 13, fontWeight: 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 const subStyle = { color: MUTED, fontWeight: 400, fontSize: 11 }
 const aiHead = { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: GOLD_BRI, fontWeight: 700, margin: '0 0 5px' }
-const para = { fontSize: 13.5, lineHeight: 1.6, color: '#c8c3b6' }
+const para = { fontSize: 13.5, lineHeight: 1.6, color: 'var(--text)' }
 
 export default function AboutPanel({ sym, onSwitch }) {
   const [data, setData] = useState(null)
@@ -90,7 +91,7 @@ export default function AboutPanel({ sym, onSwitch }) {
   return (
     <div style={{ padding: '18px 20px', maxHeight: '82vh', overflowY: 'auto', width: '100%', alignSelf: 'flex-start', fontFamily: "'Instrument Sans',system-ui,sans-serif" }}>
       {(brief.whatTheyDo || brief.whatMovesIt) ? (
-        <div style={{ border: '1px solid #c9a84c33', background: 'linear-gradient(180deg,#181610,#141310)', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
+        <div style={{ border: '1px solid color-mix(in srgb, var(--ut-gold) 20%, transparent)', background: 'linear-gradient(180deg, var(--bg-elevated), var(--bg-surface))', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
           <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: GOLD, fontWeight: 700, marginBottom: 8 }}>
             ✦ AI brief <span style={{ color: DIM, fontWeight: 400, textTransform: 'none' }}>· cached</span>
           </div>
@@ -110,7 +111,7 @@ export default function AboutPanel({ sym, onSwitch }) {
       {(p.sector || p.industry) && (
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 22 }}>
           {[p.sector, p.industry].filter(Boolean).map((t) => (
-            <span key={t} style={{ fontSize: 11, fontWeight: 600, color: GOLD_BRI, border: '1px solid #c9a84c44', background: '#c9a84c14', borderRadius: 999, padding: '3px 11px' }}>{t}</span>
+            <span key={t} style={{ fontSize: 11, fontWeight: 600, color: GOLD_BRI, border: '1px solid color-mix(in srgb, var(--ut-gold) 27%, transparent)', background: 'var(--ut-gold-dim)', borderRadius: 999, padding: '3px 11px' }}>{t}</span>
           ))}
         </div>
       )}
@@ -144,8 +145,8 @@ export default function AboutPanel({ sym, onSwitch }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: DIM, marginBottom: 5 }}>
                   <span>52W low ${lo.toFixed(2)}</span><span>{rangePct.toFixed(0)}% of range</span><span>high ${hi.toFixed(2)}</span>
                 </div>
-                <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg,#243a2e,#3a3320,#3a2420)' }}>
-                  <div style={{ position: 'absolute', top: -4, left: `${rangePct}%`, width: 2, height: 14, background: GOLD_BRI, borderRadius: 1, boxShadow: '0 0 6px #c9a84c88' }} />
+                <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg, color-mix(in srgb, var(--gain) 30%, var(--bg-elevated)), color-mix(in srgb, var(--warn) 30%, var(--bg-elevated)), color-mix(in srgb, var(--loss) 30%, var(--bg-elevated)))' }}>
+                  <div style={{ position: 'absolute', top: -4, left: `${rangePct}%`, width: 2, height: 14, background: GOLD_BRI, borderRadius: 1, boxShadow: '0 0 6px color-mix(in srgb, var(--ut-gold) 53%, transparent)' }} />
                 </div>
               </div>
             )}
@@ -162,7 +163,7 @@ export default function AboutPanel({ sym, onSwitch }) {
                 key={pr.ticker}
                 type="button"
                 onClick={() => onSwitch?.(pr.ticker)}
-                style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12, fontWeight: 700, color: CREAM, border: `1px solid ${LINE}`, background: '#161813', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+                style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12, fontWeight: 700, color: CREAM, border: `1px solid ${LINE}`, background: 'var(--bg-elevated)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
               >
                 {pr.ticker}{pr.name ? <span style={{ color: DIM, fontWeight: 400, fontSize: 10, marginLeft: 6 }}>{pr.name}</span> : null}
               </button>

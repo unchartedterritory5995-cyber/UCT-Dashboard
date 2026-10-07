@@ -1,5 +1,10 @@
 # UCT Terminal — visual audit (start of the visual redesign)
 
+> **Follow-up, 2026-10-06:** the theme leftovers this audit counted (hardcoded hex/rgba in
+> terminal-mounted panels, the COT pane under light, chart palettes) were worked in
+> `terminal/fn4-themes` — see **`theme-leftovers.md`** for what changed, the two rails that now
+> hold it, and the two owner decisions left open.
+
 Branch `terminal/visual-audit`, measured at `c6befe49c` on 2026-10-06. Read-only audit: no
 code was changed. Every count below is reproducible with the command printed beside it (the
 shared scope definition and helper functions are in **Appendix A**). Line numbers are dated

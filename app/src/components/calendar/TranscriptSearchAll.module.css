@@ -4,9 +4,9 @@
   gap: 8px;
   padding: 12px;
   margin-bottom: 14px;
-  border: 1px solid rgba(255, 255, 255, .08);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, .02);
+  background: color-mix(in srgb, var(--text-heading) 2%, transparent);
 }
 
 .head {
@@ -20,7 +20,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: .08em;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .count {
@@ -33,7 +33,7 @@
   width: 100%;
   min-height: 34px;
   padding: 6px 9px;
-  border: 1px solid rgba(255, 255, 255, .14);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, .25);
   color: var(--text-bright);
@@ -41,7 +41,7 @@
 }
 .input:focus {
   outline: none;
-  border-color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold);
 }
 
 .note {
@@ -60,7 +60,7 @@
 
 .hit {
   padding: 8px 0;
-  border-top: 1px solid rgba(255, 255, 255, .06);
+  border-top: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
 }
 
 .sym {
@@ -72,7 +72,7 @@
   font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: .04em;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 .sym:hover { text-decoration: underline; }
 
@@ -89,7 +89,7 @@
 }
 
 .mark {
-  background: rgba(220, 187, 94, .32);
+  background: color-mix(in srgb, var(--ut-gold) 32%, transparent);
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;

@@ -44,7 +44,7 @@
 .speed select {
   background: transparent;
   color: var(--text-bright);
-  border: 1px solid rgba(255, 255, 255, .14);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   border-radius: var(--radius-sm);
   padding: 2px 4px;
   font-size: 12px;
@@ -59,13 +59,13 @@
   letter-spacing: .04em;
   text-transform: uppercase;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, .14);
+  border: 1px solid color-mix(in srgb, var(--text-heading) 14%, transparent);
   background: transparent;
   color: var(--text-muted);
 }
 .followOn {
-  border-color: var(--ut-gold, #dcbb5e);
-  color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 .hint {
@@ -91,7 +91,7 @@
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
 }
 
 .title {
@@ -110,7 +110,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
-.turnJump:hover { color: var(--ut-gold, #dcbb5e); }
+.turnJump:hover { color: var(--ut-gold); }
 
 .text {
   margin: 0;
@@ -120,15 +120,15 @@
 }
 
 .word { cursor: pointer; }
-.word:hover { background: rgba(220, 187, 94, .16); }
+.word:hover { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); }
 
 /* The spoken word. Reads at a glance while scrolling past. */
 .wordActive {
   cursor: pointer;
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   color: var(--bg);
   border-radius: 2px;
-  box-shadow: 0 0 0 2px rgba(220, 187, 94, .35);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ut-gold) 35%, transparent);
 }
 
 @media (max-width: 640px) {
