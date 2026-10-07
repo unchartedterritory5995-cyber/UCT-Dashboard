@@ -45,6 +45,7 @@ import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, re
 import { applyArgs, argsEcho } from './args'
 import { COMMAND_PANELS, FLUSH_PANELS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
+import useCommandHistory from './commandHistory'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel,
@@ -338,6 +339,7 @@ export default function TerminalShell() {
     layout, layoutStatus, syms, save, replaceStoredLayout, library, libraryStatus, saveLibrary,
     setGroupSym, loading,
   } = useTerminalLayout()
+  const commandHistory = useCommandHistory()
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null)           // 'functions' | 'boards' | 'recents' | null
   const [boardsOpenToVersions, setBoardsOpenToVersions] = useState(false)
@@ -1281,7 +1283,7 @@ export default function TerminalShell() {
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
         <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards}
-          recentTickers={recentTickers} />
+          recentTickers={recentTickers} history={commandHistory.history} onHistory={commandHistory.push} />
         {isPhone && (
           <button type="button" className={styles.barBtn} onClick={() => setSheet('functions')} data-testid="terminal-fn-button">
             Functions
