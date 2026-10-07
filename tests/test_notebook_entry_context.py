@@ -103,6 +103,10 @@ class Sources:
 
 @pytest.fixture
 def src(monkeypatch):
+    # Every capture test below is about a PAID member unless it says otherwise (fin-security
+    # I-1 gates the capture on the plan), and starts with no remembered vendor answer.
+    monkeypatch.setattr(ectx, "member_is_paid", lambda uid: True)
+    ectx._reset_vendor_state()
     return Sources().install(monkeypatch)
 
 
@@ -412,7 +416,11 @@ def test_the_manual_add_route_schedules_the_hook_after_the_write():
               if isinstance(n, ast.FunctionDef) and n.name == "create_position")
     body = ast.get_source_segment(src_text, fn)
     assert body.index("positions_service.create_position(") < \
-        body.index("background_tasks.add_task(entry_context_service.on_position_added")
+        body.index("entry_context_service.schedule_position_capture(")
+    # fin-security I-1: never on the request's own pool (a Starlette background task runs
+    # there), and never called directly from the route.
+    assert "add_task(entry_context_service" not in body
+    assert "entry_context_service.on_position_added(" not in body
 
 
 # ── the key: a sentinel position id reaches its context ───────────────────────────────────
@@ -592,6 +600,14 @@ def test_a_position_page_captures_on_demand_and_another_member_gets_the_one_404(
     assert client.get("/api/j2/entry-context/list").json()["count"] == 0
 
 
+def _drain_captures(timeout=10.0):
+    import time as _time
+    deadline = _time.monotonic() + timeout
+    while ectx._capture_pending_total() and _time.monotonic() < deadline:
+        _time.sleep(0.02)
+    assert ectx._capture_pending_total() == 0, "a queued capture never finished"
+
+
 def test_the_manual_add_freezes_after_the_write_and_a_hook_failure_never_fails_the_add(db_path, src, on, monkeypatch):
     from api.routers import journal_two
     app = FastAPI()
@@ -602,8 +618,10 @@ def test_the_manual_add_freezes_after_the_write_and_a_hook_failure_never_fails_t
     today = ectx.today_et()
     body = {"symbol": "nvda", "side": "Long", "entryDate": now.isoformat(), "shares": 10,
             "entryPrice": 100.0, "stopPrice": 95.0}
+    ectx._reset_capture_queue()
     r = client.post("/api/j2/positions", json=body)
     assert r.status_code == 200
+    _drain_captures()                 # the capture runs on its own thread, after the answer
     c = _db()
     rows = [dict(x) for x in c.execute("SELECT user_id, symbol, entry_day_et, trigger_source FROM j2_entry_context")]
     assert rows == [{"user_id": "m1", "symbol": "NVDA", "entry_day_et": today, "trigger_source": "manual_add"}]
@@ -614,6 +632,283 @@ def test_the_manual_add_freezes_after_the_write_and_a_hook_failure_never_fails_t
     monkeypatch.setattr(ectx, "freeze", boom)
     r2 = client.post("/api/j2/positions", json={**body, "symbol": "AMD"})
     assert r2.status_code == 200 and r2.json()["symbol"] == "AMD"
+    _drain_captures()
     c = _db()
     assert c.execute("SELECT COUNT(*) FROM j2_positions WHERE user_id = 'm1'").fetchone()[0] == 2
     c.close()
+
+
+# ── fin-data I5: the why note is compare-and-set, and it leaves with the member's export ────
+#
+# Two tabs (or a phone and a desktop) editing the same "why" overwrote each other silently:
+# the write was a plain UPDATE. The base is the `updatedAt` the editor read; a write whose
+# base is no longer the stored one is refused and the stored words are left alone.
+
+def _frozen(conn):
+    ectx.freeze("u1", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn,
+                capture_day=TODAY)
+
+
+def _stored_why(conn):
+    r = conn.execute("SELECT why_text, why_updated_at FROM j2_entry_context WHERE user_id = 'u1'"
+                     " AND symbol = 'NVDA'").fetchone()
+    return r["why_text"], r["why_updated_at"]
+
+
+def test_a_why_save_on_the_base_it_read_lands(conn, src):
+    _frozen(conn)
+    first = ectx.set_why("u1", "NVDA", TODAY, "first words", conn=conn, base_updated_at=None)
+    assert first["why"]["text"] == "first words"
+    second = ectx.set_why("u1", "NVDA", TODAY, "second words", conn=conn,
+                          base_updated_at=first["why"]["updatedAt"])
+    assert second["why"]["text"] == "second words"
+
+
+def test_two_editors_on_one_why_the_second_is_refused_and_the_first_words_stay(conn, src):
+    _frozen(conn)
+    seen = ectx.set_why("u1", "NVDA", TODAY, "what both tabs loaded", conn=conn)["why"]
+
+    tab_a = ectx.set_why("u1", "NVDA", TODAY, "tab A's words", conn=conn, base_updated_at=seen["updatedAt"])
+    with pytest.raises(ectx.WhyConflict) as e:
+        ectx.set_why("u1", "NVDA", TODAY, "tab B's words", conn=conn, base_updated_at=seen["updatedAt"])
+
+    assert _stored_why(conn) == ("tab A's words", tab_a["why"]["updatedAt"])
+    # The refusal carries what is stored now, so the client can show it beside the typed words.
+    assert e.value.current == {"text": "tab A's words", "updatedAt": tab_a["why"]["updatedAt"]}
+
+
+def test_a_first_why_written_from_two_tabs_at_once_keeps_only_the_first(conn, src):
+    """Both tabs loaded "no why yet" (base None)."""
+    _frozen(conn)
+    ectx.set_why("u1", "NVDA", TODAY, "tab A's first words", conn=conn, base_updated_at=None)
+    with pytest.raises(ectx.WhyConflict):
+        ectx.set_why("u1", "NVDA", TODAY, "tab B's first words", conn=conn, base_updated_at=None)
+    assert _stored_why(conn)[0] == "tab A's first words"
+
+
+def test_a_cleared_why_refuses_an_edit_based_on_the_old_text(conn, src):
+    _frozen(conn)
+    seen = ectx.set_why("u1", "NVDA", TODAY, "old words", conn=conn)["why"]
+    ectx.set_why("u1", "NVDA", TODAY, "", conn=conn, base_updated_at=seen["updatedAt"])
+    with pytest.raises(ectx.WhyConflict) as e:
+        ectx.set_why("u1", "NVDA", TODAY, "old words, edited", conn=conn, base_updated_at=seen["updatedAt"])
+    assert e.value.current is None and _stored_why(conn) == (None, None)
+
+
+def test_a_stale_base_never_reads_as_no_context(conn, src):
+    """Two different refusals: nothing to attach a note to (None), and a stale base (raises)."""
+    _frozen(conn)
+    assert ectx.set_why("u1", "AMD", TODAY, "x", conn=conn, base_updated_at=None) is None
+    ectx.set_why("u1", "NVDA", TODAY, "words", conn=conn)
+    with pytest.raises(ectx.WhyConflict):
+        ectx.set_why("u1", "NVDA", TODAY, "y", conn=conn, base_updated_at="2020-01-01T00:00:00+00:00")
+
+
+def test_a_bundle_that_sends_no_base_still_saves_as_it_did(conn, src):
+    """The sibling note door's rule (`PUT /notes/{id}`): an absent base is the bundle from
+    before this check. It is not refused, so a deploy never strands an open tab."""
+    _frozen(conn)
+    ectx.set_why("u1", "NVDA", TODAY, "one", conn=conn)
+    assert ectx.set_why("u1", "NVDA", TODAY, "two", conn=conn)["why"]["text"] == "two"
+
+
+def test_the_why_route_answers_409_with_the_stored_words_on_a_stale_base(client, on):
+    as_user(client.app_, "m1")
+    url = "/api/j2/entry-context/why"
+    key = {"symbol": "NVDA", "entryDay": TODAY}
+    ectx.freeze("m1", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", capture_day=TODAY)
+
+    a = client.put(url, json={**key, "text": "tab A", "baseUpdatedAt": None})
+    assert a.status_code == 200
+    stamp = a.json()["context"]["why"]["updatedAt"]
+
+    b = client.put(url, json={**key, "text": "tab B", "baseUpdatedAt": None})
+    assert b.status_code == 409
+    detail = b.json()["detail"]
+    assert detail["code"] == "why_changed"
+    assert detail["current"] == {"text": "tab A", "updatedAt": stamp}
+    assert "your" in detail["message"].lower()
+
+    # Saving again on the base the refusal handed back is the member's deliberate choice.
+    again = client.put(url, json={**key, "text": "tab B", "baseUpdatedAt": stamp})
+    assert again.status_code == 200 and again.json()["context"]["why"]["text"] == "tab B"
+    # The "no context" 409 keeps its own, different shape.
+    none = client.put(url, json={"symbol": "AMD", "entryDay": "2026-10-01", "text": "x", "baseUpdatedAt": None})
+    assert none.status_code == 409 and isinstance(none.json()["detail"], str)
+    # A base that is not text is a bad request, never a silent last-write-wins.
+    assert client.put(url, json={**key, "text": "z", "baseUpdatedAt": 7}).status_code == 422
+
+
+def test_why_for_trades_reads_by_the_same_key_and_creates_nothing(conn, src):
+    _frozen(conn)
+    ectx.set_why("u1", "NVDA", TODAY, "Tight flag at the 21EMA", conn=conn)
+    nvda = _trade(conn, symbol="NVDA")
+    amd = _trade(conn, symbol="AMD")
+    other = _trade(conn, uid="u2", symbol="NVDA")
+    rows = [dict(r) for r in conn.execute("SELECT id, symbol, entry_date AS entryDate, user_id FROM j2_trades")]
+    mine = [r for r in rows if r["user_id"] == "u1"]
+    got = ectx.why_for_trades("u1", mine, conn=conn)
+    assert set(got) == {nvda} and got[nvda]["text"] == "Tight flag at the 21EMA"
+    assert amd not in got
+    assert ectx.why_for_trades("u2", [r for r in rows if r["id"] == other], conn=conn) == {}
+
+    bare = sqlite3.connect(":memory:")
+    bare.row_factory = sqlite3.Row
+    try:
+        assert ectx.why_for_trades("u1", mine, conn=bare) == {}
+        assert bare.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()[0] == 0, \
+            "an export created the entry-context table for a member who never used it"
+    finally:
+        bare.close()
+
+
+import threading  # noqa: E402
+import time  # noqa: E402
+
+
+# ── fin-security I-1: the capture is paid-only, bounded, cached and off the request pool ────
+#
+# `POST /positions` is session-only. Its hook checked the flag and never the plan, then made a
+# vendor read (FMP with a 10 s timeout, then Finnhub) as a Starlette background task, which
+# runs on the same 64-thread pool every sync route uses. An unpaid member adding positions
+# could pin that pool, spend vendor quota and store a paid surface's row for themselves.
+
+def test_an_unpaid_members_position_captures_nothing_and_calls_no_source(conn, src, on, monkeypatch):
+    monkeypatch.setattr(ectx, "member_is_paid", lambda uid: False)
+    out = ectx.on_position_added("u1", {"symbol": "NVDA", "entryDate": AT_1030_ET})
+    assert out == {"status": "skipped", "reason": "not_paid"}
+    assert _dump_ctx(conn) == [] and src.calls == [] and src.fp_calls == []
+
+
+def test_control_a_paid_members_position_is_captured(db_path, src, on, monkeypatch):
+    monkeypatch.setattr(ectx, "today_et", lambda: TODAY)
+    out = ectx.on_position_added("m1", {"symbol": "NVDA", "entryDate": AT_1030_ET})
+    assert out["status"] == "frozen" and "earnings" in src.calls
+
+
+def test_the_paid_test_is_the_routes_own_and_reads_the_member_by_id(db_path, monkeypatch):
+    """Not the fixture's stand-in: the real predicate, over real rows."""
+    from api.services import auth_service, trial
+    monkeypatch.setattr(trial, "is_account_in_trial", lambda user, now=None: False)
+    seen = []
+    real = auth_service.get_user_plan
+    monkeypatch.setattr(auth_service, "get_user_plan", lambda uid: seen.append(uid) or "free")
+    assert ectx.member_is_paid("m1") is False and seen == ["m1"]
+    monkeypatch.setattr(auth_service, "get_user_plan", lambda uid: "pro")
+    assert ectx.member_is_paid("m1") is True
+    assert ectx.member_is_paid("no-such-member") is False
+    monkeypatch.setattr(auth_service, "get_user_plan", lambda uid: (_ for _ in ()).throw(RuntimeError("db")))
+    assert ectx.member_is_paid("m1") is False          # unknown is never paid
+    assert real is not None
+
+
+def test_the_sweep_skips_members_who_are_not_paid(conn, src, on, monkeypatch):
+    _position(conn, uid="paid", symbol="NVDA")
+    _position(conn, uid="free", symbol="AMD")
+    monkeypatch.setattr(ectx, "member_is_paid", lambda uid: uid == "paid")
+    out = ectx.capture_todays_entries(conn=conn, today=TODAY)
+    assert out["frozen"] == 1 and out["notPaid"] == 1
+    assert [r["user_id"] for r in conn.execute("SELECT user_id FROM j2_entry_context")] == ["paid"]
+
+
+def test_one_symbols_report_date_is_read_from_the_vendor_once_a_day_hit_or_miss(conn, src, on):
+    ectx.freeze("u1", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn, capture_day=TODAY)
+    ectx.freeze("u2", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn, capture_day=TODAY)
+    assert src.calls.count("earnings") == 1
+    rows = [json.loads(r[0])["days_to_earnings"] for r in conn.execute("SELECT context FROM j2_entry_context")]
+    assert rows[0]["value"] == rows[1]["value"] == 18 and rows[0]["detail"] == rows[1]["detail"]
+
+    src.report_date = None                                    # a symbol with no report date: a MISS
+    ectx.freeze("u1", "ZZZZ", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn, capture_day=TODAY)
+    ectx.freeze("u2", "ZZZZ", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn, capture_day=TODAY)
+    assert src.calls.count("earnings") == 2, "a miss was not remembered: every add re-asks the vendor"
+
+
+def test_a_vendor_error_is_remembered_briefly_then_asked_again(conn, src, on, monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(ectx, "_monotonic", lambda: clock[0])
+    src.report_date = RuntimeError("fmp down")
+    a = ectx._earnings_field("NVDA", TODAY, "now")
+    b = ectx._earnings_field("NVDA", TODAY, "now")
+    assert a["missing"] == "source_error" and b == a and src.calls.count("earnings") == 1
+    clock[0] += ectx.VENDOR_ERROR_TTL_S + 1
+    src.report_date = "2026-10-20"
+    assert ectx._earnings_field("NVDA", TODAY, "now")["value"] == 18
+
+
+def test_with_every_vendor_slot_taken_the_field_says_busy_and_does_not_wait(conn, src, on):
+    taken = [ectx._VENDOR_SLOTS.acquire(blocking=False) for _ in range(ectx.VENDOR_CONCURRENCY)]
+    try:
+        assert all(taken)
+        started = time.monotonic()
+        field = ectx._earnings_field("NVDA", TODAY, "now")
+        assert time.monotonic() - started < 1.0, "a request thread waited for a vendor slot"
+        assert field["missing"] == "source_busy" and "earnings" not in src.calls
+    finally:
+        for _ in taken:
+            ectx._VENDOR_SLOTS.release()
+    assert ectx._earnings_field("NVDA", TODAY, "now")["value"] == 18   # busy is never remembered
+
+
+def test_the_scheduled_capture_never_runs_on_the_callers_thread(src, on, monkeypatch):
+    ran = []
+    done = threading.Event()
+
+    def hook(uid, position):
+        ran.append((threading.get_ident(), threading.current_thread().name, uid))
+        done.set()
+        return {"status": "frozen"}
+
+    monkeypatch.setattr(ectx, "on_position_added", hook)
+    ectx._reset_capture_queue()
+    assert ectx.schedule_position_capture("u1", {"symbol": "NVDA", "entryDate": AT_1030_ET}) == "queued"
+    assert done.wait(5), "the capture never ran"
+    ident, name, uid = ran[0]
+    assert ident != threading.get_ident() and name.startswith("entry-context") and uid == "u1"
+
+
+def test_the_schedule_is_inert_while_the_flag_is_off(src, monkeypatch):
+    monkeypatch.delenv(ectx.FLAG, raising=False)
+    called = []
+    monkeypatch.setattr(ectx, "on_position_added", lambda *a: called.append(a))
+    assert ectx.schedule_position_capture("u1", {"symbol": "NVDA", "entryDate": AT_1030_ET}) == "skipped"
+    time.sleep(0.05)
+    assert called == []
+
+
+def test_one_member_cannot_queue_more_than_their_share_and_the_queue_is_bounded(src, on, monkeypatch):
+    gate = threading.Event()
+    started = threading.Event()
+
+    def slow(uid, position):
+        started.set()
+        gate.wait(10)
+
+    monkeypatch.setattr(ectx, "on_position_added", slow)
+    ectx._reset_capture_queue()
+    pos = {"symbol": "NVDA", "entryDate": AT_1030_ET}
+    try:
+        answers = [ectx.schedule_position_capture("flooder", pos) for _ in range(ectx.CAPTURE_PER_MEMBER_MAX + 5)]
+        assert answers.count("queued") == ectx.CAPTURE_PER_MEMBER_MAX
+        assert set(answers[ectx.CAPTURE_PER_MEMBER_MAX:]) == {"member_busy"}
+        # Another member is not starved by the first one's flood ...
+        assert ectx.schedule_position_capture("someone-else", pos) == "queued"
+        # ... and the whole queue has a ceiling.
+        others = [ectx.schedule_position_capture(f"m{i}", pos) for i in range(ectx.CAPTURE_QUEUE_MAX + 5)]
+        assert "queue_full" in others and others.count("queued") < ectx.CAPTURE_QUEUE_MAX
+        assert started.wait(5)
+    finally:
+        gate.set()
+    deadline = time.monotonic() + 10
+    while ectx._capture_pending_total() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert ectx._capture_pending_total() == 0
+    assert ectx.schedule_position_capture("flooder", pos) == "queued"     # the share is given back
+
+
+def test_scheduling_never_raises_whatever_it_is_handed(src, on, monkeypatch):
+    monkeypatch.setattr(ectx, "_capture_pool", lambda: (_ for _ in ()).throw(RuntimeError("no threads")))
+    ectx._reset_capture_queue()
+    assert ectx.schedule_position_capture("u1", {"symbol": "NVDA"}) == "error"
+    assert ectx.schedule_position_capture("u1", None) in ("skipped", "error")
+    assert ectx._capture_pending_total() == 0

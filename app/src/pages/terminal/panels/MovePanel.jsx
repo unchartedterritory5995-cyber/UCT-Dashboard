@@ -10,7 +10,8 @@
 // through `onRows`, so typing `2` + Enter opens row 2.
 import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import { usePanelFreshness } from '../panelFreshness'
+import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
+import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import styles from '../TerminalShell.module.css'
 
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
@@ -51,8 +52,14 @@ export default function MovePanel({ sym, onRun, onRows }) {
     ? { freshnessClass: 'real_time', asOf: new Date(state.fetchedAt).toISOString() }
     : null)
 
-  if (!sym) return <div className={styles.panelEmpty}>Type a ticker for MOVE — e.g. <kbd>NVDA MOVE</kbd></div>
-  if (state.phase === 'loading') return <div className={styles.panelEmpty}>Loading why {sym} is moving…</div>
+  if (!sym) {
+    return (
+      <PanelState kind="input" title="MOVE needs a ticker.">
+        Type one first, e.g. <kbd>NVDA MOVE</kbd>
+      </PanelState>
+    )
+  }
+  if (state.phase === 'loading') return <PanelSkeleton label={`Loading why ${sym} is moving`} testId="terminal-move-loading" />
   if (state.phase === 'error') {
     const status = state.error?.status
     return (
@@ -95,14 +102,14 @@ export default function MovePanel({ sym, onRun, onRows }) {
       </ul>
 
       <h3 className={styles.helpGroup}>Catalysts</h3>
-      {d.catalyst_status === 'unavailable' && <p className={styles.helpRule}>The catalyst history could not be reached just now.</p>}
+      {d.catalyst_status === 'unavailable' && <p className={styles.helpRule}>The catalyst history could not be read right now. That is not a finding about {sym}.</p>}
       {d.catalyst_status === 'not_entitled' && <p className={styles.helpRule}>Catalyst history is part of the paid plan.</p>}
-      {d.catalyst_status === 'ok' && cats.length === 0 && <p className={styles.helpRule}>{sym} has not appeared in Stock Catalysts recently.</p>}
+      {d.catalyst_status === 'ok' && cats.length === 0 && <p className={styles.helpRule} data-testid="terminal-move-no-catalysts">{sym} has never been flagged by the Stock Catalysts engine (it has recorded since May 25, 2026).</p>}
       <ul className={styles.helpRule} data-testid="terminal-move-catalysts">
         {cats.map((c) => (
           <li key={catalystKey(c)} data-new={fresh.has(catalystKey(c)) ? 'true' : 'false'}>
             {fresh.has(catalystKey(c)) && <strong>NEW </strong>}
-            {c.market_date} · {c.tag}{c.thesis_text ? ` — ${c.thesis_text}` : ''}
+            {c.market_date} · {c.tag}{c.thesis_text && !isFailedSynthesis(c.thesis_text) ? <> — <HighlightThesis text={c.thesis_text} /></> : ''}
           </li>
         ))}
       </ul>

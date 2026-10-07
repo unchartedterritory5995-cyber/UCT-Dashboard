@@ -37,11 +37,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { mutate as globalMutate } from 'swr'
 import {
   canCarryPlanRole, drawingLevelPrice, setPlanRole, sizePlan, withPlanShares, SIZED_BY_LABEL,
+  addLevel, moveLevel,
 } from '../../lib/chartPlan'
+import { AddLevelForm, LevelPriceField, RoleRadios } from './ChartPlanLevelControls'
 import { PRICE_ROLES } from '../../lib/planLevels'
 import useBoundDrawingAlerts from '../../../../components/chart/useBoundDrawingAlerts'
 import { anchorsForDrawing } from '../../../../components/chart/drawingAlertAnchors'
 import { money } from '../../../../lib/journal-2-0/format'
+import { etDayOf } from '../../lib/calendar'
 import BarReplay, { barTs } from './BarReplay'
 import styles from './ChartPlanPanel.module.css'
 
@@ -85,6 +88,35 @@ function asOfSeconds(attrs) {
   return to === null || !Number.isFinite(cap) ? null : Math.floor(cap / 1000)
 }
 
+/** The note's as-of EASTERN trading day (params.to, else the capture time), or null for a chart
+ *  that tracks now. The same day the chart block is frozen at (ChartEmbed `tsToAnchorDay`),
+ *  through the same function. ⛔ Never a UTC day: an evening plan would read as tomorrow's. */
+export function noteAsOfDay(attrs) {
+  const to = attrs?.params?.to
+  if (to === null) return null
+  return etDayOf(to) ?? etDayOf(Date.parse(attrs?.capturedAt || ''))
+}
+
+/** The bars a replay shows: context up to the note, then what printed after it.
+ *  Daily, weekly and monthly bars are compared BY DAY against the note's Eastern day;
+ *  intraday bars by the exact moment. Returns {bars, startIdx} or {error}. */
+export function windowAfterNote(all, { day, sec, daily }) {
+  if (day == null && sec == null) return { error: 'This chart tracks now, so nothing has printed after it yet.' }
+  const known = daily
+    ? (b) => (etDayOf(b.t) ?? '') <= day
+    : (b) => barTs(b.t) <= sec
+  let asIdx = -1
+  for (let i = 0; i < all.length; i++) {
+    if (known(all[i])) asIdx = i
+    else break
+  }
+  if (asIdx < 0) return { error: 'No bar history reaches this note’s date.' }
+  if (asIdx >= all.length - 1) return { error: 'Nothing has printed after this note’s date yet.' }
+  const start = Math.max(0, asIdx - REPLAY_BEFORE)
+  const bars = all.slice(start, Math.min(all.length, asIdx + 1 + REPLAY_AFTER))
+  return { bars, startIdx: asIdx - start + 1 }
+}
+
 export default function ChartPlanPanel({
   attrs, noteId, updateAttributes, open = false, replayOpen = false, onCloseReplay,
 }) {
@@ -112,7 +144,12 @@ export default function ChartPlanPanel({
     [annotations, embedId],
   )
   const noBars = useCallback(() => [], [])
-  const alerts = useBoundDrawingAlerts({ sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars })
+  // ⛔ `namespace` is this chart's own id prefix: the hook then touches ONLY this embed's
+  // alerts. Without it the panel deleted the member's /charts alerts on the same symbol.
+  const alerts = useBoundDrawingAlerts({
+    sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars,
+    namespace: boundAlertId(embedId || '?', ''),
+  })
   const armedIds = useMemo(
     () => new Set((alerts || []).filter((a) => a?.is_active && a.drawing_id).map((a) => a.drawing_id)),
     [alerts],
@@ -158,6 +195,43 @@ export default function ChartPlanPanel({
   const setRole = (drawingId, role) => {
     const next = setPlanRole(annotations, drawingId, role || null)
     if (next !== annotations) updateAttributes?.({ annotations: next })
+  }
+  // ── the typed door to a level (lane FIN-A11Y, I-6): make one, move one ─────────────────
+  // Focus follows the level being worked on: the rows are sorted by price, so a step can
+  // reorder them, and the field of a new level does not exist until the note re-renders.
+  const focusLevelRef = useRef(null)
+  useEffect(() => {
+    const id = focusLevelRef.current
+    if (!id) return
+    const row = [...(rootRef.current?.querySelectorAll('[data-level-id]') || [])]
+      .find((el) => el.getAttribute('data-level-id') === id)
+    const field = row?.querySelector('[data-level-price]')
+    if (!field) return
+    focusLevelRef.current = null
+    if (document.activeElement !== field) field.focus()
+  }, [annotations])
+  const badPrice = () => setMsg({ tone: 'err', text: 'Enter a price above zero.' })
+  const moveLevelTo = (drawingId, price, viaStep) => {
+    const next = moveLevel(annotations, drawingId, price)
+    if (next === annotations) return
+    focusLevelRef.current = drawingId
+    updateAttributes?.({ annotations: next })
+    // A step is announced by the field itself (its value); a typed move gets a sentence.
+    setMsg(viaStep ? null : { tone: 'ok', text: `Moved the line to ${fmtPrice(price)}.` })
+  }
+  const addLevelAt = (price, role) => {
+    const id = `lv-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    const anchored = annotations.find((d) => d?.points?.[0]?.time != null)
+    const cap = Date.parse(attrs?.capturedAt || '')
+    const time = anchored ? anchored.points[0].time : Math.floor((Number.isFinite(cap) ? cap : Date.now()) / 1000)
+    focusLevelRef.current = id
+    updateAttributes?.({ annotations: addLevel(annotations, price, { id, time, role }) })
+    setMsg({
+      tone: 'ok',
+      text: role
+        ? `Added a level at ${fmtPrice(price)}, marked ${ROLE_LABEL[role]}.`
+        : `Added a level at ${fmtPrice(price)}. Mark it Entry, Stop or Target.`,
+    })
   }
   const savedShares = planBlock?.shares ?? null
   const canSaveSize = sized?.shares != null && (savedShares !== sized.shares || planBlock?.sizedBy !== sized.sizedBy)
@@ -205,22 +279,12 @@ export default function ChartPlanPanel({
   // ── "what happened next": the one replay engine (BarReplay) ─────────────────────────────
   const replayTf = NATIVE_TFS.has(tf) ? tf : 'D'
   const asOf = asOfSeconds(attrs)
+  const asOfDay = noteAsOfDay(attrs)
   const daily = replayTf === 'D' || replayTf === 'W' || replayTf === 'M'
-  const cmp = useCallback((ts) => (daily ? ts - (ts % 86400) : ts), [daily])
-  const windowBars = useCallback((all) => {
-    if (asOf == null) return { error: 'This chart tracks now, so nothing has printed after it yet.' }
-    const limit = cmp(asOf) + (daily ? 86400 - 1 : 0)
-    let asIdx = -1
-    for (let i = 0; i < all.length; i++) {
-      if (barTs(all[i].t) <= limit) asIdx = i
-      else break
-    }
-    if (asIdx < 0) return { error: 'No bar history reaches this note’s date.' }
-    if (asIdx >= all.length - 1) return { error: 'Nothing has printed after this note’s date yet.' }
-    const start = Math.max(0, asIdx - REPLAY_BEFORE)
-    const bars = all.slice(start, Math.min(all.length, asIdx + 1 + REPLAY_AFTER))
-    return { bars, startIdx: asIdx - start + 1 }
-  }, [asOf, cmp, daily])
+  const windowBars = useCallback(
+    (all) => windowAfterNote(all, { day: asOfDay, sec: asOf, daily }),
+    [asOf, asOfDay, daily],
+  )
   const replayLines = useMemo(() => PRICE_ROLES
     .filter((r) => Number.isFinite(plan?.[r]))
     .map((r) => ({ price: plan[r], color: ROLE_COLOR[r], title: ROLE_LABEL[r].toLowerCase() })), [plan])
@@ -300,7 +364,7 @@ export default function ChartPlanPanel({
         {levels.length === 0 ? (
           <p className={styles.hint}>
             Draw a horizontal line on this chart (Draw, then the horizontal-line tool), then mark it
-            Entry, Stop or Target here.
+            Entry, Stop or Target here. Or type a price below.
           </p>
         ) : (
           <ul className={styles.levels} aria-label="Drawn levels">
@@ -311,22 +375,17 @@ export default function ChartPlanPanel({
               const derived = roleDirection(role, plan?.side)
               return (
                 <li key={d.id} className={styles.level} data-level-id={d.id}>
-                  <span className={styles.price}>{fmtPrice(price)}</span>
-                  <div className={styles.roles} role="radiogroup" aria-label={`Role of the line at ${fmtPrice(price)}`}>
-                    {['', ...PRICE_ROLES].map((r) => (
-                      <button
-                        key={r || 'none'}
-                        type="button"
-                        role="radio"
-                        aria-checked={role === r}
-                        className={`${styles.roleBtn} ${role === r ? styles.roleOn : ''}`}
-                        data-role={r || 'none'}
-                        onClick={() => setRole(d.id, r)}
-                      >
-                        {r ? ROLE_LABEL[r] : 'None'}
-                      </button>
-                    ))}
-                  </div>
+                  <LevelPriceField
+                    price={price}
+                    label={role ? `Price of the ${ROLE_LABEL[role]} line, ${fmtPrice(price)}` : `Price of the line at ${fmtPrice(price)}`}
+                    onCommit={(next, viaStep) => moveLevelTo(d.id, next, viaStep)}
+                    onInvalid={badPrice}
+                  />
+                  <RoleRadios
+                    role={role}
+                    label={`Role of the line at ${fmtPrice(price)}`}
+                    onChange={(r) => setRole(d.id, r)}
+                  />
                   <div className={styles.alertCell}>
                     {!derived && !armed && (
                       <select
@@ -359,6 +418,7 @@ export default function ChartPlanPanel({
             })}
           </ul>
         )}
+        <AddLevelForm onAdd={addLevelAt} onInvalid={badPrice} />
 
         <div className={styles.numbers} aria-live="polite" data-tour="chart-plan-numbers">
           {reading.status === 'error' && <p className={styles.err} role="alert">{reading.error}</p>}

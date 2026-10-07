@@ -19,15 +19,21 @@ import useSWR from 'swr'
 import { EmptyState, SeriesChart } from '../../research-kit'
 import { AuthContext } from '../../../context/AuthContext'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
+import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import SourceLine from './SourceLine'
 import { fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
+import { formatNumber, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 import styles from './FmpDepth.module.css'
 
 export const estimatesKey = (sym) => `/api/research/estimates/${sym}?consensus=1`
 
 const range = (lo, hi, fmt) => (lo == null && hi == null ? fmt(null) : `${fmt(lo)} – ${fmt(hi)}`)
 
-function ConsensusTable({ rows, basis }) {
+// The currency label (TWD for TSM) travels with every money cell. FMP's figures
+// are in the company's reporting currency; "$" on them was the 2026-10-06 defect.
+function ConsensusTable({ rows, basis, ccy }) {
+  const eps = (v) => fmtEps(v, ccy)
+  const money = (v) => fmtMoney(v, ccy)
   return (
     <div className={styles.scroll}>
       <table className={styles.table} aria-label={`Analyst consensus, ${basis === 'annual' ? 'annual' : 'quarterly'}`}>
@@ -43,16 +49,16 @@ function ConsensusTable({ rows, basis }) {
           {rows.map((r) => (
             <tr key={r.period_end} data-period={r.label}>
               <th scope="row" className={styles.rowHead}>{r.label}</th>
-              <td>{fmtEps(r.eps?.avg)}</td>
-              <td className={styles.muted}>{range(r.eps?.low, r.eps?.high, fmtEps)}</td>
+              <td>{eps(r.eps?.avg)}</td>
+              <td className={styles.muted}>{range(r.eps?.low, r.eps?.high, eps)}</td>
               <td>{fmtCount(r.eps?.n)}</td>
               <td>{fmtGrowth(r.eps_growth)}</td>
-              <td>{fmtMoney(r.revenue?.avg)}</td>
-              <td className={styles.muted}>{range(r.revenue?.low, r.revenue?.high, fmtMoney)}</td>
+              <td>{money(r.revenue?.avg)}</td>
+              <td className={styles.muted}>{range(r.revenue?.low, r.revenue?.high, money)}</td>
               <td>{fmtCount(r.revenue?.n)}</td>
               <td>{fmtGrowth(r.revenue_growth)}</td>
-              <td>{fmtMoney(r.ebitda_avg)}</td>
-              <td>{fmtMoney(r.net_income_avg)}</td>
+              <td>{money(r.ebitda_avg)}</td>
+              <td>{money(r.net_income_avg)}</td>
             </tr>
           ))}
         </tbody>
@@ -61,7 +67,14 @@ function ConsensusTable({ rows, basis }) {
   )
 }
 
-function YahooForward({ rows }) {
+// Yahoo's tables for a foreign filer: revenue is in the reporting currency, but
+// the CURRENCY OF ITS EPS IS NOT STATED and is not consistent (measured
+// 2026-10-06: TSM/TM per-ADR US dollars, BABA yuan, NVO kroner). So EPS is shown
+// as a bare number, never "$", and revenue carries the reporting currency.
+const yahooEps = (rc) => (isForeignCurrency(rc) ? (v) => formatNumber(v, { decimals: 2 }) : fmtEps)
+
+function YahooForward({ rows, rc }) {
+  const eps = yahooEps(rc)
   return (
     <div className={styles.scroll}>
       <table className={styles.table} aria-label="Forward estimates, Yahoo Finance">
@@ -73,11 +86,11 @@ function YahooForward({ rows }) {
           {rows.map((r) => (
             <tr key={r.period}>
               <th scope="row" className={styles.rowHead}>{r.period}</th>
-              <td>{fmtEps(r.eps_avg)}</td>
-              <td className={styles.muted}>{range(r.eps_low, r.eps_high, fmtEps)}</td>
+              <td>{eps(r.eps_avg)}</td>
+              <td className={styles.muted}>{range(r.eps_low, r.eps_high, eps)}</td>
               <td>{fmtCount(r.num_analysts)}</td>
               <td>{fmtGrowth(r.eps_growth)}</td>
-              <td>{fmtMoney(r.rev_avg)}</td>
+              <td>{fmtMoney(r.rev_avg, rc)}</td>
             </tr>
           ))}
         </tbody>
@@ -86,7 +99,8 @@ function YahooForward({ rows }) {
   )
 }
 
-function Revisions({ rows }) {
+function Revisions({ rows, rc }) {
+  const eps = yahooEps(rc)
   return (
     <div className={styles.scroll}>
       <table className={styles.table} aria-label="EPS estimate revisions, Yahoo Finance">
@@ -98,9 +112,9 @@ function Revisions({ rows }) {
           {rows.map((r) => (
             <tr key={r.period}>
               <th scope="row" className={styles.rowHead}>{r.period}</th>
-              <td>{fmtEps(r.current)}</td>
-              <td className={styles.muted}>{fmtEps(r.ago30)}</td>
-              <td className={styles.muted}>{fmtEps(r.ago90)}</td>
+              <td>{eps(r.current)}</td>
+              <td className={styles.muted}>{eps(r.ago30)}</td>
+              <td className={styles.muted}>{eps(r.ago90)}</td>
               <td>{fmtCount(r.up30)}</td>
               <td>{fmtCount(r.down30)}</td>
             </tr>
@@ -122,13 +136,25 @@ export default function ConsensusEstimates({ sym }) {
   const estimateHistoryOn = useContext(AuthContext)?.estimateHistoryEnabled === true
   const { data, error, mutate } = useSWR(s ? estimatesKey(s) : null, sectionFetcher,
     { revalidateOnFocus: false })
+  // The first read after a deploy can hit a cold pod; sectionFetcher asks again once, and the
+  // panel says so instead of flashing "Could not load this section" (2026-10-06).
+  const warming = useWarming(s ? estimatesKey(s) : null)
 
   if (!s) return null
   if (error) {
     return <div className={styles.wrap} data-testid="ee-deep"><EmptyState {...FETCH_FAILED} compact onRetry={() => mutate()} /></div>
   }
   if (data === undefined) {
-    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Loading estimates…</p></div>
+    return (
+      <div className={styles.wrap} data-testid="ee-deep">
+        {warming
+          ? <p className={styles.note} data-testid="ee-warming">{WARMING_UP}</p>
+          : <p className={styles.note}>Loading estimates…</p>}
+      </div>
+    )
+  }
+  if (data.paywalled) {
+    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note}>Estimates require a paid plan.</p></div>
   }
 
   const c = data.consensus || { state: 'error', annual: [], quarterly: [] }
@@ -139,6 +165,16 @@ export default function ConsensusEstimates({ sym }) {
   const bases = [['annual', 'Annual'], ['quarterly', 'Quarterly']].filter(([k]) => (c[k] || []).length)
   const shown = bases.some(([k]) => k === basis) ? basis : bases[0]?.[0]
   const rows = shown ? c[shown] : []
+  const ccy = c.currency ?? null
+  const rc = data.reporting_currency ?? ccy
+  const yahooNote = isForeignCurrency(rc)
+    ? `Revenue in ${rc}, the company's reporting currency. Yahoo Finance does not state the currency of these EPS figures, so they carry no symbol.`
+    : null
+  // tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). With
+  // nothing usable from either vendor, say that -- not "Neither FMP nor Yahoo holds...".
+  if (data.not_applicable && !fmpOk && !fwd.length && !revs.length) {
+    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note} data-testid="ee-na">Not applicable to funds — {data.reason || `${s} is a fund`}.</p></div>
+  }
 
   return (
     <div className={styles.wrap} data-testid="ee-deep" data-source={fmpOk ? 'fmp' : 'yfinance'}>
@@ -157,13 +193,16 @@ export default function ConsensusEstimates({ sym }) {
           </div>
           <SourceLine vendor="FMP" activity={c.source || 'FMP /stable/analyst-estimates'} fetchedAt={c.fetched_at}
                       detail="Consensus mean, range and analyst count per fiscal period" />
-          <ConsensusTable rows={rows} basis={shown} />
+          {reportingCurrencyNote(ccy) && (
+            <p className={styles.note} data-testid="ee-currency" data-currency={ccy}>{reportingCurrencyNote(ccy)}</p>
+          )}
+          <ConsensusTable rows={rows} basis={shown} ccy={ccy} />
           {rows.length >= 2 && (
             <SeriesChart
               periods={rows.map((r) => r.label)}
               mode="band"
               label={`EPS consensus range, ${shown === 'annual' ? 'by fiscal year' : 'by fiscal quarter'}`}
-              valueFormatter={fmtEps}
+              valueFormatter={(v) => fmtEps(v, ccy)}
               ariaLabel={`EPS consensus low, mean and high, ${shown}`}
               series={[
                 { name: 'Low', color: 'var(--text-muted)', values: rows.map((r) => r.eps?.low ?? null) },
@@ -178,9 +217,12 @@ export default function ConsensusEstimates({ sym }) {
           <div className={styles.head}><span className={styles.title}>Forward estimates</span></div>
           <SourceLine vendor="Yahoo Finance" fallback activity="yfinance earnings_estimate / revenue_estimate"
                       reason={FALLBACK_REASON[c.state] || FALLBACK_REASON.error} />
+          {fwd.length > 0 && yahooNote && <p className={styles.note} data-testid="ee-yahoo-currency">{yahooNote}</p>}
           {fwd.length
-            ? <YahooForward rows={fwd} />
-            : <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>}
+            ? <YahooForward rows={fwd} rc={rc} />
+            : (c.state === 'empty' && !data.yf_unavailable)
+              ? <p className={styles.note}>Neither FMP nor Yahoo Finance holds forward estimates for this ticker.</p>
+              : <p className={styles.note} data-testid="ee-unread">Forward estimates could not be read right now. That is a gap in what we could read, not a finding about {s}.</p>}
         </section>
       )}
 
@@ -188,8 +230,9 @@ export default function ConsensusEstimates({ sym }) {
         <section className={styles.card} data-testid="ee-revisions">
           <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
           <SourceLine vendor="Yahoo Finance" activity="yfinance eps_trend / eps_revisions"
-                      detail="FMP does not publish estimate revisions on this plan" />
-          <Revisions rows={revs} />
+                      detail="FMP does not publish estimate revisions" />
+          {yahooNote && <p className={styles.note} data-testid="ee-revisions-currency">EPS revisions from Yahoo Finance carry no currency symbol: Yahoo does not state it for this company.</p>}
+          <Revisions rows={revs} rc={rc} />
         </section>
       )}
 

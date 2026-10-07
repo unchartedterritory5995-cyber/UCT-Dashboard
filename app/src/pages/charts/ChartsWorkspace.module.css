@@ -516,6 +516,21 @@
   background: rgba(220, 187, 94, 0.08);
 }
 
+/* ⭐ Create Indicator's RIGHT WORKSPACE DOCK (ChartPane). Open: the pane becomes
+   the dock's containing block. Docked: the WHOLE chart section (identity row, TF
+   bar, toolbar, canvas, scales, range bar) gives the dock its width — border-box,
+   so the pane never grows past its slot — and LWC's autoSize follows. The dock
+   host is absolute in that padding: full pane height, never over the chart. */
+.studioOpen { position: relative; }
+.studioDocked { padding-right: var(--studio-dock-w, 360px); box-sizing: border-box; }
+.studioDock {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(var(--studio-dock-w, 360px), 100%);
+  z-index: 40;
+  display: flex;
+}
+.studioDock:empty { display: none; }
+
 .chartFill {
   flex: 1; min-height: 0; min-width: 0; position: relative;
   outline: none;  /* focusable container — keep the chrome clean, no default ring */

@@ -9,6 +9,12 @@
 //  * Every number opens its trades, and the drill lists exactly n of them.
 //  * Every pattern finding cites its trades and notes.
 //  * Flag off: nothing is fetched and the route sends the member back to Insights.
+//
+// CONTRACT: the payload is the REAL server's answer to GET /api/j2/my-playbook
+// (`__fixtures__/contract`, written by tools/notebook_contract_fixtures.py and held current by
+// tests/test_notebook_contract_fixtures.py): a thin setup (Breakout, 24 trades), a normal one
+// (Pullback, 25), one with too few (EP, 9), three untagged trades, and two patterns. The
+// "every displayed number is the authority's" rail therefore runs on what the server sends.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -17,66 +23,10 @@ import { SWRConfig } from 'swr'
 import MyPlaybook from './MyPlaybook'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { fmtDollar, fmtPct, fmtPF, fmtR } from '../../lib/playbookFormat'
+import { contractBody, contractResponse } from '../../__fixtures__/contract'
 
-const trade = (id, result, r, pnl, extra = {}) => ({
-  id, tradeRef: `id:${id}`, symbol: 'NVDA', side: 'Long', result, entryDate: '2026-03-02T14:30:00+00:00',
-  exitDate: '2026-03-03T19:30:00+00:00', rMultiple: r, pnlDollar: pnl, source: null, ...extra,
-})
-
-const BREAKOUT_TRADES = [2.0, -1.0, 1.5, -1.0, 3.0, -0.5, 0.8, -1.0, 2.2, -1.0, 1.1, 0.4]
-  .map((r, i) => trade(`b${i}`, r > 0 ? 'Win' : 'Loss', r, Math.round(r * 10000) / 100, i === 0 ? { source: 'broker' } : {}))
-
-const PAYLOAD = {
-  asOf: '2026-10-03T12:00:00+00:00',
-  accountId: null,
-  untagged: { count: 3 },
-  sample: { tooFewBelow: 10, normalFrom: 25, rangeZ: 1.96, wording: { too_few: 'too few to judge', thin: 'thin sample', normal: null } },
-  setups: [
-    {
-      setup: 'Breakout', tradeCount: 12, winCount: 7, lossCount: 5, beCount: 0, winRate: 7 / 12,
-      profitFactor: 2.42, expectancy: 54.17, expectancyR: 0.5417, avgR: 0.5417, totalR: 6.5, totalPnlDollar: 650,
-      sample: { n: 12, band: 'thin', wording: 'thin sample' },
-      winRateStat: { k: 7, n: 12, rate: 0.5833, band: 'thin', wording: 'thin sample', range: [0.32, 0.807] },
-      avgRStat: { n: 12, mean: 0.5417, band: 'thin', wording: 'thin sample', range: [-0.374, 1.457] },
-      expectancyStat: { n: 12, mean: 54.1667, band: 'thin', wording: 'thin sample', range: [-37.366, 145.7] },
-      trades: BREAKOUT_TRADES,
-    },
-    {
-      setup: 'High Tight Flag', tradeCount: 9, winCount: 6, lossCount: 3, beCount: 0, winRate: 6 / 9,
-      profitFactor: 2.0, expectancy: 33.33, expectancyR: 0.3333, avgR: 0.3333, totalR: 3, totalPnlDollar: 300,
-      sample: { n: 9, band: 'too_few', wording: 'too few to judge' },
-      winRateStat: { k: 6, n: 9, rate: 0.6667, band: 'too_few', wording: 'too few to judge', range: null },
-      avgRStat: { n: 9, mean: 0.3333, band: 'too_few', wording: 'too few to judge', range: null },
-      expectancyStat: { n: 9, mean: 33.3333, band: 'too_few', wording: 'too few to judge', range: null },
-      trades: Array.from({ length: 9 }, (_, i) => trade(`h${i}`, i % 3 ? 'Win' : 'Loss', i % 3 ? 1 : -1, i % 3 ? 100 : -100)),
-    },
-    {
-      setup: 'Pullback', tradeCount: 25, winCount: 10, lossCount: 15, beCount: 0, winRate: 0.4,
-      profitFactor: 1.33, expectancy: 20, expectancyR: 0.2, avgR: 0.2, totalR: 5, totalPnlDollar: 500,
-      sample: { n: 25, band: 'normal', wording: null },
-      winRateStat: { k: 10, n: 25, rate: 0.4, band: 'normal', wording: null, range: null },
-      avgRStat: { n: 25, mean: 0.2, band: 'normal', wording: null, range: null },
-      expectancyStat: { n: 25, mean: 20, band: 'normal', wording: null, range: null },
-      trades: Array.from({ length: 25 }, (_, i) => trade(`p${i}`, i % 5 < 2 ? 'Win' : 'Loss', i % 5 < 2 ? 2 : -1, i % 5 < 2 ? 200 : -100)),
-    },
-  ],
-  notesBySetup: { Breakout: [{ noteId: 'n-plan', title: 'NVDA breakout plan', tradeCount: 2 }], 'High Tight Flag': [], Pullback: [] },
-  patterns: {
-    caption: 'Patterns, not proof', status: 'ok', tradesRead: 46, noted: { wins: 6, losses: 6 },
-    constants: { MIN_NOTED_PER_SIDE: 5, MIN_MENTIONS: 3, MAX_FINDINGS: 6, MAX_TRADES: 500 },
-    vocabulary: { source: 'standard', terms: ['FOMO', 'patient'] },
-    excludes: 'Break-even trades, and notes written or edited after entry, are not read.',
-    findings: [
-      {
-        term: 'FOMO', kind: 'mistake', leans: 'losses', losses: { k: 4, n: 6 }, wins: { k: 1, n: 6 },
-        citations: ['b1', 'b3', 'b5', 'b7', 'b0'].map((id, i) => ({
-          tradeId: id, tradeRef: `id:${id}`, symbol: 'NVDA', result: i < 4 ? 'Loss' : 'Win',
-          exitDate: '2026-03-03T19:30:00+00:00', notes: [{ noteId: `nf${i}`, title: `Pre-trade ${i}`, asOf: '2026-03-01' }],
-        })),
-      },
-    ],
-  },
-}
+const PAYLOAD = contractBody('my-playbook')
+const setupNamed = (name) => PAYLOAD.setups.find((x) => x.setup === name)
 
 const json = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) })
 const settle = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
@@ -127,6 +77,19 @@ function allowedTokens(payload) {
   return allowed
 }
 
+describe('the recorded playbook carries every band this page words (non-vacuity)', () => {
+  it('a thin, a normal and a too-few setup, untagged trades, and two patterns', () => {
+    expect(PAYLOAD.setups.map((x) => [x.setup, x.tradeCount, x.sample.band])).toEqual(
+      [['Breakout', 24, 'thin'], ['Pullback', 25, 'normal'], ['EP', 9, 'too_few']])
+    expect(setupNamed('Breakout').winRateStat).toMatchObject({ k: 12, n: 24, rate: 0.5, range: [0.314, 0.686] })
+    expect(setupNamed('EP').winRateStat).toMatchObject({ k: 6, n: 9, rate: 0.6667, range: null })
+    expect(PAYLOAD.untagged).toEqual({ count: 3 })
+    expect(PAYLOAD.patterns.findings.map((f) => [f.term, f.leans, f.citations.length]))
+      .toEqual([['patient', 'wins', 4], ['FOMO', 'losses', 5]])
+    for (const x of PAYLOAD.setups) expect(x.trades).toHaveLength(x.tradeCount)
+  })
+})
+
 describe('My Playbook (wave 13, lane 13B)', () => {
   let calls
   beforeEach(() => {
@@ -143,12 +106,12 @@ describe('My Playbook (wave 13, lane 13B)', () => {
   it('words each card by its sample (R3)', async () => {
     renderPage()
     const thin = await screen.findByRole('article', { name: 'Breakout' })
-    expect(within(thin).getByText(/12 trades · thin sample/)).toBeTruthy()
+    expect(within(thin).getByText(/24 trades · thin sample/)).toBeTruthy()
     const win = within(thin).getByText('Win rate').closest('[data-stat]')
-    expect(win.textContent).toContain('58%')
-    expect(win.textContent).toContain('thin sample, likely 32% to 81%')
+    expect(win.textContent).toContain('50%')
+    expect(win.textContent).toContain('thin sample, likely 31% to 69%')
 
-    const few = screen.getByRole('article', { name: 'High Tight Flag' })
+    const few = screen.getByRole('article', { name: 'EP' })
     const fewWin = within(few).getByText('Win rate').closest('[data-stat]')
     const details = fewWin.querySelector('details')
     expect(details).toBeTruthy()
@@ -166,8 +129,9 @@ describe('My Playbook (wave 13, lane 13B)', () => {
     const { container } = renderPage()
     await screen.findByRole('article', { name: 'Breakout' })
     // Open a drill and a pattern's citations so their numbers are on screen too.
-    await userEvent.click(screen.getAllByRole('button', { name: /^Win rate 58%/ })[0])
+    await userEvent.click(screen.getAllByRole('button', { name: /^Win rate 50%/ })[0])
     await userEvent.click(screen.getByRole('button', { name: /Show the 5 trades/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Show the 4 trades/ }))
     const tokens = numberTokens(pageText(container))
     expect(tokens.length).toBeGreaterThan(40)             // non-vacuity: the page shows numbers
     const allowed = allowedTokens(PAYLOAD)
@@ -197,16 +161,16 @@ describe('My Playbook (wave 13, lane 13B)', () => {
   it('every number opens the trades it was computed from, exactly n of them', async () => {
     renderPage()
     const card = await screen.findByRole('article', { name: 'Breakout' })
-    for (const [label, n] of [['Win rate', 12], ['Avg R', 12], ['Expectancy', 12], ['Total P&L', 12]]) {
+    for (const [label, n] of [['Win rate', 24], ['Avg R', 24], ['Expectancy', 24], ['Total P&L', 24]]) {
       await userEvent.click(within(card).getByRole('button', { name: new RegExp(`^${label} `) }))
       const drill = within(card).getByTestId('playbook-drill')
       expect(drill.querySelectorAll('tbody tr').length).toBe(n)
       expect(drill.querySelector('tbody tr a').getAttribute('href')).toMatch(/^\/journal-2-0\/trade\//)
     }
     // A too-few setup still opens its trades, from inside the reveal.
-    const few = screen.getByRole('article', { name: 'High Tight Flag' })
+    const few = screen.getByRole('article', { name: 'EP' })
     await userEvent.click(within(few).getAllByText('too few to judge')[0])
-    await userEvent.click(within(few).getByRole('button', { name: /^Win rate 67%/ }))
+    await userEvent.click(within(few).getByRole('button', { name: /^Win rate 67%/ }))   // 6 of 9
     expect(within(few).getByTestId('playbook-drill').querySelectorAll('tbody tr').length).toBe(9)
   })
 
@@ -229,8 +193,46 @@ describe('My Playbook (wave 13, lane 13B)', () => {
   it('"From your notes" links the notes behind a setup', async () => {
     renderPage()
     const card = await screen.findByRole('article', { name: 'Breakout' })
-    const link = within(card).getByRole('link', { name: 'NVDA breakout plan' })
-    expect(link.getAttribute('href')).toBe('/journal/notebook?note=n-plan')
+    const notes = PAYLOAD.notesBySetup.Breakout
+    expect(notes.length).toBeGreaterThan(0)
+    const link = within(card).getByRole('link', { name: notes[0].title })
+    expect(link.getAttribute('href')).toBe(`/journal/notebook?note=${notes[0].noteId}`)
+    // a setup with no linked note shows no "From your notes" link at all
+    expect(PAYLOAD.notesBySetup.Pullback).toEqual([])
+    expect(within(screen.getByRole('article', { name: 'Pullback' })).queryByRole('link', { name: /Pre-trade/ })).toBeNull()
+  })
+
+  it('a pattern that leans to wins is worded the same honest way', async () => {
+    renderPage()
+    const sec = await screen.findByTestId('playbook-patterns')
+    expect(within(sec).getByText(/before 0 of 6 losses and 4 of 6 wins/).textContent).toContain('“patient”')
+  })
+
+  it('a member with no closed trade: no card, the way to start, and why there are no patterns', async () => {
+    global.fetch = vi.fn(async (url) => (String(url).startsWith('/api/j2/my-playbook') ? contractResponse('my-playbook.empty') : json({})))
+    renderPage()
+    expect((await screen.findByTestId('playbook-empty')).textContent)
+      .toBe('Tag a closed trade with a setup and its card appears here.')
+    expect(screen.queryByRole('article')).toBeNull()
+    expect(screen.queryByTestId('playbook-untagged')).toBeNull()
+    // the server's own sentence for too few noted trades, verbatim
+    const message = contractBody('my-playbook.empty').patterns.message
+    expect(message).toMatch(/at least 5 wins and 5 losses/)
+    expect(screen.getByText(message)).toBeTruthy()
+  })
+
+  it('a failed read is an error with Try again, never an empty playbook', async () => {
+    let n = 0
+    global.fetch = vi.fn(async (url) => {
+      if (!String(url).startsWith('/api/j2/my-playbook')) return json({})
+      n += 1
+      return n === 1 ? contractResponse('my-playbook.signed-out') : contractResponse('my-playbook')
+    })
+    renderPage()
+    expect((await screen.findByRole('alert')).textContent).toContain('Couldn’t load your playbook.')
+    expect(screen.queryByTestId('playbook-empty')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('article', { name: 'Breakout' })).toBeTruthy()
   })
 
   it('saves a snapshot through the one door and offers to open it', async () => {
@@ -239,7 +241,9 @@ describe('My Playbook (wave 13, lane 13B)', () => {
     await screen.findByRole('article', { name: 'Breakout' })
     await userEvent.click(screen.getByRole('button', { name: 'Save a snapshot note' }))
     expect(save).toHaveBeenCalledWith(PAYLOAD)
-    expect((await screen.findByRole('status')).textContent).toContain('Snapshot saved')
+    // The status region is mounted from the start now (lane FIN-A11Y, M-16), so wait for
+    // its TEXT rather than for the region itself.
+    expect((await screen.findByText(/Snapshot saved/)).closest('[role="status"]')).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Open the note' }))
     expect(screen.getByText('notebook page')).toBeTruthy()
   })

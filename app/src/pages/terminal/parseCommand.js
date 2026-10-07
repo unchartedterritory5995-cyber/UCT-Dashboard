@@ -26,14 +26,49 @@
 // Never silent: every input yields `{ ok: true, … }` or `{ ok: false, error, suggestions }`.
 import { BY_CODE, ABSENT, isCode, suggest } from './functions'
 import { CHANNEL_RE, aliasNameRefusal, compareMode, isTickerCollision, looksLikeQuestion } from './grammar'
-import { normalizeSym } from '../calendar/useEarningsModalRoute'
+import { ARG_KINDS } from './args'
+import { normalizeSym as normalizeUrlSym } from '../calendar/useEarningsModalRoute'
+
+/** A ticker token, or null. `$` only ever FORCES a ticker reading, so it is never part of the
+ *  symbol — `GP $NVDA` and `NVDA CMP $AMD` mean NVDA and AMD, not "$NVDA". */
+const normalizeSym = (tok) => normalizeUrlSym(typeof tok === 'string' ? tok.replace(/^\$/, '') : tok)
 
 /** The address prefixes `api/services/address_space.py` publishes (its `_TEXT_ADDRESS_RE`). */
 export const ADDRESS_RE = /^([LWNSATFP]):([A-Za-z0-9_-]{1,40})$/i
 
 const ROW_RE = /^\d{1,3}$/
-const EXPR_RE = /^\$?([A-Za-z][A-Za-z.-]{0,6})\/\$?([A-Za-z][A-Za-z.-]{0,6})$/
+const EXPR_RE = /^(\$?)([A-Za-z][A-Za-z.-]{0,6})\/\$?([A-Za-z][A-Za-z.-]{0,6})$/
 const ALIAS_DEF_RE = /^\S+\s+(\S+?)\s*(?:=\s*|\s+)(.+)$/
+/** A token a pasted ticker list is made of — CASE-SENSITIVE on purpose: an upper-case run of
+ *  symbols is a list, a lower-case run of words is prose (and still goes to AI Search). */
+const LIST_TICKER_RE = /^\$?[A-Z]{1,5}(?:[.-][A-Z]{1,2})?$/
+
+/**
+ * Pure: the cleaned-up line the parser reads. Full-width characters (ＮＶＤＡ) fold to ASCII
+ * (NFKC), smart quotes and stray double quotes go, commas separate tokens, and trailing
+ * sentence punctuation (`NVDA GP.`) is dropped. `?` is kept: it is HELP, and it marks a question.
+ */
+export function normalizeInput(input) {
+  let s = String(input ?? '')
+  try { s = s.normalize('NFKC') } catch { /* very old engine: leave it */ }
+  return s
+    .replace(/[‘’‚‛′]/g, "'")
+    .replace(/[“”„‟″"]/g, ' ')
+    .replace(/(^|\s)'+|'+(?=\s|$)/g, '$1')
+    .replace(/,/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.;:!]+$/, '')
+    .trim()
+}
+
+/** Does `tok` fit one of the arguments `code` declares (GP's timeframe, CAL's day…)? */
+function isDeclaredArg(code, tok) {
+  const fn = BY_CODE[String(code || '').toUpperCase()]
+  if (!fn) return false
+  const specs = [...(fn.ticker?.args || []), ...(fn.market?.args || [])]
+  return specs.some((s) => s.kind !== 'code' && ARG_KINDS[s.kind]?.parse(tok) != null)
+}
 
 /** Parse result `type`s that open something a channel can target: a function (every code
  *  resolves to a panel/door/surface) and `ask` (ASK's own panel/door — `ASK <question>` is
@@ -47,7 +82,7 @@ const OPENS_A_PANEL = new Set(['function', 'ask'])
  * owned; `api/services/terminal_grammar.py`).
  */
 export default function parseCommand(input, opts = {}) {
-  const raw = String(input ?? '').trim()
+  const raw = normalizeInput(input)
   if (!raw) return { ok: false, error: 'empty', suggestions: [] }
   const tokens = raw.split(/\s+/)
   const FIRST = tokens[0].toUpperCase()
@@ -69,6 +104,10 @@ export default function parseCommand(input, opts = {}) {
       return { ok: false, error: `${tokens[0]} targets a panel; "${rest}" does not open one.`, suggestions: [] }
     }
     return { ...inner, channel: ch[1].toUpperCase() }
+  }
+  // `@9 NVDA`, `@ NVDA`: an @ that names no panel or group says how to aim (round 3).
+  if (/^@/.test(tokens[0])) {
+    return { ok: false, error: `${tokens[0]} is not a panel or a group. Aim with @1 … @4 (a panel) or @A, @B … (a group), e.g. @2 NVDA GP.`, suggestions: [] }
   }
 
   // Member aliases: define, delete, list, expand.
@@ -107,9 +146,14 @@ export default function parseCommand(input, opts = {}) {
 
   // A symbol expression in the noun slot: `NVDA/QQQ [CMP]`.
   const ex = tokens[0].match(EXPR_RE)
+  // `BRK/B` is how a share class is often written, not "BRK vs B": a single letter on the
+  // right is the class suffix, so it reads as the ticker BRK.B (`$B` still means Barnes).
+  if (ex && ex[3].length === 1 && !/\/\$/.test(tokens[0])) {
+    return parseCommand([`${ex[1]}${ex[2]}.${ex[3]}`, ...tokens.slice(1)].join(' '), opts)
+  }
   if (ex) {
-    const a = normalizeSym(ex[1])
-    const b = normalizeSym(ex[2])
+    const a = normalizeSym(ex[2])
+    const b = normalizeSym(ex[3])
     const code = tokens[1] ? tokens[1].toUpperCase() : 'CMP'
     if (!a || !b) return { ok: false, error: `"${tokens[0]}" is not a pair of tickers`, suggestions: [] }
     if (code !== 'CMP') {
@@ -120,18 +164,35 @@ export default function parseCommand(input, opts = {}) {
       expr: `${a}/${b}`, compareMode: compareMode(a, b) }
   }
 
-  const r = parseCore(raw)
-  if (r.ok && r.type === 'function') {
-    if (r.code === 'ASK' && r.sym && r.args.length) {
-      return { ok: true, type: 'ask', question: `$${r.sym} ${r.args.join(' ')}` }
+  const core = parseCore(raw)
+  if (core.ok && core.type === 'function') {
+    if (core.code === 'ASK' && core.sym && core.args.length) {
+      return { ok: true, type: 'ask', question: `$${core.sym} ${core.args.join(' ')}` }
     }
+    // Arguments are codes, timeframes and dates: one spelling (round 3). `nvda gp w` and
+    // `NVDA GP W` are one command — one panel title, one `?cmd=`, one history entry.
+    const r = { ...core, args: (core.args || []).map((a) => String(a).toUpperCase()) }
     if (r.code === 'CMP' && r.sym && r.args[0]) {
-      const mode = compareMode(r.sym, r.args[0])
-      return { ...r, args: mode === 'sector' ? ['SECTOR', ...r.args.slice(1)] : r.args, compareMode: mode }
+      // `NVDA CMP $AMD`: the `$` forces the comparator to be read as a ticker; it is not part of it.
+      const other = String(r.args[0]).replace(/^\$/, '')
+      const mode = compareMode(r.sym, other)
+      return { ...r, args: mode === 'sector' ? ['SECTOR', ...r.args.slice(1)] : [other, ...r.args.slice(1)], compareMode: mode }
     }
     // V5: a bare code that is ALSO a ticker is annotated, so the echo says so before Enter.
     if (!forced && FIRST === r.code && r.sym == null && isTickerCollision(r.code)) return { ...r, collision: r.code }
     return r
+  }
+  const r = core
+  // A pasted ticker LIST (`NVDA AMD MSFT TSLA`) is not a question: say so, rather than spend
+  // an AI Search on it. Upper-case only (see LIST_TICKER_RE); a `?` still means a question.
+  if (!r.ok && !r.absent && tokens.length >= 3 && !raw.includes('?')
+    && !looksLikeQuestion(tokens.slice(0, 2).join(' '))       // WHY IS NVDA DOWN is a question
+    && tokens.every((t) => LIST_TICKER_RE.test(t))) {
+    const syms = tokens.map((t) => t.replace(/^\$/, ''))
+    return { ok: false, type: 'list', syms,
+      error: `That looks like a list of tickers (${syms.slice(0, 4).join(', ')}${syms.length > 4 ? ', …' : ''}). `
+        + `Type one ticker (${syms[0]}), or open a board with B:<name>.`,
+      sym: syms[0], suggestions: [] }
   }
   // V16: a line that is not a command but reads like a question goes to AI Search.
   if (!r.ok && r.error !== 'empty' && !r.absent && looksLikeQuestion(raw)) {
@@ -161,7 +222,7 @@ function parseCore(raw) {
   // TICKER FUNC [args]  — the canonical order; a code in second place makes the first a ticker.
   if (second && isCode(second)) {
     const sym = normalizeSym(firstTok)
-    if (!sym) return { ok: false, error: `"${firstTok}" is not a ticker`, suggestions: [] }
+    if (!sym) return { ok: false, error: `"${firstTok}" is not a ticker. A ticker is letters, like NVDA or BRK.B.`, suggestions: [] }
     return { ok: true, type: 'function', code: second.toUpperCase(), sym, args: rest }
   }
   if (second && !forced && Object.prototype.hasOwnProperty.call(ABSENT, second.toUpperCase())) {
@@ -171,6 +232,17 @@ function parseCore(raw) {
   // FUNC [TICKER] [args]
   if (!forced && isCode(FIRST)) {
     if (!second) return { ok: true, type: 'function', code: FIRST, sym: null, args: [] }
+    const secondForced = second.startsWith('$')
+    // `GP W` — a token the code DECLARES as an argument (GP's timeframe) is that argument, the
+    // same reading the echo and args.js give it. `GP $W` still means the ticker W (Wayfair),
+    // and a single-letter ticker in FIRST position (`W GP`) is untouched.
+    if (!secondForced && isDeclaredArg(FIRST, second)) {
+      const r = { ok: true, type: 'function', code: FIRST, sym: null, args: [second, ...rest] }
+      // The `$` escape exists only for a code that CAN take a ticker (`GP W` vs `GP $W`). CAL
+      // takes none, so "type $TODAY for the ticker" would send the member somewhere that
+      // cannot work (round 3).
+      return normalizeSym(second) && BY_CODE[FIRST].ticker ? { ...r, argNotTicker: second.toUpperCase() } : r
+    }
     const sym = normalizeSym(second)
     if (sym && BY_CODE[FIRST].ticker) {
       return { ok: true, type: 'function', code: FIRST, sym, args: rest }
@@ -185,16 +257,21 @@ function parseCore(raw) {
   if (!second) {
     const sym = normalizeSym(firstTok)
     if (sym) return { ok: true, type: 'function', code: 'DES', sym, args: [] }
-    return { ok: false, error: `Unknown command "${raw}"`, suggestions: suggest(FIRST) }
+    return { ok: false, error: unknownCommand(raw), suggestions: suggest(FIRST) }
   }
 
   // TICKER <not-a-code> — the second token is the unknown part.
   const sym = normalizeSym(firstTok)
   if (sym) {
-    return { ok: false, error: `Unknown function "${second.toUpperCase()}" for ${sym}`,
+    return { ok: false, error: `Unknown function "${second.toUpperCase()}" for ${sym}. HELP lists every function.`,
       sym, suggestions: suggest(second) }
   }
-  return { ok: false, error: `Unknown command "${raw}"`, suggestions: suggest(FIRST) }
+  return { ok: false, error: unknownCommand(raw), suggestions: suggest(FIRST) }
+}
+
+/** Every refusal names the next step (round 3): what a line can start with. */
+function unknownCommand(raw) {
+  return `Unknown command "${raw}". Start with a ticker (NVDA), a function (GP), or HELP.`
 }
 
 /** Canonical text for a parsed command — what history stores, the panel title shows and the

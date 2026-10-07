@@ -1,5 +1,6 @@
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
+import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 
 // FT-009 straddle history, FT-007 daily implied vs actual move, FT-010 IV crush — read ONLY from
@@ -10,7 +11,6 @@ import styles from './optionsAnalytics.module.css'
 //    sentence, never a number.
 
 const enc = encodeURIComponent
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const W = 520
 const H = 120
 const PAD = 16
@@ -90,7 +90,7 @@ function IvCrush({ sym }) {
   const { data, hidden, failed } = useDarkSection(`/api/research/options-history/${enc(sym)}/iv-crush`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.prints))) return null
   const offs = data?.offsets || []
-  const cell = (v) => (v == null ? '' : `${(v * 100).toFixed(1)}%`)
+  const cell = (v) => (v == null ? '' : fracPct(v))
   return (
     <section className={styles.panel} data-testid="iv-crush">
       <div className={styles.head}><span className={styles.title}>IV around earnings</span><span className={styles.badge}>our log</span></div>

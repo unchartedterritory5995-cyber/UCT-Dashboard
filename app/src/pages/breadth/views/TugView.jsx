@@ -48,8 +48,8 @@ const SHARE_TICKS = [25, 50, 75]
 // The rail every bar is drawn against, so an empty half is visible as empty.
 const trackBase = {
   position: 'absolute', inset: 0, borderRadius: 4,
-  background: 'rgba(148,163,184,0.07)',
-  boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.10)',
+  background: 'color-mix(in srgb, var(--text-muted) 7%, transparent)',
+  boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 10%, transparent)',
 }
 
 function Track({ metric, barKey, share, side, color, onDrill, dim, pulse }) {
@@ -65,7 +65,7 @@ function Track({ metric, barKey, share, side, color, onDrill, dim, pulse }) {
         <div key={t} aria-hidden="true"
              style={{ position: 'absolute', top: 3, bottom: 3, width: 1,
                       ...(side === 'bear' ? { right: `${t}%` } : { left: `${t}%` }),
-                      background: t === 50 ? 'rgba(226,232,240,0.20)' : 'rgba(148,163,184,0.13)' }} />
+                      background: t === 50 ? 'color-mix(in srgb, var(--text-heading) 20%, transparent)' : 'color-mix(in srgb, var(--text-muted) 13%, transparent)' }} />
       ))}
       {/* ⛔ NO `minWidth`. The old bar had one, which meant a 3% share drew as
           though it were ~12% so the number printed inside it would fit — the bar
@@ -82,7 +82,7 @@ function Track({ metric, barKey, share, side, color, onDrill, dim, pulse }) {
 }
 
 const Count = ({ text, align, color }) => (
-  <div style={{ font: '800 12px \'Instrument Sans\', sans-serif', color,
+  <div style={{ fontWeight: 800, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color,
                 textAlign: align, fontVariantNumeric: 'tabular-nums',
                 overflow: 'hidden', whiteSpace: 'nowrap',
                 paddingRight: align === 'right' ? 8 : 0,
@@ -94,13 +94,13 @@ const Count = ({ text, align, color }) => (
 function CentreLabel({ label, sub, gold }) {
   return (
     <div style={{ textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
-      <div style={{ font: '700 10px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
-                    color: gold ? '#c9a84c' : '#cbd5e1', textTransform: 'uppercase',
+      <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', letterSpacing: '.5px',
+                    color: gold ? 'var(--ut-gold)' : 'var(--text-muted)', textTransform: 'uppercase',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </div>
       {sub != null && (
-        <div style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#64748b',
+        <div style={{ font: '600 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                       fontVariantNumeric: 'tabular-nums', marginTop: 1 }}>
           {sub}
         </div>
@@ -127,7 +127,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="tug-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 6, flex: '0 0 auto' }}>
         Bar length = that side’s share of its pair (ticks at 25 · 50 · 75%) · the number is today’s count
       </div>
@@ -136,7 +136,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
       <div data-testid="tug-scale" aria-hidden="true"
            style={{ display: 'grid', gridTemplateColumns: TEMPLATE, gap: 8,
                     flex: '0 0 auto', marginBottom: 6,
-                    font: '700 8px \'Instrument Sans\', sans-serif', color: '#475569',
+                    font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px' }}>
         <div />
         <div style={{ position: 'relative', height: 10 }}>
@@ -144,7 +144,7 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
           <span style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)' }}>50</span>
           <span style={{ position: 'absolute', right: 0 }}>0</span>
         </div>
-        <div style={{ textAlign: 'center', color: '#64748b' }}>SHARE OF PAIR</div>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>SHARE OF PAIR</div>
         <div style={{ position: 'relative', height: 10 }}>
           <span style={{ position: 'absolute', left: 0 }}>0</span>
           <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>50</span>
@@ -219,20 +219,20 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
         <div data-testid="tug-posture"
              style={{ flex: '0 0 auto', marginTop: 10, display: 'flex',
                       alignItems: 'center', gap: 10 }}>
-          <div style={{ font: '700 8px \'Instrument Sans\', sans-serif', color: '#64748b',
+          <div style={{ font: '700 var(--text-xs) var(--font-sans)', color: 'var(--text-muted)',
                         letterSpacing: '.6px', flex: '0 0 auto' }}>NET POSTURE</div>
           <div style={{ position: 'relative', height: 14, flex: '1 1 auto', minWidth: 0 }}>
             <div style={trackBase} />
             <div aria-hidden="true"
                  style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1,
-                          background: 'rgba(226,232,240,0.28)' }} />
+                          background: 'color-mix(in srgb, var(--text-heading) 28%, transparent)' }} />
             <div style={{ position: 'absolute', top: 3, bottom: 3,
                           ...(posture >= 0 ? { left: '50%' } : { right: '50%' }),
                           width: `${Math.min(50, Math.abs(posture) / 2)}%`,
                           background: posture >= 0 ? colors.bull : colors.bear,
                           opacity: dim ? 0.62 : 0.92, borderRadius: 3 }} />
           </div>
-          <div style={{ font: '800 12px \'Instrument Sans\', sans-serif',
+          <div style={{ fontWeight: 800, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)',
                         color: posture >= 0 ? colors.bull : colors.bear,
                         whiteSpace: 'nowrap', flex: '0 0 auto' }}>
             {`${posture >= 0 ? '+' : ''}${posture}% ${posture >= 0 ? 'BULLISH' : 'BEARISH'}`}

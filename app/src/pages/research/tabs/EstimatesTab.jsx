@@ -1,5 +1,10 @@
 import useEstimates from '../hooks/useEstimates'
 import { RevisionColumns, SeriesChart } from '../../../components/research-kit'
+import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
+import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
+import { themeInk } from '../themeInk'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
@@ -9,16 +14,8 @@ import styles from '../ResearchPage.module.css'
 // FMP, via analyst_grades.py, overriding yfinance's own thinner feed) now
 // live in their own dedicated home: AnalystRatingsTab.jsx. Do not re-add
 // analyst-grade content here.
-function fmtBig(v) {
-  if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  return `$${v.toFixed(0)}`
-}
-function fmtEps(v) { return v == null ? '—' : v.toFixed(2) }
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
+const fmtBig = (v) => formatCompactTerminal(v, { money: true })
+const fmtEps = (v) => formatNumber(v, { decimals: 2 })
 
 function trendDir(cur, ago) {
   if (cur == null || ago == null) return ''
@@ -31,7 +28,7 @@ export default function EstimatesTab({ sym }) {
   const { data, isLoading, error, mutate } = useEstimates(sym)
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading estimates…</div></div></div>
+    return <ResearchLoading label="Loading estimates" />
   }
 
   // TERM-088 -- a failed read is not an empty estimate set. Render the error
@@ -54,8 +51,8 @@ export default function EstimatesTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({e.entity.status}).
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
@@ -74,7 +71,7 @@ export default function EstimatesTab({ sym }) {
                     <td>{fmtEps(r.eps_avg)}</td>
                     <td className={styles.muted}>{fmtEps(r.eps_low)}–{fmtEps(r.eps_high)}</td>
                     <td>{r.num_analysts ?? '—'}</td>
-                    <td className={r.eps_growth > 0 ? styles.up : r.eps_growth < 0 ? styles.down : ''}>{fmtPct(r.eps_growth)}</td>
+                    <td className={r.eps_growth > 0 ? styles.up : r.eps_growth < 0 ? styles.down : ''}>{signedPct(r.eps_growth)}</td>
                     <td>{fmtBig(r.rev_avg)}</td>
                   </tr>
                 ))}
@@ -106,12 +103,12 @@ export default function EstimatesTab({ sym }) {
                   periods={rows.map(f => f.period)}
                   mode="band"
                   label={label}
-                  valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+                  valueFormatter={(v) => formatCurrency(v)}
                   ariaLabel={`Forward EPS consensus low, average and high — ${label}`}
                   series={[
-                    { name: 'Low', color: 'var(--text-muted)', values: rows.map(f => f.eps_low) },
-                    { name: 'Consensus', color: 'var(--ut-gold, #c9a84c)', values: rows.map(f => f.eps_avg) },
-                    { name: 'High', color: 'var(--text-muted)', values: rows.map(f => f.eps_high) },
+                    { name: 'Low', color: themeInk('--text-muted', CHART_INK.muted), values: rows.map(f => f.eps_low) },
+                    { name: 'Consensus', color: themeInk('--ut-gold', CHART_INK.gold), values: rows.map(f => f.eps_avg) },
+                    { name: 'High', color: themeInk('--text-muted', CHART_INK.muted), values: rows.map(f => f.eps_high) },
                   ]}
                 />
               )
@@ -154,7 +151,9 @@ export default function EstimatesTab({ sym }) {
         </section>
       )}
 
-      {empty && <div className={styles.fnote}>Estimate data is unavailable for this ticker.</div>}
+      {/* tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). */}
+      {empty && e.not_applicable && <div className={styles.fnote} data-testid="estimates-na">Not applicable to funds — {e.reason || `${sym} is a fund`}.</div>}
+      {empty && !e.not_applicable && <div className={styles.fnote}>Estimate data is unavailable for this ticker.</div>}
     </div>
   )
 }

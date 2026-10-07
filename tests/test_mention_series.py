@@ -77,6 +77,34 @@ class TestSeries:
         buzz_store._reset_for_tests()
 
 
+class TestRoomCache:
+    """S9 (2026-10-05): the room's finished days are read once per TTL; today stays live."""
+    NOW = datetime(2026, 9, 25, 20, tzinfo=timezone.utc)
+
+    def test_a_second_request_reuses_the_finished_days_and_still_sees_today(self, buzz, monkeypatch):
+        ms._ROOM_CACHE.clear()
+        calls = []
+        real = ms._count_by_et_day
+        monkeypatch.setattr(ms, "_count_by_et_day", lambda c, lo, hi: calls.append((lo, hi)) or real(c, lo, hi))
+        ms.series("AAPL", days=7, now=self.NOW)
+        assert len(calls) == 2                     # finished days + today
+        calls.clear()
+        buzz.record_mentions([("9001", "c", "x", "AMD", _ts(2026, 9, 25, 18), "cashtag")])
+        out = ms.series("NVDA", days=7, now=self.NOW)
+        assert len(calls) == 1                     # only today was read again
+        assert _by_date(out)["2026-09-25"]["room_mentions"] == 2
+        assert _by_date(out)["2026-09-22"]["room_mentions"] == 10
+
+    def test_a_backfilled_past_day_appears_once_the_ttl_lapses(self, buzz, monkeypatch):
+        ms._ROOM_CACHE.clear()
+        ms.series("AAPL", days=7, now=self.NOW)
+        buzz.record_mentions([("9002", "c", "x", "AMD", _ts(2026, 9, 22, 16), "cashtag")])
+        assert _by_date(ms.series("AAPL", days=7, now=self.NOW))["2026-09-22"]["room_mentions"] == 10
+        clock = ms.time.monotonic() + ms._ROOM_TTL_S + 1
+        monkeypatch.setattr(ms.time, "monotonic", lambda: clock)
+        assert _by_date(ms.series("AAPL", days=7, now=self.NOW))["2026-09-22"]["room_mentions"] == 11
+
+
 class TestRoute:
     @pytest.fixture
     def client(self):

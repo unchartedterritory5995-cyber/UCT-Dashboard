@@ -228,6 +228,7 @@ from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.routers import etf as etf_router
 from api.routers import waitlist as waitlist_router  # pre-launch COMING SOON capture
+from api.routers import ltr_call_request as ltr_call_request_router  # /live-trading-room call requests
 # landing_analytics existed but was never mounted, so the landing page's track()
 # calls and the /admin/landing-analytics page had no backend at all.
 from api.routers import landing_analytics as landing_analytics_router
@@ -1100,6 +1101,47 @@ def _start_breadth_series_warm_background(delay_seconds: int = 5) -> None:
     threading.Thread(target=_delayed, daemon=True, name="breadth-series-warmer").start()
 
 
+# ⛔ The research warm starts LAST, after every other boot warmer's delay plus the RS
+# recompute it would otherwise overlap. Measured on the 2026-10-06 17:46 UTC boot (lifespan
+# at +8 s): RS rankings computed 17:48:23 -> 17:49:30 (+128 s -> +195 s, ~67 s of CPU), the
+# calendar-enrichment warm ran from +90 s, and the 90 s research warm sat in the middle of
+# both -- the window in which three `TSM EE` opens hung 102 / 47 / 5 s and released together.
+# 210 s = the latest other starter (RS, 120 s) + the ~67 s it computes + margin.
+# tests/test_boot_contention.py derives the other starters' delays from this file's AST.
+RESEARCH_WARM_DELAY_S = 210
+
+
+def _start_research_panel_warm_background(delay_seconds: int = RESEARCH_WARM_DELAY_S) -> None:
+    """Warm the terminal's heaviest research panels (EE, FA, ANR, OWN, RTG) for a short list of
+    liquid names after boot, so the first member to open `TSM EE` after a deploy is not the one
+    who pays the cold vendor reads (measured 2026-10-06: past the panel's 30 s deadline at boot,
+    0.6 s a minute later). See api/services/research_panel_warm.py for what is warmed and why.
+
+    Its OWN thread, not a step in `_start_dashboard_warm_background`'s chain: that chain carries
+    the 60-100 s calendar enrichment and the curated flow scan, and these panels are opened in
+    the first minutes. Delayed past every other boot warmer (`RESEARCH_WARM_DELAY_S`), one
+    symbol at a time, paced, budgeted, yielding the FMP bucket to members, and as BACKGROUND
+    work for single_flight so a member never queues behind it. Default ON;
+    `RESEARCH_PANEL_WARM_ENABLED=0` turns it off."""
+    import threading
+
+    if os.environ.get("RESEARCH_PANEL_WARM_ENABLED", "1").strip() == "0":
+        logging.getLogger(__name__).info("[research-warm] disabled (RESEARCH_PANEL_WARM_ENABLED=0)")
+        return
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        log = logging.getLogger(__name__)
+        try:
+            from api.services.research_panel_warm import warm_research_panels
+            log.info("[research-warm] %s", warm_research_panels())
+        except Exception:
+            log.exception("[research-warm] failed")
+
+    threading.Thread(target=_delayed, daemon=True, name="research-panel-warmer").start()
+
+
 def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
     """Pre-warm the dashboard/landing-facing caches shortly after boot.
 
@@ -1150,6 +1192,15 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             # (and off one of the pod's bounded threadpool workers).
             from api.services.breadth_live import warm
             log.info("[dashboard-warm] breadth-live %s", warm())
+
+        def _screener_meta():
+            # L9 (terminal live audit, 2026-10-05): `/api/screener/meta` measured
+            # 8.3 s on first open. The cost is `distribution.distributions()` --
+            # p5..p95 over every range column of the snapshot -- which is cached
+            # per snapshot vintage, so the first member after each deploy paid it.
+            # Local SQLite only; no outbound call.
+            from api.services.screener import distribution
+            distribution.distributions()
 
         def _calendar():
             from api.routers.calendar import get_calendar
@@ -1228,6 +1279,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("news", _news)
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
+            _warm("screener-meta", _screener_meta)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
             # NOT `_enrichment` — and `_enrichment` is the 60-100s step in this
@@ -1746,6 +1798,10 @@ def register_screener_jobs(scheduler):
                 print(f"[scheduler] screener snapshot build: "
                       f"built={stats.get('built')} skipped={stats.get('skipped')} "
                       f"errors={stats.get('errors')}")
+                # L9: a rebuilt snapshot is a new vintage, so the screener panel's
+                # bands go cold with it. Compute them here, not on the first open.
+                from api.services.screener import distribution
+                distribution.distributions()
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
@@ -3236,6 +3292,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
+    # Boot-window probe (2026-10-06 EE boot stall): every 5 s for the first 5 min, one
+    # `[boot-probe]` line (anyio tokens, threads, yf pool queue, loop lag, CPU/disk, threads
+    # inside an import); for the life of the process, a `[slow-stack]` line for any tracked
+    # request block stuck past 10/30/90/180/360 s. Kill switch: BOOT_PROBE_ENABLED=0.
+    try:
+        if (os.environ.get("BOOT_PROBE_ENABLED", "1").strip().lower()
+                not in ("0", "false", "no", "off")):
+            import asyncio as _bp_aio
+            from api.services import boot_probe as _boot_probe
+            app.state.boot_probe_task = _bp_aio.get_running_loop().create_task(
+                _boot_probe.run_sampler())
+            print("[startup] boot probe armed (5s ticks, 300s summary window)")
+    except Exception as e:
+        print(f"[startup] boot probe failed to start (non-fatal): {e}")
+
     # ⚡ Carry the warm cache across the deploy — FIRST, before anything slow and
     # long before uvicorn binds, so the pod is already warm the instant it takes
     # traffic instead of ~3.5 min later. Each entry comes back with the life it
@@ -3859,6 +3930,7 @@ async def lifespan(app: FastAPI):
         readiness.register("dashboard")
         _start_dashboard_warm_background()
         _start_breadth_series_warm_background()
+        _start_research_panel_warm_background()
         _start_chart_renderer_warm_background()
         # ⛔ The discord-chart hot-warm interval job does NOT register here:
         # `_scheduler` is assigned ~1,300 lines below in this same function, so
@@ -5001,6 +5073,16 @@ async def lifespan(app: FastAPI):
                          kwargs={"interval": int(os.environ.get("BREADTH_V2_SYNC_SECS", "600"))},
                          daemon=True, name="breadth_v2_sync").start()
         print("[startup] breadth V2 authority replica sync started")
+
+    # ⭐ NYSE / NASDAQ (Exchange Breadth V1) member authority: follow the published pointer into a verified
+    # read-only replica (breadth_exchange_authority). Serving consults it only when
+    # BREADTH_AUTHORITY_EXCH=v1. Default OFF.
+    if os.environ.get("BREADTH_EXCH_SYNC_ENABLED") == "1":
+        from api.services import breadth_exchange_authority as _exch_authority
+        threading.Thread(target=_exch_authority.sync_loop,
+                         kwargs={"interval": int(os.environ.get("BREADTH_EXCH_SYNC_SECS", "600"))},
+                         daemon=True, name="breadth_exch_sync").start()
+        print("[startup] exchange breadth authority replica sync started")
 
     # Historical breadth-sentiment seed: load the versioned public-archive CSV
     # (AAII/put-call/CNN F&G/NAAIM back to 1987) into breadth_sentiment_history so
@@ -6785,6 +6867,21 @@ async def lifespan(app: FastAPI):
                 print("[startup] exposure-gate-watch: on (2-min RTH cadence)")
         except Exception as e:
             print(f"[scheduler] exposure_gate_watch job registration error: {e}")
+
+        # -- Market tide RTH refresh (L2, terminal backend fixes 2026-10-05) --
+        # Rebuilds the tide every 2 min in the regular session so a member never opens one
+        # built at the last viewer's visit. Gated on the tide's own switch; the function owns
+        # the 09:30/16:15 and holiday boundaries (the cron over-covers on purpose).
+        try:
+            from api.services.options_analytics import flags as _oa_flags
+            if _oa_flags.is_on("OPTIONS_MARKET_TIDE_ENABLED"):
+                from api.services.options_analytics import market_tide as _tide
+                _scheduler.add_job(_tide.warm_rth,
+                    trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*/2", timezone=_ET),
+                    id="market_tide_rth_warm", max_instances=1, coalesce=True, replace_existing=True)
+                print("[startup] market-tide RTH warm: on (2-min cadence)")
+        except Exception as e:
+            print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
 
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
@@ -9136,6 +9233,7 @@ def _wire_enabled() -> bool:
 app.include_router(insider_router.router)
 app.include_router(auth_router.router)
 app.include_router(waitlist_router.router)
+app.include_router(ltr_call_request_router.router)
 app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
 app.include_router(avatar_router.router, dependencies=_OPEN_READS)
@@ -9336,6 +9434,8 @@ app.include_router(fundamentals_router.router, dependencies=_OPEN_READS)
 app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
 from api.routers import econ as econ_router  # noqa: E402 -- beside its mount: keeps the line-keyed bars census stable
 app.include_router(econ_router.router)  # economic data member API; dark unless ECON_ENABLED=1
+from api.routers import marketcap_pit as marketcap_pit_router  # noqa: E402 -- beside its mount (see econ above)
+app.include_router(marketcap_pit_router.router)  # Market Cap V1 PIT member API; dark unless MCAP_PIT_ENABLED=1
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(filings_router.router, dependencies=_OPEN_READS)

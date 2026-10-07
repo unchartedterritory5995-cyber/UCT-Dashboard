@@ -1,0 +1,19 @@
+[
+ {
+  "ticker": "NVA",
+  "cik": 1852551,
+  "state": [["COMMON", 38194368.0, "0001493152-26-045120"]],
+  "disposition": "CORRECT",
+  "class": "A_NEW_VALUE_CORRECT_DETECTOR_STALE",
+  "evidence": {
+   "identity": "CIK 1852551 = Nova Minerals Corp (Delaware), successor of Nova Minerals Limited (Australia, ADS-listed) by redomiciliation completed 2026-06-16: Form 8-K12B 0001493152-26-028856 filed 2026-06-16 (lineage.db: successor relationship AMBIGUOUS -> pre-redomiciliation history stays SUCCESSOR_ISSUER_RELATIONSHIP_UNRESOLVED, then PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE 2026-06-17..2026-09-30, unchanged from accepted M3)",
+   "applicability": "the successor's OWN first annual report: Form 10-K 0001493152-26-045120 filed 2026-09-30, cover dei:EntityCommonStockSharesOutstanding 38,194,368 as of 2026-09-30 (balance sheet 38,181,050 at 2026-06-30 agrees); known_from 2026-10-01 under the V1 16:00 ET clock",
+   "market_cap": "2026-10-02 close 5.76 (price authority PRICE-APPEND, official grouped daily) x 38,194,368 = $219,999,560",
+   "detector": "Massive reference NVA: share_class_shares_outstanding null, weighted_shares_outstanding 494,308,720 (a period average carried from the pre-redomiciliation Australian ordinary count, ~12.94 per new share) -> Massive cap $2.85B is not a current detector for this security",
+   "price_session": "2026-10-01 and 2026-10-02 (NYSE American)",
+   "split_state": "Massive lists only 2025-10-29 1:5 (before any valued day); no corporate action inside the valued window"
+  },
+  "adjudicated_by": "production-lifecycle reproof 2026-10-06 (identity -> evidence applicability -> market cap); owner acceptance pending",
+  "adjudicated_at": "2026-10-06"
+ }
+]

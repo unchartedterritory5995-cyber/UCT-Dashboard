@@ -7,6 +7,7 @@ import { computeSessionStale } from '../../../components/provenance/sessionStale
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { parseEtTimestamp, ET_ZONE } from '../../../lib/marketClock/etTime'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 // A8 News/Intelligence Slice 1 (owner-authorized narrow slice,
@@ -23,7 +24,7 @@ function TrustStrip({ meta, sessionContext }) {
   const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
   const sessionStale = computeSessionStale(asOfIso)
   return (
-    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+    <div className={styles.trustStrip}>
       <Provenance
         value="FMP"
         availability={availability}
@@ -85,7 +86,7 @@ export default function NewsTab({ sym }) {
   const session = useMarketOpen()
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading news…</div></div></div>
+    return <ResearchLoading label="Loading news" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty news feed. Render the
@@ -107,8 +108,8 @@ export default function NewsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({e.entity.status}).
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
@@ -117,7 +118,7 @@ export default function NewsTab({ sym }) {
           <div className={styles.ct}>Company news</div>
           <ul className={styles.newsList} data-testid="news-list">
             {items.map((it, i) => (
-              <li key={`${it.id}-${i}`} className={styles.newsItem}>
+              <li key={`${it.id}-${i}`} className={styles.newsItem} data-panel-row>
                 {it.image && (
                   <img className={styles.newsThumb} src={it.image} alt="" onError={hideBrokenImage} />
                 )}

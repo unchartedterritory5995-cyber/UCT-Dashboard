@@ -185,6 +185,11 @@ def _build_snapshot(sym: str) -> dict:
         "analyst_recommendation": fund.get("analyst_recommendation"),
         "analyst_count": fund.get("analyst_count"),
     }
+    # An ADR's statements are in the company's own currency (TSM: TWD). The
+    # fundamentals service already withheld the ratios that would divide the USD
+    # price by them; say which and why, so "—" is not read as "no data".
+    out["reporting_currency"] = fund.get("reporting_currency")
+    out["currency_withheld"] = fund.get("currency_withheld") or {}
 
     # `complete` gates BOTH the memory cache write and the disk persist — a
     # transient all-null composition (both `get_fundamentals`/`get_ratings`

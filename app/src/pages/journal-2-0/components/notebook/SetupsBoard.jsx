@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
@@ -53,6 +53,9 @@ function Board({ onFindSimilar }) {
     { revalidateOnFocus: false, shouldRetryOnError: false })
   const [page, setPage] = useState(0)
   const cards = useMemo(() => (Array.isArray(data?.cards) ? data.cards : []), [data])
+  // A sample's card is shown and labelled, and is never one of the member's setups: the
+  // "none yet" guidance is decided on their OWN cards (the server marks `example`).
+  const hasOwn = useMemo(() => cards.some((c) => !c.example), [cards])
   const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE))
   const current = Math.min(page, pages - 1)
   const pageCards = useMemo(() => cards.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE), [cards, current])
@@ -78,7 +81,7 @@ function Board({ onFindSimilar }) {
       </div>
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
-      {!error && data && cards.length === 0 && (
+      {!error && data && !hasOwn && (
         <p className={styles.quiet}>
           No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the
           distance in R) and it shows here.
@@ -197,14 +200,9 @@ export default function SetupsBoard() {
     setParams((p) => { const n = new URLSearchParams(p); n.delete('similar'); return n }, { replace: true })
   }, [setParams])
 
-  if (!boardOn && !similarOn) {
-    return (
-      <div className={styles.page}>
-        <p className={styles.quiet}>This page is not available yet.</p>
-        <Link className={styles.noteLink} to="/journal/notebook">Back to the Notebook</Link>
-      </div>
-    )
-  }
+  // Both capabilities off: the route sends the member back to the Notebook (as My Playbook
+  // sends them to Insights) instead of a page that says a dark feature exists.
+  if (!boardOn && !similarOn) return <Navigate to="/journal/notebook" replace />
   return (
     <div className={styles.page} data-setups-page="">
       <h1 className={styles.pageTitle}>Setups</h1>

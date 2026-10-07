@@ -1,6 +1,8 @@
 /* app/src/components/fundamentals/OwnershipPanel.module.css — real design tokens, no emoji */
 .root { height: 100%; overflow: auto; padding: 8px 10px; font-family: var(--font-sans); font-size: var(--text-base, 12px); color: var(--text); }
 .hint { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--text-muted); font-size: var(--text-sm, 11px); }
+/* TERM-033: Retry beside a failed read. */
+.retry { margin-left: 8px; min-height: var(--tap-min, 44px); padding: 0 10px; font-size: inherit; color: var(--text-bright); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
 .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; color: var(--text-bright); }
 .sectionLabel { font-size: var(--text-xs, 10px); letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin: 6px 0 4px; }
 .tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }

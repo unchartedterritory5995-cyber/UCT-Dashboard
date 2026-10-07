@@ -212,7 +212,6 @@ const BASELINE = {
   'app/src/pages/charts/widgets/BreadthSettingsPanel.jsx': { literal: 1 },
   'app/src/pages/charts/widgets/BreadthWidget.jsx': { literal: 1 },
   'app/src/pages/charts/widgets/ChartDateNav.jsx': { literal: 1 },
-  'app/src/pages/charts/widgets/ChartDetailDock.jsx': { literal: 1 },
   'app/src/pages/charts/widgets/ChartWidget.jsx': { literal: 1 },
   'app/src/pages/charts/widgets/FundamentalsSettingsPanel.jsx': { literal: 1 },
   'app/src/pages/charts/widgets/LeverageInverseControl.jsx': { literal: 1 },
@@ -264,7 +263,7 @@ const BASELINE = {
 }
 
 // ⛔ THE STATED CEILING. Sum of every bucket in BASELINE. Only ever edited DOWN.
-const CEILING = 112
+const CEILING = 111
 
 describe('TERM-063 — the census can see (controls)', () => {
   const q = "'"

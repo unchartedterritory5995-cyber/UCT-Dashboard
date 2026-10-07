@@ -39,12 +39,12 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 def _sym(sym: Optional[str]) -> Optional[str]:
     if sym is None:
         return None
-    s = sym.upper().strip()
-    if not s:
+    if not sym.strip():
         return None
-    if not _SYM_RE.match(s):
-        raise HTTPException(status_code=400, detail="Not a ticker")
-    return s
+    # The one route spelling (BRK.B -> BRK-B), refused with a sentence when it is
+    # not a ticker -- `ticker_resolver.route_symbol` owns both rules.
+    from api.services.ticker_resolver import require_route_symbol
+    return require_route_symbol(sym)
 
 
 # ── FT-058/059/060 filing search ────────────────────────────────────────────

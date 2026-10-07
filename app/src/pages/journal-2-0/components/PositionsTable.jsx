@@ -360,20 +360,28 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
          (`:525-527`), which renders `<PhoneCard>`, a component: a data attribute there would
          land on a React prop, not on a DOM node, so it sits on the card's own root instead. */
       data-hub-pos={String(position.id)}
+      /* ⛔ Lane FIN-A11Y round 2: the card is a named GROUP, not a button. It used to be
+         `role="button"` with the thesis chip and Edit/Close/Delete inside it, and interactive
+         content inside a button is ONE control to a screen reader. The primary action is the
+         real <button> on the title below; the chip and the three actions are its siblings.
+         The click handler stays as a pointer convenience (a tap anywhere on the card still
+         opens it); the keyboard and screen-reader door is the title button. tabIndex -1 keeps
+         the card focusable FROM A SCRIPT, which the delete-focus fallback relies on
+         (OpenPositionsTab: the card after a deleted one takes focus by this attribute). */
       onClick={handleCardClick}
-      role="button"
-      tabIndex={0}
-      aria-label={`${position.symbol} position — open chart, research, and actions`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleCardClick(e)
-        }
-      }}
+      role="group"
+      tabIndex={-1}
+      aria-label={`${position.symbol} position`}
     >
       <div className={styles.cardHead}>
         <div className={styles.cardIdent}>
-          <span className={styles.cardSym}>{position.symbol}</span>
+          <button
+            type="button"
+            className={`${styles.cardSym} ${styles.cardOpen}`}
+            aria-label={`${position.symbol} position — open chart, research, and actions`}
+          >
+            {position.symbol}
+          </button>
           {thesisChip && <ThesisChip chip={thesisChip} currentPrice={hasPrice ? current : null} />}
           {sideBadge(position.side, isOpt ? position.sideKind === 'long' : undefined)}
         </div>

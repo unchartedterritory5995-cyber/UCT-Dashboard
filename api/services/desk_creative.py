@@ -5,8 +5,8 @@ Two composers, both fed the day's story (the wire brief already sitting on this
 pod at /data/wire_data.json) plus the routed show, both behind deterministic
 gates, and both structurally unable to break a publish:
 
-  compose_title(...)  -> "Hook | Show — Month D, YYYY"; ANY failure returns the
-                         classic "Show — Month D, YYYY" (a title always exists).
+  compose_title(...)  -> "Hook | Show: Month D, YYYY"; ANY failure returns the
+                         classic "Show: Month D, YYYY" (a title always exists).
   render_cover(...)   -> framed 1280x720 JPEG bytes, or None; the caller falls
                          back to the existing per-show themed card on None.
 
@@ -54,26 +54,45 @@ def _data_dir() -> str:
     return os.environ.get("DESK_CREATIVE_DATA_DIR", "/data")
 
 
+# The structural separator between the show and the date. ": " for every title
+# minted from 2026-10-05 on (owner rule: no em dashes in new public copy). The
+# legacy " — " is READ-ONLY: ~70 already-published titles carry it, YouTube titles
+# are never rewritten, and every parser below must keep recovering them.
+TITLE_SEP = ": "
+LEGACY_TITLE_SEP = " — "
+_TITLE_SEPS = (TITLE_SEP, LEGACY_TITLE_SEP)
+
+
 def date_suffix(date_text: str) -> str:
-    """THE one owner of the structural '— {date}' tail every session title ends
-    with, classic and creative alike. desk_daily_session derives its titles AND
-    the 18:00 safety net's match from here — never restate this format."""
-    return f"— {date_text}"
+    """THE one owner of the structural ': {date}' tail every NEW session title
+    ends with, classic and creative alike. desk_daily_session derives its titles
+    AND the 18:00 safety net's match from here — never restate this format."""
+    return f"{TITLE_SEP}{date_text}"
+
+
+def date_suffixes(date_text: str) -> tuple[str, ...]:
+    """Every tail a published title for this date may end with: the current
+    separator first, then the legacy em-dash one. For MATCHING only (a title
+    shipped just before the separator change must still count as today's)."""
+    return tuple(f"{sep}{date_text}" for sep in _TITLE_SEPS)
 
 
 def classic_title(title_prefix: str, date_text: str) -> str:
     """Today's exact title format — the fallback every creative failure lands on."""
-    return f"{title_prefix} {date_suffix(date_text)}"
+    return f"{title_prefix}{date_suffix(date_text)}"
 
 
 def parse_session_title(title: str) -> tuple[str, str] | None:
     """(show, date_text) recovered from a PUBLISHED session title, classic or
-    creative. Hooks are dedashed at compose time, so the last ' — ' in any
-    shipped title is the structural separator by construction."""
+    creative, under EITHER separator. The date tail never contains a separator,
+    so the LAST occurrence of either one is the structural split by
+    construction: a new 'Show — Guest: October 5, 2026' splits on the colon, a
+    legacy 'Workshop: Basics — July 1, 2026' on the em dash."""
     t = str(title or "")
-    if " — " not in t:
+    cut, sep = max(((t.rfind(s), s) for s in _TITLE_SEPS), key=lambda x: x[0])
+    if cut < 0:
         return None
-    left, date_text = t.rsplit(" — ", 1)
+    left, date_text = t[:cut], t[cut + len(sep):]
     show = left.split(" | ")[-1].strip()
     date_text = date_text.strip()
     if not show or not date_text:
@@ -464,7 +483,7 @@ _WS = re.compile(r"\s+")
 
 def _dedash(text: str) -> str:
     """Em/en-dashes out of a hook (the owner's dead-giveaway tell); the
-    structural ' — date' separator is appended AFTER this, so it survives."""
+    structural ': date' separator is appended AFTER this, so it survives."""
     return _WS.sub(" ", re.sub(r"\s*[—–]\s*", ", ", text)).strip(" ,")
 
 
@@ -544,7 +563,7 @@ def compose_title(*, section: str, title_prefix: str, date_text: str,
                   ctx=_UNSET, llm=None, history_path=None, record: bool = True,
                   facts: dict | None = None) -> str:
     """Today's title for this session. NEVER raises — any failure ships the
-    classic '{Show} — {date}' format, which is exactly today's behavior.
+    classic '{Show}: {date}' format, which is exactly today's behavior.
 
     record=False composes without touching history — the publish pipeline
     records via record_shipped_title() only AFTER the upload confirms, so a
@@ -625,10 +644,12 @@ def recall_title(title_prefix: str, date_text: str, history_path=None) -> str | 
     (the classic format then ships, which every title style ends with)."""
     try:
         history_path = history_path or os.path.join(_data_dir(), "desk_title_history.json")
-        tail = " | " + classic_title(title_prefix, date_text)
+        # Either separator: a title recorded just before the ": " change must
+        # still be recalled for a job re-claimed just after it.
+        tails = tuple(" | " + title_prefix + sfx for sfx in date_suffixes(date_text))
         for h in reversed(_load_history(history_path)):
             t = str(h.get("title") or "")
-            if t.endswith(tail):
+            if t.endswith(tails):
                 return t
     except Exception:
         pass

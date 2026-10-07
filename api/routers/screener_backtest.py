@@ -424,8 +424,15 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     # `ast_hash` moves, while `compute.rev` sat at 1 for every stored blob until
     # `PUT /api/user-definitions/{def_id}` gained a product caller. Reading both
     # from the row would look tidier and would silently stop matching the record.
+    # ⭐⭐ THE STORED DOCUMENT'S SEMANTICS (owner decision A, 2026-10-06), read by
+    # `ast_interpret.semantics_for` — the server's stamp, never a client field. A
+    # posted `ast` body has no document and is semantics 1, whatever it claims.
+    from api.services import ast_interpret
+    # `_semantics` is PRIVATE to this route: popped before the provenance is
+    # echoed, so the member-visible provenance contract is unchanged.
     return tree, {"def_id": def_id, "version": row.get("version"),
-                  "rev": compute.get("rev")}
+                  "rev": compute.get("rev"),
+                  "_semantics": ast_interpret.semantics_for(doc)}
 
 
 def _tree_of(body: BacktestRequest, user_id: Any = None) -> tuple[dict, dict]:
@@ -741,7 +748,7 @@ def _iso(session: int) -> str:
 
 def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
                 horizons: list[int], read_bars, want: int, to_key: int,
-                tf: str = "D") -> dict:
+                tf: str = "D", semantics: int = 1) -> dict:
     """The ONLY call into ``api/services/screener/backtest.py``.
 
     ⛔ Nothing is post-processed. Whatever receipt the engine returns — including
@@ -769,7 +776,10 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
         tree, symbols, _iso(start), _iso(end),
         bars_for=lambda sym: read_bars(sym, want),
         horizons=horizons,
-        bars_source=_bars_source_label(tf, want, to_key))
+        bars_source=_bars_source_label(tf, want, to_key),
+        # ⭐ the canonical opts for the definition semantics — None for 1, so a
+        # semantics-1 replay evaluates exactly as it always did
+        opts=({"semantics": 2} if semantics == 2 else None))
     # ⛔ `.to_dict()` AND NOT `dataclasses.asdict`. The receipt decides which keys
     # a refusal carries and which an answer carries (`forward_returns`/`baseline`
     # only when `backtestable`), and `asdict` would flatten that decision into
@@ -813,16 +823,22 @@ def _envelope(receipt: dict, extras: dict) -> dict:
 # --------------------------------------------------------------------------- #
 
 def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
-           horizons: list[int]) -> str:
+           horizons: list[int], semantics: int = 1) -> str:
     """Deterministic id for one backtest. No clock, no RNG, no counter.
 
     Same inputs → same id → the poll finds the receipt that was already computed,
     and "run it twice, get the same answer" is checkable rather than promised.
     """
-    payload = json.dumps(
-        {"ast": tree, "symbols": list(symbols), "tf": tf,
-         "from": start, "to": end, "horizons": list(horizons)},
-        sort_keys=True, separators=(",", ":"), default=str)
+    body = {"ast": tree, "symbols": list(symbols), "tf": tf,
+            "from": start, "to": end, "horizons": list(horizons)}
+    # ⭐⭐ THE RECEIPT CACHE IS SHARED ACROSS MEMBERS, SO ITS KEY CARRIES THE
+    # SEMANTICS (owner decision A): a semantics-2 replay of a tree can never be
+    # served the semantics-1 receipt of the same tree, or the reverse. Added ONLY
+    # for semantics 2, so every semantics-1 id — and every receipt already cached
+    # under one — is byte-identical to what it was.
+    if semantics == 2:
+        body["semantics"] = 2
+    payload = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
 
@@ -940,6 +956,10 @@ def run_screen_backtest(body: BacktestRequest,
     must not go missing.
     """
     tree, definition = _tree_of(body, user.get("id"))
+    # ⭐⭐ OWNER DECISION A — the semantics the replay runs under, decided by the
+    # STORED definition (`_definition_tree`); a posted tree is semantics 1. Popped
+    # here, first, so the private key never reaches an echo of the provenance.
+    semantics = 2 if (definition.pop("_semantics", 1) if definition else 1) == 2 else 1
     tf = _tf(body.tf)
 
     # ⛔⛔ THE WINDOW THE MEMBER TYPED IS PARSED **HERE**, BEFORE THE UNIVERSE IS
@@ -1032,7 +1052,7 @@ def run_screen_backtest(body: BacktestRequest,
                     f"({len(symbols):,} symbols x {want:,} bars) and the ceiling "
                     f"is {cap:,}. Narrow the universe or shorten the window."))
 
-    job = job_id(tree, symbols, tf, start, end, horizons)
+    job = job_id(tree, symbols, tf, start, end, horizons, semantics=semantics)
 
     # ⛔ `universe_request`, NOT `universe`, AND NO `bars_source` AT ALL.
     # The engine's receipt already writes both: `Receipt.universe` is a REQUIRED
@@ -1063,7 +1083,11 @@ def run_screen_backtest(body: BacktestRequest,
         # a digest of the tree, so two members running identical maths compute the
         # identical string — there is nothing of either member in it. See `mine`
         # below for the half that is not like this.
-        "def_hash": _hash_of(tree),
+        # ⭐⭐ …PLUS THE SEMANTICS IT RAN UNDER (owner decision A): the RESULT
+        # identity every other consumer files this definition under
+        # (`user_definitions.result_identity`) — bare for semantics 1, `~s2` for 2.
+        "def_hash": (defs.semantic_identity(_hash_of(tree), semantics)
+                     if _hash_of(tree) else None),
     }
 
     # ⛔⛔ PER-CALLER, AND THEREFORE NEVER WRITTEN INTO THE SHARED ENTRY.
@@ -1133,7 +1157,7 @@ def run_screen_backtest(body: BacktestRequest,
         receipt = _run_engine(tree, symbols, start=start, end=end,
                               horizons=horizons,
                               read_bars=_bars_reader(tf, to_key),
-                              want=want, to_key=to_key, tf=tf)
+                              want=want, to_key=to_key, tf=tf, semantics=semantics)
         return _envelope(receipt, extras)
 
     if background:

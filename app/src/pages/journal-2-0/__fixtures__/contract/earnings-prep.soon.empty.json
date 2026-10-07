@@ -1,0 +1,18 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/earnings-prep/soon",
+    "note": "A member who watches nothing that reports this week.",
+    "path": "/api/j2/earnings-prep/soon",
+    "status": 200
+  },
+  "body": {
+    "asOf": "2026-10-05T14:30:00+00:00",
+    "items": [],
+    "partial": false,
+    "source": "UCT earnings calendar",
+    "today": "2026-10-05",
+    "watched": 0,
+    "windowDays": 7
+  }
+}

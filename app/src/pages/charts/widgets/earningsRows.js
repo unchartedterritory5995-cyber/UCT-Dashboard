@@ -20,6 +20,8 @@
  * "EPS and sales both tripled" without a badge repeating it.
  */
 
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+
 // ── formatting ──────────────────────────────────────────────────────────────
 export function fmtEps(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
@@ -27,16 +29,24 @@ export function fmtEps(v) {
   return `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`
 }
 
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact). Each formatter
+// passes the ladder it already had and keeps its own sign rule (the sign is written by this
+// file, formatCompact only sees the magnitude), so what a member reads does not move.
+const SALES_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 0 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const GROWTH_TIERS = [{ at: 1000, suffix: 'K', decimals: 1 }]
+
 export function fmtSales(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
   const a = Math.abs(n)
   const s = n < 0 ? '-' : ''
-  if (a >= 1e12) return `${s}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(0)}M`
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(0)}K`
-  return `${s}$${a.toFixed(0)}`
+  if (a < 1e3) return `${s}$${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: SALES_TIERS, prefix: '$' })}`
 }
 
 /** A growth percentage. Four figures and up compress to "+1.4K%" so the column
@@ -46,7 +56,7 @@ export function fmtPct(v, decimals = 0) {
   const n = Number(v)
   const sign = n > 0 ? '+' : n < 0 ? '−' : ''
   const a = Math.abs(n)
-  if (a >= 1000) return `${sign}${(a / 1000).toFixed(1)}K%`
+  if (a >= 1000) return `${sign}${formatCompact(a, { tiers: GROWTH_TIERS })}%`
   return `${sign}${a.toFixed(decimals)}%`
 }
 

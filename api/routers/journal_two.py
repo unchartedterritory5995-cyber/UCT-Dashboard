@@ -580,10 +580,14 @@ def create_position(
         )
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    # Wave 13 lane 13E-1: freeze the market context at the fill. Runs after the response,
-    # reads only the position just returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is
-    # off, and never raises -- the add has already succeeded and nothing here can change it.
-    background_tasks.add_task(entry_context_service.on_position_added, user["id"], created)
+    # Wave 13 lane 13E-1: freeze the market context at the fill. Reads only the position just
+    # returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is off, and never raises -- the
+    # add has already succeeded and nothing here can change it.
+    # ⛔ QUEUED, NEVER A STARLETTE BACKGROUND TASK (fin-security I-1): a sync background task
+    # runs on the same thread pool every sync route uses, and this capture can wait on a
+    # vendor. `schedule_position_capture` does no I/O here; the capture runs on its own two
+    # threads, bounded per member and in total, and only for a paid member.
+    entry_context_service.schedule_position_capture(user["id"], created)
     return created
 
 
@@ -682,6 +686,12 @@ _EXPORT_CSV_HEADERS = [
 ]
 
 
+#: fin-data I5: the member's "why did you take it" note (13E, `j2_entry_context.why_text`) and
+#: when it was last saved. These two columns follow the stable set, and ONLY when at least one
+#: exported trade has a why: a member who never wrote one gets the file exactly as it was.
+_EXPORT_WHY_HEADERS = ["entryWhy", "entryWhyUpdatedAt"]
+
+
 def _split_export_datetime(iso: Any) -> tuple[str, str]:
     """(date, time-of-day) for a stored ISO timestamp, matching the trading-day
     spine convention: a date-only entry (bare date OR exact UTC midnight) →
@@ -734,6 +744,15 @@ def export_trades(
         user["id"], account_id=account_id, spec=spec,
     )
 
+    # fin-data I5: the words a member wrote about WHY they took a trade are their data, and
+    # they were in no export. They ride next to their own trade here. Read by the same
+    # (symbol, entry day) key the card uses; read-only; not gated on the entry-context switch
+    # (turning a feature off must not hide a member's words from their own export); and
+    # absent entirely -- no column, no key -- when none of the exported trades has one.
+    whys = entry_context_service.why_for_trades(user["id"], trades)
+    if whys:
+        trades = [{**t, "entryWhy": whys.get(str(t.get("id")))} for t in trades]
+
     date_str = datetime.now().strftime("%Y-%m-%d")
     filename = f"uct-journal-trades-{date_str}.{fmt}"
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
@@ -749,10 +768,11 @@ def export_trades(
     # quote / newline automatically (no fragile hand-rolled joining).
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(_EXPORT_CSV_HEADERS)
+    writer.writerow(_EXPORT_CSV_HEADERS + (_EXPORT_WHY_HEADERS if whys else []))
     for t in trades:
         entry_date, entry_time = _split_export_datetime(t.get("entryDate"))
         exit_date, exit_time = _split_export_datetime(t.get("exitDate"))
+        why = t.get("entryWhy") or {}
         writer.writerow([
             _export_cell(t.get("symbol")),
             _export_cell(t.get("side")),
@@ -769,7 +789,7 @@ def export_trades(
             ";".join(t.get("mistakeTags") or []),
             ";".join(t.get("emotionTags") or []),
             _export_cell(t.get("source")),
-        ])
+        ] + ([_export_cell(why.get("text")), _export_cell(why.get("updatedAt"))] if whys else []))
     return Response(content=buf.getvalue(), media_type="text/csv", headers=headers)
 
 
@@ -3147,6 +3167,12 @@ def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(ge
 
 @router.post("/notes/import/confirm")
 def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    # fin-data I3: `source` is stored as `j2_notes.import_source`, and one value of it is the
+    # sample notebook's durable marker. A note carrying it is left out of every statistic and
+    # is trashed by "Remove sample", so only the server's own seed may write it.
+    from api.services.journal_two import sample_marker
+    if isinstance(payload, dict) and sample_marker.reserved_for_the_sample(payload.get("source")):
+        raise HTTPException(status_code=400, detail="That import source name is reserved.")
     try:
         return notes_service.import_confirm(user["id"], payload)
     except NoteValidationError as e:

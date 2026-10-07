@@ -10,7 +10,8 @@
   flex: 0 0 380px;
   box-sizing: border-box;
   padding: 20px 18px 18px;
-  background: #14160f;
+  /* The rail follows the member's app theme (it sat on a fixed dark #14160f). */
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   color: var(--text-primary);
@@ -74,7 +75,7 @@
 
 .tile {
   padding: 9px 11px 8px;
-  background: rgba(224, 218, 200, 0.03);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   min-width: 0;
@@ -122,7 +123,7 @@
   column-gap: 6px;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(168, 162, 144, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 10%, transparent);
   font-size: 11px;
 }
 .row:last-child { border-bottom: 1px solid var(--border); }
@@ -204,7 +205,7 @@
   height: 7px;
   border-radius: 50%;
   background: var(--text-bright);
-  border: 1.5px solid #14160f;
+  border: 1.5px solid var(--bg-surface);
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 1px var(--c);
 }
@@ -316,7 +317,7 @@
   padding: 4px 9px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-accent);
-  background: rgba(224, 218, 200, 0.03);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -367,7 +368,7 @@
   display: block;
   height: 9px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, rgba(224,218,200,0.05), rgba(224,218,200,0.12), rgba(224,218,200,0.05));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--text) 5%, transparent), color-mix(in srgb, var(--text) 12%, transparent), color-mix(in srgb, var(--text) 5%, transparent));
   background-size: 200% 100%;
   animation: railShimmer 1.4s linear infinite;
 }
@@ -438,7 +439,7 @@
   padding: 8px 9px 7px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: rgba(224, 218, 200, 0.03);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
   min-width: 0;
 }
 .precH {

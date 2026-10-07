@@ -21,9 +21,12 @@ import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './NhnlPulseWidget.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
+// widget drew as an empty pulse reading "New Highs 0 / New Lows 0". Now SWR keeps the last good answer through a failed poll, and a
+// failure with nothing to stand on says so, with a Retry. A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 const GREEN = '#34d17c'   // default new-high line (matches --ut-green-bright); overridden
@@ -119,7 +122,7 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  const { data } = useMobileSWR('/api/nhnl/series', fetcher, {
+  const { data, error, mutate } = useMobileSWR('/api/nhnl/series', fetcher, {
     refreshInterval: 2000,       // pull new points as fast as the accumulator produces them
     dedupingInterval: 1500,
     marketHoursOnly: true,
@@ -191,7 +194,15 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
         </button>
       </div>
 
-      {!isActive ? (
+      {error && !data ? (
+        <div className={chrome.empty} role="alert">
+          <div className={chrome.emptyTitle}>The H/L Pulse could not be loaded</div>
+          <div className={chrome.emptySub}>
+            The live read failed. This is not a reading of zero.{' '}
+            <button type="button" className={chrome.retry} onClick={() => mutate()}>Retry</button>
+          </div>
+        </div>
+      ) : !isActive ? (
         <div className={chrome.empty}>
           <div className={chrome.emptyTitle}>Market closed</div>
           <div className={chrome.emptySub}>

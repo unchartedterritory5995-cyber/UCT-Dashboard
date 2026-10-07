@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import styles from './ScannerShell.module.css'
+import Checkbox from '../../../components/ui/Checkbox'
 
 // ── The Type filter — Include / Exclude a set of instrument types ────────────
 // Renders for the `security_type` filter (meta `control: "typeset"`). Emits
@@ -47,7 +48,7 @@ export default function TypeFilterControl({ filter, value, onChange }) {
       <div className={styles.typeOpts}>
         {options.map(opt => (
           <label key={opt} className={styles.typeOpt}>
-            <input type="checkbox" checked={selected.has(opt)}
+            <Checkbox checked={selected.has(opt)}
               onChange={() => toggle(opt)}
               aria-label={`${mode === 'not_in' ? 'Exclude' : 'Include'} ${plural(opt)}`} />
             <span>{plural(opt)}</span>

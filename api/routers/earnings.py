@@ -5,13 +5,14 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from api.services.engine import (
     EARNINGS_CACHE_KEY, build_earnings, get_earnings,
     _generate_earnings_analysis, _generate_earnings_preview,
 )
 from api.services.earnings_estimates import get_earnings_intel
 from api.services.cache import cache
+from api.services.ticker_resolver import sym_shape
 from api.services.serve_stale import ServeStale, TIER_FRESH, serve_with_tier, server_timing
 from api.limiter import limiter
 
@@ -342,7 +343,16 @@ def debug_earnings_sources(sym: str):
 
 @router.get("/api/earnings/intel/{ticker}")
 def earnings_intel(ticker: str):
-    """Analyst consensus, EPS beat history, and price targets for a ticker."""
+    """Analyst consensus, EPS beat history, and price targets for a ticker.
+
+    ⚠️ NOT a duplicate of `/api/earnings-intel/{ticker}` (fundamentals.py), despite
+    the name (audit L12, 2026-10-05). This route serves
+    `earnings_estimates.get_earnings_intel` (consensus / beat_history / price
+    targets); that one serves `earnings_intel.get_earnings` (the normalized
+    quarters / estimates / annual / summary model). Different payloads, both with
+    live callers: this one from research/hooks/useResearchOverview.js, that one
+    from the chart dock, ChartEarningsStrip and useLatestReport. A redirect
+    either way would hand a caller the wrong shape."""
     ticker = ticker.upper()
     try:
         result = get_earnings_intel(ticker)
@@ -496,7 +506,7 @@ def _kick_generation(sym: str, row, pending: bool) -> bool:
 
 @router.get("/api/earnings-analysis/{sym}")
 @limiter.limit("60/minute")
-def earnings_analysis(request: Request, sym: str, cached_only: bool = False,
+def earnings_analysis(request: Request, sym: str = Depends(sym_shape), cached_only: bool = False,
                       background: bool = False, force: bool = False):
     sym = sym.upper()
 
@@ -520,42 +530,29 @@ def earnings_analysis(request: Request, sym: str, cached_only: bool = False,
         return {**hit, "cached": True}
 
     # The modal's path: answer NOW, generate on the pool, let the client poll.
-    if background:
-        # A closed-end fund reports on the calendar and has no earnings story:
-        # no segments, no guidance, no consensus anyone publishes. The WARM has
-        # skipped these deliberately since 2026-08-24; the click path did not
-        # know, so opening one bought a ~30s generation of a preview nobody
-        # wants — the last surface on this modal that was not instant.
-        #
-        # ⛔ `force` is what keeps this from being a refusal: pressing
-        # "Generate brief" sends it and still generates. Only the AUTOMATIC
-        # spend goes away, and the reader keeps the choice. Returning the empty
-        # shape (`cached: false`) is what makes the section render that button.
-        if not force and _is_unpreviewable_fund(sym, row):
-            return _empty_analysis(sym)
-        _kick_generation(sym, row, pending)
-        return _empty_analysis(sym, generating=True)
-
-    try:
-        if pending:
-            return _generate_earnings_preview(sym, row or {"sym": sym})
-        return _generate_earnings_analysis(sym, row)
-    except Exception as e:
-        # Anthropic API or other transient failure — return graceful fallback
-        return {
-            "sym": sym,
-            "analysis": None,
-            "analysis_headline": None,
-            "analysis_summary": None,
-            "analysis_bullets": [],
-            "preview_text": "",
-            "preview_bullets": [],
-            "beat_history": [],
-            "yoy_eps_growth": None,
-            "beat_streak": None,
-            "news": [],
-            "error": str(e),
-        }
+    #
+    # ⛔ This is now the ONLY generating path (terminal backend fix S1, 2026-10-05). The
+    # request used to fall through to a synchronous LLM generation whenever neither
+    # `cached_only` nor `background` was passed — ~30 s holding one of the single web
+    # process's shared threadpool workers, which is the 524 outage class. No app caller sends
+    # that form (useEarningsBrief always sends `background=1` or `cached_only=1`); a bare URL
+    # now gets the same immediate `generating` answer and the same poll.
+    #
+    # A closed-end fund reports on the calendar and has no earnings story:
+    # no segments, no guidance, no consensus anyone publishes. The WARM has
+    # skipped these deliberately since 2026-08-24; the click path did not
+    # know, so opening one bought a ~30s generation of a preview nobody
+    # wants — the last surface on this modal that was not instant.
+    #
+    # ⛔ `force` is what keeps this from being a refusal: pressing
+    # "Generate brief" sends it and still generates. Only the AUTOMATIC
+    # spend goes away, and the reader keeps the choice. Returning the empty
+    # shape (`cached: false`) is what makes the section render that button.
+    del background  # accepted for old clients; every uncached answer is now a background one
+    if not force and _is_unpreviewable_fund(sym, row):
+        return _empty_analysis(sym)
+    _kick_generation(sym, row, pending)
+    return _empty_analysis(sym, generating=True)
 
 
 @router.get("/api/chart/markers/{ticker}")

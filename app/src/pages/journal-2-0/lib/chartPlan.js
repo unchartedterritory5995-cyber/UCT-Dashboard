@@ -165,12 +165,64 @@ export function withPlanRole(drawing, role) {
  */
 export function setPlanRole(annotations, drawingId, role) {
   const list = Array.isArray(annotations) ? annotations : []
+  // ⛔ No id, no change. `undefined === undefined` matched EVERY drawing that carries no id (the
+  // sample plan note's levels), so one press re-marked all of them.
+  if (drawingId == null || drawingId === '') return list
   if (!list.some((d) => d?.id === drawingId)) return list
   return list.map((d) => {
     if (d?.id === drawingId) return withPlanRole(d, role)
     if (role && UNIQUE_PLAN_ROLES.includes(role) && d?.role === role) return withPlanRole(d, null)
     return d
   })
+}
+
+// ── the typed door to a level (lane FIN-A11Y, review R4 I-6) ──────────────────────────────────
+// A level could only be made or moved by drawing on the canvas. These two writers let the plan
+// panel do both from a number field, in the SAME shape the canvas writes: a horizontal line
+// whose anchor (`points[0].price`) is the level. No `price` copy is written, for the reason
+// `withPlanRole` gives: plan_extract reads `price` first, and a copy would freeze the plan.
+
+/** One tick of a level's price: a cent from a dollar up, a hundredth of a cent below. */
+export const levelStep = (price) => (Number(price) >= 1 ? 0.01 : 0.0001)
+
+/** `price` snapped to `step` (kills float dust: 101.5 + 0.01 is 101.51, not 101.51000000000001). */
+export function roundToStep(price, step = levelStep(price)) {
+  return Number(Number(price).toFixed(step >= 0.01 ? 2 : 4))
+}
+
+/** `drawing` moved to `price`. Its anchors carry the level; a level with no anchor keeps
+ *  its `price` field (the `planAnnotation` shape). */
+export function withLevelPrice(drawing, price) {
+  const p = finitePositive(price)
+  if (p == null) throw new Error('a plan level needs a positive price')
+  if (!isPlainObject(drawing)) throw new Error('a level needs a drawing')
+  if (Array.isArray(drawing.points) && drawing.points.length) {
+    const rest = { ...drawing }
+    delete rest.price
+    return { ...rest, points: drawing.points.map((pt) => ({ ...pt, price: p })) }
+  }
+  return { ...drawing, price: p }
+}
+
+/** `annotations` with level `drawingId` moved to `price`. A NEW array; an unknown id, or a
+ *  drawing that is not a flat price-pane level, returns the input unchanged. */
+export function moveLevel(annotations, drawingId, price) {
+  const list = Array.isArray(annotations) ? annotations : []
+  const target = list.find((d) => d?.id === drawingId)
+  if (!target || !canCarryPlanRole(target)) return list
+  return list.map((d) => (d?.id === drawingId ? withLevelPrice(d, price) : d))
+}
+
+/** `annotations` plus a new horizontal line at `price` (appended), with `role` when given
+ *  (a unique role moves off whichever line held it, as `setPlanRole` does). */
+export function addLevel(annotations, price, { id, time, role = null } = {}) {
+  const p = finitePositive(price)
+  if (p == null) throw new Error('a plan level needs a positive price')
+  if (!id) throw new Error('a new level needs an id')
+  const list = Array.isArray(annotations) ? annotations : []
+  const drawing = { id, type: 'horizontal', points: [{ time, price: p }], showPriceLabel: true }
+  const next = [...list, drawing]
+  return role ? setPlanRole(next, id, role) : next
 }
 
 // ── sizing: the starter formulas, evaluated, never restated ───────────────────────────────────

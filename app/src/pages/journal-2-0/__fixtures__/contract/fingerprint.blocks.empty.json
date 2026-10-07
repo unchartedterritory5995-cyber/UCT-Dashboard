@@ -1,0 +1,13 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/notebook-fingerprint/blocks",
+    "path": "/api/j2/notebook-fingerprint/blocks",
+    "status": 200
+  },
+  "body": {
+    "blocks": [],
+    "count": 0,
+    "pending": 0
+  }
+}

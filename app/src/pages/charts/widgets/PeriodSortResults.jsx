@@ -14,8 +14,12 @@ import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
 import styles from './ScannerResults.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which the table
+// read as "Loading…" forever. A failure with nothing to stand on now says so and points at the
+// footer's Refresh (the 3 s computing poll keeps re-asking too). A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 const fmtYmd = (ymd) => { const s = String(ymd); return `${+s.slice(4, 6)}/${+s.slice(6, 8)}/${s.slice(0, 4)}` }
 function fmtScanTime(iso) {
   if (!iso) return ''
@@ -48,13 +52,13 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   // Poll fast (3s) while the pre-~2004 bars.db fallback is still "computing" so the result
   // lands within seconds of the background thread finishing; back off once it's ready.
   // dedupingInterval must sit BELOW the fast poll or SWR would dedupe those 3s revalidations.
-  const { data: stockData, mutate: stockMutate, isValidating: stockVal } = useMobileSWR(stockUrl, fetcher, {
+  const { data: stockData, error: stockErr, mutate: stockMutate, isValidating: stockVal } = useMobileSWR(stockUrl, fetcher, {
     refreshInterval: (d) => (!d || d.status === 'computing') ? 3_000 : 30_000,
     dedupingInterval: 2_500, revalidateOnFocus: false,
   })
   // The group ranking (only in group mode).
   const groupUrl = group && start && end ? `/api/scans/period-change-groups?start=${start}&end=${end}&group=${group}` : null
-  const { data: groupData, mutate: groupMutate, isValidating: groupVal } = useMobileSWR(groupUrl, fetcher, {
+  const { data: groupData, error: groupErr, mutate: groupMutate, isValidating: groupVal } = useMobileSWR(groupUrl, fetcher, {
     refreshInterval: (d) => (!d || d.status === 'computing') ? 3_000 : 60_000,
     dedupingInterval: 2_500, revalidateOnFocus: false,
   })
@@ -141,8 +145,9 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     if (syms?.length) prefetchListDeep(syms, { cap: 60, priority: true })
   }, [])
 
+  const failed = Boolean(group ? groupErr : stockErr)
   const scanEmptyText = !data
-    ? 'Loading…'
+    ? (failed ? 'The ranking could not be loaded. Use Refresh below to try again.' : 'Loading…')
     : data.status === 'computing'
       ? 'Ranking the market…'
       : (data.status === 'unavailable' || data.status === 'error')

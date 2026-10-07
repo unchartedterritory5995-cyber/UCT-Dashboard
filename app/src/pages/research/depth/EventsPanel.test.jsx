@@ -39,7 +39,9 @@ describe('EventsPanel', () => {
     const rows = await screen.findAllByTestId('event-row')
     expect(rows[0].textContent).toContain('T Q2')
     expect(rows[1].textContent).toContain('T-2 Q2')
-    expect(rows[1].textContent).toContain('UCT catalyst engine (catalysts.db)')
+    expect(rows[1].textContent).toContain('UCT catalyst engine')
+    // the database file name is internal detail, not member copy (quality pass 2026-10-05)
+    expect(rows[1].textContent).not.toContain('catalysts.db')
   })
 
   it('a source that could not be read is called missing, not absent', async () => {
@@ -57,5 +59,17 @@ describe('EventsPanel', () => {
     renderTab()
     expect((await screen.findByTestId('events-unstaged')).textContent).toMatch(/no reported or scheduled print/)
     expect(screen.getByTestId('events-empty')).toBeInTheDocument()
+  })
+
+  // tq-panels: "No events on file" showed while a source was still being read.
+  it('a source still being read is named, and the empty line says it is still reading', async () => {
+    body = { ...OK, state: 'unstaged', reason: 'earnings history is still being read', events: [],
+      sources: { earnings: { state: 'pending' }, uct_catalyst: { state: 'empty', events: 0 } } }
+    renderTab()
+    expect((await screen.findByTestId('events-empty')).textContent)
+      .toBe('No events on file yet — Earnings is still being read.')
+    expect(screen.getByTestId('events-pending').textContent)
+      .toBe('Still reading: Earnings. Events from that source appear when the read finishes.')
+    expect(screen.queryByText('No events on file in the sources read.')).toBeNull()
   })
 })

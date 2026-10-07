@@ -13,6 +13,9 @@
 
 .toggle { display: inline-flex; gap: 4px; }
 .toggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--border, #2a2a2e);
   background: transparent;
   color: var(--text-muted, #8a8a8a);
@@ -21,7 +24,14 @@
   font-size: 12px;
   cursor: pointer;
 }
-.toggleOn { border-color: var(--accent, #dcbb5e); color: var(--accent, #dcbb5e); }
+/* Selected: filled, bold and check-marked (DisciplineRecord.jsx). Gold text against the
+   muted text of its neighbours was about 1.1:1, so colour alone did not show it. */
+.toggleOn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
 
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th, .table td { text-align: left; padding: 6px 0; border-top: 1px solid var(--border, #2a2a2e); }

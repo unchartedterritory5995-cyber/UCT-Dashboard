@@ -309,7 +309,7 @@ def library_rows(universes=None) -> list[dict]:
                 # metric catalogue would be the copy that drifts.
                 "group_label": (LIST_META.get(m["group"]) or {}).get("label", m["group"]),
                 "unit": m["unit"], "domain": m["domain"],
-                "presentation": m["presentation"], "floor": u["floor"],
+                "presentation": m["presentation"], "floor": display_floor(u["id"]) or u["floor"],
                 # ⭐ A UCT row is LEGACY: its symbol is recorded history, not a
                 # rendering of the namespace. Anything reading this list can tell
                 # "already published under an old name" from "a name we would mint".
@@ -1298,6 +1298,25 @@ _AVAIL_TTL = 300
 _avail_cache: dict = {"at": 0.0, "value": None}
 
 
+def _exchange_availability(uid: str):
+    """`availability()` row for nyse/nasdaq when the exchange authority is IN FORCE (else None = the old
+    path). Its floor is the authority's evidence-backed canonical start, not the V1 sweep's 2011 floor."""
+    try:
+        from api.services import breadth_exchange_authority as _ea
+    except Exception:
+        return None
+    if uid not in _ea.UNIVERSES or _ea.mode() != "v1":
+        return None
+    ds = _ea.universe_dates(uid) or []
+    return {"state": "available" if ds else "not_populated", "rows": len(ds), "first": ds[0] if ds else None,
+            "last": ds[-1] if ds else None, "floor": _ea.START[uid], "authority": "exchange-breadth-v1"}
+
+
+def display_floor(uid: str):
+    ex = _exchange_availability(uid)
+    return ex["floor"] if ex is not None else None
+
+
 def availability() -> dict:
     """`{universe: {state, first, last, rows, floor}}` — what history ACTUALLY exists.
 
@@ -1322,6 +1341,10 @@ def availability() -> dict:
     out = {}
     for uid in _bu.UNIVERSE_IDS:
         floor = _bu.floor(uid)
+        ex = _exchange_availability(uid)
+        if ex is not None:                       # ⭐ NYSE/NASDAQ: ask THEIR authority, never the V1 store
+            out[uid] = ex
+            continue
         try:
             st = _store.stats(uid) or {}
         except Exception:

@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
-import { reviewDraftsEnabled, draftDailyReview } from '../lib/reviewDrafts'
+import { reviewDraftsEnabled, draftDailyReview, todayDayIso } from '../lib/reviewDrafts'
 import { compassScope } from '../hooks/compassScope'
 
 export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, accountId }) {
@@ -33,8 +33,9 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
     try {
       const { note } = await draftDailyReview({ accountId: compassScope(accountId), day })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
-    } catch {
-      setDraftError('Could not draft today’s recap into your daily note — try again.')
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setDraftError(e?.memberMessage || 'Could not draft this recap into your daily note — try again.')
     } finally {
       setDrafting(false)
     }
@@ -88,13 +89,14 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
               disabled={drafting}
               style={ghost()}
             >
-              {drafting ? 'Drafting…' : 'Draft in today’s note'}
+              {/* The draft lands in the daily note OF THE RECAP'S OWN DAY (fin-data M1). */}
+              {drafting ? 'Drafting…' : (day === todayDayIso() ? 'Draft in today’s note' : 'Draft in that day’s note')}
             </button>
           )}
         </div>
       </header>
       {draftError && (
-        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 11, margin: '4px 0 8px' }}>
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 11, margin: '4px 0 8px' }}>
           {draftError}
         </p>
       )}
@@ -107,7 +109,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
             background: 'rgba(239,68,68,0.08)',
             border: '1px solid rgba(239,68,68,0.4)',
             borderRadius: 6,
-            color: 'var(--loss, #ef4444)',
+            color: 'var(--danger-ink)',
             fontSize: 11,
           }}
         >

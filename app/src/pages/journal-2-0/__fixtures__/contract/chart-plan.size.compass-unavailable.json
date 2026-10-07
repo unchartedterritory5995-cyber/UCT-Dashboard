@@ -1,0 +1,92 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "note": "Compass did not answer (the brain pack is not installed): the starter formulas size it.",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": [
+        {
+          "id": "d-CPNV-entry",
+          "points": [
+            {
+              "price": 101.5,
+              "time": 1758000000
+            }
+          ],
+          "role": "entry",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-stop",
+          "points": [
+            {
+              "price": 97.25,
+              "time": 1758000000
+            }
+          ],
+          "role": "stop",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-target",
+          "points": [
+            {
+              "price": 112.0,
+              "time": 1758000000
+            }
+          ],
+          "role": "target",
+          "type": "horizontal"
+        }
+      ],
+      "symbol": "CPNV"
+    },
+    "status": 200
+  },
+  "body": {
+    "account": {
+      "accountId": "acct-chart",
+      "accountSize": 100000.0,
+      "riskPct": 1.0
+    },
+    "compass": {
+      "ok": false,
+      "reason": "brain not available"
+    },
+    "plan": {
+      "entry": 101.5,
+      "roles": {
+        "entry": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 101.5,
+          "values": []
+        },
+        "shares": {
+          "shape": null,
+          "state": "absent",
+          "value": null,
+          "values": []
+        },
+        "stop": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 97.25,
+          "values": []
+        },
+        "target": {
+          "shape": "chart",
+          "state": "ok",
+          "value": 112.0,
+          "values": []
+        }
+      },
+      "setup": null,
+      "shares": null,
+      "side": "long",
+      "stop": 97.25,
+      "target": 112.0
+    }
+  }
+}

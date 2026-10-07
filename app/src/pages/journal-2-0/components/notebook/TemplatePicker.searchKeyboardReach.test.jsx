@@ -74,11 +74,17 @@ describe('13Q-5 -- typing filters, Enter picks', () => {
   })
 })
 
-describe('13Q-5 -- Arrow/Home/End drive the virtual target from the search box', () => {
-  it('ArrowRight/ArrowDown move the target forward WITHOUT moving real focus off the input', () => {
+// ⛔ Lane FIN-A11Y (review R4, I-5) changed THIS block's key set, and only that. 13Q-5
+// drove the target with all four arrows plus Home and End, which took Left, Right, Home
+// and End away from the text caret: a member could not edit what they had typed. The
+// target is now driven with ArrowUp and ArrowDown only. Type-to-search and Enter-to-pick
+// (the block above) are untouched. The caret half is railed in
+// TemplatePicker.searchCaret.test.jsx.
+describe('13Q-5 -- ArrowUp/ArrowDown drive the virtual target from the search box', () => {
+  it('ArrowDown moves the target forward WITHOUT moving real focus off the input', () => {
     renderPicker({ autoFocusSearch: true })
     const all = cards()
-    fireEvent.keyDown(search(), { key: 'ArrowRight' })
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
     expect(activeCard()).toBe(all[1])
     expect(document.activeElement).toBe(search())
     fireEvent.keyDown(search(), { key: 'ArrowDown' })
@@ -86,28 +92,26 @@ describe('13Q-5 -- Arrow/Home/End drive the virtual target from the search box',
     expect(document.activeElement).toBe(search())
   })
 
-  it('ArrowLeft/ArrowUp move it back; the start holds rather than wrapping', () => {
+  it('ArrowUp moves it back; the start holds rather than wrapping', () => {
     renderPicker({ autoFocusSearch: true })
     const all = cards()
-    fireEvent.keyDown(search(), { key: 'ArrowRight' })
-    fireEvent.keyDown(search(), { key: 'ArrowLeft' })
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
+    fireEvent.keyDown(search(), { key: 'ArrowUp' })
     expect(activeCard()).toBe(all[0])
     fireEvent.keyDown(search(), { key: 'ArrowUp' })
     expect(activeCard()).toBe(all[0])
   })
 
-  it('End jumps to the last card, Home back to the first', () => {
+  it('the end holds rather than wrapping', () => {
     renderPicker({ autoFocusSearch: true })
     const all = cards()
-    fireEvent.keyDown(search(), { key: 'End' })
+    for (let i = 0; i < all.length + 3; i += 1) fireEvent.keyDown(search(), { key: 'ArrowDown' })
     expect(activeCard()).toBe(all[all.length - 1])
-    fireEvent.keyDown(search(), { key: 'Home' })
-    expect(activeCard()).toBe(all[0])
   })
 
   it('the ring is painted only while the search box itself holds real focus', () => {
     renderPicker({ autoFocusSearch: true })
-    fireEvent.keyDown(search(), { key: 'ArrowRight' })
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
     expect(activeCard()).not.toBeNull()
     fireEvent.blur(search())
     expect(activeCard()).toBeNull()

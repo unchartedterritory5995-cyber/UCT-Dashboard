@@ -2,8 +2,11 @@
 // SWR hook: GET /api/fundamentals/earnings-table?sym=TICKER
 // Returns { ticker, annual: [...], quarterly: [...] } or null.
 import useSWR from 'swr'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = url => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher), so a failed refresh keeps the last good
+// table instead of replacing it with `null`. 402 stays absent, as before.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const FAST_MS = 60 * 1000        // inside an earnings window — pick up the print fast
 const SLOW_MS = 5 * 60 * 1000    // normal cadence (backend owns freshness)

@@ -18,6 +18,7 @@ import AskPanel from './AskPanel'
 import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
+import { setupsBoardEnabled, SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
 import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
@@ -96,8 +97,9 @@ function ReviewDraftsHomeBox({ onOpenNote }) {
       // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
       const { note } = await fn(await loadReviewDrafts())
       onOpenNote(note)
-    } catch {
-      setError(`Could not draft the ${period} review — try again.`)
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
     } finally {
       setBusy(null)
     }
@@ -452,6 +454,17 @@ export default function ResearchHome({
       <UIcon name="sun" size={14} gold={false} /> Today
     </button>
   ) : null
+  // Finish program, lane NAV: the active setups board's one door (BETA-HANDOFF 1b said "No
+  // menu link to it yet"). Rendered beside Today in the same three states, and ONLY while
+  // notebook_setups_board_enabled is on: off, this is null and the page is the page it was
+  // (ResearchHome.setupsDoor.test.jsx compares the two renders). A link, never an import of
+  // the board page: Research Home is on the first-open path and the board carries charts.
+  const setupsLink = setupsBoardEnabled() ? (
+    <Link className={`btn btn-ghost ${styles.setupsLink}`} to={SETUPS_BOARD_PATH}
+      title="Your open chart plans, closest to their entry first">
+      Active setups
+    </Link>
+  ) : null
 
   if (nothingToShow && homeError) {
     return (
@@ -464,6 +477,7 @@ export default function ResearchHome({
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
+          {setupsLink}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
         </div>
       </>
@@ -481,6 +495,7 @@ export default function ResearchHome({
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
+          {setupsLink}
           <p>Nothing needs your attention right now.</p>
           <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
         </div>
@@ -498,6 +513,7 @@ export default function ResearchHome({
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {todayBox}
+      {setupsLink}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}

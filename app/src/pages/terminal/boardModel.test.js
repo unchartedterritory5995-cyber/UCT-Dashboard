@@ -257,3 +257,12 @@ describe('the library — named, addressable, shareable boards', () => {
     expect(readLibrary('{"v":9}').status).toBe('newer')
   })
 })
+
+describe('recents de-duplicate one security spelled two ways (audit #22)', () => {
+  it('BRK.B and BRK-B are one entry in a channel\'s history — the newest spelling wins', () => {
+    let l = applyChannelSym(DEFAULT_LAYOUT, 'A', 'BRK-B')
+    l = applyChannelSym(l, 'A', 'NVDA')
+    l = applyChannelSym(l, 'A', 'BRK.B')
+    expect(l.channels.find((c) => c.id === 'A').history).toEqual(['BRK.B', 'NVDA'])
+  })
+})

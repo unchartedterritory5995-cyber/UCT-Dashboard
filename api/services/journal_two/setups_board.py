@@ -51,7 +51,7 @@ import sqlite3
 from datetime import date, datetime
 from typing import Any, Callable, Iterable
 
-from api.services.journal_two import chart_blocks, plan_extract
+from api.services.journal_two import chart_blocks, plan_extract, sample_marker
 from api.services.journal_two.timeutil import ET, compute_trading_day_et
 from api.services.notebook_flags import flag_on
 
@@ -197,7 +197,7 @@ def _prop_defs(conn: sqlite3.Connection, user_id: str) -> list[dict[str, Any]]:
 def _candidate_notes(conn: sqlite3.Connection, user_id: str, cap: int) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT n.id, n.title, n.ticker, n.tags, n.body_json, n.properties_json, n.created_at,"
-        " n.updated_at FROM j2_notes n"
+        " n.updated_at, n.import_source FROM j2_notes n"
         " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
         "   AND n.id IN (SELECT e.note_id FROM j2_note_embeds e WHERE e.user_id = ? AND e.widget_id = ?)"
         " ORDER BY n.updated_at DESC, n.id LIMIT ?",
@@ -253,7 +253,7 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
             continue
         try:
             body = json.loads(note["body_json"] or "{}")
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, RecursionError):      # too deep to parse: no card (M-4)
             continue
         blocks = chart_blocks.extract_blocks(body)
         for sym in _symbols(note, blocks):
@@ -276,6 +276,11 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
                 "daysInSetup": days_in_setup(note["created_at"], today),
                 "since": compute_trading_day_et(note["created_at"]),
                 "similarEmbedKey": tagged["embed_key"] if tagged else None,
+                # ⛔ MARKED BY THE SERVER, with the one predicate (owner ruling, fin-data round
+                # 2). A sample's card is shown -- that is what the sample is for -- and it is
+                # never one of the member's setups: it is in no count below, and the client
+                # labels it "Example" from this flag, never by guessing from a title.
+                "example": sample_marker.is_sample(note["import_source"]),
             })
     quotes = (prices or read_prices)(sorted({c["symbol"] for c in pending}))
     cards = []
@@ -286,5 +291,9 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
                       "priceSource": q.get("source"), "priceAsOf": q.get("asOf"),
                       "distancePct": d["pct"], "distanceR": d["r"]})
     cards.sort(key=sort_key)
-    return {"cards": cards, "count": len(cards), "today": today, "pageSize": PAGE_SIZE,
-            "scanned": len(rows), "capped": capped}
+    own = [c for c in cards if not c["example"]]
+    examples = [c for c in cards if c["example"]]
+    # The member's own setups first, in the board's order; examples after them. `count` is the
+    # member's own and is what every "N setups" and every empty-state decision reads.
+    return {"cards": own + examples, "count": len(own), "exampleCount": len(examples),
+            "today": today, "pageSize": PAGE_SIZE, "scanned": len(rows), "capped": capped}

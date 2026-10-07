@@ -10,6 +10,7 @@ import { SkeletonTable } from '../../../components/Skeleton'
 import UIcon from '../../../components/ui/UIcon'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { scanErrorText } from './scanErrorText'
 import useColumnPresets from '../hooks/useColumnPresets'
 import useScreenerCount from '../hooks/useScreenerCount'
 import FilterChips from '../FilterChips'
@@ -37,6 +38,7 @@ import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import SaveToNotebookButton from '../../journal-2-0/components/SaveToNotebookButton'
 import { buildScreenerCapture } from './notebookCapture'
+import { SkipLinkPortal } from '../../../components/skipLinks'
 import styles from './ScannerShell.module.css'
 
 const densityKey = 'uct.screener.density'
@@ -98,7 +100,7 @@ const galleryCardSelector = (ticker) => `[data-testid="gallery-card-${ticker}"]`
 // receipt reads its own store, has nothing to do with the 7 AM candidate
 // board's feed, and must never go blank because that unrelated fetch failed.
 export default function ScannerShell({ embedded = false }) {
-  const { meta } = useScreenerMeta()
+  const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const isPhone = useIsPhone()
   const viewColumnsFor = useMemo(() => {
     const map = Object.fromEntries((meta?.views || []).map(v => [v.key, v.columns]))
@@ -317,6 +319,16 @@ export default function ScannerShell({ embedded = false }) {
     paintCursor(displayRows.map(r => root.querySelector(galleryCardSelector(r.ticker))))
   }, [s.view, displayRows, paintCursor])
 
+  /* Keyboard door to "Save these results to Notebook" (ruling P5 / Q7): that button is the last
+   * control in the toolbar, 339 Tab presses from the top at 1200 px. The skip link below is
+   * portaled into the app shell's skip-link slot, so it is the second Tab stop; Enter lands
+   * on a hidden target just before the button. Rail: ScannerShell.skipToSave.test.jsx. */
+  const saveAnchorRef = useRef(null)
+  const skipToSave = (e) => {
+    e.preventDefault()
+    saveAnchorRef.current?.focus()
+  }
+
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
       onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
@@ -327,6 +339,11 @@ export default function ScannerShell({ embedded = false }) {
 
   return (
     <div className={`${styles.shell} ${embedded ? styles.shellEmbedded : ''}`}>
+      {!embedded && (
+        <SkipLinkPortal>
+          <a href="#screener-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
+        </SkipLinkPortal>
+      )}
       {!isPhone && <div className={styles.railSlot}>{rail}</div>}
       <div className={styles.main}>
         {/* Universe = the base pool the scan runs against (UCT Universe / a
@@ -400,6 +417,10 @@ export default function ScannerShell({ embedded = false }) {
             <button type="button" className={styles.toolBtn} onClick={() => setSaveForkOpen(true)}>
               <UIcon name="save" size={13} /> Save…
             </button>
+            {!embedded && (
+              <span ref={saveAnchorRef} id="screener-save" tabIndex={-1} className="sr-only"
+                data-screener-save-anchor="">Save results to Notebook</span>
+            )}
             <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
               label="Screener results" ariaLabel="Save these results to Notebook"
               disabled={!result || total == null} />
@@ -435,9 +456,18 @@ export default function ScannerShell({ embedded = false }) {
             ))}
           </div>
         )}
+        {/* Quality pass 2026-10-05: a failed filter-registry read was silent -- the rail and
+            the chips simply did not render. */}
+        {metaError && !meta && (
+          <div className={styles.scanError} role="alert" data-testid="screener-meta-failed">
+            The screener&apos;s filter list couldn&apos;t be loaded, so filters, views and lists are
+            unavailable right now.
+            <button type="button" className="btn btn-secondary btn-sm" onClick={retryMeta}>Retry</button>
+          </div>
+        )}
         {error && (
           <div className={styles.scanError} role="alert">
-            Scan failed — {String(error.message || error)}.
+            {scanErrorText(error)}
             <button type="button" className="btn btn-secondary btn-sm" onClick={retry}>Retry</button>
           </div>
         )}

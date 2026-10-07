@@ -178,7 +178,7 @@ export default function InsightsHub({ analytics }) {
 // whatever note it landed — daily appends to the member's own daily note, weekly
 // and monthly create a new tagged note through the Notebook's one create door.
 
-function ReviewDraftsSection({ accountId }) {
+export function ReviewDraftsSection({ accountId }) {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(null) // 'daily' | 'weekly' | 'monthly' | null
   const [error, setError] = useState(null)
@@ -190,8 +190,9 @@ function ReviewDraftsSection({ accountId }) {
     try {
       const { note } = await fn()
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
-    } catch {
-      setError(`Could not draft the ${period} review — try again.`)
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
     } finally {
       setBusy(null)
     }
@@ -211,7 +212,7 @@ function ReviewDraftsSection({ accountId }) {
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <button
           type="button"
-          className="touchTarget"
+          className="btn btn-secondary touchTarget"
           onClick={() => run('daily', () => draftDailyReview({ accountId: scope, day: todayDayIso() }))}
           disabled={Boolean(busy)}
         >
@@ -219,7 +220,7 @@ function ReviewDraftsSection({ accountId }) {
         </button>
         <button
           type="button"
-          className="touchTarget"
+          className="btn btn-secondary touchTarget"
           onClick={() => run('weekly', () => draftWeeklyReview({ accountId: scope, weekStart: mondayOfIso() }))}
           disabled={Boolean(busy)}
         >
@@ -227,7 +228,7 @@ function ReviewDraftsSection({ accountId }) {
         </button>
         <button
           type="button"
-          className="touchTarget"
+          className="btn btn-secondary touchTarget"
           onClick={() => run('monthly', () => draftMonthlyReview({ accountId: scope, month: thisMonthIso() }))}
           disabled={Boolean(busy)}
         >
@@ -235,7 +236,7 @@ function ReviewDraftsSection({ accountId }) {
         </button>
       </div>
       {error && (
-        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 12, marginTop: 10 }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 12, marginTop: 10 }}>{error}</p>
       )}
     </div>
   )

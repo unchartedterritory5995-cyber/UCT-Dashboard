@@ -29,6 +29,7 @@ pass every assertion over an unexercised gap.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import threading
 
@@ -86,19 +87,31 @@ class WindowConn:
     """A connection whose FIRST execution of `read_sql` is followed -- before the
     door continues -- by a second writer started in its own thread."""
 
-    def __init__(self, real: sqlite3.Connection, read_sql: str, second):
+    def __init__(self, real: sqlite3.Connection, is_read, second, *, drop_the_lock: bool = False):
         self._real = real
-        self._read_sql = read_sql
+        self._is_read = is_read        # callable(normalised sql) -> is this the door's read?
         self._second = second          # callable() run in the thread
+        self._drop_the_lock = drop_the_lock
         self.thread: threading.Thread | None = None
         self.second_was_waiting: bool | None = None
+        self.read_seen: str | None = None
+        self.lock_taken_before_the_read = False
 
     def __getattr__(self, name):
         return getattr(self._real, name)
 
     def execute(self, sql, params=()):
+        flat = " ".join(sql.split())
+        if flat.upper() == "BEGIN IMMEDIATE":
+            if self.thread is None:
+                self.lock_taken_before_the_read = True
+            if self._drop_the_lock:
+                # THE CONTROL: the door as it was before #204. Its read and its write are no
+                # longer one transaction; everything else it does is unchanged.
+                return self._real.execute("SELECT 1")
         cur = self._real.execute(sql, params)
-        if self.thread is None and " ".join(sql.split()) == self._read_sql:
+        if self.thread is None and self._is_read(flat):
+            self.read_seen = flat
             rows = _Rows(cur.fetchall())
             self.thread = threading.Thread(target=self._second, daemon=True)
             self.thread.start()
@@ -108,8 +121,32 @@ class WindowConn:
         return cur
 
 
-UPDATE_READ = "SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
-APPEND_READ = "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+# The door's READ of the note row it is about to rewrite, recognised by WHAT IT IS: a SELECT of
+# this member's live note by id. ⚰️ Until 2026-10-07 the append doors' read was a typed string,
+# "SELECT body_json FROM j2_notes WHERE ...". Wave 10 L14 (#260, 2026-10-01) made the doors read
+# `body_json, locked` (a locked note refuses a capture), the string stopped matching, the window
+# never opened, and the three append cases were red from that day -- on a product that was
+# correct throughout. A column added to that read must never do it again, so the column list is
+# not part of the match; which columns the door must read is asserted separately, below.
+_NOTE_ROW_READ = re.compile(
+    r"^SELECT (?P<cols>.+) FROM j2_notes WHERE id = \? AND user_id = \? AND deleted_at IS NULL$")
+
+
+def _reads(*needed: str):
+    """A matcher for the door's read: the note-row SELECT, carrying at least `needed` columns
+    (`*` carries them all). The columns matter: the append doors rebuild the body from what this
+    read returned, so a read without `body_json` is not the read the window must follow."""
+    def is_read(flat_sql: str) -> bool:
+        m = _NOTE_ROW_READ.match(flat_sql)
+        if not m:
+            return False
+        cols = {c.strip() for c in m.group("cols").split(",")}
+        return "*" in cols or set(needed) <= cols
+    return is_read
+
+
+UPDATE_READ = _reads("updated_at", "body_json")
+APPEND_READ = _reads("body_json")
 
 
 def _seed(path: str) -> dict:
@@ -185,6 +222,7 @@ def test_a_second_writer_in_the_window_never_loses_acknowledged_words(db, door):
     finally:
         real.close()
     assert proxy.thread is not None, f"{door}: the window never opened -- the read was not seen"
+    assert proxy.lock_taken_before_the_read, f"{door}: read {proxy.read_seen!r} with no BEGIN IMMEDIATE before it"
     proxy.thread.join(BUSY_S + 5)
     assert not proxy.thread.is_alive(), f"{door}: the second writer never finished"
 
@@ -252,3 +290,54 @@ def test_the_window_body_text_is_what_the_members_see(db):
     note = _seed(db)
     assert SEED in _stored_body(db, note["id"])
     assert json.loads(_stored_body(db, note["id"]))["type"] == "doc"
+
+
+# ── the control: the same doors WITHOUT the lock lose acknowledged words ──────────────────────
+
+@pytest.mark.parametrize("door", sorted(DOORS))
+def test_without_the_lock_every_door_loses_the_second_writers_acknowledged_words(db, door):
+    """⛔ THE RAIL CAN FAIL, door by door. The proxy swallows the door's `BEGIN IMMEDIATE` and
+    changes nothing else: that is the door as it was before #204. The second writer is then NOT
+    held, commits inside the window and is told "saved"; the first writer's write lands on top;
+    and the second writer's words are gone from the stored note. The rail above asserts the
+    opposite of each of these three facts, so a door that ever stops taking the lock reds it.
+    (Never a product edit: the product is unchanged and only this connection misbehaves.)"""
+    read_sql, call, first_marker = DOORS[door]
+    note = _seed(db)
+    nid, base = note["id"], note["updatedAt"]
+    outcome: dict = {}
+    real = _open(db)
+    proxy = WindowConn(real, read_sql, _second_writer(db, nid, base, outcome), drop_the_lock=True)
+    try:
+        try:
+            call(nid, base, proxy)
+            outcome["first"] = "saved"
+        except svc.NoteConflictError:
+            outcome["first"] = "409"
+    finally:
+        real.close()
+    assert proxy.thread is not None, f"{door}: the window never opened -- the read was not seen"
+    proxy.thread.join(BUSY_S + 5)
+    assert not proxy.thread.is_alive(), f"{door}: the second writer never finished"
+    assert proxy.second_was_waiting is False, f"{door}: something still held the second writer: {outcome}"
+    assert outcome == {"first": "saved", "second": "saved"}, f"{door}: {outcome}"
+    body = _stored_body(db, nid)
+    assert first_marker in body, f"{door}: the first writer's own write is missing"
+    assert SECOND not in body, (
+        f"{door}: with the lock dropped the second writer's words SURVIVED, so this control no "
+        "longer reproduces the lost write the rail exists to catch")
+
+
+def test_the_read_matcher_follows_a_new_column_and_refuses_a_different_read():
+    """The matcher itself: adding a column to the door's read (what L14 did) still matches;
+    a read of another table, another predicate, or without the body does not."""
+    tail = "FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+    assert APPEND_READ(f"SELECT body_json {tail}")
+    assert APPEND_READ(f"SELECT body_json, locked {tail}")
+    assert APPEND_READ(f"SELECT body_json, locked, some_future_column {tail}")
+    assert APPEND_READ(f"SELECT * {tail}") and UPDATE_READ(f"SELECT * {tail}")
+    assert not APPEND_READ(f"SELECT locked {tail}")
+    assert not APPEND_READ(f"SELECT 1 {tail}")
+    assert not UPDATE_READ(f"SELECT body_json {tail}")
+    assert not APPEND_READ("SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ?")
+    assert not APPEND_READ("SELECT body_json FROM j2_note_versions WHERE id = ? AND user_id = ? AND deleted_at IS NULL")

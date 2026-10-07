@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Terms for the Uncharted Territory live trading room. Served as STATIC HTML by
      api/main.py (`live_trading_room_terms_response`) at /live-trading-room/terms,
-     beside the room page and in the same style. No JS.
+     beside the room page and in the same style. The only JS is the Whop Pixel.
      Copy is owner-approved verbatim (2026-10-04): no prices, no em dashes, and
      no facts beyond the six bullets. -->
 <html lang="en">
@@ -76,12 +76,21 @@
       background: var(--green); transform: rotate(45deg); border-radius: 2px;
       box-shadow: 0 0 10px rgba(63, 212, 110, 0.6);
     }
+    .contact { margin: 22px 0 0; font-size: 16px; color: var(--text-bright); overflow-wrap: anywhere; }
     .back { margin: 28px 0 0; padding-bottom: 48px; font-size: 16px; }
 
     @media (max-width: 420px) {
       .brand span { font-size: 11px; letter-spacing: 2px; }
     }
   </style>
+  <!-- Whop Pixel (https://docs.whop.com/developer/ads/pixel), scoped to the
+       Uncharted Territory Whop company. The loader inserts t.whop.tw/s.js with
+       async=1, so it never blocks rendering. This page sends no CSP header. -->
+  <script>
+  !function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");
+  whop.setScope("biz_VFkuhplWXekHZf");
+  whop.track("page");
+  </script>
 </head>
 <body>
   <header class="wrap top">
@@ -101,6 +110,7 @@
       <li>Whop's own <a href="https://whop.com/tos" rel="noopener">Terms of Service</a> and <a href="https://whop.com/privacy" rel="noopener">Privacy Policy</a> also apply to your purchase.</li>
       <li>Questions: reply to any message from us, or reach us in the Discord.</li>
     </ul>
+    <p class="contact">Uncharted Territory. Questions or data requests: <a href="mailto:contact@uctintelligence.com">contact@uctintelligence.com</a></p>
     <p class="back"><a href="/live-trading-room">Back to the live trading room</a></p>
   </main>
 </body>

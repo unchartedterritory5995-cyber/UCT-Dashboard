@@ -17,16 +17,22 @@ import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
 import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
-import UIcon from '../components/ui/UIcon'
+import UIcon, { uiconSvgString } from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
 import styles from './MorningWire.module.css'
+import jsonFetcher from '../utils/jsonFetcher'
+import { formatPercent } from '../lib/presentation/presentationPrimitives'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
 const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
 
 const fetcher = url => fetch(url).then(r => r.json())
+// The rundown read THROWS on failure (jsonFetcher, 30 s deadline): with the bare fetcher a
+// 503 {detail} and a not-yet-published wire ({html: ''}) both left the skeleton up forever.
+const rundownFetcher = url => jsonFetcher(url)
 
 // Small stat pill used in the page header strip
 function StatPill({ label, value, color }) {
@@ -63,7 +69,7 @@ function EarningsRow({ row }) {
       <span className={`${styles.surprise} ${isPos ? styles.gainText : styles.lossText}`}>
         {surprise != null
           ? (typeof surprise === 'number'
-              ? `${surprise > 0 ? '+' : ''}${surprise.toFixed(1)}%`
+              ? formatPercent(surprise, { decimals: 1, signed: surprise > 0 })
               : surprise)
           : '—'}
       </span>
@@ -108,14 +114,16 @@ function renderTweetText(text) {
   )
 }
 
-function OnTheTape() {
-  const { data: tweets } = useTweetFeed({ hours: 12, limit: 50 })
+export function OnTheTape() {
+  const { data: tweets, error: tweetsError } = useTweetFeed({ hours: 12, limit: 50 })
 
   return (
     <div className={styles.tapeBlock}>
       <div className={styles.tapeLabel}><UIcon name="wire" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />ON THE TAPE</div>
       <div className={styles.tapeBody}>
-        {tweets == null
+        {tweets == null && tweetsError
+          ? <span className={styles.noData} role="status">The tape couldn&apos;t be read right now. That is not the same as no tweets.</span>
+          : tweets == null
           ? <SkeletonTileContent lines={5} />
           : tweets.length === 0
             ? <span className={styles.noData}>No tweets on the tape yet</span>
@@ -129,7 +137,8 @@ function OnTheTape() {
                     target="_blank"
                     rel="noreferrer"
                     title="open on X"
-                  >↗</a>
+                    aria-label="open on X"
+                  ><UIcon name="link" size={12} gold={false} /></a>
                   <div
                     className={styles.tweetText}
                     style={t.is_retweet ? { fontSize: '90%', opacity: 0.75 } : undefined}
@@ -144,12 +153,24 @@ function OnTheTape() {
   )
 }
 
+// Live sweep 2026-10-05: the engine can ship a section it never filled as its own
+// placeholder, `<p class="rd-loading">Market intelligence loading...</p>`. The rundown is a
+// FINISHED static fragment -- nothing on this page ever fills it in -- so the placeholder
+// read as a section loading forever. It is said plainly instead.
+export const WIRE_SECTION_MISSING = "This section was not produced in this morning's wire."
+export function settleLoadingPlaceholders(html) {
+  return String(html || '').replace(/<p class=(["'])rd-loading\1[^>]*>[\s\S]*?<\/p>/g,
+    `<p class="rd-loading rd-missing" data-testid="wire-section-missing">${WIRE_SECTION_MISSING}</p>`)
+}
+
 export default function MorningWire() {
+  // In a UCT Terminal panel the panel header names WIRE; the masthead title steps aside.
+  const inPanel = useInTerminalPanel()
   const { mutate } = useSWRConfig()
   // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { data: rundown }  = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
+  const { data: rundown, error: rundownError, mutate: retryRundown } = useSWR('/api/rundown', rundownFetcher, { refreshInterval: 300000 })
 
   // Morning Wire is MANUAL-only: no auto-read on page open. (The hands-free
   // hook is intentionally NOT invoked here — decoupled from proactive_speak so
@@ -160,7 +181,7 @@ export default function MorningWire() {
   // innerHTML on every re-render — which WIPES the injected feedback controls
   // below without re-running their effect (its deps are the html/date STRINGS,
   // which a 5-min SWR revalidation leaves unchanged).
-  const rundownHtml = useMemo(() => ({ __html: rundown?.html || '' }), [rundown?.html])
+  const rundownHtml = useMemo(() => ({ __html: settleLoadingPlaceholders(rundown?.html || '') }), [rundown?.html])
 
   // Follow-along: highlight + scroll to the briefing block being read aloud.
   const rundownRef = useRef(null)
@@ -193,11 +214,14 @@ export default function MorningWire() {
     const date = rundown.date
     const hydrated = {}  // seg -> { verdict, note }
 
+    // The rundown is injected HTML, so the controls carry UIcon's glyphs as static
+    // markup generated from the same registry (currentColor, themed by .rd-fb CSS).
+    const fbIcon = (name) => uiconSvgString(name, { size: 14 })
     const ctrlHtml = (seg) =>
       '<span class="rd-fb">' +
-      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">👍</button>` +
-      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">👎</button>` +
-      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">✎</button>` +
+      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">${fbIcon('thumbsUp')}</button>` +
+      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">${fbIcon('thumbsDown')}</button>` +
+      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">${fbIcon('edit')}</button>` +
       '</span>'
 
     // Controls on each segment label.
@@ -300,7 +324,7 @@ export default function MorningWire() {
         try {
           await post({ segment_key: seg, note })
           hydrated[seg] = { ...(hydrated[seg] || {}), note }
-          if (status) status.textContent = 'Saved ✓'
+          if (status) status.textContent = 'Saved'
           paint()
           setTimeout(() => panel?.remove(), 700)
         } catch { if (status) status.textContent = 'Save failed — try again' }
@@ -347,9 +371,11 @@ export default function MorningWire() {
         </div>
         <div className={styles.mastCenter}>
           <div className={styles.pageHeader}>
-            <div className={styles.titleRow}>
-              <span className={styles.wireName}>The Morning Wire</span>
-            </div>
+            {!inPanel && (
+              <div className={styles.titleRow}>
+                <span className={styles.wireName}>The Morning Wire</span>
+              </div>
+            )}
             {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
           </div>
           <QuoteOfTheDay />
@@ -396,7 +422,22 @@ export default function MorningWire() {
                 dangerouslySetInnerHTML={rundownHtml}
               />
             )
-            : <SkeletonTileContent lines={12} />
+            : rundownError && !rundown
+              ? (
+                <p className={styles.noData} data-testid="rundown-error">
+                  The Morning Wire could not be read right now. That is a gap in what we could
+                  read, not a statement about the market.{' '}
+                  <button type="button" onClick={() => retryRundown()}>Retry</button>
+                </p>
+              )
+              : rundown
+                ? (
+                  <p className={styles.noData} data-testid="rundown-not-out">
+                    Today&rsquo;s Morning Wire is not out yet. It publishes each trading morning
+                    around 7:35 AM ET, and this page checks for it every five minutes.
+                  </p>
+                )
+                : <SkeletonTileContent lines={12} />
           }
         </div>
       </TileCard>
@@ -406,10 +447,7 @@ export default function MorningWire() {
       <WireArchive />
 
       {/* ── Legal disclaimer ─────────────────────────────────────── */}
-      <p style={{
-        margin: '18px 4px 4px', fontSize: 11, lineHeight: 1.5,
-        color: 'var(--color-text-muted, #8a8a8a)', textAlign: 'center',
-      }}>
+      <p className={styles.disclaimer}>
         For educational and informational purposes only — not investment advice or a
         recommendation to buy or sell any security. Levels, picks, and commentary reflect the
         firm&apos;s method, not personalized advice. Trading involves substantial risk of loss;

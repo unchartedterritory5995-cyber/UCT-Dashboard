@@ -102,7 +102,7 @@ export default function PostsSection() {
   // Wider window than the market tape — our own posts are lower-frequency
   // (e.g. Bracco posts ~1×/3 days). Pull a full week (== tweet retention) and a
   // higher limit so each person's column has depth.
-  const { data, isLoading } = useTweetFeed({ hours: 168, limit: 150, official: true })
+  const { data, isLoading, error } = useTweetFeed({ hours: 168, limit: 150, official: true })
   const posts = Array.isArray(data) ? data : []
   const columns = groupByAuthor(posts)
 
@@ -136,7 +136,15 @@ export default function PostsSection() {
 
       {isLoading && <DeskSectionSkeleton cards={6} />}
 
-      {!isLoading && columns.length === 0 && (
+      {!isLoading && !data && error && (
+        <div className={styles.empty} role="status">
+          <span className={styles.emptyIcon} aria-hidden="true"><PostIcon size={30} /></span>
+          <div className={styles.emptyTitle}>Posts couldn&apos;t be loaded</div>
+          <div className={styles.emptyText}>That is a gap in what we could read right now, not an empty feed.</div>
+        </div>
+      )}
+
+      {!isLoading && !(error && !data) && columns.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon} aria-hidden="true"><PostIcon size={30} /></span>
           <div className={styles.emptyTitle}>No posts yet</div>

@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/setups-board",
+    "path": "/api/j2/setups-board",
+    "status": 200
+  },
+  "body": {
+    "capped": false,
+    "cards": [],
+    "count": 0,
+    "exampleCount": 0,
+    "pageSize": 16,
+    "scanned": 0,
+    "today": "2026-10-05"
+  }
+}

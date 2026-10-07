@@ -95,29 +95,34 @@ describe('PositionsTable phone cards', () => {
     expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
   })
 
-  it('the card is a real interactive control, and Enter opens the same TickerPopup a tap does (Seam)', () => {
+  // Lane FIN-A11Y round 2: the card used to BE the control (`role="button"`, tabIndex 0) with
+  // the chip and Edit/Close/Delete inside it. Interactive content inside a button is one
+  // control to a screen reader. The card is a named group now and its primary action is a real
+  // <button> on the title; these two tests assert the same Seam promise (a keyboard member can
+  // open a position) against that button. Nesting is railed in PositionsTable.nesting.test.jsx.
+  it('the card has a real button for its primary action, and it opens the same TickerPopup a tap does (Seam)', () => {
     render(
       <PositionsTable positions={positions} prices={prices} accountSize={10000}
                       visibleColumns={POSITIONS_COLUMNS} />,
     )
     const card = screen.getByTestId('position-card')
-    expect(card).toHaveAttribute('role', 'button')
-    expect(card).toHaveAttribute('tabIndex', '0')
+    expect(card).toHaveAttribute('role', 'group')
+    const open = screen.getByRole('button', { name: /AAPL position — open chart, research, and actions/ })
+    expect(open.tagName).toBe('BUTTON')          // native: Enter and Space activate it for free
+    expect(card.contains(open)).toBe(true)
 
     expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
-    fireEvent.keyDown(card, { key: 'Enter' })
+    fireEvent.click(open)
     expect(screen.getByTestId('chart-modal-AAPL')).toBeInTheDocument()
   })
 
-  it('Space also activates the card and is prevented-default', () => {
+  it('activating the title button opens the popup exactly once', () => {
     render(
       <PositionsTable positions={positions} prices={prices} accountSize={10000}
                       visibleColumns={POSITIONS_COLUMNS} />,
     )
-    const card = screen.getByTestId('position-card')
-    const notPrevented = fireEvent.keyDown(card, { key: ' ' })
-    expect(notPrevented).toBe(false)
-    expect(screen.getByTestId('chart-modal-AAPL')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /AAPL position — open chart/ }))
+    expect(screen.getAllByTestId('chart-modal-AAPL')).toHaveLength(1)
   })
 
   it('Enter on the card while an action button has focus does not double-fire', () => {

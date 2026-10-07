@@ -1242,6 +1242,7 @@ def _run_refresh_inner(hunt: Optional[bool] = None) -> dict:
                 "market_cap": c.get("market_cap"),
                 "sector": c.get("sector"),
                 "thesis_text": thesis["thesis_text"],
+                "thesis_status": thesis.get("thesis_status"),
                 "thesis_model": thesis["thesis_model"],
                 "thesis_at": thesis["thesis_at"],
                 "thesis_sources": thesis["thesis_sources"],

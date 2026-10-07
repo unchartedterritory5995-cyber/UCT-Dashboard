@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/earnings-prep/no%20way/draft",
+    "path": "/api/j2/earnings-prep/no%20way/draft",
+    "status": 400
+  },
+  "body": {
+    "detail": "Enter a ticker symbol, like NVDA."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/entry-context",
+    "path": "/api/j2/entry-context?symbol=ECAM&entryDay=2026-10-01",
+    "status": 200
+  },
+  "body": {
+    "context": null,
+    "key": {
+      "entryDay": "2026-10-01",
+      "symbol": "ECAM"
+    },
+    "reason": "No market context was captured for this entry. It is frozen only on the day of the entry, and a past day is never reconstructed.",
+    "status": "not_captured"
+  }
+}

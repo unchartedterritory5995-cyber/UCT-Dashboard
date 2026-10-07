@@ -108,7 +108,7 @@ export default function ScoreboardView({
          style={{ height: '100%', minHeight: 0, padding: '12px 18px', position: 'relative',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="scoreboard-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {`${live.length} reporting · sparkline spans ${asc.length} session${asc.length === 1 ? '' : 's'}`}
         {silent.length ? ` · ${silent.length} not reported in this window` : ''}
@@ -133,17 +133,17 @@ export default function ScoreboardView({
             return (
               <div key={m.key} {...drillProps(m, onDrill)}
                    className={isNotable ? signalStyles.pulse : undefined}
-                   style={{ background: '#0e131a', borderRadius: 8, padding: pad,
-                            border: isSignal ? '1px solid #c9a84c' : '1px solid rgba(255,255,255,0.05)',
+                   style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: pad,
+                            border: isSignal ? '1px solid var(--ut-gold)' : '1px solid color-mix(in srgb, var(--text-heading) 5%, transparent)',
                             display: 'flex', flexDirection: 'column', minHeight: 0,
                             cursor: clickable ? 'pointer' : 'default' }}>
-                <div style={{ font: '700 8px Instrument Sans, sans-serif', letterSpacing: '.5px',
-                              textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8',
+                <div style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.5px',
+                              textTransform: 'uppercase', color: isSignal ? 'var(--ut-gold)' : 'var(--text-muted)',
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               flex: '0 0 auto' }}>
                   {isSignal ? <><UIcon name="star-fill" size={8} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
                 </div>
-                <div style={{ font: `800 ${compact ? 18 : 24}px Instrument Sans, sans-serif`, color: '#e8e8ea',
+                <div style={{ font: `800 ${compact ? 18 : 24}px var(--font-sans)`, color: 'var(--text-bright)',
                               lineHeight: 1.1, marginTop: 2, fontVariantNumeric: 'tabular-nums',
                               flex: '0 0 auto' }}>
                   {m.getFmt(currentRow)}
@@ -171,7 +171,7 @@ export default function ScoreboardView({
                      onMouseLeave={hide}>
                   {sp
                     ? <polyline points={sp.pts} fill="none" stroke={sp.color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    : <line x1="0" y1="8" x2="60" y2="8" stroke="#334155" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
+                    : <line x1="0" y1="8" x2="60" y2="8" stroke="var(--border-accent)" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
                   {sp?.marks.map(p => (
                     <rect key={p.i} data-testid={`scoreboard-point-${m.key}-${p.i}`}
                           data-seek-idx={p.i} data-seek-date={asc[p.i].date}
@@ -189,17 +189,17 @@ export default function ScoreboardView({
 
         {silent.length > 0 && (
           <div data-testid="scoreboard-silent" style={{ flex: '0 0 auto', marginTop: 12 }}>
-            <div style={{ font: '700 8px Instrument Sans, sans-serif', letterSpacing: '.7px',
-                          textTransform: 'uppercase', color: '#475569', marginBottom: 6 }}>
+            <div style={{ font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.7px',
+                          textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
               Not reported in this window
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {silent.map(m => (
                 <span key={m.key} data-testid={`scoreboard-silent-${m.key}`}
                       title={`${m.label} — no reading in the ${asc.length} sessions drawn here`}
-                      style={{ font: '600 9px Instrument Sans, sans-serif', letterSpacing: '.4px',
-                               textTransform: 'uppercase', color: '#475569',
-                               border: '1px dashed rgba(148,163,184,0.22)', borderRadius: 6,
+                      style={{ font: '600 var(--text-xs) var(--font-sans)', letterSpacing: '.4px',
+                               textTransform: 'uppercase', color: 'var(--text-muted)',
+                               border: '1px dashed color-mix(in srgb, var(--text-muted) 22%, transparent)', borderRadius: 6,
                                padding: '3px 8px', whiteSpace: 'nowrap' }}>
                   {m.label}
                 </span>

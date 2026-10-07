@@ -50,17 +50,17 @@ def fake_r2(monkeypatch):
 
 def test_session_title_formats_et_date():
     # 2026-06-24T13:30:00Z == 09:30 ET, still June 24
-    assert dds._session_title("2026-06-24T13:30:00Z") == "Live Trading Session — June 24, 2026"
+    assert dds._session_title("2026-06-24T13:30:00Z") == "Live Trading Session: June 24, 2026"
 
 
 def test_session_title_handles_utc_midnight_rolling_back_to_prev_et_day():
     # 2026-06-25T02:00:00Z == 2026-06-24 22:00 ET
-    assert dds._session_title("2026-06-25T02:00:00Z") == "Live Trading Session — June 24, 2026"
+    assert dds._session_title("2026-06-25T02:00:00Z") == "Live Trading Session: June 24, 2026"
 
 
 def test_session_title_falls_back_to_now_when_missing():
     fixed = datetime(2026, 6, 24, 12, 0, tzinfo=ET)
-    assert dds._session_title(None, now=fixed) == "Live Trading Session — June 24, 2026"
+    assert dds._session_title(None, now=fixed) == "Live Trading Session: June 24, 2026"
 
 
 class _FakeClient:
@@ -87,7 +87,7 @@ def test_publish_creates_dated_record(edu_db):
     created = dds.publish_new_sessions(client=client, now=_NOW)
     assert len(created) == 1
     assert created[0]["youtube_id"] == "VID1"
-    assert created[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert created[0]["title"] == "Live Trading Session: June 24, 2026"
     assert created[0]["category"] == "Live Trading Sessions"
 
 
@@ -140,7 +140,7 @@ def test_publish_skips_broadcasts_before_floor(edu_db):
     created = dds.publish_new_sessions(client=fc, now=fixed_now)
     assert len(created) == 1
     assert created[0]["youtube_id"] == "TODAY"
-    assert created[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert created[0]["title"] == "Live Trading Session: June 24, 2026"
 
 
 def test_publish_respects_start_date_env(edu_db, monkeypatch):
@@ -318,7 +318,7 @@ def test_process_pending_publishes_and_cleans(edu_db, jobs_db, fake_r2):
     out = dds.process_pending_jobs(zoom=z, youtube=yt)
     assert len(out) == 1
     vids = edu.list_videos()
-    assert len(vids) == 1 and vids[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert len(vids) == 1 and vids[0]["title"] == "Live Trading Session: June 24, 2026"
     assert vids[0]["youtube_id"] == "VIDX"
     assert z.deleted == ["U1"]                      # Zoom copy trashed
     # ⛔ …and ONLY because the text artifacts were stored first (§8a.6a). The VTT and the
@@ -406,16 +406,16 @@ def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeyp
 def test_process_notifies_on_new_publish(edu_db, jobs_db, monkeypatch):
     calls = []
     monkeypatch.setattr(dds, "_notify_published",
-                        lambda title, vid, section=None: calls.append((title, vid, section)))
+                        lambda title, vid, section=None, **kw: calls.append((title, vid, section)))
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
-    assert calls == [("Live Trading Session — June 24, 2026", "VIDX", "Live Trading Sessions")]
+    assert calls == [("Live Trading Session: June 24, 2026", "VIDX", "Live Trading Sessions")]
 
 
 def test_process_does_not_notify_on_idempotent_rerun(edu_db, jobs_db, monkeypatch):
     calls = []
     monkeypatch.setattr(dds, "_notify_published",
-                        lambda title, vid, section=None: calls.append(vid))
+                        lambda title, vid, section=None, **kw: calls.append(vid))
     edu.create_video({"youtube_id": "VIDX", "title": "x",
                       "category": "Live Trading Sessions", "sort_order": 0})
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
@@ -524,7 +524,7 @@ def test_process_routes_by_webinar_name(edu_db, jobs_db):
     jobs_db.enqueue("U2", "Sector Rotation Briefing", "2026-06-24T20:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     v = edu.list_videos()[0]
-    assert v["title"] == "Sector Rotation Briefing — June 24, 2026"
+    assert v["title"] == "Sector Rotation Briefing: June 24, 2026"
     assert v["category"] == "Sector Rotation Briefing"
 
 
@@ -533,7 +533,7 @@ def test_process_routes_curated_alias_to_shared_section(edu_db, jobs_db):
     jobs_db.enqueue("U2b", "Post Market Recap", "2026-06-24T20:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     v = edu.list_videos()[0]
-    assert v["title"] == "Post-Market Recap — June 24, 2026"
+    assert v["title"] == "Post-Market Recap: June 24, 2026"
     assert v["category"] == "Post-Market Recaps"
 
 
@@ -543,7 +543,7 @@ def test_process_evening_update_publishes_with_section(edu_db, jobs_db):
     jobs_db.enqueue("U3", "Evening Update from Bracco", "2026-06-29T21:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     v = edu.list_videos()[0]
-    assert v["title"] == "Evening Update from Bracco — June 29, 2026"
+    assert v["title"] == "Evening Update from Bracco: June 29, 2026"
     assert v["category"] == "Evening Update"
 
 
@@ -697,7 +697,7 @@ def test_flags_off_creative_is_never_consulted(edu_db, jobs_db, monkeypatch):
     yt = _ByteThumbYT()
     out = _publish_one(jobs_db, yt)
     assert len(out) == 1
-    assert yt.uploads[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert yt.uploads[0]["title"] == "Live Trading Session: June 24, 2026"
     assert yt.thumbs and yt.thumbs[0][1] > 1000            # themed card still set
 
 
@@ -725,7 +725,7 @@ def test_creative_title_crash_ships_the_classic_title(edu_db, jobs_db, monkeypat
     yt = _RecordingYT()
     out = _publish_one(jobs_db, yt)
     assert len(out) == 1                                   # publish survives
-    assert yt.uploads[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert yt.uploads[0]["title"] == "Live Trading Session: June 24, 2026"
 
 
 def test_creative_cover_bytes_reach_youtube(edu_db, jobs_db, monkeypatch):
@@ -1024,7 +1024,7 @@ def test_compose_description_names_the_show():
 
 def test_compose_description_includes_product_links():
     desc = dds._compose_description("Sunday Scans")
-    assert "https://whop.com/uncharted/uncharted" in desc
+    assert "https://whop.com/c/uncharted/yt-desk" in desc
     assert "https://uctintelligence.com" in desc
 
 
@@ -1038,7 +1038,7 @@ def test_upload_receives_the_composed_description(edu_db, jobs_db):
     _publish_one(jobs_db, yt, topic="Live Trading Session")
     desc = yt.uploads[0]["description"]
     assert desc.startswith("Live Trading Session — full session replay.")
-    assert "https://whop.com/uncharted/uncharted" in desc
+    assert "https://whop.com/c/uncharted/yt-desk" in desc
 
 
 def test_upload_description_names_the_actual_routed_show(edu_db, jobs_db):
@@ -1098,7 +1098,7 @@ def test_compose_description_with_chapters_includes_chapter_list_and_links():
     assert "⏱️ Chapters:" in desc
     assert "0:00 Start of Session" in desc
     assert "5:00 MU entry at the 21" in desc
-    assert "https://whop.com/uncharted/uncharted" in desc
+    assert "https://whop.com/c/uncharted/yt-desk" in desc
 
 
 def test_compose_description_with_chapters_falls_back_when_none_given():

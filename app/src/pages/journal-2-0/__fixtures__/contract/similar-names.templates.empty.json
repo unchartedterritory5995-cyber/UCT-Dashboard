@@ -1,0 +1,13 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/similar-names/templates",
+    "path": "/api/j2/similar-names/templates",
+    "status": 200
+  },
+  "body": {
+    "count": 0,
+    "maxTemplates": 25,
+    "templates": []
+  }
+}

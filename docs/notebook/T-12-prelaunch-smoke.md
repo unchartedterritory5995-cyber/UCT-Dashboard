@@ -377,6 +377,27 @@ gate as OPEN rather than PASS because a template came back blank four times;
 
 ## Runs
 
-*(No run has been executed. This section is empty on purpose — an empty Runs
+⚰️ Struck 2026-10-07: ~~*(No run has been executed. This section is empty on purpose — an empty Runs
 section is the honest state of an unexecuted gate, and it must not be filled in
-by anyone who did not personally perform the steps above.)*
+by anyone who did not personally perform the steps above.)*~~
+
+Two automated runs exist. Both were made under the charter amendment of 2026-09-13 (the owner
+delegates execution and reviews the evidence), against production, through the member's own
+controls. They are listed here by the rollback lane on 2026-10-07, which read the two files and ran
+nothing.
+
+| Run | Identity | File | Result |
+|---|---|---|---|
+| 2026-09-13T18-14-10Z | `member-smoke@uctintelligence.internal`, a fresh browser context | `docs/notebook/t12-smoke-2026-09-13.md` | "9 step(s): 7 PASS, 0 FAIL, 2 INCONCLUSIVE/OPEN" |
+| 2026-09-14 | the owner's rig profile | `docs/notebook/t12-smoke-owner-rig-2026-09-14.md` | "9 step(s): 7 PASS, 0 FAIL, 2 INCONCLUSIVE/OPEN" |
+
+The same two steps are INCONCLUSIVE in both: step 7, "Ask a question, and follow the citation"
+(the runner did not drive the scope switch and the citation click), and step 8, "Trash it and
+bring it back" (the runner found no delete control on the note surface).
+
+**So the gate is NOT passed.** Each file says it itself: "C-7 flips TRUE only when every step
+passes on BOTH identities. Any INCONCLUSIVE or OPEN step means the gate has not been exercised".
+By this file's own rule, absence is not PASS. Steps 0 to 6 have been exercised twice and passed
+twice; steps 7 and 8 have never been exercised. No later document says whether this gate is
+still required before launch. That is an open question for the owner, not something this
+section can settle.

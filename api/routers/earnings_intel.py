@@ -41,6 +41,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import ticker_shape
 from api.services.call_recap import (
     get_call_recap_with_status,
     get_sentiment,
@@ -62,6 +63,11 @@ router = APIRouter()
 # Cold-path budget for a recap that is not warmed. Both are optional extras
 # around the recap itself, so neither may spend the whole request.
 _COLD_BUDGET = float(os.environ.get("CALL_RECAP_COLD_BUDGET", "2.0"))
+# R19: on a WARMED recap the rating trend and webcast link are re-read live
+# (both are cached in their own services, so this is usually a cache hit) and
+# the copy stored at warm time is only the fallback. A short budget: the stored
+# copy is a real answer, so a slow provider never holds the panel.
+_LIVE_BUDGET = float(os.environ.get("CALL_RECAP_LIVE_BUDGET", "0.75"))
 
 # ONE shared pool, created once. A per-request `with ThreadPoolExecutor(...)`
 # is wrong twice: it builds and tears down threads on every open, and its
@@ -103,7 +109,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/api/earnings/call-recap/{ticker}")
 def call_recap_endpoint(
-    ticker: str,
+    ticker: str = Depends(ticker_shape),
     quarter: Optional[str] = Query(default=None, description="e.g. 2026Q3; omit for latest"),
     user: dict = Depends(require_paid),
 ):
@@ -127,8 +133,26 @@ def call_recap_endpoint(
         # what kept the endpoint at ~4.5s despite the recap itself being a ~1ms
         # point-read — the store read was instant, the RESPONSE was not.
         if recap and "webcast_url" in recap:
-            webcast = recap.get("webcast_url")
-            ratings = recap.get("rating_changes") or []
+            # R19: these were FROZEN at warm time -- a rating change or a new
+            # webcast link after the warm never reached the panel. Read them
+            # live inside a short shared deadline; the stored copy is the
+            # fallback, never the answer when a live one is in hand.
+            stored_web = recap.get("webcast_url")
+            stored_rat = recap.get("rating_changes") or []
+            ex = _cold_pool()
+            f_rat = ex.submit(get_rating_changes, sym)
+            f_web = ex.submit(get_webcast_url, sym)
+            deadline = time.monotonic() + _LIVE_BUDGET
+            try:
+                live_rat = f_rat.result(timeout=max(0.0, deadline - time.monotonic()))
+            except Exception:
+                live_rat = None
+            ratings = live_rat if live_rat else stored_rat
+            try:
+                live_web = f_web.result(timeout=max(0.0, deadline - time.monotonic()))
+            except Exception:
+                live_web = None
+            webcast = live_web or stored_web
         else:
             # Cold path — the recap is not warmed, so these two have to be
             # fetched. They are INDEPENDENT (a Perplexity lookup and an FMP
@@ -212,7 +236,7 @@ def audio_endpoint(ticker: str):
 
 
 @router.get("/api/earnings/sentiment/{ticker}")
-def sentiment_endpoint(ticker: str, user: dict = Depends(require_paid)):
+def sentiment_endpoint(ticker: str = Depends(ticker_shape), user: dict = Depends(require_paid)):
     """AI-derived earnings sentiment.
 
     Returns {score: int(-100..100), label, rationale, drivers[]}
@@ -257,7 +281,7 @@ def _with_qa_boundary(res):
 
 @router.get("/api/earnings/transcript/{ticker}")
 def transcript_endpoint(
-    ticker: str,
+    ticker: str = Depends(ticker_shape),
     quarter: Optional[str] = Query(default=None, description="e.g. 2025Q1; omit to auto-resolve latest"),
     user: dict = Depends(require_paid),
 ):
@@ -359,7 +383,7 @@ def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(require
 
 
 @router.get("/api/earnings/transcript-quarters/{ticker}")
-def transcript_quarters_endpoint(ticker: str, user: dict = Depends(require_paid)):
+def transcript_quarters_endpoint(ticker: str = Depends(ticker_shape), user: dict = Depends(require_paid)):
     """Quarters with a published transcript, newest first.
 
     Cheap (one cached FMP index call, no transcript bodies) and it is what lets
@@ -400,7 +424,7 @@ def analyst_grades_endpoint(ticker: str, user: dict = Depends(require_paid)):
 
 @router.get("/api/earnings/timed-transcript/{ticker}")
 def timed_transcript_endpoint(
-    ticker: str,
+    ticker: str = Depends(ticker_shape),
     year: Optional[int] = Query(default=None),
     quarter: Optional[int] = Query(default=None),
     user: dict = Depends(require_paid),

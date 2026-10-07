@@ -96,14 +96,24 @@ way for the product to reach the CDP-privileged one Playwright's own `.focus()` 
 
 ## 4. Conclusion and what shipped
 
-**No product-side JavaScript fix was found, after two genuinely different, carefully
-re-measured attempts and a controlled isolation.** This reads as a genuine finding, not a
+> ⚰️ **SUPERSEDED, struck 2026-10-06. A product fix exists and shipped.** This section records
+> the lane's state before its last commit and is kept as history. The fix is
+> `74bfc895b0` ("fix(notebook 13Q-Q1check): poll the editor's own DOM connection before the one-shot body focus", 2026-10-03): the editor's
+> DOM was not yet connected when the one-shot focus ran, so the call was a silent no-op; the
+> effect now waits for `editor.view.dom.isConnected`. Measured after it in a real browser:
+> `docs/notebook/evidence/wave13-q1check/attach-fix-reverify/results.json` holds 10 rows (5 at
+> 1200 px, 5 at 390 px), and in all 10 `typed_landed_in_body` is true and
+> `typed_landed_in_title` is false. The cause named below (a CDP automation artifact) was the
+> wrong explanation. `BETA-HANDOFF.md` section 1 already says the fix shipped.
+
+~~**No product-side JavaScript fix was found, after two genuinely different, carefully
+re-measured attempts and a controlled isolation.**~~ This reads as a genuine finding, not a
 failure to try hard enough: the same mechanism (CDP automation privileging its own
 injected calls over the automated page's natural script) is the simplest explanation
 consistent with every measurement above, and it is specific to the page being
 CDP-automated at all — something no real member's browser ever is.
 
-**Both product changes were reverted.** `NoteEditorPage.jsx` is back to 13Q-2's original
+~~**Both product changes were reverted.**~~ (⚰️ true of the first two attempts only; the third, `74bfc895b0`, shipped: see the note at the top of this section.) `NoteEditorPage.jsx` is back to 13Q-2's original
 single `editor.commands.focus('end')` call (confirmed unchanged behaviour: the existing
 jsdom rail `NoteEditorPage.wave13Q2focus.test.jsx`, 4/4, and the full 50-file
 `NoteEditorPage.*.test.jsx` sweep, 353/353, both still pass — jsdom has no notion of this
@@ -162,7 +172,7 @@ compensation is correct to keep. `tests/test_notebook_w13q_clicks.py` is unchang
 
 ## 8. Open items
 
-- No product fix exists for Q1 within this lane's means. If a future lane wants to pursue
+- ~~No product fix exists for Q1 within this lane's means.~~ ⚰️ Struck 2026-10-06: the fix shipped in `74bfc895b0` (section 4's note). The rest of this item is kept as history. If a future lane wants to pursue
   this further, the one untried avenue with any theoretical basis is restructuring note
   creation to be optimistic (mount a blank editor and grab focus synchronously within the
   ORIGINAL trusted click handler's call stack, before any `await`, reconciling with the

@@ -859,3 +859,232 @@ def test_the_two_panels_a_free_member_can_still_open_report_a_REFUSAL(app):
             f"{panel} no longer branches on the refusal sentinel — a free member "
             "gets a loading state that never resolves")
         assert "paid plan" in src, f"{panel} refuses without saying why"
+
+
+# ── 7. THE NOTEBOOK: every member route in a Notebook router is paid ─────────
+#
+# Owner ruling 2026-10-02 ("no free tier, everything is paywall"), applied to the
+# Notebook by the security review of waves 12 to 15 (finding I-7): about twenty
+# new member routes were session-only while their siblings were paid, with no
+# rule behind the split and nothing railing it either way.
+#
+# THE SET IS DERIVED, NOT TYPED. Every route the real app serves whose handler
+# lives in an `api.routers.notebook_*` module is classified from its dependency
+# tree. It must be paid, or admin-only, or be named in `NOTEBOOK_NOT_PAID` with
+# the reason. So a Notebook route added tomorrow with only a session check fails
+# here BY NAME, whatever it is called and whichever router it lands in.
+
+NOTEBOOK_MODULE_PREFIX = "api.routers.notebook_"
+
+#: The routes the ruling closed, named, so each is asserted on its own and a
+#: rename is loud. Each was session-only at `72715e8001`.
+NOTEBOOK_PAID_BY_RULING: set[tuple[str, str]] = {
+    ("GET", "/api/j2/template-gallery"),
+    ("GET", "/api/j2/template-gallery/{gallery_id}"),
+    ("POST", "/api/j2/template-gallery/{gallery_id}/use"),
+    ("POST", "/api/j2/template-gallery/{gallery_id}/report"),
+    ("GET", "/api/j2/plan-grades/trades/{trade_id}"),
+    ("POST", "/api/j2/plan-grades/trades/{trade_id}/relink"),
+    ("GET", "/api/j2/plan-grades/status"),
+    ("GET", "/api/j2/plan-grades/discipline"),
+    ("GET", "/api/j2/my-playbook"),
+    ("GET", "/api/j2/review-drafts/daily"),
+    ("GET", "/api/j2/review-drafts/weekly"),
+    ("GET", "/api/j2/review-drafts/monthly"),
+    ("GET", "/api/j2/setups-board"),
+    ("GET", "/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after"),
+    ("POST", "/api/j2/chart-plan/size"),
+    ("GET", "/api/j2/chart-plan/benchmarks"),
+    ("POST", "/api/j2/chart-plan/alerts"),
+    ("PUT", "/api/j2/onboarding/tours/{tour_id}"),
+}
+
+#: The flags that keep those routes dark. Turned on for the behavioural sweep
+#: only: with a flag off every caller gets the one 404, which says nothing about
+#: the plan gate.
+NOTEBOOK_RULING_FLAGS = (
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_ONBOARDING_ENABLED",
+)
+
+#: ✋ NOT PAID, AND PINNED SO THAT CHANGES ONLY ON PURPOSE. None of these is new
+#: in waves 12 to 15; each predates the scope the ruling was applied to here.
+_PUBLIC = "a public page: a stranger opens a share link or a published note with no account"
+_BEARER = "its own bearer token, not a session (the personal API); minting a token is paid"
+#: ⛔ OWNER RULING 2026-10-07: a member must ALWAYS be able to take their own content down,
+#: whatever their plan. A takedown is never paywalled. Each of the nineteen routes the
+#: paywall ruling closed was checked against this; only one of them does nothing but remove
+#: the caller's own content (see docs/notebook/fin-sec.md for the other eighteen).
+_TAKEDOWN = ("a member can ALWAYS take their own content down, whatever their plan (owner "
+             "ruling 2026-10-07); this route only removes the caller's own published copy")
+_OLDER = ("older than waves 12 to 15 and outside the scope the ruling was applied to in that "
+          "review; session-only, a candidate for a later paid pass")
+NOTEBOOK_NOT_PAID: dict[tuple[str, str], str] = {
+    ("GET", "/api/j2/published/{slug}"): _PUBLIC,
+    ("GET", "/api/j2/published/{slug}/att/{sub}/{filename}"): _PUBLIC,
+    ("GET", "/api/j2/published/{slug}/n/{pid}"): _PUBLIC,
+    ("GET", "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}"): _PUBLIC,
+    ("GET", "/api/j2/shared/{token}"): _PUBLIC,
+    ("GET", "/api/j2/shared/{token}/att/{sub}/{filename}"): _PUBLIC,
+    ("POST", "/api/j2/inbound-email"): "the mail provider's webhook, authenticated by its own secret",
+    ("POST", "/api/j2/personal/daily/append"): _BEARER,
+    ("POST", "/api/j2/personal/notes"): _BEARER,
+    ("POST", "/api/j2/personal/notes/{note_id}/append"): _BEARER,
+    ("DELETE", "/api/j2/notes/{note_id}/share"): _OLDER + " (turning a share link off)",
+    ("GET", "/api/j2/notes/{note_id}/share"): _OLDER,
+    ("GET", "/api/j2/share/links"): _OLDER,
+    ("DELETE", "/api/j2/publish/{slug}"): _OLDER + " (taking a published page down)",
+    ("GET", "/api/j2/publish"): _OLDER,
+    ("DELETE", "/api/j2/personal/tokens/{token_id}"): _OLDER + " (revoking a token)",
+    ("GET", "/api/j2/personal/tokens"): _OLDER,
+    ("DELETE", "/api/j2/onboarding/sample-notebook"): _OLDER + " (removing the sample notebook)",
+    ("GET", "/api/j2/onboarding/sample-notebook"): _OLDER,
+    ("GET", "/api/j2/ai-actions"): _OLDER,
+    ("GET", "/api/j2/ai-actions/{set_id}"): _OLDER,
+    ("POST", "/api/j2/ai-actions/{set_id}/apply"): _OLDER,
+    ("POST", "/api/j2/ai-actions/{set_id}/undo"): _OLDER,
+    ("GET", "/api/j2/export/notebook"): _OLDER + " (a member's own data, on its way out)",
+    ("GET", "/api/j2/export/notes/{note_id}"): _OLDER + " (a member's own data, on its way out)",
+    ("GET", "/api/j2/link-preview"): _OLDER,
+    ("DELETE", "/api/j2/template-gallery/{gallery_id}"): _TAKEDOWN,
+    ("GET", "/api/j2/notes/tasks"): _OLDER,
+    ("GET", "/api/j2/notes/{note_id}/unlinked-mentions"): _OLDER,
+}
+
+NOTEBOOK_PATH_SAMPLES = {"gallery_id": "no-such-template", "trade_id": "no-such-trade", "tour_id": "sec-tour"}
+
+
+def _notebook_routes(app) -> dict[tuple[str, str], object]:
+    return {key: r for key, r in _table(app).items()
+            if (getattr(getattr(r, "endpoint", None), "__module__", "") or "").startswith(NOTEBOOK_MODULE_PREFIX)}
+
+
+def _notebook_class(route) -> str:
+    names = _dep_names(route)
+    if "require_admin" in names:
+        return "admin"
+    if "require_paid" in names:
+        return "paid"
+    return "open"
+
+
+def test_every_NOTEBOOK_member_route_is_paid_or_named_as_an_exception(app):
+    """⭐ THE RAIL. Derived from the served app: a Notebook route that is neither paid nor
+    admin-only must be in `NOTEBOOK_NOT_PAID`, by name, with its reason."""
+    routes = _notebook_routes(app)
+    assert len(routes) >= 80, f"the Notebook route walk found only {len(routes)} routes"
+    classes = {key: _notebook_class(r) for key, r in routes.items()}
+    assert sum(1 for c in classes.values() if c == "paid") >= 40
+    assert any(c == "admin" for c in classes.values()) and any(c == "open" for c in classes.values()), (
+        "the classifier reports one class for everything, so it is not reading the gates")
+
+    unpaid = {key for key, c in classes.items() if c == "open"}
+    new_open = sorted(unpaid - set(NOTEBOOK_NOT_PAID))
+    assert not new_open, (
+        "these Notebook routes check a session but not a paid plan, and are not named as "
+        f"exceptions: {[f'{m} {p}' for m, p in new_open]}. Owner ruling 2026-10-02: there is no "
+        "free tier. Give each this router's own `require_paid`, or add it to "
+        "NOTEBOOK_NOT_PAID with the reason.")
+    stale = sorted(set(NOTEBOOK_NOT_PAID) - unpaid)
+    assert not stale, (
+        f"NOTEBOOK_NOT_PAID names routes that are now paid, admin-only or gone: "
+        f"{[f'{m} {p}' for m, p in stale]}. Remove the row with the change that closed it.")
+
+
+@pytest.mark.parametrize("key", sorted(NOTEBOOK_PAID_BY_RULING), ids=lambda k: f"{k[0]} {k[1]}")
+def test_each_route_the_ruling_closed_carries_require_paid(app, key):
+    routes = _notebook_routes(app)
+    assert key in routes, f"{key[0]} {key[1]} is not served by a Notebook router any more"
+    assert _notebook_class(routes[key]) == "paid", (
+        f"{key[0]} {key[1]} is open to a member with no paid plan again")
+    assert key not in NOTEBOOK_NOT_PAID
+
+
+def _notebook_request(key):
+    url = key[1]
+    for name in re.findall(r"\{(\w+)\}", url):
+        assert name in NOTEBOOK_PATH_SAMPLES, f"no sample for path parameter {name!r}"
+        url = url.replace("{" + name + "}", NOTEBOOK_PATH_SAMPLES[name])
+    return url
+
+
+@pytest.fixture
+def notebook_flags_on(monkeypatch):
+    for flag in NOTEBOOK_RULING_FLAGS:
+        monkeypatch.setenv(flag, "1")
+
+
+def test_a_FREE_member_is_refused_402_on_every_route_the_ruling_closed(app, clean_overrides, notebook_flags_on):
+    """Driven with NO body: a refused request never reaches a handler, so nothing is written
+    and nothing is spent. The sentence must say a paid plan is needed."""
+    client = _client(app, FREE_USER)
+    for key in sorted(NOTEBOOK_PAID_BY_RULING):
+        resp = client.request(key[0], _notebook_request(key))
+        assert resp.status_code == 402, (
+            f"{key[0]} {key[1]} answered a logged-in FREE member {resp.status_code}: {resp.text[:200]}")
+        assert "paid plan" in resp.json()["detail"], resp.text[:200]
+
+
+def test_an_ANONYMOUS_caller_is_refused_on_every_route_the_ruling_closed(app, clean_overrides, notebook_flags_on):
+    client = _client(app, ANON)
+    for key in sorted(NOTEBOOK_PAID_BY_RULING):
+        resp = client.request(key[0], _notebook_request(key))
+        assert resp.status_code == 401, f"{key[0]} {key[1]} answered an anonymous caller {resp.status_code}"
+
+
+def test_CONTROL_with_the_flags_off_the_same_requests_are_not_plan_refusals(app, clean_overrides, monkeypatch):
+    """The 402s above come from the plan gate and not from the harness: with the flags off the
+    same free member gets the dark 404 on every one of them."""
+    for flag in NOTEBOOK_RULING_FLAGS:
+        monkeypatch.delenv(flag, raising=False)
+    client = _client(app, FREE_USER)
+    for key in sorted(NOTEBOOK_PAID_BY_RULING):
+        assert client.request(key[0], _notebook_request(key)).status_code == 404, key
+
+
+#: The takedowns: routes whose only effect is removing the caller's own content.
+NOTEBOOK_TAKEDOWNS = {key for key, why in NOTEBOOK_NOT_PAID.items() if why is _TAKEDOWN}
+
+
+def test_a_TAKEDOWN_is_never_paywalled_but_still_needs_a_session(app, clean_overrides, notebook_flags_on):
+    """⭐ OWNER RULING 2026-10-07. A member whose plan lapsed reaches the handler (here it
+    answers 404, because the sample id names no template of theirs), and a signed-out caller
+    is still refused. Paid here would be a member unable to withdraw what they published."""
+    assert NOTEBOOK_TAKEDOWNS == {("DELETE", "/api/j2/template-gallery/{gallery_id}")}
+    routes = _notebook_routes(app)
+    for key in sorted(NOTEBOOK_TAKEDOWNS):
+        assert _notebook_class(routes[key]) == "open", f"{key[0]} {key[1]} is paywalled: a takedown never is"
+        assert get_current_user in _dep_objects(routes[key]), f"{key[0]} {key[1]} lost its session check"
+        url = _notebook_request(key)
+        free = _client(app, FREE_USER).request(key[0], url)
+        assert free.status_code not in REFUSALS, (
+            f"{key[0]} {key[1]} refused a FREE member {free.status_code}: {free.text[:160]}")
+        assert _client(app, ANON).request(key[0], url).status_code == 401
+
+
+def test_every_NOTEBOOK_require_paid_gate_is_a_REAL_paid_check(app):
+    """The paid half, and the proof that "named require_paid" means "checks the plan": each
+    gate object on a Notebook route is called with a free member (402), a paid member and an
+    admin (both pass)."""
+    from fastapi import HTTPException
+
+    gates = {}
+    for key, route in _notebook_routes(app).items():
+        for dep in _dep_objects(route):
+            if getattr(dep, "__name__", "") == "require_paid":
+                gates.setdefault(dep, []).append(key)
+    assert len(gates) >= 14, f"only {len(gates)} distinct Notebook require_paid gates found"
+    reached = {key for keys in gates.values() for key in keys}
+    assert NOTEBOOK_PAID_BY_RULING <= reached
+
+    sentences: dict[str, list[str]] = {}
+    for gate in gates:
+        with pytest.raises(HTTPException) as exc:
+            gate(dict(FREE_USER))
+        assert exc.value.status_code == 402, (gate.__module__, exc.value.status_code)
+        sentences.setdefault(exc.value.detail, []).append(gate.__module__)
+        assert gate(dict(PAID_USER)) is not None
+        assert gate(dict(ADMIN_USER)) is not None
+    dupes = {s: m for s, m in sentences.items() if len(m) > 1}
+    assert not dupes, f"two Notebook routers refuse with the same sentence: {dupes}"

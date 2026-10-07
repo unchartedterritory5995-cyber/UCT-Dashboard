@@ -668,6 +668,19 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
        'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
        'instance naming the draft would be dropped exactly as before'],
+      ['app/src/components/chart/builder/conversationSave.js',
+       '⭐ NEW AT P2 (slice ui) — the conversational authoring save (ConverseBox). The SAME ' +
+       'order as BuilderSheet.save(): validate → saveUserDefinition → installUserDefinitions ' +
+       '→ addInstance ON A CREATE ONLY, addressing the STORE\'s id (never the draft\'s). It ' +
+       'then hands the minted instanceId to the info-value and alert doors, so the one ' +
+       'instance it adds is the one every stored request names'],
+      ['app/src/components/chart/builder/studio/chartPreview.js',
+       '⭐ NEW AT P2 TRACK B (Create Indicator, slice 1) — the conversation\'s LIVE PREVIEW ' +
+       'on the member\'s REAL chart. addInstance is called against the STORED blob only to ' +
+       'SHAPE the one preview instance (declared defaults, placement) exactly as Save will ' +
+       'add it; the result is never written. The instance rides StockChart\'s csView read ' +
+       'view, every writer keeps using cs, and stripPreview removes it at the persist ' +
+       'writer. It names u_studio-preview, which the server can never mint'],
       ['app/src/components/chart/builder/editor/PreviewPane.jsx',
        '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
        'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +
@@ -774,6 +787,30 @@ describe('the control-door census — how many doors, and whether an eighth exis
        + 'outright — the third lock deliberately does not trust the first two. '
        + 'Dev-server only (`scan-harness.html`; `vite build` takes index.html as its '
        + 'single input), which `scanHarnessAbsent.test.js` rails.'],
+      ['app/src/testing/addToChart/addToChartHarness.jsx',
+       '⭐ THE UNIFIED ADD TO CHART LIVE HARNESS — the FIFTH dev-only probe, ledgered '
+       + 'in the change that adds it. It uses door eight ONCE, to seed its own '
+       + '`opts.settings` with an own-pane RSI (`addInstance`), so pane order, pane '
+       + 'readouts and the legend have something real to stay unchanged while the '
+       + 'Earnings Strip and Company Info are added, collapsed and removed around them. '
+       + '⛔ IT WRITES NOTHING: same three locks as the scan harness (opts in page '
+       + 'state, a spread `WORKSPACE_FALLBACK`, a `fetch` that refuses non-GET '
+       + 'preference/layout writes). Dev-server only (`add-to-chart-harness.html`), '
+       + 'railed by `addToChartHarnessAbsent.test.js`.'],
+      ['app/src/testing/marketcap/marketCapHarness.jsx',
+       '⭐ THE MARKET CAP AUTHORITY LIVE HARNESS — a dev-only probe, ledgered for the '
+       + 'reason its siblings are (it landed on the Market Cap branch before this census '
+       + 'reached it; the merge made the case red, and the remedy is this row). It uses '
+       + 'door eight for three things on its own seeded Market Cap instance: under '
+       + '`?ma=<period>` it seeds ONE Moving Average whose Source is that instance '
+       + '(`addInstance` then `setInstanceInput` → `@inst:…::value`), the write the MA\'s '
+       + 'Source picker makes, so the derived series is measured on the authority-served '
+       + 'column; and its probe controls hide that instance (`setInstanceHidden`) and move '
+       + 'its pane (`setInstancePanePosition`) to prove the column survives both. ⛔ IT WRITES NOTHING: '
+       + 'ChartWidget opts in page state, a spread `WORKSPACE_FALLBACK`, every /api/* '
+       + 'answered from local files and every non-GET preference/layout write refused. '
+       + 'Dev-server only (`marketcap-harness.html`), railed by '
+       + '`marketCapHarnessAbsent.test.js`.'],
       ['app/src/components/chart/discoveryCatalog.js',
        '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
        + 'rather than a ninth door. A catalogue result becomes a chart series by '

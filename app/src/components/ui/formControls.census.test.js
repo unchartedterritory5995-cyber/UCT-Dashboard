@@ -728,6 +728,24 @@ describe('the Switch primitive is derived, and its uses are counted as primitive
   }, 120_000)
 })
 
+describe('the Radio primitive is derived, and its first consumers render it', () => {
+  it('components/ui/Radio is found by derivation, not by a typed roster', () => {
+    const { primitives } = census()
+    expect([...(primitives['app/src/components/ui/Radio'] || [])]).toEqual(['Radio'])
+  }, 120_000)
+
+  it('the migrated radio groups render the primitive and hold no raw radio', () => {
+    const { perFile } = census()
+    for (const [f, n] of [['app/src/pages/Settings.jsx', 1],
+      ['app/src/pages/watchlist/SaveListDialog.jsx', 1],
+      ['app/src/components/screener/RunNowButton.jsx', 2]]) {
+      const sites = perFile[f]?.sites || []
+      expect(sites.filter((s) => s.kind === 'primitive:Radio').length, f).toBe(n)
+      expect(sites.filter((s) => s.kind === 'radio'), f).toEqual([])
+    }
+  }, 120_000)
+})
+
 describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
   it('no file gained a hand-rolled switch, and no new file appeared', () => {
     const { sites: base } = readSwitchBaseline()
@@ -767,16 +785,23 @@ export const NAMED_SURFACES = [
   'app/src/components/AppThemePicker.jsx',
   'app/src/components/FeedbackWidget.jsx',
   'app/src/components/IntradayDayPopover.jsx',
+  'app/src/components/StockChart.jsx',
   'app/src/components/TickerActions.jsx',
   'app/src/components/admin/CatalystRulesPanel.jsx',
   'app/src/components/admin/TwitterAccountsPanel.jsx',
   'app/src/components/chart/ChartDrawingOverlay.jsx',
   'app/src/components/chart/ChartSettingsModal.jsx',
   'app/src/components/chart/ChartToolbar.jsx',
+  'app/src/components/chart/ColorPanel.jsx',
+  'app/src/components/chart/ColorPicker.jsx',
   'app/src/components/chart/ComparisonPicker.jsx',
+  'app/src/components/chart/PatternSidePanel.jsx',
+  'app/src/components/chart/SymbolSearch.jsx',
+  'app/src/components/chart/TracingsPanel.jsx',
   'app/src/components/chart/builder/ParamControls.jsx',
   'app/src/components/community/ShareToFloor.jsx',
   'app/src/components/mobile/TickerHubSheet.jsx',
+  'app/src/components/screener/RunNowButton.jsx',
   'app/src/components/tiles/CatalystTable.jsx',
   'app/src/components/video/VideoDockSlot.jsx',
   'app/src/components/voice/VisionAttachButton.jsx',
@@ -821,6 +846,7 @@ export const NAMED_SURFACES = [
   'app/src/pages/charts/widgets/ChartTabStrip.jsx',
   'app/src/pages/charts/widgets/CompanySearch.jsx',
   'app/src/pages/charts/widgets/NhnlUniverseMenu.jsx',
+  'app/src/pages/charts/widgets/NotebookWidget.jsx',
   'app/src/pages/charts/widgets/PickerHeader.jsx',
   'app/src/pages/charts/widgets/ScatterWidget.jsx',
   'app/src/pages/charts/widgets/VolumeScanLists.jsx',
@@ -837,7 +863,10 @@ export const NAMED_SURFACES = [
   'app/src/pages/screener/shell/FlaggedActions.jsx',
   'app/src/pages/screener/shell/SaveScanButton.jsx',
   'app/src/pages/settings/JoystickSettingsCard.jsx',
+  'app/src/pages/watchlist/SaveListDialog.jsx',
   'app/src/pages/watchlist/WatchlistSettingsPanel.jsx',
+  'app/src/testing/breadth/breadthLibraryHarness.jsx',
+  'app/src/testing/marketIndicators/marketIndicatorsHarness.jsx',
 ]
 const NAMED = new Set(['labelled', 'hidden', 'n/a'])
 export const unnamedSites = (sites) => sites.filter((s) => !NAMED.has(s.label))
@@ -883,7 +912,10 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
 //
 //   2026-10-01  140  (start of the lane/term-067-batch run)
 //   2026-10-01   74  (start of the lane/term-067-partner run: partner flow files)
-export const UNNAMED_BASELINE = 33
+//   2026-10-03   33  (start of lane/p2-ratchets-b; every remaining site outside
+//                     pages/journal-2-0/ named -> 23, all in journal-2-0, which
+//                     this lane may not touch)
+export const UNNAMED_BASELINE = 23
 export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
 export const unnamedTotal = ({ perFile }) =>
   Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)

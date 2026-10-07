@@ -40,11 +40,23 @@ export function _resetBoundAlertSync() {
   _lastPushed.clear(); _seen.clear(); _inflight.clear()
 }
 
+// ⛔ EACH CALLER RECONCILES ONLY ITS OWN IDS. A bound id is either a bare chart
+// drawing id, or carries a namespace prefix (`nb:<embedId>:<id>` for a Notebook
+// chart's plan levels). Two callers on one symbol do NOT see the same drawings,
+// so "not in my list" from the wrong caller is not a deletion — it deleted the
+// other caller's alerts (finish-program finding C1). A caller that passes no
+// `namespace` owns the bare ids and leaves every prefixed id alone; a caller
+// that passes one owns exactly the ids starting with it. An id nobody here
+// owns is never patched, never deleted and never marked seen.
+const _NAMESPACED = /^[a-z][a-z0-9]*:/
+export const ownsBoundId = (did, namespace = '') =>
+  (namespace ? String(did).startsWith(namespace) : !_NAMESPACED.test(String(did)))
+
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
 const revalidateAlerts = () =>
   globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
 
-export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOffset = 0 }) {
+export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOffset = 0, namespace = '' }) {
   const symU = String(sym || '').toUpperCase()
 
   // ⭐ THE PRECONDITION KEEPS THIS DORMANT ALMOST EVERYWHERE. Without a line-ish
@@ -71,6 +83,7 @@ export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOf
       const did = a && a.drawing_id
       if (!did || !a.is_active) continue
       if (String(a.sym || '').toUpperCase() !== symU) continue
+      if (!ownsBoundId(did, namespace)) continue
       if (_inflight.has(did)) continue
 
       // ⭐ A FIB LEVEL ALERT'S BOUND ID IS `<drawingId>#<level>`. Splitting it
@@ -110,7 +123,7 @@ export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOf
         .catch(() => { /* non-fatal — retried on the next snapshot */ })
         .finally(() => { _inflight.delete(did) })
     }
-  }, [symU, drawings, alerts, getBars, tf, etOffset])
+  }, [symU, drawings, alerts, getBars, tf, etOffset, namespace])
 
   return alerts
 }

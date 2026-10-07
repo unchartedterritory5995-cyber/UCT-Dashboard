@@ -28,7 +28,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import Sheet from '../../../../components/mobile/Sheet'
-import { useIsTouch } from '../../../../hooks/useBreakpoint'
+import { MQ } from '../../../../styles/breakpoints'
+import PoliteStatus from './PoliteStatus'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { SETUP_FAMILIES, canonicalSetupTag, tagsInFamily } from '../../lib/setupTagMap'
 import { FIELD_LABELS, formatFingerprintValue } from '../../lib/fingerprintChecklist'
@@ -130,6 +131,8 @@ function Card({ card }) {
       <div className={styles.cardBody}>
         <p className={styles.cardTitle}>
           <span className={styles.sym}>{card.symbol}</span> <span className={styles.tag}>{card.setupTag}</span>
+          {/* The SERVER says which card is the sample's (`example`); never inferred here. */}
+          {card.example && <> <span className={styles.tag} data-example="">Example</span></>}
         </p>
         <p className={styles.cardMeta}>{card.asOf} · {card.timeframe}{card.fingerprintAsOf ? ` · fingerprint ${card.fingerprintAsOf}` : ' · not fingerprinted yet'}</p>
         {card.regime && (
@@ -266,6 +269,9 @@ export function VisualPlaybookBody({ initialSetup = null }) {
       )}
       {isLoading && !data && <p className={styles.muted} role="status">Loading your playbook…</p>}
 
+      {/* FIN-A11Y (review R4, M-16): a filter changes the grid silently; say how many it leaves. */}
+      <PoliteStatus data-vp-count=""
+        text={data ? `${data.cards.length} tagged ${data.cards.length === 1 ? 'chart matches' : 'charts match'}.` : ''} />
       {data && (
         <>
           <SliceStats key={settled} stats={data.stats} />
@@ -284,7 +290,9 @@ export function VisualPlaybookBody({ initialSetup = null }) {
             <ul className={styles.grid} aria-label="Tagged charts" data-tour="vp-grid">
               {data.cards.map((c) => <Card key={`${c.noteId}/${c.embedKey}`} card={c} />)}
             </ul>
-          ) : (
+          ) : null}
+          {/* Decided on the member's OWN charts: a sample card beside this is not theirs. */}
+          {data.cards.some((c) => !c.example) ? null : (
             <p className={styles.muted}>
               No tagged charts match. Tag a chart in a note (the Setup picker under the chart) to build your playbook.
             </p>
@@ -296,8 +304,15 @@ export function VisualPlaybookBody({ initialSetup = null }) {
 }
 
 export default function VisualPlaybook({ open, onClose, initialSetup = null }) {
-  // Opened by a click, so the touch read is current (CLAUDE.md: useIsTouch is stale only at first paint).
-  const isTouch = useIsTouch()
+  // ⛔ The layout is decided when the sheet OPENS (a click), by asking the media query then.
+  // This component is mounted, closed, long before that, and `useIsTouch()` answers from
+  // its mount (FIN-A11Y, review R4 M-13: the old comment said "read on a click"; the hook
+  // was not). Memoised on `open`, so it is read once per opening.
+  const isTouch = useMemo(
+    () => Boolean(open) && typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia(MQ.touchDown).matches,
+    [open],
+  )
   if (notebookFlag(VISUAL_PLAYBOOK_FLAG) !== true) return null
   return (
     <Sheet open={open} onClose={onClose} title="Visual playbook" labelledByTitle

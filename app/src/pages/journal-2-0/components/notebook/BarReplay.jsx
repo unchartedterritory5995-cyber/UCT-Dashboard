@@ -22,12 +22,21 @@
  *   markersAt(idx, bars) -> markers    what to mark once playback has revealed `idx` bars
  *   statusAt(idx, bars) -> {label, value, tone}   the status row (tone: 'pos' | 'neg' | null)
  *   autoplay                           start playing on open (TradeReplay) or wait (a note)
+ *
+ * LANE FIN-A11Y (review R4, I-4): the window is the shared `Sheet`, not a hand-built
+ * backdrop. That is what makes it a dialog for a keyboard member: focus moves in, Tab is
+ * trapped, Escape closes, the page behind does not scroll, and focus returns to the button
+ * that opened it. The header stays ours (the walk and the tour look for "Close replay").
+ * The status row is live only while PAUSED (it changes every 44 to 350 ms while playing),
+ * the icons are `UIcon`, and playback never starts by itself under reduced motion.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createChart, CandlestickSeries, createSeriesMarkers, LineStyle, ColorType,
 } from 'lightweight-charts'
+import Sheet from '../../../../components/mobile/Sheet'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './BarReplay.module.css'
 
 export const SPEEDS = [1, 2, 4, 8]
@@ -45,6 +54,34 @@ export function barTs(t) {
   if (typeof t === 'number') return t
   const p = Date.parse(`${t}T12:00:00Z`)
   return Number.isFinite(p) ? Math.floor(p / 1000) : 0
+}
+
+const reducedMotion = () => typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * The chart's colours, read from the theme's tokens at the moment the chart is created
+ * (FIN-A11Y round 2). A canvas cannot use `var(--x)`, so each token is resolved to its value
+ * here. This chart is the Notebook's OWN lightweight-charts instance (see the header), so its
+ * colours are a choice made in this file, not in StockChart. A token that cannot be read
+ * (no stylesheet loaded) falls back to the dark literal the chart always had.
+ * The window is short-lived: a theme switched while it is open applies the next time it opens.
+ */
+export function replayChartColors() {
+  const cs = typeof window !== 'undefined' && typeof getComputedStyle === 'function'
+    ? getComputedStyle(document.documentElement) : null
+  const token = (name, fallback) => (cs?.getPropertyValue(name) || '').trim() || fallback
+  const border = token('--border', '#2a2a2e')
+  return {
+    background: token('--bg-surface', '#0b0b0d'),
+    text: token('--text-muted', '#8a8a8a'),
+    grid: cs?.getPropertyValue('--border')?.trim() ? border : 'rgba(255,255,255,0.04)',
+    border,
+    up: token('--gain', '#22c55e'),
+    down: token('--loss', '#ef4444'),
+    accent: token('--accent', '#c9a84c'),
+  }
 }
 
 const toRow = (b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })
@@ -90,22 +127,23 @@ export default function BarReplay({
   // ── Chart lifecycle (create on bars-ready, destroy on close) ────────────
   useEffect(() => {
     if (!bars || !chartElRef.current) return undefined
+    const c = replayChartColors()
     const chart = createChart(chartElRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#0b0b0d' },
-        textColor: '#8a8a8a', fontSize: 11,
+        background: { type: ColorType.Solid, color: c.background },
+        textColor: c.text, fontSize: 11,
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.04)' },
-        horzLines: { color: 'rgba(255,255,255,0.04)' },
+        vertLines: { color: c.grid },
+        horzLines: { color: c.grid },
       },
-      timeScale: { borderColor: '#2a2a2e', rightOffset: 4 },
-      rightPriceScale: { borderColor: '#2a2a2e' },
+      timeScale: { borderColor: c.border, rightOffset: 4 },
+      rightPriceScale: { borderColor: c.border },
       height: 320,
     })
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e', downColor: '#ef4444',
-      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+      upColor: c.up, downColor: c.down,
+      wickUpColor: c.up, wickDownColor: c.down,
       borderVisible: false,
     })
     chartRef.current = chart
@@ -118,7 +156,7 @@ export default function BarReplay({
     series.setData([])           // then blank it — playback reveals from the start index
     revealedRef.current = 0
     setIdx(startIdx)
-    setPlaying(!!autoplay)
+    setPlaying(!!autoplay && !reducedMotion())
     return () => {
       chart.remove()
       chartRef.current = null
@@ -139,7 +177,7 @@ export default function BarReplay({
     for (const line of JSON.parse(linesKey)) {
       if (!Number.isFinite(line?.price)) continue
       priceLineRefs.current.push(series.createPriceLine({
-        price: line.price, color: line.color || '#c9a84c', lineStyle: LineStyle.Dashed,
+        price: line.price, color: line.color || replayChartColors().accent, lineStyle: LineStyle.Dashed,
         lineWidth: 1, title: line.title || '',
       }))
     }
@@ -181,20 +219,16 @@ export default function BarReplay({
 
   const atEnd = !!bars && idx >= bars.length
   return (
-    <div className={styles.backdrop} onClick={onClose} role="presentation">
-      <div
-        className={styles.panel}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Sheet open onClose={onClose} variant="auto" ariaLabel={title} maxWidth={820}>
+      <div className={styles.panel}>
         <div className={styles.head}>
           <h3 className={styles.title}>
             {title}
             {tfNote && <span className={styles.tfNote}>{tfNote}</span>}
           </h3>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="Close replay">✕</button>
+          <button type="button" className={styles.close} onClick={onClose} aria-label="Close replay">
+            <UIcon name="x" size={16} gold={false} />
+          </button>
         </div>
 
         {error && <p className={styles.err} role="alert">{error}</p>}
@@ -205,7 +239,7 @@ export default function BarReplay({
         {bars && (
           <>
             {status && (
-              <div className={styles.statusRow} aria-live="polite">
+              <div className={styles.statusRow} aria-live={playing ? 'off' : 'polite'}>
                 <span className={styles.statusLabel}>{status.label}</span>
                 {status.value != null && (
                   <span className={`${styles.pnl} ${status.tone === 'pos' ? styles.pos : status.tone === 'neg' ? styles.neg : ''}`}>
@@ -222,7 +256,8 @@ export default function BarReplay({
                   if (atEnd) { setIdx(startIdx); setPlaying(true) } else setPlaying((p) => !p)
                 }}
               >
-                {atEnd ? '↻ Restart' : playing ? '❚❚ Pause' : '▶ Play'}
+                <UIcon name={atEnd ? 'refresh' : playing ? 'pause' : 'play'} size={14} gold={false} />
+                {atEnd ? 'Restart' : playing ? 'Pause' : 'Play'}
               </button>
               <button
                 type="button"
@@ -231,7 +266,8 @@ export default function BarReplay({
                 onClick={() => { setPlaying(false); setIdx((i) => Math.min(bars.length, i + 1)) }}
                 aria-label="Step forward one bar"
               >
-                Step ▸
+                Step
+                <UIcon name="skipForward" size={14} gold={false} />
               </button>
               {SPEEDS.map((s) => (
                 <button
@@ -242,6 +278,8 @@ export default function BarReplay({
                   aria-label={`Speed ${s}×`}
                   onClick={() => setSpeed(s)}
                 >
+                  {/* M-9: the selected speed carries a check mark, not only a colour. */}
+                  {speed === s && <UIcon name="check" size={12} gold={false} />}
                   {s}×
                 </button>
               ))}
@@ -258,6 +296,6 @@ export default function BarReplay({
           </>
         )}
       </div>
-    </div>
+    </Sheet>
   )
 }

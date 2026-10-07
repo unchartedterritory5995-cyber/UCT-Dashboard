@@ -2,7 +2,11 @@ import { useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import CoverageLine from '../../components/provenance/CoverageLine'
+import { sideWords, callPutWords } from './flowWords'
+import { num, fracPct } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 // FT-072 / FT-073 — one screener per option strategy, over COV-02's end-of-day screen file
 // (api/services/options_analytics/strategy_screens.py).
@@ -16,7 +20,6 @@ import styles from './optionsAnalytics.module.css'
 // options by expiration, block trades; multi-leg trades stated as not built) and FT-075 Sizzle
 // (OPTIONS_SIZZLE_ENABLED: COV-03's unusual volume on a 5-session window).
 
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const leg = (l) => `${l.type} ${num(l.strike)}`
 // Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
 // They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
@@ -74,10 +77,10 @@ function FirstScreens() {
       <div className={styles.head}>
         <span className={styles.title}>Strategy screens</span>
         <span className={styles.badge}>end of day</span>
-        <select className={styles.select} aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select className={styles.select} aria-label="Strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
           {cat.data.strategies.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-        <input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
+        </Select>
+        <Input className={styles.input} aria-label="Limit to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
       {res.failed && <p className={styles.note} data-testid="strategy-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>}
       {res.data && Array.isArray(res.data.rows) && (
@@ -110,9 +113,9 @@ function MoreRow({ kind, r }) {
   if (kind === 'by_expiration') {
     return <tr><th>{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
       <td>{Number(r.open_interest).toLocaleString()}</td><td>{r.call_share_pct == null ? '—' : `${num(r.call_share_pct, 1)}%`}</td>
-      <td>{r.atm_iv == null ? '—' : `${(r.atm_iv * 100).toFixed(1)}%`}</td></tr>
+      <td>{fracPct(r.atm_iv)}</td></tr>
   }
-  return <tr><th>{r.symbol}</th><td>{r.type} {num(r.strike)} {r.expiration}</td><td>{r.side}</td>
+  return <tr><th>{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
     <td>${Math.round(r.premium).toLocaleString()}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
 }
 
@@ -144,10 +147,10 @@ export function MoreStrategyScreens() {
       <div className={styles.head}>
         <span className={styles.title}>More strategy screens</span>
         <span className={styles.badge}>{cat.data.strategies.find((x) => x.id === kind)?.source === 'tape' ? "today's tape" : 'end of day'}</span>
-        <select className={styles.select} aria-label="More strategies" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <Select className={styles.select} aria-label="More strategies" value={kind} onChange={(e) => setKind(e.target.value)}>
           {cat.data.strategies.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-        </select>
-        <input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
+        </Select>
+        <Input className={styles.input} aria-label="Limit more screens to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
       </div>
       {res.failed && <p className={styles.note} data-testid="more-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>}
       {d && Array.isArray(d.rows) && (

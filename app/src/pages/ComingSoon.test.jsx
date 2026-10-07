@@ -170,7 +170,7 @@ describe('ComingSoon', () => {
 
   it('points a live-trading-room visitor at the room page', () => {
     renderPage()
-    const room = screen.getByRole('link', { name: /looking for the live trading room\? see the room/i })
+    const room = screen.getByRole('link', { name: /looking for the live trading room\? uncharted territory/i })
     // A full page load, not a client route: /live-trading-room is a static page
     // the server answers, so the SPA router must not intercept it.
     expect(room).toHaveAttribute('href', '/live-trading-room')

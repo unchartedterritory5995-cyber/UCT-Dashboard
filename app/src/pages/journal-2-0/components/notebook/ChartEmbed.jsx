@@ -1,26 +1,15 @@
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import ChartPane from '../../../../components/chart/pane/ChartPane'
 import { embedAutoCaption } from '../../lib/widgetEmbedCore'
+import { etDayOf } from '../../lib/calendar'
 
 // A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
 // speaks. ⛔ Never toISOString(): UTC flips to the next calendar day at
 // 8:00 PM ET, so an evening capture would stamp TOMORROW as the cutoff and
 // the "frozen" snapshot would include a full session that printed after the
 // user wrote the entry (review finding). en-CA locale renders YYYY-MM-DD.
-export function tsToAnchorDay(v) {
-  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10)
-  if (typeof v === 'number' && Number.isFinite(v)) {
-    const ms = v > 10_000_000_000 ? v : v * 1000
-    const d = new Date(ms)
-    if (Number.isNaN(d.getTime())) return null
-    try {
-      return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    } catch {
-      return d.toISOString().slice(0, 10)
-    }
-  }
-  return null
-}
+// One authority: lib/calendar.js `etDayOf` (the plan panel's as-of day reads the same one).
+export const tsToAnchorDay = etDayOf
 
 const noopStore = () => {}
 

@@ -143,6 +143,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/FinancialFactView.jsx': { coveredBy: 'editor-nodes' },
   'components/notebook/NoteLinkView.jsx': { coveredBy: 'editor-nodes' },
   'components/notebook/WidgetEmbedView.jsx': { coveredBy: 'editor-nodes' },
+  // Landing 12-15 (lane FE round 3): the chart block's "Block actions" button, shown at 1024 px
+  // and under and loaded on demand, so no editor recipe renders it; rail
+  // a11y/embedBlockActions.a11y.test.jsx (the button, and its open menu).
+  'components/notebook/EmbedBlockActions.jsx': { recipe: 'embed-block-actions' },
   'components/notebook/AskInsertPicker.jsx': { coveredBy: 'ask-insert-picker' },
 
   // ── the journal embed renderers ────────────────────────────────────────────
@@ -155,6 +159,11 @@ export const SURFACES = Object.freeze({
   // notebook_chart_plan_enabled (so no editor recipe renders them); rail
   // a11y/chartPlan.a11y.test.jsx (states: sized, empty, refused; the replay stepped once).
   'components/notebook/ChartPlanPanel.jsx': { recipe: 'chart-plan-panel' },
+  // Lane FIN-A11Y (I-6): the typed door to a level (role radios, price fields, add by price).
+  'components/notebook/ChartPlanLevelControls.jsx': { coveredBy: 'chart-plan-panel' },
+  // Lane FIN-A11Y: a screen-reader-only status that fills after mount; rendered inside the
+  // tour explainer and other surfaces, never a surface of its own.
+  'components/notebook/PoliteStatus.jsx': { exempt: 'a hidden live region with no markup of its own to audit; each surface that renders it is audited with it in place' },
   'components/notebook/BarReplay.jsx': { recipe: 'bar-replay' },
   'components/notebook/FundamentalsEmbed.jsx': { recipe: 'embed-fundamentals' },
   'components/notebook/IndexesEmbed.jsx': { recipe: 'embed-indexes' },

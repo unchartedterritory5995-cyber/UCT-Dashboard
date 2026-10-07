@@ -57,6 +57,16 @@ router = APIRouter(
 )
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
+    reads the sentence as a literal in the HTTPException call).
+    Owner ruling 2026-10-02: there is no free tier, so every Notebook member route takes
+    a paid plan (security review I-7; railed by tests/test_paywall_gate_free_tier.py)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="Chart plans require a paid plan")
+    return user
+
+
 async def _read_json(request: Request) -> dict[str, Any]:
     """The JSON body, read INSIDE the dependency chain: gate, then member, then body."""
     chunks: list[bytes] = []
@@ -79,12 +89,12 @@ async def _read_json(request: Request) -> dict[str, Any]:
 
 
 async def _member_body(request: Request,
-                       _user: dict = Depends(get_current_user_with_plan)) -> dict[str, Any]:
+                       _user: dict = Depends(require_paid)) -> dict[str, Any]:
     return await _read_json(request)
 
 
 @router.post("/size")
-def size(body: dict = Depends(_member_body), user: dict = Depends(get_current_user_with_plan)):
+def size(body: dict = Depends(_member_body), user: dict = Depends(require_paid)):
     """`{annotations, symbol?, planBlock?, accountId?}` -> the block's plan as plan_extract reads
     it, the member's sizing inputs, and Compass's answer. The client sizes from these with
     `lib/chartPlan.sizePlan` (the starter formulas when Compass did not answer)."""
@@ -106,7 +116,7 @@ def size(body: dict = Depends(_member_body), user: dict = Depends(get_current_us
 
 
 @router.get("/benchmarks")
-def benchmarks(symbol: str = "", _user: dict = Depends(get_current_user_with_plan)):
+def benchmarks(symbol: str = "", _user: dict = Depends(require_paid)):
     """Wave 13 lane 13H-2: the `/vs` choices for one stock -- SPY, QQQ, its sector ETF and its
     theme ETF, each from an existing authority (`chart_plan.benchmark_options`). A read; a
     stock with no known sector or theme ETF gets a reason instead of an invented benchmark."""
@@ -128,7 +138,7 @@ def _note_body(user_id: str, note_id: str) -> Any:
 
 
 @router.post("/alerts")
-def arm_alert(body: dict = Depends(_member_body), user: dict = Depends(get_current_user_with_plan)):
+def arm_alert(body: dict = Depends(_member_body), user: dict = Depends(require_paid)):
     """`{noteId, embedId, drawingId, direction, alert_type, target_price, anchor_*}` -> the alert
     the EXISTING watchlist-alert route created, bound to `drawingId`."""
     note_id, embed_id, drawing_id = body.get("noteId"), body.get("embedId"), body.get("drawingId")

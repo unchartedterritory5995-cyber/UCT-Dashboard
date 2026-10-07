@@ -17,6 +17,9 @@ import {
 } from '../../research-kit'
 import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
 import { buildQuarters, historyBasis } from '../earningsHistoryModel'
+import {
+  formatCompactTerminal, formatCurrency, formatPercent,
+} from '../../../lib/presentation/presentationPrimitives'
 import SectionLead from '../SectionLead'
 import { historyLead } from '../sectionLeads'
 import styles from './EarningsHistorySection.module.css'
@@ -38,20 +41,21 @@ const pct = (v) => formatSigned(v, { unit: '%', decimals: 1 })
 /** `$0.91` / `-$0.12`, or an em dash for a missing value. */
 function eps(v) {
   const n = num(v)
-  return n == null ? '—' : `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`
+  return n == null ? '—' : formatCurrency(n)
 }
 
-/** `$820M` / `$1.24B`, or an em dash — revenue actuals arrive in millions.
+/** `$820.0M` / `$1.24B` (the terminal compact ladder), or an em dash —
+ *  revenue actuals arrive in millions.
  *  (The old note here said no revenue existed upstream: true of Finnhub
  *  `/stock/earnings`, which carries EPS only. The FMP history leg supplies
  *  `revenueActual`/`revenueEstimated`, so these are real now.) */
 function rev(v) {
   const n = num(v)
   if (n == null) return '—'
-  return n >= 1000 ? `$${(n / 1000).toFixed(2)}B` : `$${Math.round(n)}M`
+  return formatCompactTerminal(n * 1e6, { money: true })
 }
 
-export default function EarningsHistorySection({ sym, row, reportDate, expectedMove, enrichReady = true }) {
+export default function EarningsHistorySection({ sym, row, reportDate, expectedMove, enrichReady = true, enrichFailed = false }) {
   const quarters = useMemo(() => buildQuarters({
     beatHistory: row?.beat_history, histStats: row?.hist_stats, reportDate, row,
   }), [row, reportDate])
@@ -113,7 +117,9 @@ export default function EarningsHistorySection({ sym, row, reportDate, expectedM
     // bare `{ sym }` is exactly what MyStocksHub and the direct research
     // routes pass for a company that genuinely has no history, so the two are
     // indistinguishable by content. Only the caller knows it is guessing.
-    if (row?.history_unresolved) {
+    // A failed enrichment BATCH is the same admission for every symbol in the week
+    // (useWeekEnrichment answers ENRICHMENT_FAILED): it is not a finding about the company.
+    if (row?.history_unresolved || enrichFailed) {
       return (
         <EmptyState
           icon="clock"
@@ -181,13 +187,13 @@ export default function EarningsHistorySection({ sym, row, reportDate, expectedM
         <ReactionBars
           quarters={quarters}
           impliedPct={impliedPct}
-          impliedLabel={impliedPct != null ? `Implied ±${Math.abs(impliedPct).toFixed(1)}%` : undefined}
+          impliedLabel={impliedPct != null ? `Implied ±${formatPercent(Math.abs(impliedPct), { decimals: 1 })}` : undefined}
           info={IMPLIED_MOVE_INFO}
         />
       </div>
 
       <div className={styles.stats} data-testid="history-stats">
-        <StatTile label="Avg move" value={stats.avgAbs != null ? `±${stats.avgAbs.toFixed(1)}%` : null} />
+        <StatTile label="Avg move" value={stats.avgAbs != null ? `±${formatPercent(stats.avgAbs, { decimals: 1 })}` : null} />
         <StatTile label="Closed up" value={stats.total ? `${stats.upCount} / ${stats.total}` : null} />
         <StatTile label="Best" value={stats.best ? pct(stats.best.pct) : null} sub={stats.best?.quarter} />
         <StatTile label="Worst" value={stats.worst ? pct(stats.worst.pct) : null} sub={stats.worst?.quarter} />

@@ -26,6 +26,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.ticker_resolver import symbol_shape
 
 router = APIRouter()
 
@@ -145,7 +146,7 @@ def get_setup_performance(
 
 @router.get("/api/confidence-scores/{symbol}")
 def get_confidence_score(
-    symbol: str,
+    symbol: str = Depends(symbol_shape),
     _user: dict = Depends(require_paid),
 ):
     """Get the latest confidence score for a symbol."""
@@ -179,7 +180,7 @@ def get_confidence_score(
 
 @router.get("/api/leader-persistence/{symbol}")
 def get_leader_persistence(
-    symbol: str,
+    symbol: str = Depends(symbol_shape),
     _user: dict = Depends(require_paid),
 ):
     """Get how many consecutive days a symbol has been on Leadership 20."""

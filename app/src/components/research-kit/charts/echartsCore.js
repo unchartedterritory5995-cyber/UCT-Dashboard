@@ -38,6 +38,8 @@ import {
 import { CanvasRenderer } from 'echarts/renderers'
 import EChartsReactCore from 'echarts-for-react/lib/core'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
+import { resolveThemeColor, withAlpha } from '../../../lib/theme/resolveThemeColor'
+import { useThemeVersion } from '../../../lib/theme/useThemeInk'
 import styles from './echartsCore.module.css'
 
 echarts.use([BarChart, CustomChart, LineChart, GridComponent, TooltipComponent, MarkLineComponent, AxisPointerComponent, CanvasRenderer])
@@ -52,10 +54,14 @@ export const CHART_INK = {
   text: '#f0efea',
   muted: '#cfcac0',
   bright: '#f8f7f3',
+  /** The default single-series ink (SeriesChart rank/band fallback) — the body text. */
+  ink: '#f0efea',
   /** ~8% warm white — Part C rule 5: 3-4 hairline gridlines, no spine, no box. */
   grid: 'rgba(224, 218, 200, 0.08)',
   /** Tooltip surface: --glass-chrome's dark value, so tip text is never on translucency. */
   tooltipBg: 'rgba(20, 22, 18, 0.94)',
+  /** A receding comparison series (statement panels' year-ago ghost): ~20% of the body text. */
+  ghost: 'rgba(255, 255, 255, 0.2)',
 }
 
 /** No axis spine, no ticks, muted 10px labels. Part C rule 5. */
@@ -89,6 +95,73 @@ export function prefersReducedMotion() {
 const FILL = { width: '100%', height: '100%' }
 
 /**
+ * ⭐ THE KIT'S CHARTS FOLLOW THE MEMBER'S THEME HERE, AT THE ONE HOST.
+ *
+ * Every option the kit builds carries CHART_INK's DARK literals (and some
+ * callers hand a `var(--token)` string, which a canvas silently drops). Rather
+ * than thread a theme through every builder, the host swaps them at render:
+ *   • a `var(--x[, fallback])` string → the token's resolved value;
+ *   • a CHART_INK literal → the token it mirrors, resolved now.
+ * Strings are swapped only on an EXACT match, so HTML tooltip bodies and data
+ * are untouched. In jsdom no token is set, so every swap resolves to the
+ * literal it replaces and the option is unchanged.
+ */
+const INK_TOKEN = [
+  [CHART_INK.gain, () => resolveThemeColor('--gain', CHART_INK.gain)],
+  [CHART_INK.loss, () => resolveThemeColor('--loss', CHART_INK.loss)],
+  [CHART_INK.gold, () => resolveThemeColor('--ut-gold', CHART_INK.gold)],
+  [CHART_INK.text, () => resolveThemeColor('--text', CHART_INK.text)],
+  [CHART_INK.muted, () => resolveThemeColor('--text-muted', CHART_INK.muted)],
+  [CHART_INK.bright, () => resolveThemeColor('--text-bright', CHART_INK.bright)],
+  [CHART_INK.grid, () => {
+    const t = resolveThemeColor('--text', null)
+    return t ? withAlpha(t, 0.1) : CHART_INK.grid
+  }],
+  [CHART_INK.ghost, () => {
+    const t = resolveThemeColor('--text', null)
+    return t ? withAlpha(t, 0.22) : CHART_INK.ghost
+  }],
+  [CHART_INK.tooltipBg, () => {
+    const b = resolveThemeColor('--bg-elevated', null)
+    return b ? withAlpha(b, 0.97) : CHART_INK.tooltipBg
+  }],
+]
+
+function inkTable() {
+  const m = new Map()
+  for (const [lit, fn] of INK_TOKEN) if (!m.has(lit.toLowerCase())) m.set(lit.toLowerCase(), fn())
+  return m
+}
+
+const VAR_RE = /^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)$/
+
+/** One colour string through the same swap the host applies to a whole option. */
+export function resolveChartInk(color, table = inkTable()) {
+  return themeOptionInks(color, table)
+}
+
+/** Pure: a copy of `option` with theme literals and `var()` strings resolved. */
+export function themeOptionInks(option, table = inkTable()) {
+  const walk = (v) => {
+    if (typeof v === 'string') {
+      const s = v.trim()
+      const m = VAR_RE.exec(s)
+      if (m) return resolveThemeColor(m[1], m[2] ? m[2].trim() : v)
+      const hit = table.get(s.toLowerCase())
+      return hit === undefined ? v : hit
+    }
+    if (Array.isArray(v)) return v.map(walk)
+    if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+      const out = {}
+      for (const k of Object.keys(v)) out[k] = walk(v[k])
+      return out
+    }
+    return v
+  }
+  return walk(option)
+}
+
+/**
  * The kit's ECharts host.
  *
  * A canvas is invisible to assistive tech, so the wrapper is `role="img"` with
@@ -105,9 +178,12 @@ export default function EChart({
   onEvents,
   testId = 'rk-echart',
 }) {
+  // Re-resolve the inks when the member switches theme.
+  const themeVersion = useThemeVersion()
   const resolved = useMemo(
-    () => ({ animation: !prefersReducedMotion(), animationDuration: 300, ...option }),
-    [option],
+    () => ({ animation: !prefersReducedMotion(), animationDuration: 300, ...themeOptionInks(option) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [option, themeVersion],
   )
 
   return createElement(

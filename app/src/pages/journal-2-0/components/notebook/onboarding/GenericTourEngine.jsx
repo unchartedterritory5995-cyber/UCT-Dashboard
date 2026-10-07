@@ -43,9 +43,12 @@ import { anchorFor } from './tourAnchorVisibility'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { cardIsTopmost, dialogHost } from './tourLayers'
-import { carryRegistryTourOpen } from './tourRegistryControl'
+import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
+import { importWithOneRetry } from '../../../lib/lazyChunk'
+import { reportError } from '../../../../../lib/errorBeacon'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
+import PoliteStatus from '../PoliteStatus'
 
 export { atStart }
 
@@ -62,6 +65,22 @@ export const STEP_WAIT_MS = 1500
 const POLL_MS = 100
 
 /** The first index from `from` in direction `dir` whose anchor is on screen, or -1. */
+/**
+ * Where the passive explainer is portaled (FIN-A11Y round 2): a slot at the START of <body>.
+ * It used to go to the END of <body>, which made "Got it" the last Tab stop on the page. The
+ * note is `position: fixed`, so where it sits on screen does not change; only its place in
+ * the Tab and reading order does. Made once and reused; an empty slot renders nothing.
+ */
+function explainerSlot() {
+  let el = document.querySelector('[data-tour-explainer-slot]')
+  if (!el) {
+    el = document.createElement('div')
+    el.setAttribute('data-tour-explainer-slot', '')
+    document.body.prepend(el)
+  }
+  return el
+}
+
 function presentFrom(steps, from, dir) {
   for (let i = from; i >= 0 && i < steps.length; i += dir) {
     if (anchorFor(steps[i].anchor)) return i
@@ -69,10 +88,14 @@ function presentFrom(steps, from, dir) {
   return -1
 }
 
-function stripTourState(state) {
-  if (!state || typeof state !== 'object') return state ?? null
-  const { startRegistryTourId: _ignored, ...rest } = state
-  return Object.keys(rest).length ? rest : null
+const hasSteps = (m) => !!m && (Array.isArray(m.steps) || Array.isArray(m.STEPS))
+
+/** A tour's steps and copy, through the Notebook's chunk recovery (lib/lazyChunk.js): a failed
+ *  fetch is asked for once more under a name the module map has not seen. A second failure
+ *  rejects; the engine then closes and says so, it never reloads the page. */
+export function loadTourContent(entry, waitMs) {
+  return importWithOneRetry(() => entry.load(), waitMs, hasSteps)
+    .then((m) => (Array.isArray(m.steps) ? m : { steps: m.STEPS, copy: m.COPY }))
 }
 
 export default function GenericTourEngine({
@@ -100,7 +123,14 @@ export default function GenericTourEngine({
 
   useEffect(() => {
     let cancelled = false
-    entry.load().then((c) => { if (!cancelled) setContent(c) })
+    loadTourContent(entry)
+      .then((c) => { if (!cancelled) setContent(c) })
+      .catch((err) => {
+        // A stale step file after a deploy: close and say so, never hold the one tour slot.
+        if (cancelled) return
+        reportError(err, { kind: 'tour-load' })
+        onCloseRef.current({ opened: false, failed: true })
+      })
     return () => { cancelled = true }
   }, [entry])
 
@@ -161,7 +191,9 @@ export default function GenericTourEngine({
       if (Date.now() - began < startWaitMs) return false
       const at = presentFrom(steps, 0, 1)
       if (at >= 0) open(at)
-      else onCloseRef.current({ opened: false })
+      // Nothing to point at after the bounded wait. A tour the member asked for says so
+      // (the gate shows the sentence); a passive explainer nobody asked for stays silent.
+      else onCloseRef.current({ opened: false, failed: !passive })
       return true
     }
     if (tick()) return undefined
@@ -358,6 +390,8 @@ export default function GenericTourEngine({
     const done = () => { setPhase('closed'); record(TOUR_STATES.done, steps[steps.length - 1].id); onCloseRef.current({ opened: true }) }
     return createPortal(
       <aside ref={cardRef} className={own.explainer} aria-labelledby={titleId} data-tour-explainer="">
+        {/* FIN-A11Y (M-3): the note never takes focus, so it is ANNOUNCED instead, politely. */}
+        <PoliteStatus text={[`${copy.title}.`, ...(shown.length ? shown : [step]).map((s) => copyOf(s).body), 'Got it closes this note.'].join(' ')} />
         <h2 id={titleId} className={own.explainerTitle}>{copy.title}</h2>
         {(shown.length ? shown : [step]).map((s) => (
           <p key={s.id} className={own.explainerBody}>{copyOf(s).body}</p>
@@ -366,12 +400,18 @@ export default function GenericTourEngine({
           <button type="button" className="btn btn-secondary btn-sm" onClick={done}>Got it</button>
         </div>
       </aside>,
-      host || document.body,
+      host || explainerSlot(),
     )
   }
 
   const isFirst = presentFrom(steps, index - 1, -1) < 0
   const isLast = index === steps.length - 1
+  // FIN-A11Y (I-8): the step count and the "do this" hint are part of what is SAID. The
+  // dialog is described by them, and so is the heading that takes focus on every step
+  // (a focused element's description is read on arrival, so each step change says both).
+  const progressId = `${bodyId}-step`
+  const waitId = `${bodyId}-wait`
+  const hintId = step.waitFor ? ` ${waitId}` : ''
   const card = (
     <div
       ref={cardRef}
@@ -379,13 +419,14 @@ export default function GenericTourEngine({
       role="dialog"
       aria-modal={modal ? 'true' : undefined}
       aria-labelledby={titleId}
-      aria-describedby={bodyId}
+      aria-describedby={`${progressId} ${bodyId}${hintId}`}
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
-      <p className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
-      <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
+      <p id={progressId} className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
+      <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
+        aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>
       <p id={bodyId} className={styles.body}>{copy.body}</p>
-      {step.waitFor && <p className={own.waiting} role="status">Do this to continue, or choose Next to skip it.</p>}
+      {step.waitFor && <p id={waitId} className={own.waiting} role="status">Do this to continue, or choose Next to skip it.</p>}
       {moving && <p className={own.waiting} role="status">Looking for the next step…</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.skip} onClick={() => close(TOUR_STATES.dismissed)}>

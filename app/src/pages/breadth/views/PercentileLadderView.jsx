@@ -5,8 +5,9 @@
  */
 import {
   ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, drillProps, fillsRow, medianOf,
-  metricValue, percentileRank, resolveViewColors,
+  metricValue, percentileRank,
 } from './breadthViewShared'
+import useViewColors from './useViewColors'
 // The marker's geometry — a pure module so this one stays a component module.
 import { MARKER_W, markerX } from './percentileLadder'
 
@@ -70,7 +71,7 @@ const bandDate = (e) => e.target?.closest?.('[data-seek-date]')?.getAttribute('d
 export default function PercentileLadderView({
   rows = [], rowIdx = 0, currentRow, metrics = [], onDrill, onSeek, canSeek, options = {},
 }) {
-  const colors = resolveViewColors(options.palette, options.intensity)
+  const colors = useViewColors(options.palette, options.intensity)
   // ⭐ `rows.slice(rowIdx)` — the window AS OF THE CURSOR, never all loaded
   // rows. Scrubbing back a month must rank that day against the history it
   // could see, not against sessions that had not happened yet. (`BreadthViews`
@@ -87,7 +88,7 @@ export default function PercentileLadderView({
   if (!metrics.length) {
     return (
       <div data-testid="ladder-refusal"
-           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+           style={{ padding: 24, fontWeight: 600, fontSize: 'var(--text-base)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
         {ALL_METRICS_HIDDEN}
       </div>
     )
@@ -139,7 +140,7 @@ export default function PercentileLadderView({
     <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
                   display: 'flex', flexDirection: 'column' }}>
       <div data-testid="ladder-basis"
-           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+           style={{ fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)',
                     letterSpacing: '.4px', marginBottom: 6, flex: '0 0 auto' }}>{basis}</div>
 
       {/* One legend for ten identical rows, rather than a caption on each: the
@@ -148,8 +149,8 @@ export default function PercentileLadderView({
       <div data-testid="ladder-legend"
            style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4,
                     flex: '0 0 auto',
-                    font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
-                    textTransform: 'uppercase', color: '#475569' }}>
+                    font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.6px',
+                    textTransform: 'uppercase', color: 'var(--text-muted)' }}>
         <div style={{ width: 104, flex: '0 0 104px' }} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-between' }}>
           <span>low</span>
@@ -169,8 +170,8 @@ export default function PercentileLadderView({
         <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10,
                                   ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
           <div style={{ width: 104, flex: '0 0 104px', textAlign: 'right',
-                        font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
-                        textTransform: 'uppercase', color: '#94a3b8',
+                        font: '700 var(--text-xs) var(--font-sans)', letterSpacing: '.4px',
+                        textTransform: 'uppercase', color: 'var(--text-muted)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         cursor: m.drillKey ? 'pointer' : 'default' }}
                {...drillProps(m, onDrill)}>
@@ -232,7 +233,7 @@ export default function PercentileLadderView({
                     </rect>
                   )
                 })}
-                <line x1="0" y1={FLOOR + 0.5} x2="100" y2={FLOOR + 0.5} stroke="#334155" strokeWidth="0.6"
+                <line x1="0" y1={FLOOR + 0.5} x2="100" y2={FLOOR + 0.5} stroke="var(--border-accent)" strokeWidth="0.6"
                       vectorEffect="non-scaling-stroke" />
                 {/* The window's median — the only fixed reference on a track
                     whose units differ per row, and what turns "near the top of
@@ -241,7 +242,7 @@ export default function PercentileLadderView({
                   <line data-testid={`ladder-median-${m.key}`}
                         x1={Math.min(100, Math.max(0, ((mid - min) / span) * 100))} y1={TOP + 1}
                         x2={Math.min(100, Math.max(0, ((mid - min) / span) * 100))} y2={FLOOR}
-                        stroke="#475569" strokeWidth="0.8" strokeDasharray="2 2"
+                        stroke="var(--border-accent)" strokeWidth="0.8" strokeDasharray="2 2"
                         vectorEffect="non-scaling-stroke" />
                 )}
                 {/* ⛔ `marker-{key}` COLLIDED WITH `MetersView`'s OWN MARKERS.
@@ -256,18 +257,18 @@ export default function PercentileLadderView({
                 </rect>
               </svg>
               <div style={{ width: 78, flex: '0 0 78px', display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: '#e8e8ea' }}>
+                <span style={{ font: '800 15px var(--font-sans)', color: 'var(--text-bright)' }}>
                   {m.getFmt(currentRow)}
                 </span>
                 <span data-testid={`ladder-pctile-${m.key}`}
-                      style={{ font: '700 10px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+                      style={{ fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
                   {pct}
                 </span>
               </div>
             </>
           ) : (
             <div data-testid={`ladder-refusal-${m.key}`}
-                 style={{ flex: 1, font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b' }}>
+                 style={{ flex: 1, fontWeight: 600, fontSize: 'var(--text-xs)', fontFamily: 'var(--font-sans)', color: 'var(--text-muted)' }}>
               Needs {MIN_READINGS} readings to rank — has {have}
             </div>
           )}

@@ -77,10 +77,15 @@ export function widgetEmbedStopEvent({ event }) {
   // Default's own passthrough: an input-like element always owns its events,
   // except the drag/drop family (a draggable row dragged FROM a button, say).
   if (isInput && event.type !== 'drop' && !isDragEvent) return true
-  // The fix: never let a mousedown on the chart's own surface reach
-  // ProseMirror's click-to-select handling, in or out of Draw mode — the
-  // chart owns its own gestures.
-  if (event?.type === 'mousedown' && target?.closest?.('[data-widget-embed-body]')) {
+  // The fix: WHILE THE MEMBER IS DRAWING, never let a mousedown on the chart's
+  // own surface reach ProseMirror's click-to-select handling (its mouseup
+  // refocuses the editor, which the embed reads as "done drawing").
+  // ⛔ ONLY while drawing (`data-widget-embed-body="draw"`, WidgetEmbedView).
+  // This stop was unconditional at first, and that took click-to-select away
+  // from every block with every flag off: an archived image or a chart with no
+  // caption could no longer be selected, deleted or dragged by mouse (finish
+  // program, lane FE, I7). Out of Draw mode the body is the editor's to select.
+  if (event?.type === 'mousedown' && target?.closest?.('[data-widget-embed-body="draw"]')) {
     return true
   }
   // Everything past here matches the untouched vendor default for a

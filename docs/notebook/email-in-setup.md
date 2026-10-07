@@ -5,7 +5,20 @@ A member sends or forwards an email to their private address,
 folder: the subject is the title, the text is the body, the attachments come
 with it.
 
-> **Status (wave 7, 2026-09-25): built and DARK** behind
+> ✅ **Status today (corrected 2026-10-07): ON in production since 2026-09-27, wired and walked.**
+> The record is `docs/feature_flags.json`, entry `NOTEBOOK_INBOUND_EMAIL_ENABLED` (`status`
+> `armed`, `where` `web`): "ARMED on web 2026-09-27 ~14:20Z"; "Edge wiring done 2026-09-26: WAF
+> rule skipping Browser Integrity Check and Super Bot Fight Mode on POST /api/j2/inbound-email,
+> Email Routing subaddressing on, notes@ routed to the uct-inbound-email worker, and the dark
+> test answered 404"; "Walked 2026-09-27 as bench@ ... an email from Gmail with a 642-byte PDF
+> became an Inbox note carrying the text and an attachment chip". The same entry records that
+> the Privacy page was NOT changed, by decision of 2026-09-27: it already names Cloudflare as a
+> processor, so the sentence drafted in §1 was not added and is kept only in case that changes.
+> So every "dark", "NOT VERIFIED" and "before the flip" below describes the state before
+> 2026-09-27. The steps are kept as the record of how it was set up, and as the procedure if it
+> ever has to be set up again. To switch it off: the "Fastest" line at the end of §7.
+>
+> ⚰️ **Status as written on 2026-09-25, struck 2026-10-07:** ~~built and DARK~~ behind
 > `NOTEBOOK_INBOUND_EMAIL_ENABLED`. Unset means every route answers `404`, the
 > Settings card does not appear, and no address is ever minted. Lit, an address
 > exists only once the member presses **Create my address**
@@ -128,7 +141,11 @@ BOTH ways"*).
 
 ## 5a. Let the worker's request through Cloudflare's edge (before the routing rule)
 
-⛔ **NOT VERIFIED on the live account, and a flip precondition** (whole-branch
+⚰️ Struck 2026-10-07: ~~NOT VERIFIED on the live account~~. It was done and checked on 2026-09-26
+(the ledger entry quoted at the top of this file: the edge rule is in place and the dark test
+answered 404), and the door was switched on the next day.
+
+⛔ **A flip precondition** (whole-branch
 review I-1). The worker POSTs to the PUBLIC hostname (`INBOUND_URL` in
 `wrangler.toml`), so its request enters this zone's edge like any visitor's —
 Cloudflare documents that a Worker's subrequest to its own zone passes through

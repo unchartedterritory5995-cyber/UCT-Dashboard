@@ -10,10 +10,23 @@
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel } from '../components/terminal'
 import styles from './FlowScoreboard.module.css'
+import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
+import jsonFetcher from '../utils/jsonFetcher'
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+// jsonFetcher THROWS on a non-2xx, a network error and a 30 s deadline. The old fetcher
+// mapped every failure to null, which rendered "The tracker is warming up" - an outage read
+// as a young tracker (quality pass 2026-10-05).
+const fetcher = (url) => jsonFetcher(url, { credentials: 'include' })
+
+/** "Oct 5, 4:12 PM ET" from the payload's generated_at, or null. */
+export function asOfText(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return `${d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET`
+}
 
 /* ── Formatting helpers ──────────────────────────────────────────────────── */
 
@@ -28,16 +41,16 @@ export function contractLine(p) {
   return `$${fmtStrike(p.strike)}${cp} ${p.exp || ''}`.trim()
 }
 
+// Shared formatter; this page keeps its own sign rule ("+" only above zero, so a
+// flat 0.0% reads unsigned) and accepts numeric strings from the API.
+const toNum = (v) => (v == null ? NaN : Number(v))
 function fmtPct(v, { signed = true, dp = 1 } = {}) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  const n = Number(v)
-  const sign = signed && n > 0 ? '+' : ''
-  return `${sign}${n.toFixed(dp)}%`
+  const n = toNum(v)
+  return formatPercent(n, { decimals: dp, signed: signed && n > 0 })
 }
 
 function fmtPrice(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  return `$${Number(v).toFixed(2)}`
+  return formatCurrency(toNum(v))
 }
 
 const gainCls = (v) => (v > 0 ? styles.gain : v < 0 ? styles.loss : styles.flat)
@@ -66,18 +79,23 @@ function OiBadge({ confirmed }) {
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function FlowScoreboard({ embedded = false }) {
-  const { data, isLoading } = useSWR('/api/flow-scoreboard', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR('/api/flow-scoreboard', fetcher, {
     refreshInterval: 300_000,
     revalidateOnFocus: false,
   })
 
   const overall = data?.overall
+  // In a terminal panel the panel header names FREC; the public-page hero copy steps aside.
+  const inPanel = useInTerminalPanel()
+  const pageCls = embedded ? `${styles.page} ${styles.embedded}`
+    : inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page
   const hasData = (data?.picks_tracked ?? 0) > 0
 
   return (
-    <div className={embedded ? `${styles.page} ${styles.embedded}` : styles.page}>
+    <div className={pageCls}>
       {/* ── Hero band ──────────────────────────────────────────────────── */}
       <div className={styles.hero}>
+        {!inPanel && <>
         <div className={styles.heroEyebrow}>
           <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />
           Flow Scoreboard · verified track record
@@ -88,13 +106,21 @@ export default function FlowScoreboard({ embedded = false }) {
           until expiration — winners, losers, all of it. No cherry-picking, no deleted
           calls. This is the tape.
         </p>
+        </>}
 
-        {isLoading && !data ? (
+        {error && !data ? (
+          <div className={styles.empty} data-testid="scoreboard-error">
+            The scoreboard could not be read right now. That is a gap in what we could read, not a
+            statement about the picks.{' '}
+            <button type="button" onClick={() => mutate()}>Retry</button>
+          </div>
+        ) : isLoading && !data ? (
           <div className={styles.loading}>Loading the scoreboard…</div>
         ) : !hasData ? (
           <div className={styles.empty}>
             The tracker is warming up — picks need at least two daily snapshots before
-            they&rsquo;re scored. Check back after the next market close.
+            they&rsquo;re scored, so the first scores land after the next market close. This
+            page re-checks every five minutes.
             {data?.too_new > 0 && (
               <span className={styles.emptySub}> {data.too_new} picks are being tracked now.</span>
             )}
@@ -248,6 +274,10 @@ export default function FlowScoreboard({ embedded = false }) {
             </div>
           </section>
         </>
+      )}
+
+      {asOfText(data?.generated_at) && (
+        <p className={styles.methodText} data-testid="scoreboard-asof">Scores as of {asOfText(data.generated_at)}.</p>
       )}
 
       {/* ── Methodology footnote ─────────────────────────────────────────── */}

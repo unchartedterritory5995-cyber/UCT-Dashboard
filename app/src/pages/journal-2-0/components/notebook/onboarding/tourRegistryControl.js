@@ -54,6 +54,14 @@ export function takePendingRegistryTourOpenAny() {
   return was
 }
 
+/** A router `location.state` with the tour request removed (null when nothing else is left).
+ *  The gate spends the request the moment it reads it, and the engine never carries it on. */
+export function stripTourState(state) {
+  if (!state || typeof state !== 'object') return state ?? null
+  const { startRegistryTourId: _ignored, ...rest } = state
+  return Object.keys(rest).length ? rest : null
+}
+
 /** Rails only. */
 export function __resetRegistryTourControl() {
   pendingId = null

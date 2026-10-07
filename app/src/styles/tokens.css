@@ -319,6 +319,22 @@
      burying 54px of the chart under the nav. */
   --mobile-topbar-h: 48px;
 
+  /* ── Terminal panel geometry ─────────────────────────────────────────────
+     The UCT Terminal's board density (comfortable / compact / dense) is these
+     four values, re-declared per density on the shell
+     (pages/terminal/TerminalShell.module.css). Declared here so a page or tab
+     that reads them outside the terminal gets the comfortable values, and so
+     every panel component can size itself from ONE place instead of literals:
+       --panel-inset  padding between the panel frame and its content
+       --panel-gap    space between blocks (cards, sections) inside a panel
+       --panel-fs     base text size of panel content
+       --panel-row-h  a table / list row's minimum height
+     No [data-theme] variant: geometry, not colour, so no theme island pins it. */
+  --panel-inset: var(--space-md);
+  --panel-gap: var(--space-md);
+  --panel-fs: var(--text-md);
+  --panel-row-h: 28px;
+
   /* Mobile tap target minimum */
   --tap-min: 44px;
 
@@ -912,8 +928,9 @@ body {
   font-feature-settings: 'tnum' 1;
 }
 
-/* ─── Mobile: prevent iOS Safari zoom on input focus ──────────────────────── */
-@media (max-width: 640px) {
+/* ─── Touch: prevent iOS Safari zoom on input focus ───────────────────────── */
+/* The whole touch tier, not phone only: iPadOS Safari zooms on a sub-16px field too. */
+@media (max-width: 1024px) {
   input, select, textarea {
     font-size: 16px !important;
   }

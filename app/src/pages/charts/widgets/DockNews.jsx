@@ -232,7 +232,10 @@ export default function DockNews({ sym, sentiment: sentimentProp, onSentiment })
       // ⚠️ AWAIT the prefetch: it is a Response PROMISE, and a promise is
       // truthy, so `promise || fetch(url)` would hand the rest of this function
       // an object with no .status and silently fall into the error branch.
-      const r = await ((!paging && takeNewsPrefetch(url)) || fetch(url))
+      // TERM-033: a prefetch that failed resolves to null (no head start), so ask for real;
+      // only that request's failure is shown as an outage.
+      const pre = !paging ? takeNewsPrefetch(url) : null
+      const r = (pre && (await pre)) || await fetch(url)
       if (!r) throw new Error('no response')
       // 402 is the membership gate, not an outage — say so plainly rather
       // than showing "temporarily unavailable" and a Retry that cannot work.

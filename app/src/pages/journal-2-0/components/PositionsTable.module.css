@@ -243,6 +243,29 @@
   text-overflow: ellipsis;
 }
 
+/* The card's primary action (lane FIN-A11Y round 2): a real button on the title. The card
+   itself is a group, so nothing interactive is nested in anything interactive. */
+.cardOpen {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  margin: -10px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.cardOpen:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 4px);
+}
+
 .cardFigures {
   display: flex;
   flex-direction: column;

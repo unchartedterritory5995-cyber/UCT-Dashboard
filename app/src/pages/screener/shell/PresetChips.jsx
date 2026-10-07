@@ -3,6 +3,7 @@ import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import useSavedScreens from '../hooks/useSavedScreens'
 import styles from './ScannerShell.module.css'
+import Checkbox from '../../../components/ui/Checkbox'
 
 // One-click preset-scan chips from the firm's starters. Clicking a chip applies
 // that preset's spec; `applySpec` preserves the chosen pool, so a preset runs
@@ -78,7 +79,7 @@ export default function PresetChips({ currentSpec, onApply }) {
             <div className={styles.uMenuHd}>Show these preset scans</div>
             {starters.map((s) => (
               <label key={s.id} className={styles.presetManageItem}>
-                <input type="checkbox" checked={isShown(s.id)} onChange={() => toggleChip(s.id)} />
+                <Checkbox checked={isShown(s.id)} onChange={() => toggleChip(s.id)} />
                 <span>{s.name}</span>
               </label>
             ))}

@@ -9,6 +9,7 @@ import NewsDeskPanel from './NewsDeskPanel'
 import { NEWS_DESK_KEYS } from './researchDepthFlags'
 import CallReplayPanel from './CallReplayPanel'
 import styles from './Depth.module.css'
+import { DepthStackContext } from './depthChrome'
 import HowToChecklist from '../../../components/howTo/HowToChecklist'
 import { DEPTH_HOW_TO_SURFACES } from '../../../components/howTo/howToChecklists'
 
@@ -41,6 +42,7 @@ export default function DepthTab({ sym, flags, focus = null }) {
     if (focused && focusRef.current?.scrollIntoView) focusRef.current.scrollIntoView({ block: 'start' })
   }, [focused])
   return (
+    <DepthStackContext.Provider value={true}>
     <div className={styles.depth} data-testid="research-depth">
       {/* FT-046: one checklist per panel that is ON; each renders nothing unless
           HOW_TO_CHECKLISTS_ENABLED is on AND the owner approved its copy. */}
@@ -61,5 +63,6 @@ export default function DepthTab({ sym, flags, focus = null }) {
       {NEWS_DESK_KEYS.some(k => f[k] === true) && <NewsDeskPanel sym={sym} />}
       {f.call_replay_enabled === true && <CallReplayPanel sym={sym} />}
     </div>
+    </DepthStackContext.Provider>
   )
 }

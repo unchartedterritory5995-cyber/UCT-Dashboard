@@ -140,3 +140,36 @@ def test_the_fixture_schema_matches_cov02_when_it_is_present():
         pytest.skip("COV-02 (lane/cov-02-03) is not merged on this build; the schema is copied above")
     norm = lambda s: " ".join(s.split())  # noqa: E731
     assert norm(cov02._SCHEMA) == norm(COV02_SCHEMA)
+
+
+# ── O7: the candidate cap is taken on the screen's own key, not on open interest ──────────────
+
+def _add(path, cp, k, otm, d, b, a, oi):
+    con = sqlite3.connect(path)
+    m = (a + b) / 2
+    con.execute("INSERT INTO contracts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (f"O:TST261101{cp}{k * 1000:08d}", "TST", 20261101, 30, cp, k * 1000, round(otm * 10),
+                 3000, round(d * 1000), round(b * 100), round(a * 100), round((a - b) / m * 1000), oi, None))
+    con.commit()
+    con.close()
+
+
+def test_a_high_yield_low_oi_covered_call_survives_the_cap(db, monkeypatch):
+    _add(db, "C", 102, 2.0, 0.40, 5.00, 5.10, 150)       # 5/100 x 365/30 = 60.8%, lowest OI
+    monkeypatch.setattr(ss, "CANDIDATE_CAP", 1)
+    (r,) = ss.run("covered_calls")["rows"]
+    assert (r["strike"], r["annualized_pct"]) == (102.0, 60.8)
+
+
+def test_a_better_low_oi_credit_spread_survives_the_cap(db, monkeypatch):
+    _add(db, "C", 103, 3.0, 0.30, 2.00, 2.10, 120)       # 103/105: credit 0.70 on width 2
+    monkeypatch.setattr(ss, "CANDIDATE_CAP", 1)
+    (s,) = ss.run("bear_call_spreads")["rows"]
+    assert (s["short"]["strike"], s["long"]["strike"], s["credit"], s["return_on_risk_pct"]) == \
+        (103.0, 105.0, 0.7, 53.8)
+
+
+def test_the_cap_order_is_the_rank_order(db):
+    for kind, key in (("covered_calls", "annualized_pct"), ("bear_call_spreads", "return_on_risk_pct")):
+        rows = ss.run(kind)["rows"]
+        assert [r[key] for r in rows] == sorted((r[key] for r in rows), reverse=True)

@@ -856,3 +856,97 @@ def test_instrument_budgets_match_the_plan_doc_exactly():
     for fid, (mouse, keys, taps) in plan.items():
         b = w13q.BUDGET[fid]
         assert (b["mouse"], b["keys"], b["taps"]) == (mouse, keys, taps), fid
+
+
+# ── finish program, lane CLICKS: one-Tab-stop groups, the helper count, the full roster ─────
+
+class RovingPage(FakePage):
+    """A page whose target sits inside a one-Tab-stop group. `plan` is what ROVING_PLAN_JS
+    reports; `arrives` is whether focus is on the target after the group's keys."""
+
+    def __init__(self, plan, arrives=True, found_after=2):
+        super().__init__(found_after=found_after)
+        self.plan, self.arrives = plan, arrives
+
+    def evaluate(self, expr, arg=None):
+        if expr == w13q.ROVING_PLAN_JS:
+            return self.plan
+        if isinstance(expr, str) and expr.startswith("h => h === document.activeElement"):
+            return self.arrives
+        return super().evaluate(expr, arg)
+
+
+@pytest.mark.parametrize("plan,expected", [
+    ({"from": 3, "to": 4, "n": 6, "vertical": False}, ["ArrowRight"]),
+    ({"from": 3, "to": 2, "n": 6, "vertical": False}, ["ArrowLeft"]),
+    ({"from": 1, "to": 3, "n": 6, "vertical": True}, ["ArrowDown", "ArrowDown"]),
+    ({"from": 3, "to": 0, "n": 6, "vertical": False}, ["Home"]),
+    ({"from": 2, "to": 5, "n": 6, "vertical": False}, ["End"]),
+    ({"from": 0, "to": 5, "n": 6, "vertical": False}, ["ArrowLeft"]),      # one wrap beats End's tie
+])
+def test_a_control_in_a_one_stop_group_is_reached_by_tab_then_the_groups_own_keys(plan, expected):
+    """Tab can never land on a `tabIndex -1` item, so a Tab-only walk would run to the cap and
+    read as a product miss. The member's real path: Tab to the group, then its Arrow key."""
+    pg = RovingPage(plan, found_after=2)
+    m = w13q.Meter(pg, "keys")
+    m.press(FakeLocator(), "Insights")
+    assert pg.keyboard.presses == ["Tab", "Tab", *expected, "Enter"]
+    assert m.tabs == 2
+    assert m.keys == len(expected) + 1          # the group's keys and the Enter are all counted
+    assert m.count() == 2 + len(expected) + 1
+
+
+def test_a_group_whose_keys_do_not_arrive_reads_inconclusive_never_a_count():
+    """The control: arrival is checked. A group that did not move focus must not be counted
+    as if it had."""
+    pg = RovingPage({"from": 3, "to": 4, "n": 6, "vertical": False}, arrives=False)
+    m = w13q.Meter(pg, "keys")
+    with pytest.raises(w13q.Inconclusive):
+        m.press(FakeLocator(), "Insights")
+
+
+def test_an_ordinary_control_is_still_a_plain_tab_walk():
+    """Non-vacuity for the two tests above: with no group reported, no Arrow key is pressed."""
+    pg = RovingPage(None, found_after=3)
+    m = w13q.Meter(pg, "keys")
+    m.press(FakeLocator(), "Save")
+    assert pg.keyboard.presses == ["Tab", "Tab", "Tab", "Enter"]
+
+
+@pytest.mark.parametrize("mode,field", [("mouse", "clicks"), ("taps", "taps")])
+def test_counted_adds_a_helpers_pointer_inputs_to_the_right_counter(mode, field):
+    m = w13q.Meter(FakePage(), mode)
+    m.counted(3, "place a level on the chart")
+    assert getattr(m, field) == 3 and m.count() == 3
+    assert m.steps[-1]["on"] == "place a level on the chart"
+
+
+def test_every_one_of_the_23_flows_has_a_driver():
+    """The completeness review's finding, as a rail: eight flows had no driver, so their
+    budgets were never measured. A flow may still read INCONCLUSIVE at run time; it may not
+    be absent."""
+    by_id = {f.fid: f for f in w13q.FLOWS}
+    assert sorted(by_id, key=lambda s: int(s[1:])) == [f"Q{i}" for i in range(1, 24)]
+    missing = [fid for fid, f in by_id.items() if f.run is None or f.unbuilt]
+    assert missing == []
+    assert w13q.UNBUILT == {}
+
+
+def _notebook_flag_names() -> set[str]:
+    """The keys of NOTEBOOK_FLAGS in api/routers/auth.py, read from its syntax tree. The tool
+    never imports api.*, and neither does this rail."""
+    import ast
+    tree = ast.parse((REPO / "api" / "routers" / "auth.py").read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "NOTEBOOK_FLAGS" for t in node.targets):
+            return {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
+    return set()
+
+
+def test_every_gate_the_sandbox_arms_is_a_real_gate():
+    """An env var nobody reads looks exactly like a working switch (CLAUDE.md: never invent a
+    flag). Every name the tool arms must be a key the app's one gate table declares."""
+    real = _notebook_flag_names()
+    assert "NOTEBOOK_PLAYBOOK_ENABLED" in real          # the parser found the table
+    assert [n for n in w13q.FLAGS if n not in real] == []
+    assert len(set(w13q.FLAGS)) == len(w13q.FLAGS)

@@ -16,7 +16,10 @@ import { useEffect, useRef, useState } from 'react'
 import {
   SPEEDS, DEFAULT_SPEED, REDUCED_MOTION_NOTE, usePrefersReducedMotion,
 } from './scrubberPlayback'
+import UIcon from '../../components/ui/UIcon'
 import styles from './BreadthScrubber.module.css'
+import Select from '../../components/ui/Select'
+import Slider from '../../components/ui/Slider'
 
 export default function BreadthScrubber({
   rows = [], rowIdx = 0, playing = false, onSeek, onStep, onPlayingChange,
@@ -85,21 +88,21 @@ export default function BreadthScrubber({
               title={blockedReason ?? (playing ? 'Pause' : 'Play forward one session at a time')}
               aria-label={playing ? 'Pause playback' : 'Play forward through the window'}
               onClick={() => onPlayingChange?.(!playing)}>
-        {playing ? '❚❚' : '▶'}
+        <UIcon name={playing ? 'pause' : 'play'} size={14} gold={false} />
       </button>
 
       {/* Words, not the end dates: the window's span is already stated by every
           view's own basis line, and a third and fourth date on this row would
           bury the one that moves. */}
       <span className={styles.ends}>oldest</span>
-      <input type="range" className={styles.range} data-testid="scrubber-range"
-             min={0} max={Math.max(0, last)} step={1}
-             value={Math.max(0, last - rowIdx)}
-             disabled={last < 1}
-             aria-label="Session"
-             aria-valuetext={sessionLabel}
-             title={sessionLabel}
-             onChange={(e) => onSeek?.(last - Number(e.target.value))} />
+      <Slider className={styles.range} data-testid="scrubber-range"
+              min={0} max={Math.max(0, last)} step={1}
+              value={Math.max(0, last - rowIdx)}
+              disabled={last < 1}
+              aria-label="Session"
+              aria-valuetext={sessionLabel}
+              title={sessionLabel}
+              onChange={(e) => onSeek?.(last - Number(e.target.value))} />
       <span className={styles.ends}>newest</span>
 
       {/* 🔴 CLAMPED, because the window can shrink under the cursor. Scrub deep
@@ -114,11 +117,11 @@ export default function BreadthScrubber({
         {Math.max(1, Math.min(rows.length, last - rowIdx + 1))} of {rows.length}
       </span>
 
-      <select className={styles.speed} data-testid="scrubber-speed" value={speed}
+      <Select className={styles.speed} data-testid="scrubber-speed" value={speed}
               disabled={reduceMotion} aria-label="Playback speed"
               onChange={(e) => setSpeed(Number(e.target.value))}>
         {SPEEDS.map(s => <option key={s} value={s}>{s}/s</option>)}
-      </select>
+      </Select>
 
       {reduceMotion && (
         <span className={styles.note} data-testid="scrubber-note">{REDUCED_MOTION_NOTE}</span>

@@ -1,7 +1,22 @@
 == flags-off render parity
-base b06ec4fd85 vs HEAD c89c5a4c2d
+base b06ec4fd85 vs HEAD bcc334159e
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
-swapped 177 source files to the base blob; restored, git status unchanged
-40 identical | 0 differ (40 cases)
-VERDICT: PASS -- identical
+capture fingerprints (same tree, same fingerprints): A fd2e765038de3db0 | B e52c2ed7d44450c0
+swapped 482 source files to the base blob; restored, git status unchanged
+36 identical | 4 differ only by a named expected difference | 0 differ (40 cases)
+  EXPECTED: notebook home | prod-like: every capability on, getting-started off | fresh member
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV)
+  EXPECTED: notebook home | prod-like: every capability on, getting-started off | base tour done, checklist closed
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV)
+  EXPECTED: notebook home | every capability on, onboarding off | fresh member
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV)
+  EXPECTED: notebook home | every capability on, onboarding off | base tour done, checklist closed
+    explained exactly by: passed-setups status line (fin-a11y M-5), Active setups door (lane NAV)
+  NAMED: passed-setups status line (fin-a11y M-5) | commit cb5c30b38d | accepted 2026-10-06 | only on 'notebook home' with notebook_passed_setups_enabled on
+    element: <p class="_quiet_ _notice_" role="status" data-passed-status=""></p>
+    reason: Accessibility item M-5: the passed-setups box keeps one status line mounted, empty at rest, that Add and Remove fill so a screen reader hears the result. It exists only while the passed-setups capability is on. Accepted by the controller as an intended accessibility change.
+  NAMED: Active setups door (lane NAV) | commit 6b7e037c9f | accepted 2026-10-07 | only on 'notebook home' with notebook_setups_board_enabled on
+    element: <a class="btn btn-ghost _setupsLink_" title="Your open chart plans, closest to their entry first" href="/journal/notebook/setups" data-discover="true">Active setups</a>
+    reason: The active setups board had no door (BETA-HANDOFF 1b: no menu link to it yet). The NAV lane added one link on Research Home, rendered only while the setups board capability is on. Accepted by the controller as intended.
+VERDICT: PASS -- identical except 4 case(s) explained exactly by a named expected difference

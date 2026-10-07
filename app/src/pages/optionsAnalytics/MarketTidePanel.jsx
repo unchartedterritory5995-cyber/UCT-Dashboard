@@ -3,11 +3,13 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useDarkSection from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
-import { formatCompact, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import OffNotice from './OffNotice'
+import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
+import Select from '../../components/ui/Select'
 
-// The tide's own ladder: B at two decimals, M at one, K whole.
-const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
+// Premium reads on the terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS):
+// T/B at two decimals, M at one, K whole -- the tide's own old ladder, now shared.
 
 // FT-056 Market Tide: market-wide net call / net put premium by minute, COMPUTED from our flow
 // tape (api/services/options_analytics/market_tide.py).
@@ -29,7 +31,7 @@ export function money(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
   const a = Math.abs(n)
-  const s = formatCompact(a, { tiers: TIDE_TIERS })
+  const s = formatCompactTerminal(a)
   return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
 }
 
@@ -43,6 +45,11 @@ export function staleText(data) {
     return `Not updated for ${Math.max(1, Math.round(age / 60))} min; a refresh is running.`
   }
   return 'Not freshly computed; a refresh is running.'
+}
+
+/** Today in New York as YYYY-MM-DD (the tide's `session` is an ET market date). */
+export function todayEt(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
 
 const W = 720
@@ -112,6 +119,20 @@ function TidePanel({ scope, setScope, onPickMinute }) {
           net <b className={t.net_premium >= 0 ? styles.gain : styles.loss}>{money(t.net_premium)}</b>
         </p>
       ) : <p className={styles.note}>No prints on the tape for the last session.</p>}
+      {data.session && data.session < todayEt() ? (
+        // A scope with no prints yet today serves the last session it has (ETFs did, on a weekday
+        // afternoon). The date alone was easy to miss, and Friday's tide read as today's.
+        <p className={styles.note} data-testid="market-tide-old-session">
+          This is the {data.session} session, not today: nothing for today is on the tape for this view yet.
+        </p>
+      ) : null}
+      {p && (
+        <ul className={styles.legend} data-testid="market-tide-legend" aria-label="Market Tide legend">
+          <li><span className={`${styles.legendSwatch} ${styles.legendCall}`} aria-hidden="true" />Net call premium</li>
+          <li><span className={`${styles.legendSwatch} ${styles.legendPut}`} aria-hidden="true" />Net put premium</li>
+          <li><span className={`${styles.legendSwatch} ${styles.legendZero}`} aria-hidden="true" />Zero</li>
+        </ul>
+      )}
       {p && (
         <svg className={`${styles.chart}${onPickMinute ? ` ${styles.clickable}` : ''}`} viewBox={`0 0 ${W} ${H}`} role="img" data-testid="market-tide-chart"
           aria-label="Cumulative net call premium (green) and net put premium (red) by minute"
@@ -190,10 +211,10 @@ export function TideMinute({ scope, minute, setMinute }) {
     <section className={styles.panel} data-testid="tide-minute">
       <div className={styles.head}>
         <span className={styles.title}>Tape at a minute</span>
-        <select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
+        <Select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
           <option value="">pick a minute, or click the tide…</option>
           {probe.data.minutes.map((t) => <option key={t} value={t}>{t} ET</option>)}
-        </select>
+        </Select>
       </div>
       {one.failed && <p className={styles.note}>That minute&apos;s prints are unavailable right now.</p>}
       {d && Array.isArray(d.prints) && (
@@ -208,8 +229,8 @@ export function TideMinute({ scope, minute, setMinute }) {
                 <tbody>
                   {d.prints.map((p, i) => (
                     <tr key={`${p.symbol}-${p.time}-${i}`}>
-                      <th>{p.symbol}</th><td>{p.type} {p.strike} {p.expiration}</td><td>{p.side}</td>
-                      <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{p.trade_type}</td>
+                      <th>{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
+                      <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{tradeTypeWords(p.trade_type)}</td>
                     </tr>
                   ))}
                 </tbody>

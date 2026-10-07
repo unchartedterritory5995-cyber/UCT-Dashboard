@@ -272,10 +272,14 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={bodyId}
+        /* FIN-A11Y round 2 (review R4, I-8): the step count is part of what is SAID. The
+           dialog is described by it and then the body, and the heading, which takes focus on
+           every step, is described by it too, so each step change reads "Step N of M". */
+        aria-describedby={`${bodyId}-step ${bodyId}`}
       >
-        <p className={styles.progress}>{TOUR_UI.progress(index + 1, steps.length)}</p>
-        <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
+        <p id={`${bodyId}-step`} className={styles.progress}>{TOUR_UI.progress(index + 1, steps.length)}</p>
+        <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
+          aria-describedby={`${bodyId}-step`}>{copy.title}</h2>
         <p id={bodyId} className={styles.body}>{copy.body}</p>
         {isLast && (
           <p className={styles.help}>

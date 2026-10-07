@@ -111,3 +111,48 @@ class TestUnchanged:
     def test_blank_ticker_short_circuits(self):
         assert ag.get_analyst_grades("") is None
         assert ag.get_analyst_grades(None) is None
+
+
+class TestDegradedLegIsNotAnAnswer:
+    """tq-panels (ANR): a vendor answer that came back DEGRADED with no usable row
+    (cached_forbidden / circuit_open) was swallowed by the helpers as a clean
+    "no data", so the leg counted as answered and an outage was cached as "no
+    analyst coverage" for 6h. The real leg functions run here against a stubbed
+    fmp_client -- nothing reaches the network."""
+
+    def _degraded(self, kind="circuit_open"):
+        from api.services import provider_errors as pe
+
+        def fn(ticker, **kw):
+            return pe.ProviderResult(
+                value=None,
+                provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="stub"),
+                licensing_class="R", degraded=kind)
+        return fn
+
+    def _stub_all(self, monkeypatch, fn):
+        for name in ("get_grades_consensus", "get_price_target_consensus", "get_price_target_summary",
+                     "get_analyst_grades", "get_grades_historical"):
+            monkeypatch.setattr(ag.fmp_client, name, fn)
+        monkeypatch.setattr(ag, "resolve_entity", lambda t, vendor=None: (None, t))
+
+    @pytest.mark.parametrize("kind", ["circuit_open", "cached_forbidden"])
+    def test_every_leg_degraded_is_an_outage_not_no_coverage(self, monkeypatch, spy, kind):
+        self._stub_all(monkeypatch, self._degraded(kind))
+        out = {}
+        assert ag.get_analyst_grades("TEST", outage_out=out) is None
+        assert out["outage"] is True
+        assert spy["value"] == {"_miss": True, "_outage": True}
+        assert spy["ttl"] == ag._FAIL_TTL
+
+    def test_a_clean_empty_answer_is_still_no_coverage(self, monkeypatch, spy):
+        from api.services import provider_errors as pe
+
+        def empty(ticker, **kw):
+            return pe.ProviderResult(value=[], licensing_class="R",
+                                     provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="stub"))
+        self._stub_all(monkeypatch, empty)
+        out = {}
+        assert ag.get_analyst_grades("TEST", outage_out=out) is None
+        assert out["outage"] is False
+        assert spy["ttl"] == ag._TTL

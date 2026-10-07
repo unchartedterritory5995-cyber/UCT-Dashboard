@@ -5,7 +5,14 @@
 // beside the component rather than inside it so the component file exports
 // only components (react-refresh needs that for HMR to keep its state) and so
 // the tests can exercise the arithmetic without a render.
+import { formatCompactTerminal, formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 
+import { CHART_INK } from '../../research-kit/charts/echartsCore'
+
+// A fixed series palette, tuned on the dark ground. It is NOT re-tuned per
+// theme here: SeriesChart nudges any entry under 3:1 against the live chart
+// surface (lib/theme ensureContrast), so on a light theme the pale blues and
+// greens darken just enough to read and keep their hue.
 const INK = {
   revenue: '#5aa9e6',
   opinc: '#e8a33d',
@@ -26,18 +33,11 @@ export const EXPANDED_HEIGHT = 'min(560px, 58vh)'
 
 /** $1.59B / $48.8M / -$450M — a statement axis spans nine orders of magnitude. */
 export function money(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
-  const n = Number(v)
-  const a = Math.abs(n)
-  const sign = n < 0 ? '-' : ''
-  if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${sign}$${(a / 1e3).toFixed(1)}K`
-  return `${sign}$${a.toFixed(0)}`
+  if (v == null) return '—'
+  return formatCompactTerminal(Number(v), { money: true })
 }
 
-const eps = (v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`)
+const eps = (v) => (v == null ? '—' : formatCurrency(Number(v)))
 
 /** The six panels, declared as data so the grid cannot drift from the legend. */
 export const PANEL_SPECS = [
@@ -88,7 +88,7 @@ export function panelSeries(spec, series, period, yoy) {
   return [
     ...(yoy ? spec.series.map(([field, name]) => ({
       name: `${name} (yr ago)`,
-      color: 'rgba(255,255,255,.20)',
+      color: CHART_INK.ghost,
       values: yoyShift(series[field] || [], period),
     })) : []),
     ...spec.series.map(([field, name, color]) => ({

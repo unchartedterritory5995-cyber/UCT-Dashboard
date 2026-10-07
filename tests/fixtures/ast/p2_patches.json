@@ -1,0 +1,840 @@
+{
+ "_": "P2 engine \u2014 the shared structural fixture for builder/authoring/patchSchema.json. JS: patchValidate.validatePatchShape (p2.engine.truth.test.js). Python: jsonschema Draft 2020-12 (tests/test_p2_truth_engine.py). A case with lane 'engine' is a rule the engine adds beyond the schema (Python expects schema-valid).",
+ "valid": [
+  {
+   "name": "create",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "assumptions": [
+     {
+      "slot": "value#0.1",
+      "text": "standard length"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "create multi + price",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Two",
+      "outputs": [
+       {
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       },
+       {
+        "key": "rsi",
+        "tree": {
+         "type": "call",
+         "name": "rsi",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        },
+        "label": "RSI",
+        "hidden": false
+       }
+      ],
+      "placement": "price",
+      "primary": "value"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "rename_definition",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "rename_definition",
+      "name": "x"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "add_output",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "add_output",
+      "key": "rsi",
+      "tree": {
+       "type": "call",
+       "name": "rsi",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "num",
+         "value": 14
+        }
+       ]
+      },
+      "label": "RSI"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "remove_output",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "remove_output",
+      "output": "rsi"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "rename_output",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "rename_output",
+      "output": "rsi",
+      "label": "Momentum"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_output_tree",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_output_tree",
+      "output": "value",
+      "tree": {
+       "type": "op",
+       "name": ">",
+       "args": [
+        {
+         "type": "call",
+         "name": "rsi",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 70
+        }
+       ]
+      }
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_slot value",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "value": 80
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_slot series",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#0.0",
+      "series": "high"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_slot offset",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1.n",
+      "value": 2
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "add_clause",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "add_clause",
+      "output": "value",
+      "join": "and",
+      "tree": {
+       "type": "op",
+       "name": ">",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1.08
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "remove_clause",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "remove_clause",
+      "clause": "value#1"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_intent",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_intent",
+      "intent": "signal",
+      "output": "value"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_placement",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_placement",
+      "target": "price"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_style",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_style",
+      "output": "rsi",
+      "color": "#2962FF",
+      "width": 2
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_style rgba",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_style",
+      "output": "rsi",
+      "color": "rgba(41, 98, 255, 0.5)"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_marker",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_marker",
+      "output": "value",
+      "shape": "circle",
+      "position": "belowBar",
+      "text": "OB"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "remove_marker",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "remove_marker",
+      "output": "value"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "set_paint",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_paint",
+      "output": "value",
+      "channel": "barcolor",
+      "color": "#FFD700"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "remove_paint",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "remove_paint",
+      "output": "value",
+      "channel": "bgcolor"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "request_info_value",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_info_value",
+      "output": "rsi",
+      "format": "auto"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "request_alert",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "value",
+      "triggerPolicy": "becomes_true"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "cancel_request",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "cancel_request",
+      "kind": "alert",
+      "output": "value"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "question only",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "len",
+      "text": "Which RSI length?",
+      "choices": [
+       "14",
+       "21"
+      ]
+     }
+    ],
+    "disposition": "clarify"
+   }
+  },
+  {
+   "name": "prose note",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "rename_definition",
+      "name": "x"
+     }
+    ],
+    "note": "anything",
+    "disposition": "change"
+   }
+  }
+ ],
+ "invalid": [
+  {
+   "name": "unknown op",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_semantics",
+      "value": 2
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:unknown-op"
+  },
+  {
+   "name": "unknown field",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "rsi",
+      "triggerPolicy": "becomes_true",
+      "outputType": "condition"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:unknown-field"
+  },
+  {
+   "name": "unknown top-level field",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "definition": {},
+    "disposition": "answer",
+    "reply": "An answer, nothing changed."
+   },
+   "code": "schema:unknown-field"
+  },
+  {
+   "name": "bad colour",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_paint",
+      "output": "value",
+      "channel": "barcolor",
+      "color": "gold; background:url(x)"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:pattern"
+  },
+  {
+   "name": "bad slot id",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#a.b",
+      "value": 1
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:pattern"
+  },
+  {
+   "name": "slot value and series",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "value": 1,
+      "series": "high"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:one-of"
+  },
+  {
+   "name": "slot neither",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:one-of"
+  },
+  {
+   "name": "negative value",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "value": -5
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:range"
+  },
+  {
+   "name": "too many ops",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     },
+     {
+      "op": "rename_definition",
+      "name": "x"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:items"
+  },
+  {
+   "name": "missing baseRevision",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [],
+    "disposition": "answer",
+    "reply": "An answer, nothing changed."
+   },
+   "code": "schema:required"
+  },
+  {
+   "name": "wrong contract",
+   "patch": {
+    "contract": "uct.authoring.patch/2",
+    "baseRevision": 0,
+    "ops": [],
+    "disposition": "answer",
+    "reply": "An answer, nothing changed."
+   },
+   "code": "schema:const"
+  },
+  {
+   "name": "marker shape",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_marker",
+      "output": "value",
+      "shape": "cross"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:enum"
+  },
+  {
+   "name": "style names nothing",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_style",
+      "output": "rsi"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:empty"
+  },
+  {
+   "name": "trigger policy",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "value",
+      "triggerPolicy": "crosses"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:enum"
+  },
+  {
+   "name": "tree node type",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_output_tree",
+      "output": "value",
+      "tree": {
+       "type": "sym",
+       "value": "SPY",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        }
+       ]
+      }
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:enum"
+  },
+  {
+   "name": "questions with ops",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "rename_definition",
+      "name": "x"
+     }
+    ],
+    "questions": [
+     {
+      "id": "q",
+      "text": "?"
+     }
+    ],
+    "disposition": "clarify"
+   },
+   "code": "patch:questions-with-ops",
+   "lane": "engine"
+  }
+ ]
+}

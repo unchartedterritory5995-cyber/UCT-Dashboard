@@ -187,6 +187,10 @@
 .cell { display: flex; align-items: center; padding: 0 9px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--bg-surface); }
 .numCell { font-family: var(--font-mono); font-size: 11.5px; }
 .gridRow:hover .cell { background: var(--bg-hover); }
+/* A dense UCT Terminal board (VirtualResults `effectiveDensity`): 24px rows, so the header and
+   cell text step down one size with them. */
+.gridScroll[data-density='dense'] .hbtn { padding-block: var(--space-xs); }
+.gridScroll[data-density='dense'] .cell, .gridScroll[data-density='dense'] .numCell { font-size: var(--text-sm); }
 .stickyCol { position: sticky; left: 0; z-index: 2; }
 .gridHead .stickyCol { z-index: 5; background: var(--bg); }
 .symCell { color: var(--ut-gold); font-weight: 600; gap: 6px; }
@@ -436,4 +440,35 @@
 }
 @media (max-width: 640px) {
   .shell { padding: 12px; }
+}
+
+/* Finish program, lane NAV (ruling P5 / Q7): "Skip to save results", the keyboard door to the
+   toolbar's last control. Rendered through the app shell's skip-link slot
+   (components/skipLinks.jsx), so it shows at the shell link's own spot. Same recipe as the
+   Notebook's skip links, with the PR #225 / H14 lesson built in: unfocused it is invisible AND
+   lets the pointer through, so it can never take a tap on a phone, and it is shown by
+   :focus-visible only, which a tap does not cause. */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none;
+}
+.skipLink:focus-visible {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
 }

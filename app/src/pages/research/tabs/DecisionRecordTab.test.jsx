@@ -43,7 +43,7 @@ async function renderWith(result, isLoading = false) {
 describe('DecisionRecordTab', () => {
   it('a recorded rejection renders its STAGE, its reason and its issue -- beside the pass', async () => {
     await renderWith({ ok: true, httpStatus: 200, body: considered })
-    expect(screen.getByText('Dropped at stage 2 · gate')).toBeInTheDocument()
+    expect(screen.getByText('Dropped at the swing-trade gate (stage 2)')).toBeInTheDocument()
     expect(screen.getByText('failed gate: extended from 10ema')).toBeInTheDocument()
     expect(screen.getByText('Passed every stage')).toBeInTheDocument()
     expect(screen.getAllByTestId('decision-record-row')).toHaveLength(3)
@@ -74,7 +74,8 @@ describe('DecisionRecordTab', () => {
 
   it.each([
     ['a failed request', { ok: false, httpStatus: 500, body: null }],
-    ['a refused request', { ok: false, httpStatus: 402, body: null }],
+    // tq-panels: 402 is the paid gate (paywall402.test.jsx); a refusal here is a 403.
+    ['a refused request', { ok: false, httpStatus: 403, body: null }],
     ['a store that could not be read', { ok: true, httpStatus: 200, body: { ...considered, status: 'unavailable', reason: 'source_file_missing', rows: [], counts: null, coverage: null } }],
   ])('%s is UNAVAILABLE, never "not considered"', async (_label, result) => {
     await renderWith(result)

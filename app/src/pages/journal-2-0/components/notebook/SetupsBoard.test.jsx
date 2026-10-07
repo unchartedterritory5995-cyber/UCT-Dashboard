@@ -9,6 +9,11 @@
 //   * The card words the server's numbers: distance in % and R, days in setup, the levels.
 //   * DARK: both flags off -> the page fetches nothing.
 //   * Find more like this opens tonight's precomputed matches for the card's tagged chart.
+//
+// CONTRACT: the board (forty setups, and one card in each state) is the REAL server's answer
+// (`__fixtures__/contract`, written by tools/notebook_contract_fixtures.py from
+// GET /api/j2/setups-board), and so are the similar-names matches: the generator runs the real
+// nightly job over a fixed universe and the route reads the rows it stored.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
@@ -35,26 +40,15 @@ import { distanceText, daysText, planPriceLines } from './BoardCard'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import { Providers } from '../../a11y/fixtures'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+import { contract, contractBody } from '../../__fixtures__/contract'
 
-const sym = (i) => `S${String(i).padStart(2, '0')}`
-const CARDS = Array.from({ length: 40 }, (_, i) => ({
-  noteId: `n${i}`, noteTitle: `Plan ${i}`, symbol: sym(i), entry: 100 + i, stop: 95 + i, target: 120 + i,
-  levelShape: 'chart', setupTag: null, daysInSetup: i % 5, since: '2026-09-28',
-  similarEmbedKey: i === 0 ? 'e-0' : null, side: 'long', state: 'waiting', price: 99 + i,
-  priceSource: 'close', priceAsOf: '2026-10-01', distancePct: Number((0.1 * (i + 1)).toFixed(2)),
-  distanceR: Number((0.02 * (i + 1)).toFixed(2)),
-}))
-const BOARD = { cards: CARDS, count: 40, today: '2026-10-02', pageSize: 16, scanned: 40, capped: false }
-const MATCHES = {
-  template: { noteId: 'n0', embedKey: 'e-0', noteTitle: 'Plan 0', symbol: 'S00', setupTag: 'VCP', asOf: '2026-09-30', frozen: true },
-  asOf: '2026-10-01', computedAt: 'x', status: 'ready', matches: [
-    { rank: 1, symbol: 'CRWD', score: 88, distance: 0.12, coverage: 1,
-      reasons: { fields: [
-        { field: 'rs_rank', label: 'RS', unit: '', template: 92, candidate: 94, delta: 2, same: null, d: 0.08 },
-        { field: 'pullback_depth_pct', label: 'depth', unit: '%', template: 12, candidate: 11, delta: -1, same: null, d: 0.1 },
-      ], patterns: { shared: ['vcp'], templateOnly: [], missing: null } } },
-  ],
-}
+const BOARD = contractBody('setups-board.forty')
+const CARDS = BOARD.cards
+const FIRST = CARDS[0]                 // the closest setup, and the one with a tagged chart
+// The matches the REAL nightly job stored for the one tagged chart on the six-state board.
+const MATCHES = contractBody('similar-names.matches')
+
+const SECOND_ROW = 'vs 20-day 2% vs 2% · vs 50-day 10% vs 10% · vs 200-day 30% vs 30%'
 
 const respond = (status, body) => Promise.resolve({ ok: status < 400, status, headers: { get: () => null }, json: () => Promise.resolve(body) })
 function stub(routes) {
@@ -63,16 +57,27 @@ function stub(routes) {
     const path = String(url).split('?')[0]
     calls.push(path)
     const hit = routes.find(([re]) => re.test(path))
-    return hit ? respond(200, hit[1]) : respond(404, {})
+    return hit ? respond(hit[2] || 200, hit[1]) : respond(404, {})
   })
   return calls
 }
+const renderBoard = () => render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
 
 const pending = () => [...h.live.keys()].filter((s) => !h.released.has(s)).length
 async function release(s) {
   h.released.add(s)
   await act(async () => { h.live.get(s).onBarsReady() })
 }
+
+describe('the recorded board is the shape this page was built for (non-vacuity)', () => {
+  it('forty cards, closest first, a page of sixteen, one tagged chart', () => {
+    expect(CARDS).toHaveLength(40)
+    expect(BOARD).toMatchObject({ count: 40, pageSize: PAGE_SIZE, capped: false })
+    const pcts = CARDS.map((c) => c.distancePct)
+    expect([...pcts].sort((a, b) => a - b)).toEqual(pcts)
+    expect(CARDS.filter((c) => c.similarEmbedKey).map((c) => c.symbol)).toEqual([FIRST.symbol])
+  })
+})
 
 describe('SetupsBoard', () => {
   beforeEach(() => {
@@ -81,10 +86,11 @@ describe('SetupsBoard', () => {
   })
   afterEach(() => { __resetNotebookFlags() })
 
-  it('both flags OFF: says so and fetches nothing', async () => {
+  it('both flags OFF: shows no page of its own and fetches nothing (it sends the member back; finFeMinors.test.jsx)', async () => {
     const calls = stub([[/setups-board$/, BOARD]])
     render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
-    expect(screen.getByText('This page is not available yet.')).toBeTruthy()
+    expect(screen.queryByText('This page is not available yet.')).toBeNull()
+    expect(document.querySelector('[data-setups-page]')).toBeNull()
     await new Promise((r) => setTimeout(r, 20))
     expect(calls).toEqual([])
     expect(h.everMounted).toEqual([])
@@ -100,7 +106,7 @@ describe('SetupsBoard', () => {
     expect(order).toEqual(CARDS.slice(0, PAGE_SIZE).map((c) => c.symbol))
     await waitFor(() => expect(h.live.size).toBe(MOUNT_LIMIT))
     // the closest three are admitted first
-    expect([...h.live.keys()]).toEqual(['S00', 'S01', 'S02'])
+    expect([...h.live.keys()]).toEqual(CARDS.slice(0, 3).map((c) => c.symbol))
     for (const p of h.live.values()) {
       expect(p.backgroundWarm).toBe(false)
       expect(p.deepWarm).toBe(false)
@@ -136,11 +142,56 @@ describe('SetupsBoard', () => {
     stub([[/\/api\/j2\/setups-board$/, BOARD]])
     const { container } = render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
     await screen.findByText('Plan 0')
-    const first = container.querySelector('[data-board-card="S00"]')
+    // The closest setup: entry 100, stop 95, last close 99.90 (0.10 away: 0.10% and 0.02R).
+    expect(FIRST).toMatchObject({ symbol: 'SQ00', entry: 100, stop: 95, price: 99.9, distancePct: 0.1, distanceR: 0.02, daysInSetup: 0 })
+    const first = container.querySelector(`[data-board-card="${FIRST.symbol}"]`)
     expect(first.querySelector('[data-distance]').textContent).toBe('0.10% to the entry · 0.02R')
     expect(first.textContent).toContain('$100.00')
     expect(first.textContent).toContain('New today')
     expect(screen.getByText('Page 1 of 3')).toBeTruthy()
+  })
+
+  it('words every state the server sends: waiting, triggered, watching, invalidated, no price', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    const board = contractBody('setups-board')
+    stub([[/\/api\/j2\/setups-board$/, board]])
+    const { container } = renderBoard()
+    await screen.findByText('SBNV breakout')
+    const said = Object.fromEntries(board.cards.map((c) => [
+      c.state + (c.side === 'short' ? ':short' : ''),
+      container.querySelector(`[data-board-card="${c.symbol}"] [data-distance]`).textContent,
+    ]))
+    expect(said).toEqual({
+      waiting: '2.94% to the entry · 0.60R',
+      'waiting:short': '2.44% to the entry · 0.50R',
+      triggered: 'Triggered · 0.94% through the entry · 0.20R',
+      watching: '7.69% to the entry',
+      invalidated: 'Through the stop · 5.00% from the entry · 1.00R',
+      no_price: 'No price yet',
+    })
+    // the server's order is kept: closest to the entry first, the broken and the blind last
+    expect([...container.querySelectorAll('[data-board-card]')].map((el) => el.getAttribute('data-board-card')))
+      .toEqual(board.cards.map((c) => c.symbol))
+    expect(screen.queryByText(/^Page /)).toBeNull()              // one page: no pager
+  })
+
+  it('a member with no drawn plan is told how to start, and no chart mounts', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    stub([[/\/api\/j2\/setups-board$/, contractBody('setups-board.empty')]])
+    renderBoard()
+    expect(await screen.findByText(/No open setups yet\. Draw an entry line on a chart in a plan note/)).toBeTruthy()
+    expect(h.everMounted).toEqual([])
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('a failed read is an error, never "No open setups yet"', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    stub([[/\/api\/j2\/setups-board$/, contractBody('setups-board.signed-out'), 401]])
+    renderBoard()
+    await waitFor(() => expect(screen.queryByText('Reading your plans…')).toBeNull())
+    expect(screen.queryByText(/No open setups yet/)).toBeNull()
+    expect(document.querySelector('[data-setups-board]').textContent).toMatch(/your setups/)
+    expect(h.everMounted).toEqual([])
   })
 
   it('pure wording: distance, days, price lines', () => {
@@ -156,15 +207,73 @@ describe('SetupsBoard', () => {
 
   it('find more like this opens the precomputed matches for the tagged chart', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true, notebook_find_similar_enabled: true })
+    const board = contractBody('setups-board')
+    const tagged = board.cards.filter((c) => c.similarEmbedKey)
+    expect(tagged.map((c) => c.symbol)).toEqual(['SBNV'])
+    expect(MATCHES.template).toMatchObject({ noteId: tagged[0].noteId, embedKey: tagged[0].similarEmbedKey, symbol: 'SBNV' })
+    expect(MATCHES).toMatchObject({ status: 'ready', asOf: '2026-10-02' })
+    expect(MATCHES.matches).toHaveLength(10)
+    const path = `/api/j2/similar-names/${tagged[0].noteId}/${tagged[0].similarEmbedKey}`
+    expect(path).toBe(contract('similar-names.matches')._contract.path)
     const calls = stub([
-      [/\/api\/j2\/setups-board$/, BOARD],
-      [/\/api\/j2\/similar-names\/templates$/, { templates: [], count: 0, maxTemplates: 25 }],
-      [/\/api\/j2\/similar-names\/n0\/e-0$/, MATCHES],
+      [/\/api\/j2\/setups-board$/, board],
+      [/\/api\/j2\/similar-names\/templates$/, contractBody('similar-names.templates')],
+      [new RegExp(`${path}$`), MATCHES],
     ])
+    const { container } = renderBoard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find more like SBNV' }))
+    // the second-closest name: its three nearest fields, the name's value first, the chart's second
+    const second = MATCHES.matches[1]
+    expect(second).toMatchObject({ symbol: 'SM01', score: 98, rank: 2 })
+    await screen.findByText('SM01')
+    const rows = [...container.ownerDocument.querySelectorAll('[data-reasons]')].map((el) => el.textContent)
+    expect(rows).toHaveLength(10)
+    expect(rows[1]).toBe(SECOND_ROW)
+    expect(screen.getByText('98 match')).toBeTruthy()
+    expect(screen.getByText(/as of 2026-10-02/)).toBeTruthy()
+    expect(calls).toContain(path)
+    expect(screen.queryByRole('button', { name: 'Find more like SBAM' })).toBeNull()   // untagged
+  })
+})
+
+// ── round 2 (owner ruling): an example card says "Example" and is never one of your setups ──
+const findEl = (selector) => waitFor(() => {
+  const el = document.querySelector(selector)
+  if (!el) throw new Error(`not rendered yet: ${selector}`)
+  return el
+})
+
+describe('SetupsBoard — sample cards', () => {
+  beforeEach(() => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    h.live.clear(); h.everMounted.length = 0; h.released.clear()
+  })
+  afterEach(() => { __resetNotebookFlags() })
+  const EXAMPLE = { ...CARDS[0], noteId: 'ex', noteTitle: 'Active setup: example', symbol: 'MSFT', example: true }
+
+  it('a member whose only card is the sample sees the card, its label, AND the "none yet" guidance', async () => {
+    stub([[/setups-board$/, { ...BOARD, cards: [EXAMPLE], count: 0, exampleCount: 1 }]])
     render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
-    fireEvent.click(await screen.findByRole('button', { name: 'Find more like S00' }))
-    expect(await screen.findByText('RS 94 vs 92 · depth 11% vs 12% · VCP')).toBeTruthy()
-    expect(calls).toContain('/api/j2/similar-names/n0/e-0')
-    expect(screen.queryByRole('button', { name: 'Find more like S01' })).toBeNull()   // untagged
+    const cardEl = await findEl('[data-board-card="MSFT"]')
+    expect(cardEl).toBeTruthy()
+    expect(cardEl.querySelector('[data-example]').textContent).toBe('Example')   // text, not colour alone
+    expect(screen.getByText(/No open setups yet/)).toBeTruthy()
+  })
+
+  it('a member\'s own card carries no label, and with one of their own the guidance is gone', async () => {
+    stub([[/setups-board$/, { ...BOARD, cards: [CARDS[1], EXAMPLE], count: 1, exampleCount: 1 }]])
+    render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
+    const own = await findEl(`[data-board-card="${CARDS[1].symbol}"]`)
+    expect(own.querySelector('[data-example]')).toBeNull()
+    expect(document.querySelector('[data-board-card="MSFT"] [data-example]')).toBeTruthy()
+    expect(screen.queryByText(/No open setups yet/)).toBeNull()
+  })
+
+  it('the client never infers "example" from a title: only the server\'s flag labels a card', async () => {
+    stub([[/setups-board$/, { ...BOARD, cards: [{ ...EXAMPLE, example: false }], count: 1, exampleCount: 0 }]])
+    render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
+    const cardEl = await findEl('[data-board-card="MSFT"]')
+    expect(cardEl.querySelector('[data-example]')).toBeNull()
   })
 })

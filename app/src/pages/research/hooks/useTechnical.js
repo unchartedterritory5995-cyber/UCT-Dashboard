@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { fetchWithWarmRetry } from '../../../utils/warmRetry'
 
 // Chart/Technical Intelligence Convergence (owner authorization, Phase B).
 // Reuses the EXISTING, already-shipped `/api/patterns/{sym}` endpoint as-is —
@@ -19,7 +20,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 // fetcher keeps the HTTP outcome instead of guessing.
 export async function fetchTechnical(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await fetchWithWarmRetry(url, { credentials: 'include' })
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {
@@ -34,7 +35,10 @@ export default function useTechnical(rawSym, tf = 'D') {
   return useMemo(() => ({
     data: data ? data.body : null,
     isLoading: Boolean(isLoading && !data),
-    error: Boolean(data && !data.ok),
+    // tq-panels: 402 is the paid gate -- a state with its own sentence, not "couldn't load".
+    // (This fetcher keeps {ok, httpStatus}, so sectionFetcher's {paywalled} never applied.)
+    paywalled: Boolean(data && !data.ok && data.httpStatus === 402),
+    error: Boolean(data && !data.ok && data.httpStatus !== 402),
     mutate,
   }), [data, isLoading, mutate])
 }

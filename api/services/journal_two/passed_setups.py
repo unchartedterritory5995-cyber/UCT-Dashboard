@@ -15,11 +15,15 @@ THE RULES, each a decision with a rail (`tests/test_notebook_passed_setups.py`):
     pass was worth. A row is final (`scored`) when +20 and the best move are both in.
   * DETERMINISTIC, NEVER INVENTED. A horizon with no bar carries a LABEL, not a number:
       - ``no_bars``  -- no stored daily bar on or before the reference day;
-      - ``missing``  -- the market has had that many sessions since (counted on SPY's stored
-                        bars) but the store lacks this symbol's bars;
+      - ``missing``  -- the market has had that many sessions since (the session calendar)
+                        but the store lacks this symbol's bar for THAT session. A horizon is
+                        the market's Nth session, never the Nth stored row: a hole in the
+                        store never shifts a later horizon onto the wrong day;
       - ``pending``  -- that many sessions have not happened yet;
-      - ``unknown``  -- neither this symbol nor SPY has a stored bar after the reference day,
-                        so whether the session happened cannot be told from the store.
+      - ``unknown``  -- the reference day is outside the published market calendar AND the
+                        store holds no calendar rows, so sessions cannot be counted at all.
+    Sessions are counted on the published NYSE calendar (`api/services/session_calendar`),
+    never on a symbol's stored rows; SPY's rows only cross-check it (`session_days`).
   * TRADED LEAVES THE LIST. A position in the name opened from the save day through the 10th
     session after the reference close (or held across the save) marks the row ``traded``; it
     stays in the table, is counted, and is not listed as a pass.
@@ -36,9 +40,12 @@ import json
 import logging
 import re
 import sqlite3
+import threading
+import time
 import uuid
 from typing import Any, Iterable
 
+from api.services.journal_two import sample_marker
 from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
@@ -63,7 +70,11 @@ SCAN_WIDGETS = ("scanner", "screener")
 #: The session calendar: SPY's stored daily bars.
 CALENDAR_SYMBOL = "SPY"
 
-SOURCES = ("scanner", "watchlist", "manual")
+#: The source of the ONE row the sample notebook adds (`add_example`). It is this table's own
+#: durable marker for "the sample made this row": removal finds the row by it, and no
+#: member-facing door can write it.
+SOURCE_SAMPLE = "sample"
+SOURCES = ("scanner", "watchlist", "manual", SOURCE_SAMPLE)
 STATUS_PENDING, STATUS_SCORED, STATUS_NO_BARS, STATUS_TRADED = "pending", "scored", "no_bars", "traded"
 
 LABELS = {
@@ -218,32 +229,124 @@ def _pct(a: float, b: float) -> float:
     return round((a / b - 1.0) * 100.0, 4)
 
 
-def score(base_close: float, forward: list[dict], calendar_sessions: int | None) -> dict[str, Any]:
+def score(base_close: float, forward: list[dict], sessions: list[int] | None) -> dict[str, Any]:
     """Returns {r1, r5, r10, r20, best20, gaps, sessions_stored}. Pure.
 
-    `forward` are this symbol's stored bars after the reference, oldest first;
-    `calendar_sessions` is how many sessions the market has had since (SPY's stored bars),
-    or None when that cannot be read."""
-    out: dict[str, Any] = {"gaps": {}, "sessions_stored": len(forward)}
+    `forward` are this symbol's stored bars after the reference. `sessions` are the days the
+    MARKET was open after the reference, oldest first (YYYYMMDD keys, the session calendar),
+    or None when the store holds no calendar to count on.
+
+    ⛔ A HORIZON IS THE MARKET'S Nth SESSION, NEVER THE Nth ROW THAT HAPPENS TO BE STORED.
+    "+5 days" is the name's close on `sessions[4]`. ⚰️ It used to be `forward[4]`: with one
+    session missing from the store every later horizon was read one session late and nothing
+    said so ("+5 days" showed the six-session return). When the bar for a horizon's own
+    session is not stored the horizon is `missing`; it is never filled from a neighbour.
+      - ``unknown``  no calendar: sessions cannot be counted, so nothing is claimed;
+      - ``pending``  the market has not had that many sessions yet;
+      - ``missing``  it has, and this name's bar for that session is not in the store.
+    The best move needs every one of its sessions, or it would understate."""
+    by_day = {int(b["t"]): b for b in forward}
+    known = sessions if sessions is not None else []
+    out: dict[str, Any] = {"gaps": {}, "sessions_stored": sum(1 for d in known if d in by_day)}
+
+    def gap(h: int) -> str:
+        if sessions is None:
+            return "unknown"
+        return "pending" if len(sessions) < h else "missing"
+
     for h in HORIZONS:
-        key = f"r{h}"
-        if len(forward) >= h:
-            out[key] = _pct(forward[h - 1]["c"], base_close)
+        bar = by_day.get(sessions[h - 1]) if sessions is not None and len(sessions) >= h else None
+        if bar is not None:
+            out[f"r{h}"] = _pct(bar["c"], base_close)
         else:
-            out[key] = None
-            out["gaps"][str(h)] = _gap(h, len(forward), calendar_sessions)
-    if len(forward) >= BEST_WINDOW:
-        out["best20"] = _pct(max(b["h"] for b in forward[:BEST_WINDOW]), base_close)
+            out[f"r{h}"] = None
+            out["gaps"][str(h)] = gap(h)
+    window = [by_day.get(d) for d in known[:BEST_WINDOW]]
+    if len(window) >= BEST_WINDOW and all(b is not None for b in window):
+        out["best20"] = _pct(max(b["h"] for b in window), base_close)
     else:
         out["best20"] = None
-        out["gaps"]["best20"] = _gap(BEST_WINDOW, len(forward), calendar_sessions)
+        out["gaps"]["best20"] = gap(BEST_WINDOW)
     return out
 
 
-def _gap(h: int, have: int, calendar_sessions: int | None) -> str:
-    if calendar_sessions is None:
-        return "unknown"
-    return "missing" if calendar_sessions >= h > have else "pending"
+#: Daily bars land some hours after the close. For this long after a session closes, a
+#: missing bar for it means "the store has not caught up", so that session is not counted yet
+#: (its horizons read `pending`); after it, a missing bar is a real hole (`missing`).
+STORE_LAG_GRACE_S = 18 * 3600
+#: Never walk the calendar further than this many days for `BEST_WINDOW` sessions.
+_CALENDAR_SPAN_DAYS = 60
+
+
+def calendar_sessions(base_day: _dt.date, now: _dt.datetime) -> list[_dt.date] | None:
+    """The NYSE sessions after `base_day` that have CLOSED by `now`, oldest first, at most
+    `BEST_WINDOW` -- from the published market calendar, with no price row read.
+
+    ⛔ THE SESSION AUTHORITY IS `api/services/session_calendar` (the NYSE dataset the browser
+    also reads; holidays and half-days, 2000 to its published horizon), never a symbol's
+    stored bars. ⚰️ Sessions were counted from SPY's stored daily bars, so a bar store with no
+    SPY rows made every horizon of every pass read "unknown". None when the dataset does not
+    cover the days asked about: the caller then falls back to stored calendar rows."""
+    from api.services import session_calendar as sc
+    if not sc.covers(base_day):
+        return None
+    out: list[_dt.date] = []
+    day = base_day
+    for _ in range(_CALENDAR_SPAN_DAYS):
+        day = day + _dt.timedelta(days=1)
+        if not sc.covers(day):
+            return None
+        closes = sc.close_time(day)
+        if closes is None:
+            continue                       # a weekend or a market holiday: not a session
+        if closes > now:
+            break                          # not closed yet, and nothing after it has either
+        out.append(day)
+        if len(out) >= BEST_WINDOW:
+            break
+    return out
+
+
+def session_days(sessions: list[_dt.date] | None, calendar_bars: list[dict], forward: list[dict],
+                 now: _dt.datetime, *, calendar_known: bool = False) -> list[int] | None:
+    """The days the market was open after the reference, oldest first, at most `BEST_WINDOW`,
+    as YYYYMMDD keys.
+
+    `sessions` is the published calendar's answer (`calendar_sessions`) and it LEADS. Stored
+    bars (the calendar symbol's and this name's own) only cross-check it, two ways, and
+    neither can remove a session that has had time to be stored:
+      * a bar on a day the calendar did not list proves that day traded, so it is a session;
+      * the newest listed day, closed less than `STORE_LAG_GRACE_S` ago, with no bar from
+        either yet, is not counted yet (the store has not caught up; `pending`, not `missing`).
+    ⛔ A listed session is NEVER dropped because rows are absent. A day missing from both
+    stores is far more often a failed ingest than a market closure the dataset does not know,
+    and dropping it would shift every later horizon by a session, unlabelled.
+    With no calendar rows at all the published calendar stands on its own.
+
+    FALLBACK, only when `sessions` is None (a day outside the dataset): every day either store
+    shows a bar for, or None when the store holds no calendar rows either -- a name's own rows
+    cannot vouch that no session is missing between them."""
+    spy = {int(b["t"]) for b in calendar_bars}
+    own = {int(b["t"]) for b in forward}
+    if sessions is None:
+        if not spy and not calendar_known:
+            return None
+        return sorted(spy | own)[:BEST_WINDOW]
+    key = lambda d: int(d.strftime("%Y%m%d"))  # noqa: E731
+    listed = [key(d) for d in sessions]
+    from api.services import session_calendar as sc
+    days = set()
+    for d, k in zip(sessions, listed):
+        if k in spy or k in own:
+            days.add(k)
+            continue
+        closed = sc.close_time(d)
+        if closed is not None and (now - closed).total_seconds() < STORE_LAG_GRACE_S:
+            continue                       # the store has not caught up with this session yet
+        days.add(k)
+    last = listed[-1] if listed else None
+    days |= {k for k in (spy | own) if last is None or k <= last}   # a bar proves a session
+    return sorted(days)[:BEST_WINDOW]
 
 
 # ── candidates (read-only on the member's notes and watchlists) ──────────────
@@ -266,24 +369,50 @@ def _watchlist_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]
     return out
 
 
+def _parse_body(body_json: Any) -> Any:
+    """A stored note body as a document, or None when it cannot be read. A body nested too
+    deeply for the JSON parser raises RecursionError, which is not a ValueError; it reads as a
+    note with no scan capture, never as an error (mirrors `chart_blocks.parse_body`)."""
+    try:
+        return json.loads(body_json or "{}")
+    except (TypeError, ValueError, RecursionError):
+        return None
+
+
 def _walk_scan_embeds(node: Any, found: list[dict]) -> None:
-    if isinstance(node, dict):
-        if node.get("type") == "widgetEmbed":
-            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    """Append the attrs of every scanner or Screener `widgetEmbed` under `node`, in document
+    order.
+
+    ⛔ A LOOP, NEVER A RECURSION (security review M-4). The walk used to call itself once per
+    level of nesting, so a very deeply nested body raised RecursionError and this member's
+    passed-setups page answered 500. The same fix, in the same shape, as lane SEC's
+    `chart_blocks.iter_chart_attrs` (that helper reads chart embeds only and lives in that
+    lane's file, so it is mirrored here, not shared): children are pushed in reverse so they
+    come off the stack in document order."""
+    stack: list[Any] = [node]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, list):
+            stack.extend(reversed(cur))
+            continue
+        if not isinstance(cur, dict):
+            continue
+        if cur.get("type") == "widgetEmbed":
+            attrs = cur.get("attrs") if isinstance(cur.get("attrs"), dict) else {}
             if attrs.get("widgetId") in SCAN_WIDGETS:
                 found.append(attrs)
-        for child in node.get("content") or []:
-            _walk_scan_embeds(child, found)
-    elif isinstance(node, list):
-        for child in node:
-            _walk_scan_embeds(child, found)
+        children = cur.get("content")
+        if isinstance(children, list):
+            stack.extend(reversed(children))
 
 
 def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
     try:
         notes = conn.execute(
             "SELECT n.id AS id, n.body_json AS body_json, n.created_at AS created_at"
-            " FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.id IN ("
+            " FROM j2_notes n WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            # A scan captured inside a sample note is not a name the member saved (fin-data I3).
+            f" AND {sample_marker.not_sample_sql('n')} AND n.id IN ("
             "   SELECT DISTINCT e.note_id FROM j2_note_embeds e"
             f"  WHERE e.user_id = ? AND e.widget_id IN ({','.join('?' * len(SCAN_WIDGETS))}))",
             (user_id, user_id, *SCAN_WIDGETS)).fetchall()
@@ -291,9 +420,8 @@ def _scanner_candidates(conn, user_id: str, since: _dt.datetime) -> list[dict]:
         return []
     out = []
     for n in notes:
-        try:
-            body = json.loads(n["body_json"] or "{}")
-        except (TypeError, ValueError):
+        body = _parse_body(n["body_json"])
+        if body is None:
             continue
         embeds: list[dict] = []
         _walk_scan_embeds(body, embeds)
@@ -329,9 +457,10 @@ def collect(conn, user_id: str, now: _dt.datetime | None = None) -> int:
         k = (sym, day)
         if k not in best or c["saved_at"] < best[k]["saved_at"]:
             best[k] = {**c, "symbol": sym}
-    have = conn.execute("SELECT symbol, saved_day FROM j2_passed_setups WHERE user_id = ?",
+    have = conn.execute("SELECT symbol, saved_day, source FROM j2_passed_setups WHERE user_id = ?",
                         (user_id,)).fetchall()
-    taken = {(r["symbol"], r["saved_day"]) for r in have}
+    # The sample's own row never stands in for a save the member made (fin-data I4).
+    taken = {(r["symbol"], r["saved_day"]) for r in have if r["source"] != SOURCE_SAMPLE}
     room = MAX_ROWS_PER_MEMBER - len(have)
     added = 0
     for k in sorted(best, key=lambda k: best[k]["saved_at"], reverse=True):
@@ -389,8 +518,9 @@ def traded_on(conn, user_id: str, sym: str, saved_day: str, until_day: str) -> s
 
 # ── the refresh ──────────────────────────────────────────────────────────────
 
-def score_row(conn, row: sqlite3.Row) -> None:
+def score_row(conn, row: sqlite3.Row, now: _dt.datetime | None = None) -> None:
     """Score one open row in place. Frozen: a found reference and a filled horizon never move."""
+    now = now or _now_utc()
     sym = row["symbol"]
     saved_at = parse_saved_at(row["saved_at"])
     if saved_at is None:
@@ -404,11 +534,21 @@ def score_row(conn, row: sqlite3.Row) -> None:
     base_ts = int(base_date.replace("-", "")) if base_date else cutoff
     forward = read_after(sym, base_ts, BEST_WINDOW) if base_date else []
     calendar = read_after(CALENDAR_SYMBOL, base_ts, BEST_WINDOW)
+    # Sessions come from the published market calendar; the stored rows of the calendar symbol
+    # only cross-check it (`session_days`). Only for a day the dataset does not cover do stored
+    # rows decide, and then "zero sessions have passed" needs the calendar symbol stored up to
+    # the reference day itself.
+    listed = calendar_sessions(_dt.date.fromisoformat(base_date), now) if base_date else None
+    known = False
+    if listed is None and not calendar:
+        spy_base = read_base(CALENDAR_SYMBOL, base_ts)
+        known = bool(spy_base and spy_base["t"] == base_ts)
+    days = session_days(listed, calendar, forward, now, calendar_known=known)
 
     # ⛔ TRADED FIRST, whatever the bars say: a name the member traded is not a pass even when
     # the store holds no bars for it. The window ends at the 10th session after the reference
     # close (read on the session calendar, else this name's own bars, else two calendar weeks).
-    sessions = calendar or forward
+    sessions = [{"t": d} for d in days] if days else forward
     if len(sessions) >= TRADED_WITHIN:
         until = _ymd_iso(sessions[TRADED_WITHIN - 1]["t"])
     else:
@@ -428,15 +568,7 @@ def score_row(conn, row: sqlite3.Row) -> None:
             (STATUS_NO_BARS, json.dumps({"base": "no_bars"}), _now_utc().isoformat(), row["id"]))
         return
 
-    if calendar:
-        calendar_n: int | None = len(calendar)
-    else:
-        # No SPY session after the reference: zero sessions have passed IF the calendar is
-        # stored up to the reference day itself; otherwise the store cannot tell.
-        spy = read_base(CALENDAR_SYMBOL, base_ts)
-        calendar_n = 0 if (spy and spy["t"] == base_ts) else None
-
-    s = score(base_close, forward, calendar_n)
+    s = score(base_close, forward, days)
     # ⛔ FROZEN: COALESCE keeps every value already filled; only an empty slot takes a new one.
     done = all(s[f"r{h}"] is not None for h in HORIZONS) and s["best20"] is not None
     conn.execute(
@@ -463,14 +595,76 @@ def refresh(user_id: str, *, conn: sqlite3.Connection | None = None,
             " AND status IN (?, ?)", (user_id, STATUS_PENDING, STATUS_NO_BARS)).fetchall()
         for r in open_rows:
             try:
-                score_row(conn, r)
+                score_row(conn, r, now)
             except Exception as e:  # noqa: BLE001 -- one bad row never blanks the others
                 _log.warning("[passed_setups] scoring %s failed: %s", r["symbol"], e)
-        conn.commit()
+            # ⛔ ONE ROW, ONE COMMIT (security review I-3). Scoring reads bars between its
+            # writes; one commit for the whole member held auth.db's write lock across up to
+            # 300 rows of bar reads, and every other writer there waits only three seconds.
+            conn.commit()
         return {"added": added, "scored": len(open_rows)}
     finally:
         if owned:
             conn.close()
+
+
+# ── when the list view may ask for a refresh ─────────────────────────────────
+
+#: A member's list is refreshed on view at most this often (seconds). The nightly job is the
+#: schedule; this only covers a member who has never been collected, or who looks again later
+#: the same day.
+REFRESH_MIN_INTERVAL_S = 15 * 60
+_REFRESH_SEEN_MAX = 5000
+#: {user_id: monotonic seconds of the last refresh that STARTED}. Per process, on purpose:
+#: it bounds work, it is not a record. A second web process doubles the bound, no more.
+_refresh_seen: dict[str, float] = {}
+_refresh_lock = threading.Lock()
+
+
+def _reset_refresh_clock() -> None:
+    with _refresh_lock:
+        _refresh_seen.clear()
+
+
+def claim_refresh(user_id: str, *, clock=time.monotonic) -> bool:
+    """Take this member's refresh slot if none was taken within `REFRESH_MIN_INTERVAL_S`.
+    Check and mark are one step under the lock, so two views at once queue one refresh. The
+    slot is taken when the refresh is QUEUED, not when it runs: a second view arriving before
+    the first's refresh has started must not queue another. Touches no database."""
+    uid = str(user_id)
+    now = clock()
+    with _refresh_lock:
+        last = _refresh_seen.get(uid)
+        if last is not None and now - last < REFRESH_MIN_INTERVAL_S:
+            return False
+        if len(_refresh_seen) >= _REFRESH_SEEN_MAX:
+            _refresh_seen.clear()
+        _refresh_seen[uid] = now
+        return True
+
+
+def run_claimed_refresh(user_id: str) -> bool:
+    """The refresh a claimed slot stands for. Never raises (it runs after the response, with
+    nobody waiting on it); a failed refresh frees the slot so the next view can try again."""
+    uid = str(user_id)
+    try:
+        refresh(uid)
+        return True
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[passed_setups] refresh on view failed for a member: %s", e)
+        with _refresh_lock:
+            _refresh_seen.pop(uid, None)
+        return False
+
+
+def refresh_if_stale(user_id: str, *, clock=time.monotonic) -> bool:
+    """Refresh this member's list unless one was claimed within `REFRESH_MIN_INTERVAL_S`.
+
+    ⛔ THE LIST VIEW NEVER CALLS `refresh` ITSELF (security review I-3). `GET /passed-setups`
+    used to refresh on every call: a write for each open row before it could answer. The
+    route now answers from a plain read, claims the slot and queues the refresh for after the
+    response. True when a refresh ran."""
+    return claim_refresh(user_id, clock=clock) and run_claimed_refresh(user_id)
 
 
 def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
@@ -507,23 +701,76 @@ def add_manual(user_id: str, symbol: Any, saved_on: Any = None, *,
             raise PassedSetupError(
                 f"Your passed-setups list is full ({MAX_ROWS_PER_MEMBER}). Remove one first.", status=409)
         day_iso, _ = base_rule(saved_at)
-        dup = conn.execute(
-            "SELECT id FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
-            (user_id, sym, day_iso)).fetchone()
+        # ⛔ The member's OWN rows only (fin-data I4): the sample's row for this name and day is
+        # neither a duplicate of theirs nor a row this door may hand back or un-dismiss.
+        own = "user_id = ? AND symbol = ? AND saved_day = ? AND source != ?"
+        key = (user_id, sym, day_iso, SOURCE_SAMPLE)
+        dup = conn.execute(f"SELECT id FROM j2_passed_setups WHERE {own}", key).fetchone()
         if dup is None:
             _insert(conn, user_id, sym, saved_at, "manual", None)
             conn.commit()
-        row = conn.execute(
-            "SELECT * FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
-            (user_id, sym, day_iso)).fetchone()
+        row = conn.execute(f"SELECT * FROM j2_passed_setups WHERE {own}", key).fetchone()
         if row["status"] in (STATUS_PENDING, STATUS_NO_BARS) and row["dismissed_at"] is None:
-            score_row(conn, row)
+            score_row(conn, row, now)
             conn.commit()
         if row["dismissed_at"] is not None:
             conn.execute("UPDATE j2_passed_setups SET dismissed_at = NULL WHERE id = ?", (row["id"],))
             conn.commit()
         fresh = conn.execute("SELECT * FROM j2_passed_setups WHERE id = ?", (row["id"],)).fetchone()
         return {"item": serialize(fresh), "deduped": dup is not None}
+    finally:
+        if owned:
+            conn.close()
+
+
+def add_example(user_id: str, symbol: Any, saved_on: str, *,
+                conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """The sample notebook's one passed setup: a row marked `SOURCE_SAMPLE`, or None.
+
+    ⛔ IT NEVER TOUCHES A ROW IT DID NOT MAKE (fin-data I4). `add_manual` answers the member's
+    EXISTING row for the same name and day, and un-dismisses it; the sample then recorded that
+    id and "Remove sample" dismissed the member's own pass. Here an existing row for the name
+    and day -- any source, dismissed or not -- means the sample adds nothing and returns None:
+    the member already has their own."""
+    sym = clean_symbol(symbol)
+    day = _dt.date.fromisoformat(str(saved_on)[:10])
+    saved_at = _dt.datetime(day.year, day.month, day.day, CLOSE_HOUR_ET, 0,
+                            tzinfo=_et()).astimezone(_dt.timezone.utc)
+    owned = conn is None
+    conn = conn or _conn()
+    try:
+        ensure_schema(conn)
+        day_iso, _ = base_rule(saved_at)
+        if conn.execute("SELECT 1 FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ?",
+                        (user_id, sym, day_iso)).fetchone() is not None:
+            return None
+        if not _insert(conn, user_id, sym, saved_at, SOURCE_SAMPLE, None):
+            return None
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM j2_passed_setups WHERE user_id = ? AND symbol = ? AND saved_day = ? AND source = ?",
+            (user_id, sym, day_iso, SOURCE_SAMPLE)).fetchone()
+        score_row(conn, row)
+        conn.commit()
+        return serialize(conn.execute("SELECT * FROM j2_passed_setups WHERE id = ?", (row["id"],)).fetchone())
+    finally:
+        if owned:
+            conn.close()
+
+
+def dismiss_examples(user_id: str, *, conn: sqlite3.Connection | None = None) -> int:
+    """Dismiss every row the sample made for this member, found by the row's OWN marker
+    (`source = SOURCE_SAMPLE`) and nothing else -- never by an id a preference names, which a
+    client can write. Returns how many were dismissed."""
+    owned = conn is None
+    conn = conn or _conn()
+    try:
+        ensure_schema(conn)
+        cur = conn.execute(
+            "UPDATE j2_passed_setups SET dismissed_at = ? WHERE user_id = ? AND source = ?"
+            " AND dismissed_at IS NULL", (_now_utc().isoformat(), user_id, SOURCE_SAMPLE))
+        conn.commit()
+        return cur.rowcount or 0
     finally:
         if owned:
             conn.close()

@@ -59,7 +59,7 @@
  * a panel proportioned for a 200px box is not the right panel for a 72px one.
  */
 .value {
-  font: 800 22px 'Instrument Sans', sans-serif;
+  font: 800 22px var(--font-sans);
 }
 
 .trace {

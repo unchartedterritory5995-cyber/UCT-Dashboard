@@ -4,25 +4,26 @@
 // drive them without a render. Every number reaches the screen through
 // lib/presentation/presentationPrimitives; nothing here formats by hand.
 import {
+  TERMINAL_COMPACT_TIERS,
+  currencyPrefix,
   formatCompact,
-  formatCurrency,
+  formatCompactTerminal,
+  formatCurrencyIn,
   formatNumber,
   formatPercent,
 } from '../../../lib/presentation/presentationPrimitives'
 
-/** Statement magnitudes span nine orders: $3.12T / $94.93B / $48.8M / $512.0K.
- *  The ladder is a parameter of formatCompact, so this one is declared, not
- *  hand-rolled. */
-export const MONEY_TIERS = Object.freeze([
-  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
-  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
-  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
-  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
-])
+/** Statement magnitudes span nine orders: $3.12T / $94.93B / $48.8M / $512K.
+ *  The terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS) — the
+ *  same rule every terminal panel uses, so a revenue line reads identically
+ *  here and on the FA/EE tabs. */
+export const MONEY_TIERS = TERMINAL_COMPACT_TIERS
 
-export const fmtMoney = (v) => formatCompact(v, { tiers: MONEY_TIERS, prefix: '$' })
-export const fmtEps = (v) => formatCurrency(v)
-export const fmtShares = (v) => formatCompact(v)
+// `ccy` is the payload's reporting currency ("TWD" for TSM). USD or unknown
+// renders "$" exactly as before; anything else is labelled with its own code.
+export const fmtMoney = (v, ccy) => formatCompact(v, { tiers: MONEY_TIERS, prefix: currencyPrefix(ccy) })
+export const fmtEps = (v, ccy) => formatCurrencyIn(v, ccy)
+export const fmtShares = (v) => formatCompactTerminal(v)
 export const fmtPct = (v) => formatPercent(v, { decimals: 1 })
 export const fmtGrowth = (v) => formatPercent(v, { decimals: 1, signed: true })
 export const fmtTimes = (v) => {
@@ -123,7 +124,7 @@ export function buildTable(payload, statementKey) {
   for (const [key, label, fmt, kind = null, basis = null] of spec.rows) {
     const values = block[key] || []
     if (!values.some((v) => Number.isFinite(v))) continue
-    rows.push({ key, label, kind, basis, cells: order.map((i) => fmt(values[i])) })
+    rows.push({ key, label, kind, basis, cells: order.map((i) => fmt(values[i], payload?.currency)) })
   }
   return { columns: order.map((i) => periods[i]), rows }
 }

@@ -67,6 +67,18 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+def _ticker(sym: str) -> str:
+    """The options family's own symbol rule (`iv_history.normalize_symbol`, the one
+    options_analytics and iv_history already use): junk is a 422 that says so. Before
+    this, `<script>` or a 20-character string went to the vendor and came back as a
+    503 "Option chain unavailable" -- an outage that was not one."""
+    from api.services.research.iv_history import normalize_symbol
+    s = normalize_symbol(sym)
+    if not s:
+        raise HTTPException(status_code=422, detail="not a ticker symbol")
+    return s
+
+
 def _unavailable(result: dict) -> None:
     """A provider failure is a 503 the page says in words -- never an empty chain presented as
     "no options trade on this name"."""
@@ -77,7 +89,7 @@ def _unavailable(result: dict) -> None:
 @router.get("/api/research/options/{sym}/expirations", dependencies=[Depends(_armed)])
 def option_expirations(sym: str, _user: dict = Depends(require_paid)):
     from api.services import polygon_options
-    out = polygon_options.list_expirations(sym)
+    out = polygon_options.list_expirations(_ticker(sym))
     _unavailable(out)
     return out
 
@@ -88,7 +100,7 @@ def option_chain(sym: str,
                  strikes: int = Query(10, ge=2, le=20),
                  _user: dict = Depends(require_paid)):
     from api.services import polygon_options
-    out = polygon_options.get_chain(sym, expiration=expiration, strikes_around_spot=strikes)
+    out = polygon_options.get_chain(_ticker(sym), expiration=expiration, strikes_around_spot=strikes)
     _unavailable(out)
     return {**out, "served_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cache_seconds": polygon_options._CHAIN_TTL,
@@ -103,7 +115,7 @@ def option_vol_surface(sym: str,
     point with its quote time). Bounded fan-out + 60 s cache live in api/services/vol_surface.py.
     Plain `def`: it blocks on the provider."""
     from api.services import vol_surface
-    out = vol_surface.get_surface(sym, selected=expiration)
+    out = vol_surface.get_surface(_ticker(sym), selected=expiration)
     _unavailable(out)
     return out
 
@@ -139,6 +151,7 @@ def option_backtest_catalog(sym: str, _user: dict = Depends(require_paid)):
     """FT-011: the structures and entry anchors the backtester will run while the switch is on.
     Plain `def`: it returns a constant table."""
     from api.services import options_backtest as ob
+    _ticker(sym)
     return ob.catalog()
 
 

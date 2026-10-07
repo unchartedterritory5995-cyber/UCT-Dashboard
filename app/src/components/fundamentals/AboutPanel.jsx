@@ -3,26 +3,33 @@
 // cached server-side) + deterministic company facts + trader snapshot + peers.
 // Data: GET /api/about/{sym}. Peers click → onSwitch(ticker) (popup ticker search).
 import { useState, useEffect } from 'react'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 const GOLD = '#c9a84c', GOLD_BRI = '#e6cd8a', CREAM = '#dcd6c8', MUTED = '#8b8e85', DIM = '#63665e', LINE = '#22251d'
 
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladder this
+// panel already used. Under $1M it still prints grouped whole dollars ("$950,000"). A negative
+// now reads "-$1.20B" (the sign outside the currency) instead of "$-1.20B".
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+]
 const money = (v) => {
   if (v == null || !isFinite(v)) return '—'
-  const n = Math.abs(v)
-  if (n >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (n >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  return `$${Math.round(v).toLocaleString()}`
+  if (Math.abs(v) < 1e6) return `$${Math.round(v).toLocaleString()}`
+  return formatCompact(Number(v), { tiers: MONEY_TIERS, prefix: '$' })
 }
 const num = (v) => (v == null || !isFinite(v) ? '—' : Number(v).toLocaleString())
 const cleanUrl = (u) => String(u || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
+const SHARES_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
 const shares = (v) => {
   if (v == null || !isFinite(v)) return '—'
-  const n = Math.abs(v)
-  if (n >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `${(v / 1e3).toFixed(0)}K`
-  return `${Math.round(v)}`
+  return formatCompact(Number(v), { tiers: SHARES_TIERS })
 }
 const fmtDate = (iso) => {
   if (!iso) return null

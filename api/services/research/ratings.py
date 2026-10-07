@@ -281,7 +281,31 @@ def _checkup(fund, rs, last_close, inst_pct):
     ]
 
 
+# S6: one small pool for get_ratings' three reads, NOT the shared anyio threadpool or
+# yf_util's pool (the fundamentals leg already rides that one inside). Bounded so a burst
+# of cold opens queues here instead of fanning out without limit.
+from concurrent.futures import ThreadPoolExecutor as _TPE
+_LEG_POOL = _TPE(max_workers=6, thread_name_prefix="rtg-leg")
+
+
 def get_ratings(sym):
+    """S6 (terminal backend fixes, 2026-10-05): a cold symbol is composed ONCE however
+    many members open it at the same moment. The cache answers first; on a miss the
+    first caller builds and the rest wait for its result (`single_flight`), so N cold
+    opens cost one vendor walk instead of N on the shared threadpool. A follower that
+    waits past the single-flight bound raises, and the route answers that as a failed
+    read rather than an empty record."""
+    s = (sym or "").upper().strip()
+    if not s:
+        return {}
+    cached = cache.get(f"research_rat::{s}")
+    if cached is not None:
+        return cached
+    from api.services import single_flight
+    return single_flight.run(f"research_rat::{s}", lambda: _build_ratings(s))
+
+
+def _build_ratings(sym):
     sym = (sym or "").upper().strip()
     if not sym:
         return {}
@@ -297,15 +321,27 @@ def get_ratings(sym):
     # no-vendor form. Never blocks the fetches below on a miss.
     entity, _ = resolve_entity(sym)
 
-    fund = {}
-    fund_ok = True
-    try:
-        fund = get_fundamentals(sym) or {}
-        if isinstance(fund, dict) and "error" in fund:
+    # S6: the three reads are independent, so they run side by side and a cold
+    # open costs the slowest of them, not their sum. Each leg keeps its own
+    # failure flag exactly as before.
+    def _fund_leg():
+        f = get_fundamentals(sym) or {}
+        if isinstance(f, dict) and "error" in f:
             # get_fundamentals never raises -- a failure surfaces as an
             # {"error": ...} dict instead. That IS a failed leg here.
-            fund_ok = False
-            fund = {}
+            return {}, False
+        return f, True
+
+    def _hist_leg():
+        return fetch_history(sym, period="1y")
+
+    f_fund = _LEG_POOL.submit(_fund_leg)
+    f_own = _LEG_POOL.submit(lambda: get_ownership(sym) or {})
+    f_hist = _LEG_POOL.submit(_hist_leg)
+
+    fund, fund_ok = {}, True
+    try:
+        fund, fund_ok = f_fund.result()
     except Exception as exc:
         fund_ok = False
         _logger.warning("ratings: fundamentals failed for %s: %s", sym, exc)
@@ -313,7 +349,7 @@ def get_ratings(sym):
     own = {}
     own_ok = True
     try:
-        own = get_ownership(sym) or {}
+        own = f_own.result()
     except Exception as exc:
         own_ok = False
         _logger.warning("ratings: ownership failed for %s: %s", sym, exc)
@@ -323,7 +359,7 @@ def get_ratings(sym):
     price_as_of = None
     hist_ok = True
     try:
-        df = fetch_history(sym, period="1y")
+        df = f_hist.result()
         if df is not None and not getattr(df, "empty", True):
             closes = list(df["Close"])
             vols = list(df["Volume"])
@@ -432,5 +468,8 @@ def get_ratings(sym):
         "price_as_of": price_as_of,
     }
     complete = fund_ok and own_ok and hist_ok
+    # tq-panels: says whether every input leg answered, so an all-blank rating can
+    # be told apart from a read that failed (the panel cannot otherwise know).
+    out["complete"] = bool(complete)
     set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

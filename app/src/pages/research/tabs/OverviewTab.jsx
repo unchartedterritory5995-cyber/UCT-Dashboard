@@ -3,6 +3,7 @@ import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import DeskCoverage from '../DeskCoverage'
 import LeadershipBadge from '../LeadershipBadge'
 import ConfidenceBadge from '../ConfidenceBadge'
+import { ABSENT, formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../ResearchPage.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -25,9 +26,23 @@ export function consensusText(ct) {
 // The middle of the target range: the mean when the source carries one, else
 // the median (the FMP fallback never has a mean), labelled as such.
 export function targetMid(pt) {
-  if (pt?.targetMean != null) return { value: pt.targetMean, label: null }
-  if (pt?.targetMedian != null) return { value: pt.targetMedian, label: 'median' }
+  if (pt?.targetMean != null) return { value: money(pt.targetMean), label: null }
+  if (pt?.targetMedian != null) return { value: money(pt.targetMedian), label: 'median' }
   return { value: '—', label: null }
+}
+
+// tq-panels: a price target is a dollar figure -- it printed as a bare number.
+export function money(v) {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  return formatCurrency(n, { absent: ABSENT })
+}
+
+// tq-panels: when the targets were last revised. Finnhub carries `lastUpdated`;
+// the FMP fallback has none, and we say so rather than imply they are current.
+export function targetAsOf(pt) {
+  const d = typeof pt?.lastUpdated === 'string' ? pt.lastUpdated.trim().slice(0, 10) : ''
+  return d ? `as of ${d}` : 'source gives no as-of date'
 }
 
 function Surprise({ v }) {
@@ -40,9 +55,12 @@ function Surprise({ v }) {
 // The "Latest report" card's status line. `reportState` comes from
 // useLatestReport; absent (older callers) it renders exactly as before.
 // ⛔ 'error' is NOT 'empty': an outage must never read as "nothing reported".
-function ReportNote({ state, retry }) {
+function ReportNote({ state, reason, retry }) {
   if (state === 'loading') return <div className={styles.fnote} data-testid="latest-report-loading">Loading latest report…</div>
   if (state === 'empty') return <div className={styles.fnote} data-testid="latest-report-empty">No reported quarter on file yet.</div>
+  if (state === 'not_applicable') {
+    return <div className={styles.fnote} data-testid="latest-report-na">Not applicable to funds{reason ? ` — ${reason}.` : '.'}</div>
+  }
   if (state === 'error') {
     return (
       <div className={styles.fnote} data-testid="latest-report-error">
@@ -55,7 +73,7 @@ function ReportNote({ state, retry }) {
   return null
 }
 
-export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, retryReport, error, mutate }) {
+export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, reportReason, retryReport, analystMissing, error, mutate }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
   const mid = targetMid(pt)
@@ -94,7 +112,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
               label; `stored={null}` with no `onStore` = the user's own chart
               settings, everywhere. */}
           {sym && (
-            <Suspense fallback={<div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading chart…</div>}>
+            <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
               <ChartPane
                 sym={sym}
                 tf="D"
@@ -115,7 +133,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
           )}
         </div>
       </section>
-      <div className={styles.grid}>
+      <div className={styles.cardGrid}>
       <section className={styles.card}>
         <div className={styles.ct}>Latest report{row?.label ? ` · ${row.label}` : ''}</div>
         <table className={styles.tbl}>
@@ -135,7 +153,10 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
             </tr>
           </tbody>
         </table>
-        <ReportNote state={reportState} retry={retryReport} />
+        {row?.currency_note && (
+          <div className={styles.fnote} data-testid="latest-report-currency" data-currency={row.currency}>{row.currency_note}</div>
+        )}
+        <ReportNote state={reportState} reason={reportReason} retry={retryReport} />
       </section>
 
       <section className={styles.card}>
@@ -149,8 +170,21 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
 
       <section className={styles.card}>
         <div className={styles.ct}>Analyst view</div>
-        <div className={styles.kv}><span>Consensus</span><b data-testid="consensus-counts">{consensusText(ct)}</b></div>
-        <div className={styles.kv}><span>Target</span><b data-testid="target-range">{pt.targetLow ?? '—'} — <span className={styles.gold}>{mid.value}{mid.label ? <span className={styles.muted}> ({mid.label})</span> : null}</span> — {pt.targetHigh ?? '—'}</b></div>
+        {analystMissing || reportState === 'not_applicable' ? (
+          <div className={styles.fnote} data-testid="analyst-missing">
+            {reportState === 'not_applicable'
+              ? 'Not applicable to funds — analysts do not rate or target a fund here.'
+              : `No earnings record for ${sym} — the source holds no consensus or price target for it.`}
+          </div>
+        ) : (
+          <>
+            <div className={styles.kv}><span>Consensus</span><b data-testid="consensus-counts">{consensusText(ct)}</b></div>
+            <div className={styles.kv}><span>Target</span><b data-testid="target-range">{money(pt.targetLow)} — <span className={styles.gold}>{mid.value}{mid.label ? <span className={styles.muted}> ({mid.label})</span> : null}</span> — {money(pt.targetHigh)}</b></div>
+            {(pt.targetLow != null || pt.targetHigh != null || mid.value !== '—') && (
+              <div className={styles.fnote} data-testid="target-asof">Price targets {targetAsOf(pt)}.</div>
+            )}
+          </>
+        )}
       </section>
 
       <section className={styles.card}>

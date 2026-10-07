@@ -4,8 +4,10 @@ import { createChart, LineSeries } from 'lightweight-charts'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import { SkeletonChart } from '../Skeleton'
 import styles from './UCT20Performance.module.css'
+import jsonFetcher from '../../utils/jsonFetcher'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// Throws on a failed read (jsonFetcher) - a 503 {detail} used to count as "has data".
+const fetcher = url => jsonFetcher(url)
 
 const PERIODS = [
   { label: '7D',  days: 7   },
@@ -322,7 +324,7 @@ function BookLane() {
 }
 
 export default function UCT20Performance() {
-  const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
+  const { data, error, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   // Same key BookLane uses, so SWR dedupes it to a single request.
   const { data: book } = useMobileSWR('/api/uct20/book', fetcher, { refreshInterval: 3600000 })
   const verdicts = book?.positions_by_symbol ?? null
@@ -364,8 +366,11 @@ export default function UCT20Performance() {
       <BookLane />
 
       {isLoading && <SkeletonChart height={200} />}
-      {!isLoading && !hasData && (
-        <p className={styles.loading}>No portfolio data yet — run the Morning Wire engine to populate.</p>
+      {!isLoading && error && !hasData && (
+        <p className={styles.loading} data-testid="uct20-portfolio-error">The portfolio tracker could not be read right now. That is a gap in what we could read, not a result.</p>
+      )}
+      {!isLoading && !error && !hasData && (
+        <p className={styles.loading}>No portfolio history yet. It starts with the first UCT 20 list and updates after each morning&rsquo;s list.</p>
       )}
 
       {!isLoading && hasData && (

@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { signedPct } from '../researchFormat'
+import rp from '../ResearchPage.module.css'
 import styles from './SeasonalityTab.module.css'
 
 // COV-01 (roadmap RM-L11) — how this stock has done by calendar month and by weekday,
@@ -10,7 +13,7 @@ import styles from './SeasonalityTab.module.css'
 // ⛔ The covered window is stated ("since 2011"), never implied to be longer.
 // ⛔ A failed request says so; it is never an empty table presented as "no pattern".
 
-const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`)
+const pct = (v) => signedPct(v, 2)
 const tone = (v) => (v == null ? '' : v > 0 ? styles.up : v < 0 ? styles.down : '')
 
 function Table({ caption, rows, nLabel, thinNote }) {
@@ -36,20 +39,59 @@ function Table({ caption, rows, nLabel, thinNote }) {
   )
 }
 
+// L8 + live sweep 2026-10-05: a COLD read answers 503 with Retry-After while the full daily
+// history is still being read (the server refuses to compute from a partial read). That is a
+// wait, not a failure: the panel says so and asks again on its own, at most PENDING_TRIES times.
+export const PENDING_TRIES = 8
+
+export async function seasonalityFetcher(url) {
+  let res = null
+  try { res = await fetch(url) } catch { return sectionFetcher(url) }
+  const retryAfter = res?.status === 503 ? res.headers?.get?.('Retry-After') : null
+  if (retryAfter) {
+    const secs = Number(retryAfter) || 15
+    return { pending: true, retryAfterMs: Math.min(Math.max(secs, 2), 60) * 1000 }
+  }
+  return sectionFetcher(url)
+}
+
 export default function SeasonalityTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/seasonality/${encodeURIComponent(s)}` : null,
-    sectionFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(s ? `/api/research/seasonality/${encodeURIComponent(s)}` : null,
+    seasonalityFetcher, { revalidateOnFocus: false })
+  const tries = useRef(0)
+  useEffect(() => { tries.current = 0 }, [s])
+  useEffect(() => {
+    if (!data?.pending || tries.current >= PENDING_TRIES) return undefined
+    const t = setTimeout(() => { tries.current += 1; mutate() }, data.retryAfterMs)
+    return () => clearTimeout(t)
+  }, [data, mutate])
 
-  if (error) {
+  if (data?.pending && tries.current < PENDING_TRIES) {
+    return <div className={styles.note} data-testid="seasonality-pending">
+      Reading the full daily history for {s}… this panel fills in by itself.
+    </div>
+  }
+  if (error || data?.pending) {
     return <div className={styles.note} data-testid="seasonality-unavailable">
-      Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.
+      Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>
     </div>
   }
   if (!data) return <div className={styles.note}>Loading seasonality…</div>
   if (data.paywalled) return <div className={styles.note}>Seasonality requires a paid plan.</div>
 
   const since = data.covered_from ? data.covered_from.slice(0, 4) : null
+  // tq-panels: a symbol with no full month on file (a fresh listing, a thin record) used to
+  // render two empty tables. Say there is not enough history, and for what window we hold.
+  if (!data.full_months) {
+    const held = data.covered_from && data.covered_to
+      ? `We hold daily bars for ${s} only from ${data.covered_from} to ${data.covered_to}`
+      : `We hold no daily bars for ${s}`
+    return <div className={styles.note} data-testid="seasonality-thin">
+      Not enough history for seasonality. {held}, which is not one full calendar month
+      — at least one full month is needed, and {data.min_years || 5} years before a month can be leaned on.
+    </div>
+  }
   const thinNote = `Seen fewer than ${data.min_years} times: too few to lean on.`
   return (
     <section data-testid="seasonality">

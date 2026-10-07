@@ -3,7 +3,7 @@
 // estimate_history.py, filings_feed.py), with names and figures taken from the
 // recorded fixtures in tests/fixtures/research_cov/.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import PeopleTab from './PeopleTab'
 import EstimateHistoryTab from './EstimateHistoryTab'
@@ -51,14 +51,26 @@ const PEOPLE = {
 }
 
 describe('PeopleTab (COV-05)', () => {
-  it('names the source and date, and shows unknowns as "unavailable", never blank', async () => {
+  // Round 2 visual pass: a missing value is the shared glyph "—" (ABSENT), the same
+  // as every other panel, and is READ as "unavailable" plus the source's reason. It
+  // used to print the bare word "unavailable" in the cell; that is intentionally gone.
+  it('names the source and date, and shows unknowns as the missing glyph read as "unavailable", never blank', async () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="aapl" />)
-    expect((await screen.findByTestId('people-execs-source')).textContent).toContain(`Source: ${EXECS_SRC}, read 2026-10-02`)
-    const perica = screen.getByTestId('exec-Adrian Perica').textContent
-    expect(perica).toContain('unavailable')
-    expect(perica).toContain('not in proxy table')
-    expect(screen.getByTestId('exec-Timothy D. Cook').textContent).toContain('$74.29M (2025)')
+    expect((await screen.findByTestId('people-execs-source')).textContent).toContain('Source: FMP, read 2026-10-02') // vendor named, endpoint path is not member copy
+    const perica = screen.getByTestId('exec-Adrian Perica')
+    const missing = within(perica).getAllByTestId('people-missing')
+    expect(missing).toHaveLength(2) // since + pay
+    for (const m of missing) {
+      const glyph = m.querySelector('[aria-hidden="true"]')
+      expect(glyph.textContent).toBe('—')
+      expect(m.querySelector('.sr-only').textContent).toMatch(/^unavailable/)
+    }
+    expect(within(perica).getByText('unavailable: FMP reports no pay figure for this officer')).toBeTruthy()
+    expect(missing[1].getAttribute('title')).toBe('FMP reports no pay figure for this officer')
+    expect(perica.textContent).toContain('not in proxy table')
+    // terminal compact ladder (round 2): M at one decimal
+    expect(screen.getByTestId('exec-Timothy D. Cook').textContent).toContain('$74.3M (2025)')
   })
 
   it('every compensation row links to its SEC filing', async () => {
@@ -72,7 +84,11 @@ describe('PeopleTab (COV-05)', () => {
   it('a section that could not be read gives its reason, not an empty table', async () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="AAPL" />)
-    expect((await screen.findByTestId('people-roles-gap')).textContent).toMatch(/Unavailable: EDGAR Form 4 reading is switched off/)
+    const gap = (await screen.findByTestId('people-roles-gap')).textContent
+    expect(gap).toMatch(/EDGAR Form 4 reading is switched off/)
+    expect(gap).toMatch(/not a finding about AAPL/)
+    // the server switch name is internal detail, never member copy (quality pass 2026-10-05)
+    expect(gap).not.toMatch(/EDGAR_OWNERSHIP_ENABLED|on this server/)
   })
 
   it('a failed request is unavailable, not a finding', async () => {
@@ -104,7 +120,7 @@ describe('EstimateHistoryTab (COV-07)', () => {
     expect(screen.getByTestId('collecting-2027-03-27').textContent).toMatch(/a revision needs two/)
     expect(screen.queryByTestId('revision-2027-03-27')).toBeNull()
     expect(screen.getByTestId('esthist-failed').textContent).toContain('2026-09-30')
-    expect(screen.getByTestId('esthist-source').textContent).toContain(SRC)
+    expect(screen.getByTestId('esthist-source').textContent).toBe('Source: FMP, snapshotted daily by UCT.') // no endpoint path
   })
 
   it('no snapshot yet says why, never an empty table', async () => {

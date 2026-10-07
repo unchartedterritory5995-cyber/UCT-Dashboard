@@ -908,10 +908,32 @@ owner is carrying it over.
 
 ## ✅ WHAT IS ACTUALLY OPEN — 2026-09-12
 
-**Q1 is built, merged, and live in production DARK.** The branch
+> ⚰️ **STRUCK 2026-10-06. Two statements in the paragraph below were true on 2026-09-12 and
+> are not true now: "live in production DARK" and "`OFFLINE_DEFAULT_ON = false`".**
+> The constant is `true` on `origin/master` and on the wave 12-15 landing tip:
+> `app/src/pages/journal-2-0/lib/offline/offlineFlag.js:68` reads `export const OFFLINE_DEFAULT_ON = true`.
+> It was flipped by `52a9142bb2` ("Wave Q1: flip OFFLINE_DEFAULT_ON to true", 2026-09-11), as
+> this file's own first section says ("`OFFLINE_DEFAULT_ON = true` on `origin/master` | **TRUE**").
+> The keep-or-revert decision is `docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md`:
+> "KEEP offline editing ON". The paragraph is kept as history.
+>
+> **State on 2026-10-07, added by the same lane:**
+> - The live production sign-in payload reported `notebook_offline_default_on: true` (read by
+>   the finish program's controller on 2026-10-06; not re-read by this lane). That closes the
+>   one link that had not been measured: the source constant, the compiled constant and the
+>   served value now all say on.
+> - The owner signed the watch browser profile in again on 2026-10-06, at its new home
+>   `C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent`, outside every worktree.
+>   Read on disk 2026-10-07: the folder exists, and `nb_observe.cmd` (line 6) and
+>   `canary_sunday.cmd` (line 26) both set `UCT_Q1_RIG_PROFILE` to it.
+> - The two-hourly watcher records again after four days of "no rig profile":
+>   `C:\Users\Patrick\uct-q1-observe\soak-observation-log.md` has a row dated
+>   `2026-10-07 07:00 ET` that reads `OK`.
+
+~~**Q1 is built, merged, and live in production DARK.**~~ The branch
 `notebook-primary-platform` is **fully merged into `origin/master`** (0 ahead) —
 there is nothing to push, and `app/src/pages/journal-2-0/` is byte-identical to
-master. `OFFLINE_DEFAULT_ON = false`. The only thing between here and closure is
+master. ~~`OFFLINE_DEFAULT_ON = false`.~~ The only thing between here and closure is
 evidence.
 
 ```
@@ -1700,7 +1722,7 @@ sequences two writers is a race with a name.
 | **#4** | the self-fork fix, round 1 (`f093bf731`) | ✅ live — ⚠️ **narrowed, did not close** |
 | **#4b** | the self-fork fix, round 2 (`23f6ce271`) | ✅ live — ⚠️ **the metadata doors could still discard queued words** |
 | **#4c** | the four-door / content-decides fix (`6db8ba93a`) | ✅ live 2026-09-10T23:28:42Z — ⭐ **every check on ONE SHA**. ⚠️ **AMENDED:** closed the local-loss half; the queued entry still reaches the server as a discard via the `folder` door — see **round 3** |
-| **#5** | ⛔ **the flag flip** — `OFFLINE_DEFAULT_ON = false → true` | ⛔ **NOT DEPLOYED, and BLOCKED.** `<record to be written when it lands>` |
+| **#5** | ⛔ **the flag flip** — `OFFLINE_DEFAULT_ON = false → true` | ~~⛔ **NOT DEPLOYED, and BLOCKED.**~~ ⚰️ struck 2026-10-06: **DEPLOYED.** `app/src/pages/journal-2-0/lib/offline/offlineFlag.js:68` reads `export const OFFLINE_DEFAULT_ON = true` (commit `52a9142bb2`, 2026-09-11); the closing entry is this file's first section, and KEEP is recorded in `docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md`. `<record to be written when it lands>` |
 
 ⛔ **Each record carries its own checklist as checked AT PUSH TIME**, its
 member-impact paragraph verbatim, and — where the suite was measured at a

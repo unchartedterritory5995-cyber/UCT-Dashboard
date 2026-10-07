@@ -29,5 +29,10 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 @router.get("/api/research/history/{sym}", dependencies=[Depends(_armed)])
 def research_history(sym: str, days: int = Query(ticker_history.DEFAULT_DAYS, ge=1, le=ticker_history.MAX_DAYS),
                      _user: dict = Depends(require_paid)):
+    # Junk is refused with a sentence before any lane reads a store. The lanes get the
+    # canonical spelling (BRK.B -> BRK-B); each one then asks its own store in the spelling
+    # that store's WRITER produces (ticker_history._class_spellings / _occ_root).
+    from api.services.ticker_resolver import require_route_symbol
+    sym = require_route_symbol(sym)
     # The caller's id keys ONLY their own journal lane (dark behind TICKER_HISTORY_LANES2_ENABLED).
     return ticker_history.history(sym, days=days, user_id=_user.get("id"))

@@ -186,7 +186,11 @@ describe('S10 itself is pure', () => {
   })
 })
 
-describe('⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, not hidden', () => {
+describe('formatPercent: adopted by the research panels (2026-10-06 terminal visual pass)', () => {
+  // ⚰️ This described formatPercent as declared and adopted by nothing, and told the next
+  // reader to delete it once that changed. On 2026-10-06 the research panels adopted it
+  // through pages/research/researchFormat.js, so the assertion now pins the adoption.
+  //
   // ⛔ THIS IS `lesson_built_tested_green_and_unreachable` CAUGHT IN THE ACT AND
   // WRITTEN DOWN RATHER THAN SHIPPED QUIETLY. S10's approval names five
   // primitives. Four of them had an adopter inside the approved scope; the
@@ -238,11 +242,11 @@ describe('⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, no
     }
   })()
 
-  it('nothing outside lib/presentation imports formatPercent from S10', () => {
+  it('the research format helper imports formatPercent from S10', () => {
     const hits = corpus()
       .filter(({ code }) => /formatPercent[^\n]*presentationPrimitives|presentationPrimitives[^\n]*formatPercent/s.test(code))
-      .map(({ p }) => path.relative(SRC, p))
-    expect(hits, 'formatPercent has a consumer now — delete this test and record the change').toEqual([])
+      .map(({ p }) => path.relative(SRC, p).replace(/\\/g, '/'))
+    expect(hits).toContain('pages/research/researchFormat.js')
   })
 
   it('non-vacuity: the SAME corpus DOES find the four real S10 adopters', () => {

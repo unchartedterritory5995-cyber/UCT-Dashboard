@@ -13,6 +13,7 @@
  * and this renders the server's OWN sentence for it — never field rows, never a fabricated value.
  * Dark behind `notebook_entry_context_enabled`; a free plan's 402 renders nothing (same as off).
  */
+import { useId } from 'react'
 import { useEntryContextFor, useEntryContextMeta } from '../hooks/useEntryContext'
 import WhyPrompt from './WhyPrompt'
 import styles from './EntryContextCard.module.css'
@@ -39,8 +40,11 @@ function FieldRow({ fieldKey, label, field, format, missingReasons }) {
     <div className={styles.row} data-field={fieldKey}>
       <span className={styles.label}>{label}</span>
       {field.missing ? (
-        <span className={styles.valueMuted} title={missingReasons?.[field.missing] || field.missing}>
+        // The reason is TEXT beside the value (FIN-A11Y, review R4 M-8): as a title it could
+        // only be read with a mouse.
+        <span className={styles.valueMuted}>
           Not available
+          <span className={styles.reason}> ({missingReasons?.[field.missing] || field.missing})</span>
         </span>
       ) : (
         <span className={styles.value}>{format(field)}</span>
@@ -54,13 +58,14 @@ export default function EntryContextCard({ kind, id }) {
   const { meta } = useEntryContextMeta()
   const { enabled, status, context, reason, error, isLoading, paidOut, retry } =
     useEntryContextFor(kind, id)
+  const titleId = useId()     // one per card: a position page shows a card per lot
 
   if (!enabled || paidOut) return null
 
   if (isLoading && !context) {
     return (
-      <section className={styles.card} aria-labelledby="entry-context-title" data-testid="entry-context-loading">
-        <h2 id="entry-context-title" className={styles.title}>Market context at the fill</h2>
+      <section className={styles.card} aria-labelledby={titleId} data-testid="entry-context-loading">
+        <h2 id={titleId} className={styles.title}>Market context at the fill</h2>
         <p className={styles.muted}>Reading the market context…</p>
       </section>
     )
@@ -68,8 +73,8 @@ export default function EntryContextCard({ kind, id }) {
 
   if (error) {
     return (
-      <section className={styles.card} aria-labelledby="entry-context-title">
-        <h2 id="entry-context-title" className={styles.title}>Market context at the fill</h2>
+      <section className={styles.card} aria-labelledby={titleId}>
+        <h2 id={titleId} className={styles.title}>Market context at the fill</h2>
         <p className={styles.muted} role="alert">
           Couldn’t load the market context.{' '}
           <button type="button" className={styles.linkBtn} onClick={retry}>Try again</button>
@@ -82,8 +87,8 @@ export default function EntryContextCard({ kind, id }) {
   // server's own sentence is the whole body, and the fields grid below is unreachable from here.
   if (status !== 'captured' || !context) {
     return (
-      <SettledCard testId="entry-context-not-captured">
-        <h2 id="entry-context-title" className={styles.title}>Market context at the fill</h2>
+      <SettledCard titleId={titleId} testId="entry-context-not-captured">
+        <h2 id={titleId} className={styles.title}>Market context at the fill</h2>
         <p className={styles.muted}>{reason || 'No market context was captured for this entry.'}</p>
       </SettledCard>
     )
@@ -93,18 +98,22 @@ export default function EntryContextCard({ kind, id }) {
   const missingReasons = meta?.missingReasons || {}
 
   return (
-    <SettledCard testId="entry-context-card">
-      <h2 id="entry-context-title" className={styles.title}>
+    <SettledCard titleId={titleId} testId="entry-context-card">
+      <h2 id={titleId} className={styles.title}>
         Market context at the fill
         {context.capturedLate && (
           <span
             className={styles.lateBadge}
             data-testid="entry-context-late"
-            title={`Captured ${context.captureDay}, after the entry`}
           >
             captured late
           </span>
         )}
+        {/* When, as text beside the badge (FIN-A11Y, review R4 M-8): it was a mouse-only title. */}
+        {context.capturedLate && context.captureDay && (
+          <span className={styles.lateWhen} data-testid="entry-context-late-when">
+            on {context.captureDay}, after the entry
+          </span>        )}
       </h2>
       <div className={styles.grid} data-tour="entry-context-fields">
         <FieldRow fieldKey="regime" label="Regime" field={f.regime} missingReasons={missingReasons}
@@ -142,9 +151,9 @@ export default function EntryContextCard({ kind, id }) {
  *  on the captured card only, the tour never opened for a member whose newest trade has no
  *  saved context -- every past-day entry -- and closed quietly. Its first step's sentence is
  *  true of either card; the steps after it skip on the not-captured one. */
-function SettledCard({ testId, children }) {
+function SettledCard({ testId, titleId, children }) {
   return (
-    <section className={styles.card} aria-labelledby="entry-context-title" data-testid={testId} data-tour="entry-context-card">
+    <section className={styles.card} aria-labelledby={titleId} data-testid={testId} data-tour="entry-context-card">
       {children}
     </section>
   )

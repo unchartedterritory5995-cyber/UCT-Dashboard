@@ -67,6 +67,8 @@ const upperSym = (v) => {
 }
 
 export const isCompatChannel = (id) => COMPAT_CHANNELS.includes(id)
+/** The identity of a security for de-duplication: the class separator is spelled both ways. */
+export const symKey = (s) => String(s || '').toUpperCase().replace(/-/g, '.')
 
 const DEFAULT_PANEL_SPECS = [
   { code: 'CAL', channel: 'A' },
@@ -319,7 +321,8 @@ export function applyChannelSym(layout, channelId, sym) {
     channels: layout.channels.map((c) => (c.id !== channelId ? c : {
       ...c,
       sym: isCompatChannel(c.id) ? null : s,
-      history: [s, ...c.history.filter((h) => h !== s)].slice(0, HISTORY_MAX),
+      // BRK.B and BRK-B are one security: the recents list keeps one of them, the newest.
+      history: [s, ...c.history.filter((h) => symKey(h) !== symKey(s))].slice(0, HISTORY_MAX),
     })),
   }
 }
@@ -384,6 +387,65 @@ export function duplicatePanel(layout, i) {
   const { popout: _popout, ...copy } = src
   panels.splice(i + 1, 0, { ...copy, id: newPanelId(panels), args: [...(src.args || [])] })
   return { ok: true, layout: withCompat({ ...layout, count: layout.count + 1, focus: i + 1, panels: panels.slice(0, MAX_PANELS) }) }
+}
+
+/** The securities this board looked at lately, newest first, one list: the active channel's
+ *  history leads, the other channels' histories are interleaved by recency position (a
+ *  channel history carries no timestamps, so position is the only order there is). */
+export function recentSecurities(layout, n = 8) {
+  const active = layout?.activeChannel
+  const chans = [...(layout?.channels || [])].sort((a, b) => (b.id === active) - (a.id === active))
+  const out = []
+  const seen = new Set()
+  const depth = Math.max(0, ...chans.map((c) => (c.history || []).length))
+  for (let i = 0; i < depth && out.length < n; i += 1) {
+    for (const c of chans) {
+      const s = c.history?.[i]
+      if (!s || seen.has(symKey(s))) continue
+      seen.add(symKey(s))
+      out.push(upperSym(s))
+      if (out.length >= n) break
+    }
+  }
+  return out
+}
+
+/** Move visible panel `i` one place left (`d = -1`) or right (`d = 1`); focus follows it.
+ *  `{ layout, ok, to? }` — refused at either edge of the visible board, never wrapped (a
+ *  wrap would send the first panel to the far end, which reads as a jump, not a move). */
+export function movePanel(layout, i, d) {
+  const to = i + d
+  if (i < 0 || i >= layout.count || to < 0 || to >= layout.count || (d !== 1 && d !== -1)) {
+    return { layout, ok: false }
+  }
+  const panels = layout.panels.slice()
+  ;[panels[i], panels[to]] = [panels[to], panels[i]]
+  return { ok: true, to, layout: { ...layout, focus: to, panels } }
+}
+
+/** Move visible panel `from` to slot `to` (a drag-and-drop or "Move to panel N"): the panel is
+ *  taken out and re-inserted, so the ones between shift by one. Focus follows the moved panel.
+ *  Parked panels (beyond `count`) never move. Refused when either slot is off the board or the
+ *  two are the same. */
+export function reorderPanel(layout, from, to) {
+  const n = layout.count
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= n || to >= n || from === to) {
+    return { layout, ok: false }
+  }
+  const visible = layout.panels.slice(0, n)
+  const [moved] = visible.splice(from, 1)
+  visible.splice(to, 0, moved)
+  return { ok: true, to, layout: { ...layout, focus: to, panels: [...visible, ...layout.panels.slice(n)] } }
+}
+
+/** The channel a one-key re-link moves panel `i` to: the board's channels in order, then
+ *  "not linked" (null), then round again. `undefined` when the panel follows no security. */
+export function nextLinkChannel(layout, i) {
+  const p = layout.panels[i]
+  if (!isLinkable(p)) return undefined
+  const ring = [...layout.channels.map((c) => c.id), null]
+  const at = ring.indexOf(panelChannel(p))
+  return ring[(at + 1) % ring.length]
 }
 
 /** Mark panel `i` popped out (IA §15 rule 8: pop-out state is a field of the document). */
@@ -636,7 +698,9 @@ export function setPreset(library, sym, boardId) {
 /** The board a bare `sym` opens: its own preset, else the any-ticker one, else null. */
 export function presetFor(library, sym) {
   const s = upperSym(sym)
-  const id = (s && library.presets[s]) || library.presets[PRESET_ANY]
+  // BRK.B and BRK-B are one security (round 3): a preset set for one spelling answers the other.
+  const key = s && Object.keys(library.presets).find((k) => k !== PRESET_ANY && symKey(k) === symKey(s))
+  const id = (key && library.presets[key]) || library.presets[PRESET_ANY]
   return id ? library.boards.find((b) => b.id === id) || null : null
 }
 

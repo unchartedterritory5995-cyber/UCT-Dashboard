@@ -57,7 +57,9 @@ describe('money — a statement axis spans nine orders of magnitude', () => {
     expect(money(1.59e9)).toBe('$1.59B')
     expect(money(4.88e7)).toBe('$48.8M')
     expect(money(2.5e12)).toBe('$2.50T')
-    expect(money(1500)).toBe('$1.5K')
+    // terminal compact ladder (round 2): K carries no decimal, as everywhere else
+    expect(money(1500)).toBe('$2K')
+    expect(money(512_300)).toBe('$512K')
   })
 
   it('keeps the sign — an operating LOSS must not read as a gain', () => {

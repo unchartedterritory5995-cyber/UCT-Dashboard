@@ -64,6 +64,13 @@ export const PANEL_IMPORTERS = {
   Flow: () => import('../research/tabs/FlowTab'),
   Help: () => import('./panels/HelpPanel'),
   Move: () => import('./panels/MovePanel'),
+  // comparison analytics (feature-gaps-2026-10-06) — terminal-native panels, no page behind them
+  Rrg: () => import('./panels/RrgPanel'),
+  Rel: () => import('./panels/RelPanel'),
+  Corr: () => import('./panels/CorrPanel'),
+  // movers (feature-gaps-2026-10-06 #7) — terminal-native; reads routes the Movers sidebar,
+  // catalyst board and Volume Surge widget already serve
+  Movers: () => import('./panels/MoversPanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its
@@ -89,3 +96,14 @@ export function panelComponent(name) {
  *  screener page writes `?s=`). At most ONE panel may show one of these, or two copies would
  *  both answer the same deep link. Surface ids are derived, never typed. */
 export const URL_OWNING_PANELS = new Set(['Calendar', ...URL_WRITING_SURFACE_IDS])
+
+/** Panels the shell leaves FLUSH against the frame instead of insetting by `--panel-inset`:
+ *  the price chart (it is the whole panel) and the calendar (a full-height layout with its own
+ *  header band). Every other panel, embedded tab or whole page, gets the one shared inset, and
+ *  learns that through `useInTerminalPanel().inset` (components/terminal/terminalPanel.js). */
+export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])
+
+/** Terminal-native panels whose rows are COMMANDS: the shell hands them `onRun` (click a row)
+ *  and `onRows` (type its number + Enter) beside their props. Embedded page/tab components get
+ *  neither — they are never forked to accept them. */
+export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers'])

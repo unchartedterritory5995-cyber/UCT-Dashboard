@@ -2,7 +2,7 @@
 //
 // A code has up to two VARIANTS, chosen by whether the command carried a security:
 //   ticker: { panel | door, props?, flag?, section?, args? }   `NVDA FA`  — the focused panel
-//   market: { panel | surface | door, flag?, full?, args? }    `CAL`      — no security needed
+//   market: { panel | surface | door, props?, flag?, full?, args? } `CAL`      — no security needed
 // Exactly ONE kind per variant:
 //   `panel`   names an entry in `panels.jsx` (an EXISTING component, embedded, never forked).
 //   `surface` is a whole PAGE embedded in the panel. It must be a path the TERM-037 panel set
@@ -135,10 +135,11 @@ export const FUNCTIONS = [
   // until its own switch is set. Embedded under the chain or on Options Flow, a 404 renders nothing;
   // as a whole panel that was a titled box with an empty body. With the prop, a panel whose every
   // section answered 404 says "<feature> isn't switched on yet" (optionsAnalytics/OffNotice.jsx).
-  // ⚠️ The better fix is a per-surface flag on the auth payload so the terminal knows before it
-  // opens the panel -- a backend change, deliberately not invented here.
+  // O12: IVH and STRS now gate on their OWN switch, carried on the auth payload
+  // (`iv_history_enabled`, `options_strategy_screens_enabled`), so the shell refuses them while
+  // dark instead of opening an empty panel; the off notice stays as the second line of defence.
   { code: 'IVH', label: 'IV history (implied vs realized)', group: 'Options',
-    ticker: { panel: 'IvHistory', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'IvHistory', props: { offNotice: true }, section: 'options', flag: 'ivHistoryEnabled' } },
   { code: 'VOL', label: 'Volatility stats', group: 'Options',
     ticker: { panel: 'VolStats', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'POS', label: 'Options positioning (levels, max pain)', group: 'Options',
@@ -162,17 +163,24 @@ export const FUNCTIONS = [
   { code: 'TIDE', label: 'Market Tide (net premium)', group: 'Options',
     market: { panel: 'MarketTide', props: { offNotice: true }, full: '/options-flow' } },
   { code: 'STRS', label: 'Options strategy screens', group: 'Options',
-    market: { panel: 'StrategyScreens', props: { offNotice: true }, full: '/options-flow' } },
+    market: { panel: 'StrategyScreens', props: { offNotice: true }, full: '/options-flow',
+              flag: 'optionsStrategyScreensEnabled' } },
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
     market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 
   { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool', leavesTerminal: true } },
-  { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options', market: { surface: '/flow-scoreboard' } },
+  // `embedded` is the page's OWN prop (it already honours it inside the Options Flow page): the
+  // panel header names the function, so the page drops its outer page chrome.
+  { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options',
+    market: { surface: '/flow-scoreboard', props: { embedded: true } } },
 
   // ── the market ──
   { code: 'WIRE', label: 'Morning Wire', group: 'Market', market: { surface: '/morning-wire' } },
   { code: 'BRD', label: 'Market breadth', group: 'Market', market: { surface: '/breadth' } },
-  { code: 'SCR', label: 'Stock screener', group: 'Market', market: { surface: '/screener' } },
+  // `embedded` is the page's OWN prop (the /charts Screener widget passes it): no full-page <h1>
+  // under a panel header that already says "SCR Stock screener".
+  { code: 'SCR', label: 'Stock screener', group: 'Market',
+    market: { surface: '/screener', props: { embedded: true } } },
   { code: 'U20', label: 'UCT 20', group: 'Market', market: { surface: '/uct-20' } },
   { code: 'DASH', label: 'Dashboard', group: 'Market',
     market: { door: '/dashboard', leavesTerminal: true, why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
@@ -197,7 +205,32 @@ export const FUNCTIONS = [
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
     market: { panel: 'Help', args: [{ kind: 'code', prop: 'focusCode' }] } },
+
+  // ── comparison analytics (feature-gaps-2026-10-06: what leading terminals give a swing trader
+  // that this one did not). Each is computed in its panel from `/api/bars` closes; no new route.
+  // `with0` … `withN` are the comparator tickers typed after the code. A linked panel's security
+  // leads the list, so `RRG` in a panel following NVDA plots NVDA among the sectors.
+  { code: 'RRG', label: 'Relative rotation graph (sectors or any list vs SPY)', group: 'Market',
+    ticker: { panel: 'Rrg', args: [{ kind: 'cadence', prop: 'tf' }, ...symbolArgs(11)] },
+    market: { panel: 'Rrg', args: [{ kind: 'cadence', prop: 'tf' }, ...symbolArgs(12)] } },
+  { code: 'REL', label: 'Relative performance & A/B ratio', group: 'Security',
+    ticker: { panel: 'Rel', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(5)] },
+    market: { panel: 'Rel', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(6)] } },
+  { code: 'CORR', label: 'Correlation matrix (daily returns)', group: 'Security',
+    ticker: { panel: 'Corr', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(9)] },
+    market: { panel: 'Corr', args: [{ kind: 'lookback', prop: 'lookback' }, ...symbolArgs(10)] } },
+
+  // ── movers (feature-gaps-2026-10-06 #7): one tape, several lenses (Bloomberg 06 §5), never a
+  // rack of codes. Market-only: it has no security of its own, so it never follows a group; a
+  // row CLICK loads that name into the linked group instead (panels/MoversPanel.jsx).
+  { code: 'MOST', label: 'Market movers (gainers, losers, unusual volume)', group: 'Market',
+    market: { panel: 'Movers', args: [{ kind: 'moversLens', prop: 'lens' }] } },
 ]
+
+/** `n` comparator-ticker argument slots (`with0` … `with{n-1}`), for the comparison codes. */
+function symbolArgs(n) {
+  return Array.from({ length: n }, (_, i) => ({ kind: 'symbol', prop: `with${i}` }))
+}
 
 /** Codes a member will type for surfaces this build does not have. Answered, not refused.
  *  (OSCR and OBT stood here until 2026-10-02 — both were BUILT, and the shell denied them.) */

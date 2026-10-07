@@ -106,6 +106,47 @@ class TestRoomSpikes:
         finally:
             buzz_store._reset_for_tests()
 
+    def test_R21_spikes_are_bucketed_by_the_ET_day_not_UTC(self, tmp_path, monkeypatch):
+        # Nine mentions at 21:30 ET on a Tuesday are 01:30 UTC Wednesday. The
+        # spike belongs to TUESDAY, the day ATTN shows it on.
+        from api.services import buzz_store
+        monkeypatch.setenv("BUZZ_DB_PATH", str(tmp_path / "buzz.db"))
+        buzz_store._reset_for_tests()
+        buzz_store.init_db()
+        try:
+            rows, mid = [], 0
+            day, days = date(2026, 3, 2), []
+            while len(days) < 31:
+                if day.weekday() < 5:
+                    days.append(day)
+                day = date.fromordinal(day.toordinal() + 1)
+            et = ev._ET
+            for i, d in enumerate(days):
+                n = 9 if i == 30 else 1
+                hour = 21 if i == 30 else 12
+                ts = int(datetime(d.year, d.month, d.day, hour, 30, tzinfo=et).timestamp())
+                for k in range(n):
+                    mid += 1
+                    rows.append((str(mid), "c1", f"a{k}", "AAPL", ts + k, "cashtag"))
+            buzz_store.record_mentions(rows)
+            out = ev._room_spike_events("AAPL", now=datetime(2026, 4, 20, tzinfo=timezone.utc))
+            assert [e["date"] for e in out] == [days[30].isoformat()]
+        finally:
+            buzz_store._reset_for_tests()
+
+
+class TestEarningsDetail:
+    def test_R21_a_missing_estimate_is_omitted_not_printed_as_None(self, monkeypatch):
+        from api.services import earnings_reaction_panel as erp
+        monkeypatch.setattr(erp, "_cached_earnings", lambda s: {"quarters": [
+            {"label": "Q2", "report_date": "2026-04-28", "reported": True, "eps_actual": 1.1, "eps_estimate": None},
+            {"label": "Q1", "report_date": "2026-01-27", "reported": True, "eps_actual": 0.9, "eps_estimate": 1.0}]})
+        events, _prints, _why = ev._earnings_events("AAPL")
+        details = {e["title"]: e["detail"] for e in events}
+        assert details["Reported Q2"] == "EPS 1.1"
+        assert details["Reported Q1"] == "EPS 0.9 vs 1.0 estimate"
+        assert all("None" not in (d or "") for d in details.values())
+
 
 class TestRoute:
     @pytest.fixture
@@ -137,3 +178,12 @@ class TestRoute:
         assert "events_timeline_enabled" not in auth._research_depth_flags()
         monkeypatch.setenv("EVENTS_TIMELINE_ENABLED", "1")
         assert auth._research_depth_flags()["events_timeline_enabled"] is True
+
+
+def test_a_long_write_up_is_clipped_at_a_word_with_an_ellipsis():
+    from api.services import events_timeline as ev
+    text = "TSMC gained on 2-nanometer progress, with broad social chatter about rising monthly sales " * 4
+    out = ev._clip(text, 220)
+    assert len(out) <= 221 and out.endswith("…")
+    assert out[:-1].split()[-1] in {w.strip(",;:.-") for w in text.split()}, "cut mid-word"
+    assert ev._clip("short", 220) == "short" and ev._clip("", 220) == ""

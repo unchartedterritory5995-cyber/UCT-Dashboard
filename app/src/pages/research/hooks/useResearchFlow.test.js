@@ -25,6 +25,14 @@ describe('fetchResearchFlow', () => {
     expect(await fetchResearchFlow('/x')).toEqual({ ok: false, httpStatus: 0, body: null })
   })
 
+  it('live audit: a read that never answers becomes a timed-out failure, not an endless loading line', async () => {
+    const { fetchResearchFlow } = await import('./useResearchFlow')
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_u, init) => new Promise((_res, rej) => {
+      init.signal.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')))
+    }))
+    expect(await fetchResearchFlow('/x', { timeoutMs: 20 })).toEqual({ ok: false, httpStatus: 0, body: null, timedOut: true })
+  })
+
   it('passes a readable answer through untouched', async () => {
     const { fetchResearchFlow } = await import('./useResearchFlow')
     const body = { ok: true, contracts: [] }

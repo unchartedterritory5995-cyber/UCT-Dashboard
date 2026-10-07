@@ -275,7 +275,8 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
            "skipped": [], "clicked": [], "modes": [], "notes": []}
     pg.goto(base + "/support", wait_until="domcontentloaded", timeout=60000)
     li = (pg.locator("li").filter(has=pg.get_by_text(title, exact=True))
-          .filter(has=pg.get_by_role("link", name="Replay", exact=True)))
+          # not exact: the link is named "Replay the <title> tour" (lane FIN-A11Y, M-14)
+          .filter(has=pg.get_by_role("link", name="Replay")))
     try:
         li.first.get_by_role("link", name="Replay").wait_for(timeout=20000)
     except Exception:  # noqa: BLE001

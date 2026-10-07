@@ -12,6 +12,7 @@ import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
+import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -70,6 +71,9 @@ const FingerprintPanel = lazyLeaf(() => import('./FingerprintPanel'))
 // while 13H-1's gate (`notebook_chart_plan_enabled`) is on -- so the Notebook's first-open
 // bytes do not move and a gate-off tab never loads it.
 const ChartPlanPanel = lazyLeaf(() => import('./ChartPlanPanel'))
+// The touch tier's "Block actions" button (finish program, lane FE). Loaded only at 1024 px and
+// below, where it is shown, so it adds nothing to the Notebook's first-open bytes.
+const EmbedBlockActions = lazyLeaf(() => import('./EmbedBlockActions'))
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
 // error inside a live embed drops the block to its archived image (or the
@@ -152,7 +156,7 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
   )
 }
 
-export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode }) {
+export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode, getPos }) {
   const attrs = node.attrs || {}
   const decision = resolveEmbedRender(attrs)
   const half = attrs.layout?.width === 'half'
@@ -567,6 +571,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // `isCoarsePointer` stays: it is what decides whether THIS note's chart embed
   // asks StockChart for MobileDrawBar at all (same read the 13H-3 effect used).
   const isCoarsePointer = useCoarsePointer()
+  const touchTier = useIsTouch()      // 1024 px and below
 
   // 13H-2: the chart-plan doors, gate-checked at render (the latch never moves mid-tab).
   const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
@@ -626,6 +631,15 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             >
               {toolbarOpen ? '‹' : '›'}
             </button>
+          )}
+          {/* Touch tier only (the stylesheet hides it above 1024 px): move or remove this block
+              without selecting it first. A live chart cannot be selected by touch at all. */}
+          {!annotate && touchTier && (
+            <EmbedErrorBoundary fallback={null}>
+              <Suspense fallback={null}>
+                <EmbedBlockActions editor={editor} getPos={getPos} deleteNode={deleteNode} className={styles.blockActions} />
+              </Suspense>
+            </EmbedErrorBoundary>
           )}
           {(annotate || toolbarOpen) && (<>
           {/* TF switch — chart embeds, live render path only (the archive of
@@ -780,10 +794,12 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {/* data-widget-embed-body: the ONE marker widgetEmbedNode.jsx's stopEvent
           reads to tell ProseMirror "this click is mine" (see that file's
           comment for the full mechanism — the 13H-2 draw-mode focus-steal
-          fix). Keep this attribute on whatever element wraps the live
+          fix). Its VALUE is "draw" exactly while Draw mode is on: only then does
+          stopEvent keep the click from the editor; otherwise a click on the body
+          selects the block. Keep this attribute on whatever element wraps the live
           chart/drawing surface; moving the ref without moving the marker
           reopens the bug silently. */}
-      <div ref={bodyRef} data-widget-embed-body="" className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
+      <div ref={bodyRef} data-widget-embed-body={annotate ? 'draw' : ''} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
       {planDoors && inView && (

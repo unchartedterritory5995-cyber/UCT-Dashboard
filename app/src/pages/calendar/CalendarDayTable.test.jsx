@@ -36,9 +36,10 @@ describe('CalendarDayTable — WSE row grammar', () => {
   it('renders the Rev est column header and formatted revenue', () => {
     render(<CalendarDayTable entries={ENTRIES} onSelect={vi.fn()} />)
     expect(screen.getByLabelText('Rev est, not sorted')).toBeTruthy()
-    expect(screen.getByText('$51.3B')).toBeTruthy()               // pending: estimate
-    expect(screen.getByText('$11.5B')).toBeTruthy()               // reported: actual
-    expect(screen.getByText('/ $11.0B')).toBeTruthy()             // reported: dim est
+    // terminal compact ladder (round 2): B carries two decimals on every panel
+    expect(screen.getByText('$51.30B')).toBeTruthy()              // pending: estimate
+    expect(screen.getByText('$11.50B')).toBeTruthy()              // reported: actual
+    expect(screen.getByText('/ $11.00B')).toBeTruthy()            // reported: dim est
   })
 
   it('reported rows show EPS actual + colored surprise', () => {

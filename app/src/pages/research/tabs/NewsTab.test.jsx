@@ -80,7 +80,7 @@ describe('NewsTab', () => {
     }))
     const { default: FreshTab } = await import('./NewsTab')
     render(<FreshTab sym="ZZZ" />)
-    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not yet linked to a company record') // plain English, never the enum
   })
 
   it('shows the empty-state note when there is no news at all', async () => {

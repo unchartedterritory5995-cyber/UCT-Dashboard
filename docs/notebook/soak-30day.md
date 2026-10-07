@@ -13,7 +13,31 @@ and heartbeat only, never on speed · **D-9C4** exposure = distinct notes edited
 write path · **D-9C5** KEEP on a soak-only log, or a non-KEEP ruled in writing · **D-9C7** study
 participants join the cohort with consent.
 
-⛔ **Today the organic population is 0** (the live Q1 log, rows 2026-09-25 15:00–19:00 ET:
+> ✅ **Live state, read 2026-10-07. The soak is running; this file is still the plan, not the result.**
+> - **It began 2026-09-26 18:48 UTC** and the nightly roll-up has run since. The last line of
+>   `C:\Users\Patrick\uct-q1-observe\nb_soak.run.log` (2026-10-06 23:30 UTC) reads: "soak INCONCLUSIVE · day 10.2/30
+>   (+4.19 unobserved) · organic 2/5 · edit-days 712/100 · active 3/20 · reasons 6 · alerts 3 ·
+>   drift 0". So: day 10 of 30, two of the five real members the floor needs, three of the
+>   twenty active members, and the verdict is INCONCLUSIVE because of the cohort, not because
+>   of any loss.
+> - **The watcher was blind from 2026-10-03 to 2026-10-07.** The last row before the gap in
+>   `C:\Users\Patrick\uct-q1-observe\soak-observation-log.md` is `2026-10-03 01:02 ET`; the next is `2026-10-07 01:00 ET`.
+>   Cause: the signed-in browser profile the watcher uses lived inside a git worktree
+>   (`notebook-primary-platform`), and that worktree was removed by a cleanup on 2026-10-03, the
+>   profile with it (the removed worktree is archived under `uct-backups`). Every run after that had no profile to sign in with. Those 4.19 days are
+>   counted as unobserved and the window was extended by the same amount (the dashboard's window
+>   now ends 2026-10-30 23:28 UTC).
+> - **The owner signed a new profile in on 2026-10-06**, at
+>   `C:\Users\Patrick\uct-q1-observe\canary-chrome-profile-persistent`, outside every worktree so no worktree cleanup can
+>   take it again. `nb_observe.cmd` and `canary_sunday.cmd` both point at it.
+> - **First clean row after the gap: `2026-10-07 07:00 ET`, `OK`** (same log; the catch-up rows
+>   for 01:00, 03:00 and 05:00 that morning also read `OK`).
+> - Still open: no Sunday verdict exists for 2026-09-27 or 2026-10-04 (the dashboard says so),
+>   and one fork on 2026-09-27 has not been attributed.
+> ⚰️ The paragraph below was true on 2026-09-25, before the soak opened, and is struck as a
+> description of today. Its rule still holds: a soak with too small a cohort is INCONCLUSIVE.
+
+⛔ ~~**Today the organic population is 0**~~ (the live Q1 log, rows 2026-09-25 15:00–19:00 ET:
 `organic 0 · synthetic 1 · rig/owner 1`). A soak that opens with no cohort is **INCONCLUSIVE
 from day one** and stays so until the floor in §6 is met — "zero data loss" over nobody is not
 evidence, and `nb_soak.py` never prints PASS by default.
@@ -28,7 +52,7 @@ recorded in the soak's opening entry (§2), never inferred from a ledger or a me
 | # | precondition | the check that proves it | who |
 |---|---|---|---|
 | P1 | Waves 5–8 merged and deployed | `git merge-base --is-ancestor <wave-8 merge sha> origin/production` exits 0, and the deploy list shows that `web` deploy `SUCCESS` (CLAUDE.md "verify the deploy by its own record's STATUS") | owner merges; controller verifies |
-| P2 | The D2 record is committed — the 2026-09-20 REVERT verdict and its log, with D2's KEEP ruling (`NOTEBOOK-10-OF-10-PLAN.md:151`) | `git ls-files` lists it. ⚠️ Absent on this lane's base (`324a5135a`: `git ls-files \| grep -i verdict` finds no such record) | controller, before the soak opens |
+| P2 | The D2 record is committed — the 2026-09-20 REVERT verdict and its log, with D2's KEEP ruling (`NOTEBOOK-10-OF-10-PLAN.md:151`) | `git ls-files` lists it. ~~⚠️ Absent on this lane's base (`324a5135a`: `git ls-files \| grep -i verdict` finds no such record)~~ ⚰️ struck 2026-10-06: PRESENT. `git ls-files docs/notebook/evidence/q1-gate` lists `2026-09-20-verdict.md` and `DECISION-2026-09-23-keep-offline.md`; both reached master with wave 5 (`2c3ed30930`, #186, 2026-09-25), and the decision file reads "KEEP offline editing ON" | controller, before the soak opens |
 | P3 | Flag states recorded **from the running process**, never from `docs/feature_flags.json` | as the rig: `GET /api/auth/me` — every `notebook_*` key is derived per request in `_access_payload` (`api/routers/auth.py`, `_notebook_flags`), so the payload IS the running process's answer. Record every `notebook_*` key and value | controller |
 | P4 | C5 deployed: `GET /api/admin/notebook-soak` answers | `api/main.py` mounts `api/routers/notebook_soak.py` (the controller's step); then one sampler run writes a sidecar line with `figures`, not `"skipped": "HTTP 404"` | controller |
 | P5 | The out-of-repo copies refreshed and **their sha256 equal to the repo's** | `python nb_soak.py --dry-run --repo <checkout> --copies C:\Users\Patrick\uct-q1-observe` → the "Running copies vs the repo" section reads `equal` for `nb_observe.py`, `nb_gate.py`, `window_check.py`, `nb_soak.py`. ⚠️ Today `window_check.py` DIFFERS (copy `09714ff93967…`, repo `76c0a9a5cb7f…`), and `nb_observe.py` will differ from the moment this lane merges (it gains the sidecar). `tests/test_nb_observe.py::test_the_deployed_copy_matches_the_repo…` is red until then, by design | controller refreshes after merge, **owner approves** |

@@ -1,6 +1,10 @@
 import useSWR from 'swr'
-import { depthFetcher } from './depthFetch'
+import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
+import { useDepthChrome, DepthLoading } from './depthChrome'
+import PendingGaveUp from './PendingGaveUp'
+import HighlightThesis from '../../../utils/highlightThesis'
+import { memberText } from '../../../lib/presentation/memberCopy'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -12,27 +16,42 @@ import styles from './Depth.module.css'
 const KIND = { earnings: 'Earnings', uct_catalyst: 'UCT catalyst', filing: 'Filing', room_spike: 'Room' }
 
 export default function EventsPanel({ sym }) {
+  const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
+  const { data, error, mutate } = useSWR(s ? `/api/research/events/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  // tq-panels: any source still being read (not only earnings) re-asks, and is named.
+  const pendingKinds = Object.entries(data?.sources || {}).filter(([, v]) => v?.state === 'pending').map(([k]) => KIND[k] || k)
+  const reask = usePendingReask(pendingKinds.length > 0, mutate, s)
 
   let body
-  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
-  else if (!data) body = <div className={styles.note}>Loading events…</div>
+  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading events" />
   else if (data.paywalled) body = <div className={styles.note}>Events require a paid plan.</div>
   else {
     const errs = Object.entries(data.sources || {}).filter(([, v]) => v.state === 'error')
     const events = [...(data.events || [])].reverse()
     body = (
       <div data-testid="events">
-        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {data.reason}.</p>}
+        {data.state !== 'ok' && <p className={styles.note} data-testid="events-unstaged">Not staged against a print: {memberText(data.reason)}.</p>}
         {errs.length > 0 && (
           <p className={styles.error} data-testid="events-source-errors">
             Could not read: {errs.map(([k]) => KIND[k] || k).join(', ')}. Events from those sources are missing, not absent.
           </p>
         )}
+        {pendingKinds.length > 0 && (
+          <p className={styles.note} data-testid="events-pending">
+            Still reading: {pendingKinds.join(', ')}. Events from {pendingKinds.length > 1 ? 'those sources' : 'that source'} appear when the read finishes.
+          </p>
+        )}
         {events.length === 0
-          ? <p className={styles.note} data-testid="events-empty">No events on file in the sources read.</p>
+          ? <p className={styles.note} data-testid="events-empty">
+            {/* tq-panels: "No events on file" while a source is still pending was a claim
+                about sources not yet read. */}
+            {pendingKinds.length > 0
+              ? `No events on file yet — ${pendingKinds.join(', ')} ${pendingKinds.length > 1 ? 'are' : 'is'} still being read.`
+              : 'No events on file in the sources read.'}
+          </p>
           : (
             <div className={styles.scroll}>
               <table className={styles.grid}>
@@ -44,11 +63,11 @@ export default function EventsPanel({ sym }) {
                       <td title={e.print_date ? `${e.print_label} (${e.print_state}) on ${e.print_date}` : undefined}>
                         {e.stage ? `${e.stage} ${e.print_label}` : '—'}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>
-                        <strong>{KIND[e.kind] || e.kind}</strong> {e.title}{e.detail ? ` — ${e.detail}` : ''}
+                      <td className={styles.text}>
+                        <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
-                      <td style={{ whiteSpace: 'normal', textAlign: 'left' }}>{e.source}</td>
+                      <td className={styles.text}>{memberText(e.source)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -60,8 +79,9 @@ export default function EventsPanel({ sym }) {
     )
   }
   return (
-    <section className={styles.panel} data-testid="events-panel">
-      <h3 className={styles.panelTitle}>Events around the print</h3>
+    <section className={chrome.panelClass} data-testid="events-panel">
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Events around the print</h3>}
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings read" />
       {body}
     </section>
   )

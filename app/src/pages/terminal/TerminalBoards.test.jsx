@@ -73,6 +73,7 @@ vi.mock('./panels', async (importOriginal) => {
 })
 
 import TerminalShell from './TerminalShell'
+import { saveTiming } from './useTerminalLayout'
 import { CalendarRoute, TerminalRoute } from './TerminalRoutes'
 
 function setViewport(width) {
@@ -115,6 +116,8 @@ async function type(text) {
 }
 
 beforeEach(() => {
+  saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
+  try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
   store.prefs = {}
   store.writes = []
   setViewport(1400)
@@ -245,7 +248,9 @@ describe('T3 on T2 — the grammar addresses CHANNELS', () => {
     expect(id).toBe('E')
     expect(channelTarget('B', board)).toEqual({ index: 3 })
     expect(channelTarget('E', board)).toEqual({ index: 2 })            // a terminal-own channel
-    expect(channelTarget('A', board)).toEqual({ index: 0 })
+    // A's first panel is CAL, which follows no security: @A goes to the first LINKABLE A panel
+    // (audit #5 — @A NVDA GP used to overwrite the calendar).
+    expect(channelTarget('A', board)).toEqual({ index: 1 })
     expect(channelTarget('2', board)).toEqual({ index: 1 })
     expect(channelTarget('Q', board).error).toContain('no group Q')
     expect(channelTarget('C', board).error).toContain('No panel on screen is linked to Group C')

@@ -26,6 +26,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/adjustment-basis/{ticker}/raw",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/ai-search/briefings",
       "rate_limit_family": "ai",
       "tier": "paid"
@@ -1486,7 +1492,7 @@
       "method": "GET",
       "path": "/api/j2/chart-plan/benchmarks",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1594,7 +1600,7 @@
       "method": "GET",
       "path": "/api/j2/my-playbook",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1648,7 +1654,7 @@
       "method": "GET",
       "path": "/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1900,19 +1906,19 @@
       "method": "GET",
       "path": "/api/j2/plan-grades/discipline",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/plan-grades/status",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/plan-grades/trades/{trade_id}",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1972,19 +1978,19 @@
       "method": "GET",
       "path": "/api/j2/review-drafts/daily",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/review-drafts/monthly",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/review-drafts/weekly",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -2008,7 +2014,7 @@
       "method": "GET",
       "path": "/api/j2/setups-board",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -2044,13 +2050,13 @@
       "method": "GET",
       "path": "/api/j2/template-gallery",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/j2/template-gallery/{gallery_id}",
       "rate_limit_family": "member-workspace",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -3647,6 +3653,9 @@
     "/api/exports/options/{sym}/chain",
     "/api/exports/quota",
     "/api/exports/watchlists/{wl_id}",
+    "/api/marketcap/pit-status",
+    "/api/marketcap/pit/{ticker}",
+    "/api/marketcap/pit/{ticker}/latest",
     "/api/options-screener/iv-percentile",
     "/api/options-screener/more-strategies",
     "/api/options-screener/more/{name}",

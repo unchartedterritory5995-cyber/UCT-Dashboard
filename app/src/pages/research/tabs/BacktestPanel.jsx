@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import { withDeadline } from '../../../utils/withDeadline'
+import { usePendingReask, PENDING_REASK_MS } from '../depth/depthFetch'
 import { STRATEGIES } from './optionPayoff'
 import {
   ENTRY_DTES, EXIT_PCTS, OFFSETS, WIDTHS, offsetLabel, money, legsLabel, exitLabel,
@@ -8,6 +10,7 @@ import {
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
 import useDarkSection from '../../optionsAnalytics/useDarkSection'
+import Select from '../../../components/ui/Select'
 
 // BRK-01 increment 4 (roadmap RM-L01): the options strategy backtester, under the chain.
 //
@@ -22,21 +25,33 @@ import useDarkSection from '../../optionsAnalytics/useDarkSection'
 
 const POLL_MS = 2000
 
-// ⛔ THE EARNINGS ANCHOR IS OFFERED BUT DISABLED. Every earnings run answers ZERO trades today, because
-// the backend never has a report time: api/services/engine.py:370 writes `"reportTime": ""` (FMP does
-// not expose before-open / after-close), and options_backtest.py:700 (`timing_of`) maps an empty time to
-// None, which :773-775 exclude as "the report time ... is not on file" -- every quarter, every ticker.
-// Flip this (or replace it with a catalog field) only once the backend supplies AMC/BMO timing.
-export const EARNINGS_TIMING_ON_FILE = false
+// THE EARNINGS ANCHOR IS ON (live sweep 2026-10-05). It was offered disabled because FMP carries no
+// before-open / after-close time, so every earnings run excluded every quarter. O4 (options lane,
+// 2026-10-05) fills `reportTime` in iv_history._default_prints -- the reader
+// options_backtest._default_prints uses -- from the earnings calendar's per-symbol `hour`. A quarter
+// the calendar does not time is still excluded server-side with its reason, never guessed.
+export const EARNINGS_TIMING_ON_FILE = true
 export const EARNINGS_ANCHOR_OFF_NOTE = 'Earnings prints are not available yet: our earnings file does not record whether a company reported before the open or after the close, so no print can be placed and every run would return zero trades.'
 
+// A 429 whose Retry-After is at most this is a SHORT wait (the shared pool is full, or the
+// member already has runs in flight): the panel asks again by itself. The hourly cap's wait is
+// minutes long and keeps its own sentence ("Try again in N min.").
+export const BUSY_REASK_MAX_WAIT_S = 60
+
+// Quality pass 2026-10-05: the POST had no timeout (a hung pod left "Simulate" disabled
+// forever), and a busy 429 said "Try again in a minute" with nothing asking again.
 async function startRun(sym, body) {
-  const r = await fetch(`/api/research/options/${encodeURIComponent(sym)}/backtest`, {
+  const url = `/api/research/options/${encodeURIComponent(sym)}/backtest`
+  const r = await withDeadline(fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  })
+  }), url)
   let j = null
   try { j = await r.json() } catch { /* a non-JSON body is a failure below */ }
   if (r.status === 402) return { error: 'The backtester requires a paid plan.' }
+  if (r.status === 429) {
+    const wait = Number(r.headers?.get?.('Retry-After'))
+    if (Number.isFinite(wait) && wait > 0 && wait <= BUSY_REASK_MAX_WAIT_S) return { busy: true }
+  }
   if (!r.ok || !j) return { error: (j && typeof j.detail === 'string') ? j.detail : `The backtest could not start (${r.status}).` }
   return { status: j }
 }
@@ -52,6 +67,9 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
   const [started, setStarted] = useState(null)   // the POST's own status answer
   const [startError, setStartError] = useState(null)
   const [busy, setBusy] = useState(false)
+  // The request body of a start the server refused as busy; while set, usePendingReask posts it
+  // again every PENDING_REASK_MS (at most PENDING_REASK_MAX times).
+  const [waiting, setWaiting] = useState(null)
 
   // FT-011: the further structures and the earnings anchor. The catalog route answers 404 until
   // OPTIONS_BACKTEST_MORE_ENABLED, and then this panel is exactly the first slice.
@@ -82,15 +100,33 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
       if (tp) body.take_profit_pct = Number(tp)
       if (sl) body.stop_loss_pct = Number(sl)
     }
+    setWaiting(null)
     try {
-      const out = await startRun(sym, body)
-      if (out.error) { setStartError(out.error); setStarted(null) } else setStarted(out.status)
-    } catch {
-      setStartError('The backtest could not start: the request failed.')
+      settle(await startRun(sym, body), body)
+    } catch (e) {
+      settleFailure(e)
     } finally {
       setBusy(false)
     }
   }
+
+  function settle(out, body) {
+    if (out.busy) { setWaiting(body); setStarted(null); return }
+    setWaiting(null)
+    if (out.error) { setStartError(out.error); setStarted(null) } else setStarted(out.status)
+  }
+  function settleFailure(e) {
+    setWaiting(null)
+    setStartError(e?.timedOut
+      ? 'The backtest could not start: the server did not answer within 30 seconds.'
+      : 'The backtest could not start: the request failed.')
+  }
+
+  const reask = useCallback(async () => {
+    if (!waiting) return
+    try { settle(await startRun(sym, waiting), waiting) } catch (e) { settleFailure(e) }
+  }, [waiting, sym]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { exhausted, retry } = usePendingReask(Boolean(waiting), reask, sym)
 
   const r = st?.state === 'done' ? st.result : null
   return (
@@ -100,57 +136,68 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
       </div>
       <div className={styles.head}>
         <label>Strategy{' '}
-          <select aria-label="Backtest strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
+          <Select aria-label="Backtest strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
             {choices.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
+          </Select>
         </label>
         {more && (
           <label>Anchor{' '}
-            <select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
+            <Select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
               <option value="monthly">Monthly expirations</option>
               <option value="earnings" disabled={!earningsAnchor}>
                 {earningsAnchor ? 'Earnings prints (AMC / BMO)' : 'Earnings prints (AMC / BMO) — not available yet'}
               </option>
-            </select>
+            </Select>
           </label>
         )}
         {more && !earningsAnchor && <span className={styles.muted} data-testid="backtest-earnings-off">{EARNINGS_ANCHOR_OFF_NOTE}</span>}
         {!earnings && <label>Enter{' '}
-          <select aria-label="Entry days before expiry" value={dte} onChange={(e) => setDte(Number(e.target.value))}>
+          <Select aria-label="Entry days before expiry" value={dte} onChange={(e) => setDte(Number(e.target.value))}>
             {ENTRY_DTES.map((d) => <option key={d} value={d}>{d} trading days before expiry</option>)}
-          </select>
+          </Select>
         </label>}
         <label>Strike{' '}
-          <select aria-label="Strike offset" value={offset} onChange={(e) => setOffset(Number(e.target.value))}>
+          <Select aria-label="Strike offset" value={offset} onChange={(e) => setOffset(Number(e.target.value))}>
             {OFFSETS.map((k) => <option key={k} value={k}>{offsetLabel(k)}</option>)}
-          </select>
+          </Select>
         </label>
         {spread && (
           <label>Width{' '}
-            <select aria-label="Spread width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
+            <Select aria-label="Spread width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
               {WIDTHS.map((w) => <option key={w} value={w}>{w} strike{w === 1 ? '' : 's'}</option>)}
-            </select>
+            </Select>
           </label>
         )}
         {!earnings && <label>Exit at profit{' '}
-          <select aria-label="Take profit" value={tp} onChange={(e) => setTp(e.target.value)}>
+          <Select aria-label="Take profit" value={tp} onChange={(e) => setTp(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>+{p}%</option>)}
-          </select>
+          </Select>
         </label>}
         {!earnings && <label>Exit at loss{' '}
-          <select aria-label="Stop loss" value={sl} onChange={(e) => setSl(e.target.value)}>
+          <Select aria-label="Stop loss" value={sl} onChange={(e) => setSl(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>-{p}%</option>)}
-          </select>
+          </Select>
         </label>}
-        <button type="button" onClick={onSimulate} disabled={busy || st?.state === 'queued' || st?.state === 'running'}
+        <button type="button" onClick={onSimulate} disabled={busy || Boolean(waiting && !exhausted) || st?.state === 'queued' || st?.state === 'running'}
                 data-testid="backtest-simulate">
           Simulate
         </button>
       </div>
 
       {startError && <p className={styles.note} data-testid="backtest-error">{startError}</p>}
+      {waiting && !exhausted && (
+        <p className={styles.note} data-testid="backtest-busy">
+          The backtester is busy right now. This asks again by itself every {PENDING_REASK_MS / 1000} seconds.
+        </p>
+      )}
+      {waiting && exhausted && (
+        <p className={styles.note} data-testid="backtest-busy">
+          The backtester is still busy.{' '}
+          <button type="button" onClick={retry}>Try again</button>
+        </p>
+      )}
       {poll.error && <p className={styles.note} data-testid="backtest-error">The backtest result is unavailable right now.</p>}
       {st && (st.state === 'queued' || st.state === 'running') && (
         <p className={styles.note} data-testid="backtest-running">

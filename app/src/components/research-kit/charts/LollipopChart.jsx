@@ -12,6 +12,7 @@ import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
 import styles from './LollipopChart.module.css'
+import { formatCurrency, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 
 /**
  * §3.4 skeleton size contract. `SIZE` is a NAMED EXPORT, not a static on the
@@ -194,7 +195,7 @@ export function buildLollipopOption(rows, { valueFormatter, metric } = {}) {
   const list = rows || []
   const m = metric || DEFAULT_METRIC
   const domain = yDomain(list, m) || [0, 1]
-  const fmt = valueFormatter || ((v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`))
+  const fmt = valueFormatter || ((v) => (v == null ? '—' : formatCurrency(Number(v))))
 
   return {
     grid: { ...GRID_BASE },
@@ -223,7 +224,7 @@ export function buildLollipopOption(rows, { valueFormatter, metric } = {}) {
         const estLine = `Est ${fmt(mval(r, m, 'estimate'))}`
         if (!r.reported) return `${head}<br/>${estLine} · not reported yet`
         const surprise = m.surprise ? num(r[m.surprise]) : null
-        const tail = surprise == null ? '' : ` (${surprise > 0 ? '+' : ''}${surprise.toFixed(1)}%)`
+        const tail = surprise == null ? '' : ` (${formatPercent(surprise, { decimals: 1, signed: surprise > 0 })})`
         return `${head}<br/>${estLine}<br/>Act ${fmt(mval(r, m, 'actual'))}${tail}${state ? ` · ${state}` : ''}`
       },
     },

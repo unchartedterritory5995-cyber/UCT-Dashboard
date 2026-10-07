@@ -38,6 +38,7 @@ import { h, p, labeled, bullets, hr, doc } from '../../../lib/tiptapDocBuilders'
 import { callout, table } from './templateBlocks'
 import { notebookFlag } from './offline/notebookFlags'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { percent } from '../../../lib/journal-2-0/format'
 
 export const EARNINGS_PREP_FLAG = 'notebook_earnings_prep_enabled'
 export const SOON_URL = '/api/j2/earnings-prep/soon'
@@ -281,7 +282,10 @@ function tradeLine(t) {
   const parts = [t.side || 'Trade']
   if (t.entryDate) parts.push(`in ${fmtShortDay(t.entryDate)}`)
   if (t.exitDate) parts.push(`out ${fmtShortDay(t.exitDate)}`)
-  if (isNum(t.pnlPercent)) parts.push(fmtPct(t.pnlPercent))
+  // The journal stores a trade's percent result as a FRACTION (0.123 is 12.3%), so it goes
+  // through the Journal's own percent formatter, the one the Trade Log prints it with. The
+  // other figures in this note (expected move, reactions, surprises) arrive as percents.
+  if (isNum(t.pnlPercent)) parts.push(percent(t.pnlPercent, { signed: true, dp: 1 }))
   if (isNum(t.rMultiple)) parts.push(`${t.rMultiple.toFixed(1)}R`)
   if (t.result) parts.push(t.result)
   return parts.join(' · ')

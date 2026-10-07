@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { withDeadline } from '../../../utils/withDeadline'
 
 // Packet G CP1: every catalyst entry UCT's engine has ever recorded for this
 // ticker, across all dates -- keyed off the SETTLED symbol, same convention
@@ -10,7 +11,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 // collapsing a non-2xx into null.
 export async function fetchCatalystHistory(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await withDeadline(fetch(url, { credentials: 'include' }), url)
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {

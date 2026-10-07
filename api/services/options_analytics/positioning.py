@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime as _dt
-import math
 import time
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -357,15 +356,21 @@ async def impact(sym: str, dte: str = "month") -> dict:
 
 LEVELS_METHOD = ("Call Wall, Put Wall and Zero Gamma are the GEX page's own levels "
                  "(api/gex_service.py, the same computation). Absolute Gamma and Key Delta "
-                 "strikes, max pain and the implied moves are computed here from the same chain; "
-                 "the implied moves use the vendor's at-the-money IV on the nearest expiration.")
+                 "strikes and max pain are computed here from the same chain (max pain for the "
+                 "nearest expiration, named beside it); the implied moves use a 30-day "
+                 "constant-maturity at-the-money IV -- the vendor's ATM IV on the two listed "
+                 "expirations bracketing 30 calendar days, interpolated in total variance -- "
+                 "on the one convention IV x sqrt(trading sessions / 252).")
+
+CM_DAYS = 30
 
 
-def _atm_iv(sym: str) -> Optional[dict]:
-    """Vendor ATM IV on the nearest expiration: mean of the call and put IV at the strike closest
-    to spot, from the member chain (`polygon_options.get_chain`)."""
+def _atm_iv(sym: str, expiration: str = "") -> Optional[dict]:
+    """Vendor ATM IV on one expiration (the chain's default -- the nearest non-0DTE one -- when
+    none is named): mean of the call and put IV at the strike closest to spot, from the member
+    chain (`polygon_options.get_chain`)."""
     from api.services import polygon_options
-    c = polygon_options.get_chain(sym, strikes_around_spot=2)
+    c = polygon_options.get_chain(sym, expiration=expiration, strikes_around_spot=2)
     if not isinstance(c, dict) or c.get("error") or not c.get("spot"):
         return None
     spot = float(c["spot"])
@@ -385,11 +390,65 @@ def _atm_iv(sym: str) -> Optional[dict]:
             "spot": spot}
 
 
-_atm = _atm_iv
+def _atm_iv_30d(sym: str, *, today=None) -> Optional[dict]:
+    """O6: a 30-day constant-maturity ATM IV. The nearest expiration (often 0DTE) priced the
+    1-day and 5-day moves off whatever the last hours of a dying contract were doing. Here the
+    two listed expirations that bracket 30 calendar days each give their vendor ATM IV, and the
+    30-day IV is interpolated in total variance (IV^2 x days). With only one side listed, that
+    expiration is used and the basis says so. None when no ATM IV can be read at all."""
+    import datetime as _d
+    from zoneinfo import ZoneInfo
+    from api.services import polygon_options
+    today = today or _d.datetime.now(ZoneInfo("America/New_York")).date()
+    listed = polygon_options.list_expirations(sym)
+    ok = isinstance(listed, dict) and not listed.get("error")
+    dated = []
+    for e in (listed.get("expirations") or []) if ok else []:
+        try:
+            d = (_d.date.fromisoformat(e) - today).days
+        except (TypeError, ValueError):
+            continue
+        if d > 0:
+            dated.append((d, e))
+    dated.sort()
+    below = [x for x in dated if x[0] <= CM_DAYS]
+    above = [x for x in dated if x[0] >= CM_DAYS]
+    picks = []
+    if below:
+        picks.append(below[-1])
+    if above and (not picks or above[0] != picks[0]):
+        picks.append(above[0])
+    reads = []
+    for d, e in picks:
+        a = _atm_iv(sym, e)
+        if a is not None and a.get("iv"):
+            reads.append((d, e, a))
+    if not reads:
+        a = _atm_iv(sym)                     # nothing bracketing read: the chain's default expiry
+        if a is None:
+            return None
+        return {**a, "basis": "nearest expiration (no 30-day read)",
+                "expirations": [a.get("expiration")]}
+    if len(reads) == 1:
+        d, e, a = reads[0]
+        basis = ("30-day expiration" if d == CM_DAYS
+                 else f"single expiration {d} days out (none listed on the other side of 30 days)")
+        return {**a, "basis": basis, "expirations": [e]}
+    (d1, e1, a1), (d2, e2, a2) = reads
+    w1, w2 = a1["iv"] ** 2 * d1, a2["iv"] ** 2 * d2
+    w = w1 + (w2 - w1) * (CM_DAYS - d1) / (d2 - d1)
+    iv = (max(w, 0.0) / CM_DAYS) ** 0.5
+    return {"iv": iv, "strike": a1["strike"], "expiration": None, "spot": a1["spot"],
+            "basis": f"30-day constant maturity from {e1} ({d1}d) and {e2} ({d2}d)",
+            "expirations": [e1, e2]}
+
+
+_atm = _atm_iv_30d
 
 
 def levels_from(sym: str, dte: str, ch: dict, gex: dict, atm: Optional[dict]) -> dict:
     from api.gex_service import contract_gex
+    from api.services.options_analytics import move_convention as mc
     from api.services.options_analytics import positioning_vocab as pv
     spot = ch["spot"]
     gamma_by_k: dict = {}
@@ -411,9 +470,11 @@ def levels_from(sym: str, dte: str, ch: dict, gex: dict, atm: Optional[dict]) ->
         "absolute_gamma_strike": max(gamma_by_k, key=gamma_by_k.get) if gamma_by_k else None,
         "key_delta_strike": max(delta_by_k, key=lambda k: abs(delta_by_k[k])) if delta_by_k else None,
         "max_pain": mp[0]["max_pain"] if mp else None,
-        "implied_move_1d": round(spot * atm["iv"] * math.sqrt(1 / 252), 2) if atm else None,
-        "implied_move_5d": round(spot * atm["iv"] * math.sqrt(5 / 252), 2) if atm else None,
+        # O11: the one convention, IV x sqrt(trading sessions / 252) (move_convention.py)
+        "implied_move_1d": round(spot * mc.sigma(atm["iv"], 1), 2) if atm else None,
+        "implied_move_5d": round(spot * mc.sigma(atm["iv"], 5), 2) if atm else None,
     }
+    expiration_of = {"max_pain": mp[0]["expiration"] if mp else None}
     roles = (gex.get("levels") or {}) if ok else {}
     role_of = {"call_wall": (roles.get("call_wall") or {}).get("label"),
                "put_wall": (roles.get("put_wall") or {}).get("label"),
@@ -424,16 +485,25 @@ def levels_from(sym: str, dte: str, ch: dict, gex: dict, atm: Optional[dict]) ->
             continue
         rows.append({"id": tid, "label": pv.label_of(tid), "value": vals[tid],
                      "unit": "$ move" if tid.startswith("implied_move") else "strike",
-                     "role": role_of.get(tid)})
+                     "role": role_of.get(tid),
+                     # O6: which expiration a per-expiry level is FOR (max pain); None elsewhere
+                     "expiration": expiration_of.get(tid)})
     notes = []
     if not ok:
         notes.append(f"The GEX levels are unavailable: {gex['error']}.")
     if atm is None:
-        notes.append("No at-the-money IV on the nearest expiration; implied moves are blank.")
+        notes.append("No at-the-money IV could be read; implied moves are blank.")
+    if ok and gex.get("zeroGammaMethod") and not gex.get("zeroGammaIsFlip"):
+        notes.append("Zero Gamma here is a stand-in level, not a flip of cumulative gamma "
+                     f"(method: {gex['zeroGammaMethod']}).")
     return {**_base(sym, dte, ch, LEVELS_METHOD),
             "vocabulary_version": pv.POSITIONING_VOCABULARY_VERSION, "levels": rows,
             "atm_iv": ({"value": round(atm["iv"], 4), "strike": atm["strike"],
-                        "expiration": atm["expiration"], "label": "vendor"} if atm else None),
+                        "expiration": atm["expiration"], "label": "vendor",
+                        "basis": atm.get("basis"), "expirations": atm.get("expirations")}
+                       if atm else None),
+            "zero_gamma_method": gex.get("zeroGammaMethod") if ok else None,
+            "move_convention": mc.CONVENTION_TEXT,
             "notes": notes}
 
 

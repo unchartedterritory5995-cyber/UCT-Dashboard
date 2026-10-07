@@ -90,9 +90,9 @@ _earnings: Callable[[str], Optional[str]] = _default_earnings
 
 
 def stance(sym: str, occ: str, direction: str, *, today: Optional[_dt.date] = None) -> dict:
-    from api.services.options_analytics.chain_tools import parse_occ
+    from api.services.options_analytics.chain_tools import parse_occ, root_matches
     parsed = parse_occ(occ)
-    if parsed is None or parsed["underlying"] != sym:
+    if parsed is None or not root_matches(parsed["underlying"], sym):
         raise ValueError(f"{occ!r} is not an option contract on {sym}")
     if direction not in ("bullish", "bearish"):
         raise ValueError("direction must be bullish or bearish")

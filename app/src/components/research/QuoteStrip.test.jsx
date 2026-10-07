@@ -19,7 +19,9 @@ describe('formatters', () => {
   })
 
   it('volume scales, and 0 is not "—"', () => {
-    expect(fmtVol(34437191)).toBe('34.44M')
+    // terminal compact ladder (round 2): M at one decimal, as on every panel
+    expect(fmtVol(34437191)).toBe('34.4M')
+    expect(fmtVol(512_300)).toBe('512K')
     expect(fmtVol(1.2e9)).toBe('1.20B')
     expect(fmtVol(0)).toBe('0')      // a halted name traded zero; that is a fact
     expect(fmtVol(null)).toBe('—')
@@ -34,7 +36,7 @@ describe('QuoteStrip', () => {
     expect(t).toContain('$314.81')   // high
     expect(t).toContain('$310.74')   // low
     expect(t).toContain('$312.41')   // prev close
-    expect(t).toContain('34.44M')    // volume
+    expect(t).toContain('34.4M')     // volume
   })
 
   it('does NOT print the price or the change — the banner is the one authority', () => {

@@ -59,6 +59,31 @@ describe('BulkActionBar — roving group (13Q-5)', () => {
     expect(tags.tabIndex).toBe(0)
   })
 
+  // Lane FIN-A11Y (review R4, M-15): the shared roving hook has Home and End; this bar's own
+  // handler had only the arrows.
+  it('End jumps to the last action and Home back to the first, moving the Tab stop with them', () => {
+    setup()
+    const tags = btn('Tags')
+    tags.focus()
+    expect(fireEvent.keyDown(tags, { key: 'End' })).toBe(false)   // handled: default prevented
+    const trash = btn('Move to Trash')
+    expect(document.activeElement).toBe(trash)
+    expect(trash.tabIndex).toBe(0)
+    expect(tags.tabIndex).toBe(-1)
+    expect(fireEvent.keyDown(trash, { key: 'Home' })).toBe(false)
+    expect(document.activeElement).toBe(tags)
+    expect(tags.tabIndex).toBe(0)
+    expect(trash.tabIndex).toBe(-1)
+  })
+
+  it('Home and End from OUTSIDE the action group are left alone (a text field keeps them)', () => {
+    setup()
+    const select = screen.getByRole('combobox', { name: /move/i })
+    select.focus()
+    expect(fireEvent.keyDown(select, { key: 'End' })).toBe(true)
+    expect(document.activeElement).toBe(select)
+  })
+
   it('the last stop holds too (Move to Trash, going right)', () => {
     // Arrow movement reads the keydown's OWN target (real DOM focus), never the
     // `activeAction` state, so this needs no setup beyond focusing the last button directly.

@@ -1,0 +1,205 @@
+/* MOST — the movers panel. App tokens only (the terminal wears the member's theme); row height,
+   gaps and type size follow the board density through the --panel-* variables. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap, var(--space-sm));
+  color: var(--text);
+  font-size: var(--panel-fs, var(--text-sm));
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.lede {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Live is the only state that may look live; every other session reads as information. */
+.badge_regular { color: var(--gain); }
+.badge_pre,
+.badge_post { color: var(--info); }
+.badge_closed { color: var(--text-muted); }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.filter select {
+  font: inherit;
+  padding: 1px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-left: 2px solid var(--warn);
+  background: var(--warn-bg);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+.tableBox {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  height: var(--panel-row-h, 24px);
+  padding: calc(var(--panel-gap, var(--space-sm)) / 4) var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child,
+.table th:last-child,
+.table td:last-child {
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: var(--text-xs);
+}
+
+.sortBtn,
+.rowBtn,
+.whyBtn,
+.linkBtn {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.sortBtn:hover,
+.sortBtn:focus-visible,
+.rowBtn:hover,
+.rowBtn:focus-visible {
+  color: var(--accent);
+}
+
+.rowNum {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.sym {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+}
+
+.whyBtn {
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.linkBtn {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.rowOpen td {
+  border-bottom-color: transparent;
+}
+
+.whyRow td {
+  height: auto;
+  white-space: normal;
+  text-align: left !important;
+  padding-block: var(--space-xs) var(--space-sm);
+}
+
+.thesis {
+  margin: 0 0 var(--space-xs);
+  line-height: var(--lh-normal);
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.up { color: var(--gain); }
+.down { color: var(--loss); }
+
+.inPanel {
+  min-height: 0;
+}

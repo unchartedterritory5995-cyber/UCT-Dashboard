@@ -347,10 +347,13 @@ def test_the_flag_is_read_per_request(client, monkeypatch):
     assert client.get(BASE + "/cards").status_code == 404
 
 
-def test_the_grid_needs_a_paid_plan_and_before_after_a_session(client, monkeypatch):
+def test_the_grid_and_before_after_both_need_a_paid_plan(client, monkeypatch):
+    """Before/after was session-only; owner ruling 2026-10-02 (security review I-7) closed it."""
     monkeypatch.setenv(vp.FLAG, "1")
     as_user(client, "m1", FREE)
     assert client.get(BASE + "/cards").status_code == 402
+    assert client.get(BASE + "/trades/nope/before-after").status_code == 402
+    as_user(client, "m1", PAID)
     assert client.get(BASE + "/trades/nope/before-after").status_code == 404
 
 

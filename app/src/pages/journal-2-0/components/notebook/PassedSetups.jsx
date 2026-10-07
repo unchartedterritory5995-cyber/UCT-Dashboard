@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -46,10 +46,35 @@ export default function PassedSetups() {
     enabled ? PASSED_URL : null, () => fetchPassedSetups(),
     { revalidateOnFocus: false, shouldRetryOnError: false },
   )
+  // The list is a plain read; the server refreshes scores AFTER answering and says so
+  // (`refreshQueued`). One follow-up read picks the fresher list up. The server queues at
+  // most one refresh per member per interval, so the follow-up never asks for another.
+  const refreshQueued = data?.refreshQueued === true
+  useEffect(() => {
+    if (!refreshQueued) return undefined
+    const t = setTimeout(() => { mutate() }, 2500)
+    return () => clearTimeout(t)
+  }, [refreshQueued, mutate])
   const [symbol, setSymbol] = useState('')
   const [savedOn, setSavedOn] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  // FIN-A11Y (review R4, M-5): Add and Remove were silent, and Remove took the focused
+  // button away. `notice` fills a status line that is always mounted; after a remove, focus
+  // goes to the row that took the removed one's place (else the row before, else the field).
+  const [notice, setNotice] = useState('')
+  const listRef = useRef(null)
+  const tickerRef = useRef(null)
+  const focusRowRef = useRef(null) // index of the removed row, until the list re-renders
+  const rowCount = Array.isArray(data?.items) ? data.items.length : 0
+  useEffect(() => {
+    const at = focusRowRef.current
+    if (at == null) return
+    focusRowRef.current = null
+    const buttons = [...(listRef.current?.querySelectorAll('[data-passed-remove]') || [])]
+    const target = buttons[Math.min(at, buttons.length - 1)] || tickerRef.current
+    target?.focus()
+  }, [rowCount])
 
   if (!enabled) return null
 
@@ -63,6 +88,7 @@ export default function PassedSetups() {
       await addPassedSetup({ symbol: sym, savedOn: savedOn || undefined })
       setSymbol('')
       await mutate()
+      setNotice(`Added ${sym} to passed setups.`)
     } catch (err) {
       setMessage(err?.message || `Couldn't add ${sym}. Nothing was saved — try again.`)
     } finally {
@@ -72,9 +98,12 @@ export default function PassedSetups() {
 
   const remove = async (item) => {
     setMessage('')
+    const at = (Array.isArray(data?.items) ? data.items : []).findIndex((i) => i.id === item.id)
     try {
       await removePassedSetup(item.id)
+      focusRowRef.current = at < 0 ? 0 : at
       await mutate()
+      setNotice(`Removed ${item.symbol} from passed setups.`)
     } catch (err) {
       setMessage(err?.message || `Couldn't remove ${item.symbol}. Try again.`)
     }
@@ -95,7 +124,7 @@ export default function PassedSetups() {
       <form className={styles.addRow} onSubmit={add} aria-label="Add a passed setup" data-tour="passed-add">
         <label className={styles.field}>
           <span className={styles.fieldLabel}>Ticker</span>
-          <input className={styles.input} value={symbol} onChange={(e) => setSymbol(e.target.value)}
+          <input ref={tickerRef} className={styles.input} value={symbol} onChange={(e) => setSymbol(e.target.value)}
             placeholder="NVDA" autoComplete="off" aria-label="Ticker you passed on" />
         </label>
         <label className={styles.field}>
@@ -118,7 +147,7 @@ export default function PassedSetups() {
       )}
 
       {items.length > 0 && (
-        <ul className={styles.list} aria-label="Passed setups" data-tour="passed-list">
+        <ul ref={listRef} className={styles.list} aria-label="Passed setups" data-tour="passed-list">
           {items.map((item) => (
             <li key={item.id} className={styles.row} data-passed-symbol={item.symbol} data-status={item.status}>
               <div className={styles.main}>
@@ -133,7 +162,7 @@ export default function PassedSetups() {
                   {item.baseDate ? ` · from the ${fmtDay(item.baseDate)} close` : ''}
                 </span>
                 <button type="button" className={styles.remove} onClick={() => remove(item)}
-                  aria-label={`Remove ${item.symbol} from passed setups`}>
+                  aria-label={`Remove ${item.symbol} from passed setups`} data-passed-remove="">
                   <UIcon name="x" size={12} gold={false} />
                 </button>
               </div>
@@ -156,6 +185,7 @@ export default function PassedSetups() {
         </p>
       )}
       {message && <p className={styles.error} role="alert">{message}</p>}
+      <p className={`${styles.quiet} ${styles.notice}`} role="status" data-passed-status="">{notice}</p>
     </section>
   )
 }

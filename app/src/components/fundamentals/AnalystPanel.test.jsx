@@ -3,7 +3,9 @@ import { vi } from 'vitest'
 import AnalystPanel from './AnalystPanel'
 
 const mockData = vi.fn()
-vi.mock('../../hooks/useAnalystIntel', () => ({ default: () => ({ data: mockData() }) }))
+const mockError = vi.fn(() => undefined)
+const mockMutate = vi.fn()
+vi.mock('../../hooks/useAnalystIntel', () => ({ default: () => ({ data: mockData(), error: mockError(), mutate: mockMutate }) }))
 
 test('renders consensus, price target, and an upgrade action', () => {
   mockData.mockReturnValue({
@@ -96,4 +98,24 @@ test('…and a refusal is NOT confused with having no coverage', () => {
   mockData.mockReturnValue({ locked: true })
   render(<AnalystPanel sym="AAPL" />)
   expect(screen.queryByText(/no analyst coverage/i)).not.toBeInTheDocument()
+})
+
+// TERM-033: the hook now THROWS on a failed read. A failure with no earlier answer is an
+// error with a Retry: not a loading state that never ends, and not a claim about the company.
+test('TERM-033: a failed read says so, with a Retry', async () => {
+  mockData.mockReturnValue(undefined)
+  mockError.mockReturnValue(new Error('Request failed (502)'))
+  render(<AnalystPanel sym="AAPL" />)
+  expect(screen.getByRole('alert').textContent).toMatch(/could not load analyst data for AAPL/i)
+  expect(screen.queryByText(/^no /i)).not.toBeInTheDocument()
+  screen.getByRole('button', { name: 'Retry' }).click()
+  expect(mockMutate).toHaveBeenCalled()
+  mockError.mockReturnValue(undefined)
+})
+
+test('TERM-033 control: still loading (no error) is not an error', () => {
+  mockData.mockReturnValue(undefined)
+  mockError.mockReturnValue(undefined)
+  render(<AnalystPanel sym="AAPL" />)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })

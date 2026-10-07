@@ -2,6 +2,7 @@
 import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import { localIso } from './weekAnchor'
+import { withDeadline } from '../../utils/withDeadline'
 
 const fetcher = (url) => fetch(url).then(r => r.ok ? r.json() : null)
 
@@ -76,6 +77,10 @@ const calendarFetcher = async (url) => {
   return r.json()
 }
 
+// Same contract, with the house 30 s deadline, for the reads below that are not the week itself
+// (month grid, IPO and dividend chips): a request that never answers ends as a failure.
+const deadlineCalendarFetcher = (url) => withDeadline(calendarFetcher(url), url)
+
 export function useCalendar(week) {
   // week = Monday ISO (YYYY-MM-DD) for paged weeks, or null/undefined for the
   // current week. Non-current weeks are near-static server-side (1-6 h cache),
@@ -117,16 +122,22 @@ export function useReactions(ds) {
 // enrichment endpoint and returns a { [ds]: {SYM:{expected_move,beat_history}} } map.
 // MUST be a single stable hook (not a loop) to avoid "rendered more hooks than during
 // the previous render" crash when weekDates length changes between renders.
+export const ENRICHMENT_FAILED = Object.freeze({ __failed: true })
+
 export function useWeekEnrichment(weekDates) {
   const key = weekDates && weekDates.length ? `enrich:${weekDates.join(',')}` : null
   return useSWR(
     key,
     // ONE batch request for the whole week (was one fetch per day → N round-trips
-    // + N backend threadpool slots). Falls back to {} on any failure.
-    () => fetch(`/api/calendar/enrichment-batch?dates=${weekDates.join(',')}`)
-      .then(r => (r.ok ? r.json() : {}))
-      .then(e => e || {})
-      .catch(() => ({})),
+    // + N backend threadpool slots). A failure answers ENRICHMENT_FAILED: the week's
+    // columns still settle to "—", but the earnings modal must not read a failed batch
+    // as "this company has never reported" (it did: a {} here made every modal opened
+    // that week claim "No reported quarters yet"). It resolves rather than throws so
+    // the 5-minute refresh keeps re-asking (SWR stops polling a key holding an error).
+    () => withDeadline(fetch(`/api/calendar/enrichment-batch?dates=${weekDates.join(',')}`), 'enrichment-batch')
+      .then(r => (r.ok ? r.json() : ENRICHMENT_FAILED))
+      .then(e => e || ENRICHMENT_FAILED)
+      .catch(() => ENRICHMENT_FAILED),
     { refreshInterval: 300000, revalidateOnFocus: false }
   )
 }
@@ -161,11 +172,12 @@ export function useWeekMetrics(weekDates, isCurrentWeek = true) {
   )
 }
 
-// Full-month earnings from /api/calendar/month
+// Full-month earnings from /api/calendar/month. The THROWING fetcher (quality pass 2026-10-05):
+// a null-mapped failure rendered as an empty month, which reads as "no reporters".
 export function useMonthCalendar(year, month) {
   return useSWR(
     year && month ? `/api/calendar/month?year=${year}&month=${month}` : null,
-    fetcher,
+    deadlineCalendarFetcher,
     { refreshInterval: _MONTH_REFRESH, revalidateOnFocus: false },
   )
 }
@@ -173,6 +185,28 @@ export function useMonthCalendar(year, month) {
 const _MONTH_REFRESH = 30 * 60 * 1000 // 30 min — matches backend TTL
 
 // ── B3: IPO calendar hook ─────────────────────────────────────────────────────
+
+// The IPO and dividend chips used to read through the null-mapping fetcher, so a failed read
+// and "no events this week" were the same empty chips -- the chips just vanished (quality pass
+// 2026-10-05). The fetcher THROWS on a failed request and reads the server's own label
+// (`X-Calendar-Read: failed|partial`, api/routers/calendar.py) for a read whose providers failed
+// behind a 200. The hook still hands back `data` as the bare list every consumer reads, plus
+// `readState`: 'loading' | 'failed' | 'partial' | 'ok'.
+async function eventsFetcher(url) {
+  const r = await withDeadline(fetch(url), url)
+  if (!r.ok) throw new Error(`calendar events ${r.status}`)
+  const status = r.headers?.get?.('X-Calendar-Read') || null
+  const rows = await r.json()
+  return { rows: Array.isArray(rows) ? rows : [], status }
+}
+
+export function eventChipRead(swr) {
+  const payload = swr.data
+  const readState = payload
+    ? (payload.status === 'failed' ? 'failed' : payload.status === 'partial' ? 'partial' : 'ok')
+    : (swr.error ? 'failed' : 'loading')
+  return { ...swr, data: payload ? payload.rows : undefined, readState }
+}
 
 /**
  * useIpos(from, to) — SWR hook for GET /api/calendar/ipos?from=&to=
@@ -183,10 +217,10 @@ const _MONTH_REFRESH = 30 * 60 * 1000 // 30 min — matches backend TTL
  */
 export function useIpos(from, to) {
   const key = from && to ? `/api/calendar/ipos?from=${from}&to=${to}` : null
-  return useSWR(key, fetcher, {
+  return eventChipRead(useSWR(key, eventsFetcher, {
     refreshInterval: 30 * 60 * 1000,
     revalidateOnFocus: false,
-  })
+  }))
 }
 
 // ── B3: Dividends/splits hook ─────────────────────────────────────────────────
@@ -203,8 +237,8 @@ export function useDividends(syms) {
   // data not ready). When syms is provided, scope to that sym list; when
   // truthy but empty string, fall back to server-side My-Stocks default.
   const url = syms ? `/api/calendar/dividends?syms=${syms}` : null
-  return useSWR(url, fetcher, {
+  return eventChipRead(useSWR(url, eventsFetcher, {
     refreshInterval: 30 * 60 * 1000,
     revalidateOnFocus: false,
-  })
+  }))
 }

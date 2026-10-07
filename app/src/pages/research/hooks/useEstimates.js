@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { fetchWithWarmRetry } from '../../../utils/warmRetry'
 
 // TERM-088 -- estimates tab (EE). A failed read is not an empty estimate
 // set; see useDecisionRecord.js for why the fetcher keeps the HTTP outcome
 // instead of collapsing a non-2xx into null.
 export async function fetchEstimates(url) {
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await fetchWithWarmRetry(url, { credentials: 'include' })
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {

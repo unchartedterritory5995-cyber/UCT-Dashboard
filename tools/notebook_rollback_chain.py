@@ -4,6 +4,8 @@
     python tools/notebook_rollback_chain.py --through wave5 --from <rev>
     python tools/notebook_rollback_chain.py --list                        # the chain and keep-list
     python tools/notebook_rollback_chain.py --check --from origin/master  # current (0) or stale (2)?
+    python tools/notebook_rollback_chain.py --landing <squash> --from origin/master       # ONE landing
+    python tools/notebook_rollback_chain.py --landing <branch tip> --pending --from origin/master
 
 It never touches a worktree, an index (only a temporary GIT_INDEX_FILE) or a ref. It writes ONE
 commit per step, each the parent of the next (so the result is a chain of commits on top of
@@ -46,6 +48,13 @@ notebook-wave5-guard-*). 82c56dd63 is not re-applied: measured, it conflicts in 
 context wave 5's revert removes, and a rolled-back bundle declares schema 0 from every door,
 where it is not load-bearing (wave5-rollback.md, "Why 82c56dd63 rides along").
 
+`--landing` reverts ONE landing on top of `--from`, with the same keep-list and NO recorded rules:
+any product conflict stops it (fail closed). It does not need the chain to be current at `--from`,
+so it is the lever for the newest landing while the chain below it waits for a re-measure. With
+`--pending`, the landing is a branch that has not merged yet: the tool builds the squash it WILL
+be (the branch's tree on its merge-base with `--from`), from objects only, and reverts that -- the
+rehearsal of a rollback before the landing exists (docs/notebook/landing-12-15-rollback.md).
+
 MEASURED_AT is the tip the chain, its rules and the rehearsal were measured on.
 `tests/test_notebook_rollback_chain.py` rebuilds the chain from MEASURED_AT and asserts every
 step's tree equals the rehearsed one, and that no Notebook landing is missing from `CHAIN`.
@@ -62,7 +71,12 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "b529c8a78"          # moved from c75bf6ea0 by lane R1h, 2026-10-01 (L15 #262 live)
+# Moved from b529c8a78 by lane ROLLBACK, 2026-10-06 (wave 11 #263). ⚠️ This is wave 11's OWN
+# squash, not production's tip: master has moved 600+ commits past it and, measured the same day,
+# the chain stops there on conflicts nobody has ruled (docs/notebook/evidence/
+# rollback-rehearsal-2026-10-06-fin/conflict-map-origin-master.txt). The chain is current HERE;
+# `--check --from origin/master` says stale and names what a re-measure must read.
+MEASURED_AT = "f473d00b3"
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -72,11 +86,32 @@ SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
 SCHEMA_RAILS = ("app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js",
                 "tests/test_notebook_schema_guard.py")
 KEEP_AT_TIP = SCHEMA_FILES + SCHEMA_RAILS
+# Files kept at the tip while ONE named landing is reverted, {CHAIN key: paths}. Narrower than
+# KEEP_AT_TIP on purpose: these files are code, not tables, and a copy kept below the landing
+# that wrote it would import modules the deeper reverts remove.
+#   * `account_purge.py` -- the landing adds twelve tables to the account-deletion list. The
+#     tables and the member rows in them stay in the database after a revert, so a reverted list
+#     would leave those rows behind when the member deletes their account. Kept, the purge still
+#     names them ("no such table" is a no-op on a pod that never created one). Measured: every
+#     import in the tip's copy resolves on the reverted tree (docs/notebook/
+#     landing-12-15-rollback.md). ⛔ NOT kept at W11 or below: the tip's copy imports
+#     `voice_notes` (wave 11) and `account_tombstones` (wave 10 L1a); kept there it would report
+#     an error on every deletion, or fail to import. Those steps revert it with the code, as they
+#     always have, and lose their own landing's rows from the list -- stated in the runbook.
+#   * the rails that prove it travel with it: a kept file checked by a reverted rail is a red
+#     rail on a correct tree (the same reason as SCHEMA_RAILS).
+LANDING_12_15 = "W12-15"
+KEEP_WITH_LANDING: dict[str, tuple[str, ...]] = {
+    LANDING_12_15: ("api/services/journal_two/account_purge.py",
+                    "tests/test_journal_two_account_purge.py",
+                    "tests/test_notebook_rollback_never_revert.py"),
+}
 KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("W11", "f473d00b3", "wave 10 L16 + wave 11 #263"),
     ("L15", "b529c8a78", "wave 10 L15 #262"),
     ("L14", "0e7d0561a", "wave 10 L14 #260"),
     ("L13", "a680b0d40", "wave 10 L13 #259"),
@@ -248,7 +283,45 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # RAISED. MEASURED_AT moves to L15's own sha, b529c8a786, not past it: unlike L14's window, no
 # REVIEWED_NOT_LANDINGS commit lands after L15 in this one -- L15 is the newest commit the census
 # selects at all, and it is itself the tip.
+# Lane ROLLBACK, 2026-10-06: five path-only commits in b529c8a78..f473d00b3 (under wave 11 #263,
+# in CHAIN by SUBJECT AND PATH both: its squash reads "Notebook: wave 10 close (L16) + wave 11
+# ..."), each read via its own diff. NONE edits Notebook-owned code. c4d31ba61 adds one allow-list
+# line to the shared deep-link rail app/src/lib/context/symbolLinkChannels.test.js (a dev-only
+# pane harness). dd7bf82c3 (COV-04 filing blackline) and 8881660a4 (COV-01 seasonality) each add
+# a router mount to api/main.py and a flag reader + payload key to api/routers/auth.py, the same
+# shape as the TERM-038/TERM-049 entries. 85ea66ccf (TERM-067) adds aria-labels to the form
+# controls of app/src/pages/Support.jsx and Watchlists.jsx. 1368fbebe (Pine C41) adds one
+# `chunkFileNames` rule to app/vite.config.js so a shared chunk keeps its name; its comment
+# mentions the Notebook's first-open byte closure, which is the bundle-wide budget, not a Notebook
+# code change (the same reading as 20bbfd05d). Nothing here is RAISED.
+# ⚠️ MEASURED_AT moves to wave 11's own sha and NO FURTHER. Master is 600+ commits past it. The
+# census selects 100 more commits there (64 up to 5ecf9ef39, 36 after), all by path only, and
+# the chain meets 30 conflicts at 15 of its steps (23 with no rule, 7 recorded ones whose
+# lines moved). Both lists are in
+# docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/ (census-*.json,
+# conflict-map-origin-master.txt): the work a re-measure at production's tip has to do. Until
+# then ONE landing is rolled back with `--landing`, which needs no chain.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
+    "c4d31ba613f26692289112f61504529f026d4d14":
+        "test(context): names the dev-only pane-identity harness in the shared deep-link rail "
+        "app/src/lib/context/symbolLinkChannels.test.js (one allow-list line); no Notebook route "
+        "or file touched",
+    "dd7bf82c3f1c179340689525046626a9a7fa532b":
+        "feat(research) COV-04: filing-to-filing blackline, dark; mounts a router in api/main.py "
+        "and adds a flag reader + payload key in api/routers/auth.py (shared files), no Notebook "
+        "route touched",
+    "8881660a40f30185279117974929d684db1a308f":
+        "feat(research) COV-01: seasonality by month and weekday, dark; mounts a router in "
+        "api/main.py and adds a flag reader + payload key in api/routers/auth.py (shared files), "
+        "no Notebook route touched",
+    "85ea66ccfa4276854553927525278cdbc7a729c6":
+        "Terminal TERM-067: accessible names on nine more member surfaces; touches "
+        "app/src/pages/Support.jsx and app/src/pages/Watchlists.jsx only to add aria-labels to "
+        "their form controls (shared files), no Notebook route touched",
+    "1368fbebec753a3aa2564d2e0aa95fae4e0ee051":
+        "feat(pine) C41: the lower-timeframe read behind VITE_PINE_LOWER_TF_ENABLED; touches "
+        "app/vite.config.js only to keep one shared chunk's file name (shared build file); the "
+        "Notebook byte closure its comment cites is the bundle-wide budget, not a Notebook change",
     "7265862018f7a2fee21771fce86e5dea580e87c7":
         "feat(charts): Technical library Tier 1 -- 33 studies, 9 MA types, real fixed scales; "
         "touches app/src/pages/Settings.jsx only to widen the Moving Average overlay's type "
@@ -671,8 +744,12 @@ def _resolve_hunks(text: bytes, choices) -> bytes:
     return b"".join(res)
 
 
-def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False, pins=None) -> dict:
-    """One revert (or, `pick`, one cherry-pick) of `squash` onto `prev` -> a resolved tree."""
+def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False, pins=None,
+               keep: tuple[str, ...] = ()) -> dict:
+    """One revert (or, `pick`, one cherry-pick) of `squash` onto `prev` -> a resolved tree.
+    `keep` names more files that stay byte-identical to the tip at THIS step only
+    (KEEP_WITH_LANDING); KEEP_AT_TIP stays so at every step."""
+    keep_at_tip = KEEP_AT_TIP + tuple(k for k in keep if k not in KEEP_AT_TIP)
     base, theirs = (f"{squash}^", squash) if pick else (squash, f"{squash}^")
     r = _git("merge-tree", "--write-tree", "--name-only", "--messages", f"--merge-base={base}",
              prev, theirs, ok=(0, 1))
@@ -717,7 +794,7 @@ def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False, pins=Non
             b = _git("hash-object", "-w", "--stdin", inp=data).stdout.decode().strip()
             _git("update-index", "--add", "--cacheinfo", f"100644,{b},{path}", env=env)
 
-        product = [p for p in conflicts if p not in KEEP_AT_TIP
+        product = [p for p in conflicts if p not in keep_at_tip
                    and not any(p == k or p.startswith(k + "/") for k in KEEP_PATHS)]
         rules = RULES.get(squash, {})
         missing = [p for p in product if p not in rules]
@@ -753,8 +830,8 @@ def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False, pins=Non
                 if re.search(rb"^(<<<<<<<|>>>>>>>) ", data, re.M):
                     raise ChainStopped(f"conflict markers left in {p}")
                 put_bytes(p, data)
-        would_change = [p for p in KEEP_AT_TIP if p in conflicts or _blob(merged, p) != _blob(prev, p)]
-        for p in KEEP_AT_TIP:
+        would_change = [p for p in keep_at_tip if p in conflicts or _blob(merged, p) != _blob(prev, p)]
+        for p in keep_at_tip:
             put_from(tip, p)
         tree = _out("write-tree", env=env).strip()
     finally:
@@ -762,7 +839,8 @@ def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False, pins=Non
             os.remove(idx)
     return {"op": "cherry-pick" if pick else "revert", "squash": squash, "conflicts": conflicts,
             "product_conflicts": product, "schema_change_undone": would_change, "tree": tree,
-            "schema_identical_to_tip": all(_blob(tree, p) == _blob(tip, p) for p in KEEP_AT_TIP)}
+            "kept_at_tip": list(keep_at_tip),
+            "schema_identical_to_tip": all(_blob(tree, p) == _blob(tip, p) for p in keep_at_tip)}
 
 
 def plan(through: str, revert_hotfixes: bool = False) -> list[tuple[str, str, str, bool]]:
@@ -857,7 +935,7 @@ def run(start: str, through: str, revert_hotfixes: bool = False, emit=print, pin
             "check list (step 2) and the sandbox rehearsal (step 3) are MANDATORY before this ships.")}))
     prev = tip
     for key, squash, what, pick in plan(through, revert_hotfixes):
-        res = apply_step(prev, squash, tip, pick=pick, pins=pins)
+        res = apply_step(prev, squash, tip, pick=pick, pins=pins, keep=KEEP_WITH_LANDING.get(key, ()))
         res.update(key=key, what=what)
         msg = (f"{'Re-apply' if pick else 'Revert'} {squash} ({what}) -- Notebook rollback through "
                f"{through}, built by tools/notebook_rollback_chain.py")
@@ -868,6 +946,92 @@ def run(start: str, through: str, revert_hotfixes: bool = False, emit=print, pin
              "from": tip, "next": f"git switch -c rollback/notebook-through-{through} {prev}"}
     emit(json.dumps(final))
     return final
+
+
+def _parents(sha: str) -> list[str]:
+    return _out("show", "--no-patch", "--format=%P", sha).split()
+
+
+def pending_squash(landing_tip: str, onto: str) -> tuple[str, str]:
+    """The squash an unmerged landing WILL be, built from objects only: the branch's tree as one
+    commit on its merge-base with `onto`. Returns (squash, base). No ref, no worktree; git gc
+    reclaims it. The diff base..squash is exactly `git diff onto...landing_tip`."""
+    base = _out("merge-base", onto, landing_tip).strip()
+    tree = _out("rev-parse", "--verify", f"{landing_tip}^{{tree}}").strip()
+    msg = (f"PENDING squash of {landing_tip[:10]} on {base[:10]} -- built by "
+           "tools/notebook_rollback_chain.py --landing --pending, never pushed")
+    return _out("commit-tree", tree, "-p", base, "-m", msg).strip(), base
+
+
+def revert_landing(landing: str, start: str, *, key: str = LANDING_12_15, pending: bool = False,
+                   emit=print) -> dict:
+    """Revert ONE landing on top of `start`, keeping KEEP_PATHS, KEEP_AT_TIP and
+    KEEP_WITH_LANDING[key] as the tip has them. No recorded rule applies: a product conflict
+    STOPS it and names the file. `pending`: `landing` is an unmerged branch tip and `start` the
+    branch it will land on; the squash is synthesised and reverted on top of itself."""
+    if key not in KEEP_WITH_LANDING:
+        raise ChainStopped(f"--key {key}: no landing keep-list by that name "
+                           f"(KEEP_WITH_LANDING has {', '.join(KEEP_WITH_LANDING)})")
+    landing_sha = _out("rev-parse", "--verify", f"{landing}^{{commit}}").strip()
+    start_sha = _out("rev-parse", "--verify", f"{start}^{{commit}}").strip()
+    out: dict = {"landing": landing_sha, "key": key, "pending": pending}
+    if pending:
+        squash, base = pending_squash(landing_sha, start_sha)
+        unmerged = len(_out("rev-list", f"{base}..{start_sha}").split())
+        out.update(base=base, onto=start_sha, onto_commits_the_landing_has_not_merged=unmerged)
+        if unmerged:
+            emit(json.dumps({"warning": (
+                f"the landing has not merged {unmerged} commit(s) of {start_sha[:9]}: this rehearses the "
+                f"squash on {base[:9]}, and the real squash will sit on a newer tree. Rehearse again "
+                "after the last merge, before the landing ships.")}))
+        tip = squash
+    else:
+        squash = landing_sha
+        if len(_parents(squash)) != 1:
+            raise ChainStopped(f"{squash[:9]} is not a one-parent squash: a Notebook landing is one "
+                               "squash, and a merge commit has no single 'before' to return to.")
+        if _git("merge-base", "--is-ancestor", squash, start_sha, ok=(0, 1)).returncode != 0:
+            raise ChainStopped(f"{start_sha[:9]} does not contain {squash[:9]}: nothing to revert there. "
+                               "For a landing that has not merged yet, pass --pending.")
+        tip = start_sha
+    out["squash"] = squash
+    own = [f for f in _out("diff-tree", "--no-commit-id", "--name-only", "-r", squash).splitlines()
+           if f and not any(f == k or f.startswith(k + "/") for k in KEEP_PATHS)]
+    if not own:
+        raise ChainStopped(f"{squash[:9]} changes nothing outside {', '.join(KEEP_PATHS)}: an empty "
+                           "answer is a failed question, not a landing with nothing to revert.")
+    later = []
+    if not pending:
+        owned = set(own)
+        for line in _out("log", "--format=%H%x09%s", f"{squash}..{tip}").splitlines():
+            sha, subject = line.split("\t", 1)
+            if len(_parents(sha)) != 1:
+                continue
+            hit = [f for f in _out("diff-tree", "--no-commit-id", "--name-only", "-r", sha).splitlines()
+                   if f in owned]
+            if hit:
+                later.append({"sha": sha[:9], "subject": subject[:70], "files": hit[:5]})
+    saved = RULES.pop(squash, None)             # landing mode never resolves by rule
+    try:
+        res = apply_step(tip, squash, tip, keep=KEEP_WITH_LANDING[key])
+    finally:
+        if saved is not None:
+            RULES[squash] = saved
+    msg = (f"Revert {squash} ({key}{', PENDING' if pending else ''}) -- one Notebook landing, the "
+           "keep-list kept, built by tools/notebook_rollback_chain.py --landing")
+    commit = _out("commit-tree", res["tree"], "-p", tip, "-m", msg).strip()
+    out.update(files_the_landing_changed=len(own), conflicts=res["conflicts"],
+               product_conflicts=res["product_conflicts"], kept_at_tip=res["kept_at_tip"],
+               kept_files_the_revert_would_have_changed=res["schema_change_undone"],
+               kept_identical_to_tip=res["schema_identical_to_tip"],
+               later_commits_on_the_landings_files=later, result=commit, tree=res["tree"],
+               next=f"git switch -c rollback/notebook-{key.lower()} {commit}")
+    if later:
+        emit(json.dumps({"warning": (
+            f"{len(later)} later commit(s) changed files this landing changed. The revert merged "
+            "clean, which is not the same as correct: read each one and rehearse before this ships.")}))
+    emit(json.dumps(out))
+    return out
 
 
 def main(argv=None) -> int:
@@ -883,7 +1047,25 @@ def main(argv=None) -> int:
     ap.add_argument("--record-pins", action="store_true",
                     help="run --through from MEASURED_AT with pins NOT enforced and print the pins "
                          "measured there (paste into PINS; the rail rebuilds and checks them)")
+    ap.add_argument("--landing", metavar="REV",
+                    help="revert ONE landing (its squash) on top of --from with the keep-list; no "
+                         "recorded rule applies, any product conflict stops it")
+    ap.add_argument("--pending", action="store_true",
+                    help="with --landing: REV is a branch that has not merged; build the squash it "
+                         "will be on its merge-base with --from, and revert that (a rehearsal)")
+    ap.add_argument("--key", default=LANDING_12_15,
+                    help=f"with --landing: whose keep-list applies (default {LANDING_12_15})")
     a = ap.parse_args(argv)
+    if a.landing:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        try:
+            revert_landing(a.landing, a.start, key=a.key, pending=a.pending)
+        except ChainStopped as e:
+            print(json.dumps({"stopped": str(e)}))
+            return 2
+        return 0
+    if a.pending:
+        ap.error("--pending goes with --landing")
     if a.record_pins:
         got: dict = {}
         run(MEASURED_AT, a.through or "wave5", a.revert_hotfixes, emit=lambda _l: None, pins=got)
@@ -901,6 +1083,8 @@ def main(argv=None) -> int:
             print(f"{key:6} {squash}  {what}{'  [KEPT unless --revert-hotfixes]' if squash in KEPT else ''}")
         print(f"after wave5: re-apply {', '.join(GUARD_PICKS)}; kept paths: {', '.join(KEEP_PATHS)}; "
               f"schema tables: {', '.join(SCHEMA_FILES)}")
+        for k, paths in KEEP_WITH_LANDING.items():
+            print(f"kept with landing {k} only (--landing, or its CHAIN step): {', '.join(paths)}")
         return 0
     if not a.through:
         ap.error("--through is required (or --list)")

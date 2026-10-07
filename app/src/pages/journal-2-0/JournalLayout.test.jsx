@@ -344,27 +344,29 @@ describe('JournalLayout — "+ Log Trade" header action (A5)', () => {
     expect(within(menu).getByRole('menuitem', { name: /closed trade/i })).toBeInTheDocument()
   })
 
-  it('"Log open position" opens the AddPositionModal add flow', () => {
+  // The two log dialogs load on demand (their chunk is fetched on the first open), so every
+  // test below that opens one awaits it once.
+  it('"Log open position" opens the AddPositionModal add flow', async () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /open position/i }))
-    expect(screen.getByTestId('add-position-modal')).toBeInTheDocument()
+    expect(await screen.findByTestId('add-position-modal')).toBeInTheDocument()
     expect(screen.queryByTestId('add-trade-modal')).not.toBeInTheDocument()
   })
 
-  it('"Log closed trade" opens the AddTradeModal add flow', () => {
+  it('"Log closed trade" opens the AddTradeModal add flow', async () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /closed trade/i }))
-    expect(screen.getByTestId('add-trade-modal')).toBeInTheDocument()
+    expect(await screen.findByTestId('add-trade-modal')).toBeInTheDocument()
     expect(screen.queryByTestId('add-position-modal')).not.toBeInTheDocument()
   })
 
-  it('the add flow closes via the modal onClose', () => {
+  it('the add flow closes via the modal onClose', async () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /open position/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'close-position' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'close-position' }))
     expect(screen.queryByTestId('add-position-modal')).not.toBeInTheDocument()
   })
 
@@ -483,21 +485,21 @@ describe('JournalLayout — mobile quick-log FAB (B5)', () => {
     expect(screen.getByRole('button', { name: 'Log a trade' })).toBeInTheDocument()
   })
 
-  it('opens a two-choice add menu that opens the AddPositionModal add flow', () => {
+  it('opens a two-choice add menu that opens the AddPositionModal add flow', async () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: 'Log a trade' }))
     const menu = screen.getByRole('menu', { name: /quick log a trade/i })
     expect(within(menu).getByRole('menuitem', { name: /open position/i })).toBeInTheDocument()
     fireEvent.click(within(menu).getByRole('menuitem', { name: /open position/i }))
-    expect(screen.getByTestId('add-position-modal')).toBeInTheDocument()
+    expect(await screen.findByTestId('add-position-modal')).toBeInTheDocument()
     expect(screen.queryByTestId('add-trade-modal')).not.toBeInTheDocument()
   })
 
-  it('the "Log closed trade" choice opens the AddTradeModal add flow', () => {
+  it('the "Log closed trade" choice opens the AddTradeModal add flow', async () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: 'Log a trade' }))
     fireEvent.click(screen.getByRole('menuitem', { name: /closed trade/i }))
-    expect(screen.getByTestId('add-trade-modal')).toBeInTheDocument()
+    expect(await screen.findByTestId('add-trade-modal')).toBeInTheDocument()
     expect(screen.queryByTestId('add-position-modal')).not.toBeInTheDocument()
   })
 
@@ -563,7 +565,7 @@ describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
     // "+ Log Trade" > Add Position flow, which has real form fields.
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /open position/i }))
-    const modal = screen.getByTestId('add-position-modal')
+    const modal = await screen.findByTestId('add-position-modal')
     // The stub modal has no text input of its own; build one in place is not
     // representative, so assert the inverse precisely against a real `?`
     // event targeted at an <input> that react-hotkeys-hook's own

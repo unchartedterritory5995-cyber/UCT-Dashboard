@@ -430,6 +430,61 @@ class TestFeedTicker:
             assert banned not in src
 
 
+def _heavy_form4_submissions(n_form4=300):
+    """A heavy insider filer: hundreds of Form 4s newest, one 10-K far back."""
+    forms = ["4"] * n_form4 + ["10-K", "8-K"]
+    n = len(forms)
+    return {"name": "Heavy Filer Inc", "filings": {"recent": {
+        "form": forms,
+        "accessionNumber": [f"0000000001-26-{i:06d}" for i in range(n)],
+        "filingDate": ["2026-09-01"] * n,
+        "acceptanceDateTime": ["2026-09-01T16:00:00.000Z"] * n,
+        "items": [""] * n}}}
+
+
+class TestFeedCapsPerForm:
+    """R8: the row caps apply PER FORM, so Form 4 volume cannot hide a 10-K."""
+
+    def test_a_heavy_form4_filer_still_shows_its_10K(self):
+        rows = ff.parse_submissions(_heavy_form4_submissions(), cik=1, ticker="HVY")
+        forms = [ff.base_form(r["form"]) for r in rows]
+        assert forms.count("4") == ff.TICKER_ROWS
+        assert "10-K" in forms and "8-K" in forms
+
+    def test_the_ticker_read_answers_10K_for_that_filer(self, monkeypatch):
+        monkeypatch.setenv(ff.ENABLED_ENV, "1")
+        cache.set(ff._TICKER_PREFIX + "HVY", {"state": "ok", "cik": 1, "company": "Heavy Filer Inc",
+                                               "rows": ff.parse_submissions(_heavy_form4_submissions(),
+                                                                            cik=1, ticker="HVY"),
+                                               "fetched_at": 0, "sym": "HVY"}, 60)
+        out = ff.ticker_feed("HVY", form="10-K")
+        assert out["state"] == "ok" and [r["form"] for r in out["rows"]] == ["10-K"]
+
+    def test_the_market_cache_keeps_every_form(self):
+        rows = ([{"form": "4", "accession": f"a{i}", "accepted": f"2026-10-02T16:{i % 60:02d}"} for i in range(700)]
+                + [{"form": "10-K", "accession": "k1", "accepted": "2026-10-01T09:00"}])
+        rows.sort(key=lambda r: r["accepted"], reverse=True)
+        kept = ff._cap_per_form(rows, ff.MARKET_KEEP_PER_FORM, ff.MARKET_KEEP)
+        forms = [r["form"] for r in kept]
+        assert forms.count("4") == ff.MARKET_KEEP_PER_FORM and "10-K" in forms
+
+    def test_an_empty_market_read_is_none_in_scope_with_a_reason(self):
+        import time as _t
+        cache.set(ff._MARKET_KEY, {"rows": [{"form": "8-K", "accession": "x", "cik": 1}],
+                                   "forms": {"8-K": {"state": "ok"}, "S-1": {"state": "ok"}},
+                                   "polled_at": _t.time()}, 60)
+        out = ff.market_feed(form="S-1")
+        assert out["state"] == "none_in_scope" and out["rows"] == [] and "S-1" in out["reason"]
+
+    def test_a_form_whose_poll_failed_is_not_called_none(self):
+        import time as _t
+        cache.set(ff._MARKET_KEY, {"rows": [], "forms": {"S-1": {"state": "unavailable"}},
+                                   "polled_at": _t.time()}, 60)
+        out = ff.market_feed(form="S-1")
+        assert out["state"] == "ok" and "could not read" in out["reason"]
+        assert "S-1" in out["partial"]
+
+
 # ══ Routes ══════════════════════════════════════════════════════════════════
 
 class TestRoutes:

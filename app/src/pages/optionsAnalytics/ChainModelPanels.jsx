@@ -4,6 +4,10 @@ import useDarkSection from './useDarkSection'
 import { findStrategies, VIEWS } from './chainModels'
 import { daysTo } from './ChainTools'
 import styles from './optionsAnalytics.module.css'
+import { formatPercent } from '../../lib/presentation/presentationPrimitives'
+import Select from '../../components/ui/Select'
+import UIcon from '../../components/ui/UIcon'
+import { num } from './optionsFormat'
 
 // lane/o-options-remainders — the chain-side surfaces under Research > Options:
 //   FT-012 EdgePanel        theoretical value vs the quote mid    (OPTIONS_EDGE_RANKING_ENABLED)
@@ -16,8 +20,8 @@ import styles from './optionsAnalytics.module.css'
 // ⛔ Read-only by charter: a candidate or a saved spread is a record, never an order.
 
 const enc = encodeURIComponent
-const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
-const pct = (p) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`)
+// A fraction rendered as a percent through the shared formatter (em dash when absent).
+const pct = (p) => formatPercent(p == null ? NaN : Number(p) * 100, { decimals: 1 })
 const money = (v) => (v === Infinity || v === -Infinity ? 'unlimited' : `${v < 0 ? '-' : ''}$${Math.round(Math.abs(v)).toLocaleString()}`)
 // A candidate's identity: its expiration, view, structure and every leg (type, side, strike). The
 // "Saved" tag is keyed on THIS, never on a row index -- re-sorting, or a chain refresh that reorders
@@ -133,7 +137,7 @@ export function SpreadBookPanel() {
                   <b>{s.label}</b>: {s.legs.map((l) => `${legText(l)} ${l.expiration}${l.price != null ? ` @ ${num(l.price)}` : ''}`).join(' / ')}
                   {s.entry?.net != null ? ` · ${s.entry.net < 0 ? 'credit' : 'debit'} ${num(Math.abs(s.entry.net))}` : ''}
                   <span className={styles.muted}> · seen {s.entry?.session || s.created_at.slice(0, 10)}</span>
-                  <button type="button" className={styles.input} aria-label={`Delete ${s.label}`} onClick={() => remove(s.id)}>×</button>
+                  <button type="button" className={styles.input} aria-label={`Delete ${s.label}`} onClick={() => remove(s.id)}><UIcon name="x" size={12} gold={false} aria-hidden="true" /></button>
                 </li>
               ))}
             </ul>
@@ -173,10 +177,10 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
         <span className={styles.seg} role="group" aria-label="Market view">
           {VIEWS.map((v) => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{v}</button>)}
         </span>
-        <select className={styles.select} aria-label="Sort candidates" value={sort} onChange={(e) => setSort(e.target.value)}>
+        <Select className={styles.select} aria-label="Sort candidates" value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="pop">by probability of profit</option>
           <option value="reward">by reward to risk</option>
-        </select>
+        </Select>
       </div>
       {failed ? <p className={styles.note}>The strategy finder is unavailable right now.</p> : (
         <>
@@ -194,7 +198,7 @@ export function StrategyFinder({ sym, rows, spot, expiration, atmIv }) {
                       <td>{c.legs.map(legText).join(' / ')}</td>
                       <td>{c.cost >= 0 ? `pay ${money(c.cost)}` : `collect ${money(-c.cost)}`}</td>
                       <td>{money(c.maxProfit)}</td><td>{money(c.maxLoss)}</td>
-                      <td>{c.breakevens.map((b) => b.toFixed(2)).join(' / ') || '—'}</td>
+                      <td>{c.breakevens.map((b) => num(b)).join(' / ') || '—'}</td>
                       <td>{pct(c.pop)}</td>
                       {canSave && (
                         <td>

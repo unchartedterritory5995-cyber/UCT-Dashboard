@@ -399,11 +399,17 @@
 .chipGridLabel {
   /* Undo the one-box chip's own metrics — in the grid the row is a CELL, and its
      height, font and truncation all come from the legend. `max-width` in
-     particular would otherwise cap a track the grid is trying to size. */
+     particular would otherwise cap a track the grid is trying to size.
+     ⭐ SLICE 2 — EXCEPT A LONG AUTHORED NAME: the strip now shows a user
+     indicator's WHOLE name, so the compact legend caps it at 32ch and ends it
+     with an ellipsis (the chip's title carries it in full). Every native label
+     is far shorter, so their tracks are unchanged. */
   display: block;
   height: auto;
   line-height: inherit;
-  max-width: none;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font: inherit;
   font-weight: 500;
   vertical-align: baseline;

@@ -1,6 +1,10 @@
 // RSCH — the `/research/:sym` "My Research" tab, embedded. ⛔ An ADAPTER, not a fork: it
 // renders the same TickerResearchWorkspace with the same props ResearchPage passes, and opens
 // a note through the same `notePath` door.
+//
+// No inset of its own: the workspace used to sit flush against the panel border, and this
+// adapter patched it with an inline padding. The shell now insets every panel body by
+// `--panel-inset` (TerminalShell.module.css `.panelBody`), so the patch is gone.
 import { useNavigate } from 'react-router-dom'
 import TickerResearchWorkspace from '../../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../../hooks/useNoteBacklinks'

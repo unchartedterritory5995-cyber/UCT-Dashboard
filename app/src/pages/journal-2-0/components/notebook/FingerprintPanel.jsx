@@ -1,6 +1,13 @@
 /**
  * Wave 13 lane 13I-2 — the technical fingerprint beside a chart block in a note.
  *
+ * ── VIEWING NEVER WRITES ─────────────────────────────────────────────────────────────────────
+ * The freeze is a write into the note (see below), so it happens only when the member caused
+ * it: for a chart they added while this note has been open in this tab (`addedThisVisit`: the
+ * write rides the save that insert already started), or when they press "Freeze the
+ * fingerprint". A chart that was already in the note when it was opened is never frozen by
+ * being looked at: no request, no node write, no new "last edited" time.
+ *
  * ── THE FREEZE GOES THROUGH THE MEMBER'S OWN SAVE PATH ────────────────────────────────────────
  * When a chart is inserted, the panel asks 13I-1 to freeze the block's fingerprint
  * (`POST /api/j2/notebook-fingerprint/blocks/{note}/{embed}/freeze`). That route answers 404
@@ -81,6 +88,18 @@ export function embedKeyFor(attrs) {
   return attrs?.embedId || `chart|${attrs?.capturedAt || ''}`
 }
 
+/**
+ * Whether this block was added while the member has had this note open in this tab: its own
+ * `capturedAt` (stamped when the block is built) is not older than the moment the note's
+ * editor opened (`openedAt`, set once per editor in NoteEditorPage). Fails closed: with either
+ * time missing the answer is no, and the freeze waits for the button.
+ */
+export function addedThisVisit(attrs, editor) {
+  const openedAt = editor?.storage?.uctJournalWidgets?.openedAt
+  const captured = Date.parse(attrs?.capturedAt || '')
+  return Number.isFinite(openedAt) && Number.isFinite(captured) && captured >= openedAt
+}
+
 async function getJson(url) {
   const res = await fetch(url, { credentials: 'include' })
   if (!res.ok) {
@@ -127,7 +146,11 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
   const attrsRef = useRef(attrs)
   attrsRef.current = attrs
 
-  const [state, setState] = useState(frozen ? 'frozen' : 'idle')
+  // Decided once, when the panel mounts: was this chart added during this visit?
+  const autoRef = useRef(null)
+  if (autoRef.current === null) autoRef.current = addedThisVisit(attrs, editor)
+  const [asked, setAsked] = useState(false)       // the member pressed the button
+  const [state, setState] = useState(frozen ? 'frozen' : autoRef.current ? 'idle' : 'unfrozen')
   const [expanded, setExpanded] = useState(false)
   const [dismissed, setDismissed] = useState([])
   const [planMsg, setPlanMsg] = useState(null)
@@ -171,28 +194,41 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
   }, [editor, embedKey, write])
 
   // Freeze once per block, after the save lands (the route's 404 until then drives the retry).
+  // ⛔ Only for a chart added during this visit, or after the member asked: viewing never writes.
   useEffect(() => {
     if (frozen || !editable || !symbol || !fingerprintEnabled()) return undefined
+    if (!autoRef.current && !asked) return undefined
     if (latch.current === embedKey) return undefined
     latch.current = embedKey
     attempts.current = 0
     let cancelled = false
+    let settled = false
     const run = async () => {
       if (cancelled) return
       const out = await freezeNow()
-      if (cancelled || out !== 'retry') return
+      if (cancelled) return
+      if (out !== 'retry') { settled = true; return }
       const delay = FREEZE_RETRY_MS[attempts.current]
       attempts.current += 1
-      if (delay == null) { setState('notSaved'); return }
+      if (delay == null) { settled = true; setState('notSaved'); return }
       timer.current = setTimeout(run, delay)
     }
     run()
-    return () => { cancelled = true; clearTimeout(timer.current) }
-  }, [frozen, editable, symbol, embedKey, freezeNow, nonce])
+    return () => {
+      cancelled = true
+      clearTimeout(timer.current)
+      // A run cut short mid-retry frees the latch, so the next pass picks the freeze up again
+      // instead of leaving "Waiting for this note to save" on screen with no way forward.
+      if (!settled && latch.current === embedKey) latch.current = null
+    }
+  }, [frozen, editable, symbol, embedKey, freezeNow, nonce, asked])
 
-  const retry = () => { latch.current = null; setState('idle'); setNonce((n) => n + 1) }
+  const retry = () => { latch.current = null; setAsked(true); setState('idle'); setNonce((n) => n + 1) }
 
   const setTag = (tag) => updateAttributes?.({ ta: withSetupTag(attrsRef.current?.ta, tag || null) })
+  // FIN-A11Y (review R4, M-7): Use and Dismiss remove the suggestion row their button sits
+  // in. Focus goes to the Setup picker, the control a suggestion is about.
+  const focusSetupPicker = () => document.getElementById(`fp-tag-${embedKey}`)?.focus()
 
   const suggestions = useMemo(() => (vpOn && frozen ? suggestTags(frozen) : [])
     .filter((s) => s.tag !== ta?.setupTag && !dismissed.includes(s.tag)), [vpOn, frozen, ta?.setupTag, dismissed])
@@ -226,6 +262,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
 
   const fields = frozen?.fields || {}
   const statusLine = {
+    unfrozen: 'No fingerprint is frozen for this chart yet.',
     idle: 'Freezing the fingerprint for this chart…',
     waiting: 'Waiting for this note to save, then the fingerprint freezes…',
     notSaved: 'This note has not saved yet, so the fingerprint is not frozen.',
@@ -248,6 +285,9 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
         )}
       </div>
 
+      {!frozen && state === 'unfrozen' && editable && symbol && (
+        <button type="button" className={styles.btn} onClick={retry}>Freeze the fingerprint</button>
+      )}
       {!frozen && ['notSaved', 'unreadable', 'error'].includes(state) && editable && (
         <button type="button" className={styles.btn} onClick={retry}>Try again</button>
       )}
@@ -321,8 +361,10 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
                 {s.asOf ? `, ${s.asOf})` : ')'}. Suggested tag — not applied.
               </span>
               <span className={styles.suggestionActions}>
-                <button type="button" className={styles.btn} onClick={() => setTag(s.tag)}>Use “{s.tag}”</button>
-                <button type="button" className={styles.btnQuiet} onClick={() => setDismissed((d) => [...d, s.tag])}>
+                <button type="button" className={styles.btn}
+                  onClick={() => { setTag(s.tag); focusSetupPicker() }}>Use “{s.tag}”</button>
+                <button type="button" className={styles.btnQuiet} aria-label={`Dismiss the suggested tag ${s.tag}`}
+                  onClick={() => { setDismissed((d) => [...d, s.tag]); focusSetupPicker() }}>
                   Dismiss
                 </button>
               </span>
@@ -345,16 +387,20 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
           )}
         </div>
       )}
-      {planMsg?.ok && (
-        <p className={styles.note} role="status">
+      {/* Always mounted and refilled: a status that mounts with its text is often not
+          announced (FIN-A11Y, review R4 M-16). */}
+      <p className={`${styles.note} ${styles.statusLine}`} role="status">
+        {planMsg?.ok && (
+          <>
           Created “{planMsg.title}” with the checklist marked from this fingerprint.{' '}
           {planMsg.id && (
             <a className={styles.linkBtn} href={`/journal?j2tab=notebook&note=${encodeURIComponent(planMsg.id)}`}>
               Open the plan
             </a>
           )}
-        </p>
-      )}
+          </>
+        )}
+      </p>
       {planMsg && !planMsg.ok && <p className={styles.error} role="alert">{planMsg.text}</p>}
 
       {playbookOpen && (

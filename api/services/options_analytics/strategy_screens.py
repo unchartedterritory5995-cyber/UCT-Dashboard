@@ -56,6 +56,25 @@ STRATEGIES = {
 }
 
 _COLS = "contract, underlying, exp, dte, cp, strike_m, otm_d, iv_bp, delta_m, bid_c, ask_c, spread_d, oi"
+_COL_LIST = [c.strip() for c in _COLS.split(",")]
+# The per-leg columns a neighbouring strike carries (underlying, exp, dte and cp are shared).
+_LEG_COLS = ("contract", "strike_m", "otm_d", "iv_bp", "delta_m", "bid_c", "ask_c", "spread_d", "oi")
+
+
+def _qual(alias: str) -> str:
+    return ", ".join(f"{alias}.{c}" for c in _COL_LIST)
+
+
+def _neighbour_cols(fn: str, prefix: str) -> str:
+    """LAG/LEAD of every leg column over strikes of one (underlying, expiration)."""
+    return ", ".join(f"{fn}({c}) OVER w AS {prefix}{c}" for c in _LEG_COLS)
+
+
+def _leg_tuple(t: tuple, base: tuple, offset: int) -> tuple:
+    """Rebuild a full _COLS row for the neighbour leg from its prefixed columns + the shared ones."""
+    v = dict(zip(_LEG_COLS, t[offset:offset + len(_LEG_COLS)]))
+    shared = dict(zip(_COL_LIST, base))
+    return tuple(v[c] if c in v else shared[c] for c in _COL_LIST)
 
 
 class BadQuery(ValueError):
@@ -89,9 +108,15 @@ def _scope(underlyings: Optional[list]) -> tuple:
 
 def _single(con, cp: str, otm_max: int, underlyings, prices: dict, kind: str) -> tuple:
     sc, args = _scope(underlyings)
+    # O7: the CANDIDATE_CAP cut is taken on the screen's own sort key (annualized yield on the
+    # stock for covered calls, on the strike's cash for puts), never on open interest -- a
+    # high-yield, lower-OI contract used to fall outside the top 3,000 by OI and never rank.
+    denom = "u.price" if kind == "covered_calls" else "(c.strike_m / 1000.0)"
     rows = con.execute(
-        f"SELECT {_COLS} FROM contracts WHERE cp = ? AND otm_d BETWEEN 0 AND ? AND dte BETWEEN 14 AND 60 "
-        f"AND bid_c >= 10 AND spread_d <= 150 AND oi >= 100{sc} ORDER BY oi DESC LIMIT ?",
+        f"SELECT {_qual('c')} FROM contracts c JOIN underlyings u ON u.underlying = c.underlying "
+        f"WHERE u.price > 0 AND c.cp = ? AND c.otm_d BETWEEN 0 AND ? AND c.dte BETWEEN 14 AND 60 "
+        f"AND c.bid_c >= 10 AND c.spread_d <= 150 AND c.oi >= 100{sc.replace('underlying', 'c.underlying')} "
+        f"ORDER BY (c.bid_c / 100.0) / {denom} / c.dte DESC, c.oi DESC LIMIT ?",
         [cp, otm_max * 10, *args, CANDIDATE_CAP]).fetchall()
     out = []
     for t in rows:
@@ -123,27 +148,35 @@ def _spread(con, kind: str, underlyings, prices: dict) -> tuple:
         where = "otm_d BETWEEN -20 AND 30 AND ask_c > 0"
     else:
         where = "otm_d BETWEEN 20 AND 100 AND ABS(delta_m) BETWEEN 150 AND 350 AND bid_c > 0"
+    # O7: pair each anchor with its neighbouring liquid strike IN SQL (LAG/LEAD over the strikes
+    # of one expiration) and take the CANDIDATE_CAP cut on the screen's own key -- return on risk
+    # for credit spreads, reward to risk for the debit spread -- not on the anchor's OI.
+    fn = "LAG" if kind == "bull_put_spreads" else "LEAD"
+    width = "(ABS(n_strike_m - strike_m) / 10.0)"
+    if kind == "bull_call_spreads":
+        net, max_frac = "(ask_c - n_bid_c)", 0.10
+        key = f"(({width} - {net}) * 1.0 / {net})"
+    else:
+        net, max_frac = "(bid_c - n_ask_c)", 0.05
+        key = f"({net} * 1.0 / ({width} - {net}))"
     anchors = con.execute(
-        f"SELECT {_COLS} FROM contracts WHERE cp = ? AND {where} AND dte BETWEEN 14 AND 60 "
-        f"AND oi >= 100{sc} ORDER BY oi DESC LIMIT ?", [cp, *args, CANDIDATE_CAP]).fetchall()
+        f"WITH liq AS (SELECT {_COLS}, {_neighbour_cols(fn, 'n_')} FROM contracts "
+        f"WHERE cp = ? AND dte BETWEEN 14 AND 60 AND oi >= 100{sc} "
+        f"WINDOW w AS (PARTITION BY underlying, exp ORDER BY strike_m)) "
+        f"SELECT {_qual('liq')}, {', '.join('liq.n_' + c for c in _LEG_COLS)} FROM liq "
+        f"JOIN underlyings u ON u.underlying = liq.underlying "
+        f"WHERE u.price > 0 AND {where} AND n_strike_m IS NOT NULL "
+        f"AND {net} > 0 AND {net} < {width} AND {width} <= u.price * 100 * {max_frac} "
+        f"ORDER BY {key} DESC, liq.oi DESC LIMIT ?", [cp, *args, CANDIDATE_CAP]).fetchall()
     out = []
+    n = len(_COL_LIST)
     for t in anchors:
-        a = _row(t)
+        a = _row(t[:n])
         px = prices.get(a["underlying"])
         if not px:
             continue
-        exp_i = int(a["expiration"].replace("-", ""))
-        higher = kind != "bull_put_spreads"
         max_w = px * (0.10 if kind == "bull_call_spreads" else 0.05)
-        cmp = ">" if higher else "<"
-        order = "ASC" if higher else "DESC"
-        nxt = con.execute(
-            f"SELECT {_COLS} FROM contracts WHERE underlying = ? AND exp = ? AND cp = ? "
-            f"AND strike_m {cmp} ? AND oi >= 100 ORDER BY strike_m {order} LIMIT 1",
-            [a["underlying"], exp_i, cp, int(round(a["strike"] * 1000))]).fetchone()
-        if nxt is None:
-            continue
-        b = _row(nxt)
+        b = _row(_leg_tuple(t, t[:n], n))
         width = abs(b["strike"] - a["strike"])
         if width <= 0 or width > max_w:
             continue

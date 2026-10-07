@@ -167,14 +167,15 @@ class TestArticlesDedupAndSort:
         provider error is already absorbed as "no data" one layer down).
         This exercises the outer defense-in-depth path for a genuinely
         unexpected fault, not an ordinary provider blip."""
-        real = news._fmp_rows_with_meta
+        real = news._fmp_rows_meta_failed
 
         def _flaky(fn, ticker, **kw):
             if fn is fc.get_news_stock:
                 raise RuntimeError("unexpected fault")
             return real(fn, ticker, **kw)
 
-        monkeypatch.setattr(news, "_fmp_rows_with_meta", _flaky)
+        # _articles reads each leg through _fmp_rows_meta_failed since the 2026-10-05 pass
+        monkeypatch.setattr(news, "_fmp_rows_meta_failed", _flaky)
         monkeypatch.setattr(fc, "get_news_press_releases", lambda t, **kw: _result([]))
         items, meta, all_answered = news._articles("AAPL", 40)
         assert all_answered is False
@@ -328,10 +329,9 @@ class TestRoute:
             raise RuntimeError("boom")
         monkeypatch.setattr(research_router, "get_company_news", _boom)
         r = self._client().get("/api/research/company-news/AAPL")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["sym"] == "AAPL"
-        assert body["items"] == []
+        # quality pass 2026-10-05: an exception is an outage the tab renders as "couldn't load"
+        # with Retry; a 200 with no items read as "No recent news for this ticker".
+        assert r.status_code == 503
 
 
 class TestLegacyRouteUntouched:
@@ -355,3 +355,50 @@ class TestLegacyRouteUntouched:
         item = body["items"][0]
         assert set(item.keys()) == {"kind", "title", "publisher", "url", "published", "image", "summary"}
         assert item["title"] == "Old-shape headline"
+
+
+# ── quality pass 2026-10-05: a failed read is not "no news" ─────────────────
+
+class TestAFailedReadIsNotAnEmptyFeed:
+    @pytest.fixture(autouse=True)
+    def _fresh(self):
+        cache.delete_prefix("research_company_news::")
+        yield
+        cache.delete_prefix("research_company_news::")
+
+    def test_a_transient_provider_error_on_a_leg_is_not_all_answered(self, monkeypatch):
+        def boom(t, **kw):
+            raise fc._ERR.transient("FMP 502")
+        monkeypatch.setattr(fc, "get_news_stock", boom)
+        monkeypatch.setattr(fc, "get_news_press_releases", lambda t, **kw: _result([]))
+        _items, _meta, all_answered = news._articles("AAPL", 40)
+        assert all_answered is False
+
+    def test_a_not_found_leg_is_a_real_empty(self, monkeypatch):
+        def nf(t, **kw):
+            raise fc._ERR.not_found("no data")
+        monkeypatch.setattr(fc, "get_news_stock", nf)
+        monkeypatch.setattr(fc, "get_news_press_releases", nf)
+        _items, _meta, all_answered = news._articles("AAPL", 40)
+        assert all_answered is True
+
+    def test_both_legs_failing_with_nothing_to_show_is_an_outage_and_the_route_answers_503(self, monkeypatch):
+        from fastapi import HTTPException
+        from api.routers import research as r
+
+        def boom(t, **kw):
+            raise fc._ERR.transient("FMP timeout")
+        monkeypatch.setattr(fc, "get_news_stock", boom)
+        monkeypatch.setattr(fc, "get_news_press_releases", boom)
+        assert news.get_company_news("ZZZQ").get("_outage") is True
+        cache.delete_prefix("research_company_news::")
+        with pytest.raises(HTTPException) as ei:
+            r.research_company_news("ZZZQ")
+        assert ei.value.status_code == 503
+
+    def test_a_genuinely_empty_ticker_still_answers_200_with_no_items(self, monkeypatch):
+        from api.routers import research as r
+        monkeypatch.setattr(fc, "get_news_stock", lambda t, **kw: _result([]))
+        monkeypatch.setattr(fc, "get_news_press_releases", lambda t, **kw: _result([]))
+        out = r.research_company_news("ZZZQ")
+        assert out["items"] == [] and "_outage" not in out

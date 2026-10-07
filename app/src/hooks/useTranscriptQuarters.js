@@ -9,17 +9,25 @@
 // The endpoint reads a cached index (no transcript bodies), so opening the
 // dropdown is cheap.
 import useSWR from 'swr'
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
-const fetcher = url => fetch(url, { credentials: 'include' })
-  .then(r => (r.ok ? r.json() : null))
-  .catch(() => null)
+// TERM-033: a failed read THROWS, so the panel can say the earlier quarters could not be listed
+// (with a Retry) instead of quietly showing only the newest call as if it were all there is.
+// A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 export default function useTranscriptQuarters(ticker, { enabled = false } = {}) {
   const sym = (ticker || '').toUpperCase().trim()
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, error, mutate } = useSWR(
     enabled && sym ? `/api/earnings/transcript-quarters/${sym}` : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 6 * 60 * 60 * 1000 },
   )
-  return { quarters: data?.quarters || [], isLoading }
+  return {
+    quarters: data?.quarters || [],
+    isLoading,
+    // Failed with no earlier list to stand on (SWR keeps a good list through a failed refresh).
+    error: Boolean(error) && !data,
+    retry: () => mutate(),
+  }
 }

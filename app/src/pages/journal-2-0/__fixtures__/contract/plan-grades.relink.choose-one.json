@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/plan-grades/trades/pg-planned/relink",
+    "path": "/api/j2/plan-grades/trades/pg-planned/relink",
+    "requestBody": {},
+    "status": 400
+  },
+  "body": {
+    "detail": "Choose exactly one: a note, a verdict, or no plan"
+  }
+}

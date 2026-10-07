@@ -62,9 +62,12 @@ describe('the offer card stays out of the first-open closure', () => {
     expect(offenders).toEqual([])
   })
 
-  it('NotebookTab reaches the offer only through the gate', () => {
+  it('NotebookTab reaches the offer only through the door, and the door reaches the gate lazily', () => {
     const tab = FILES.find((f) => f.file === 'tabs/NotebookTab.jsx')
-    expect(importsOf(tab.src, /onboarding\/TourOfferGate$/).statics).toEqual(['../components/notebook/onboarding/TourOfferGate'])
+    expect(importsOf(tab.src, /onboarding\/TourOfferGate$/).statics).toEqual([])
+    expect(importsOf(tab.src, /onboarding\/TourOfferDoor$/).statics).toEqual(['../components/notebook/onboarding/TourOfferDoor'])
+    const door = FILES.find((f) => f.file === 'components/notebook/onboarding/TourOfferDoor.jsx')
+    expect(importsOf(door.src, /TourOfferGate$/)).toEqual({ statics: [], dynamics: ['./TourOfferGate'] })
   })
 
   it('CONTROLS: a static import is seen, a comment is not, a dynamic one is told apart', () => {

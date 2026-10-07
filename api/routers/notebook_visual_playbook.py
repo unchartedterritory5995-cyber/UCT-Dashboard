@@ -77,7 +77,7 @@ def list_cards(setups: list[str] = Query(default=[], alias="setup"),
 
 
 @router.get("/trades/{trade_id}/before-after")
-def before_after(trade_id: str, user: dict = Depends(get_current_user)):
+def before_after(trade_id: str, user: dict = Depends(require_paid)):
     uid = str(user["id"])
     conn = get_connection()
     conn.row_factory = sqlite3.Row

@@ -14,7 +14,7 @@
 // When a surface wants an emoji, reach for a name here instead. Add new glyphs
 // to ICONS below rather than introducing a one-off emoji.
 
-import { useRef } from 'react'
+import { Fragment, useRef } from 'react'
 
 const ICONS = {
   // ── CHART NOTATION — THE INDICATOR FAMILY GLYPHS ─────────────────────
@@ -463,6 +463,15 @@ const ICONS = {
       <path d="M5 15.5V5a1 1 0 0 1 1-1h9.5" />
     </>
   ),
+  // Added 2026-10-06 for the UCT Terminal's "pop this panel out into its own window" action,
+  // which was a text arrow. `expand` means "make bigger here"; this means "open elsewhere".
+  popOut: (
+    <>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-8.5 8.5" />
+      <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+    </>
+  ),
   // Added 2026-08-29 for Options Flow's screenshot/preview controls, which had
   // been reaching for a camera emoji because the registry had no glyph. Adding
   // one here is the sanctioned move — the alternative is a one-off emoji, and
@@ -627,6 +636,59 @@ const ICONS = {
 }
 
 export const UICON_NAMES = Object.keys(ICONS)
+
+// ── STATIC MARKUP — for HTML that is injected, not rendered ─────────────
+//
+// Some surfaces build an HTML STRING (Morning Wire's rundown is
+// `dangerouslySetInnerHTML`), where a `<UIcon>` element cannot be mounted. They
+// used to copy a glyph's path data by hand, which is a second authority over the
+// drawing. `uiconSvgString` serialises the SAME `ICONS` entry instead, in the
+// `gold={false}` form (stroked in `currentColor`, so the host's CSS colour
+// themes it). It is a tiny walker over the registry's own elements, not
+// react-dom/server: the registry only holds plain SVG shapes, and the server
+// renderer is not worth shipping to the client for five attributes.
+
+const escAttr = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+  .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+// React's camelCase SVG props -> markup attributes (strokeWidth -> stroke-width).
+const attrName = (k) => (k === 'className' ? 'class' : k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`))
+
+function markupOf(node) {
+  if (node == null || node === false || node === true) return ''
+  if (Array.isArray(node)) return node.map(markupOf).join('')
+  if (typeof node === 'string' || typeof node === 'number') return escAttr(node)
+  const { type, props = {} } = node
+  const { children, ...attrs } = props
+  if (type === Fragment) return markupOf(children)
+  if (typeof type !== 'string') return ''   // the registry holds only SVG shapes
+  const attrText = Object.entries(attrs)
+    .filter(([, v]) => v != null && v !== false)
+    .map(([k, v]) => ` ${attrName(k)}="${escAttr(v)}"`).join('')
+  return `<${type}${attrText}>${markupOf(children)}</${type}>`
+}
+
+/**
+ * A glyph's static `<svg>` markup, generated from the same registry `<UIcon>`
+ * draws. Returns '' for an unknown name.
+ *
+ *   uiconSvgString('thumbsUp', { size: 14 })
+ *   uiconSvgString('edit', { size: 14, title: 'Add a note' })   // role="img" + <title>
+ *
+ * @param {string} name
+ * @param {{size?: number, strokeWidth?: number, title?: string}} [options]
+ */
+export function uiconSvgString(name, { size = 18, strokeWidth = 1.7, title } = {}) {
+  const glyph = ICONS[name]
+  if (!glyph) return ''
+  const a11y = title ? ' role="img"' : ' aria-hidden="true"'
+  return (
+    `<svg width="${escAttr(size)}" height="${escAttr(size)}" viewBox="0 0 24 24" fill="none" stroke="currentColor"` +
+    ` stroke-width="${escAttr(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round"${a11y} focusable="false">` +
+    (title ? `<title>${escAttr(title)}</title>` : '') +
+    markupOf(glyph) +
+    '</svg>'
+  )
+}
 
 let _gid = 0
 

@@ -128,42 +128,72 @@ def _block_day(params: dict, attrs: dict) -> str | None:
     return compute_trading_day_et(cap) if isinstance(cap, str) and cap else None
 
 
-def extract_blocks(body_json: Any) -> list[dict]:
-    """Every chart block of a note body, in document order. Pure."""
-    found: list[dict] = []
+def parse_body(body_json: Any) -> Any:
+    """A stored note body as a document, or None when it cannot be read. A body nested too
+    deeply for the JSON parser raises RecursionError, which is not a ValueError: it is caught
+    here so such a note reads as "no charts" for its owner, never as a 500 (security review
+    M-4)."""
+    if not isinstance(body_json, (str, bytes)):
+        return body_json
+    try:
+        return json.loads(body_json)
+    except (ValueError, RecursionError):
+        return None
 
-    def walk(node: Any) -> None:
+
+def iter_chart_attrs(body_json: Any) -> list[dict]:
+    """The attrs of every chart `widgetEmbed` in a note body, in document order.
+
+    ⛔ A LOOP, NEVER A RECURSION (security review M-4). The walk used to call itself once per
+    level of nesting, so a very deeply nested body raised RecursionError and answered 500 for
+    its owner. Children are pushed in reverse so they come off the stack in document order.
+    `extract_blocks` and `visual_playbook._chart_nodes` both read THIS, so a block's
+    `position` indexes the same list in both."""
+    found: list[dict] = []
+    stack: list[Any] = [body_json]
+    while stack:
+        node = stack.pop()
         if not isinstance(node, dict):
-            return
+            continue
         if node.get("type") == "widgetEmbed":
             attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
             if attrs.get("widgetId") == CHART_WIDGET:
-                params = attrs.get("params") if isinstance(attrs.get("params"), dict) else {}
-                try:
-                    symbol = tech_fingerprint.normalize_symbol(params.get("symbol"))
-                except tech_fingerprint.FingerprintRequestError:
-                    symbol = None
-                ta = attrs.get("ta") if isinstance(attrs.get("ta"), dict) else {}
-                tag = ta.get("setupTag")
-                fp = ta.get("fingerprint")
-                embed_id = attrs.get("embedId") if isinstance(attrs.get("embedId"), str) else None
-                tf = params.get("tf")
-                found.append({
-                    "embed_id": embed_id or None,
-                    # The legacy identity, the one citations already use for an embed
-                    # stored before embedId existed (widgetEmbedNode.jsx).
-                    "legacy_key": f"{CHART_WIDGET}|{attrs.get('capturedAt') or ''}",
-                    "symbol": symbol,
-                    "timeframe": str(tf) if tf is not None else "D",
-                    "as_of": _block_day(params, attrs),
-                    "setup_tag": tag.strip()[:80] if isinstance(tag, str) and tag.strip() else None,
-                    "mode": attrs.get("mode") if isinstance(attrs.get("mode"), str) else None,
-                    "note_fingerprint": fp if isinstance(fp, dict) else None,
-                })
-        for child in node.get("content", []) or []:
-            walk(child)
+                found.append(attrs)
+        children = node.get("content")
+        if isinstance(children, list):
+            stack.extend(reversed(children))
+    return found
 
-    walk(body_json)
+
+def extract_blocks(body_json: Any) -> list[dict]:
+    """Every chart block of a note body, in document order. Pure."""
+    found: list[dict] = []
+    for attrs in iter_chart_attrs(body_json):
+        params = attrs.get("params") if isinstance(attrs.get("params"), dict) else {}
+        try:
+            symbol = tech_fingerprint.normalize_symbol(params.get("symbol"))
+        except tech_fingerprint.FingerprintRequestError:
+            symbol = None
+        ta = attrs.get("ta") if isinstance(attrs.get("ta"), dict) else {}
+        tag = ta.get("setupTag")
+        fp = ta.get("fingerprint")
+        embed_id = attrs.get("embedId") if isinstance(attrs.get("embedId"), str) else None
+        tf = params.get("tf")
+        found.append({
+            "embed_id": embed_id or None,
+            # The legacy identity, the one citations already use for an embed
+            # stored before embedId existed (widgetEmbedNode.jsx).
+            "legacy_key": f"{CHART_WIDGET}|{attrs.get('capturedAt') or ''}",
+            "symbol": symbol,
+            "timeframe": str(tf) if tf is not None else "D",
+            "as_of": _block_day(params, attrs),
+            "setup_tag": tag.strip()[:80] if isinstance(tag, str) and tag.strip() else None,
+            "mode": attrs.get("mode") if isinstance(attrs.get("mode"), str) else None,
+            # ⛔ The note is the member's own data, so its fingerprint is CHECKED before it
+            # is trusted (security review M-3). One that is not the shape `compute` writes
+            # is no fingerprint: the block is then frozen from bars like any other.
+            "note_fingerprint": fp if tech_fingerprint.well_formed(fp) else None,
+        })
     seen: set[str] = set()
     for i, b in enumerate(found):
         key = b["embed_id"] or b["legacy_key"]
@@ -180,13 +210,9 @@ def extract_blocks(body_json: Any) -> list[dict]:
 def project_note(conn: sqlite3.Connection, user_id: str, note_id: str,
                  body_json: Any, note_updated_at: str) -> int:
     """Rebuild one note's rows (delete, then insert) inside the caller's
-    transaction. Returns the number of rows written."""
-    if isinstance(body_json, str):
-        try:
-            body_json = json.loads(body_json)
-        except ValueError:
-            body_json = None
-    blocks = extract_blocks(body_json)
+    transaction. Returns the number of rows written. The body is parsed BEFORE
+    the first write statement, so the write lock is never held across a parse."""
+    blocks = extract_blocks(parse_body(body_json))
     conn.execute("DELETE FROM j2_chart_blocks WHERE user_id = ? AND note_id = ?", (user_id, note_id))
     now = _now()
     conn.executemany(
@@ -230,19 +256,33 @@ def catch_up(user_id: str, conn: sqlite3.Connection | None = None, *,
             psql, (user_id, note_id) if note_id is not None else (user_id,))}
         gone = [n for n in projected if n not in current]
         stale = [n for n, u in current.items() if projected.get(n) != u]
-        for n in gone:
-            conn.execute("DELETE FROM j2_chart_blocks WHERE user_id = ? AND note_id = ?", (user_id, n))
+        # ⛔ A READ WITH NOTHING STALE WRITES NOTHING, AND NO WRITE LOCK IS HELD ACROSS A
+        # PARSE (security review I-3). This runs on every fingerprint and visual-playbook
+        # read, on the session database, whose connections wait three seconds for a lock.
+        # It used to run an unconditional DELETE and a commit on every call, and to hold
+        # one transaction across every stale note. Now: each removal batch and each note
+        # is its own short transaction, and each write is preceded by a read that says
+        # there is something to write.
+        if gone:
+            for n in gone:
+                conn.execute("DELETE FROM j2_chart_blocks WHERE user_id = ? AND note_id = ?", (user_id, n))
+            conn.commit()
         written = 0
         for n in stale:
             r = conn.execute("SELECT body_json, updated_at FROM j2_notes WHERE id = ? AND user_id = ?",
                              (n, user_id)).fetchone()
             if r is not None:
                 written += project_note(conn, user_id, n, r["body_json"], r["updated_at"])
+                conn.commit()
         # The ledger of a note that no longer exists at all (hard-deleted).
-        conn.execute(
-            "DELETE FROM j2_chart_fingerprints WHERE user_id = ? AND note_id NOT IN"
-            " (SELECT id FROM j2_notes WHERE user_id = ?)", (user_id, user_id))
-        conn.commit()
+        orphaned = conn.execute(
+            "SELECT 1 FROM j2_chart_fingerprints WHERE user_id = ? AND note_id NOT IN"
+            " (SELECT id FROM j2_notes WHERE user_id = ?) LIMIT 1", (user_id, user_id)).fetchone()
+        if orphaned is not None:
+            conn.execute(
+                "DELETE FROM j2_chart_fingerprints WHERE user_id = ? AND note_id NOT IN"
+                " (SELECT id FROM j2_notes WHERE user_id = ?)", (user_id, user_id))
+            conn.commit()
         frozen = freeze_pending(user_id, conn, limit=freeze_budget, note_id=note_id, compute=compute)
         pending = _count_pending(conn, user_id, note_id)
         return {"notes_projected": len(stale), "notes_removed": len(gone), "rows_written": written,
@@ -321,9 +361,20 @@ def freeze_pending(user_id: str, conn: sqlite3.Connection, *, limit: int = FREEZ
 
 # ── reads ─────────────────────────────────────────────────────────────────────
 
+def _stored_fp(raw: Any) -> dict | None:
+    """A fingerprint column as a dict, or None when it is empty, unreadable or not a dict."""
+    if not raw:
+        return None
+    try:
+        fp = json.loads(raw)
+    except (ValueError, RecursionError):
+        return None
+    return fp if isinstance(fp, dict) else None
+
+
 def _shape(r: sqlite3.Row) -> dict:
-    note_fp = json.loads(r["note_fingerprint"]) if r["note_fingerprint"] else None
-    ledger_fp = json.loads(r["ledger_fingerprint"]) if r["ledger_fingerprint"] else None
+    note_fp = _stored_fp(r["note_fingerprint"])
+    ledger_fp = _stored_fp(r["ledger_fingerprint"])
     if note_fp is not None:
         fp, source, frozen_at = note_fp, "note", None
     elif ledger_fp is not None:

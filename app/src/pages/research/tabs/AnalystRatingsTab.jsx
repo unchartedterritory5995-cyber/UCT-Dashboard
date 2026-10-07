@@ -8,6 +8,9 @@ import { epochSecondsToIso } from '../../../components/provenance/presentationFo
 import { computeSessionStale } from '../../../components/provenance/sessionStale'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
+import { formatCurrency } from '../../../lib/presentation/presentationPrimitives'
+import { signedPct } from '../researchFormat'
+import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import AnalystRevisions from './AnalystRevisions'
 
@@ -26,7 +29,7 @@ function TrustStrip({ meta, sessionContext }) {
   const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
   const sessionStale = computeSessionStale(asOfIso)
   return (
-    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+    <div className={styles.trustStrip}>
       <Provenance
         value="FMP"
         availability={availability}
@@ -48,8 +51,7 @@ function TrustStrip({ meta, sessionContext }) {
   )
 }
 
-function fmtUsd(v) { return v == null ? '—' : `$${v.toFixed(0)}` }
-function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
+const fmtUsd = (v) => formatCurrency(v, { decimals: 0 })
 
 // Sell-side consensus buckets, strong-buy → strong-sell — identical palette
 // to EstimatesTab.jsx's (same concept, same card, just relocated here).
@@ -93,7 +95,7 @@ export default function AnalystRatingsTab({ sym }) {
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
 
   if (isLoading) {
-    return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading analyst ratings…</div></div></div>
+    return <ResearchLoading label="Loading analyst ratings" />
   }
 
   // TERM-088 -- a failed read is not a genuinely empty analyst record.
@@ -130,19 +132,19 @@ export default function AnalystRatingsTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       {e.entity && e.entity.status !== 'resolved' && (
-        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
-          Symbol not yet linked to a canonical identity ({e.entity.status}).
+        <div className={styles.entityNote} data-testid="entity-unresolved-note">
+          This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
 
       {con && (
         <section className={styles.card}>
           <div className={styles.ct}>Analyst consensus</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-            <span className={consensusClass(con.label)} style={{ fontSize: 18, fontWeight: 700 }}>{con.label || '—'}</span>
-            <span className={styles.muted}>{con.total} analysts</span>
+          <div className={styles.statRow}>
+            <span className={`${styles.statBig} ${consensusClass(con.label)}`} data-testid="consensus-label">{con.label || '—'}</span>
+            {Number.isFinite(con.total) && <span className={styles.muted}>{con.total} {con.total === 1 ? 'analyst' : 'analysts'}</span>}
           </div>
-          <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', margin: '10px 0' }}>
+          <div className={styles.segBar}>
             {SEG.map(s => {
               const v = con[s.key] || 0
               const w = con.total ? (v / con.total) * 100 : 0
@@ -151,7 +153,7 @@ export default function AnalystRatingsTab({ sym }) {
           </div>
           <div>
             {SEG.map(s => (
-              <span key={s.key} className={styles.muted} style={{ marginRight: 16 }}>
+              <span key={s.key} className={`${styles.muted} ${styles.segKey}`}>
                 <b style={{ color: s.color }}>{con[s.key] || 0}</b> {s.label}
               </span>
             ))}
@@ -163,10 +165,10 @@ export default function AnalystRatingsTab({ sym }) {
       {pt && (
         <section className={styles.card}>
           <div className={styles.ct}>Price target</div>
-          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <div className={styles.statRow}>
             <div>
               <div className={styles.muted}>Consensus</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtUsd(ptMid)}</div>
+              <div className={styles.statBig}>{fmtUsd(ptMid)}</div>
             </div>
             <div>
               <div className={styles.muted}>Range</div>
@@ -175,7 +177,7 @@ export default function AnalystRatingsTab({ sym }) {
             {upside != null && (
               <div>
                 <div className={styles.muted}>vs current price</div>
-                <div className={upside >= 0 ? styles.up : styles.down}>{fmtPct(upside)}</div>
+                <div className={upside >= 0 ? styles.up : styles.down}>{signedPct(upside)}</div>
               </div>
             )}
             {ptr && (
@@ -200,7 +202,17 @@ export default function AnalystRatingsTab({ sym }) {
         </section>
       )}
 
-      {empty && <div className={styles.fnote}>Analyst rating data is unavailable for this ticker.</div>}
+      {/* tq-panels: the route now 503s a TOTAL outage (the error branch above) and
+          stamps `outage` on a partial one, so "empty" here really is no coverage. */}
+      {e.outage && !empty && (
+        <div className={styles.fnote} data-testid="analyst-ratings-partial">
+          Some of {sym}'s analyst data could not be read right now; what is shown is what answered.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+        </div>
+      )}
+      {empty && e.not_applicable && <div className={styles.fnote} data-testid="analyst-ratings-na">Not applicable to funds — {e.reason || `${sym} is a fund`}.</div>}
+      {empty && !e.not_applicable && <div className={styles.fnote} data-testid="analyst-ratings-empty">No analyst coverage on file for {sym}.</div>}
 
       <AnalystRevisions sym={sym} />
     </div>

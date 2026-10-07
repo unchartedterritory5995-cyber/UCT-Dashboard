@@ -1,0 +1,216 @@
+/* RRG · REL · CORR — the comparison panels. App tokens only: the terminal wears the member's theme. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  color: var(--text);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.lede {
+  margin: 0;
+  color: var(--text);
+  line-height: var(--lh-normal);
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-left: 2px solid var(--warn);
+  background: var(--warn-bg);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.chip {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.chartBox {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+}
+
+.axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.6;
+}
+
+.axisText {
+  fill: var(--text-muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.quadText {
+  fill: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.pointLabel {
+  fill: var(--text-bright);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.qLeading { stroke: var(--gain); fill: var(--gain); }
+.qWeakening { stroke: var(--warn); fill: var(--warn); }
+.qLagging { stroke: var(--loss); fill: var(--loss); }
+.qImproving { stroke: var(--info); fill: var(--info); }
+
+.tailLine { fill: none; stroke-width: 1.5; opacity: 0.7; }
+
+.line { fill: none; stroke-width: 1.6; }
+.avgLine { fill: none; stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.zeroLine { stroke: var(--text-muted); stroke-width: 1; opacity: 0.5; }
+
+.s0 { stroke: var(--accent); color: var(--accent); }
+.s1 { stroke: var(--info); color: var(--info); }
+.s2 { stroke: var(--warn); color: var(--warn); }
+.s3 { stroke: var(--text-bright); color: var(--text-bright); stroke-dasharray: 5 3; }
+.s4 { stroke: var(--text-muted); color: var(--text-muted); stroke-dasharray: 2 2; }
+.s5 { stroke: var(--ut-cream); color: var(--ut-cream); stroke-dasharray: 8 3 2 3; }
+
+.tableBox {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 3px var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: var(--text-xs);
+}
+
+.symCell {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+}
+
+.rowBtn {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rowBtn:hover,
+.rowBtn:focus-visible {
+  color: var(--accent);
+}
+
+.rowNum {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.up { color: var(--gain); }
+.down { color: var(--loss); }
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: currentColor;
+}
+
+.quadPill {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid currentColor;
+  font-size: var(--text-xs);
+}
+
+.pLeading { color: var(--gain); }
+.pWeakening { color: var(--warn); }
+.pLagging { color: var(--loss); }
+.pImproving { color: var(--info); }
+
+/* CORR — positive correlation tints toward the accent, negative toward info. Neither is
+   green/red: correlation is not "up" or "down" (NG-19, one colour = one meaning). */
+.corrCell {
+  min-width: 3.4em;
+  text-align: center !important;
+  color: var(--text-bright);
+}
+
+.corrDiag {
+  color: var(--text-muted);
+}
+
+.corrNa {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}

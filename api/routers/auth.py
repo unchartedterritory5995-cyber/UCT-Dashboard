@@ -333,6 +333,29 @@ def _filing_blackline_flag() -> dict:
         return {}
 
 
+def _options_panel_flags() -> dict:
+    """O12: the IVH and STRS terminal panels' own switches -- the SAME readers their routes'
+    dark gates use (`iv_history.is_enabled()` for /api/research/iv-history, the options
+    analytics table's OPTIONS_STRATEGY_SCREENS_ENABLED for /api/options-screener/strategy*), so
+    the terminal knows a surface is dark BEFORE it opens an empty panel. (OSCR already rides
+    `options_screener_enabled`.) ⛔ Each key is present ONLY when on (the TERM-077 form): unset
+    => this payload is byte-identical to before. The client reads `=== true`. Never raises."""
+    out = {}
+    try:
+        from api.services.research import iv_history
+        if iv_history.is_enabled():
+            out["iv_history_enabled"] = True
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        pass
+    try:
+        from api.services.options_analytics import flags as oa_flags
+        if oa_flags.is_on("OPTIONS_STRATEGY_SCREENS_ENABLED"):
+            out["options_strategy_screens_enabled"] = True
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
 def _options_screener_flag() -> dict:
     """COV-02/03: the Screener's "Options" view -- the SAME reader the routes' dark gate
     uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
@@ -340,6 +363,19 @@ def _options_screener_flag() -> dict:
     try:
         from api.services.research import options_screener
         return {"options_screener_enabled": True} if options_screener.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
+def _terminal_grammar_flag() -> dict:
+    """R17: TERMINAL_GRAMMAR_ENABLED (MOVE, aliases, command stats) -- the SAME reader
+    the grammar routes' dark gate uses. Those routes answer a byte-identical 404 for
+    "flag off" and "not in the cohort", so the client could not tell the two apart;
+    this lets it. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset =>
+    this payload is byte-identical to before. The client reads `=== true`. Never raises."""
+    try:
+        from api.services import terminal_grammar
+        return {"terminal_grammar_enabled": True} if terminal_grammar.is_enabled() else {}
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
         return {}
 
@@ -774,6 +810,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
         **_options_screener_flag(),
+        **_terminal_grammar_flag(),
+        **_options_panel_flags(),
         **_research_depth_flags(),
         **_research_notice_flags(),
         **_calendar_depth_flags(),
@@ -914,6 +952,15 @@ def signup(request: Request, req: SignupRequest, response: Response):
             user["role"] = "admin"
         finally:
             conn.close()
+
+    # Owner decision 2026-10-05: every member sees the UCT Terminal, new signups
+    # included — join the terminal-next cohort here. TERMINAL_NEXT_ENABLED stays
+    # the kill switch (checked first by rollout_gate). Never fails signup.
+    try:
+        from api.services import rollout_gate
+        rollout_gate.enroll_in_terminal_next(user["id"])
+    except Exception as e:
+        print(f"[signup] Failed to add terminal cohort: {e}")
 
     # Send verification email (non-blocking — don't fail signup if email fails)
     try:
@@ -2758,6 +2805,11 @@ _PREFERENCE_KEYS = {
     # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
     # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
     "terminal_boards": _PREF_OPAQUE,
+    # Daily-use leftover #1 (2026-10-06): the terminal command line's ↑ history, per member, a
+    # JSON array of command lines newest first, capped at 100 (`app/src/pages/terminal/
+    # commandHistory.js`). Written only through `setPrefMerged` (read-modify-write, since this
+    # endpoint replaces the whole value). Not a board key: it is not versioned with the board.
+    "terminal_command_history": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).

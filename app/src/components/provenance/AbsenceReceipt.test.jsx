@@ -125,13 +125,16 @@ describe('a failed check is not an answer', () => {
   it('an HTTP error says it failed and that it says nothing about the list', async () => {
     const receipt = await checkFixed('NVDA', () => json({ detail: 'boom' }, false, 500))
     expect(receipt).toHaveAttribute('data-kind', 'failed')
-    expect(screen.getByTestId('absence-receipt-headline')).toHaveTextContent('Could not check NVDA right now (HTTP 500).')
+    expect(screen.getByTestId('absence-receipt-headline')).toHaveTextContent('Could not check NVDA right now: the service hit an error.')
     expect(receipt.textContent).toMatch(/not an answer about the list/)
     expect(receipt.textContent).not.toMatch(/not evaluated|exclud/i)
   })
 
   it('a network error says so too', () => {
-    expect(describeFailure('NVDA', null).headline).toBe('Could not check NVDA right now (network error).')
+    expect(describeFailure('NVDA', null).headline).toBe('Could not check NVDA right now: the connection did not go through.')
+    // tq-panels: never a raw status code
+    expect(describeFailure('NVDA', 503).headline).toBe('Could not check NVDA right now: the service is busy or restarting.')
+    expect(describeFailure('NVDA', 503).headline).not.toMatch(/HTTP|503/)
   })
 
   it('an invalid ticker is refused before any request', async () => {

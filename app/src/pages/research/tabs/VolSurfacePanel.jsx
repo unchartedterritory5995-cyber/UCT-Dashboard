@@ -4,6 +4,8 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import EChart from '../../../components/research-kit/charts/echartsCore'
 import { buildSmileOption, buildTermOption, heatOf, pct, quoteClock, quoteSpan } from './volSurface'
 import styles from './OptionsChainTab.module.css'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { num } from '../../optionsAnalytics/optionsFormat'
 
 // BRK-01 increment 3 (roadmap RM-L01): the implied-vol surface, under the chain, from TODAY'S
 // live chain only (api/services/vol_surface.py). DARK behind OPTIONS_VOL_SURFACE_ENABLED, which
@@ -20,7 +22,7 @@ function SideNote({ side, testId }) {
   if (!side) return null
   return (
     <>
-      {!side.drawable && <p className={styles.note} data-testid={`${testId}-not-drawn`}>{side.reason}</p>}
+      {!side.drawable && <p className={styles.note} data-testid={`${testId}-not-drawn`}>{memberSentence(side.reason)}</p>}
       {side.refused_text && (
         <p className={styles.muted} data-testid={`${testId}-refused`}>Left out: {side.refused_text}.</p>
       )}
@@ -64,8 +66,15 @@ export default function VolSurfacePanel({ sym, expiration }) {
 
       <h4 className={styles.volHead}>Smile · {smile?.expiration || '—'}</h4>
       {drawnSmile ? (
-        <EChart option={smileOpt} height={200} testId="vol-smile-chart"
-                ariaLabel={`Implied volatility by strike for the ${smile.expiration} expiration, calls and puts`} />
+        <>
+          <ul className={styles.legend} data-testid="vol-smile-legend" aria-label="Smile legend">
+            {smile?.calls?.drawable && <li><span className={`${styles.legendSwatch} ${styles.legendCall}`} aria-hidden="true" />Calls</li>}
+            {smile?.puts?.drawable && <li><span className={`${styles.legendSwatch} ${styles.legendPut}`} aria-hidden="true" />Puts</li>}
+            {Number.isFinite(Number(d.spot)) && <li><span className={`${styles.legendSwatch} ${styles.legendSpot}`} aria-hidden="true" />Spot</li>}
+          </ul>
+          <EChart option={smileOpt} height={200} testId="vol-smile-chart"
+                  ariaLabel={`Implied volatility by strike for the ${smile.expiration} expiration, calls and puts`} />
+        </>
       ) : null}
       <SideNote side={smile?.calls} testId="smile-calls" />
       <SideNote side={smile?.puts} testId="smile-puts" />
@@ -78,19 +87,19 @@ export default function VolSurfacePanel({ sym, expiration }) {
         <EChart option={termOpt} height={180} testId="vol-term-chart"
                 ariaLabel="At-the-money implied volatility by days to expiration" />
       ) : (
-        <p className={styles.note} data-testid="term-not-drawn">{d.term?.reason}</p>
+        <p className={styles.note} data-testid="term-not-drawn">{memberSentence(d.term?.reason)}</p>
       )}
       <ul className={styles.volList} data-testid="term-points">
         {(d.term?.points || []).filter((p) => p.atm_iv != null).map((p) => (
           <li key={p.expiration}>
-            {p.expiration} ({p.dte}d) · ATM {Number(p.atm_strike).toFixed(2)} · <b>{pct(p.atm_iv)}</b>
+            {p.expiration} ({p.dte}d) · ATM {num(p.atm_strike)} · <b>{pct(p.atm_iv)}</b>
             {' '}<span className={styles.muted}>{p.atm_basis} · quoted {quoteClock(p.t, servedDay)}</span>
           </li>
         ))}
       </ul>
       {termOut.length > 0 && (
         <p className={styles.muted} data-testid="term-left-out">
-          Not on the line: {termOut.map((p) => `${p.expiration} (${p.reason})`).join('; ')}.
+          Not on the line: {termOut.map((p) => `${p.expiration} (${memberText(p.reason)})`).join('; ')}.
         </p>
       )}
 
@@ -105,7 +114,7 @@ export default function VolSurfacePanel({ sym, expiration }) {
               <tbody>
                 {grid.rows.map((r) => (
                   <tr key={r.strike}>
-                    <td className={styles.strike}>{Number(r.strike).toFixed(2)}</td>
+                    <td className={styles.strike}>{num(r.strike)}</td>
                     {r.cells.map((c, i) => (
                       <td key={grid.expirations[i]}
                           className={c ? styles.volCell : undefined}
@@ -125,7 +134,7 @@ export default function VolSurfacePanel({ sym, expiration }) {
 
       <p className={styles.muted} data-testid="vol-coverage">
         {d.expirations_sampled} of {d.expirations_listed} listed expirations sampled
-        {d.missing?.length ? `; not fetched: ${d.missing.map((m) => `${m.expiration} (${m.reason})`).join('; ')}` : ''}
+        {d.missing?.length ? `; not fetched: ${d.missing.map((m) => `${m.expiration} (${memberText(m.reason)})`).join('; ')}` : ''}
         {' '}· refreshed every {d.cache_seconds || 60}s
         {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}
       </p>

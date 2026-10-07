@@ -4,13 +4,23 @@
 // backend's portfolio_heat.py already returns to its four assistant-tool
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
+import UIcon from '../components/ui/UIcon'
+import { useInTerminalPanel, PanelSkeleton, PanelState } from '../components/terminal'
+import { formatPercent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` -- a 402 answers JSON too. See
 // utils/jsonFetcher.js's own header comment (the Traders.jsx idiom).
 import fetcher from '../utils/jsonFetcher'
 
+// A null percentage renders "—", never a bare "%" (and never throws on .toFixed).
+// The shared formatter owns the rounding and the missing-value glyph.
+export const pctText = (v) => formatPercent(v, { decimals: 1 })
+
 function CapBar({ label, valuePct, capPct }) {
+  if (!Number.isFinite(valuePct)) {
+    return <div className={styles.capRow}><div className={styles.capLabel}><span>{label}</span><span className={styles.capValue}>—</span></div></div>
+  }
   const pct = capPct > 0 ? Math.min(100, (valuePct / capPct) * 100) : 0
   const over = valuePct > capPct
   return (
@@ -18,7 +28,7 @@ function CapBar({ label, valuePct, capPct }) {
       <div className={styles.capLabel}>
         <span>{label}</span>
         <span className={over ? styles.capValueOver : styles.capValue}>
-          {valuePct.toFixed(1)}% <span className={styles.capOf}>/ {capPct.toFixed(1)}% cap</span>
+          {pctText(valuePct)} <span className={styles.capOf}>/ {pctText(capPct)} cap</span>
         </span>
       </div>
       <div className={styles.capTrack}>
@@ -29,7 +39,12 @@ function CapBar({ label, valuePct, capPct }) {
 }
 
 export default function PortfolioHeat() {
-  const { data, error } = useMobileSWR('/api/portfolio/heat', fetcher, { refreshInterval: 60000 })
+  const { data, error, mutate } = useMobileSWR('/api/portfolio/heat', fetcher, { refreshInterval: 60000 })
+  // Inside a UCT Terminal panel the panel header names the function and the shell insets the
+  // body, so the page's own title and padding step aside and the shared panel states are used.
+  const inPanel = useInTerminalPanel()
+  const pageCls = inPanel?.inset ? styles.pageInPanel : styles.page
+  const heading = inPanel ? null : <h1 className={styles.heading}>Portfolio Risk</h1>
 
   // ⭐ THE REFUSAL IS SAID OUT LOUD, same reasoning as Traders.jsx: without
   // this branch a 402 leaves `data` undefined forever and the page reads
@@ -37,23 +52,38 @@ export default function PortfolioHeat() {
   const refused = error?.status === 402 || error?.status === 403
   const failed = error && !refused
 
+  if (error && inPanel) {
+    return (
+      <div className={pageCls}>
+        {refused
+          ? <PanelState kind="locked" role="status" title="Portfolio risk is part of a paid plan." />
+          : <PanelState kind="error" role="status" title="Portfolio risk could not be read right now."
+              action={<button type="button" onClick={() => mutate()}>Retry</button>} />}
+      </div>
+    )
+  }
+
   if (error) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.heading}>Portfolio Risk</h1>
+      <div className={pageCls}>
+        {heading}
         <p className={styles.loading} role="status">
+          {/* "Retrying…" was a promise SWR does not keep: it stops polling a key holding an
+              error. A real Retry instead (quality pass 2026-10-05). */}
           {refused
             ? 'Portfolio risk is part of a paid plan.'
-            : 'Portfolio risk could not be loaded. Retrying…'}
+            : <>Portfolio risk could not be read right now.{' '}<button type="button" onClick={() => mutate()}>Retry</button></>}
         </p>
       </div>
     )
   }
 
+  if (!data && inPanel) return <div className={pageCls}><PanelSkeleton label="Loading portfolio risk" /></div>
+
   if (!data) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.heading}>Portfolio Risk</h1>
+      <div className={pageCls}>
+        {heading}
         <p className={styles.loading}>Loading portfolio risk…</p>
       </div>
     )
@@ -61,10 +91,10 @@ export default function PortfolioHeat() {
 
   if (data.ok === false) {
     return (
-      <div className={styles.page}>
-        <h1 className={styles.heading}>Portfolio Risk</h1>
+      <div className={pageCls}>
+        {heading}
         <p className={styles.loading} role="status">
-          {data.reason || 'Portfolio risk could not be computed right now.'}
+          {data.reason ? `Portfolio risk could not be computed: ${data.reason}.` : 'Portfolio risk could not be computed right now.'}
         </p>
       </div>
     )
@@ -77,8 +107,8 @@ export default function PortfolioHeat() {
   } = data
 
   return (
-    <div className={styles.page}>
-      <h1 className={styles.heading}>Portfolio Risk</h1>
+    <div className={pageCls}>
+      {heading}
 
       {account_size_is_default && (
         <p className={styles.notice} role="status">
@@ -91,14 +121,14 @@ export default function PortfolioHeat() {
         <div className={styles.statRow}>
           <div className={styles.stat}>
             <div className={styles.statLabel}>Notional exposure</div>
-            <div className={styles.statValue}>{notional_exposure_pct?.toFixed(1)}%</div>
+            <div className={styles.statValue}>{pctText(notional_exposure_pct)}</div>
             {caps.regime_ceiling_pct != null && (
               <div className={styles.statSub}>regime ceiling {caps.regime_ceiling_pct}%</div>
             )}
           </div>
           <div className={styles.stat}>
             <div className={styles.statLabel}>Room to add</div>
-            <div className={styles.statValue}>{room_to_add_pct?.toFixed(1)}%</div>
+            <div className={styles.statValue}>{pctText(room_to_add_pct)}</div>
           </div>
           {regime && (
             <div className={styles.stat}>
@@ -115,7 +145,8 @@ export default function PortfolioHeat() {
         <div className={styles.flagsSection}>
           {concentration_flags.map(f => (
             <div key={f.sector} className={styles.flag}>
-              ⚠ {f.sector} is {f.risk_pct.toFixed(1)}% of your risk — over 40% concentration
+              <UIcon name="warning" size={14} gold={false} className={styles.flagIcon} />
+              {f.sector} is {pctText(f.risk_pct)} of your risk — over 40% concentration
             </div>
           ))}
         </div>
@@ -137,7 +168,7 @@ export default function PortfolioHeat() {
             {per_position.map(p => (
               <tr key={p.symbol}>
                 <td className={styles.sym}>{p.symbol}</td>
-                <td>{p.side}</td>
+                <td>{p.side ? p.side[0].toUpperCase() + p.side.slice(1) : '—'}</td>
                 <td>{p.dist_to_stop_pct != null ? `${p.dist_to_stop_pct}%` : '—'}</td>
                 <td>{p.risk_pct != null ? `${p.risk_pct}%` : '—'}</td>
                 {/* placeholder_stop is SURFACED, never hidden -- dropping it
@@ -163,7 +194,7 @@ export default function PortfolioHeat() {
             {by_sector.map(s => (
               <div key={s.sector} className={styles.sectorRow}>
                 <span>{s.sector}</span>
-                <span>{s.risk_pct.toFixed(1)}%</span>
+                <span>{pctText(s.risk_pct)}</span>
               </div>
             ))}
           </div>

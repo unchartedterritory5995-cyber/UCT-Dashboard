@@ -257,3 +257,64 @@ def test_a_result_is_cached_for_its_ttl(_stubs):
     asyncio.run(pos.heatmap("TST"))
     asyncio.run(pos.heatmap("TST"))
     assert _stubs["chain"] == 1
+
+
+# ── O6: 30-day constant-maturity IV, max pain names its expiry ────────────────────────────────
+
+def _cm_stub(monkeypatch, exps, iv_by_exp):
+    from api.services import polygon_options as po
+    monkeypatch.setattr(po, "list_expirations", lambda s: {"ticker": s, "expirations": exps})
+
+    def chain(sym, expiration="", strikes_around_spot=6, **kw):
+        exp = expiration or exps[0]
+        iv = iv_by_exp.get(exp)
+        if iv is None:
+            return {"error": "no chain"}
+        return {"ticker": sym, "expiration": exp, "spot": 100.0,
+                "calls": [{"strike": 100.0, "iv": iv}], "puts": [{"strike": 100.0, "iv": iv}]}
+    monkeypatch.setattr(po, "get_chain", chain)
+
+
+def test_the_implied_moves_use_a_30_day_constant_maturity_iv(monkeypatch):
+    import datetime as _d
+    today = _d.date(2026, 10, 5)
+    # 0DTE at a crazy 0.90, then 20d at 0.20 and 40d at 0.30: 0DTE must play no part.
+    _cm_stub(monkeypatch, ["2026-10-05", "2026-10-25", "2026-11-14"],
+             {"2026-10-05": 0.90, "2026-10-25": 0.20, "2026-11-14": 0.30})
+    a = pos._atm_iv_30d("TST", today=today)
+    w = 0.20 ** 2 * 20 + (0.30 ** 2 * 40 - 0.20 ** 2 * 20) * (30 - 20) / (40 - 20)
+    assert abs(a["iv"] - (w / 30) ** 0.5) < 1e-12
+    assert a["expirations"] == ["2026-10-25", "2026-11-14"]
+    assert "30-day constant maturity" in a["basis"]
+
+
+def test_with_one_side_of_30_days_the_basis_says_so(monkeypatch):
+    import datetime as _d
+    _cm_stub(monkeypatch, ["2026-10-09", "2026-10-16"], {"2026-10-09": 0.25, "2026-10-16": 0.22})
+    a = pos._atm_iv_30d("TST", today=_d.date(2026, 10, 5))
+    assert a["iv"] == 0.22 and a["expirations"] == ["2026-10-16"]
+    assert "single expiration 11 days out" in a["basis"]
+
+
+def test_the_levels_route_uses_the_30_day_reader():
+    import pathlib
+    src = pathlib.Path(pos.__file__).read_text(encoding="utf-8")   # the autouse stub replaces _atm
+    assert "_atm = _atm_iv_30d" in src.splitlines()
+
+
+def test_max_pain_names_the_expiration_it_is_for():
+    lv = asyncio.run(pos.levels("TST"))
+    by = {r["id"]: r for r in lv["levels"]}
+    assert by["max_pain"]["expiration"] == "2026-10-09"
+    assert by["call_wall"]["expiration"] is None
+
+
+def test_a_stand_in_zero_gamma_is_named_in_the_notes(monkeypatch):
+    from api import gex_service
+
+    async def gex(sym, dte="all", adjusted=False, source=None):
+        return {**GEX, "zeroGammaMethod": "put_wall_fallback", "zeroGammaIsFlip": False}
+    monkeypatch.setattr(gex_service, "get_gex_data", gex)
+    lv = asyncio.run(pos.levels("TST"))
+    assert lv["zero_gamma_method"] == "put_wall_fallback"
+    assert any("stand-in" in n for n in lv["notes"])
