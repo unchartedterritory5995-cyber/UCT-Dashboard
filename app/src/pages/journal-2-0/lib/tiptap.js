@@ -41,10 +41,80 @@ import { Mathematics } from './mathNodes'
 import { TextColor, NotebookHighlight } from './textColor'
 import { fmtTime } from '../../../components/video/playerUtils'
 import { citationLeafText } from './askCitation'
-import { getSchema } from '@tiptap/core'
+import { getSchema, getStyleProperty } from '@tiptap/core'
+import { FONT_OPTIONS } from '../../../utils/fontFamilies'
 // Wave 5: how the newer content reads on EVERY surface that renders a note
 // body — imported here because every one of them builds from this roster.
 import './noteContent.css'
+
+// ── Text style: the font and size a note may turn into CSS ─────────────────────
+//
+// ⛔ TipTap's stock FontFamily and FontSize render `style: font-family: ${value}` with
+// no narrowing, and content loaded as JSON never passes parseHTML. A stored
+// `fontFamily: "x; position:fixed; inset:0; background-image:url(...)"` therefore
+// became an inline style with a fixed full-screen box and an outside fetch -- in the
+// member's own editor, on a share link and on a published page (they all build from
+// this roster). Security lane, round 2: the two extensions below are guarded copies.
+// A value is kept only when it is one the Font picker offers (FONT_OPTIONS) or has a
+// strict SHAPE that cannot hold a second CSS declaration: no ; : ( ) { } \ / < > ! @
+// can match. The shape rule is what keeps a font or size that arrived by paste or
+// import (Word's `Calibri`, `11pt`) rendering exactly as it did.
+//
+// Narrowed on the way IN (parseHTML: paste, and the importer's generateJSON) and again
+// on the way OUT (renderHTML: anything already stored), the way textColor.js does.
+//
+// ⛔ ONE FACT IN TWO LANGUAGES with the server's public reducer
+// (api/services/journal_two/public_note_payload.py `safe_font_family` /
+// `safe_font_size`). Both are tested against the SAME case table,
+// tests/fixtures/notebook_text_style_cases.json.
+const PICKER_FONT_VALUES = new Set(FONT_OPTIONS.map((f) => f.value).filter(Boolean))
+const FAMILY_NAME = '(?:"[A-Za-z0-9][A-Za-z0-9 _-]{0,39}"|\'[A-Za-z0-9][A-Za-z0-9 _-]{0,39}\'|-?[A-Za-z][A-Za-z0-9 _-]{0,39})'
+const SAFE_FONT_FAMILY = new RegExp(`^${FAMILY_NAME}(?: {0,2}, {0,2}${FAMILY_NAME}){0,7}$`)
+const SAFE_FONT_SIZE = /^([0-9]{1,4}(?:\.[0-9]{1,4})?)(px|pt|em|rem|%)$/
+const FONT_SIZE_BOUNDS = { px: [6, 200], pt: [5, 150], em: [0.5, 10], rem: [0.5, 10], '%': [50, 1000] }
+const FONT_SIZE_KEYWORDS = new Set(['xx-small', 'x-small', 'small', 'medium', 'large', 'x-large',
+  'xx-large', 'xxx-large', 'smaller', 'larger'])
+
+/** `value` when it may become a `font-family` declaration, else null. */
+export function safeFontFamily(value) {
+  if (typeof value !== 'string' || value.length > 200) return null
+  return PICKER_FONT_VALUES.has(value) || SAFE_FONT_FAMILY.test(value) ? value : null
+}
+
+/** `value` when it may become a `font-size` declaration, else null. */
+export function safeFontSize(value) {
+  if (typeof value !== 'string') return null
+  if (FONT_SIZE_KEYWORDS.has(value)) return value
+  const m = SAFE_FONT_SIZE.exec(value)
+  if (!m) return null
+  const [lo, hi] = FONT_SIZE_BOUNDS[m[2]]
+  const n = Number(m[1])
+  return n >= lo && n <= hi ? value : null
+}
+
+const guardedStyleAttribute = (name, cssName, safe) => ({
+  default: null,
+  // The raw inline style first, as the stock extension reads it (it keeps the member's
+  // own quoting); then the same check a stored value gets.
+  parseHTML: (element) => safe(getStyleProperty(element, cssName) ?? element.style[name]),
+  renderHTML: (attributes) => {
+    const value = safe(attributes[name])
+    return value ? { style: `${cssName}: ${value}` } : {}
+  },
+})
+
+// `.extend` keeps each extension's name, options and commands (setFontFamily, ...);
+// only the attribute definition is replaced.
+const GuardedFontFamily = FontFamily.extend({
+  addGlobalAttributes() {
+    return [{ types: this.options.types, attributes: { fontFamily: guardedStyleAttribute('fontFamily', 'font-family', safeFontFamily) } }]
+  },
+})
+const GuardedFontSize = FontSize.extend({
+  addGlobalAttributes() {
+    return [{ types: this.options.types, attributes: { fontSize: guardedStyleAttribute('fontSize', 'font-size', safeFontSize) } }]
+  },
+})
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
   return [
@@ -71,10 +141,12 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // PasteContainers (last) must still precede. See PasteContainers below.
     NotebookCodeBlock,
     // Text styling: a shared TextStyle mark carrying font-family + font-size,
-    // driven by the editor toolbar's Font + Size dropdowns.
+    // driven by the editor toolbar's Font + Size dropdowns. The two attribute
+    // extensions are the GUARDED copies defined above: a stored, pasted or imported
+    // value outside the allow-list never becomes a style.
     TextStyle,
-    FontFamily,
-    FontSize,
+    GuardedFontFamily,
+    GuardedFontSize,
     // Wave 5: text colour + highlight, stored as a palette NAME and rendered
     // through classes (textColor.js), so a colour follows the member's theme.
     TextColor,

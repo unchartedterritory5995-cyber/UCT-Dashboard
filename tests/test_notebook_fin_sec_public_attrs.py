@@ -155,6 +155,51 @@ def test_the_public_routes_never_serve_a_hostile_value(client, gates_on, att_roo
             assert resp.headers.get(name) == value, name
 
 
+# ── the server's guard and the editor's guard agree ─────────────────────────────────────
+
+CASES = json.loads((FIXTURE.parent / "notebook_text_style_cases.json").read_text(encoding="utf-8"))
+
+
+def test_the_public_text_style_guard_agrees_with_the_shared_case_table():
+    """The same table drives the editor's guard (`lib/tiptap.js` safeFontFamily / safeFontSize,
+    tested by lib/tiptap.textStyleGuard.test.js), so the two cannot drift apart."""
+    assert len(CASES["family"]["reject"]) >= 15 and len(CASES["size"]["reject"]) >= 20
+    for v in CASES["family"]["accept"]:
+        assert public.safe_font_family(v), v
+    for v in CASES["family"]["reject"]:
+        assert not public.safe_font_family(v), v
+    for v in CASES["size"]["accept"]:
+        assert public.safe_font_size(v), v
+    for v in CASES["size"]["reject"]:
+        assert not public.safe_font_size(v), v
+    for v in public.GALLERY_FONT_FAMILIES:                       # every Font picker value
+        assert public.safe_font_family(v), v
+    for v in (None, 12, True, [], {}):
+        assert not public.safe_font_family(v) and not public.safe_font_size(v)
+
+
+def test_every_size_the_size_picker_offers_is_kept_on_a_public_page():
+    src = (FIXTURE.parents[2] / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook"
+           / "NoteEditorPage.jsx").read_text(encoding="utf-8")
+    import re
+    sizes = [int(x) for x in re.search(r"const FONT_SIZES = \[([^\]]+)\]", src).group(1).split(",")]
+    assert len(sizes) >= 15
+    for n in sizes:
+        assert public.safe_font_size(f"{n}px"), n
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_a_pasted_font_and_size_survive_a_public_copy_and_a_hostile_one_does_not(mode):
+    def style_after(attrs):
+        out = _reduce({"type": "doc", "content": [p(t("x", {"type": "textStyle", "attrs": attrs}))]}, mode)
+        marks = out["content"][0]["content"][0].get("marks") or []
+        return marks[0]["attrs"] if marks else None
+    assert style_after({"fontFamily": "Calibri, sans-serif", "fontSize": "11pt"}) == {
+        "fontFamily": "Calibri, sans-serif", "fontSize": "11pt"}
+    assert style_after({"fontFamily": "Calibri; position:fixed", "fontSize": "11pt"}) == {"fontSize": "11pt"}
+    assert style_after({"fontFamily": "x;y", "fontSize": "calc(1px)"}) is None
+
+
 # ── the fixture the client test renders ──────────────────────────────────────
 
 def _fixture_now():

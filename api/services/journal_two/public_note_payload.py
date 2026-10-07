@@ -607,12 +607,16 @@ def _v_str(pattern: "re.Pattern[str]", *, none_ok: bool = True):
 # modes accept the toolbar's values AND anything of a strict SHAPE that cannot carry a second
 # CSS declaration: no `;`, `:`, `(`, `)`, `{`, `}`, `\`, `/`, `<`, `>`, `!` or `@` can match.
 #
-# ⛔ ONE FACT IN TWO LANGUAGES with `lib/textStyleGuard.js` (`safeFontFamily`, `safeFontSize`),
+# ⛔ ONE FACT IN TWO LANGUAGES with `lib/tiptap.js` (`safeFontFamily`, `safeFontSize`),
 # which narrows the same two attributes in the editor. Both are driven by the SAME case file,
 # tests/fixtures/notebook_text_style_cases.json, so the two cannot drift.
-_FAMILY_NAME = r'(?:"[A-Za-z0-9][A-Za-z0-9 _-]{0,39}"|[A-Za-z][A-Za-z0-9 _-]{0,39})'
-_SAFE_FONT_FAMILY = re.compile(rf"^{_FAMILY_NAME}(?: ?, ?{_FAMILY_NAME}){{0,7}}$")
-_SAFE_FONT_SIZE = re.compile(r"^([0-9]{1,4}(?:\.[0-9]{1,4})?)(px|pt|em|rem|%)$")
+_FAMILY_NAME = (r'(?:"[A-Za-z0-9][A-Za-z0-9 _-]{0,39}"'
+                r"|'[A-Za-z0-9][A-Za-z0-9 _-]{0,39}'"
+                r"|-?[A-Za-z][A-Za-z0-9 _-]{0,39})")
+_SAFE_FONT_FAMILY = re.compile(rf"{_FAMILY_NAME}(?: {{0,2}}, {{0,2}}{_FAMILY_NAME}){{0,7}}")
+_FONT_SIZE_KEYWORDS = frozenset({"xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large",
+                                 "xxx-large", "smaller", "larger"})
+_SAFE_FONT_SIZE = re.compile(r"([0-9]{1,4}(?:\.[0-9]{1,4})?)(px|pt|em|rem|%)")
 #: unit -> (smallest, largest) a public page renders.
 PUBLIC_FONT_SIZE_BOUNDS = {"px": (6, 200), "pt": (5, 150), "em": (0.5, 10), "rem": (0.5, 10), "%": (50, 1000)}
 _COLOR_HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
@@ -621,11 +625,16 @@ _SAFE_SRC = re.compile(r"^[^\s<>\"'`\\]{1,2048}$")
 
 
 def safe_font_family(v: Any) -> bool:
-    return isinstance(v, str) and len(v) <= 200 and (v in GALLERY_FONT_FAMILIES or bool(_SAFE_FONT_FAMILY.match(v)))
+    return isinstance(v, str) and len(v) <= 200 and (
+        v in GALLERY_FONT_FAMILIES or bool(_SAFE_FONT_FAMILY.fullmatch(v)))
 
 
 def safe_font_size(v: Any) -> bool:
-    m = _SAFE_FONT_SIZE.match(v) if isinstance(v, str) else None
+    if not isinstance(v, str):
+        return False
+    if v in _FONT_SIZE_KEYWORDS:
+        return True
+    m = _SAFE_FONT_SIZE.fullmatch(v)
     if not m:
         return False
     lo, hi = PUBLIC_FONT_SIZE_BOUNDS[m.group(2)]

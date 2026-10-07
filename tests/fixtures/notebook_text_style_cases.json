@@ -1,0 +1,53 @@
+{
+ "_comment": "ONE case table for TWO guards that must agree: the server's public reducer (api/services/journal_two/public_note_payload.py safe_font_family / safe_font_size) and the editor's (app/src/pages/journal-2-0/lib/tiptap.js safeFontFamily / safeFontSize). Read by tests/test_notebook_fin_sec_public_attrs.py and by lib/tiptap.textStyleGuard.test.js. The toolbar's own values are NOT listed here: each test derives those from the pickers.",
+ "family": {
+  "accept": [
+   "Calibri",
+   "Calibri, sans-serif",
+   "Calibri,sans-serif",
+   "\"Times New Roman\", serif",
+   "'Times New Roman', serif",
+   "Aptos, \"Aptos Display\", sans-serif",
+   "Segoe UI, Tahoma, Geneva, Verdana, sans-serif",
+   "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+   "ui-monospace",
+   "\"Source Sans 3\", sans-serif"
+  ],
+  "reject": [
+   "x; position:fixed; inset:0",
+   "Arial; position: fixed",
+   "x;background-image:url(https://evil.example/p)",
+   "url(https://evil.example/f.woff)",
+   "expression(alert(1))",
+   "</style><script>alert(1)</script>",
+   "x;\\70 osition:fixed",
+   "Arial !important",
+   "Arial; color: red",
+   "Arial}body{display:none",
+   "\"Arial",
+   "Arial\"",
+   "Arial, ",
+   ", Arial",
+   "",
+   " ",
+   "Arial\nposition:fixed",
+   "var(--font-ui)",
+   "@import url(x)",
+   "a/b",
+   "Arial, Arial, Arial, Arial, Arial, Arial, Arial, Arial, Arial",
+   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  ]
+ },
+ "size": {
+  "accept": [
+   "6px", "12px", "14.6667px", "200px", "5pt", "11pt", "10.5pt", "150pt", "0.5em", "1.2em", "10em",
+   "1rem", "50%", "120%", "1000%", "small", "medium", "large", "x-large", "xx-small", "smaller", "larger"
+  ],
+  "reject": [
+   "12px; position:fixed", "12px;color:red", "5px", "201px", "4pt", "151pt", "0.4em", "11em", "49%",
+   "1001%", "12", "px", "12 px", " 12px", "12px ", "12PX", "1e3px", "-12px", "+12px", "12.px", ".5em",
+   "calc(100% - 1px)", "var(--x)", "expression(1)", "12px !important", "", "huge", "inherit", "12vw",
+   "100000px", "12.123456px"
+  ]
+ }
+}
