@@ -161,12 +161,15 @@ BUDGETS = [
 ]
 
 # Controller ruling, 2026-10-07 (the plan's section 6, "Keyboard budgets by ruling"). For these
-# eight flows the plan's keyboard number is below the arithmetic FLOOR for a keyboard: the keys
+# ten flows the plan's keyboard number is below the arithmetic FLOOR for a keyboard: the keys
 # that are not Tab, plus one Tab per move to a new control. No page design can meet a number
 # below its floor, so it is not a usable bar. Their keyboard budget is the floor plus
 # KEYS_RULING_ALLOWANCE. Mouse and touch budgets are unchanged, and so is every other flow.
 # (flow id: the floor). Cross-read against the plan by tests/test_notebook_w13q_clicks.py.
-KEYS_RULING_FLOOR = {"Q6": 8, "Q9": 7, "Q11": 25, "Q12": 10, "Q16": 6, "Q17": 5, "Q19": 7, "Q20": 20}
+# Extended the same day to Q18 and Q23: their floor was first read as 6, and is 7 (a flow that
+# starts on a fresh page reaches the page's own skip link with TWO Tabs, behind the shell's).
+KEYS_RULING_FLOOR = {"Q6": 8, "Q9": 7, "Q11": 25, "Q12": 10, "Q16": 6, "Q17": 5, "Q19": 7, "Q20": 20,
+                     "Q18": 7, "Q23": 7}
 KEYS_RULING_ALLOWANCE = 2
 
 
@@ -353,6 +356,16 @@ class Meter:
         handle = loc.element_handle(timeout=20000)
         self.pg.evaluate("h => { window.__w13qTarget = h }", handle)
         return self.tab_to("el === window.__w13qTarget || window.__w13qTarget.contains(el)", label, cap=cap)
+
+    def shift_tab_to_locator(self, loc, label: str, *, cap: int = TAB_CAP) -> int:
+        """Shift+Tab until the focused element IS (or is inside) this locator's element. For a
+        control that sits BEFORE where focus is: a keyboard member goes back to it, they do not
+        Tab forward round the whole page. Every press is real and counted like a Tab."""
+        loc = loc.first if hasattr(loc, "first") else loc
+        handle = loc.element_handle(timeout=20000)
+        self.pg.evaluate("h => { window.__w13qTarget = h }", handle)
+        return self.tab_to("el === window.__w13qTarget || window.__w13qTarget.contains(el)",
+                           f"{label} (Shift+Tab)", cap=cap, shift=True)
 
     def elapsed(self) -> float | None:
         return round(time.time() - self.t0, 2) if self.t0 else None
@@ -874,6 +887,21 @@ def use_skip_link(m: Meter, label_regex: str, log_label: str | None = None) -> b
     return True
 
 
+def use_skip_link_back(m: Meter, label_regex: str, log_label: str) -> bool:
+    """A skip link reached by Shift+Tab: for a member whose focus is in the folder panel, the
+    shell's skip links are a few stops BEHIND them, and forward Tab would go round the whole
+    page (measured: 86 and 162 presses, Q2 and Q11). Keys mode only."""
+    if m.mode != "keys":
+        return False
+    import re
+    link = m.pg.get_by_role("link", name=re.compile(label_regex, re.I))
+    if link.count() == 0:
+        return False
+    m.shift_tab_to_locator(link, log_label)
+    m.key("Enter", f"activate {log_label}")
+    return True
+
+
 def from_top(m: Meter) -> bool:
     """Keys mode: when focus is on <body> (a fresh page, or a route change that dropped it), the
     next Tab is the shell's "Skip to main content". A keyboard member takes it rather than walk
@@ -1064,7 +1092,8 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # 13Q-3: "Templates" lives in the pane's own list header -- the SAME region "Skip to notes
     # list" (NotebookTab.jsx) lands at, right past whatever remains of the sidebar after
     # go_all_notes' own click (the Keys path there still leaves focus on the "All notes" row).
-    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+    if not use_skip_link_back(m, r"Skip to notes? list", "Skip to notes list"):
+        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
     dlg = pg.get_by_role("dialog", name="New note")
     dlg.wait_for(state="visible", timeout=20000)
@@ -1080,7 +1109,11 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     tick = pg.locator("input[aria-label='Ticker']").filter(visible=True)
     if tick.count() == 0:
         raise Inconclusive("the note header carries no visible Ticker field at this width")
-    focus_field(m, tick, "Ticker field")
+    if m.mode == "keys" and not is_focused(pg, tick.first):
+        # a new note puts focus in its title; Ticker is a few stops BEFORE it
+        m.shift_tab_to_locator(tick, "Ticker field")
+    else:
+        focus_field(m, tick, "Ticker field")
     m.fill(tick, "NVDA", "ticker")
     # the field saves on blur: the member leaves it -- Tab (keys) or a click into the body
     if m.mode == "keys":
@@ -1424,7 +1457,8 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
     go_all_notes(m)
     # 13Q-3: the bulk-select checkboxes are in the pane's own grid -- "Skip to notes list"
     # lands right before it, same reasoning as Q2.
-    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+    if not use_skip_link_back(m, r"Skip to notes? list", "Skip to notes list"):
+        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     try:
         pg.get_by_role("checkbox", name=f"Select Bulk {tag} 0").filter(visible=True).first.wait_for(
             state="visible", timeout=20000)
@@ -1438,6 +1472,16 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
         if m.mode == "keys":
             m.tab_to_locator(box.first, f"select note {i}")
             m.key("Space", f"tick note {i}")
+        elif m.mode == "mouse":
+            # The list's own range select: tick the first, Shift+click the last. Two clicks
+            # for five notes (NotebookTab.bulk.test.jsx, "Shift+click selects the range").
+            if i == len(ids) - 1:
+                m.pointer(box, f"tick note {i}")
+            elif i == 0:
+                m._start()
+                box.first.click(modifiers=["Shift"])
+                m.clicks += 1
+                m.steps.append({"do": "shift+click", "on": f"tick note {i} (range: the notes between are selected)"})
         else:
             m.pointer(box, f"tick note {i}")
     bar = pg.locator("[data-bulk-bar]")
@@ -1493,9 +1537,13 @@ def q12_export_word(cx: Ctx, pg, m: Meter, width: str) -> dict:
     open_note_start(cx, pg, nid)
     import re
     # 13Q-3: "More note actions" sits in the sticky chrome, same reasoning as Q9's Ask toggle.
-    use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
     more = pg.locator("button[aria-label='More note actions']").filter(visible=True)
-    m.press(more, "More note actions")
+    if m.mode == "keys":
+        # the member is in the note's body and More is in the header ABOVE it: back, not round
+        m.shift_tab_to_locator(more, "More note actions")
+        m.key("Enter", "activate More note actions")
+    else:
+        m.press(more, "More note actions")
     panel = pg.locator("[role=group][aria-label='More note actions']")
     m.press(panel.get_by_role("button", name=re.compile(r"^Export")).filter(visible=True), "Export (in More note actions)")
     item = pg.get_by_role("menuitem", name=re.compile(r"Word")).filter(visible=True)

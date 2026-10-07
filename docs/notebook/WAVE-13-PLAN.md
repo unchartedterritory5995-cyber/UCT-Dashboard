@@ -432,12 +432,12 @@ repo (decision log).
 | Q23 | morning board, open the closest setup, find similar (13J) | 3 | 6 | 3 |
 
 **Keyboard budgets by ruling (controller, 2026-10-07).** The `keys` column above was written as a
-pointer budget with a small allowance. For eight flows it is below the arithmetic floor for a
+pointer budget with a small allowance. For ten flows it is below the arithmetic floor for a
 keyboard: the keys that are not Tab (Enter, Space, a shortcut, a menu arrow), plus one Tab for
 each move to a new control. No page design can meet a number below its floor, so that number is
-not a usable bar. For these eight the keyboard budget is the floor plus 2. Mouse and touch
+not a usable bar. For these ten the keyboard budget is the floor plus 2. Mouse and touch
 budgets are unchanged, and so is the keyboard budget of every other flow. The ruling excuses
-nothing else: each of the eight must still be driven to its floor plus 2. The tool reads this
+nothing else: each of the ten must still be driven to its floor plus 2. The tool reads this
 table (`KEYS_RULING_FLOOR`), and its verdict uses the ruled number.
 
 | # | plan keys | floor | keys budget | why the plan number cannot be met |
@@ -450,6 +450,8 @@ table (`KEYS_RULING_FLOOR`), and its verdict uses the ruled number.
 | Q17 | 4 | 5 | 7 | 2 presses of Enter, and a move each to the skip link, the field and Save |
 | Q19 | 6 | 7 | 9 | 5 keys that are not Tab and 2 moves |
 | Q20 | 10 | 20 | 22 | 3 keys to insert the chart, 1 to open the plan, a role key and Enter for each of 3 levels, and 10 moves |
+| Q18 | 6 | 7 | 9 | added by the same ruling later that day: the page's own skip link is behind the shell's, so it costs 2 Tabs, then 3 presses of Enter and 2 more moves |
+| Q23 | 6 | 7 | 9 | added with Q18, for the same reason: 2 Tabs to the page's skip link, 3 presses of Enter and 2 more moves |
 
 A miss is a finding with its raw path, never an edit to the target. **13Q-2** fixes misses through
 the owning lane's files. Q7's fix (the door earlier in tab order, or a skip link) lives in

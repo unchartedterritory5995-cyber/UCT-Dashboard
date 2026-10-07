@@ -880,7 +880,7 @@ def _parse_plan_keys_ruling() -> dict[str, tuple[int, int, int]]:
 
 def test_the_keyboard_ruling_in_the_tool_is_the_plans_table():
     ruling = _parse_plan_keys_ruling()
-    assert len(ruling) == 8                                   # NON-VACUITY: the parser read rows
+    assert len(ruling) == 10                                  # NON-VACUITY: the parser read rows
     assert set(ruling) == set(w13q.KEYS_RULING_FLOOR)
     plan_keys = {b[0]: b[3] for b in w13q.BUDGETS}
     for fid, (plan, floor, budget) in ruling.items():
