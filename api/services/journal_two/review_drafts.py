@@ -8,15 +8,14 @@ Notebook's one create door (or appends it to the member's daily note, for the da
 this module never writes a note itself, and nothing here is scheduled (no background drafts).
 
 **Never a second authority.**
-  * Period P&L: `coach_data_assembler.assemble_week` for weekly. There is no
-    `assemble_month` -- the monthly case calls the SAME private primitives that function calls
-    internally (`_trades_in_range` + `_aggregate_trades`), never a reimplemented aggregate.
+  * Period P&L: `coach_data_assembler._aggregate_trades`, the arithmetic Compass's own
+    periods use, over the rows the draft itself selected -- never a reimplemented aggregate.
     (Reusing a sibling module's underscore-prefixed helper rather than restating its
     arithmetic is this codebase's own precedent -- 13B's `playbook_patterns.py` reuses
     `plan_grading._note_state_at` the same way.)
-  * WHICH DAY A TRADE BELONGS TO (daily): `filters._DAY`, the trading-day spine
-    (`trading_day_et`, falling back to the exit date for a row from before that column). The
-    daily draft fetches its trades ONCE on that spine and both the trade list and the numbers
+  * WHICH DAY A TRADE BELONGS TO (every period): `filters._DAY`, the trading-day spine
+    (`trading_day_et`, falling back to the exit date for a row from before that column). Each
+    draft fetches its trades ONCE on that spine and both the trade list and the numbers
     table (`coach_data_assembler._aggregate_trades` over those same rows) come from that one
     fetch, so they cannot count different trades. The verdict scorecard called below is
     already on the same spine. ⚰️ The daily fetch and `assemble_day` both windowed on
@@ -101,24 +100,48 @@ def _plain_account_id(account_id: str | None) -> str | None:
 
 
 
-def _week_bounds(week_start: str) -> tuple[datetime, datetime, str]:
-    """Mirrors `coach_data_assembler.assemble_week` byte for byte: a UTC-midnight window,
-    Monday through Friday exclusive, so the SAME trades are in scope either way."""
-    start = datetime.fromisoformat(week_start).replace(tzinfo=timezone.utc)
-    end = start + timedelta(days=5)
-    end_day = (end - timedelta(days=1)).date().isoformat()
-    return start, end, end_day
+# ⛔ EVERY PERIOD IS EASTERN TRADING DAYS (owner ruling, fin-data round 2). A draft's week is
+# Monday through Friday and its month the first through the last day, each as TRADING DAYS on
+# `filters._DAY` -- the same spine as the daily draft. ⚰️ Weekly and monthly used to window
+# `exit_date` between UTC midnights: a trade closed Friday evening Eastern (already Saturday
+# in UTC) fell out of its week, and one closed on the last evening of a month fell into the
+# next month.
+
+def _week_days(week_start: str) -> tuple[str, str]:
+    """(Monday, Friday) of the trading week that starts on `week_start`, as ISO days."""
+    start = datetime.fromisoformat(week_start).date()
+    return start.isoformat(), (start + timedelta(days=4)).isoformat()
 
 
-def _month_bounds(month_iso: str) -> tuple[datetime, datetime, str]:
+def _month_days(month_iso: str) -> tuple[str, str]:
+    """(first day, last day) of the month, as ISO days."""
     year, mon = int(month_iso[:4]), int(month_iso[5:7])
-    start = datetime(year, mon, 1, tzinfo=timezone.utc)
-    if mon == 12:
-        end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-    else:
-        end = datetime(year, mon + 1, 1, tzinfo=timezone.utc)
-    end_day = (end - timedelta(days=1)).date().isoformat()
-    return start, end, end_day
+    nxt = datetime(year + 1, 1, 1) if mon == 12 else datetime(year, mon + 1, 1)
+    return f"{month_iso[:7]}-01", (nxt - timedelta(days=1)).date().isoformat()
+
+
+# ── the windows COMPASS uses (read, never changed, in this lane) ─────────────────────────────
+#
+# A draft can quote what Compass said about the period. Compass picks its trades differently:
+#   * weekly review -- `coach_data_assembler.assemble_week`: exit_date in
+#     [Monday 00:00 UTC, Saturday 00:00 UTC);
+#   * daily recap   -- `coach_data_assembler.assemble_day`: exit_date between Eastern
+#     midnights.
+# Both read the instant; a draft reads the trading day. They part for a trade closed in the
+# evening Eastern (weekly) and for a date-only trade, stored at UTC midnight (daily). The two
+# functions below are those windows, so `_compass_text` can tell whether Compass was talking
+# about the same trades before quoting it.
+
+def _compass_week_window(week_start: str) -> tuple[datetime, datetime]:
+    start = datetime.fromisoformat(week_start).replace(tzinfo=timezone.utc)
+    return start, start + timedelta(days=5)
+
+
+def _compass_day_window(day_iso: str) -> tuple[datetime, datetime]:
+    from zoneinfo import ZoneInfo
+    start = datetime.combine(datetime.fromisoformat(day_iso).date(), datetime.min.time(),
+                             tzinfo=ZoneInfo("America/New_York"))
+    return start.astimezone(timezone.utc), (start + timedelta(days=1)).astimezone(timezone.utc)
 
 
 # ── the raw fetch + enrichment ────────────────────────────────────────────────────────────
@@ -127,10 +150,10 @@ def _month_bounds(month_iso: str) -> tuple[datetime, datetime, str]:
 def _fetch_period_trades(
     conn: sqlite3.Connection, user_id: str, account_id: str, start_utc: datetime, end_utc: datetime,
 ) -> list[sqlite3.Row]:
-    """Every closed equity trade in `[start_utc, end_utc)`, WITH its id -- the one thing
-    `coach_data_assembler._trades_in_range` does not carry, and the one thing every citation
-    in this lane needs. Same predicate shape (account scope, exit_date window,
-    analytics_excluded) so the row SET matches what the period's own aggregate counted."""
+    """Every closed equity trade in `[start_utc, end_utc)`, WITH its id. This is COMPASS's
+    predicate (`coach_data_assembler._trades_in_range`: account scope, exit_date window,
+    analytics_excluded), kept byte for byte so it answers one question: which trades did
+    Compass count for a period? No draft selects its own trades with it any more."""
     ids = resolve_account_scope(conn, user_id, account_id)
     if not ids:
         return []
@@ -151,10 +174,18 @@ def _fetch_period_trades(
 
 
 def _fetch_day_trades(conn: sqlite3.Connection, user_id: str, account_id: str, day_iso: str) -> list[sqlite3.Row]:
-    """Every closed equity trade whose TRADING DAY is `day_iso` -- the same columns and the
-    same account scope and `analytics_excluded` rule as `_fetch_period_trades`, selected on
-    `filters._DAY` rather than an instant window. A date-only trade has no instant to window
-    on: its stored UTC midnight is the evening before in Eastern time."""
+    """Every closed equity trade whose TRADING DAY is `day_iso`."""
+    return _fetch_days_trades(conn, user_id, account_id, day_iso, day_iso)
+
+
+def _fetch_days_trades(conn: sqlite3.Connection, user_id: str, account_id: str,
+                       first_day: str, last_day: str) -> list[sqlite3.Row]:
+    """Every closed equity trade whose TRADING DAY is in `[first_day, last_day]` -- the ONE
+    selection every draft uses (a day, a week, a month). The same columns, account scope and
+    `analytics_excluded` rule as Compass's window above, selected on `filters._DAY` rather
+    than an instant: a date-only trade has no instant to window on (its stored UTC midnight
+    is the evening before in Eastern time), and an evening trade's instant is already the
+    next UTC day."""
     ids = resolve_account_scope(conn, user_id, account_id)
     if not ids:
         return []
@@ -166,11 +197,11 @@ def _fetch_day_trades(conn: sqlite3.Connection, user_id: str, account_id: str, d
                hour_et, trading_day_et, context_at_entry, source, external_id, account_id
           FROM j2_trades
          WHERE user_id = ? AND account_id IN ({marks})
-           AND {_DAY} = ?
+           AND {_DAY} >= ? AND {_DAY} <= ?
            AND (analytics_excluded IS NULL OR analytics_excluded = 0)
          ORDER BY exit_date ASC
         """,
-        [user_id, *ids, day_iso],
+        [user_id, *ids, first_day, last_day],
     ).fetchall()
 
 
@@ -232,21 +263,8 @@ def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Ro
 # ── the numbers section (period P&L -- one authority per period) ────────────────────────────
 
 
-def _period_aggregates(
-    conn: sqlite3.Connection, user_id: str, account_id: str, period: str, **kwargs: Any,
-) -> dict[str, Any]:
-    if period == "weekly":
-        full = coach_data_assembler.assemble_week(
-            user_id=user_id, account_id=account_id, week_start=kwargs["week_start"], conn=conn,
-        )
-        return full["week"]["aggregates"]
-    # Monthly: no `assemble_month` exists. Reuse the exact primitives `assemble_week` itself
-    # calls, over a month-long window, rather than reimplement the aggregate arithmetic.
-    trades = coach_data_assembler._trades_in_range(  # noqa: SLF001 -- precedented reuse, see module docstring
-        conn, user_id, account_id, kwargs["start_utc"], kwargs["end_utc"],
-    )
-    return coach_data_assembler._aggregate_trades(trades)  # noqa: SLF001
-
+# Every period's numbers table is `_aggregate_rows` over the rows its own trade list was built
+# from (above), so the list and the numbers cannot count different trades.
 
 # ── discipline (13A reuse, framed by the period instead of a rolling window) ────────────────
 
@@ -408,6 +426,46 @@ def _compass_excerpt(body: str | None, *, kind: str, created_at: Any) -> dict[st
     return {"text": text, "kind": kind, "createdAt": created_at}
 
 
+def _same_period_or_omit(
+    conn: sqlite3.Connection, user_id: str, account_id: str, period: str, rows: list[sqlite3.Row],
+    compass: dict[str, Any] | None, *, day_iso: str | None = None, week_start: str | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """(the quote to show, or None) and (why it was left out, or None).
+
+    ⛔ A QUOTE ABOUT A DIFFERENT SET OF TRADES IS NEVER SHOWN AS THE SAME PERIOD (owner ruling,
+    fin-data round 2). Compass's text is quoted only when the trades Compass counted for the
+    period are exactly the trades this draft lists. When they differ the quote is left out and
+    the payload says so, with how many trades are in one and not the other and which window
+    each uses. Nothing to quote means nothing to explain: (None, None)."""
+    if compass is None:
+        return None, None
+    if period == "weekly" and week_start:
+        window = _compass_week_window(week_start)
+        theirs = "from Monday 00:00 to Saturday 00:00 UTC"
+        ours = "Monday to Friday in Eastern time"
+        what = "this week"
+    elif period == "daily" and day_iso:
+        window = _compass_day_window(day_iso)
+        theirs = "by the clock time each trade closed, midnight to midnight Eastern"
+        ours = "the trading day each trade belongs to"
+        what = "this day"
+    else:
+        return compass, None
+    compass_ids = {r["id"] for r in _fetch_period_trades(conn, user_id, account_id, *window)}
+    draft_ids = {r["id"] for r in rows}
+    if compass_ids == draft_ids:
+        return compass, None
+    draft_only, compass_only = len(draft_ids - compass_ids), len(compass_ids - draft_ids)
+    n = draft_only + compass_only
+    return None, {
+        "draftOnly": draft_only, "compassOnly": compass_only,
+        "compassWindow": theirs, "draftWindow": ours,
+        "sentence": (f"Compass reviewed {what} {theirs}. This note covers {ours}. "
+                     f"{n} trade{'' if n == 1 else 's'} {'is' if n == 1 else 'are'} in one and not the "
+                     "other, so the Compass review is not quoted here."),
+    }
+
+
 def _compass_text(
     conn: sqlite3.Connection, user_id: str, account_id: str, period: str,
     *, day_iso: str | None = None, week_start: str | None = None,
@@ -438,6 +496,7 @@ def _assemble(
     conn: sqlite3.Connection, user_id: str, account_id: str, period: str,
     enriched: list[dict[str, Any]], aggregates: dict[str, Any], *,
     range_: dict[str, str], compass: dict[str, Any] | None,
+    compass_omitted: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     baseline = leak_finder.baseline_stats(enriched)
     spec = FilterSpec(date_from=range_["start"], date_to=range_["end"])
@@ -469,6 +528,7 @@ def _assemble(
                         "ungraded": max(0, len(enriched) - MAX_GRADED_TRADES)}
                        if plan_grading_enabled() else None),
         "compassText": compass,
+        "compassOmitted": compass_omitted,
         "baseline": baseline,
         "sample": sample_size.constants(),
     }
@@ -479,29 +539,33 @@ def build_daily_draft(conn: sqlite3.Connection, user_id: str, account_id: str, d
     rows = _fetch_day_trades(conn, user_id, account_id, day_iso)
     enriched = _enrich_trades(conn, user_id, rows)
     aggregates = _aggregate_rows(rows)
-    compass = _compass_text(conn, user_id, account_id, "daily", day_iso=day_iso)
+    compass, omitted = _same_period_or_omit(
+        conn, user_id, account_id, "daily", rows,
+        _compass_text(conn, user_id, account_id, "daily", day_iso=day_iso), day_iso=day_iso)
     return _assemble(
         conn, user_id, account_id, "daily", enriched, aggregates,
-        range_={"start": day_iso, "end": day_iso}, compass=compass,
+        range_={"start": day_iso, "end": day_iso}, compass=compass, compass_omitted=omitted,
     )
 
 
 def build_weekly_draft(conn: sqlite3.Connection, user_id: str, account_id: str, week_start: str) -> dict[str, Any]:
-    start_utc, end_utc, end_day = _week_bounds(week_start)
-    enriched = _enrich_trades(conn, user_id, _fetch_period_trades(conn, user_id, account_id, start_utc, end_utc))
-    aggregates = _period_aggregates(conn, user_id, account_id, "weekly", week_start=week_start)
-    compass = _compass_text(conn, user_id, account_id, "weekly", week_start=week_start)
+    first, last = _week_days(week_start)
+    rows = _fetch_days_trades(conn, user_id, account_id, first, last)   # ONE fetch: list and numbers
+    enriched = _enrich_trades(conn, user_id, rows)
+    compass, omitted = _same_period_or_omit(
+        conn, user_id, account_id, "weekly", rows,
+        _compass_text(conn, user_id, account_id, "weekly", week_start=week_start), week_start=week_start)
     return _assemble(
-        conn, user_id, account_id, "weekly", enriched, aggregates,
-        range_={"start": week_start, "end": end_day}, compass=compass,
+        conn, user_id, account_id, "weekly", enriched, _aggregate_rows(rows),
+        range_={"start": first, "end": last}, compass=compass, compass_omitted=omitted,
     )
 
 
 def build_monthly_draft(conn: sqlite3.Connection, user_id: str, account_id: str, month_iso: str) -> dict[str, Any]:
-    start_utc, end_utc, end_day = _month_bounds(month_iso)
-    enriched = _enrich_trades(conn, user_id, _fetch_period_trades(conn, user_id, account_id, start_utc, end_utc))
-    aggregates = _period_aggregates(conn, user_id, account_id, "monthly", start_utc=start_utc, end_utc=end_utc)
+    first, last = _month_days(month_iso)
+    rows = _fetch_days_trades(conn, user_id, account_id, first, last)   # ONE fetch: list and numbers
+    enriched = _enrich_trades(conn, user_id, rows)
     return _assemble(
-        conn, user_id, account_id, "monthly", enriched, aggregates,
-        range_={"start": f"{month_iso}-01", "end": end_day}, compass=None,
+        conn, user_id, account_id, "monthly", enriched, _aggregate_rows(rows),
+        range_={"start": first, "end": last}, compass=None,
     )

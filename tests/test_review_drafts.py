@@ -461,3 +461,118 @@ def test_with_plan_grading_off_there_is_no_grading_cap_to_report(conn, client, m
     payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
     assert payload["gradingCap"] is None
     assert conn.execute("SELECT COUNT(*) FROM j2_trade_plan_misses").fetchone()[0] == 0
+
+
+# ── round 2: weekly and monthly drafts use Eastern trading weeks and months ──────────────────
+#
+# They windowed `exit_date` between UTC midnights (to match the Compass weekly review). A
+# trade closed Friday evening Eastern is already Saturday in UTC, so it fell out of its week;
+# one closed on the last evening of a month fell into the next month. They now select on the
+# same trading-day spine as the daily draft (`filters._DAY`).
+
+def _evening(conn, day, next_utc_day, **kw):
+    """Closed at 8:30 PM Eastern on `day`: already `next_utc_day` in UTC."""
+    return add_trade(conn, entry_date=f"{day}T19:00:00+00:00", exit_date=f"{next_utc_day}T00:30:00+00:00",
+                     trading_day_et=day, **kw)
+
+
+def test_a_trade_closed_friday_evening_eastern_is_in_that_week(conn, client):
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-29T13:30:00+00:00",
+              exit_date="2026-09-29T19:00:00+00:00", entry_price=100.0, exit_price=101.0, tid="midweek")
+    _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0, tid="fri-eve")
+    this_week = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
+    next_week = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-10-05", "accountId": ACCOUNT}).json()
+    assert this_week["tradeCount"] == 2 and this_week["aggregates"]["trade_count"] == 2
+    assert this_week["worstTrade"]["id"] == "fri-eve"
+    assert this_week["aggregates"]["net_pnl_dollar"] == pytest.approx(100.0 - 500.0)
+    assert next_week["tradeCount"] == 0
+    assert this_week["range"] == {"start": "2026-09-28", "end": "2026-10-02"}
+
+
+def test_a_trade_closed_sunday_evening_utc_monday_is_not_pulled_into_the_new_week(conn, client):
+    """The other edge of the UTC window: Monday 00:30 UTC is Sunday evening Eastern."""
+    _evening(conn, "2026-09-27", "2026-09-28", symbol="NVDA", entry_price=100.0, exit_price=101.0)
+    week = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
+    assert week["tradeCount"] == 0
+
+
+def test_a_trade_closed_on_the_last_evening_of_a_month_is_in_that_month(conn, client):
+    _evening(conn, "2026-09-30", "2026-10-01", symbol="NVDA", entry_price=100.0, exit_price=103.0, tid="sep-eve")
+    _date_only_trade(conn, "2026-09-01", symbol="AAPL", entry_price=50.0, exit_price=51.0)   # the first, date-only
+    _date_only_trade(conn, "2026-10-01", symbol="MSFT", entry_price=50.0, exit_price=49.0)   # next month's first
+    sep = client.get("/api/j2/review-drafts/monthly", params={"month": "2026-09", "accountId": ACCOUNT}).json()
+    octo = client.get("/api/j2/review-drafts/monthly", params={"month": "2026-10", "accountId": ACCOUNT}).json()
+    assert sep["tradeCount"] == 2 and sep["aggregates"]["trade_count"] == 2 and sep["bestTrade"]["id"] == "sep-eve"
+    assert octo["tradeCount"] == 1 and octo["aggregates"]["trade_count"] == 1
+    assert sep["range"] == {"start": "2026-09-01", "end": "2026-09-30"}
+
+
+def test_every_half_of_a_weekly_and_a_monthly_draft_counts_the_same_trades(conn, client):
+    from api.services.journal_two import verdict_scorecard
+    from api.services.journal_two.filters import FilterSpec
+    _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0)
+    _date_only_trade(conn, "2026-09-28", symbol="NVDA", entry_price=100.0, exit_price=103.0)
+    for path, params in (("weekly", {"weekStart": "2026-09-28"}), ("monthly", {"month": "2026-09"})):
+        payload = client.get(f"/api/j2/review-drafts/{path}", params={**params, "accountId": ACCOUNT}).json()
+        card = verdict_scorecard.get_verdict_scorecard(
+            U, ACCOUNT, spec=FilterSpec(date_from=payload["range"]["start"], date_to=payload["range"]["end"]), conn=conn)
+        assert payload["aggregates"]["trade_count"] == payload["tradeCount"] == payload["baseline"]["n"]
+        assert card["coverage"]["tradesTotal"] == payload["tradeCount"], path
+
+
+# ── the Compass quote is only shown when it is about the same trades ─────────────────────────
+#
+# Compass's weekly review (not changed in this lane) counts trades whose exit_date is in
+# [Monday 00:00 UTC, Saturday 00:00 UTC): coach_data_assembler.assemble_week. Its daily recap
+# uses Eastern midnights on exit_date: assemble_day. Both differ from the draft's trading-day
+# spine for an evening trade or a date-only one. A quote about a different set of trades must
+# not sit beside the draft's numbers as if it were the same period.
+
+def _compass(monkeypatch, *, week=None, day=None):
+    from api.services.journal_two import coach
+    monkeypatch.setattr(coach, "list_weekly_reviews", lambda *a, **k: (
+        [{"metadata": {"week_start": week}, "body": "A steady week. You kept your stops.", "created_at": "x"}] if week else []))
+    monkeypatch.setattr(coach, "list_eod_recaps", lambda *a, **k: (
+        [{"metadata": {"day": day}, "body": "A quiet day. One clean entry.", "created_at": "x"}] if day else []))
+
+
+def test_the_weekly_compass_quote_is_shown_when_both_cover_the_same_trades(conn, client, monkeypatch):
+    _compass(monkeypatch, week="2026-09-28")
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-29T13:30:00+00:00",
+              exit_date="2026-09-29T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
+    payload = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
+    assert payload["compassText"]["text"].startswith("A steady week")
+    assert payload["compassOmitted"] is None
+
+
+def test_the_weekly_compass_quote_is_left_out_when_an_evening_trade_makes_the_periods_differ(conn, client, monkeypatch):
+    _compass(monkeypatch, week="2026-09-28")
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-29T13:30:00+00:00",
+              exit_date="2026-09-29T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
+    _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0)
+    payload = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
+    assert payload["compassText"] is None, "a quote about a different set of trades was shown as the same week"
+    om = payload["compassOmitted"]
+    assert om["draftOnly"] == 1 and om["compassOnly"] == 0
+    assert "Eastern" in om["sentence"] and "UTC" in om["sentence"] and "1 trade" in om["sentence"]
+
+
+def test_the_daily_compass_quote_is_left_out_when_a_date_only_trade_makes_the_days_differ(conn, client, monkeypatch):
+    _compass(monkeypatch, day="2026-10-01")
+    _date_only_trade(conn, "2026-10-01", symbol="NVDA", entry_price=100.0, exit_price=103.0)
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-01", "accountId": ACCOUNT}).json()
+    assert payload["compassText"] is None and payload["compassOmitted"]["draftOnly"] == 1
+    # Control: a timed trade is the same day for both, and the quote is shown.
+    conn.execute("DELETE FROM j2_trades")
+    conn.commit()
+    add_trade(conn, symbol="NVDA", entry_date="2026-10-01T13:30:00+00:00",
+              exit_date="2026-10-01T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-10-01", "accountId": ACCOUNT}).json()
+    assert payload["compassText"]["text"].startswith("A quiet day") and payload["compassOmitted"] is None
+
+
+def test_with_no_compass_review_there_is_nothing_to_omit(conn, client, monkeypatch):
+    _compass(monkeypatch)
+    _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0)
+    payload = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
+    assert payload["compassText"] is None and payload["compassOmitted"] is None

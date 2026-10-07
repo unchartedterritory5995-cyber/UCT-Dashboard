@@ -693,3 +693,31 @@ describe('buildDraftBlocks — leak honesty', () => {
     expect(text).not.toContain('Checked, and not worse')
   })
 })
+
+// ── round 2: a Compass quote about a different set of trades is not shown as the same period ─
+describe('buildDraftBlocks — the Compass quote and its period', () => {
+  const OMITTED = {
+    draftOnly: 1, compassOnly: 0,
+    sentence: 'Compass reviewed this week from Monday 00:00 to Saturday 00:00 UTC. This note covers Monday to Friday in Eastern time. 1 trade is in one and not the other, so the Compass review is not quoted here.',
+  }
+
+  it('says why the quote is left out, in the server’s own sentence, and shows no quote', () => {
+    const blocks = buildDraftBlocks(fixturePayload({ compassText: null, compassOmitted: OMITTED }))
+    const text = allText(blocks)
+    expect(text).toContain('What Compass said')
+    expect(text).toContain(OMITTED.sentence)
+    expect(JSON.stringify(blocks)).not.toContain('askInsert')
+  })
+
+  it('with a quote and nothing omitted it renders the quote as before', () => {
+    const blocks = buildDraftBlocks(fixturePayload({
+      compassText: { text: 'A steady week.', kind: 'weekly_review', createdAt: 'x' }, compassOmitted: null }))
+    expect(allText(blocks)).not.toContain('not quoted here')
+    expect(JSON.stringify(blocks)).toContain('A steady week.')
+  })
+
+  it('with neither there is no Compass section at all', () => {
+    const text = allText(buildDraftBlocks(fixturePayload({ compassText: null, compassOmitted: null })))
+    expect(text).not.toContain('What Compass said')
+  })
+})
