@@ -36,6 +36,12 @@ function Levels({ sym }) {
     <Block title="Positioning levels" testid="posn-levels" failed={failed} retry={retry} what="The positioning levels">
       {data && (
         <>
+          {/* completeness audit 2026-10-07: an answer with no level drew an empty list */}
+          {data.levels.length === 0 && (
+            <p className={styles.note} data-testid="posn-levels-none">
+              No positioning level could be computed for {sym} from the latest chain.
+            </p>
+          )}
           <ul className={styles.list}>
             {data.levels.map((l) => (
               <li key={l.id} data-testid={`posn-level-${l.id}`}>

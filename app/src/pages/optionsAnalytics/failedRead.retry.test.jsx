@@ -138,3 +138,26 @@ describe('useDarkSection panels: a failed read carries a Retry that asks again',
     await waitFor(() => expect(screen.queryByText(sentence)).toBeNull())
   })
 })
+
+describe('POS: an answer with no level is said, not drawn as an empty list', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('levels: [] says no level could be computed', async () => {
+    vi.stubGlobal('fetch', vi.fn((u) => (u.includes('/levels')
+      ? res(200, { label: 'computed', method: 'M.', levels: [], notes: [] }) : res(404))))
+    mount(<PositioningPanel sym="TST" />)
+    expect((await screen.findByTestId('posn-levels-none')).textContent)
+      .toBe('No positioning level could be computed for TST from the latest chain.')
+  })
+})
+
+describe('TIDE standalone: one loading line, not two', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('while every read is in flight only OffNotice says it is loading', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    mount(<MarketTidePanel offNotice />)
+    expect(await screen.findByTestId('feature-loading')).toBeTruthy()
+    expect(screen.queryByText('Reading the tape…')).toBeNull()
+  })
+})

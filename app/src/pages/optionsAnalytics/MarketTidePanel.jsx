@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
-import useDarkSection from './useDarkSection'
+import useDarkSection, { useSectionsState } from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
 import { formatCompactTerminal, formatTimeEt } from '../../lib/presentation/presentationPrimitives'
@@ -79,7 +79,7 @@ export function minuteAt(minutes, fracX) {
   return minutes[Math.max(0, Math.min(minutes.length - 1, i))].t
 }
 
-function TidePanel({ scope, setScope, onPickMinute }) {
+function TidePanel({ scope, setScope, onPickMinute, quietLoading = false }) {
   const { data, error, mutate } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false })
   // TERM-019: the terminal panel header names the tape and the session minute it runs through.
@@ -106,7 +106,12 @@ function TidePanel({ scope, setScope, onPickMinute }) {
       <FailedRead testId="market-tide-unavailable" retry={mutate}
         title="Market Tide is unavailable right now. That does not mean the tape is quiet." /></section>
   }
-  if (!data) return <section className={styles.panel} data-testid="market-tide">{head}<p className={styles.note}>Reading the tape…</p></section>
+  // Standalone (TIDE), OffNotice already says "Loading market tide…" while every read is in
+  // flight; a second loading line under it was the same sentence twice (audit 2026-10-07).
+  if (!data) {
+    return <section className={styles.panel} data-testid="market-tide">{head}
+      {quietLoading ? null : <p className={styles.note}>Reading the tape…</p>}</section>
+  }
   // A body that is not a tide (an HTML page, another route's JSON) renders nothing rather
   // than crashing the Options Flow page it is mounted on.
   if (!Array.isArray(data.minutes)) return null
@@ -260,14 +265,18 @@ export default function MarketTidePanel({ offNotice = false }) {
   // while the click-through's switch is on
   const probe = useDarkSection(`/api/options/market-tide/minute?scope=${scope}`)
   const clickable = isMinuteList(probe.data?.minutes)
+  const urls = [
+    `/api/options/market-tide?scope=${scope}`,
+    `/api/options/market-tide/sectors?scope=${scope}`,
+    `/api/options/market-tide/minute?scope=${scope}`,
+  ]
+  // the same three keys OffNotice reads (SWR shares the requests); fixed length, so hook order holds
+  const { allLoading } = useSectionsState(urls)
   return (
     <>
-      {offNotice && <OffNotice feature="Market Tide" urls={[
-        `/api/options/market-tide?scope=${scope}`,
-        `/api/options/market-tide/sectors?scope=${scope}`,
-        `/api/options/market-tide/minute?scope=${scope}`,
-      ]} />}
-      <TidePanel scope={scope} setScope={setScope} onPickMinute={clickable ? setMinute : undefined} />
+      {offNotice && <OffNotice feature="Market Tide" urls={urls} />}
+      <TidePanel scope={scope} setScope={setScope} onPickMinute={clickable ? setMinute : undefined}
+        quietLoading={offNotice && allLoading} />
       <SectorTide scope={scope} />
       <TideMinute scope={scope} minute={minute} setMinute={setMinute} />
     </>
