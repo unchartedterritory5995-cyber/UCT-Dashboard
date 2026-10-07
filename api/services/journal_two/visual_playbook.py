@@ -28,6 +28,7 @@ from typing import Any, Iterable
 
 from api.services.journal_two import chart_blocks, entry_context, playbook_stats, plan_grading
 from api.services.journal_two import regime as regime_service
+from api.services.journal_two import sample_marker
 from api.services.journal_two import tech_fingerprint as tfp
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.trade_refs import resolve_trade_by_ref, trade_ref_for_row
@@ -346,6 +347,11 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
     try:
         progress = chart_blocks.catch_up(user_id, conn) if catch_up else {"pending": 0}
         blocks = [b for b in chart_blocks.list_blocks(user_id, conn) if b["setupTag"]]
+        # ⛔ A SAMPLE CHART IS SHOWN, MARKED, AND IN NO NUMBER (owner ruling, fin-data round 2).
+        # Its card is returned with `example: True` (the one predicate decides, never the
+        # client), after the member's own, and it is left out of the facets, the count, the
+        # slice statistics and the "left out" tallies.
+        sample = sample_marker.sample_note_ids(conn, user_id)
         note_ids = {b["noteId"] for b in blocks}
         links = linked_trades(conn, user_id, note_ids)
         images = _archived_images(conn, user_id, note_ids)
@@ -362,11 +368,15 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
         regime_unknown = 0
         regime_by_block: dict[int, dict] = {}
         for i, b in enumerate(blocks):
-            facets_setups[b["setupTag"]] = facets_setups.get(b["setupTag"], 0) + 1
-            facets_tf[b["timeframe"]] = facets_tf.get(b["timeframe"], 0) + 1
+            counted = b["noteId"] not in sample
+            if counted:
+                facets_setups[b["setupTag"]] = facets_setups.get(b["setupTag"], 0) + 1
+                facets_tf[b["timeframe"]] = facets_tf.get(b["timeframe"], 0) + 1
             if regime_on:
                 rg = _regime_of(links.get((b["noteId"], (b["symbol"] or "").upper()), []), contexts)
                 regime_by_block[i] = rg
+                if not counted:
+                    continue
                 if rg["value"]:
                     facets_regime[rg["value"]] += 1
                 else:
@@ -383,12 +393,13 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
                 continue
             trades = links.get((b["noteId"], (b["symbol"] or "").upper()), [])
             card = _card(b, trades, images.get((b["noteId"], b["position"])))
+            card["example"] = b["noteId"] in sample
             if outcome is not None and card["outcome"] != outcome:
                 continue
             if regime_on:
                 card["regime"] = regime_by_block[i]
                 if regime is not None and card["regime"]["value"] != regime:
-                    if card["regime"]["value"] is None:
+                    if card["regime"]["value"] is None and not card["example"]:
                         excluded_no_regime += 1
                     continue
             missing_field = None
@@ -402,13 +413,16 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
                 if verdict is False:
                     passes = False
                     break
-            if missing_field is not None:
+            if missing_field is not None and not card["example"]:
                 excluded_missing[missing_field] = excluded_missing.get(missing_field, 0) + 1
             if not passes:
                 continue
-            for t in trades:
-                rows_by_ref[trade_ref_for_row(t)] = t
+            if not card["example"]:
+                for t in trades:
+                    rows_by_ref[trade_ref_for_row(t)] = t
             kept.append(card)
+        own = [c for c in kept if not c["example"]]
+        examples = [c for c in kept if c["example"]]
 
         regime_payload: dict[str, Any] = (
             {"available": True, "values": list(REGIMES), "selected": regime,
@@ -418,9 +432,10 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
              "source": "entry_context (13E, at_entry rows only)"}
             if regime_on else {"available": False, "reason": REGIME_UNAVAILABLE})
         return {
-            "cards": kept,
-            "count": len(kept),
-            "stats": _slice_stats(kept, rows_by_ref),
+            "cards": own + examples,
+            "count": len(own),
+            "exampleCount": len(examples),
+            "stats": _slice_stats(own, rows_by_ref),
             "excludedMissing": excluded_missing,
             "facets": {"setups": facets_setups, "timeframes": facets_tf},
             "rangeFields": list(RANGE_FIELDS),

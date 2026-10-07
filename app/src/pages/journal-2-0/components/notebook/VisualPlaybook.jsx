@@ -130,6 +130,8 @@ function Card({ card }) {
       <div className={styles.cardBody}>
         <p className={styles.cardTitle}>
           <span className={styles.sym}>{card.symbol}</span> <span className={styles.tag}>{card.setupTag}</span>
+          {/* The SERVER says which card is the sample's (`example`); never inferred here. */}
+          {card.example && <> <span className={styles.tag} data-example="">Example</span></>}
         </p>
         <p className={styles.cardMeta}>{card.asOf} · {card.timeframe}{card.fingerprintAsOf ? ` · fingerprint ${card.fingerprintAsOf}` : ' · not fingerprinted yet'}</p>
         {card.regime && (
@@ -284,7 +286,9 @@ export function VisualPlaybookBody({ initialSetup = null }) {
             <ul className={styles.grid} aria-label="Tagged charts" data-tour="vp-grid">
               {data.cards.map((c) => <Card key={`${c.noteId}/${c.embedKey}`} card={c} />)}
             </ul>
-          ) : (
+          ) : null}
+          {/* Decided on the member's OWN charts: a sample card beside this is not theirs. */}
+          {data.cards.some((c) => !c.example) ? null : (
             <p className={styles.muted}>
               No tagged charts match. Tag a chart in a note (the Setup picker under the chart) to build your playbook.
             </p>

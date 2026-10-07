@@ -168,3 +168,45 @@ describe('SetupsBoard', () => {
     expect(screen.queryByRole('button', { name: 'Find more like S01' })).toBeNull()   // untagged
   })
 })
+
+// ── round 2 (owner ruling): an example card says "Example" and is never one of your setups ──
+const findEl = (selector) => waitFor(() => {
+  const el = document.querySelector(selector)
+  if (!el) throw new Error(`not rendered yet: ${selector}`)
+  return el
+})
+
+describe('SetupsBoard — sample cards', () => {
+  beforeEach(() => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    h.live.clear(); h.everMounted.length = 0; h.released.clear()
+  })
+  afterEach(() => { __resetNotebookFlags() })
+  const EXAMPLE = { ...CARDS[0], noteId: 'ex', noteTitle: 'Active setup: example', symbol: 'MSFT', example: true }
+
+  it('a member whose only card is the sample sees the card, its label, AND the "none yet" guidance', async () => {
+    stub([[/setups-board$/, { ...BOARD, cards: [EXAMPLE], count: 0, exampleCount: 1 }]])
+    render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
+    const cardEl = await findEl('[data-board-card="MSFT"]')
+    expect(cardEl).toBeTruthy()
+    expect(cardEl.querySelector('[data-example]').textContent).toBe('Example')   // text, not colour alone
+    expect(screen.getByText(/No open setups yet/)).toBeTruthy()
+  })
+
+  it('a member\'s own card carries no label, and with one of their own the guidance is gone', async () => {
+    stub([[/setups-board$/, { ...BOARD, cards: [CARDS[1], EXAMPLE], count: 1, exampleCount: 1 }]])
+    render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
+    const own = await findEl(`[data-board-card="${CARDS[1].symbol}"]`)
+    expect(own.querySelector('[data-example]')).toBeNull()
+    expect(document.querySelector('[data-board-card="MSFT"] [data-example]')).toBeTruthy()
+    expect(screen.queryByText(/No open setups yet/)).toBeNull()
+  })
+
+  it('the client never infers "example" from a title: only the server\'s flag labels a card', async () => {
+    stub([[/setups-board$/, { ...BOARD, cards: [{ ...EXAMPLE, example: false }], count: 1, exampleCount: 0 }]])
+    render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
+    const cardEl = await findEl('[data-board-card="MSFT"]')
+    expect(cardEl.querySelector('[data-example]')).toBeNull()
+  })
+})
