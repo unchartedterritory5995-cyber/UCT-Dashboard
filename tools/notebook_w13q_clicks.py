@@ -1823,9 +1823,15 @@ def q21_arm_alert(cx: Ctx, pg, m: Meter, width: str) -> dict:
     else:
         frame = _chart_frame(pg, m)
     panel = pg.locator("[data-chart-plan-panel]").first
-    if not (panel.count() and panel.is_visible()):
-        m.press(w13h2.toolbar_button(pg, frame, "Plan", m.mode == "taps") if m.mode != "keys"
-                else frame.get_by_role("button", name="Plan", exact=True), "Plan (chart toolbar)")
+    if not (panel.count() and panel.is_visible()) and m.mode == "keys":
+        # On a wide screen the chart's toolbar shows on hover, so the button is not "visible" to
+        # wait for. The keyboard does not need it to be: Tab is pressed for real until focus is
+        # on the Plan button, whatever is painted. If Tab can never reach it, that is the cap.
+        m.tab_to("el.tagName === 'BUTTON' && el.textContent.trim() === 'Plan' && el.closest('[data-widget-embed-view]')",
+                 "Plan (chart toolbar)")
+        m.key("Enter", "activate Plan (chart toolbar)")
+    elif not (panel.count() and panel.is_visible()):
+        m.press(w13h2.toolbar_button(pg, frame, "Plan", m.mode == "taps"), "Plan (chart toolbar)")
     try:
         panel.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
