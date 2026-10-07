@@ -48,6 +48,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import unicodedata
 from typing import Any, Iterable, Mapping
 from urllib.parse import urlsplit
 
@@ -602,20 +603,54 @@ def _v_str(pattern: "re.Pattern[str]", *, none_ok: bool = True):
 # ── the PUBLIC text-style grammar (share links and published pages) ───────────────────────
 #
 # A gallery template takes the toolbar's own values only (above). A member's OWN note may
-# also hold a font or a size that came in by paste or import (Word's `Calibri`, `11pt`), and a
-# public page must not strip formatting the member can see in their editor. So the public
-# modes accept the toolbar's values AND anything of a strict SHAPE that cannot carry a second
-# CSS declaration: no `;`, `:`, `(`, `)`, `{`, `}`, `\`, `/`, `<`, `>`, `!` or `@` can match.
+# also hold a font or a size that came in by paste or import (Word's `Calibri`, `11pt`, a
+# Chinese or Arabic font name), and a public page must not strip formatting the member can
+# see in their editor. So the public modes accept the toolbar's values AND anything of a
+# strict SHAPE that cannot carry a second CSS declaration.
+#
+# THE SHAPE OF A FONT FAMILY: one to eight names separated by commas (up to two spaces each
+# side). A name is made of Unicode LETTERS, MARKS and DIGITS (general categories L*, M*, N*),
+# the ASCII space, `_` and `-`, at most 40 characters. Unquoted it starts with a letter (or
+# `-` then a letter). In double quotes it may also hold `'`, in single quotes `"`.
+# ⛔ It is an ALLOW-list by category, so every character that could start a second
+# declaration or a function is out without being named: `; : ( ) { } \ / < > ! @`, every
+# control character, and their Unicode look-alikes (the full-width semicolon and colon are
+# punctuation, category Po; a bidirectional override or a zero-width character is a format
+# character, Cf; a no-break or ideographic space is Zs, and only U+0020 is a space here).
 #
 # ⛔ ONE FACT IN TWO LANGUAGES with `lib/tiptap.js` (`safeFontFamily`, `safeFontSize`),
-# which narrows the same two attributes in the editor. Both are driven by the SAME case file,
-# tests/fixtures/notebook_text_style_cases.json, so the two cannot drift.
-_FAMILY_NAME = (r'(?:"[A-Za-z0-9][A-Za-z0-9 _-]{0,39}"'
-                r"|'[A-Za-z0-9][A-Za-z0-9 _-]{0,39}'"
-                r"|-?[A-Za-z][A-Za-z0-9 _-]{0,39})")
-_SAFE_FONT_FAMILY = re.compile(rf"{_FAMILY_NAME}(?: {{0,2}}, {{0,2}}{_FAMILY_NAME}){{0,7}}")
+# which narrows the same two attributes in the editor. Both are the SAME algorithm and are
+# driven by the SAME case file, tests/fixtures/notebook_text_style_cases.json, look-alike
+# attacks included, so the two cannot drift.
 _FONT_SIZE_KEYWORDS = frozenset({"xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large",
                                  "xxx-large", "smaller", "larger"})
+MAX_FAMILY_CHARS, MAX_FAMILY_NAMES, MAX_FAMILY_NAME_CHARS = 200, 8, 40
+
+
+def _category(ch: str) -> str:
+    return unicodedata.category(ch)[0]
+
+
+def _family_name_ok(name: str) -> bool:
+    if len(name) >= 2 and name[0] in "\"'" and name[-1] == name[0]:
+        inner, other_quote = name[1:-1], ("'" if name[0] == '"' else '"')
+        return (1 <= len(inner) <= MAX_FAMILY_NAME_CHARS and _category(inner[0]) in "LN"
+                and all(c in " _-" or c == other_quote or _category(c) in "LMN" for c in inner))
+    body = name[1:] if name.startswith("-") else name
+    return (1 <= len(body) <= MAX_FAMILY_NAME_CHARS and _category(body[0]) == "L"
+            and all(c in " _-" or _category(c) in "LMN" for c in body))
+
+
+def _strip_spaces(text: str, *, left: bool, right: bool) -> str:
+    """`text` less at most two ASCII spaces on each named side."""
+    for _ in range(2):
+        if left and text.startswith(" "):
+            text = text[1:]
+        if right and text.endswith(" "):
+            text = text[:-1]
+    return text
+
+
 _SAFE_FONT_SIZE = re.compile(r"([0-9]{1,4}(?:\.[0-9]{1,4})?)(px|pt|em|rem|%)")
 #: unit -> (smallest, largest) a public page renders.
 PUBLIC_FONT_SIZE_BOUNDS = {"px": (6, 200), "pt": (5, 150), "em": (0.5, 10), "rem": (0.5, 10), "%": (50, 1000)}
@@ -625,8 +660,15 @@ _SAFE_SRC = re.compile(r"^[^\s<>\"'`\\]{1,2048}$")
 
 
 def safe_font_family(v: Any) -> bool:
-    return isinstance(v, str) and len(v) <= 200 and (
-        v in GALLERY_FONT_FAMILIES or bool(_SAFE_FONT_FAMILY.fullmatch(v)))
+    if not isinstance(v, str) or not 1 <= len(v) <= MAX_FAMILY_CHARS:
+        return False
+    if v in GALLERY_FONT_FAMILIES:
+        return True
+    parts = v.split(",")
+    if len(parts) > MAX_FAMILY_NAMES:
+        return False
+    last = len(parts) - 1
+    return all(_family_name_ok(_strip_spaces(part, left=i > 0, right=i < last)) for i, part in enumerate(parts))
 
 
 def safe_font_size(v: Any) -> bool:

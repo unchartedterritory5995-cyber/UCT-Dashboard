@@ -56,9 +56,9 @@ import './noteContent.css'
 // member's own editor, on a share link and on a published page (they all build from
 // this roster). Security lane, round 2: the two extensions below are guarded copies.
 // A value is kept only when it is one the Font picker offers (FONT_OPTIONS) or has a
-// strict SHAPE that cannot hold a second CSS declaration: no ; : ( ) { } \ / < > ! @
-// can match. The shape rule is what keeps a font or size that arrived by paste or
-// import (Word's `Calibri`, `11pt`) rendering exactly as it did.
+// strict SHAPE that cannot hold a second CSS declaration (below). The shape rule is
+// what keeps a font or size that arrived by paste or import (Word's `Calibri`, `11pt`,
+// a font named in any script) rendering exactly as it did.
 //
 // Narrowed on the way IN (parseHTML: paste, and the importer's generateJSON) and again
 // on the way OUT (renderHTML: anything already stored), the way textColor.js does.
@@ -68,8 +68,45 @@ import './noteContent.css'
 // `safe_font_size`). Both are tested against the SAME case table,
 // tests/fixtures/notebook_text_style_cases.json.
 const PICKER_FONT_VALUES = new Set(FONT_OPTIONS.map((f) => f.value).filter(Boolean))
-const FAMILY_NAME = '(?:"[A-Za-z0-9][A-Za-z0-9 _-]{0,39}"|\'[A-Za-z0-9][A-Za-z0-9 _-]{0,39}\'|-?[A-Za-z][A-Za-z0-9 _-]{0,39})'
-const SAFE_FONT_FAMILY = new RegExp(`^${FAMILY_NAME}(?: {0,2}, {0,2}${FAMILY_NAME}){0,7}$`)
+// THE SHAPE OF A FONT FAMILY: one to eight names separated by commas (up to two spaces each
+// side). A name is Unicode LETTERS, MARKS and DIGITS (\p{L} \p{M} \p{N} -- so a Chinese,
+// Cyrillic, Arabic or Thai font name is a name), the ASCII space, `_` and `-`, at most 40
+// characters. Unquoted it starts with a letter (or `-` then a letter). In double quotes it
+// may also hold `'`, in single quotes `"`.
+// ⛔ An ALLOW-list by category: `; : ( ) { } \ / < > ! @`, control characters and their
+// Unicode look-alikes (full-width semicolon and colon, bidirectional overrides, zero-width
+// characters, no-break and ideographic spaces) are out without being named.
+const NAME_START = /^\p{L}$/u
+const QUOTED_START = /^[\p{L}\p{N}]$/u
+const NAME_CHAR = /^[\p{L}\p{M}\p{N} _-]$/u
+const MAX_FAMILY_CHARS = 200
+const MAX_FAMILY_NAMES = 8
+const MAX_FAMILY_NAME_CHARS = 40
+
+function familyNameOk(name) {
+  const chars = [...name]                               // by code point, as the server counts
+  const first = chars[0]
+  if (chars.length >= 2 && (first === '"' || first === "'") && chars[chars.length - 1] === first) {
+    const inner = chars.slice(1, -1)
+    const otherQuote = first === '"' ? "'" : '"'
+    return inner.length >= 1 && inner.length <= MAX_FAMILY_NAME_CHARS && QUOTED_START.test(inner[0])
+      && inner.every((c) => c === otherQuote || NAME_CHAR.test(c))
+  }
+  const body = first === '-' ? chars.slice(1) : chars
+  return body.length >= 1 && body.length <= MAX_FAMILY_NAME_CHARS && NAME_START.test(body[0])
+    && body.every((c) => NAME_CHAR.test(c))
+}
+
+/** `text` less at most two ASCII spaces on each named side. */
+function stripSpaces(text, left, right) {
+  let out = text
+  for (let i = 0; i < 2; i += 1) {
+    if (left && out.startsWith(' ')) out = out.slice(1)
+    if (right && out.endsWith(' ')) out = out.slice(0, -1)
+  }
+  return out
+}
+
 const SAFE_FONT_SIZE = /^([0-9]{1,4}(?:\.[0-9]{1,4})?)(px|pt|em|rem|%)$/
 const FONT_SIZE_BOUNDS = { px: [6, 200], pt: [5, 150], em: [0.5, 10], rem: [0.5, 10], '%': [50, 1000] }
 const FONT_SIZE_KEYWORDS = new Set(['xx-small', 'x-small', 'small', 'medium', 'large', 'x-large',
@@ -77,8 +114,14 @@ const FONT_SIZE_KEYWORDS = new Set(['xx-small', 'x-small', 'small', 'medium', 'l
 
 /** `value` when it may become a `font-family` declaration, else null. */
 export function safeFontFamily(value) {
-  if (typeof value !== 'string' || value.length > 200) return null
-  return PICKER_FONT_VALUES.has(value) || SAFE_FONT_FAMILY.test(value) ? value : null
+  if (typeof value !== 'string') return null
+  const length = [...value].length
+  if (length < 1 || length > MAX_FAMILY_CHARS) return null
+  if (PICKER_FONT_VALUES.has(value)) return value
+  const parts = value.split(',')
+  if (parts.length > MAX_FAMILY_NAMES) return null
+  const last = parts.length - 1
+  return parts.every((part, i) => familyNameOk(stripSpaces(part, i > 0, i < last))) ? value : null
 }
 
 /** `value` when it may become a `font-size` declaration, else null. */
