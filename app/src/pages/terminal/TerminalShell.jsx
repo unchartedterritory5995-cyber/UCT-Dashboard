@@ -1135,6 +1135,10 @@ export default function TerminalShell() {
       'terminal.boards': act('boards'),
       'terminal.recents': act('recents'),
       'terminal.keys': act('keys'),
+      'terminal.count1': act('count1'),
+      'terminal.count2': act('count2'),
+      'terminal.count3': act('count3'),
+      'terminal.count4': act('count4'),
     })
   }, [])
   useEffect(() => { if (count <= 1) setZoomed(false) }, [count])
@@ -1303,6 +1307,14 @@ export default function TerminalShell() {
       onUndoClose()
     }),
     duplicate: panelKey(() => onDuplicate(focus)),
+    // The panel-count key (Alt+Shift+1..4): the bar's 1-4 buttons, from the keyboard, and it
+    // says the count it set (or that the board already shows that many).
+    ...Object.fromEntries(PANEL_COUNTS.map((n) => [`count${n}`, panelKey(() => {
+      const plural = `${n} panel${n === 1 ? '' : 's'}`
+      if (n === count) { setNotice({ kind: 'info', text: `This board already shows ${plural}.` }); return }
+      setCount(n)
+      setNotice({ kind: 'info', text: `This board now shows ${plural}.` })
+    })])),
     link: panelKey(onLinkNext),
     boards: () => { if (!popoutToken) toggleSheet('boards') },
     recents: () => { if (!popoutToken) toggleSheet('recents') },
@@ -1425,7 +1437,7 @@ export default function TerminalShell() {
           </div>
         )}
         {!isPhone && (
-          <div className={styles.counts} role="group" aria-label="Panels">
+          <div className={styles.counts} role="group" aria-label={`Panels: this board shows ${count}`} data-count={count}>
             {PANEL_COUNTS.map((n) => (
               <button
                 key={n}
@@ -1434,6 +1446,8 @@ export default function TerminalShell() {
                 aria-pressed={count === n}
                 onClick={() => setCount(n)}
                 aria-label={`Show ${n} panel${n === 1 ? '' : 's'}`}
+                aria-keyshortcuts={`Alt+Shift+${n}`}
+                title={`Show ${n} panel${n === 1 ? '' : 's'} (Alt+Shift+${n})`}
                 data-testid={`terminal-count-${n}`}
               >{n}</button>
             ))}
@@ -1468,7 +1482,7 @@ export default function TerminalShell() {
               aria-label={`Undo close: re-open ${layout.closed[0].panel.code}`}
               title={`Re-open ${layout.closed[0].panel.code}`}>Undo</button>
           )}
-          <div className={styles.counts} role="group" aria-label="Panels">
+          <div className={styles.counts} role="group" aria-label={`Panels: this board shows ${count}`} data-count={count}>
             {PANEL_COUNTS.map((n) => (
               <button
                 key={n}
@@ -1477,6 +1491,8 @@ export default function TerminalShell() {
                 aria-pressed={count === n}
                 onClick={() => setCount(n)}
                 aria-label={`Show ${n} panel${n === 1 ? '' : 's'}`}
+                aria-keyshortcuts={`Alt+Shift+${n}`}
+                title={`Show ${n} panel${n === 1 ? '' : 's'} (Alt+Shift+${n})`}
                 data-testid={`terminal-phone-count-${n}`}
               >{n}</button>
             ))}
