@@ -1,0 +1,8843 @@
+{
+ "tool": "tools/notebook_w13q_clicks.py",
+ "tree": "451d38318aede940eb01803fc47cba418ff27159",
+ "started": "2026-10-07T22:42:49+00:00",
+ "partial": {
+  "flows": null,
+  "modes": null
+ },
+ "sandbox_flags": {
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",
+  "NOTEBOOK_PLAN_GRADING_ENABLED": "1",
+  "NOTEBOOK_PLAYBOOK_ENABLED": "1",
+  "AWARENESS_NOTE_RESURFACE_ENABLED": "1",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "1",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "1",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "1",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED": "1",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED": "1",
+  "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED": "1",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "1",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED": "1",
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_AI_ACTIONS_ENABLED": "1",
+  "NOTEBOOK_FORMULAS_ENABLED": "1",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_GETTING_STARTED_ENABLED": "1"
+ },
+ "tab_cap": 600,
+ "budgets": {
+  "Q1": {
+   "flow": "new blank note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "owner": "Notebook core",
+   "keys_plan": 3,
+   "keys_floor": null
+  },
+  "Q2": {
+   "flow": "new note from a template with a ticker",
+   "mouse": 4,
+   "keys": 6,
+   "taps": 4,
+   "owner": "Notebook templates (12B)",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q3": {
+   "flow": "open a note by title",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q4": {
+   "flow": "search, open a hit",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q5": {
+   "flow": "today's daily note",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "owner": "Notebook core",
+   "keys_plan": 2,
+   "keys_floor": null
+  },
+  "Q6": {
+   "flow": "link a note to a trade",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Notebook core / Journal",
+   "keys_plan": 6,
+   "keys_floor": 8
+  },
+  "Q7": {
+   "flow": "save Screener results to a note (337 Tabs today)",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Screener (ScannerShell.jsx)",
+   "keys_plan": 10,
+   "keys_floor": null
+  },
+  "Q8": {
+   "flow": "save a price or consensus fact",
+   "mouse": 3,
+   "keys": 8,
+   "taps": 3,
+   "owner": "Notebook capture",
+   "keys_plan": 8,
+   "keys_floor": null
+  },
+  "Q9": {
+   "flow": "ask the Notebook, insert the answer",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "Notebook Ask",
+   "keys_plan": 5,
+   "keys_floor": 7
+  },
+  "Q10": {
+   "flow": "task with a due date",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q11": {
+   "flow": "tag and move 5 notes",
+   "mouse": 8,
+   "keys": 27,
+   "taps": 10,
+   "owner": "Notebook core",
+   "keys_plan": 15,
+   "keys_floor": 25
+  },
+  "Q12": {
+   "flow": "export one note as Word",
+   "mouse": 3,
+   "keys": 12,
+   "taps": 3,
+   "owner": "Notebook export",
+   "keys_plan": 6,
+   "keys_floor": 10
+  },
+  "Q13": {
+   "flow": "plan grade of my last trade (13A)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13A",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q14": {
+   "flow": "My Playbook, drill a number (13B)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13B",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q15": {
+   "flow": "create earnings prep (13C)",
+   "mouse": 2,
+   "keys": 5,
+   "taps": 2,
+   "owner": "13C",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q16": {
+   "flow": "open a resurfaced note (13D)",
+   "mouse": 2,
+   "keys": 8,
+   "taps": 2,
+   "owner": "13D",
+   "keys_plan": 4,
+   "keys_floor": 6
+  },
+  "Q17": {
+   "flow": "answer \"why did you take it\" (13E)",
+   "mouse": 2,
+   "keys": 7,
+   "taps": 2,
+   "owner": "13E",
+   "keys_plan": 4,
+   "keys_floor": 5
+  },
+  "Q18": {
+   "flow": "draft this week's review, open a leak (13F)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "13F",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q19": {
+   "flow": "save a transcript passage to a thesis (13G)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 4,
+   "owner": "13G",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q20": {
+   "flow": "insert a chart, draw entry, stop and target, read size (13H)",
+   "mouse": 6,
+   "keys": 22,
+   "taps": 8,
+   "owner": "13H",
+   "keys_plan": 10,
+   "keys_floor": 20
+  },
+  "Q21": {
+   "flow": "arm an alert at a drawn stop (13H)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13H",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q22": {
+   "flow": "filter the visual playbook to one setup (13I)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "13I",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q23": {
+   "flow": "morning board, open the closest setup, find similar (13J)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "13J",
+   "keys_plan": 6,
+   "keys_floor": 7
+  }
+ },
+ "rows": [
+  {
+   "flow": "Q1",
+   "name": "new blank note, cursor in body",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 0.84,
+   "steps": [
+    {
+     "do": "click",
+     "on": "All notes"
+    },
+    {
+     "do": "click",
+     "on": "+ New note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "outcome": {
+    "note": "86d4481e6a744c9da32121e284e6bf05",
+    "cursor_in_body": true,
+    "path": "All notes -> + New note"
+   },
+   "notes": "",
+   "screenshot": "Q1-mouse-1280.png"
+  },
+  {
+   "flow": "Q1",
+   "name": "new blank note, cursor in body",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.87,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "new note",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose New Note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "outcome": {
+    "note": "9a2e95b9c3f6446d8e0939f6803b7258",
+    "cursor_in_body": true,
+    "path": "palette New Note"
+   },
+   "notes": "",
+   "screenshot": "Q1-keys-1280.png"
+  },
+  {
+   "flow": "Q1",
+   "name": "new blank note, cursor in body",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.92,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "new note",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose New Note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "outcome": {
+    "note": "14710b2bccab427dbc5d593d4556b844",
+    "cursor_in_body": true,
+    "path": "palette New Note"
+   },
+   "notes": "",
+   "screenshot": "Q1-keys-390.png"
+  },
+  {
+   "flow": "Q1",
+   "name": "new blank note, cursor in body",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 1.01,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "All notes"
+    },
+    {
+     "do": "tap",
+     "on": "+ New note"
+    },
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    }
+   ],
+   "outcome": {
+    "note": "f57033e004354e3a8aed64e0e69149f4",
+    "cursor_in_body": true,
+    "path": "All notes -> + New note"
+   },
+   "notes": "",
+   "screenshot": "Q1-taps-390.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 4,
+   "taps": 0,
+   "time_s": 1.96,
+   "steps": [
+    {
+     "do": "click",
+     "on": "All notes"
+    },
+    {
+     "do": "click",
+     "on": "Templates"
+    },
+    {
+     "do": "click",
+     "on": "template card thesis"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Ticker field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "click",
+     "on": "into the body (saves the ticker on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "7d182cd8af5b4cd3bef3bad66b6043c8",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-mouse-1280.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 6,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.9,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "template",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose New note from a template"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Long/Short Thesis",
+     "on": "search templates"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "pick the highlighted match (Long/Short Thesis)"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Ticker field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "key",
+     "key": "Tab",
+     "on": "leave the Ticker field (saves on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "e40d39ad464d427c9a2a147ab30c7c98",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-keys-1280.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "keys",
+   "width": "390",
+   "budget": 6,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.46,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "template",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose New note from a template"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Long/Short Thesis",
+     "on": "search templates"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "pick the highlighted match (Long/Short Thesis)"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Ticker field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "key",
+     "key": "Tab",
+     "on": "leave the Ticker field (saves on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "76a72638cc9a4bdba402ccda725a1411",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-keys-390.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "taps",
+   "width": "390",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 4,
+   "time_s": 2.27,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "All notes"
+    },
+    {
+     "do": "tap",
+     "on": "Templates"
+    },
+    {
+     "do": "tap",
+     "on": "template card thesis"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Ticker field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "tap",
+     "on": "into the body (saves the ticker on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "0233c6036f9345acbd9e0ee02637f3b9",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-taps-390.png"
+  },
+  {
+   "flow": "Q3",
+   "name": "open a note by title",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 0.67,
+   "steps": [
+    {
+     "do": "click",
+     "on": "All notes"
+    },
+    {
+     "do": "click",
+     "on": "note row 'Semis rotation notes'"
+    }
+   ],
+   "outcome": {
+    "note": "44620cc759df495099b0b0d2f45a20c3"
+   },
+   "notes": "",
+   "screenshot": "Q3-mouse-1280.png"
+  },
+  {
+   "flow": "Q3",
+   "name": "open a note by title",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.01,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "rotation",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Note: Semis rotation notes"
+    }
+   ],
+   "outcome": {
+    "note": "44620cc759df495099b0b0d2f45a20c3"
+   },
+   "notes": "",
+   "screenshot": "Q3-keys-1280.png"
+  },
+  {
+   "flow": "Q3",
+   "name": "open a note by title",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.77,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "rotation",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Note: Semis rotation notes"
+    }
+   ],
+   "outcome": {
+    "note": "44620cc759df495099b0b0d2f45a20c3"
+   },
+   "notes": "",
+   "screenshot": "Q3-keys-390.png"
+  },
+  {
+   "flow": "Q3",
+   "name": "open a note by title",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 0.48,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "note row 'Semis rotation notes'"
+    }
+   ],
+   "outcome": {
+    "note": "44620cc759df495099b0b0d2f45a20c3"
+   },
+   "notes": "",
+   "screenshot": "Q3-taps-390.png"
+  },
+  {
+   "flow": "Q4",
+   "name": "search, open a hit",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 1.77,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Search notes tab"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Search your notes"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "CRWD",
+     "on": "search query"
+    },
+    {
+     "do": "click",
+     "on": "search hit 'CRWD base watch'"
+    }
+   ],
+   "outcome": {
+    "note": "14ca1e6795f541c3b29a7bcad81d60f5"
+   },
+   "notes": "",
+   "screenshot": "Q4-mouse-1280.png"
+  },
+  {
+   "flow": "Q4",
+   "name": "search, open a hit",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 5,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.32,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "search notebook",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Search Notebook"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Search your notes"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "CRWD",
+     "on": "search query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "open the first hit"
+    }
+   ],
+   "outcome": {
+    "note": "14ca1e6795f541c3b29a7bcad81d60f5",
+    "path": "palette: Search Notebook"
+   },
+   "notes": "",
+   "screenshot": "Q4-keys-1280.png"
+  },
+  {
+   "flow": "Q4",
+   "name": "search, open a hit",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 5,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.95,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "search notebook",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Search Notebook"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Search your notes"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "CRWD",
+     "on": "search query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "open the first hit"
+    }
+   ],
+   "outcome": {
+    "note": "14ca1e6795f541c3b29a7bcad81d60f5",
+    "path": "palette: Search Notebook"
+   },
+   "notes": "",
+   "screenshot": "Q4-keys-390.png"
+  },
+  {
+   "flow": "Q4",
+   "name": "search, open a hit",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 1.78,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Search notes tab"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "Search your notes"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "CRWD",
+     "on": "search query"
+    },
+    {
+     "do": "tap",
+     "on": "search hit 'CRWD base watch'"
+    }
+   ],
+   "outcome": {
+    "note": "14ca1e6795f541c3b29a7bcad81d60f5"
+   },
+   "notes": "",
+   "screenshot": "Q4-taps-390.png"
+  },
+  {
+   "flow": "Q5",
+   "name": "today's daily note",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 1,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 0.49,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Today"
+    }
+   ],
+   "outcome": {
+    "note": "38adafaa310f4f4b8658068f103e56c4",
+    "title": "2026-10-07 · Wednesday"
+   },
+   "notes": "",
+   "screenshot": "Q5-mouse-1280.png"
+  },
+  {
+   "flow": "Q5",
+   "name": "today's daily note",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 2,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 1,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.33,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+Alt+d",
+     "on": "Today's note (Ctrl+Alt+D)"
+    }
+   ],
+   "outcome": {
+    "note": "38adafaa310f4f4b8658068f103e56c4",
+    "title": "2026-10-07 · Wednesday"
+   },
+   "notes": "",
+   "screenshot": "Q5-keys-1280.png"
+  },
+  {
+   "flow": "Q5",
+   "name": "today's daily note",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 2,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 1,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.34,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+Alt+d",
+     "on": "Today's note (Ctrl+Alt+D)"
+    }
+   ],
+   "outcome": {
+    "note": "38adafaa310f4f4b8658068f103e56c4",
+    "title": "2026-10-07 · Wednesday"
+   },
+   "notes": "",
+   "screenshot": "Q5-keys-390.png"
+  },
+  {
+   "flow": "Q5",
+   "name": "today's daily note",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 1,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 0.45,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Today"
+    }
+   ],
+   "outcome": {
+    "note": "38adafaa310f4f4b8658068f103e56c4",
+    "title": "2026-10-07 · Wednesday"
+   },
+   "notes": "",
+   "screenshot": "Q5-taps-390.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 5,
+   "taps": 0,
+   "time_s": 4.68,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "click",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "click",
+     "on": "CRWD trade row"
+    },
+    {
+     "do": "click",
+     "on": "Save to Notebook"
+    },
+    {
+     "do": "click",
+     "on": "Current note"
+    }
+   ],
+   "outcome": {
+    "note": "a297ffa2827949afaed7b34943250456",
+    "trade": "93692de2-055b-4203-a85c-670132cbc701",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-mouse-1280.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 10,
+   "measured": 14,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 4,
+   "keystrokes": 10,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.75,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "the list holding CRWD trade row",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "TD",
+       "role": "",
+       "name": "NVDA",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate CRWD trade row"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save to Notebook",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "▶ Replay",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save to Notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save to Notebook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Current note",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Append to the note you have open (or the inbox)",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Current note"
+    }
+   ],
+   "outcome": {
+    "note": "7d9c0e0b15b14c7fa875bf26f86c5717",
+    "trade": "93692de2-055b-4203-a85c-670132cbc701",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-keys-1280.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "keys",
+   "width": "390",
+   "budget": 10,
+   "measured": 13,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 10,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.73,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "the list holding CRWD trade row",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA Win +$960.00 +1.8R 100 @ $100.40 → $110.00 10/07/26 – 1",
+       "testid": "trade-card",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "row towards CRWD trade row"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate CRWD trade row"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save to Notebook",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "▶ Replay",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save to Notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save to Notebook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Current note",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Current note"
+    }
+   ],
+   "outcome": {
+    "note": "2c0e9b44586849f0b9511cef4684e21e",
+    "trade": "93692de2-055b-4203-a85c-670132cbc701",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-keys-390.png"
+  },
+  {
+   "flow": "Q6",
+   "name": "link a note to a trade",
+   "owner": "Notebook core / Journal",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 5,
+   "time_s": 5.39,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "tap",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "tap",
+     "on": "CRWD trade row"
+    },
+    {
+     "do": "tap",
+     "on": "Save to Notebook"
+    },
+    {
+     "do": "tap",
+     "on": "Current note"
+    }
+   ],
+   "outcome": {
+    "note": "9ea20401b6a34fe0b535e19902e5708a",
+    "trade": "93692de2-055b-4203-a85c-670132cbc701",
+    "path": "note -> Trades tab -> Closed -> trade -> Save to Notebook -> Current note"
+   },
+   "notes": "",
+   "screenshot": "Q6-taps-390.png"
+  },
+  {
+   "flow": "Q7",
+   "name": "save Screener results to a note (337 Tabs today)",
+   "owner": "Screener (ScannerShell.jsx)",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 0.19,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Save these results to Notebook"
+    }
+   ],
+   "outcome": {
+    "toast": "",
+    "note": "edc6e02b5f7044ca8aaceade1fc91fff",
+    "notes_changed": [
+     "edc6e02b5f7044ca8aaceade1fc91fff"
+    ],
+    "inbox": [
+     0,
+     0
+    ],
+    "focus_after_save": {
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Save these results to Notebook",
+     "testid": "",
+     "ce": false
+    }
+   },
+   "notes": "the plan's control (ruling P5); door in ScannerShell.jsx, measured only",
+   "screenshot": "Q7-mouse-1280.png"
+  },
+  {
+   "flow": "Q7",
+   "name": "save Screener results to a note (337 Tabs today)",
+   "owner": "Screener (ScannerShell.jsx)",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 10,
+   "measured": 5,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.68,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to save results",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to save results",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to save results"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save these results to Notebook",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save these results to Notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save these results to Notebook"
+    }
+   ],
+   "outcome": {
+    "toast": "",
+    "note": "20ccf5e50e564cae8a196f5d11c5a270",
+    "notes_changed": [
+     "20ccf5e50e564cae8a196f5d11c5a270"
+    ],
+    "inbox": [
+     0,
+     0
+    ],
+    "focus_after_save": {
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Save these results to Notebook",
+     "testid": "",
+     "ce": false
+    }
+   },
+   "notes": "the plan's control (ruling P5); door in ScannerShell.jsx, measured only",
+   "screenshot": "Q7-keys-1280.png"
+  },
+  {
+   "flow": "Q7",
+   "name": "save Screener results to a note (337 Tabs today)",
+   "owner": "Screener (ScannerShell.jsx)",
+   "mode": "keys",
+   "width": "390",
+   "budget": 10,
+   "measured": 5,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.05,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to save results",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to save results",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to save results"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save these results to Notebook",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save these results to Notebook",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save these results to Notebook"
+    }
+   ],
+   "outcome": {
+    "toast": "Screener results sent to “Screener target Q7-keys-390-3561142”",
+    "note": "49856217dfe04d909c43deba86ca1c0e",
+    "notes_changed": [
+     "49856217dfe04d909c43deba86ca1c0e"
+    ],
+    "inbox": [
+     0,
+     0
+    ],
+    "focus_after_save": {
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Save these results to Notebook",
+     "testid": "",
+     "ce": false
+    }
+   },
+   "notes": "the plan's control (ruling P5); door in ScannerShell.jsx, measured only",
+   "screenshot": "Q7-keys-390.png"
+  },
+  {
+   "flow": "Q7",
+   "name": "save Screener results to a note (337 Tabs today)",
+   "owner": "Screener (ScannerShell.jsx)",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 0.37,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Save these results to Notebook"
+    }
+   ],
+   "outcome": {
+    "toast": "",
+    "note": "bded88ca312946559b69a3a190e77ea6",
+    "notes_changed": [
+     "bded88ca312946559b69a3a190e77ea6"
+    ],
+    "inbox": [
+     0,
+     0
+    ],
+    "focus_after_save": {
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Save these results to Notebook",
+     "testid": "",
+     "ce": false
+    }
+   },
+   "notes": "the plan's control (ruling P5); door in ScannerShell.jsx, measured only",
+   "screenshot": "Q7-taps-390.png"
+  },
+  {
+   "flow": "Q8",
+   "name": "save a price or consensus fact",
+   "owner": "Notebook capture",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 2.81,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "price NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "click",
+     "on": "Price — NVDA"
+    }
+   ],
+   "outcome": {
+    "note": "262e3028702943d7b44a832c6751b3b9",
+    "fact": true
+   },
+   "notes": "",
+   "screenshot": "Q8-mouse-1280.png"
+  },
+  {
+   "flow": "Q8",
+   "name": "save a price or consensus fact",
+   "owner": "Notebook capture",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 8,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.95,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "price NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Price — NVDA"
+    }
+   ],
+   "outcome": {
+    "note": "6e5e18f512f44e939ee2cb8b88b70063",
+    "fact": true
+   },
+   "notes": "",
+   "screenshot": "Q8-keys-1280.png"
+  },
+  {
+   "flow": "Q8",
+   "name": "save a price or consensus fact",
+   "owner": "Notebook capture",
+   "mode": "keys",
+   "width": "390",
+   "budget": 8,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.92,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "price NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Price — NVDA"
+    }
+   ],
+   "outcome": {
+    "note": "31d1db020c37471a8991480caf3733a0",
+    "fact": true
+   },
+   "notes": "",
+   "screenshot": "Q8-keys-390.png"
+  },
+  {
+   "flow": "Q8",
+   "name": "save a price or consensus fact",
+   "owner": "Notebook capture",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 2.07,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "price NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "tap",
+     "on": "Price — NVDA"
+    }
+   ],
+   "outcome": {
+    "note": "d4d0284a89a947478aa7f36cb4fcb077",
+    "fact": true
+   },
+   "notes": "",
+   "screenshot": "Q8-taps-390.png"
+  },
+  {
+   "flow": "Q9",
+   "name": "ask the Notebook, insert the answer",
+   "owner": "Notebook Ask",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 3,
+   "taps": 0,
+   "time_s": 1.99,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Ask a question about this note"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "question field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "What is the thesis?",
+     "on": "question"
+    },
+    {
+     "do": "click",
+     "on": "Ask"
+    },
+    {
+     "do": "click",
+     "on": "Insert into this note"
+    }
+   ],
+   "outcome": {
+    "note": "1f2bf0cb562b49dc96cc3203d2788ce6",
+    "inserted": true,
+    "model": "answer stubbed at the browser network layer (model keys blank)"
+   },
+   "notes": "answer stubbed at the browser network layer",
+   "screenshot": "Q9-mouse-1280.png"
+  },
+  {
+   "flow": "Q9",
+   "name": "ask the Notebook, insert the answer",
+   "owner": "Notebook Ask",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 9,
+   "measured": 7,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 4,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.37,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "ask this note",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Ask about this note"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "question field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "What is the thesis?",
+     "on": "question"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "ask"
+    },
+    {
+     "do": "tab-run",
+     "to": "Insert into this note",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Source 1: Ask target Q9-keys-1280-3708962",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open source 1: Ask target Q9-keys-1280-3708962",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert into this note",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Insert into this note"
+    }
+   ],
+   "outcome": {
+    "note": "ffc4a785ef3a41b7be8f8b0a969b25af",
+    "inserted": true,
+    "model": "answer stubbed at the browser network layer (model keys blank)"
+   },
+   "notes": "answer stubbed at the browser network layer",
+   "screenshot": "Q9-keys-1280.png"
+  },
+  {
+   "flow": "Q9",
+   "name": "ask the Notebook, insert the answer",
+   "owner": "Notebook Ask",
+   "mode": "keys",
+   "width": "390",
+   "budget": 9,
+   "measured": 7,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 3,
+   "keystrokes": 4,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.4,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "ask this note",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Ask about this note"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "question field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "What is the thesis?",
+     "on": "question"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "ask"
+    },
+    {
+     "do": "tab-run",
+     "to": "Insert into this note",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Source 1: Ask target Q9-keys-390-3723719",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open source 1: Ask target Q9-keys-390-3723719",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert into this note",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Insert into this note"
+    }
+   ],
+   "outcome": {
+    "note": "212c68641304424786cc04004f30155e",
+    "inserted": true,
+    "model": "answer stubbed at the browser network layer (model keys blank)"
+   },
+   "notes": "answer stubbed at the browser network layer",
+   "screenshot": "Q9-keys-390.png"
+  },
+  {
+   "flow": "Q9",
+   "name": "ask the Notebook, insert the answer",
+   "owner": "Notebook Ask",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 2.48,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Ask a question about this note"
+    },
+    {
+     "do": "already focused (free)",
+     "on": "question field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "What is the thesis?",
+     "on": "question"
+    },
+    {
+     "do": "tap",
+     "on": "Ask"
+    },
+    {
+     "do": "tap",
+     "on": "Insert into this note"
+    }
+   ],
+   "outcome": {
+    "note": "e6a03fafe8fd45b0b31046e014d50969",
+    "inserted": true,
+    "model": "answer stubbed at the browser network layer (model keys blank)"
+   },
+   "notes": "answer stubbed at the browser network layer",
+   "screenshot": "Q9-taps-390.png"
+  },
+  {
+   "flow": "Q10",
+   "name": "task with a due date",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 3.13,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "checklist",
+     "on": "slash query"
+    },
+    {
+     "do": "click",
+     "on": "Checklist"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Review NVDA earnings ",
+     "on": "task text"
+    },
+    {
+     "do": "key",
+     "key": "@",
+     "on": "date trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "tomorrow ",
+     "on": "date words"
+    }
+   ],
+   "outcome": {
+    "note": "0434c5d1791a466f8bba8990e943a7b2",
+    "task_with_due": true
+   },
+   "notes": "",
+   "screenshot": "Q10-mouse-1280.png"
+  },
+  {
+   "flow": "Q10",
+   "name": "task with a due date",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 4,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.95,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "checklist",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Checklist"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Review NVDA earnings ",
+     "on": "task text"
+    },
+    {
+     "do": "key",
+     "key": "@",
+     "on": "date trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "tomorrow ",
+     "on": "date words"
+    }
+   ],
+   "outcome": {
+    "note": "3e89bada69f048208249fa8e85e0bc59",
+    "task_with_due": true
+   },
+   "notes": "",
+   "screenshot": "Q10-keys-1280.png"
+  },
+  {
+   "flow": "Q10",
+   "name": "task with a due date",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 4,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.93,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "checklist",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Checklist"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Review NVDA earnings ",
+     "on": "task text"
+    },
+    {
+     "do": "key",
+     "key": "@",
+     "on": "date trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "tomorrow ",
+     "on": "date words"
+    }
+   ],
+   "outcome": {
+    "note": "a47b21f9a3004b309aafca9a6031a371",
+    "task_with_due": true
+   },
+   "notes": "",
+   "screenshot": "Q10-keys-390.png"
+  },
+  {
+   "flow": "Q10",
+   "name": "task with a due date",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 3.5,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "checklist",
+     "on": "slash query"
+    },
+    {
+     "do": "tap",
+     "on": "Checklist"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Review NVDA earnings ",
+     "on": "task text"
+    },
+    {
+     "do": "key",
+     "key": "@",
+     "on": "date trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "tomorrow ",
+     "on": "date words"
+    }
+   ],
+   "outcome": {
+    "note": "72ff789aaa3e4e239ba4dc311b841749",
+    "task_with_due": true
+   },
+   "notes": "",
+   "screenshot": "Q10-taps-390.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 8,
+   "measured": 9,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 9,
+   "taps": 0,
+   "time_s": 4.12,
+   "steps": [
+    {
+     "do": "click",
+     "on": "All notes"
+    },
+    {
+     "do": "click",
+     "on": "tick note 4"
+    },
+    {
+     "do": "shift+click",
+     "on": "tick note 0 (range: the notes between are selected)"
+    },
+    {
+     "do": "click",
+     "on": "Tags"
+    },
+    {
+     "do": "click",
+     "on": "tag field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qmouse1280",
+     "on": "tag"
+    },
+    {
+     "do": "click",
+     "on": "Add tag"
+    },
+    {
+     "do": "click",
+     "on": "Move to select (open)"
+    },
+    {
+     "do": "choose option (counted 1)",
+     "on": "Semis mouse-1280"
+    },
+    {
+     "do": "click",
+     "on": "Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "8745355c0ff04e5fb8c220e47264e8b2",
+     "878c2555ec3e4a7c9bae7234454eda51",
+     "a2bb4f233eb342e285018149bbdb2aea",
+     "687dce4e50384a2ea8fa86f1638b6f99",
+     "7d6bebb5b69e47b4a94dfd02396e516c"
+    ],
+    "tag": "w13qmouse1280",
+    "folder": "Semis mouse-1280"
+   },
+   "notes": "",
+   "screenshot": "Q11-mouse-1280.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 27,
+   "measured": 18,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 5,
+   "keystrokes": 13,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 5.0,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "all notes",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose All notes"
+    },
+    {
+     "do": "tab-run",
+     "to": "the list holding select note 4",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1280 4",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 4"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 3"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 2"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 1"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 0"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Tags",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tags",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Tags"
+    },
+    {
+     "do": "tab-run",
+     "to": "tag field",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Tag to add to the selected notes",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qkeys1280",
+     "on": "tag"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "Add tag"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move to select",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown (choose folder; counted 1)",
+     "on": "Move to"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "eabb2b1f06db4822b00fdcde1f646ef8",
+     "2a4c7420c6ec4934b3065b4e386f8409",
+     "6b487469d08a48b9a6f9ccf013cb4a5f",
+     "b996f4f019f24f91924ac233f730783f",
+     "4874f85b8e244117b38a30687cb87629"
+    ],
+    "tag": "w13qkeys1280",
+    "folder": "Semis keys-1280"
+   },
+   "notes": "",
+   "screenshot": "Q11-keys-1280.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 27,
+   "measured": 18,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 5,
+   "keystrokes": 13,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.89,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "all notes",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose All notes"
+    },
+    {
+     "do": "tab-run",
+     "to": "the list holding select note 4",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 4",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 4"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 3"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 2"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 1"
+    },
+    {
+     "do": "key",
+     "key": "Shift+ArrowDown",
+     "on": "extend the selection to note 0"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Tags",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tags",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Tags"
+    },
+    {
+     "do": "tab-run",
+     "to": "tag field",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Tag to add to the selected notes",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qkeys390",
+     "on": "tag"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "Add tag"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move to select",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown (choose folder; counted 1)",
+     "on": "Move to"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "6e42e81942644dcaa6114a4e793e87fe",
+     "19646d571c8c4e5fbaa9e4b377a876d5",
+     "b7b57864e6cf441e938b800842f9eff3",
+     "256a581004f64e48978f21c72c70fcd3",
+     "adfa4f01ea494a45b1795385c64796a8"
+    ],
+    "tag": "w13qkeys390",
+    "folder": "Semis keys-390"
+   },
+   "notes": "",
+   "screenshot": "Q11-keys-390.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 10,
+   "measured": 12,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 12,
+   "time_s": 4.79,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "All notes"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 4"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 3"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 2"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 1"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 0"
+    },
+    {
+     "do": "tap",
+     "on": "Tags"
+    },
+    {
+     "do": "tap",
+     "on": "tag field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qtaps390",
+     "on": "tag"
+    },
+    {
+     "do": "tap",
+     "on": "Add tag"
+    },
+    {
+     "do": "tap",
+     "on": "Move to select (open)"
+    },
+    {
+     "do": "choose option (counted 1)",
+     "on": "Semis taps-390"
+    },
+    {
+     "do": "tap",
+     "on": "Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "d7017b02b12d424182c92dcb2c70c96e",
+     "cfdb1eb03ab3434a836632df608ef33b",
+     "0c6071f3693f4501933aca01f59e744b",
+     "e5b29530e7db48cfa1e3c39c2c2e2214",
+     "5f7455eadad3415d80d6b70e8d8ebf41"
+    ],
+    "tag": "w13qtaps390",
+    "folder": "Semis taps-390"
+   },
+   "notes": "",
+   "screenshot": "Q11-taps-390.png"
+  },
+  {
+   "flow": "Q12",
+   "name": "export one note as Word",
+   "owner": "Notebook export",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 3,
+   "taps": 0,
+   "time_s": 0.3,
+   "steps": [
+    {
+     "do": "click",
+     "on": "More note actions"
+    },
+    {
+     "do": "click",
+     "on": "Export (in More note actions)"
+    },
+    {
+     "do": "click",
+     "on": "Word (.docx)"
+    }
+   ],
+   "outcome": {
+    "note": "45c4c184f9e94334a053b505f047d78b",
+    "file": "Export target Q12-mouse-1280-3884437-20261007.docx"
+   },
+   "notes": "",
+   "screenshot": "Q12-mouse-1280.png"
+  },
+  {
+   "flow": "Q12",
+   "name": "export one note as Word",
+   "owner": "Notebook export",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 12,
+   "measured": 6,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 6,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.54,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "export",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Export this note"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "menu: next item"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "menu: next item"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "menu: next item"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "Word (.docx)"
+    }
+   ],
+   "outcome": {
+    "note": "153e9a0827264478b30b9d1696e0bd87",
+    "file": "Export target Q12-keys-1280-3897102-20261007.docx"
+   },
+   "notes": "",
+   "screenshot": "Q12-keys-1280.png"
+  },
+  {
+   "flow": "Q12",
+   "name": "export one note as Word",
+   "owner": "Notebook export",
+   "mode": "keys",
+   "width": "390",
+   "budget": 12,
+   "measured": 6,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 6,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.49,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "export",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Export this note"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "menu: next item"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "menu: next item"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "menu: next item"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "Word (.docx)"
+    }
+   ],
+   "outcome": {
+    "note": "41ddc627b27447f6bbe6fad6e489a106",
+    "file": "Export target Q12-keys-390-3910144-20261007.docx"
+   },
+   "notes": "",
+   "screenshot": "Q12-keys-390.png"
+  },
+  {
+   "flow": "Q12",
+   "name": "export one note as Word",
+   "owner": "Notebook export",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 0.55,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "More note actions"
+    },
+    {
+     "do": "tap",
+     "on": "Export (in More note actions)"
+    },
+    {
+     "do": "tap",
+     "on": "Word (.docx)"
+    }
+   ],
+   "outcome": {
+    "note": "ce7fb873ad9b4d8fa7aebcef7cfae240",
+    "file": "Export target Q12-taps-390-3922995-20261007.docx"
+   },
+   "notes": "",
+   "screenshot": "Q12-taps-390.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 3,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 3,
+   "taps": 0,
+   "time_s": 4.24,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "click",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "click",
+     "on": "NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "5a4ee8d4-556e-4a85-a03e-19063c68b5b2",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-mouse-1280.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.26,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "the list holding NVDA trade row",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "TD",
+       "role": "",
+       "name": "NVDA",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "5a4ee8d4-556e-4a85-a03e-19063c68b5b2",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-keys-1280.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.41,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "tab-run",
+     "to": "the list holding NVDA trade row",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA Win +$960.00 +1.8R 100 @ $100.40 → $110.00 10/07/26 – 1",
+       "testid": "trade-card",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "5a4ee8d4-556e-4a85-a03e-19063c68b5b2",
+    "card_text": "Plan vs execution\n\nReading your plan…"
+   },
+   "notes": "",
+   "screenshot": "Q13-keys-390.png"
+  },
+  {
+   "flow": "Q13",
+   "name": "plan grade of my last trade (13A)",
+   "owner": "13A",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 3,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 4.7,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Journal tab: Trades"
+    },
+    {
+     "do": "tap",
+     "on": "Trades segment: Closed"
+    },
+    {
+     "do": "tap",
+     "on": "NVDA trade row"
+    }
+   ],
+   "outcome": {
+    "trade": "5a4ee8d4-556e-4a85-a03e-19063c68b5b2",
+    "card_text": "Plan vs execution\n\nPlan note · written before entry · NVDA plan (w13q) · 1R = 4.00\n\nEntry\nKept\nPlanned 100.00 · filled 100.40 (+0.10R)\nStop\nHonoured\nStop 96.00 · exit 110.00 · line 95.00\nSize\nKept\nPlanned 100 · entered 100 (0.0%)\nTarget\n—\nTarget 120.00 · the best price reached is computed overnight."
+   },
+   "notes": "",
+   "screenshot": "Q13-taps-390.png"
+  },
+  {
+   "flow": "Q14",
+   "name": "My Playbook, drill a number (13B)",
+   "owner": "13B",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 3,
+   "taps": 0,
+   "time_s": 18.79,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Journal tab: Insights"
+    },
+    {
+     "do": "click",
+     "on": "Open My Playbook"
+    },
+    {
+     "do": "click",
+     "on": "Win rate (Pullback)"
+    }
+   ],
+   "outcome": {
+    "setup": "Pullback",
+    "number": "Win rate",
+    "drill_rows": 25,
+    "drill_title": "Pullback win rate: the 25 wins and losses behind it"
+   },
+   "notes": "starts on the Journal; 25 seeded trades tagged one setup",
+   "screenshot": "Q14-mouse-1280.png"
+  },
+  {
+   "flow": "Q14",
+   "name": "My Playbook, drill a number (13B)",
+   "owner": "13B",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 6,
+   "measured": 6,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 2,
+   "keystrokes": 4,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 18.65,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then y: Insights"
+    },
+    {
+     "do": "key",
+     "key": "y",
+     "on": "Journal shortcut, g then y: Insights"
+    },
+    {
+     "do": "tab-run",
+     "to": "Open My Playbook",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Open My Playbook: ranges, the trades behind every number, an",
+       "testid": "open-my-playbook",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open My Playbook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Win rate (Pullback)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Win rate 40%, show the 25 trades behind it",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Win rate (Pullback)"
+    }
+   ],
+   "outcome": {
+    "setup": "Pullback",
+    "number": "Win rate",
+    "drill_rows": 25,
+    "drill_title": "Pullback win rate: the 25 wins and losses behind it"
+   },
+   "notes": "starts on the Journal; 25 seeded trades tagged one setup",
+   "screenshot": "Q14-keys-1280.png"
+  },
+  {
+   "flow": "Q14",
+   "name": "My Playbook, drill a number (13B)",
+   "owner": "13B",
+   "mode": "keys",
+   "width": "390",
+   "budget": 6,
+   "measured": 6,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 2,
+   "keystrokes": 4,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 18.84,
+   "steps": [
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then y: Insights"
+    },
+    {
+     "do": "key",
+     "key": "y",
+     "on": "Journal shortcut, g then y: Insights"
+    },
+    {
+     "do": "tab-run",
+     "to": "Open My Playbook",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Open My Playbook: ranges, the trades behind every number, an",
+       "testid": "open-my-playbook",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open My Playbook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Win rate (Pullback)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Win rate 40%, show the 25 trades behind it",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Win rate (Pullback)"
+    }
+   ],
+   "outcome": {
+    "setup": "Pullback",
+    "number": "Win rate",
+    "drill_rows": 25,
+    "drill_title": "Pullback win rate: the 25 wins and losses behind it"
+   },
+   "notes": "starts on the Journal; 25 seeded trades tagged one setup",
+   "screenshot": "Q14-keys-390.png"
+  },
+  {
+   "flow": "Q14",
+   "name": "My Playbook, drill a number (13B)",
+   "owner": "13B",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 18.64,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Journal tab: Insights"
+    },
+    {
+     "do": "tap",
+     "on": "Open My Playbook"
+    },
+    {
+     "do": "tap",
+     "on": "Win rate (Pullback)"
+    }
+   ],
+   "outcome": {
+    "setup": "Pullback",
+    "number": "Win rate",
+    "drill_rows": 25,
+    "drill_title": "Pullback win rate: the 25 wins and losses behind it"
+   },
+   "notes": "starts on the Journal; 25 seeded trades tagged one setup",
+   "screenshot": "Q14-taps-390.png"
+  },
+  {
+   "flow": "Q15",
+   "name": "create earnings prep (13C)",
+   "owner": "13C",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 2.81,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Create prep note for NVDA"
+    }
+   ],
+   "outcome": {
+    "note": "dbd51041fa3c478088bd65009a0cc716",
+    "button": "Create prep note for NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q15-mouse-1280.png"
+  },
+  {
+   "flow": "Q15",
+   "name": "create earnings prep (13C)",
+   "owner": "13C",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 5,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.41,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "earnings prep",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Earnings prep"
+    },
+    {
+     "do": "tab-run",
+     "to": "Open the NVDA prep note",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open the NVDA prep note"
+    }
+   ],
+   "outcome": {
+    "note": "dbd51041fa3c478088bd65009a0cc716",
+    "button": "Open the NVDA prep note"
+   },
+   "notes": "",
+   "screenshot": "Q15-keys-1280.png"
+  },
+  {
+   "flow": "Q15",
+   "name": "create earnings prep (13C)",
+   "owner": "13C",
+   "mode": "keys",
+   "width": "390",
+   "budget": 5,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.17,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "earnings prep",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Earnings prep"
+    },
+    {
+     "do": "tab-run",
+     "to": "Open the NVDA prep note",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open the NVDA prep note"
+    }
+   ],
+   "outcome": {
+    "note": "dbd51041fa3c478088bd65009a0cc716",
+    "button": "Open the NVDA prep note"
+   },
+   "notes": "",
+   "screenshot": "Q15-keys-390.png"
+  },
+  {
+   "flow": "Q15",
+   "name": "create earnings prep (13C)",
+   "owner": "13C",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 1,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 1,
+   "time_s": 0.47,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Open the NVDA prep note"
+    }
+   ],
+   "outcome": {
+    "note": "dbd51041fa3c478088bd65009a0cc716",
+    "button": "Open the NVDA prep note"
+   },
+   "notes": "",
+   "screenshot": "Q15-taps-390.png"
+  },
+  {
+   "flow": "Q16",
+   "name": "open a resurfaced note (13D)",
+   "owner": "13D",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 2.26,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Settings section: Compass & Voice"
+    },
+    {
+     "do": "click",
+     "on": "Open what you wrote"
+    }
+   ],
+   "outcome": {
+    "note": "f7014827bb67448d87c085e3f28b148c",
+    "door": "/journal/notebook?note=f7014827bb67448d87c085e3f28b148c&resurfaceVersion=4ebe546ca4f64a4da09fd331381908ec",
+    "sheet": "What you wrote then"
+   },
+   "notes": "starts on Settings; the notice is fired by the product's own scan (13D walk child)",
+   "screenshot": "Q16-mouse-1280.png"
+  },
+  {
+   "flow": "Q16",
+   "name": "open a resurfaced note (13D)",
+   "owner": "13D",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 8,
+   "measured": 46,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 43,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.59,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to main content",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to main content"
+    },
+    {
+     "do": "tab-run",
+     "to": "Settings section: Compass & Voice",
+     "presses": 9,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open command palette",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Need help? Open Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Search settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Account",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Plan & Billing",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Preferences",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Compass & Voice",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Settings section: Compass & Voice"
+    },
+    {
+     "do": "tab-run",
+     "to": "Open what you wrote",
+     "presses": 33,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Connections",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Data & Legal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "on",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "on",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "on",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Verse",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Speech speed",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "New memory",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Memory category",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Download all voice transcripts as a plain-text file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh voice telemetry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh hallucination flags",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Session to re-audit",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Run consolidation now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh active learning",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh session list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "choose a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SUMMARY",
+       "role": "",
+       "name": "Or paste text directly",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Scan now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Pending (1)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Dismissed",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Open what you wrote",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open what you wrote"
+    }
+   ],
+   "outcome": {
+    "note": "f7014827bb67448d87c085e3f28b148c",
+    "door": "/journal/notebook?note=f7014827bb67448d87c085e3f28b148c&resurfaceVersion=4ebe546ca4f64a4da09fd331381908ec",
+    "sheet": "What you wrote then"
+   },
+   "notes": "starts on Settings; the notice is fired by the product's own scan (13D walk child)",
+   "screenshot": "Q16-keys-1280.png"
+  },
+  {
+   "flow": "Q16",
+   "name": "open a resurfaced note (13D)",
+   "owner": "13D",
+   "mode": "keys",
+   "width": "390",
+   "budget": 8,
+   "measured": 45,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 42,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.37,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to main content",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to main content"
+    },
+    {
+     "do": "tab-run",
+     "to": "Settings section: Compass & Voice",
+     "presses": 8,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open command palette",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Need help? Open Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Search settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Account",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Plan & Billing",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Preferences",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Compass & Voice",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Settings section: Compass & Voice"
+    },
+    {
+     "do": "tab-run",
+     "to": "Open what you wrote",
+     "presses": 33,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Connections",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Data & Legal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "on",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "on",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "on",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Verse",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hear this voice",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Speech speed",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "New memory",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Memory category",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Download all voice transcripts as a plain-text file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh voice telemetry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh hallucination flags",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Session to re-audit",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Run consolidation now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh active learning",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh session list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "choose a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SUMMARY",
+       "role": "",
+       "name": "Or paste text directly",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Scan now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Refresh",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Pending (1)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Dismissed",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Open what you wrote",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Open what you wrote"
+    }
+   ],
+   "outcome": {
+    "note": "f7014827bb67448d87c085e3f28b148c",
+    "door": "/journal/notebook?note=f7014827bb67448d87c085e3f28b148c&resurfaceVersion=4ebe546ca4f64a4da09fd331381908ec",
+    "sheet": "What you wrote then"
+   },
+   "notes": "starts on Settings; the notice is fired by the product's own scan (13D walk child)",
+   "screenshot": "Q16-keys-390.png"
+  },
+  {
+   "flow": "Q16",
+   "name": "open a resurfaced note (13D)",
+   "owner": "13D",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 2.3,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Settings section: Compass & Voice"
+    },
+    {
+     "do": "tap",
+     "on": "Open what you wrote"
+    }
+   ],
+   "outcome": {
+    "note": "f7014827bb67448d87c085e3f28b148c",
+    "door": "/journal/notebook?note=f7014827bb67448d87c085e3f28b148c&resurfaceVersion=4ebe546ca4f64a4da09fd331381908ec",
+    "sheet": "What you wrote then"
+   },
+   "notes": "starts on Settings; the notice is fired by the product's own scan (13D walk child)",
+   "screenshot": "Q16-taps-390.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 1.04,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Why did you take it?"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "Clean base, tight closes (mouse 1280).",
+     "on": "the reason"
+    },
+    {
+     "do": "click",
+     "on": "Save"
+    }
+   ],
+   "outcome": {
+    "position": "COST",
+    "saved": "Clean base, tight closes (mouse 1280)."
+   },
+   "notes": "starts on the position's page; a position entered today",
+   "screenshot": "Q17-mouse-1280.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 7,
+   "measured": 7,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 5,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.07,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to why you took it",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to why you took it",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to why you took it"
+    },
+    {
+     "do": "tab-run",
+     "to": "Why did you take it?",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "TEXTAREA",
+       "role": "",
+       "name": "Optional — what you saw, why you entered",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "Clean base, tight closes (keys 1280).",
+     "on": "the reason"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save"
+    }
+   ],
+   "outcome": {
+    "position": "ADBE",
+    "saved": "Clean base, tight closes (keys 1280)."
+   },
+   "notes": "starts on the position's page; a position entered today",
+   "screenshot": "Q17-keys-1280.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "keys",
+   "width": "390",
+   "budget": 7,
+   "measured": 7,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 5,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 2.09,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to why you took it",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to why you took it",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to why you took it"
+    },
+    {
+     "do": "tab-run",
+     "to": "Why did you take it?",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "TEXTAREA",
+       "role": "",
+       "name": "Optional — what you saw, why you entered",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "Clean base, tight closes (keys 390).",
+     "on": "the reason"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save"
+    }
+   ],
+   "outcome": {
+    "position": "INTC",
+    "saved": "Clean base, tight closes (keys 390)."
+   },
+   "notes": "starts on the position's page; a position entered today",
+   "screenshot": "Q17-keys-390.png"
+  },
+  {
+   "flow": "Q17",
+   "name": "answer \"why did you take it\" (13E)",
+   "owner": "13E",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 1.19,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Why did you take it?"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "Clean base, tight closes (taps 390).",
+     "on": "the reason"
+    },
+    {
+     "do": "tap",
+     "on": "Save"
+    }
+   ],
+   "outcome": {
+    "position": "CSCO",
+    "saved": "Clean base, tight closes (taps 390)."
+   },
+   "notes": "starts on the position's page; a position entered today",
+   "screenshot": "Q17-taps-390.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 0.61,
+   "steps": [
+    {
+     "do": "click",
+     "on": "This week's review"
+    },
+    {
+     "do": "click",
+     "on": "open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "6af370ce59df4591bf0bfce441c5b243",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-mouse-1280.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 9,
+   "measured": 9,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 6,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.71,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to reviews and setups",
+     "presses": 4,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to reviews and setups",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to reviews and setups"
+    },
+    {
+     "do": "tab-run",
+     "to": "This week's review",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Today's recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "This week's review",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate This week's review"
+    },
+    {
+     "do": "tab-run",
+     "to": "open the leak (Revenge re-entries)",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "13ca04b891814b26ad73dbcc942622cf",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-keys-1280.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "keys",
+   "width": "390",
+   "budget": 9,
+   "measured": 9,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 6,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.22,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to reviews and setups",
+     "presses": 4,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to reviews and setups",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to reviews and setups"
+    },
+    {
+     "do": "tab-run",
+     "to": "This week's review",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Today's recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "This week's review",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate This week's review"
+    },
+    {
+     "do": "tab-run",
+     "to": "open the leak (Revenge re-entries)",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "bdc964fec910433bbbc96ecad8d8f04d",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-keys-390.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 0.72,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "This week's review"
+    },
+    {
+     "do": "tap",
+     "on": "open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "3fd18de8499e4eafbda92efb782dca95",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-taps-390.png"
+  },
+  {
+   "flow": "Q19",
+   "name": "save a transcript passage to a thesis (13G)",
+   "owner": "13G",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 3,
+   "taps": 0,
+   "time_s": 0.69,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Save from a transcript"
+    },
+    {
+     "do": "click",
+     "on": "Quote from turn 2"
+    },
+    {
+     "do": "click",
+     "on": "Save passage"
+    }
+   ],
+   "outcome": {
+    "note": "892798156c5c4cee9b5de32305762f67",
+    "excerpt": "284715be1e1b4de7977964a9b32c4ea2",
+    "cited": "Saved to “NVDA thesis Q19-mouse-1280-4409057”. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 2 (Colette Kress).\n\nOpen the note",
+    "destination_default": "(fixed: the open note)"
+   },
+   "notes": "pointer/touch start on the research page, keys in the thesis note; stored call seeded",
+   "screenshot": "Q19-mouse-1280.png"
+  },
+  {
+   "flow": "Q19",
+   "name": "save a transcript passage to a thesis (13G)",
+   "owner": "13G",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 9,
+   "measured": 8,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 2,
+   "keystrokes": 6,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.45,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "transcript passage",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Transcript passage"
+    },
+    {
+     "do": "tab-run",
+     "to": "the one-stop group holding Quote from turn 2",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "move in the group towards Quote from turn 2"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Quote from turn 2"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save passage",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save passage",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save passage"
+    }
+   ],
+   "outcome": {
+    "note": "827cf1dacd954bfabfaa3f2fea77ba5d",
+    "excerpt": "81d4cb5e43e942a7b4f3c1f3ee4e8891",
+    "cited": "Saved. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 2 (Colette Kress).",
+    "destination_default": "(fixed: the open note)"
+   },
+   "notes": "pointer/touch start on the research page, keys in the thesis note; stored call seeded",
+   "screenshot": "Q19-keys-1280.png"
+  },
+  {
+   "flow": "Q19",
+   "name": "save a transcript passage to a thesis (13G)",
+   "owner": "13G",
+   "mode": "keys",
+   "width": "390",
+   "budget": 9,
+   "measured": 8,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 2,
+   "keystrokes": 6,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.29,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "transcript passage",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Transcript passage"
+    },
+    {
+     "do": "tab-run",
+     "to": "the one-stop group holding Quote from turn 2",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown",
+     "on": "move in the group towards Quote from turn 2"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Quote from turn 2"
+    },
+    {
+     "do": "tab-run",
+     "to": "Save passage",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save passage",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Save passage"
+    }
+   ],
+   "outcome": {
+    "note": "74e587797f0e41499c93393d255d2645",
+    "excerpt": "b9e4a8db51584950b3d9c10fb0a18902",
+    "cited": "Saved. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 2 (Colette Kress).",
+    "destination_default": "(fixed: the open note)"
+   },
+   "notes": "pointer/touch start on the research page, keys in the thesis note; stored call seeded",
+   "screenshot": "Q19-keys-390.png"
+  },
+  {
+   "flow": "Q19",
+   "name": "save a transcript passage to a thesis (13G)",
+   "owner": "13G",
+   "mode": "taps",
+   "width": "390",
+   "budget": 4,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 3,
+   "time_s": 0.84,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Save from a transcript"
+    },
+    {
+     "do": "tap",
+     "on": "Quote from turn 2"
+    },
+    {
+     "do": "tap",
+     "on": "Save passage"
+    }
+   ],
+   "outcome": {
+    "note": "61b3ebfa4250403798e60168cd675436",
+    "excerpt": "ca34f34e5f3c47eb869bf62cf66c165d",
+    "cited": "Saved to “NVDA thesis Q19-taps-390-4448573”. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 2 (Colette Kress).\n\nOpen the note",
+    "destination_default": "(fixed: the open note)"
+   },
+   "notes": "pointer/touch start on the research page, keys in the thesis note; stored call seeded",
+   "screenshot": "Q19-taps-390.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 6,
+   "measured": 13,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 13,
+   "taps": 0,
+   "time_s": 21.25,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "click",
+     "on": "Chart — NVDA"
+    },
+    {
+     "do": "click x1 (counted from the helper's record)",
+     "on": "Draw (chart toolbar)"
+    },
+    {
+     "do": "click x3 (counted from the helper's record)",
+     "on": "Horizontal line tool (once per level it had to be picked again)"
+    },
+    {
+     "do": "click x3 (counted from the helper's record)",
+     "on": "place a level on the chart"
+    },
+    {
+     "do": "click x1 (counted from the helper's record)",
+     "on": "Done (leave drawing)"
+    },
+    {
+     "do": "click",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "click",
+     "on": "level 1: target"
+    },
+    {
+     "do": "click",
+     "on": "level 2: entry"
+    },
+    {
+     "do": "click",
+     "on": "level 3: stop"
+    }
+   ],
+   "outcome": {
+    "note": "1adfb344a3214753ab6ed0bcea80b0b0",
+    "levels": 3,
+    "tool_picks": 3,
+    "panel": {
+     "rr": "1.00R",
+     "shares": "70 sh"
+    },
+    "roles_stored": [
+     "entry",
+     "stop",
+     "target"
+    ]
+   },
+   "notes": "bars are a fixture; pointer levels placed by the 13H-2 walk's drawing helper, keyboard levels typed in the plan panel; the wide window is 1200 px tall so the chart's toolbar clears the note's sticky header",
+   "screenshot": "Q20-mouse-1280.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 22,
+   "measured": 21,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 11,
+   "keystrokes": 10,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 15.68,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Chart — NVDA"
+    },
+    {
+     "do": "tab-run",
+     "to": "Plan (chart toolbar)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Plan (chart toolbar)"
+    },
+    {
+     "do": "tab-run",
+     "to": "price of the new level (entry)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "150",
+     "on": "price"
+    },
+    {
+     "do": "tab-run",
+     "to": "Role of the new level",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Role of the new level",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "E (choose entry in the select; counted 1)",
+     "on": "Role"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "add the level (Enter in the role select)"
+    },
+    {
+     "do": "tab-run",
+     "to": "price of the new level (stop)",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Entry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Alert direction at 150.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "140",
+     "on": "price"
+    },
+    {
+     "do": "tab-run",
+     "to": "Role of the new level",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Role of the new level",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "S (choose stop in the select; counted 1)",
+     "on": "Role"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "add the level (Enter in the role select)"
+    },
+    {
+     "do": "tab-run",
+     "to": "price of the new level (target)",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Stop",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arm alert at this level, 140.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "180",
+     "on": "price"
+    },
+    {
+     "do": "tab-run",
+     "to": "Role of the new level",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Role of the new level",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "T (choose target in the select; counted 1)",
+     "on": "Role"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "add the level (Enter in the role select)"
+    }
+   ],
+   "outcome": {
+    "note": "4656adf904cd42a89840526f00a607e1",
+    "path": "typed levels (plan panel form)",
+    "roles_stored": [
+     "entry",
+     "stop",
+     "target"
+    ],
+    "shares": "100 sh"
+   },
+   "notes": "bars are a fixture; pointer levels placed by the 13H-2 walk's drawing helper, keyboard levels typed in the plan panel; the wide window is 1200 px tall so the chart's toolbar clears the note's sticky header",
+   "screenshot": "Q20-keys-1280.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "390",
+   "budget": 22,
+   "measured": 21,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 11,
+   "keystrokes": 10,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 15.68,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Chart — NVDA"
+    },
+    {
+     "do": "tab-run",
+     "to": "Plan (chart toolbar)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Plan (chart toolbar)"
+    },
+    {
+     "do": "tab-run",
+     "to": "price of the new level (entry)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "150",
+     "on": "price"
+    },
+    {
+     "do": "tab-run",
+     "to": "Role of the new level",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Role of the new level",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "E (choose entry in the select; counted 1)",
+     "on": "Role"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "add the level (Enter in the role select)"
+    },
+    {
+     "do": "tab-run",
+     "to": "price of the new level (stop)",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Entry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Alert direction at 150.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "140",
+     "on": "price"
+    },
+    {
+     "do": "tab-run",
+     "to": "Role of the new level",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Role of the new level",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "S (choose stop in the select; counted 1)",
+     "on": "Role"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "add the level (Enter in the role select)"
+    },
+    {
+     "do": "tab-run",
+     "to": "price of the new level (target)",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Stop",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arm alert at this level, 140.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "180",
+     "on": "price"
+    },
+    {
+     "do": "tab-run",
+     "to": "Role of the new level",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Role of the new level",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "T (choose target in the select; counted 1)",
+     "on": "Role"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "add the level (Enter in the role select)"
+    }
+   ],
+   "outcome": {
+    "note": "d991849508d047aaa1d700154989d833",
+    "path": "typed levels (plan panel form)",
+    "roles_stored": [
+     "entry",
+     "stop",
+     "target"
+    ],
+    "shares": "100 sh"
+   },
+   "notes": "bars are a fixture; pointer levels placed by the 13H-2 walk's drawing helper, keyboard levels typed in the plan panel; the wide window is 1200 px tall so the chart's toolbar clears the note's sticky header",
+   "screenshot": "Q20-keys-390.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "taps",
+   "width": "390",
+   "budget": 8,
+   "measured": 13,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 13,
+   "time_s": 22.14,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "tap",
+     "on": "Chart — NVDA"
+    },
+    {
+     "do": "tap x1 (counted from the helper's record)",
+     "on": "Draw (chart toolbar)"
+    },
+    {
+     "do": "tap x3 (counted from the helper's record)",
+     "on": "Horizontal line tool (once per level it had to be picked again)"
+    },
+    {
+     "do": "tap x3 (counted from the helper's record)",
+     "on": "place a level on the chart"
+    },
+    {
+     "do": "tap x1 (counted from the helper's record)",
+     "on": "Done (leave drawing)"
+    },
+    {
+     "do": "tap",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "tap",
+     "on": "level 1: target"
+    },
+    {
+     "do": "tap",
+     "on": "level 2: entry"
+    },
+    {
+     "do": "tap",
+     "on": "level 3: stop"
+    }
+   ],
+   "outcome": {
+    "note": "cee972090e4b482e8f50a86d54fef110",
+    "levels": 3,
+    "tool_picks": 3,
+    "panel": {
+     "rr": "1.00R",
+     "shares": "68 sh"
+    },
+    "roles_stored": [
+     "entry",
+     "stop",
+     "target"
+    ]
+   },
+   "notes": "bars are a fixture; pointer levels placed by the 13H-2 walk's drawing helper, keyboard levels typed in the plan panel; the wide window is 1200 px tall so the chart's toolbar clears the note's sticky header",
+   "screenshot": "Q20-taps-390.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 0.31,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "click",
+     "on": "Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "088c0702f6e44d3daaa3ca866a9b2f7e",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-mouse-1280-4584247:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-mouse-1280.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.22,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Plan (chart toolbar)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Plan (chart toolbar)"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+s",
+     "on": "the plan's key to the stop's alert (Ctrl+Alt+S)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Arm alert at this level (the stop)",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "f7068b0ce80d450a9b6115af982656f6",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-keys-1280-4605999:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-keys-1280.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 4,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 1,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.24,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Plan (chart toolbar)",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Plan (chart toolbar)"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+s",
+     "on": "the plan's key to the stop's alert (Ctrl+Alt+S)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Arm alert at this level (the stop)",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "c30647e8f8ab46379f2d6d1fe7b05a4f",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-keys-390-4628129:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-keys-390.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 0.35,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "tap",
+     "on": "Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "09e9e59692d04073ad19c8ee905e93c3",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-taps-390-4650039:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-taps-390.png"
+  },
+  {
+   "flow": "Q22",
+   "name": "filter the visual playbook to one setup (13I)",
+   "owner": "13I",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 9.58,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Visual playbook"
+    },
+    {
+     "do": "click",
+     "on": "Only this chart's setup (VCP)"
+    }
+   ],
+   "outcome": {
+    "setup_filter": "tag:VCP",
+    "cards_all": 5,
+    "cards_vcp": 3
+   },
+   "notes": "starts on a note whose chart is tagged VCP; bars are a fixture",
+   "screenshot": "Q22-mouse-1280.png"
+  },
+  {
+   "flow": "Q22",
+   "name": "filter the visual playbook to one setup (13I)",
+   "owner": "13I",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 10.34,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "visual playbook",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Visual playbook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Only this chart's setup (VCP)",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Only this chart's setup (VCP)"
+    }
+   ],
+   "outcome": {
+    "setup_filter": "tag:VCP",
+    "cards_all": 5,
+    "cards_vcp": 3
+   },
+   "notes": "starts on a note whose chart is tagged VCP; bars are a fixture",
+   "screenshot": "Q22-keys-1280.png"
+  },
+  {
+   "flow": "Q22",
+   "name": "filter the visual playbook to one setup (13I)",
+   "owner": "13I",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 3,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 10.31,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "visual playbook",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Visual playbook"
+    },
+    {
+     "do": "tab-run",
+     "to": "Only this chart's setup (VCP)",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Only this chart's setup (VCP)"
+    }
+   ],
+   "outcome": {
+    "setup_filter": "tag:VCP",
+    "cards_all": 5,
+    "cards_vcp": 3
+   },
+   "notes": "starts on a note whose chart is tagged VCP; bars are a fixture",
+   "screenshot": "Q22-keys-390.png"
+  },
+  {
+   "flow": "Q22",
+   "name": "filter the visual playbook to one setup (13I)",
+   "owner": "13I",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 9.5,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Visual playbook"
+    },
+    {
+     "do": "tap",
+     "on": "Only this chart's setup (VCP)"
+    }
+   ],
+   "outcome": {
+    "setup_filter": "tag:VCP",
+    "cards_all": 5,
+    "cards_vcp": 3
+   },
+   "notes": "starts on a note whose chart is tagged VCP; bars are a fixture",
+   "screenshot": "Q22-taps-390.png"
+  },
+  {
+   "flow": "Q23",
+   "name": "morning board, open the closest setup, find similar (13J)",
+   "owner": "13J",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 9.67,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Active setups"
+    },
+    {
+     "do": "click",
+     "on": "Find more like this (ZQVA, the closest setup)"
+    }
+   ],
+   "outcome": {
+    "board_order": [
+     "ZQVA",
+     "ZQVB",
+     "NVDA",
+     "NVDA",
+     "NVDA",
+     "NVDA"
+    ],
+    "closest": "ZQVA",
+    "match": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared"
+   },
+   "notes": "starts on Research Home; nightly matches from the 13J walk's injected universe",
+   "screenshot": "Q23-mouse-1280.png"
+  },
+  {
+   "flow": "Q23",
+   "name": "morning board, open the closest setup, find similar (13J)",
+   "owner": "13J",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 9,
+   "measured": 5,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 2,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 10.08,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "active setups",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Active setups"
+    },
+    {
+     "do": "tab-run",
+     "to": "Find more like this (ZQVA, the closest setup)",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "ZQVA plan",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find more like ZQVA",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Find more like this (ZQVA, the closest setup)"
+    }
+   ],
+   "outcome": {
+    "board_order": [
+     "ZQVA",
+     "ZQVB",
+     "NVDA",
+     "NVDA",
+     "NVDA",
+     "NVDA"
+    ],
+    "closest": "ZQVA",
+    "match": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared"
+   },
+   "notes": "starts on Research Home; nightly matches from the 13J walk's injected universe",
+   "screenshot": "Q23-keys-1280.png"
+  },
+  {
+   "flow": "Q23",
+   "name": "morning board, open the closest setup, find similar (13J)",
+   "owner": "13J",
+   "mode": "keys",
+   "width": "390",
+   "budget": 9,
+   "measured": 5,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 2,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 10.01,
+   "steps": [
+    {
+     "do": "key",
+     "key": "Control+k",
+     "on": "open the command palette"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "active setups",
+     "on": "palette query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Active setups"
+    },
+    {
+     "do": "tab-run",
+     "to": "Find more like this (ZQVA, the closest setup)",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "ZQVA plan",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find more like ZQVA",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Find more like this (ZQVA, the closest setup)"
+    }
+   ],
+   "outcome": {
+    "board_order": [
+     "ZQVA",
+     "ZQVB",
+     "NVDA",
+     "NVDA",
+     "NVDA",
+     "NVDA"
+    ],
+    "closest": "ZQVA",
+    "match": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared"
+   },
+   "notes": "starts on Research Home; nightly matches from the 13J walk's injected universe",
+   "screenshot": "Q23-keys-390.png"
+  },
+  {
+   "flow": "Q23",
+   "name": "morning board, open the closest setup, find similar (13J)",
+   "owner": "13J",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 9.64,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Active setups"
+    },
+    {
+     "do": "tap",
+     "on": "Find more like this (ZQVA, the closest setup)"
+    }
+   ],
+   "outcome": {
+    "board_order": [
+     "ZQVA",
+     "ZQVB",
+     "NVDA",
+     "NVDA",
+     "NVDA",
+     "NVDA"
+    ],
+    "closest": "ZQVA",
+    "match": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared"
+   },
+   "notes": "starts on Research Home; nightly matches from the 13J walk's injected universe",
+   "screenshot": "Q23-taps-390.png"
+  }
+ ],
+ "wide_px": 1280,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys3\\451d38318a\\q\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 17:42:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 17:43:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 17:45:32",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 18:14:30",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys3\\451d38318a\\q\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T17-42-51.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "seed_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\61625d99-f8db-4269-a728-231c08d3da11\\scratchpad\\fin\\keys3\\data-full1\\screener.db 30 30",
+ "seed_research_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\61625d99-f8db-4269-a728-231c08d3da11\\scratchpad\\fin\\keys3\\data-full1\\transcript_index.db",
+ "page_errors": [
+  {
+   "flow": "Q1",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q1",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q1",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q1",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q2",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q2",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q2",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q2",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q3",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q3",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q3",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q3",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q4",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q4",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q4",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q4",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q5",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q5",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q5",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q5",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q6",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q7",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q8",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q8",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q8",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q8",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q9",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q9",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q9",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q9",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q10",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q10",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q10",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q10",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q11",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q11",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q11",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q11",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q12",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q12",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q12",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q12",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q13",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q14",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q15",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q15",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q15",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q15",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q16",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q16",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q16",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q16",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q17",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q19",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q19",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q19",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q19",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q20",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q21",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q22",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q22",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q22",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q22",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q23",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  }
+ ],
+ "auth_me_flags": {
+  "j2_share_links_enabled": false,
+  "notebook_ai_actions_enabled": true,
+  "notebook_ask_insert_on": true,
+  "notebook_attachments_on": false,
+  "notebook_chart_plan_enabled": true,
+  "notebook_conflict_ux_on": false,
+  "notebook_door_guard": "full",
+  "notebook_earnings_prep_enabled": true,
+  "notebook_entry_context_enabled": true,
+  "notebook_find_similar_enabled": true,
+  "notebook_formulas_enabled": true,
+  "notebook_getting_started_enabled": true,
+  "notebook_image_docx_documents_enabled": false,
+  "notebook_offline_default_on": true,
+  "notebook_offline_read_on": false,
+  "notebook_onboarding_enabled": true,
+  "notebook_passed_setups_enabled": true,
+  "notebook_plan_grading_enabled": true,
+  "notebook_playbook_enabled": true,
+  "notebook_publish_enabled": false,
+  "notebook_review_drafts_enabled": true,
+  "notebook_semantic_search_enabled": false,
+  "notebook_setups_board_enabled": true,
+  "notebook_ta_fingerprint_enabled": true,
+  "notebook_task_reminders_enabled": true,
+  "notebook_template_gallery_enabled": true,
+  "notebook_thesis_chips_enabled": true,
+  "notebook_trade_canvas_enabled": true,
+  "notebook_transcript_capture_enabled": true,
+  "notebook_visual_playbook_enabled": true,
+  "notebook_voice_notes_enabled": true,
+  "notebook_writing_help_enabled": false
+ },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "50baf3df481b4b6486724bc2ac0c4f7f",
+   "Semis rotation notes": "44620cc759df495099b0b0d2f45a20c3",
+   "AMD earnings recap": "355da8e90aa34c0f85128e911718a158",
+   "Weekly review draft": "94a454cc00c8438890d57c5325360e5a",
+   "CRWD base watch": "14ca1e6795f541c3b29a7bcad81d60f5",
+   "Market regime journal": "16638d6972ab4b18b5a66ba3d68f1f84",
+   "PLTR pullback plan": "7f4a051e1194494b835dd18cee62ecbd",
+   "Risk rules": "f8ac0c3868264d7b937c64f905688ad6"
+  },
+  "position_http": 200,
+  "position_id": "3d97a024-cc09-41a0-ba9c-e893968905da",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1280": {
+    "id": "7c508d20ac5640bea0ac98281b34cb0e",
+    "name": "Semis mouse-1280"
+   },
+   "keys-1280": {
+    "id": "303f129dd4cd436f9b8c361c2c7696ba",
+    "name": "Semis keys-1280"
+   },
+   "keys-390": {
+    "id": "3e3d8379d57f40c0b3fcc661bb56ed65",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "db877a52c08543b3b337c2f4a0c2afb8",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "93692de2-055b-4203-a85c-670132cbc701",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "5a4ee8d4-556e-4a85-a03e-19063c68b5b2",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200,
+  "account_risk": {
+   "account": "e15ed7d5-257b-481a-9009-8686aabcdac8",
+   "http": 200
+  },
+  "playbook": {
+   "setup": "Pullback",
+   "trades": 25,
+   "http": [
+    200
+   ]
+  },
+  "review_week": {
+   "week_start": "2026-10-05",
+   "http": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  "why_positions": {
+   "mouse-1280": {
+    "symbol": "COST",
+    "http": 200
+   },
+   "keys-1280": {
+    "symbol": "ADBE",
+    "http": 200
+   },
+   "keys-390": {
+    "symbol": "INTC",
+    "http": 200
+   },
+   "taps-390": {
+    "symbol": "CSCO",
+    "http": 200
+   }
+  },
+  "visual_playbook": {
+   "AMD": {
+    "id": "b650e79551bf4fc9809e469a4e4bb284",
+    "tag": "VCP",
+    "http": 200
+   },
+   "TSLA": {
+    "id": "7030e632b0c94b5ebaac156fb4621df8",
+    "tag": "VCP",
+    "http": 200
+   },
+   "MSFT": {
+    "id": "565915ec3a9646a390db6df40c3be050",
+    "tag": "Flat Base Breakout",
+    "http": 200
+   },
+   "META": {
+    "id": "f4c4fca18d1f488aaa768710c250d453",
+    "tag": "Bull Flag",
+    "http": 200
+   }
+  },
+  "board_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "board_nightly": {
+   "ran": true,
+   "asOf": "2026-10-07",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 5,
+   "rows": 5,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.073
+  },
+  "resurface": {
+   "note": "f7014827bb67448d87c085e3f28b148c",
+   "link": "/journal/notebook?note=f7014827bb67448d87c085e3f28b148c&resurfaceVersion=4ebe546ca4f64a4da09fd331381908ec",
+   "fired": 1
+  }
+ },
+ "first_visit_text": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\n1\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$102,260.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n17\nUnfiled\n17\nArchived\n0\nTrash\n0\nSemis keys-1280\n+\nSemis keys-390\n+\nSemis mouse-1280\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nAsk Notebook to do something\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nFri, Oct 9, after the close\nOpen position\nCreate prep note\nPASSED SETUPS\nNames you saved from a scan or a watchlist and did not trade — what happened next\nTicker\nPassed on\nAdd\n\nNothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on what they did next — or add one above.\n\nREVIEWS THAT WRITE THEMSELVES\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 18 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nTake the Task reminders tour\nTake the Template gallery tour\nTake the Formulas and rollups tour\nTake the Plan versus execution grading tour\nTake the Entry context card tour\nTake the Reviews that write themselves tour\nTak",
+ "onboarding_cleared_in_setup": [
+  "base tour not on screen",
+  "get-started checklist hidden",
+  "tour offer declined: New in your Notebook: Task reminders",
+  "voice dictation tip dismissed"
+ ],
+ "raw": {
+  "bars_fixture_served": [
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/AMD?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/AMD?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/AMD?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/AMD?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/AMD?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/AMD?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/AMD?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/AMD?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/AMD?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/AMD?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/AMD?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/AMD?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/AMD?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/AMD?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/ZQVA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVB?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVC?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVB?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVC?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVB?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVC?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVB?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/ZQVC?tf=D&bars=600",
+    "n": 353
+   }
+  ],
+  "drawing_helper": {
+   "Q20-mouse-1280-4461066": {
+    "q20_draw_attempts": [
+     {
+      "stuck": true,
+      "events": [
+       [
+        "pointerdown",
+        26917,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "mousedown",
+        26917,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "pm-blur",
+        26917
+       ],
+       [
+        "pm-focus",
+        26920,
+        "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+       ],
+       [
+        "mouseup",
+        26922,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "click",
+        26922,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "class",
+        "annotating",
+        26949
+       ]
+      ]
+     }
+    ],
+    "q20_canvas_box": [
+     415,
+     387.46875,
+     776,
+     427
+    ],
+    "q20_tool_matches": [
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal Line (H)",
+       "text": "",
+       "rect": [
+        479,
+        393,
+        24,
+        22
+       ],
+       "visible": true
+      }
+     ],
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal Line (H)",
+       "text": "",
+       "rect": [
+        479,
+        393,
+        24,
+        22
+       ],
+       "visible": true
+      }
+     ],
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal Line (H)",
+       "text": "",
+       "rect": [
+        479,
+        393,
+        24,
+        22
+       ],
+       "visible": true
+      }
+     ]
+    ],
+    "q20_armed_before_tap": [
+     {
+      "frac": 0.28,
+      "armed": false,
+      "basis": "box-shadow:inset",
+      "ariaPressed": null,
+      "boxShadow": "none"
+     },
+     {
+      "frac": 0.5,
+      "armed": false,
+      "basis": "box-shadow:inset",
+      "ariaPressed": null,
+      "boxShadow": "none"
+     },
+     {
+      "frac": 0.72,
+      "armed": false,
+      "basis": "box-shadow:inset",
+      "ariaPressed": null,
+      "boxShadow": "none"
+     }
+    ],
+    "q20_drawbar_geometry": [
+     {
+      "frac": 0.28,
+      "bar": null,
+      "tools": null,
+      "allTools": null,
+      "done": null,
+      "side": null,
+      "horizCenter": null,
+      "elementAtHorizCenter": null,
+      "toolsScrollWidth": null,
+      "toolsClientWidth": null,
+      "toolsOverflowX": null
+     },
+     {
+      "frac": 0.5,
+      "bar": null,
+      "tools": null,
+      "allTools": null,
+      "done": null,
+      "side": null,
+      "horizCenter": null,
+      "elementAtHorizCenter": null,
+      "toolsScrollWidth": null,
+      "toolsClientWidth": null,
+      "toolsOverflowX": null
+     },
+     {
+      "frac": 0.72,
+      "bar": null,
+      "tools": null,
+      "allTools": null,
+      "done": null,
+      "side": null,
+      "horizCenter": null,
+      "elementAtHorizCenter": null,
+      "toolsScrollWidth": null,
+      "toolsClientWidth": null,
+      "toolsOverflowX": null
+     }
+    ],
+    "q20_tap_points": [
+     {
+      "frac": 0.28,
+      "box": [
+       415,
+       387.46875,
+       776,
+       427
+      ],
+      "x": 764.2,
+      "y": 507.0
+     },
+     {
+      "frac": 0.5,
+      "box": [
+       415,
+       387.46875,
+       776,
+       427
+      ],
+      "x": 764.2,
+      "y": 601.0
+     },
+     {
+      "frac": 0.72,
+      "box": [
+       415,
+       387.46875,
+       776,
+       427
+      ],
+      "x": 764.2,
+      "y": 694.9
+     }
+    ],
+    "q20_lines_after_tap": [
+     {
+      "attempt": 1,
+      "stored_count": 1,
+      "reached_in_10s": true,
+      "class": "_frame_xp8x2_5 _full_xp8x2_41  _annotating_xp8x2_81  "
+     },
+     {
+      "attempt": 2,
+      "stored_count": 2,
+      "reached_in_10s": true,
+      "class": "_frame_xp8x2_5 _full_xp8x2_41  _annotating_xp8x2_81  "
+     },
+     {
+      "attempt": 3,
+      "stored_count": 3,
+      "reached_in_10s": true,
+      "class": "_frame_xp8x2_5 _full_xp8x2_41  _annotating_xp8x2_81  "
+     }
+    ]
+   },
+   "Q20-taps-390-4549994": {
+    "q20_draw_attempts": [
+     {
+      "stuck": true,
+      "events": [
+       [
+        "pointerdown",
+        26988,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "mousedown",
+        26991,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "pm-blur",
+        26991
+       ],
+       [
+        "pm-focus",
+        26994,
+        "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+       ],
+       [
+        "mouseup",
+        26995,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "click",
+        26995,
+        "BUTTON._toolBtn_xp8x2_329 []",
+        true,
+        ""
+       ],
+       [
+        "class",
+        "annotating",
+        27020
+       ]
+      ]
+     }
+    ],
+    "q20_canvas_box": [
+     61,
+     112.03125,
+     268,
+     300
+    ],
+    "q20_tool_matches": [
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal",
+       "text": "Horizontal",
+       "rect": [
+        175,
+        363,
+        60,
+        44
+       ],
+       "visible": true
+      }
+     ],
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal",
+       "text": "Horizontal",
+       "rect": [
+        121,
+        363,
+        60,
+        44
+       ],
+       "visible": true
+      }
+     ],
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal",
+       "text": "Horizontal",
+       "rect": [
+        121,
+        363,
+        60,
+        44
+       ],
+       "visible": true
+      }
+     ]
+    ],
+    "q20_armed_before_tap": [
+     {
+      "frac": 0.28,
+      "armed": false,
+      "basis": "aria-pressed",
+      "ariaPressed": "false",
+      "boxShadow": "none"
+     },
+     {
+      "frac": 0.5,
+      "armed": false,
+      "basis": "aria-pressed",
+      "ariaPressed": "false",
+      "boxShadow": "none"
+     },
+     {
+      "frac": 0.72,
+      "armed": false,
+      "basis": "aria-pressed",
+      "ariaPressed": "false",
+      "boxShadow": "none"
+     }
+    ],
+    "q20_drawbar_geometry": [
+     {
+      "frac": 0.28,
+      "bar": [
+       61,
+       358,
+       268,
+       54
+      ],
+      "tools": [
+       121,
+       363,
+       59,
+       44
+      ],
+      "allTools": [
+       182,
+       363,
+       44,
+       44
+      ],
+      "done": [
+       65,
+       363,
+       54,
+       44
+      ],
+      "side": [
+       228,
+       363,
+       97,
+       44
+      ],
+      "horizCenter": [
+       205,
+       385
+      ],
+      "elementAtHorizCenter": "BUTTON._scaleToggleBtn_1ommr_2221 _scaleToggleActive_1ommr_2269[Arithmetic price scale]",
+      "toolsScrollWidth": 1099,
+      "toolsClientWidth": 59,
+      "toolsOverflowX": "auto"
+     },
+     {
+      "frac": 0.5,
+      "bar": [
+       61,
+       358,
+       268,
+       54
+      ],
+      "tools": [
+       121,
+       363,
+       59,
+       44
+      ],
+      "allTools": [
+       182,
+       363,
+       44,
+       44
+      ],
+      "done": [
+       65,
+       363,
+       54,
+       44
+      ],
+      "side": [
+       228,
+       363,
+       97,
+       44
+      ],
+      "horizCenter": [
+       151,
+       385
+      ],
+      "elementAtHorizCenter": "svg.[object SVGAnimatedString][]",
+      "toolsScrollWidth": 1099,
+      "toolsClientWidth": 59,
+      "toolsOverflowX": "auto"
+     },
+     {
+      "frac": 0.72,
+      "bar": [
+       61,
+       358,
+       268,
+       54
+      ],
+      "tools": [
+       121,
+       363,
+       59,
+       44
+      ],
+      "allTools": [
+       182,
+       363,
+       44,
+       44
+      ],
+      "done": [
+       65,
+       363,
+       54,
+       44
+      ],
+      "side": [
+       228,
+       363,
+       97,
+       44
+      ],
+      "horizCenter": [
+       151,
+       385
+      ],
+      "elementAtHorizCenter": "svg.[object SVGAnimatedString][]",
+      "toolsScrollWidth": 1099,
+      "toolsClientWidth": 59,
+      "toolsOverflowX": "auto"
+     }
+    ],
+    "q20_tap_points": [
+     {
+      "frac": 0.28,
+      "box": [
+       61,
+       112.03125,
+       268,
+       300
+      ],
+      "x": 181.6,
+      "y": 196.0
+     },
+     {
+      "frac": 0.5,
+      "box": [
+       61,
+       112.03125,
+       268,
+       300
+      ],
+      "x": 181.6,
+      "y": 262.0
+     },
+     {
+      "frac": 0.72,
+      "box": [
+       61,
+       112.03125,
+       268,
+       300
+      ],
+      "x": 181.6,
+      "y": 328.0
+     }
+    ],
+    "q20_lines_after_tap": [
+     {
+      "attempt": 1,
+      "stored_count": 1,
+      "reached_in_10s": true,
+      "class": "_frame_xp8x2_5 _full_xp8x2_41  _annotating_xp8x2_81  "
+     },
+     {
+      "attempt": 2,
+      "stored_count": 2,
+      "reached_in_10s": true,
+      "class": "_frame_xp8x2_5 _full_xp8x2_41  _annotating_xp8x2_81  "
+     },
+     {
+      "attempt": 3,
+      "stored_count": 3,
+      "reached_in_10s": true,
+      "class": "_frame_xp8x2_5 _full_xp8x2_41  _annotating_xp8x2_81  "
+     }
+    ]
+   }
+  }
+ },
+ "driver_imported_api": [],
+ "finished": "2026-10-07T23:14:32+00:00",
+ "status": "COMPLETE"
+}
