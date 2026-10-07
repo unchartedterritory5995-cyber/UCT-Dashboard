@@ -24,6 +24,18 @@ Usage:
   python tools/notebook_w14_flagsoff_parity.py              # the parity run
   python tools/notebook_w14_flagsoff_parity.py --mutate     # same, with the wave-14 switch
                                                             # removed from tourLive(): must DIFFER
+  python tools/notebook_w14_flagsoff_parity.py --self-check # the expected-difference judge only
+                                                            # (no build, no vitest; seconds)
+
+EXPECTED DIFFERENCES (`EXPECTED`, below). A difference the controller has accepted is NAMED
+there, with the exact element, the cases it is allowed in, its commit, the reason and the date.
+The verdict is PASS only when every difference in every case is explained EXACTLY by named
+entries; anything else, including a named element showing up in a case it is not allowed in,
+reads DIFFERS. The list is not a tolerance: it has no patterns and no wildcards.
+
+WHAT THIS TOOL CANNOT SEE. No case has a tour card on screen (0 of 40: the surfaces are
+rendered at rest, and a tour needs a click or an eligible first visit the capture does not
+make). A change to tour markup is therefore invisible here. The real-browser tours walk covers it.
 """
 import json
 import pathlib
@@ -40,6 +52,27 @@ EV = ROOT / "docs/notebook/evidence/wave14-w14-c1"
 KEEP_CURRENT = ("/__fixtures__/", "/a11y/fixtures.jsx", "/a11y/surface.js", "/a11y/axeHarness")
 MUTATION = ("app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js",
             "  if (!checklistEnabled(flag)) return false\n", "")
+
+# The accepted differences. ONE entry. Adding one is a controller ruling, never a tool-side fix.
+#   element   the exact normalised markup HEAD has and BASE does not (an insertion, whole element)
+#   surface   the only capture surface it may appear on
+#   needs     the capability that must be ON in the case's flag set (read from the capture's own
+#             flag sets, never inferred from the case name)
+EXPECTED = (
+    {
+        "name": "passed-setups status line (fin-a11y M-5)",
+        "element": '<p class="_quiet_ _notice_" role="status" data-passed-status=""></p>',
+        "surface": "notebook home",
+        "needs": "notebook_passed_setups_enabled",
+        "commit": "cb5c30b38d",
+        "accepted": "2026-10-06",
+        "reason": "Accessibility item M-5: the passed-setups box keeps one status line mounted, "
+                  "empty at rest, that Add and Remove fill so a screen reader hears the result. "
+                  "It exists only while the passed-setups capability is on. Accepted by the "
+                  "controller as an intended accessibility change.",
+    },
+)
+FLAGS_KEY = "__flagsets__"          # the capture writes its flag sets under this key
 
 CAPTURE = r"""
 // TRANSIENT: written and deleted by tools/notebook_w14_flagsoff_parity.py. Not part of the suite.
@@ -126,7 +159,7 @@ for (const [fname, flags] of Object.entries(FLAGSETS)) {
   }
 }
 
-it('write', () => { fs.writeFileSync(process.env.W14_PARITY_OUT, JSON.stringify(OUT, null, 1)) })
+it('write', () => { fs.writeFileSync(process.env.W14_PARITY_OUT, JSON.stringify({ ...OUT, __flagsets__: FLAGSETS }, null, 1)) })
 """
 
 
@@ -183,7 +216,76 @@ def restore(saved):
             p.write_bytes(data)
 
 
+def _without_each(head, element):
+    """Every string made by deleting ONE occurrence of `element` from `head`."""
+    i = head.find(element)
+    while i != -1:
+        yield head[:i] + head[i + len(element):]
+        i = head.find(element, i + 1)
+
+
+def judge(case, head, base, flagsets, expected=EXPECTED):
+    """('identical' | 'expected' | 'differs', [names of the entries that explain it]).
+
+    'expected' only when BASE is exactly HEAD with one occurrence of each of some set of named
+    elements removed, and every one of those entries is allowed in this case: the case is on
+    the entry's surface AND the entry's capability is literally True in the case's flag set.
+    It is a reconstruction, not a diff reading: no alignment, no pattern, no partial credit."""
+    if head == base:
+        return "identical", []
+    parts = case.split(" | ")
+    surface, flagset = (parts[0], parts[1]) if len(parts) == 3 else (None, None)
+    flags = flagsets.get(flagset) or {}
+    allowed = [e for e in expected if e["surface"] == surface and flags.get(e["needs"]) is True]
+    frontier = [(head, [])]
+    for e in allowed:                       # each entry is used at most once per case
+        nxt = list(frontier)
+        for text, used in frontier:
+            for cut in _without_each(text, e["element"]):
+                nxt.append((cut, used + [e["name"]]))
+        frontier = nxt
+    for text, used in frontier:
+        if used and text == base:
+            return "expected", used
+    return "differs", []
+
+
+def self_check():
+    """The judge must accept the one named difference where it is allowed and nothing else."""
+    e = EXPECTED[0]
+    on = {"caps on": {e["needs"]: True}, "caps off": {e["needs"]: False}, "absent": {}}
+    base = '<main><section><p>or add one above.</p></section><div>next</div></main>'
+    head = base.replace("</p></section>", "</p>" + e["element"] + "</section>")
+    home_on, home_off = f"{e['surface']} | caps on | fresh member", f"{e['surface']} | caps off | fresh member"
+    cases = [
+        ("the named element, capability on: accepted", home_on, head, base, "expected"),
+        ("identical output", home_on, base, base, "identical"),
+        ("the SAME element in a capabilities-off case", home_off, head, base, "differs"),
+        ("the same element where the flag set does not name the capability", f"{e['surface']} | absent | x", head, base, "differs"),
+        ("the same element on another surface", "notes list | caps on | fresh member", head, base, "differs"),
+        ("any other difference", home_on, base.replace("next", "next!"), base, "differs"),
+        ("the named element PLUS another difference", home_on, head.replace("next", "next!"), base, "differs"),
+        ("the named element twice", home_on, head.replace(e["element"], e["element"] * 2), base, "differs"),
+        ("the element with text in it", home_on, head.replace('status=""></p>', 'status="">Saved</p>'), base, "differs"),
+        ("the element with one attribute changed", home_on, head.replace('role="status"', 'role="alert"'), base, "differs"),
+        ("the element REMOVED rather than added", home_on, base, head, "differs"),
+        ("a case name the tool cannot parse", "notebook home", head, base, "differs"),
+    ]
+    bad = []
+    for label, case, h, b, want in cases:
+        got = judge(case, h, b, on)[0]
+        print(f"  {'ok  ' if got == want else 'FAIL'} {label}: {got}")
+        if got != want:
+            bad.append(label)
+    print(f"SELF-CHECK: {'PASS' if not bad else 'FAIL'} ({len(cases) - len(bad)} of {len(cases)})")
+    return not bad
+
+
 def main():
+    if "--self-check" in sys.argv:
+        sys.exit(0 if self_check() else 1)
+    if not self_check():                    # a judge that cannot refuse must not issue a verdict
+        raise SystemExit("the expected-difference judge failed its own check; no verdict")
     mutate = "--mutate" in sys.argv
     before = git("status", "--porcelain").decode()
     EV.mkdir(parents=True, exist_ok=True)
@@ -209,17 +311,31 @@ def main():
         restore(saved)
     after = git("status", "--porcelain").decode()
     assert after == before, f"RESTORE FAILED: git status changed\n{before}\n---\n{after}"
-    same = [k for k in a if a[k] == b.get(k)]
-    differ = [k for k in a if a[k] != b.get(k)]
+    flagsets = a.pop(FLAGS_KEY, None)
+    b.pop(FLAGS_KEY, None)
+    if not isinstance(flagsets, dict) or not flagsets:
+        raise SystemExit("the capture wrote no flag sets; an expected difference cannot be judged")
+    verdicts = {k: judge(k, a[k], b.get(k, ""), flagsets) for k in a}
+    same = [k for k in a if verdicts[k][0] == "identical"]
+    explained = [k for k in a if verdicts[k][0] == "expected"]
+    differ = [k for k in a if verdicts[k][0] == "differs"]
     lines = [f"== flags-off render parity{' (MUTATION: wave-14 switch removed from tourLive)' if mutate else ''}",
              f"base {BASE} vs HEAD {git('rev-parse', '--short=10', 'HEAD').decode().strip()}",
              f"pass A {ta}", f"pass B {tb}", f"swapped {len(saved)} source files to the base blob; restored, git status unchanged",
-             f"{len(same)} identical | {len(differ)} differ ({len(a)} cases)"]
+             f"{len(same)} identical | {len(explained)} differ only by a named expected difference | "
+             f"{len(differ)} differ ({len(a)} cases)"]
+    for k in explained:
+        lines.append(f"  EXPECTED: {k}\n    explained exactly by: {', '.join(verdicts[k][1])}")
+    for e in EXPECTED if explained else ():
+        lines.append(f"  NAMED: {e['name']} | commit {e['commit']} | accepted {e['accepted']} | only on "
+                     f"'{e['surface']}' with {e['needs']} on\n    element: {e['element']}\n    reason: {e['reason']}")
     for k in differ:
         x, y = a[k], b.get(k, "")
         i = next((j for j in range(min(len(x), len(y))) if x[j] != y[j]), min(len(x), len(y)))
         lines.append(f"  DIFFERS: {k}\n    HEAD: ...{x[max(0, i - 80):i + 160]}\n    BASE: ...{y[max(0, i - 80):i + 160]}")
-    verdict = ("PASS -- identical" if not differ else "DIFFERS") if not mutate else \
+    passed = "PASS -- identical" if not explained else \
+        f"PASS -- identical except {len(explained)} case(s) explained exactly by a named expected difference"
+    verdict = (passed if not differ else "DIFFERS") if not mutate else \
         ("PASS -- the mutation is caught" if differ else "FAIL -- the mutation was NOT caught")
     lines.append(f"VERDICT: {verdict}")
     body = "\n".join(lines) + "\n"
