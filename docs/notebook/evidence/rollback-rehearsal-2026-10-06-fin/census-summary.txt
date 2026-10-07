@@ -1,0 +1,7 @@
+b529c8a78..f473d00b3 selected 6 uncharted 0 by_subject 0
+ touching notebook-owned: 0
+f473d00b3..5ecf9ef390 selected 64 uncharted 64 by_subject 0
+ touching notebook-owned: 2
+5ecf9ef390..0ae75faf37 selected 36 uncharted 36 by_subject 0
+ touching notebook-owned: 1
+nbfiles 1020

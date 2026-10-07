@@ -218,8 +218,10 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 
 **Held, not in the order**
 
-- `NOTEBOOK_VOICE_NOTES_ENABLED` (wave 11): HOLD for the OpenAI zero-retention letter and the
-  upload-size fix (section 1).
+- `NOTEBOOK_VOICE_NOTES_ENABLED` (wave 11): HOLD for the OpenAI zero-retention letter ~~and the
+  upload-size fix~~ (section 1). ⚰️ Struck 2026-10-06: only the letter holds it. Section 1's own
+  row says "The upload-size gap is closed (wave 14: the body is capped while it is read;
+  `docs/notebook/wave14-upload-cap.md`)".
 - `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` (wave 7, listed because its tour arrived in wave 14): HOLD
   for the same vendor letter (section 2, row 8a).
 - `NOTEBOOK_ATTACHMENTS_ON`, `NOTEBOOK_CONFLICT_UX_ON`, `NOTEBOOK_OFFLINE_READ_ON` (wave K): never
@@ -250,6 +252,10 @@ NOT-VERIFIED until a person uses them on the live site:
 - G-166 Ask over an attached Word file or image
 - G-162 dictation
 - G-153 a task reminder at 07:00 or 09:00 ET
+  ⚰️ Corrected 2026-10-06: this row WAS walked by automation, on a sandbox, in wave 15.
+  `docs/notebook/gate-runs/wave15/walk-uct-674012eb1.json` (base `http://127.0.0.1:8700`) reads
+  `G153_reminder_delivered_server` PASS and `G153_reminder_bell_mobile_390` PASS. It stays in
+  this list only because that walk was not on the live site.
 
 ## 4. Owner decisions recorded with defaults (change any by saying so)
 

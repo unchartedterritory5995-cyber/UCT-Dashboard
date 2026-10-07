@@ -1,0 +1,8 @@
+<<<<<<< OURS(prev)
+import { registerShortcuts } from '../pages/command/shortcutRegistry'
+import useTerminalNext, { TERMINAL_PATH } from '../pages/terminal/terminalGate'
+import { terminalCommandRow } from '../pages/terminal/paletteGrammar'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
+=======
+>>>>>>> THEIRS(pre-landing)
+

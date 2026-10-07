@@ -1,0 +1,57 @@
+<<<<<<< OURS(prev)
+    # ⚰️ 2026-09-25, found by PR #186's CI run: five more routes became reachable from
+    # the FREE page's IMPORT graph in one hop -- Layout -> CommandPalette -> useJ2Notes
+    # (the wave-5 schema guard, 8167f7aa0) -> lib/notebookSchema.js -> `import('./tiptap')`
+    # -> widgetEmbedNode -> the three widget embeds -> the /charts widgets that fetch
+    # them. The edge into the editor is DYNAMIC (notebookSchema.js:138), so no free page
+    # LOADS the editor for it; this walk follows lazy edges on purpose and reports it.
+    # The verdict, made out loud: the Journal is itself a free page, so a free member
+    # could already reach these same widgets by opening any note; each route stays
+    # require_paid and the 402 is proved by this file's own free-member test; and a
+    # live embed whose fetch fails falls to the error boundary WidgetEmbedView.jsx
+    # keeps for exactly that (its archived image), never a spinner.
+    "/api/ai-search":
+        "AiSearchEmbed -> AiSearchWidget, reached from the free shell only through "
+        "the command palette's schema guard and a lazy editor import. A free member's "
+        "fetch is refused 402 and the embed shows its archived image.",
+    "/api/ai-search/signal":
+        "Same widget, same reach, same refusal.",
+    "/api/ai-search/stream":
+        "Same widget, same reach, same refusal.",
+    "/api/fundamentals/earnings-table":
+        "FundamentalsEmbed -> FundamentalsWidget -> useEarningsTable; same reach, "
+        "same 402, archived image on the free tier.",
+    "/api/news-catalysts/":
+        "NewsEmbed -> NewsWidget -> useNewsCatalysts; same reach, same refusal.",
+    # TERM-089 (2026-09-28): the Morning Wire page itself mounts WireArchive, the
+    # replay of PAST issues. Verdict, made out loud: today's wire stays free, past
+    # issues are paid. The component renders NOTHING and fetches NOTHING unless
+    # `useIsPaid()` is true (WireArchive.test.jsx asserts no request for a free
+    # member), so a free member's page never sends the 402 this file proves.
+    "/api/wire/archive":
+        "WireArchive on /morning-wire, rendered and fetched only for a paid "
+        "member; a free member sees today's wire exactly as before.",
+    "/api/wire/archive/":
+        "Same component, the by-date read behind its date picker; same gate.",
+    # ⭐ 2026-10-02, TERM-081 / OI-12 ("everything is paywall"): the Wire's OWN
+    # content. This walk still starts at pages/MorningWire.jsx, but no free member
+    # renders that page any more: FREE_PAGES is empty and AuthGuard sends a
+    # non-paid member to /subscribe before the page mounts.
+    "/api/rundown":
+        "MorningWire.jsx's own content; paid like the page itself since "
+        "2026-10-02, and a free member never mounts the page.",
+    "/api/rundown/speech-text":
+        "Read Aloud of the same rundown, on the same now-paid page.",
+    # ⚰️ Red on integrate/terminal-fixes before this lane: Notebook wave 11
+    # (#263, 2026-10-02) added ModelBookEmbed, reached through the same lazy
+    # editor import as the widget embeds above. Verdict, made out loud: each stays
+    # require_paid, and since 2026-10-02 there is no free page at all, so no free
+    # member walks this tree.
+    "/api/modelbook/stocks":
+        "ModelBookEmbed in the Notebook editor (lazy import); paid, and no free "
+        "member renders the shell since the 2026-10-02 ruling.",
+    "/api/modelbook/stock/":
+        "Same embed, the per-stock read; same gate, same reach.",
+=======
+>>>>>>> THEIRS(pre-landing)
+

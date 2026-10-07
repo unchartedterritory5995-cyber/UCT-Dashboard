@@ -1,5 +1,25 @@
 # Rolling the Notebook back: newest landing first, the schema guard kept
 
+> ⚠️ **READ THIS FIRST, 2026-10-06 (lane ROLLBACK, the wave 12-15 finish program). THE CHAIN
+> BELOW IS NOT CURRENT AT PRODUCTION'S TIP.**
+> - Wave 11 (#263, `f473d00b3`) is now the top row, key `W11`. `MEASURED_AT` is `f473d00b3`, wave
+>   11's own squash. At that tree its revert has 0 conflicts and all seventeen pins came back
+>   byte-identical. Below it, every step differs from the tree lane R1h rehearsed only in the
+>   paths a rollback never reverts and in files other workstreams changed between L15 and wave
+>   11 (a rail checks this, step by step).
+> - Master is more than 600 commits past wave 11. `--check --from origin/master` says **stale**.
+>   Measured at `0ae75faf37`: 100 path-only commits to rule on, and the chain meets 30 conflicts
+>   at 15 of its 26 steps (23 with no rule, 7 recorded ones whose lines moved), starting with wave
+>   11's own revert (four product files, the account-deletion list and its rail). Both lists
+>   are recorded for the next re-measure: `docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/census-*.json` and
+>   `docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/conflict-map-origin-master.txt`. Until someone does that work, **`--through` cannot be
+>   used on production's tip.**
+> - **One landing can still be rolled back alone.** `--landing <squash>` reverts a single landing
+>   on top of any base with the keep-list kept, uses no recorded rule, and stops on any product
+>   conflict. That is the code lever for the wave 12-15 landing, rehearsed before it merged:
+>   **`docs/notebook/landing-12-15-rollback.md`**.
+> - This lane booted no sandbox. What it ran is in *Measured, 2026-10-06* below.
+
 > ⭐ **EXECUTABLE AT `38bb9a421` (production's tip, 2026-09-28), AND REHEARSED STEP BY STEP ON A
 > SANDBOX** (lane R1, scorecard clause 3b). Every Notebook landing from wave 10 down to wave 5 was
 > reverted newest first, and each step booted from a `git archive` of its own tree on the tip's
@@ -200,6 +220,7 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `W11` | `f473d00b3` | wave 10 L16 + wave 11 #263 | |
 | `L15` | `b529c8a78` | wave 10 L15 #262 | |
 | `L14` | `0e7d0561a` | wave 10 L14 #260 | |
 | `L13` | `a680b0d40` | wave 10 L13 #259 | |
@@ -632,6 +653,52 @@ The vitest rail goes red, because it imports `editorSchema`.
      after the wave-8 revert. After the wave-6 revert, `tools/notebook_personal_api_walk.py`
      (`note_daily`) and `tools/note_tasks_bridge.py` (`note_tasks`) lose their imports the same way.
    - Those tools do not run against a rolled-back tree. The server never imports them.
+
+6. **For one named landing only: `account_purge.py` and the rails that prove it**
+   (`KEEP_WITH_LANDING` in the tool; today one entry, the wave 12-15 landing, key `W12-15`).
+   - The landing adds twelve tables to the account-deletion list. A revert leaves the tables and
+     the member rows in them; a reverted list would leave those rows behind when the member
+     deletes their account. Kept at the tip, the list still names them.
+   - Measured on the rolled-back tree: every module the tip's copy imports exists there, a
+     deleted member's rows leave all twelve tables, and a pod that never created a table is a
+     quiet no-op (`tests/test_notebook_rollback_never_revert.py`, which is kept with it).
+   - ⛔ **Not kept at `W11` or below.** The tip's copy imports `voice_notes` (wave 11) and
+     `account_tombstones` (wave 10 L1a). Kept under a revert of either, it would report an error
+     on every deletion or fail to import. Those steps revert the file with the code, as they
+     always have, and so they drop their own landing's rows from the list. For `W11` that is
+     `j2_ai_change_sets` and `j2_ai_change_items`, and AI actions is armed in production. The
+     lasting fix is on the product side (the table list kept apart from the code that reads it,
+     so the list can be never-revert data like the schema tables). It is recorded as an open
+     item in `landing-12-15-rollback.md`, not solved here.
+
+## Measured, 2026-10-06: wave 11 #263 on top, from `f473d00b3` (lane ROLLBACK)
+
+**The chain from `f473d00b3`** (`docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/chain/chain-through-wave5.jsonl`, the record the rail
+rebuilds tree for tree):
+
+| `--through` key | product conflicts | new since 2026-10-01 (R1h) |
+|---|---|---|
+| `W11` | 0 | the new top step. Wave 10's close (L16) and wave 11 in one squash: voice notes, formulas and rollups, AI actions, the trade-plan canvas. Its subject reads "Notebook: wave 10 close (L16) + wave 11 ...", so SUBJECT and PATH both select it. Its revert would also take schema level 3 (`tradeCanvas`) out of both tables; the tool puts the tip's copies back |
+| `L15`...`wave5`, guards | unchanged | none: same rules, same pins |
+
+- **All seventeen pins came back byte-identical** (`--record-pins --through wave5`, raw output
+  `docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/chain/record-pins-output.json`).
+- **The census of the window** (`docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/check-before-at-f473d00b3.log`, the unpatched tool's
+  refusal): six commits selected. Wave 11 by subject and path; five more by path only
+  (`c4d31ba61`, `dd7bf82c3`, `8881660a4`, `85ea66ccf`, `1368fbebe`), each read through its own
+  diff and added to `REVIEWED_NOT_LANDINGS`. None edits Notebook-owned code.
+- **Below wave 11 no Notebook file moved.** `test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must`
+  compares every lower step with R1h's record. The trees differ only in `docs/`, `tools/`,
+  `scripts/`, `CLAUDE.md`, the two schema tables and their two rails (the newer tip's), and in
+  the files other workstreams changed between L15 and wave 11, which no Notebook step reverts.
+  The same rail checks that W11's revert left none of wave 11's own changes behind.
+- **What this lane did not do.** No sandbox boot, so wave 11's revert was never served to a
+  browser. It was not measured at production's tip (the banner at the top of this file says what
+  is in the way). `docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/check-after-at-origin-master.log` is the tool saying so.
+- **`--landing`, new.** One landing, the keep-list kept, no rules, fail closed. Railed on
+  synthetic commits (a pending landing, a base that moved, a conflict, a later commit that
+  merged clean, a merge commit, a landing that is not in the base). Mutation record:
+  `docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/mutations-fin.log`.
 
 ## Measured, 2026-09-29: L2 #242 on top, from `f4cec49be` (lane R1b)
 
@@ -1455,6 +1522,8 @@ asked for "when the first such attribute is proposed":
     by a level-3 tab.
   - The client (`deriveDeclaredSchema`) declares below 4 when the live `widgetEmbed` node does
     not register `ta` -- production before 13H, or a rollback of the attribute.
+- **Rolling the whole wave 12-15 landing back** has its own page, with the commands and what
+  was rehearsed: `docs/notebook/landing-12-15-rollback.md`.
 - **What a rollback of 13H must keep:** both table rows (they are in the keep-list files). The
   attribute line in `lib/widgetEmbedNode.jsx` may be reverted with the feature; the derived
   declaration then drops to 3 and every note carrying a `ta` value becomes read-only (409 with

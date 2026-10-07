@@ -354,22 +354,44 @@ describe('deriveDeclaredSchema', () => {
     // and a lower type missing still pulls the declaration down past the attribute
     expect(deriveDeclaredSchema(withTa(fake(['tradeCanvas'])))).toBe(2)
   })
-  it('THIS bundle’s live editor registers `widgetEmbed.ta` and declares 4', () => {
-    editor = new Editor({ extensions: buildExtensions() })
-    expect(Object.keys(editor.schema.nodes.widgetEmbed.attrs)).toContain('ta')
-    expect(editor.schema.nodes.widgetEmbed.attrs.ta.default).toBe(null)
-    expect(deriveDeclaredSchema(editor.schema)).toBe(4)
+  // ⛔ THIS FILE STAYS AT THE TIP THROUGH A ROLLBACK (tools/notebook_rollback_chain.py,
+  // SCHEMA_RAILS), so nothing below may assert that the LIVE editor registers `ta`: on a
+  // correctly rolled-back tree it does not, and a red rail on a correct tree is the defect
+  // (docs/notebook/wave5-rollback.md, keep-list item 1). "This bundle registers `ta`, declares 4
+  // and round-trips a value" is asserted in notebookSchema.live.test.js, which reverts with
+  // the feature. ⚰️ Both assertions lived here until 2026-10-06; measured on the rolled-back
+  // tree they were the only two red tests in this file.
+  const TA = { v: 1, setupTag: 'Breakout', fingerprint: { v: 1 }, planBlock: { shares: 200, sizedBy: 'starter' } }
+  const TA_DOC = { type: 'doc', content: [
+    { type: 'widgetEmbed', attrs: { widgetId: 'chart', params: { symbol: 'NVDA' }, ta: TA } },
+  ] }
+  /** The editor a rollback of the attribute leaves: every extension, `widgetEmbed` without `ta`. */
+  const extensionsWithoutTa = () => buildExtensions().map((ext) => (ext.name !== 'widgetEmbed' ? ext : ext.extend({
+    addAttributes() {
+      const { ta: _dropped, ...rest } = this.parent?.() || {}
+      return rest
+    },
+  })))
+  it('an editor WITHOUT `widgetEmbed.ta` DROPS the value on load, and so must declare below 4', () => {
+    // The pinned answer to "what does an older client do with an attribute it does not know":
+    // it does not refuse and it does not keep. The note opens, the value is gone from the
+    // document, and the next autosave would write the note without it. Only the declaration
+    // below (and the server's attribute row) stands between that editor and the member's plan.
+    editor = new Editor({ extensions: extensionsWithoutTa(), content: TA_DOC })
+    expect(Object.keys(editor.schema.nodes.widgetEmbed.attrs)).not.toContain('ta')
+    const [embed] = editor.getJSON().content.filter((n) => n.type === 'widgetEmbed')
+    expect(embed.attrs.widgetId).toBe('chart')          // non-vacuity: the node itself survived
+    expect(embed.attrs.params).toEqual({ symbol: 'NVDA' })
+    expect('ta' in embed.attrs).toBe(false)
+    expect(deriveDeclaredSchema(editor.schema)).toBeLessThan(NOTEBOOK_ATTR_SCHEMA['widgetEmbed.ta'])
   })
-  it('a `ta` value survives the editor round trip (load → getJSON), and null stays null', () => {
-    const ta = { v: 1, setupTag: 'Breakout', fingerprint: { v: 1 }, planBlock: { shares: 200, sizedBy: 'starter' } }
-    const doc = { type: 'doc', content: [
-      { type: 'widgetEmbed', attrs: { widgetId: 'chart', params: { symbol: 'NVDA' }, ta } },
-      { type: 'widgetEmbed', attrs: { widgetId: 'chart', params: { symbol: 'AMD' } } },
-    ] }
-    editor = new Editor({ extensions: buildExtensions(), content: doc })
-    const out = editor.getJSON().content.filter((n) => n.type === 'widgetEmbed')
-    expect(out[0].attrs.ta).toEqual(ta)
-    expect(out[1].attrs.ta).toBe(null)
+  it('THIS bundle declares 4 exactly when its live editor registers `widgetEmbed.ta`', () => {
+    editor = new Editor({ extensions: buildExtensions() })
+    const registers = Object.keys(editor.schema.nodes.widgetEmbed.attrs).includes('ta')
+    // Both directions, so neither a tip bundle nor a rolled-back one can lie: registering it
+    // without declaring 4 locks members out of their own notes; declaring 4 without
+    // registering it is the silent strip.
+    expect(deriveDeclaredSchema(editor.schema) >= 4).toBe(registers)
   })
   it('drops below a level one of whose types is missing — the rollback case', () => {
     expect(deriveDeclaredSchema(fake(['inlineMath']))).toBe(0)

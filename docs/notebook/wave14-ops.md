@@ -161,9 +161,27 @@ git -C C:\Users\Patrick\uct-dashboard worktree list --porcelain | Select-String 
 **B. Deploy the hardened wrapper.** The task already points at this path, so **no Task Scheduler
 change is needed**:
 
+> ✅ **DONE 2026-10-06, and the copy source below no longer exists.** The worktree
+> `C:\Users\Patrick\uct-worktrees\notebook-w14-ops` named in the commands was removed after this
+> section was written, so do not run them as written. The finish program's controller deployed
+> both files on 2026-10-06 from the `notebook-fin-walk` checkout (the same two committed files):
+> - `C:\Users\Patrick\uct-q1-observe\restore_drill_weekly.cmd`, git blob `d1da73c0b5030e10ecadfc4640b7a6533fc9eb02`;
+> - `C:\Users\Patrick\uct-q1-observe\restore_drill_guard.py`, git blob `fa9366381a2cbad2728430e0b6246c33e6111925`;
+> - the old wrapper is kept beside them as `restore_drill_weekly.cmd.bak-2026-10-06` (1,003 bytes,
+>   dated 2026-09-26).
+>
+> Read back the same day by the rollback lane: `git hash-object` on the two deployed files prints
+> exactly those two hashes, and the backup file is present. Reported by the controller and not
+> re-run by that lane: the pre-flight against `notebook-soak-ref` passed, and step C's abort path
+> exited 4. To deploy again, copy `tools\restore_drill_weekly.cmd` and `tools\restore_drill_guard.py`
+> from any checked-out worktree of this branch (a working file, never `git show`: the blob is LF
+> and `cmd.exe` mis-reads labels in an LF batch file) and confirm the two hashes with
+> `git -C <worktree> hash-object tools/restore_drill_weekly.cmd tools/restore_drill_guard.py`.
+
 ```powershell
 $o = 'C:\Users\Patrick\uct-q1-observe'
 $w = 'C:\Users\Patrick\uct-worktrees\notebook-w14-ops\tools'
+# ⚰️ history: run on 2026-10-06 from another checkout (see the note above); $w no longer exists
 Copy-Item "$o\restore_drill_weekly.cmd" "$o\restore_drill_weekly.cmd.bak-2026-10-04"
 Copy-Item "$w\restore_drill_weekly.cmd" "$o\restore_drill_weekly.cmd"
 Copy-Item "$w\restore_drill_guard.py"   "$o\restore_drill_guard.py"
