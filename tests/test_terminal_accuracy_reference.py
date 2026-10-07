@@ -350,3 +350,16 @@ def test_get_consensus_serves_the_fiscal_labels(monkeypatch):
     out = ec.get_consensus("AAPLX", today=date(2026, 10, 3))
     labels = {r["period_end"]: r["label"] for r in out["quarterly"]}
     assert labels["2026-12-27"] == "Q1 FY2027"
+
+
+# ── IVH / VOL: IV rank and percentile (research.iv_history.rank_of) ─────────────────────────
+
+def test_iv_rank_and_percentile_match_numpy():
+    from api.services.research import iv_history as ivh
+    rng = np.random.default_rng(11)
+    vals = list(np.round(rng.uniform(0.35, 0.75, 60), 4))
+    v = np.array(vals)
+    got = ivh.rank_of(vals)
+    assert got["iv_rank"] == round(float((v[-1] - v.min()) / (v.max() - v.min()) * 100), 1)
+    assert got["iv_percentile"] == round(float((v[:-1] < v[-1]).mean() * 100), 1)
+    assert ivh.rank_of([0.5] * 25)["iv_rank"] is None          # flat window: undefined, not 0
