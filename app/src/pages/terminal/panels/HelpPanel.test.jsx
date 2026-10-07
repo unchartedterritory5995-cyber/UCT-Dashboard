@@ -66,3 +66,26 @@ describe('HelpPanel per-member flag markers', () => {
     }
   })
 })
+
+describe('HELP: the BOARD entry lists the "Board of" codes', () => {
+  it('names exactly the codes the "Board of" menu on a list offers (the same list, never a copy)', async () => {
+    const { boardableCodes, QUICK_BOARD_CODES } = await import('../scanBoard')
+    const auth = { researchTechnicalTabEnabled: true }
+    render(<HelpPanel auth={auth} />)
+    const line = screen.getByTestId('terminal-help-board-codes')
+    const shown = [...line.querySelectorAll('kbd')].map((k) => k.textContent).filter((c) => c !== 'BOARD OWN')
+    expect(shown).toEqual(boardableCodes(auth).map((c) => c.code))
+    expect(shown.length).toBeGreaterThan(2)                      // non-vacuous: GP, DES, CN at least
+    expect(shown.every((c) => QUICK_BOARD_CODES.includes(c))).toBe(true)
+    expect(line.textContent).toContain('Board of')
+  })
+
+  it('a code the member cannot use is not offered, and nothing is listed before flags arrive', async () => {
+    const { boardableCodes } = await import('../scanBoard')
+    const off = boardableCodes({}).map((c) => c.code)
+    const on = boardableCodes({ researchTechnicalTabEnabled: true }).map((c) => c.code)
+    expect(on.length).toBeGreaterThan(off.length)                // TECH is flag-gated
+    render(<HelpPanel auth={{ loading: true }} />)
+    expect(screen.queryByTestId('terminal-help-board-codes')).toBeNull()
+  })
+})

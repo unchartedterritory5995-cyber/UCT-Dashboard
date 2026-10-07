@@ -4,6 +4,7 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
 // panel, not a chart overlay. DARK behind MENTION_SERIES_ENABLED.
@@ -31,7 +32,7 @@ export default function MentionSeriesPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading room attention" />
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
-  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason)}</div>
+  else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason) || `Room attention for ${s} is not available right now.`}</div>
   else if (!data.summary?.days_measured) {
     // state ok with nothing measured rendered "Last 0 measured days: — mentions a day"
     body = <div className={styles.note} data-testid="mentions-none-measured">No days of #main-chat have been measured for {s} in this window yet.</div>
@@ -41,8 +42,8 @@ export default function MentionSeriesPanel({ sym }) {
     body = (
       <div data-testid="mentions">
         <p className={styles.lede} data-testid="mentions-summary">
-          Last {sm.last7_days} measured days: {num(sm.last7_avg_mentions)} mentions a day ({num(sm.last7_avg_share_pct)}% of the room);
-          {' '}the {sm.prior30_days} before: {num(sm.prior30_avg_mentions)} a day ({num(sm.prior30_avg_share_pct)}%).
+          Last {sm.last7_days} measured days: {num(sm.last7_avg_mentions)} mentions a day ({formatPercentAsSent(sm.last7_avg_share_pct)} of the room);
+          {' '}the {sm.prior30_days} before: {num(sm.prior30_avg_mentions)} a day ({formatPercentAsSent(sm.prior30_avg_share_pct)}).
           {' '}{sm.mentions_total} mentions over {sm.days_measured} measured days since {data.window.from > data.window.store_from ? data.window.from : data.window.store_from} (ET).
         </p>
         <div className={styles.scroll}>
@@ -53,7 +54,7 @@ export default function MentionSeriesPanel({ sym }) {
                 <tr key={p.date} data-testid="mentions-row">
                   <th scope="row">{p.date}</th>
                   {p.state === 'ok'
-                    ? <><td>{p.mentions}</td><td>{p.people}</td><td>{p.share_pct}%</td></>
+                    ? <><td>{p.mentions}</td><td>{p.people}</td><td>{formatPercentAsSent(p.share_pct)}</td></>
                     : <td colSpan={3}>— ({LABEL[p.state] || p.state})</td>}
                 </tr>
               ))}

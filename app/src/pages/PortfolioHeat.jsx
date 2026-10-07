@@ -5,8 +5,8 @@
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
-import { useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, panelAsOf } from '../components/terminal'
-import { formatPercent } from '../lib/presentation/presentationPrimitives'
+import { BoardFromList, useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../components/terminal'
+import { formatPercent, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` -- a 402 answers JSON too. See
@@ -16,6 +16,11 @@ import fetcher from '../utils/jsonFetcher'
 // A null percentage renders "—", never a bare "%" (and never throws on .toFixed).
 // The shared formatter owns the rounding and the missing-value glyph.
 export const pctText = (v) => formatPercent(v, { decimals: 1 })
+
+// A percent the server already rounded (portfolio_heat.py rounds every per-position percent to
+// two places, and the regime ceiling is a whole number), printed as sent: "3.27%", "3%", "100%"
+// — exactly as the old `${v}%` did; a missing or non-numeric value is the em dash, never "NaN%".
+export const pctAsSent = (v) => formatPercentAsSent(v)
 
 function CapBar({ label, valuePct, capPct }) {
   if (!Number.isFinite(valuePct)) {
@@ -49,6 +54,12 @@ export default function PortfolioHeat() {
   const inPanel = useInTerminalPanel()
   const pageCls = inPanel?.inset ? styles.pageInPanel : styles.page
   const heading = inPanel ? null : <h1 className={styles.heading}>Portfolio Risk</h1>
+  // Row <GO>: each open position, in table order, loads its name (`$SYM`); the positions are the
+  // list a "Board of" opens. Only a computed answer publishes (an error or `ok:false` shows none).
+  const positionSyms = usePanelSymbolRows(
+    data && !error && data.ok !== false && Array.isArray(data.per_position)
+      ? data.per_position.map((p) => p.symbol) : [],
+    'RISK positions')
 
   // ⭐ THE REFUSAL IS SAID OUT LOUD, same reasoning as Traders.jsx: without
   // this branch a 402 leaves `data` undefined forever and the page reads
@@ -94,12 +105,15 @@ export default function PortfolioHeat() {
   }
 
   if (data.ok === false) {
+    // A computation the server could not finish is a failed read, with the same Retry and (in a
+    // terminal panel) the same PanelState as a failed request (completeness audit 2026-10-07).
+    const why = data.reason ? `Portfolio risk could not be computed: ${data.reason}.` : 'Portfolio risk could not be computed right now.'
+    const retry = <button type="button" onClick={() => mutate()}>Retry</button>
+    if (inPanel) return <div className={pageCls}><PanelState kind="error" role="status" title={why} action={retry} /></div>
     return (
       <div className={pageCls}>
         {heading}
-        <p className={styles.loading} role="status">
-          {data.reason ? `Portfolio risk could not be computed: ${data.reason}.` : 'Portfolio risk could not be computed right now.'}
-        </p>
+        <p className={styles.loading} role="status">{why}{' '}{retry}</p>
       </div>
     )
   }
@@ -127,7 +141,7 @@ export default function PortfolioHeat() {
             <div className={styles.statLabel}>Notional exposure</div>
             <div className={styles.statValue}>{pctText(notional_exposure_pct)}</div>
             {caps.regime_ceiling_pct != null && (
-              <div className={styles.statSub}>regime ceiling {caps.regime_ceiling_pct}%</div>
+              <div className={styles.statSub}>regime ceiling {pctAsSent(caps.regime_ceiling_pct)}</div>
             )}
           </div>
           <div className={styles.stat}>
@@ -157,6 +171,7 @@ export default function PortfolioHeat() {
       )}
 
       <h2 className={styles.subheading}>Positions</h2>
+      <BoardFromList syms={positionSyms} label="RISK positions" testId="risk-board" />
       <div className={styles.tableWrap}>
         <table className={styles.table} aria-label="Positions">
           <thead>
@@ -173,8 +188,8 @@ export default function PortfolioHeat() {
               <tr key={p.symbol}>
                 <td className={styles.sym}>{p.symbol}</td>
                 <td>{p.side ? p.side[0].toUpperCase() + p.side.slice(1) : '—'}</td>
-                <td>{p.dist_to_stop_pct != null ? `${p.dist_to_stop_pct}%` : '—'}</td>
-                <td>{p.risk_pct != null ? `${p.risk_pct}%` : '—'}</td>
+                <td>{pctAsSent(p.dist_to_stop_pct)}</td>
+                <td>{pctAsSent(p.risk_pct)}</td>
                 {/* placeholder_stop is SURFACED, never hidden -- dropping it
                     would under-report heat (portfolio_heat.py's own design). */}
                 <td>

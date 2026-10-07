@@ -37,11 +37,11 @@
   opacity: 0; color: var(--nh-text, var(--text-muted)); transition: opacity .1s, background .1s, color .1s;
 }
 .uniTab:hover .uniTabX { opacity: 0.7; }
-.uniTabX:hover { opacity: 1; background: rgba(242, 75, 66, 0.85); color: #fff; }
+.uniTabX:hover { opacity: 1; background: color-mix(in srgb, var(--loss) 85%, transparent); color: var(--bg); }
 .uniAdd {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 3px;
-  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--nh-divider, color-mix(in srgb, var(--text) 16%, transparent));
   background: transparent; color: var(--nh-sym, var(--text-bright)); cursor: pointer;
   transition: border-color .12s, color .12s;
 }
@@ -67,12 +67,12 @@
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 6px;
   border: 1px solid transparent;
-  background: var(--nh-elev, rgba(255, 255, 255, 0.04));
+  background: var(--nh-elev, color-mix(in srgb, var(--text) 4%, transparent));
   color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
   font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
   cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s, color .12s;
 }
-.axisSel:hover { border-color: var(--ut-gold); color: var(--ut-gold); background: rgba(255, 255, 255, 0.07); }
+.axisSel:hover { border-color: var(--ut-gold); color: var(--ut-gold); background: color-mix(in srgb, var(--text) 7%, transparent); }
 .axisSel svg { opacity: 0.7; }
 .axisX { left: 50%; bottom: 4px; transform: translateX(-50%); }
 /* Y title: a full-height, ~20px-wide column at the far left, flex-centered; the
@@ -86,7 +86,7 @@
   position: absolute; z-index: 3; right: 8px;
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 6px; border: 1px solid transparent;
-  background: var(--nh-elev, rgba(255, 255, 255, 0.04));
+  background: var(--nh-elev, color-mix(in srgb, var(--text) 4%, transparent));
   color: var(--nh-text, var(--text-muted));
   font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
   cursor: pointer; white-space: nowrap;
@@ -111,8 +111,8 @@
 }
 .zoomBtn {
   width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
-  border-radius: 6px; background: var(--nh-elev, rgba(16, 18, 22, 0.72));
+  border: 1px solid var(--nh-divider, color-mix(in srgb, var(--text) 16%, transparent));
+  border-radius: 6px; background: var(--nh-elev, color-mix(in srgb, var(--bg-elevated) 72%, transparent));
   color: var(--nh-sym, var(--text-bright)); cursor: pointer;
   font-size: 15px; line-height: 1; font-weight: 600;
   transition: border-color .12s, background .12s, color .12s;

@@ -98,7 +98,7 @@
      bgHover when a canvas is set; the fallback is the same step on the default
      dark). Text goes strong for contrast against the subtle shade. */
   color: var(--fw-heading, var(--text-bright));
-  background: var(--fw-hover, rgba(255, 255, 255, 0.13));
+  background: var(--fw-hover, color-mix(in srgb, var(--text) 13%, transparent));
   font-weight: 700;
 }
 
@@ -120,12 +120,12 @@
 .gearBtn:hover {
   opacity: 1;
   color: var(--fw-accent, var(--ut-gold));
-  background: var(--fw-hover, rgba(255, 255, 255, 0.06));
+  background: var(--fw-hover, color-mix(in srgb, var(--text) 6%, transparent));
 }
 .gearBtnActive {
   opacity: 1;
   color: var(--fw-accent, var(--ut-gold));
-  background: var(--fw-accent-bg, rgba(220, 187, 94, 0.12));
+  background: var(--fw-accent-bg, color-mix(in srgb, var(--ut-gold) 12%, transparent));
 }
 
 /* ── Annual table ───────────────────────────────────────────── */
@@ -187,9 +187,9 @@
    border + a faint diagonal hatch texture instead of the loud gold fill. */
 .qNext {
   border-style: dashed;
-  border-color: var(--fw-divider, #43483d);
+  border-color: var(--fw-divider, var(--border-accent));
   background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 1px, transparent 1px, transparent 7px),
+    repeating-linear-gradient(45deg, color-mix(in srgb, var(--text) 2.2%, transparent) 0, color-mix(in srgb, var(--text) 2.2%, transparent) 1px, transparent 1px, transparent 7px),
     var(--fw-elev, var(--bg-elevated));
 }
 .qHead {
@@ -202,7 +202,7 @@
   letter-spacing: 0.3px;
   color: var(--fw-text, var(--text-heading));
 }
-.qDate { color: var(--fw-text-dim, #8b8674); font-size: 0.91em; font-variant-numeric: tabular-nums; }
+.qDate { color: var(--fw-text-dim, var(--text-muted)); font-size: 0.91em; font-variant-numeric: tabular-nums; }
 .qRow {
   display: flex; gap: 4px; align-items: baseline;
   font-variant-numeric: tabular-nums;

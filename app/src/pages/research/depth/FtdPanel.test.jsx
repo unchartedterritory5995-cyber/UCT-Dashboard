@@ -1,6 +1,6 @@
 // FT-068 — the fails-to-deliver panel, asserted on rendered text.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import DepthTab from './DepthTab'
 
@@ -48,5 +48,34 @@ describe('FtdPanel', () => {
     body = { state: 'none_reported', reason: 'no fails reported for GME between 2026-08-17 and 2026-09-15', basis: 'b', source: 's' }
     renderTab()
     expect((await screen.findByTestId('ftd-none')).textContent).toMatch(/^No fails reported/) // a server reason reads as a sentence
+  })
+})
+
+// 2026-10-07 completeness audit: a failed read is drawn as an error with a working Retry, never as
+// an empty or "nothing reported" state.
+describe('FtdPanel — a failed read', () => {
+  it('a 503 reads as unavailable with Retry, and Retry reads again', async () => {
+    const good = body
+    let calls = 0
+    global.fetch = vi.fn(() => {
+      calls += 1
+      return calls === 1
+        ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({ detail: 'down' }) })
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(good) })
+    })
+    renderTab()
+    const err = await screen.findByTestId('ftd-unavailable')
+    expect(err.textContent).toMatch(/unavailable right now/)
+    expect(screen.queryByTestId('ftd-none')).toBeNull()
+    expect(screen.queryByTestId('ftd-not-ingested')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findAllByTestId('ftd-summary')).not.toHaveLength(0)
+    expect(screen.queryByTestId('ftd-unavailable')).toBeNull()
+  })
+
+  it('a none-reported state with no reason still reads as a sentence', async () => {
+    body = { state: 'none_reported', basis: 'b', source: 's' }
+    renderTab()
+    expect((await screen.findByTestId('ftd-none')).textContent).toMatch(/No fails reported for/)
   })
 })

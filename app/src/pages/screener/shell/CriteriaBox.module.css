@@ -55,7 +55,7 @@
 .error {
   margin: 0;
   font-size: 12px;
-  color: var(--color-danger);
+  color: var(--danger-ink);
 }
 
 .outline {

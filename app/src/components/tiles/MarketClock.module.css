@@ -46,7 +46,7 @@
   flex: 0 0 auto;
 }
 
-.open   { color: var(--gain); }
+.open   { color: var(--success-ink); }
 .open .dot {
   background: var(--gain);
   box-shadow: 0 0 8px var(--gain);

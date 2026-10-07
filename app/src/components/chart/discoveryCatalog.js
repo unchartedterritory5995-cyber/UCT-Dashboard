@@ -707,6 +707,14 @@ export function securityResults(rows, { tf, bars, universes } = {}) {
       out.push(...breadthResults([row], { tf, bars, universes }))
       continue
     }
+    // ⭐ A MARKET-INDICATOR SERIES ROW IS RE-ROUTED TOO (2026-10-07), so a searched `NYSE:MCO`
+    // is the same `breadth:NYSE:MCO` result the catalogue browses — "NYSE · McClellan
+    // Oscillator", not a ticker headline — and the two dedupe. ⛔ Not a Cboe volatility index:
+    // that is a real OHLC instrument and stays a security.
+    if (row.indicator === true && row.family && row.family !== 'volatility' && row.kind !== 'product') {
+      out.push(...breadthResults([{ ...row, legacy: true }], { tf, bars, universes }))
+      continue
+    }
     // ⛔⛔ A PRODUCT ROW IS RE-ROUTED, exactly as a breadth row is, and for the same
     // reason: the search endpoint INJECTS it, so a caller that adapted everything
     // here as a security would render `AAII:SURVEY` as a ticker headline and try to

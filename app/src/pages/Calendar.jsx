@@ -864,7 +864,7 @@ export default function Calendar() {
     return (
       <div className={styles.page}>
         {headerEl}
-        <div className={styles.skeletonWrap} aria-label="Loading UCT Terminal">
+        <div className={styles.skeletonWrap} role="status" aria-label="Loading this week's calendar">
           {[0, 1, 2].map(i => (
             <div key={i} className={styles.skeletonDay}>
               <div className={styles.skeletonBar} />

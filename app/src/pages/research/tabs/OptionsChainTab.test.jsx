@@ -1,6 +1,6 @@
 // BRK-01 increment 1 — the option chain tab, asserted on rendered text.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import OptionsChainTab from './OptionsChainTab'
 
@@ -109,6 +109,16 @@ describe('OptionsChainTab', () => {
     chainStatus = 503
     renderTab()
     expect((await screen.findByTestId('chain-unavailable')).textContent).toMatch(/does not mean no options trade on SPY/)
+  })
+
+  it('Retry reads the CHAIN again (it used to refetch only the expirations list)', async () => {
+    chainStatus = 503
+    renderTab()
+    await screen.findByTestId('chain-unavailable')
+    chainStatus = 200
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByTestId('options-chain')).toBeInTheDocument()
+    expect(screen.queryByTestId('chain-unavailable')).toBeNull()
   })
 
   it('draws the payoff of a long call at the money, with its basis stated', async () => {

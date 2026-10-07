@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 
 import CATALOG from './__fixtures__/breadthLibraryRows.json'
-import { breadthResults, symbolLibraryRow, withLibraryMetadata, breadthTooltip, marketIndicatorResults } from './discoveryCatalog'
+import { breadthResults, symbolLibraryRow, withLibraryMetadata, breadthTooltip, marketIndicatorResults, securityResults } from './discoveryCatalog'
 import { __setBreadthSymbolsForTest } from '../../hooks/useBreadthSymbols'
 import { __setMarketIndicatorsForTest, canonicalDomain } from '../../hooks/useMarketIndicators'
 import { signSafeChangePct } from '../StockChart'
@@ -42,6 +42,22 @@ describe('every breadth row names its population', () => {
       'Ratio-adjusted net advances …',
       'History from Jun 11, 2009 · data through Oct 5, 2026',
     ])
+  })
+})
+
+describe('a searched market-indicator SERIES is the same result the catalogue browses', () => {
+  it('re-routed to breadth (readable name, same key); a Cboe volatility index stays a security', () => {
+    const rows = [
+      { ticker: 'NYSE:MCS', name: 'NYSE · McClellan Summation Index', type: 'indicator', indicator: true,
+        family: 'mcclellan', group_label: 'McClellan', universe: 'nyse', methodology: 'Ratio-adjusted …' },
+      { ticker: 'VIX9D', name: 'CBOE 9-Day Volatility', type: 'indicator', indicator: true, family: 'volatility' },
+    ]
+    const [mcs, vix] = securityResults(rows)
+    expect(mcs.kind).toBe('breadth')
+    expect(mcs.key).toBe('breadth:NYSE:MCS')
+    expect(mcs.name).toBe('NYSE · McClellan Summation Index')
+    expect(mcs.chip).toBeUndefined()
+    expect(vix.kind).toBe('security')
   })
 })
 

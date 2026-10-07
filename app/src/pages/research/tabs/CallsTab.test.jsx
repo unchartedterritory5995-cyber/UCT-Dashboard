@@ -66,3 +66,22 @@ describe('CallsTab -- failed read vs genuine empty state', () => {
     expect(mutate).toHaveBeenCalled()
   })
 })
+
+// Completeness audit 2026-10-07, ERROR/RETRY gap 4: the recap error rendered BELOW the transcript.
+describe('CallsTab -- the recap error is where the member sees it', () => {
+  it('a failed recap is the shared error block, ahead of the transcript', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useCallRecap', () => ({ default: () => ({ data: null, isLoading: false, error: true, mutate: () => {} }) }))
+    vi.doMock('../hooks/useEarningsAudio', () => ({ default: () => ({ data: null }) }))
+    vi.doMock('../../../components/calendar/SentimentGauge', () => ({ default: () => <div>sentiment-gauge</div> }))
+    vi.doMock('../../../components/calendar/TranscriptPanel', () => ({ default: () => <div data-testid="transcript-panel">transcript-panel</div> }))
+    const { default: FreshTab } = await import('./CallsTab')
+    render(<FreshTab sym="AAPL" />)
+    const err = screen.getByTestId('call-recap-error')
+    expect(err).toHaveAttribute('data-kind', 'error')
+    const transcript = screen.getByTestId('transcript-panel')
+    // DOCUMENT_POSITION_FOLLOWING: the transcript comes AFTER the error in the page
+    expect(err.compareDocumentPosition(transcript) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(err.compareDocumentPosition(screen.getByText('sentiment-gauge')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})

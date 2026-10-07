@@ -155,7 +155,7 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
 }
 
 export default function OwnershipTab({ sym }) {
-  const { data, isLoading, error, mutate } = useOwnership(sym)
+  const { data, isLoading, error, paywalled, mutate } = useOwnership(sym)
   const session = useMarketOpen()
   const edgarPending = !error && data?.insider_source?.state === 'pending'
   const { exhausted: reaskExhausted, retry: reaskRetry } = usePendingReask(edgarPending, mutate, sym)
@@ -167,6 +167,9 @@ export default function OwnershipTab({ sym }) {
   // TERM-088 -- a failed read is not a genuinely empty ownership record.
   // Render the error distinctly so a backend hiccup never reads as "no
   // ownership data exists".
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="ownership-paywalled">Ownership requires a paid plan.</div>
+  }
   if (error) {
     return (
       <div className={styles.fnote} data-testid="ownership-error">

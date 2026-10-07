@@ -38,7 +38,31 @@ describe('IMOV through the grammar', () => {
   it('a window IMOV does not offer is echoed as not applied, never dropped', () => {
     const { applied } = props('IMOV 1Y')
     expect(applied.ignored).toEqual(['1Y'])
-    expect(argsEcho('IMOV', applied)).toBe('Not applied: "1Y" — IMOV takes a window (1D, 1W, 1M, 3M).')
+    expect(argsEcho('IMOV', applied)).toBe(
+      'Not applied: "1Y" — IMOV takes a window (1D, 1W, 1M, 3M) or a theme name (IMOV SEMICONDUCTORS).')
+  })
+
+  it('a theme can be NAMED: one long word, a quoted multi-word name, or the THEME marker the panel writes', () => {
+    expect(props('IMOV semiconductors')).toMatchObject({ cmd: { sym: null }, applied: { props: { theme: 'SEMICONDUCTORS' }, ignored: [] } })
+    expect(props('IMOV "AI / GPU Chips"')).toMatchObject({ cmd: { sym: null }, applied: { props: { theme: 'AI / GPU CHIPS' } } })
+    expect(props('imov ai / gpu chips 1w')).toMatchObject({ cmd: { sym: null }, applied: { props: { theme: 'AI / GPU CHIPS', win: '1W' } } })
+    expect(props('IMOV THEME SEMIS')).toMatchObject({ cmd: { sym: null }, applied: { props: { theme: 'SEMIS' } } })
+    expect(props('NVDA IMOV semis')).toMatchObject({ cmd: { sym: 'NVDA' }, applied: { props: { theme: 'SEMIS' } } })
+    expect(argsEcho('IMOV', props('IMOV semiconductors').applied)).toBe('IMOV: applied theme "SEMICONDUCTORS".')
+    // ONE free word is still a ticker, so the established grammar holds; `$` forces it too.
+    expect(props('IMOV NVDA 1W')).toMatchObject({ cmd: { sym: 'NVDA' }, applied: { props: { win: '1W' } } })
+    expect(props('IMOV SMH').applied.props).toEqual({})
+    expect(props('IMOV $AI').cmd).toMatchObject({ sym: 'AI', args: [] })
+    // A bare marker names nothing and is said to be not applied.
+    expect(props('IMOV THEME').applied.ignored).toEqual(['THEME'])
+  })
+
+  it('the marker in the registry is the one args.js names', async () => {
+    const { THEME_MARKER } = await import('./args')
+    expect(BY_CODE.IMOV.market.args.find((s) => s.rest)).toMatchObject({ kind: 'themeName', prop: 'theme', marker: THEME_MARKER })
+    expect(BY_CODE.IMOV.ticker.args.find((s) => s.rest)).toMatchObject({ marker: THEME_MARKER })
+    expect(resolvePanel({ code: 'IMOV', args: ['THEME', 'AI_SOFTWARE', '1W'] }, {}, {}))
+      .toMatchObject({ state: 'ready', name: 'Imov', props: { theme: 'AI_SOFTWARE', win: '1W' } })
   })
 
   it('resolves to the Imov panel either way, and is a row-command panel (onRun / onRows)', () => {
@@ -60,7 +84,11 @@ describe('IMOV through the grammar', () => {
       panel={{ id: 'p1', code: 'IMOV', sym: 'NVDA', args: ['1W'] }} />)
     await screen.findByTestId('stub-imov')
     expect(seen.Imov).toMatchObject({ sym: 'NVDA', win: '1W' })
-    expect(seen.Imov.onRun).toBe(onRun)
+    // `here` re-runs a command in this panel's own slot (IMOV writing a picked theme into its args).
+    seen.Imov.onRun('NVDA IMOV THEME SEMICONDUCTORS', { here: true })
+    expect(onRun).toHaveBeenLastCalledWith('NVDA IMOV THEME SEMICONDUCTORS', { here: true, slot: 1 })
+    seen.Imov.onRun('$AMD', { keepFunction: true })
+    expect(onRun).toHaveBeenLastCalledWith('$AMD', { keepFunction: true })
     expect(typeof seen.Imov.onRows).toBe('function')
   })
 })

@@ -20,6 +20,8 @@ The registry here is the SINGLE SOURCE OF TRUTH consumed by:
 """
 from __future__ import annotations
 
+import re
+
 import logging
 import math
 import threading
@@ -1257,7 +1259,9 @@ def library_search(q: str, limit: int = 40, published_only: bool = False) -> lis
                             or is_published(hit["universe"], hit["metric"])):
         scored.append((0, hit))
 
-    toks = _tokens(raw)
+    # ⭐ "A/D" IS ONE WORD TO A TRADER, two single letters to the tokeniser — and "A" + "D"
+    # match nearly every row. Read it as the phrase it abbreviates (mirrored in breadthLibrary.js).
+    toks = _tokens(re.sub(r"\bA\s*/\s*D\b", " ADVANCE DECLINE ", raw, flags=re.I))
     label_to_id = {_bu.label(u).upper(): u for u in _bu.UNIVERSE_IDS}
     want_universes = {label_to_id[t] for t in toks if t in label_to_id}
     rest = [_QUERY_SYNONYMS.get(t, t) for t in toks
@@ -1373,6 +1377,19 @@ def availability() -> dict:
         ex = _exchange_availability(uid)
         if ex is not None:                       # ⭐ NYSE/NASDAQ: ask THEIR authority, never the V1 store
             out[uid] = ex
+            continue
+        # ⭐ US UNDER V2: ask the V2 authority too (2026-10-07). The V1 store still holds rows the
+        # member never sees (it reported a session the served chart did not have yet), and the
+        # library's "data through" line is a promise about the SERVED series.
+        try:
+            from api.services import breadth_authority as _ba
+            v2_ds = _ba.universe_dates(uid)
+        except Exception:
+            v2_ds = None
+        if v2_ds is not None:
+            out[uid] = {"state": "available" if v2_ds else "not_populated", "rows": len(v2_ds),
+                        "first": v2_ds[0] if v2_ds else None, "last": v2_ds[-1] if v2_ds else None,
+                        "floor": floor, "authority": "breadth-v2"}
             continue
         try:
             st = _store.stats(uid) or {}

@@ -14,8 +14,8 @@
 .grid thead th { color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: var(--ls-wide); text-transform: uppercase; white-space: nowrap; }
 .grid .num { text-align: right; white-space: nowrap; }
 .num { text-align: right; white-space: nowrap; }
-.up { color: var(--gain); }
-.down { color: var(--loss); }
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
 .link { color: var(--text); text-decoration: underline; }
 .toggle { display: flex; gap: 6px; flex-wrap: wrap; }
 .toggleBtn {

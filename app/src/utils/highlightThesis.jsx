@@ -23,7 +23,7 @@ export default function HighlightThesis({ text }) {
         }
         // ± percentage → the one colored signal
         if (/^[+-]\d+(?:\.\d+)?%$/.test(p)) {
-          const color = p[0] === '-' ? 'var(--loss)' : 'var(--gain)'
+          const color = p[0] === '-' ? 'var(--danger-ink)' : 'var(--success-ink)'
           return <span key={i} style={{ color, fontWeight: 600 }}>{p}</span>
         }
         return <span key={i}>{p}</span>

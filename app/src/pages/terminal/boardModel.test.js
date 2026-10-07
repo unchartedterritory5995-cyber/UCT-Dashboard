@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DEFAULT_LAYOUT, MAX_CHANNELS, MAX_VISIBLE, addChannel, applyChannelSym,
   boardAddress, channelSyms, closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare,
-  findBoard, groupLetter, isGuardedStatus, migrateV1, normalizeLayout, openBoard, panelSym, popoutHref, presetFor,
+  findBoard, groupLetter, isGuardedStatus, migrateV1, normalizeLayout, openBoard, panelBeside, panelSym, popoutHref, presetFor,
   readLayout, readLibrary, recentBoards, markOpened, saveBoard, serializeLayout, setCount, setPanelChannel,
   setPreset, toggleFavorite, undoClose, emptyLibrary,
 } from './boardModel'
@@ -264,5 +264,31 @@ describe('recents de-duplicate one security spelled two ways (audit #22)', () =>
     l = applyChannelSym(l, 'A', 'NVDA')
     l = applyChannelSym(l, 'A', 'BRK.B')
     expect(l.channels.find((c) => c.id === 'A').history).toEqual(['BRK.B', 'NVDA'])
+  })
+})
+
+describe('panelBeside: an "open X" link in a list panel lands beside the list', () => {
+  const board = (count, codes) => normalizeLayout({ ...DEFAULT_LAYOUT, count, focus: 0,
+    panels: codes.map((code, i) => ({ id: `p${i + 1}`, code, channel: i === 0 ? null : 'A', sym: null, args: [] })) })
+
+  it('with room, inserts a fresh panel right after the list, on the list panel channel', () => {
+    const l = board(2, ['MOST', 'GP', 'FA', 'DES'])
+    const out = panelBeside(l, 0, 'MOVE')
+    expect(out).toMatchObject({ index: 1, added: true })
+    expect(out.layout.count).toBe(3)
+    expect(out.layout.panels.slice(0, 3).map((p) => p.code)).toEqual(['MOST', 'MOVE', 'GP'])
+    expect(out.layout.panels[1].channel).toBe(null)          // MOST is unlinked, so is its story
+    expect(new Set(out.layout.panels.map((p) => p.id)).size).toBe(out.layout.panels.length)
+  })
+
+  it('reuses the next panel when it already shows that function (no stacking)', () => {
+    const l = board(2, ['MOST', 'MOVE', 'FA', 'DES'])
+    expect(panelBeside(l, 0, 'MOVE')).toMatchObject({ index: 1, added: false, layout: l })
+  })
+
+  it('on a full board, reuses the next visible panel and wraps from the last', () => {
+    const l = board(MAX_VISIBLE, ['GP', 'FA', 'DES', 'RRG'])
+    expect(panelBeside(l, 1, 'MOVE')).toMatchObject({ index: 2, added: false })
+    expect(panelBeside(l, MAX_VISIBLE - 1, 'GP')).toMatchObject({ index: 0, added: false })
   })
 })

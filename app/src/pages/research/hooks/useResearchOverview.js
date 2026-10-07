@@ -51,12 +51,27 @@ export default function useResearchOverview(rawSym, { header = true } = {}) {
 
   const live = header ? prices && prices[sym] : null
 
+  // Completeness audit 2026-10-07 (DES): the key-stats card printed "—" while its read was in
+  // flight AND when the vendors failed AND when there was genuinely nothing on file. The compact
+  // fundamentals read now carries `status` ("ok" | "unavailable" | "empty"); a pre-status cached
+  // payload has none and counts as ok. `statsState` is what the card draws from.
+  const statsState = !sym ? 'idle'
+    : !stats ? 'loading'
+      : !stats.ok ? 'error'
+        : stats.body?.status === 'unavailable' ? 'unavailable'
+          : stats.body?.status === 'empty' ? 'empty' : 'ok'
+
   return useMemo(() => ({
     sym,
     meta: (meta && meta.ok ? meta.body : null) || {},
     stats: (stats && stats.ok ? stats.body : null) || {},
     analyst: (analyst && analyst.ok ? analyst.body : null) || {},
     ai: (ai && ai.ok ? ai.body : null) || {},
+    statsState,
+    retryStats: mutateStats,
+    // every composing read the tab draws (header-only reads excluded) is still in flight
+    loading: Boolean(sym) && !stats && !analyst && !ai,
+    aiLoading: Boolean(sym) && !ai,
     live: live || {},
     // tq-panels: `/api/earnings/intel/{sym}` answers 404 when the vendor holds no
     // consensus/target record for the name. That is "no earnings record", not an
@@ -65,5 +80,5 @@ export default function useResearchOverview(rawSym, { header = true } = {}) {
     error: Boolean((meta && !meta.ok) || (stats && !stats.ok)
       || (analyst && !analyst.ok && analyst.httpStatus !== 404) || (ai && !ai.ok)),
     mutate,
-  }), [sym, meta, stats, analyst, ai, live, mutate])
+  }), [sym, meta, stats, analyst, ai, live, mutate, statsState, mutateStats])
 }

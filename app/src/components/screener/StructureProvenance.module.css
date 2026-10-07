@@ -85,8 +85,8 @@
    token to silence a lint warning would trade a warning for a real AA failure
    on the bearish half of every card. The light theme, where these two are the
    ones that fail, is handled by the override block at the foot of this file. */
-.bias[data-bias='bullish'] { color: var(--gain); }
-.bias[data-bias='bearish'] { color: var(--loss); }
+.bias[data-bias='bullish'] { color: var(--success-ink); }
+.bias[data-bias='bearish'] { color: var(--danger-ink); }
 .bias[data-bias='neutral'] { color: var(--text-muted); }
 
 .coverage { font-size: 12px; color: var(--text-muted); }
@@ -157,7 +157,7 @@
   display: inline-block; margin-right: 6px;
   font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
   padding: 1px 6px; border-radius: 999px;
-  border: 1px solid var(--loss); color: var(--loss);
+  border: 1px solid var(--loss); color: var(--danger-ink);
 }
 
 .refusedMeasure { display: flex; flex-direction: column; gap: 6px; }
@@ -184,7 +184,7 @@
 }
 
 .loading, .error { font-size: 13px; padding: 12px; }
-.error { color: var(--loss); }
+.error { color: var(--danger-ink); }
 
 /* ⛔ THE ONLY CONTROL IN THE PANEL IS THIS SUMMARY, and at 12px on one line it
    was a ~19px tap target — under half of `--tap-min` (44px) on the phone sheet
@@ -213,8 +213,8 @@
  * `--loss` 5.8:1, `--info` 6.6:1 on `--bg-surface`. Scoped to
  * `[data-theme="light"]` so the dark palette is byte-identical to what shipped.
  * These ratios are arithmetic, like every other number in this file. */
-:global([data-theme='light']) .bias[data-bias='bullish'] { color: var(--gain); }
-:global([data-theme='light']) .bias[data-bias='bearish'] { color: var(--loss); }
+:global([data-theme='light']) .bias[data-bias='bullish'] { color: var(--success-ink); }
+:global([data-theme='light']) .bias[data-bias='bearish'] { color: var(--danger-ink); }
 :global([data-theme='light']) .criterion.sourced { border-left-color: var(--info); }
 :global([data-theme='light']) .criterion.refused { border-left-color: var(--loss); }
-:global([data-theme='light']) .missingTag { border-color: var(--loss); color: var(--loss); }
+:global([data-theme='light']) .missingTag { border-color: var(--loss); color: var(--danger-ink); }

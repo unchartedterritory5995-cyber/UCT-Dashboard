@@ -139,6 +139,28 @@ export function formatPercent(value, { decimals = 2, signed = false, absent = AB
   return `${sign}${body}%`
 }
 
+/**
+ * A percent the SERVER already rounded, printed as sent: "3.27%", "3%", "87.5%" — ungrouped,
+ * no padded zeros, at most three decimals (a server round to 1 or 2 places reads exactly as
+ * sent). For a column whose server-side precision varies by row, where fixed decimals would
+ * invent zeros ("3.00%") the server never sent.
+ *
+ * ⭐ It is the `${v}%` the terminal panels (RISK, ATTN, ERX, SEAS, BRD, U20) wrote by hand,
+ * byte for byte, for every value a server round produces (oracle-tested at each call site),
+ * with two differences that are fixes: a missing or non-numeric value is `absent`, never
+ * "NaN%" or "—%"; and a numeric STRING ("3.5") is read as its number.
+ *
+ * @param {*} value    percent units
+ * @param {{absent?: *}} [options]
+ */
+export function formatPercentAsSent(value, { absent = ABSENT } = {}) {
+  const n = value == null || value === '' ? NaN : Number(value)
+  if (!Number.isFinite(n)) return absent
+  const body = n.toLocaleString(LOCALE, { useGrouping: false, maximumFractionDigits: 3 })
+  // `${-0}` is "0"; the locale formatter writes "-0". A value that rounds to zero is zero.
+  return `${body === '-0' ? '0' : body}%`
+}
+
 // --------------------------------------------------------------------------
 // 3. CURRENCY
 // --------------------------------------------------------------------------
@@ -151,12 +173,21 @@ export function formatPercent(value, { decimals = 2, signed = false, absent = AB
  * existing render cannot move by a thousands separator appearing where there
  * was none.
  *
+ * `grouping: true` adds the thousands separator ("$1,234", "-$12,500") for a money AMOUNT a
+ * member reads as a total — a P&L, a block's premium, a per-contract cost — rather than a price
+ * compared digit by digit. Rounding there is the locale formatter's half-away-from-zero, and a
+ * value that ROUNDS to zero is zero ("$0", never "-$0": `formatPercent`'s rule). The default
+ * (`grouping: false`) is unchanged, byte for byte.
+ *
  * @param {*} value
- * @param {{decimals?: number, absent?: *}} [options]
+ * @param {{decimals?: number, grouping?: boolean, absent?: *}} [options]
  */
-export function formatCurrency(value, { decimals = 2, absent = ABSENT } = {}) {
+export function formatCurrency(value, { decimals = 2, grouping = false, absent = ABSENT } = {}) {
   if (!Number.isFinite(value)) return absent
-  return signOutside('$', Number(value).toFixed(decimals))
+  if (!grouping) return signOutside('$', Number(value).toFixed(decimals))
+  let body = Number(value).toLocaleString(LOCALE, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  if (body.startsWith('-') && Number(body.slice(1).replace(/,/g, '')) === 0) body = body.slice(1)
+  return signOutside('$', body)
 }
 
 /** A currency prefix goes INSIDE the minus: "-$2.90B", never "$-2.90B".

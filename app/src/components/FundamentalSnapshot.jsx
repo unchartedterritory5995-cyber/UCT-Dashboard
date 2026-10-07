@@ -26,7 +26,7 @@ function letterColor(l) {
   if (l === 'D') return 'var(--grade-d)'
   return 'var(--grade-f)'
 }
-const signColor = (v) => (v == null ? undefined : v > 0 ? 'var(--gain)' : v < 0 ? 'var(--loss)' : undefined)
+const signColor = (v) => (v == null ? undefined : v > 0 ? 'var(--success-ink)' : v < 0 ? 'var(--danger-ink)' : undefined)
 
 // formatters
 const dash = '—'
@@ -217,7 +217,7 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
           <div className={styles.groupLbl}>Stock Checkup</div>
           {checkup.map((c, i) => (
             <div key={`${c.label}-${i}`} className={styles.checkRow}>
-              <span className={styles.checkIcon} style={{ color: c.status === 'pass' ? 'var(--gain)' : c.status === 'fail' ? 'var(--loss)' : 'var(--text-muted)' }}>
+              <span className={styles.checkIcon} style={{ color: c.status === 'pass' ? 'var(--success-ink)' : c.status === 'fail' ? 'var(--danger-ink)' : 'var(--text-muted)' }}>
                 {c.status === 'pass' ? <UIcon name="check" size={13} /> : c.status === 'fail' ? <UIcon name="x" size={13} /> : '–'}
               </span>
               <span className={styles.checkLbl}>{c.label}</span>

@@ -1,6 +1,6 @@
 .intro { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); }
 
-.error { margin: 0 0 10px; font-size: 12.5px; color: var(--color-danger); }
+.error { margin: 0 0 10px; font-size: 12.5px; color: var(--danger-ink); }
 
 .name { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
 .nameLabel { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
@@ -30,8 +30,8 @@
 
 .choiceLabel { font-size: 13.5px; font-weight: 600; }
 .choiceDetail { font-size: 12px; color: var(--text-muted); }
-.choiceReason { font-size: 11.5px; color: var(--color-danger); }
+.choiceReason { font-size: 11.5px; color: var(--danger-ink); }
 
-.note { margin: 12px 0 0; font-size: 12.5px; color: var(--gain); }
+.note { margin: 12px 0 0; font-size: 12.5px; color: var(--success-ink); }
 
 .footer { display: flex; justify-content: flex-end; gap: 8px; }

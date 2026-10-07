@@ -128,8 +128,8 @@
      top + left edges are drawn by .workspaceBodyMerged's inset shadow; the outer
      bottom by its ::after; the outer right by the rightmost widgets' own border. */
   border: none;
-  border-right: 1px solid #2b3540;
-  border-bottom: 1px solid #2b3540;
+  border-right: 1px solid var(--border-accent);
+  border-bottom: 1px solid var(--border-accent);
   border-radius: 0;
 }
 
@@ -143,18 +143,18 @@
    grey thumb that reads on any canvas. Still fully mouse-wheel scrollable. */
 .widgetBody, .widgetBody * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(140, 140, 140, 0.4) transparent;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 40%, transparent) transparent;
 }
 .widgetBody ::-webkit-scrollbar, .widgetBody::-webkit-scrollbar { width: 8px; height: 8px; }
 .widgetBody ::-webkit-scrollbar-track, .widgetBody::-webkit-scrollbar-track { background: transparent; }
 .widgetBody ::-webkit-scrollbar-thumb, .widgetBody::-webkit-scrollbar-thumb {
-  background: rgba(140, 140, 140, 0.38);
+  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
   border-radius: var(--radius-lg);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 .widgetBody ::-webkit-scrollbar-thumb:hover, .widgetBody::-webkit-scrollbar-thumb:hover {
-  background: rgba(140, 140, 140, 0.6);
+  background: color-mix(in srgb, var(--text-muted) 60%, transparent);
   background-clip: padding-box;
 }
 .widgetBody ::-webkit-scrollbar-corner, .widgetBody::-webkit-scrollbar-corner { background: transparent; }
@@ -241,7 +241,7 @@
 .chartTabActive {
   color: var(--accent, #dcbb5e);
   border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
-  background: rgba(220, 187, 94, 0.10);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
 }
 
 .chartTabLabel {
@@ -274,15 +274,15 @@
   cursor: pointer;
   line-height: 1;
 }
-.chartTabClose:hover { opacity: 1; color: var(--loss); background: rgba(255, 107, 116, 0.12); }
+.chartTabClose:hover { opacity: 1; color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 12%, transparent); }
 
 /* Armed state — first click on × asks for a confirming second click. */
 .chartTabCloseConfirm,
 .chartTabCloseConfirm:hover {
   opacity: 1;
-  color: var(--loss);
-  background: rgba(255, 107, 116, 0.22);
-  box-shadow: 0 0 0 1px rgba(255, 107, 116, 0.55);
+  color: var(--danger-ink);
+  background: color-mix(in srgb, var(--loss) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--loss) 55%, transparent);
   font-size: 10px;
   font-weight: 700;
 }
@@ -307,7 +307,7 @@
 .chartTabAdd:hover {
   color: var(--accent, #dcbb5e);
   border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 
 /* The small color-group dot on an extra tab — mirrors the widget color dot so
@@ -433,8 +433,8 @@
   line-height: 1;
   opacity: 0.55;
 }
-.wtabClose:hover { opacity: 1; color: var(--loss); background: rgba(255, 107, 116, 0.12); }
-.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: var(--gain); background: rgba(74, 222, 128, 0.14); }
+.wtabClose:hover { opacity: 1; color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 12%, transparent); }
+.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: var(--success-ink); background: color-mix(in srgb, var(--gain) 14%, transparent); }
 .wtabAdd {
   flex: 0 0 auto;
   background: transparent;
@@ -513,7 +513,7 @@
 .tfBtnActive {
   color: var(--accent, #dcbb5e);
   border-color: var(--accent, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 
 /* ⭐ Create Indicator's RIGHT WORKSPACE DOCK (ChartPane). Open: the pane becomes
@@ -599,7 +599,7 @@
   gap: 6px;
   padding: 4px 9px;
   border-radius: 5px;
-  background: rgba(128, 128, 128, 0.16);
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   /* Match the regular-hours number's size (owner ask — don't shrink the values). */
@@ -643,7 +643,7 @@
 .chartSettingsBtn:hover {
   color: var(--accent, #dcbb5e);
   border-color: var(--border, #2e3127);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 
 /* Breadth-only Line/Candles quick-toggle — a visible labeled pill in the TF bar. */
@@ -673,7 +673,7 @@
 .breadthLineBtn:hover {
   color: var(--accent, #dcbb5e);
   border-color: var(--accent, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 /* No distinct "active" (line-on) styling by design: the button's LABEL already
    flips to CANDLES when line mode is on, so both states share the one look above
@@ -703,7 +703,7 @@
 .viewHoldingsBtn:hover {
   color: var(--accent, #dcbb5e);
   border-color: var(--accent, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
@@ -793,7 +793,7 @@
 .sessionBtnActive,
 .sessionBtnActive:hover {
   color: var(--accent, #dcbb5e);
-  background: rgba(220, 187, 94, 0.08);
+  background: color-mix(in srgb, var(--ut-gold) 8%, transparent);
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next
@@ -889,9 +889,9 @@
 }
 
 /* Session tone → dot color + soft glow. Text stays muted to blend with the row. */
-.clkOpen   { --clk-tone: #22c45c; --clk-glow: rgba(34, 196, 92, 0.55); }
-.clkExt    { --clk-tone: #d0a43f; --clk-glow: rgba(208, 164, 63, 0.5); }
-.clkClosed { --clk-tone: #6b7280; --clk-glow: transparent; }
+.clkOpen   { --clk-tone: var(--gain); --clk-glow: color-mix(in srgb, var(--gain) 55%, transparent); }
+.clkExt    { --clk-tone: var(--warn); --clk-glow: color-mix(in srgb, var(--warn) 50%, transparent); }
+.clkClosed { --clk-tone: var(--text-muted); --clk-glow: transparent; }
 
 @keyframes clockPulse {
   0%, 100% { opacity: 1; }
@@ -908,8 +908,8 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 8;
-  background: rgba(10, 11, 9, 0.94);
-  border: 1px solid rgba(220, 187, 94, 0.5);
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 50%, transparent);
   color: var(--text-bright);
   font-size: 12px;
   font-weight: 600;
@@ -1284,7 +1284,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; font-size: 11px; padding: 6px 10px; font-family: inherit;
 }
-.menuDel:hover { color: var(--danger, #f87171); }
+.menuDel:hover { color: var(--danger, var(--danger-ink)); }
 /* Inline delete confirmation shown in place of the ✕ */
 .delConfirm { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; white-space: nowrap; }
 .delConfirmMsg { font-size: 10px; color: var(--text-muted, #9ca3af); }
@@ -1292,7 +1292,7 @@
   border: 1px solid var(--border, #1f2937); border-radius: 3px; cursor: pointer;
   font-size: 10px; font-family: inherit; padding: 2px 7px; line-height: 1.3;
 }
-.delConfirmYes { background: var(--danger, #f87171); border-color: var(--danger, #f87171); color: var(--bg); font-weight: 600; }
+.delConfirmYes { background: var(--danger, var(--loss)); border-color: var(--danger, var(--loss)); color: var(--bg); font-weight: 600; }
 .delConfirmYes:hover { filter: brightness(1.08); }
 .delConfirmNo { background: transparent; color: var(--text, #e5e7eb); }
 .delConfirmNo:hover { background: var(--bg-hover, #1f2937); }
@@ -1308,7 +1308,7 @@
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: var(--text-muted, #9ca3af); cursor: pointer;
 }
-.menuErr { font-size: 10px; color: var(--danger, #f87171); }
+.menuErr { font-size: 10px; color: var(--danger, var(--danger-ink)); }
 
 .workspaceBody {
   flex: 1; min-height: 0; min-width: 0;
@@ -1331,7 +1331,7 @@
   padding: 0;
   /* Outer TOP + LEFT seam (widgets only border right/bottom now). Inset shadow, not
      a border, so it adds a 1px hairline without resizing the box (no grid shift). */
-  box-shadow: inset 1px 1px 0 0 #2b3540;
+  box-shadow: inset 1px 1px 0 0 var(--border-accent);
 }
 /* Thin seam line at the very bottom — the SAME #2b3540 divider that separates the
    merged widgets — so the blended board is cleanly separated from the OS taskbar
@@ -1345,7 +1345,7 @@
   right: 0;
   bottom: 0;
   height: 1px;
-  background: #2b3540;
+  background: var(--border-accent);
   pointer-events: none;
   z-index: 10;
 }
@@ -1375,9 +1375,9 @@
    discoverable; while a drag is active EVERY seam shows it so the whole
    split-pane grid is visible as you drag. */
 .seamV:hover,
-.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(220, 187, 94,0.55) 3px, rgba(220, 187, 94,0.55) 5px, transparent 5px); }
+.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, color-mix(in srgb, var(--ut-gold) 55%, transparent) 3px, color-mix(in srgb, var(--ut-gold) 55%, transparent) 5px, transparent 5px); }
 .seamH:hover,
-.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(220, 187, 94,0.55) 3px, rgba(220, 187, 94,0.55) 5px, transparent 5px); }
+.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, color-mix(in srgb, var(--ut-gold) 55%, transparent) 3px, color-mix(in srgb, var(--ut-gold) 55%, transparent) 5px, transparent 5px); }
 
 /* Widget body becomes the container-query root for its embedded child page —
    container queries inside Watchlists / ThemeTrackerPage / Screener
@@ -1489,7 +1489,7 @@
   content: '';
   position: absolute;
   width: 6px; height: 6px;
-  border: 0 solid rgba(220, 187, 94, 0.55);
+  border: 0 solid color-mix(in srgb, var(--ut-gold) 55%, transparent);
   transition: border-color 0.12s ease;
 }
 :global(.react-grid-item):hover .rzCorner::after { border-color: var(--accent); }

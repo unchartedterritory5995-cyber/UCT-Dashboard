@@ -35,13 +35,13 @@
 }
 
 .tonePositive {
-  color: var(--gain);
+  color: var(--success-ink);
   background: var(--gain-bg);
   border-color: var(--gain-border);
 }
 
 .toneNegative {
-  color: var(--loss);
+  color: var(--danger-ink);
   background: var(--loss-bg);
   border-color: var(--loss-border);
 }

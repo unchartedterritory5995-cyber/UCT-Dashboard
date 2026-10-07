@@ -3,6 +3,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import { fractionPct } from '../researchFormat'
 import styles from './OptionsChainTab.module.css'
 import OffNotice from '../../optionsAnalytics/OffNotice'
+import FailedRead from '../../optionsAnalytics/FailedRead'
 import { num as optNum } from '../../optionsAnalytics/optionsFormat'
 import { memberText } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
@@ -76,7 +77,7 @@ function ImpliedVsRealized({ sym }) {
 export default function IvHistoryPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
   const key = s ? `/api/research/iv-history/${encodeURIComponent(s)}` : null
-  const { data, error } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
   usePanelFreshness(data && !data.paywalled && !error
     ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.covers_to || null } }
@@ -87,9 +88,8 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
   if (offNotice && key && !data && !error) return <div className={styles.note} data-testid="feature-loading">Loading IV history for {s}…</div>
   if (!key || error?.status === 404 || data?.paywalled) return null
   if (error) {
-    return <div className={styles.note} data-testid="iv-history-unavailable">
-      The IV history is unavailable right now. That does not mean {s} has none.
-    </div>
+    return <FailedRead testId="iv-history-unavailable" retry={mutate}
+      title={`The IV history is unavailable right now. That does not mean ${s} has none.`} />
   }
   if (!data || !KNOWN.has(data.status)) return null
 
